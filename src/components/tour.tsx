@@ -9,10 +9,11 @@ const STEPS = [
   { href: "/dashboards", title: "Build your dashboard", body: "Drag metrics from the Pool onto the canvas. Right-click a widget → Change visualization, then Save as Widget." },
   { href: "/dashboards", title: "Ask without leaving", body: "Right-click the Cost widget → Ask a question to Ben. Switch “View as” to Ben, answer with a correction, switch back and accept." },
   { href: "/analyze", title: "Analyze", body: "Run “What drives Cost?” or drop metrics yourself. Right-click a result → Add to dashboard." },
+  { href: "/decks", title: "Make a deck", body: "Open the board update, drag Cost onto a slide, add a text and an arrow, then Export PowerPoint." },
   { href: "/dashboards", title: "Share", body: "Share your dashboard with Anna, then “View as” Anna to see what she gets." },
 ];
 
-const KEY = "ziffr-tour-v2";
+const KEY = "ziffr-tour-v3";
 
 export function Tour() {
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));

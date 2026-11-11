@@ -18,6 +18,7 @@ export async function setViewer(id: string) {
 
 export async function resetDemo() {
   await db.rpc("prototype_reset");
+  await db.rpc("prototype_reset_decks");
   revalidatePath("/", "layout");
   redirect("/");
 }

@@ -38,6 +38,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <nav aria-label="Main" className="order-3 -mx-1.5 flex w-full flex-wrap gap-x-0.5 sm:order-none sm:mx-0 sm:w-auto sm:gap-x-1">
               <NavLink href="/dashboards">Dashboards</NavLink>
               <NavLink href="/analyze">Analyze</NavLink>
+              <NavLink href="/decks">Decks</NavLink>
               <NavLink href="/metrics">Metrics</NavLink>
               <NavLink href="/sources">Sources</NavLink>
               <NavLink href="/actions">
