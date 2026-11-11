@@ -1,0 +1,117 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { db } from "@/lib/db";
+import { getAllSeries, getProfileMap } from "@/lib/data";
+import { viewerId } from "@/lib/viewer";
+import { formatValue, periodLabel } from "@/lib/format";
+import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
+import { MetricChart } from "@/views/metric-chart";
+import { Avatar } from "@/components/avatar";
+import { StatusBadge } from "@/components/status";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import type { Action, ThreadMessage } from "@/lib/types";
+
+export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
+  const id = Number((await params).id);
+  const [{ data: action }, { data: msgs }, { metrics, series, observations }, people, viewer] = await Promise.all([
+    db.from("actions").select("*").eq("id", id).single(),
+    db.from("thread_messages").select("*").eq("action_id", id).order("created_at"),
+    getAllSeries(),
+    getProfileMap(),
+    viewerId(),
+  ]);
+  if (!action) notFound();
+  const a = action as Action;
+  const m = metrics.find((x) => x.id === a.metric_id)!;
+  const pts = series[m.slug] ?? [];
+  const idx = pts.findIndex((p) => p.period === a.period_start);
+  const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));
+  const obs = observations.find((o) => o.id === a.observation_id);
+  const isAsker = viewer === a.asker_id;
+  const isAssignee = viewer === a.assignee_id;
+  const isOwner = viewer === m.owner_id;
+  const thread = (msgs ?? []) as ThreadMessage[];
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <Link href="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
+      <div className="rounded-xl border bg-background p-5">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <StatusBadge status={a.status} />
+          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link>· {periodLabel(a.period_start, m.period)}
+          {obs && <>· <span className="font-medium text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
+        </div>
+        <div className="mt-3 flex gap-3">
+          <Avatar p={people[a.asker_id]} />
+          <div>
+            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> asked <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
+            <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
+          </div>
+        </div>
+        {window.length > 1 && <div className="mt-4"><MetricChart metric={m} points={window} markers={[a.period_start]} height={180} /></div>}
+      </div>
+
+      <ol className="mt-4 space-y-3">
+        {thread.map((t) => (
+          <li key={t.id} className="flex gap-3 rounded-xl border bg-background p-4">
+            <Avatar p={people[t.author_id]} />
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span> · {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
+              <p className="mt-0.5 text-sm whitespace-pre-wrap">{t.body}</p>
+              {t.correction_value !== null && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-2 text-sm">
+                  <PencilLine className="size-4 text-primary" />
+                  Correction: <span className="line-through text-muted-foreground">{formatValue(m, obs?.original_value ?? obs?.value)}</span> → <span className="font-semibold">{formatValue(m, Number(t.correction_value))}</span>
+                  <span className="ml-auto text-xs capitalize text-muted-foreground">{t.correction_status}</span>
+                  {t.correction_status === "proposed" && isOwner && (
+                    <span className="flex gap-1.5">
+                      <form action={decideCorrection.bind(null, t.id, true)}><Button type="submit" size="sm"><Check /> Accept</Button></form>
+                      <form action={decideCorrection.bind(null, t.id, false)}><Button type="submit" size="sm" variant="outline"><X /> Decline</Button></form>
+                    </span>
+                  )}
+                  {t.correction_status === "proposed" && !isOwner && <span className="w-full text-xs text-muted-foreground">Waiting for the metric owner, {people[m.owner_id]?.name.split(" ")[0]}, to accept.</span>}
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {a.status !== "closed" && (isAsker || isAssignee || isOwner) ? (
+        <form action={replyToAction.bind(null, a.id)} className="mt-4 rounded-xl border bg-background p-4">
+          {isAsker && !isAssignee && a.status === "open" && (
+            <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Waiting for {people[a.assignee_id]?.name.split(" ")[0]}. To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “View as” (top right).
+            </p>
+          )}
+          <Textarea name="body" rows={3} placeholder={isAssignee ? "Explain what happened…" : "Reply…"} />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {obs && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <PencilLine className="size-4" /> Propose a correction
+                <Input name="correction" type="number" step="any" placeholder={String(obs.value)} className="h-8 w-32" />
+              </label>
+            )}
+            <div className="ml-auto flex gap-2">
+              {isAsker && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
+              <Button type="submit">Reply</Button>
+            </div>
+          </div>
+        </form>
+      ) : a.status === "closed" ? (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+          Closed.
+          {isAsker && <form action={setActionStatus.bind(null, a.id, "open")}><Button type="submit" variant="outline" size="sm">Reopen</Button></form>}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+          You’re viewing as {people[viewer]?.name}. Switch “View as” to {people[a.assignee_id]?.name.split(" ")[0]} (top right) to answer this.
+        </p>
+      )}
+    </div>
+  );
+}

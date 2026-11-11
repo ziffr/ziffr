@@ -1,0 +1,1 @@
+select prototype_reset();
