@@ -138,8 +138,9 @@ export async function replyToAction(actionId: number, form: FormData) {
 }
 
 export async function decideCorrection(messageId: number, accept: boolean) {
-  const { data: msg } = await db.from("thread_messages").select("*, actions(*)").eq("id", messageId).single();
-  if (!msg) return;
+  const { data: msg } = await db.from("thread_messages").select("*, actions(*, metrics(owner_id))").eq("id", messageId).single();
+  // Only the Metric Owner accepts or declines a Correction (GLOSSARY: Correction).
+  if (!msg || msg.actions.metrics.owner_id !== (await viewerId()) || msg.correction_status !== "proposed") return;
   if (accept && msg.actions.observation_id) {
     const { data: obs } = await db.from("observations").select("*").eq("id", msg.actions.observation_id).single();
     await db
@@ -152,6 +153,8 @@ export async function decideCorrection(messageId: number, accept: boolean) {
 }
 
 export async function setActionStatus(actionId: number, status: "open" | "closed") {
-  await db.from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId);
+  if (status !== "open" && status !== "closed") return;
+  // Only the asker closes or reopens an Action.
+  await db.from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("asker_id", await viewerId());
   revalidatePath("/", "layout");
 }
