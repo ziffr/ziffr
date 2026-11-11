@@ -94,6 +94,20 @@ _Avoid_: Stats, model, insight
 A ready-made analysis setup that runs with one click, e.g. "What drives Cost?"
 _Avoid_: Preset analysis, template
 
+### Decks
+
+**Deck**:
+An ordered set of slides that a user designs from widgets, text, arrows and shapes, and exports as a presentation.
+_Avoid_: Presentation, slideshow, report
+
+**Slide**:
+One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom.
+_Avoid_: Page, frame, board
+
+**Snapshot**:
+The values a widget shows at the moment a deck is exported, stamped with that date. An exported deck never changes when observations do.
+_Avoid_: Copy, freeze, export data
+
 ### Sharing
 
 **Share**:
