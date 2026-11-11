@@ -79,7 +79,10 @@ export type IntakeEntry = {
 };
 
 export type ActionStatus = "open" | "answered" | "closed";
+export type ActionKind = "question" | "task";
 export type Action = {
+  kind: ActionKind;
+  due_date: string | null;
   id: number;
   metric_id: number;
   period_start: string;
@@ -103,3 +106,41 @@ export type ThreadMessage = {
 };
 
 export type Dashboard = { id: number; name: string; owner_id: string };
+
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers";
+
+export type WidgetSettings = {
+  window?: number;
+  showTarget?: boolean;
+  showForecast?: boolean;
+  rows?: number;
+};
+
+export type Widget = {
+  id: number;
+  owner_id: string;
+  dashboard_id: number | null;
+  saved: boolean;
+  title: string | null;
+  template: TemplateId;
+  metric_ids: number[];
+  settings: WidgetSettings;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type ShareRole = "viewer" | "editor";
+export type Share = { id: number; object_type: "metric" | "dashboard"; object_id: number; user_id: string; role: ShareRole };
+
+/** Everything a canvas needs to draw widgets client-side. */
+export type CanvasData = {
+  viewer: string;
+  metrics: Metric[];
+  series: Record<string, Point[]>;
+  people: Profile[];
+  openActions: Record<number, number>;
+  /** Submitters per metric id (from Tokens). */
+  submitters: Record<number, string[]>;
+};

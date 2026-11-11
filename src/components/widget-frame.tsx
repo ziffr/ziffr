@@ -1,0 +1,272 @@
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { WidgetBody, widgetMetrics } from "@/views/widget-body";
+import { MetricChart } from "@/views/metric-chart";
+import { METRIC_TEMPLATES, TEMPLATES } from "@/views/templates";
+import { assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
+import { formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
+import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { StatusDot } from "@/components/status";
+
+export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number };
+
+type Props = {
+  widget: FrameWidget;
+  data: CanvasData;
+  /** Dashboards the viewer may add widgets to (for "Add to dashboard"). */
+  targets: { id: number; name: string }[];
+  /** Widget lives on a dashboard the viewer may edit: restyle and remove persist. */
+  editable?: boolean;
+  /** Analysis results: restyling isn't offered. */
+  className?: string;
+  dragHandle?: boolean;
+};
+
+type Panel = "history" | "ask" | null;
+
+export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle }: Props) {
+  const router = useRouter();
+  const frame = useRef<HTMLDivElement>(null);
+  const [panel, setPanel] = useState<Panel>(null);
+  const [period, setPeriod] = useState<string | null>(null);
+  const [kind, setKind] = useState<ActionKind>("question");
+  const [, start] = useTransition();
+  const ms = widgetMetrics(widget, data);
+  const m = ms[0];
+  const isMetricWidget = TEMPLATES[widget.template].kind === "metric";
+  const analysisTitle: Record<string, () => string> = {
+    forecast: () => `Forecast: ${m?.name}`,
+    correlation: () => `${ms[0]?.name} vs. ${ms[1]?.name}`,
+    drivers: () => `Drivers of ${m?.name}`,
+    matrix: () => `Correlation matrix (${ms.length} metrics)`,
+  };
+  const title = widget.title ?? (isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
+  const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
+  const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
+
+  const openPanel = (p: Panel, k?: ActionKind) => {
+    if (k) setKind(k);
+    // Let the menu close first, so its outside-press doesn't dismiss the popover.
+    setTimeout(() => setPanel(p), 0);
+  };
+  const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
+  const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
+
+  // One item list, rendered both as right-click menu and ⋯ menu.
+  const items = (K: typeof CM | typeof DM) => (
+    <>
+      {m && <K.Item onClick={() => openPanel("history")}><History /> History</K.Item>}
+      {m && <K.Item onClick={() => openPanel("ask", "question")}><MessageCircleQuestion /> Ask a question…</K.Item>}
+      {m && <K.Item onClick={() => openPanel("ask", "task")}><ListTodo /> Assign a task…</K.Item>}
+      <K.Separator />
+      {isMetricWidget && editable && (
+        <K.Sub>
+          <K.SubTrigger><Palette /> Change visualization</K.SubTrigger>
+          <K.SubContent>
+            <K.RadioGroup value={widget.template} onValueChange={(v: string) => restyle(v as TemplateId)}>
+              {METRIC_TEMPLATES.map((t) => <K.RadioItem key={t.id} value={t.id}>{t.label}</K.RadioItem>)}
+            </K.RadioGroup>
+            {(widget.template === "line" || widget.template === "bars") && (
+              <>
+                <K.Separator />
+                <K.CheckboxItem checked={widget.settings.showTarget !== false} onCheckedChange={() => toggle("showTarget")}>Show target band</K.CheckboxItem>
+                {widget.template === "line" && <K.CheckboxItem checked={!!widget.settings.showForecast} onCheckedChange={() => toggle("showForecast")}>Show forecast</K.CheckboxItem>}
+              </>
+            )}
+          </K.SubContent>
+        </K.Sub>
+      )}
+      <K.Item
+        onClick={() => {
+          const name = window.prompt("Save to your widgets as:", title ?? "My widget");
+          if (name) start(async () => { await saveToPool(source, name); toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+        }}
+      >
+        <BookmarkPlus /> Save as Widget
+      </K.Item>
+      {targets.length > 0 && (
+        <K.Sub>
+          <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
+          <K.SubContent>
+            {targets.map((d) => (
+              <K.Item key={d.id} onClick={() => start(async () => { await placeWidget(d.id, source); toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
+            ))}
+          </K.SubContent>
+        </K.Sub>
+      )}
+      {ms.map((x) => <K.Item key={x.id} onClick={() => router.push(`/metrics/${x.slug}`)}><ExternalLink /> Open {ms.length > 1 ? x.name : "metric"}</K.Item>)}
+      {editable && widget.id && (
+        <>
+          <K.Separator />
+          <K.Item onClick={() => start(() => removeWidget(widget.id!))} className="text-destructive"><Trash2 /> Remove from dashboard</K.Item>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger
+          ref={frame}
+          className={cn("group/widget flex h-full flex-col overflow-hidden rounded-xl border bg-background shadow-xs", panel && "ring-2 ring-primary/40", className)}
+          onContextMenuCapture={() => setPeriod(null)}
+        >
+          <div className={cn("flex items-center gap-1.5 px-3 pt-2.5 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
+            {dragHandle && <GripVertical className="-ml-1 size-3.5 text-muted-foreground/50 opacity-0 group-hover/widget:opacity-100" />}
+            <span className="truncate text-sm font-medium">{title}</span>
+            {open > 0 && <span title={`${open} open action(s)`} className="flex items-center gap-0.5 rounded-full bg-chart-5/15 px-1.5 text-[11px] text-chart-5"><MessageSquare className="size-3" />{open}</span>}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="ml-auto rounded p-0.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100 hover:bg-muted data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">{items(DM)}</DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="min-h-0 flex-1 px-3 pb-3">
+            <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
+      </ContextMenu>
+
+      <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); } }}>
+        <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" ? "w-[26rem]" : "w-80")}>
+          {panel === "history" && m && <HistoryPanel metricId={m.id} data={data} />}
+          {panel === "ask" && m && (
+            <AskPanel
+              key={`${kind}-${period}`}
+              kind={kind}
+              setKind={setKind}
+              metric={m}
+              data={data}
+              initialPeriod={period}
+              onDone={(id, who) => {
+                setPanel(null);
+                setPeriod(null);
+                toast.success(`${kind === "task" ? "Task" : "Question"} sent to ${who}`, { action: { label: "Open thread", onClick: () => router.push(`/actions/${id}`) } });
+              }}
+            />
+          )}
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+}
+
+// Adapters so one item list renders in both menu kinds.
+const CM = { Item: ContextMenuItem, Separator: ContextMenuSeparator, Sub: ContextMenuSub, SubTrigger: ContextMenuSubTrigger, SubContent: ContextMenuSubContent, RadioGroup: ContextMenuRadioGroup, RadioItem: ContextMenuRadioItem, CheckboxItem: ContextMenuCheckboxItem };
+const DM = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator, Sub: DropdownMenuSub, SubTrigger: DropdownMenuSubTrigger, SubContent: DropdownMenuSubContent, RadioGroup: DropdownMenuRadioGroup, RadioItem: DropdownMenuRadioItem, CheckboxItem: DropdownMenuCheckboxItem } as unknown as typeof CM;
+
+function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }) {
+  const m = data.metrics.find((x) => x.id === metricId)!;
+  const [h, setH] = useState<{ observations: Observation[]; actions: Action[] } | null>(null);
+  useEffect(() => {
+    getHistory(metricId).then((r) => setH(r as never));
+  }, [metricId]);
+  const people = Object.fromEntries(data.people.map((p) => [p.id, p]));
+  return (
+    <div className="max-h-[70vh] overflow-y-auto">
+      <div className="border-b p-3">
+        <div className="text-sm font-medium">{m.name} · history</div>
+        <div className="text-xs text-muted-foreground">{data.series[m.slug]?.length ?? 0} {m.period}s on record</div>
+        <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} /></div>
+      </div>
+      {h && h.actions.length > 0 && (
+        <div className="border-b p-3">
+          <div className="mb-1 text-xs font-semibold text-muted-foreground">Actions</div>
+          {h.actions.map((a) => (
+            <Link key={a.id} href={`/actions/${a.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted">
+              <StatusDot status={a.status} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, true)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      <table className="w-full text-xs">
+        <tbody>
+          {!h && <tr><td className="p-3 text-muted-foreground">Loading…</td></tr>}
+          {h?.observations.slice(0, 60).map((o) => (
+            <tr key={o.id} className="border-b last:border-0">
+              <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, true)}</td>
+              <td className="py-1.5 font-medium tabular-nums">
+                {formatValue(m, Number(o.value))}
+                {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value))}</span>}
+              </td>
+              <td className="py-1.5 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}</td>
+              <td className="py-1.5 pr-3 text-right text-muted-foreground">{o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind: ActionKind; setKind: (k: ActionKind) => void; metric: CanvasData["metrics"][number]; data: CanvasData; initialPeriod: string | null; onDone: (id: number, who: string) => void }) {
+  const pts = [...(data.series[metric.slug] ?? [])].reverse();
+  const others = data.people.filter((p) => p.id !== data.viewer);
+  const [period, setPeriod] = useState(initialPeriod ?? pts[0]?.period ?? "");
+  // Default recipient: whoever reports the metric, else its owner.
+  const preferred = [...(data.submitters[metric.id] ?? []), metric.owner_id].find((id) => id !== data.viewer);
+  const [assignee, setAssignee] = useState(preferred ?? others[0]?.id);
+  const draft = (p: string) => {
+    const label = periodLabel(p, metric.period);
+    const v = pts.find((x) => x.period === p)?.value;
+    const off = v !== undefined && ((metric.target_max !== null && v > metric.target_max) || (metric.target_min !== null && v < metric.target_min));
+    const word = metric.polarity === "lower" ? "high" : "low";
+    if (kind === "task") return off ? `Find out why ${metric.name.toLowerCase()} is so ${word} in ${label} and fix it` : `Look into ${metric.name.toLowerCase()} for ${label}`;
+    return off ? `Why is ${metric.name.toLowerCase()} so ${word} in ${label}?` : `What happened with ${metric.name.toLowerCase()} in ${label}?`;
+  };
+  const [text, setText] = useState(draft(period));
+  const [due, setDue] = useState("");
+  const [pending, start] = useTransition();
+  return (
+    <form
+      className="space-y-3 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null });
+          onDone(id, others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "");
+        });
+      }}
+    >
+      <div className="flex rounded-lg bg-muted p-0.5 text-xs">
+        {(["question", "task"] as const).map((k) => (
+          <button key={k} type="button" onClick={() => setKind(k)} className={cn("flex-1 rounded-md py-1 capitalize", kind === k && "bg-background font-medium shadow-xs")}>{k}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <label className="space-y-1">
+          <span className="text-muted-foreground">About</span>
+          <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-8 w-full rounded-md border bg-background px-1.5">
+            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, true)} · {formatValue(metric, p.value)}</option>)}
+          </select>
+        </label>
+        <label className="space-y-1">
+          <span className="text-muted-foreground">{kind === "task" ? "Assign to" : "Ask"}</span>
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-8 w-full rounded-md border bg-background px-1.5">
+            {others.map((p) => <option key={p.id} value={p.id}>{p.name.split(" ")[0]}</option>)}
+          </select>
+        </label>
+      </div>
+      <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} autoFocus />
+      {kind === "task" && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">Due <Input type="date" value={due} min={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setDue(e.target.value)} className="h-8" /></label>
+      )}
+      <Button type="submit" className="w-full" disabled={pending || !text.trim()}>{kind === "task" ? "Assign task" : "Send question"}</Button>
+    </form>
+  );
+}

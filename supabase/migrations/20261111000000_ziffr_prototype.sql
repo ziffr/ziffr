@@ -101,6 +101,8 @@ create table actions (
   asker_id text not null references profiles(id),
   assignee_id text not null references profiles(id),
   question text not null,
+  kind text not null default 'question' check (kind in ('question','task')),
+  due_date date,
   status text not null default 'open' check (status in ('open','answered','closed')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -123,11 +125,36 @@ create table dashboards (
   created_at timestamptz not null default now()
 );
 
-create table dashboard_items (
-  dashboard_id int not null references dashboards(id) on delete cascade,
+-- A Widget = metric(s) + View template + settings. dashboard_id null & saved => lives in the owner's Pool.
+-- Placing a widget on a dashboard inserts an independent copy (GLOSSARY: Widget).
+create table widgets (
+  id serial primary key,
+  owner_id text not null references profiles(id),
+  dashboard_id int references dashboards(id) on delete cascade,
+  saved boolean not null default false,
+  title text,
+  template text not null check (template in ('number','line','bars','gauge','table','forecast','correlation','matrix','drivers')),
+  metric_ids int[] not null,
+  settings jsonb not null default '{}',
+  x int not null default 0, y int not null default 0, w int not null default 3, h int not null default 4,
+  created_at timestamptz not null default now()
+);
+
+create table shares (
+  id serial primary key,
+  object_type text not null check (object_type in ('metric','dashboard')),
+  object_id int not null,
+  user_id text not null references profiles(id),
+  role text not null check (role in ('viewer','editor')),
+  unique (object_type, object_id, user_id)
+);
+
+-- One scratch Analysis Canvas per user.
+create table analysis_canvas (
+  user_id text not null references profiles(id),
   metric_id int not null references metrics(id) on delete cascade,
   position int not null default 0,
-  primary key (dashboard_id, metric_id)
+  primary key (user_id, metric_id)
 );
 
 alter table profiles enable row level security;
@@ -140,7 +167,9 @@ alter table intake_log enable row level security;
 alter table actions enable row level security;
 alter table thread_messages enable row level security;
 alter table dashboards enable row level security;
-alter table dashboard_items enable row level security;
+alter table widgets enable row level security;
+alter table shares enable row level security;
+alter table analysis_canvas enable row level security;
 
 -- Rebuilds the fictional online shop "Northwind Goods" relative to today,
 -- so the story (October-style cost spike = last complete month) stays current.
@@ -154,9 +183,9 @@ declare
   rev numeric; ord numeric; cst numeric; tix numeric; ret numeric;
   id_revenue int; id_orders int; id_cost int; id_tickets int; id_returns int; id_deals int;
   id_margin int; id_aov int;
-  obs_return bigint; act_id int; dash_id int;
+  obs_return bigint; act_id int; dash_id int; ops_id int;
 begin
-  truncate dashboard_items, dashboards, thread_messages, actions, intake_log, prompts,
+  truncate analysis_canvas, shares, widgets, dashboards, thread_messages, actions, intake_log, prompts,
            observations, tokens, metrics, catalog_metrics, profiles restart identity cascade;
   perform setseed(0.4242);
 
@@ -254,7 +283,28 @@ begin
     (id_returns,'ben','mail','What was the return rate for ' || to_char(last_month,'FMMonth YYYY') || '?',last_month);
 
   insert into dashboards (name,owner_id) values ('Monthly overview','sara') returning id into dash_id;
-  insert into dashboard_items values
-    (dash_id,id_revenue,0),(dash_id,id_cost,1),(dash_id,id_margin,2),(dash_id,id_tickets,3);
+  insert into widgets (owner_id,dashboard_id,template,metric_ids,settings,x,y,w,h) values
+    ('sara',dash_id,'number',array[id_revenue],'{}',0,0,3,4),
+    ('sara',dash_id,'number',array[id_margin],'{}',3,0,3,4),
+    ('sara',dash_id,'gauge',array[id_cost],'{}',6,0,3,4),
+    ('sara',dash_id,'number',array[id_tickets],'{}',9,0,3,4),
+    ('sara',dash_id,'line',array[id_cost],'{"window":18,"showTarget":true,"showForecast":true}',0,4,8,7),
+    ('sara',dash_id,'table',array[id_revenue],'{"rows":6}',8,4,4,7);
+
+  insert into dashboards (name,owner_id) values ('Operations','ben') returning id into ops_id;
+  insert into widgets (owner_id,dashboard_id,template,metric_ids,settings,x,y,w,h) values
+    ('ben',ops_id,'bars',array[id_tickets],'{"window":12}',0,0,6,6),
+    ('ben',ops_id,'line',array[id_returns],'{"window":12,"showTarget":true}',6,0,6,6);
+
+  -- saved widgets in the Pool
+  insert into widgets (owner_id,saved,title,template,metric_ids,settings,w,h) values
+    ('sara',true,'Revenue, 12-month trend','line',array[id_revenue],'{"window":12,"showTarget":true,"showForecast":true}',6,6);
+
+  -- sharing: Monthly overview -> Ben (editor); Anna shares deals with Sara; Ben shares his metrics with Sara
+  insert into shares (object_type,object_id,user_id,role) values
+    ('dashboard',dash_id,'ben','editor'),
+    ('metric',id_deals,'sara','viewer'),
+    ('metric',id_tickets,'sara','viewer'),
+    ('metric',id_returns,'sara','viewer');
 end;
 $$;

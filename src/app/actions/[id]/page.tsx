@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { db } from "@/lib/db";
 import { getAllSeries, getProfileMap } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, periodLabel } from "@/lib/format";
 import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
+import { markTaskDone } from "@/app/canvas-actions";
 import { MetricChart } from "@/views/metric-chart";
 import { Avatar } from "@/components/avatar";
 import { StatusBadge } from "@/components/status";
@@ -41,14 +42,16 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
       <Link href="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
       <div className="rounded-xl border bg-background p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <StatusBadge status={a.status} />
+          <StatusBadge status={a.status} kind={a.kind} />
+          <span className="rounded-full border px-2 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
+          {a.due_date && <span className="text-xs">due {format(new Date(a.due_date), "d MMM")}</span>}
           <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link>· {periodLabel(a.period_start, m.period)}
           {obs && <>· <span className="font-medium text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
         </div>
         <div className="mt-3 flex gap-3">
           <Avatar p={people[a.asker_id]} />
           <div>
-            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> asked <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
+            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> {a.kind === "task" ? "assigned" : "asked"} <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
             <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
           </div>
         </div>
@@ -97,6 +100,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
               </label>
             )}
             <div className="ml-auto flex gap-2">
+              {isAssignee && a.kind === "task" && a.status === "open" && <Button formAction={markTaskDone.bind(null, a.id)} variant="outline" type="submit">Mark done</Button>}
               {isAsker && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
               <Button type="submit">Reply</Button>
             </div>

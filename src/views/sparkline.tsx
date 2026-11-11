@@ -2,7 +2,7 @@
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import type { Point } from "@/lib/types";
 
-export function Sparkline({ points, height = 48, tone = "neutral" }: { points: Point[]; height?: number; tone?: "good" | "bad" | "neutral" }) {
+export function Sparkline({ points, height = 48, tone = "neutral" }: { points: Point[]; height?: number | string; tone?: "good" | "bad" | "neutral" }) {
   const color = tone === "bad" ? "var(--destructive)" : tone === "good" ? "var(--chart-2)" : "var(--chart-1)";
   return (
     <div style={{ height }}>

@@ -12,12 +12,12 @@ export default async function ActionsPage() {
   const byId = Object.fromEntries(metrics.map((m) => [m.id, m]));
   const groups: { title: string; hint: string; list: Action[] }[] = [
     { title: "Waiting for your answer", hint: "Actions assigned to you", list: actions.filter((a) => a.assignee_id === viewer && a.status === "open") },
-    { title: "Answered, waiting for you to close", hint: "Actions you asked", list: actions.filter((a) => a.asker_id === viewer && a.status === "answered") },
+    { title: "Answered or done, waiting for you to close", hint: "Actions you asked", list: actions.filter((a) => a.asker_id === viewer && a.status === "answered") },
     { title: "Everything else", hint: "", list: actions.filter((a) => !((a.assignee_id === viewer && a.status === "open") || (a.asker_id === viewer && a.status === "answered"))) },
   ];
   return (
     <>
-      <PageHeader title="Actions" sub={`Questions and tasks about specific values. You’re viewing as ${people[viewer]?.name}.`} />
+      <PageHeader title="Actions" sub={`Questions and Tasks about specific values. Ask them from anywhere: right-click a widget. You’re viewing as ${people[viewer]?.name}.`} />
       <div className="space-y-6">
         {groups.map((g) => (
           <section key={g.title}>
@@ -29,7 +29,8 @@ export default async function ActionsPage() {
                   return (
                     <li key={a.id} className="border-b last:border-0">
                       <Link href={`/actions/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/40">
-                        <StatusBadge status={a.status} />
+                        <StatusBadge status={a.status} kind={a.kind} />
+                        {a.kind === "task" && <span className="rounded border px-1.5 text-[11px] text-muted-foreground">Task{a.due_date ? ` · due ${a.due_date.slice(5)}` : ""}</span>}
                         <span className="min-w-0 flex-1 font-medium">{a.question}</span>
                         <span className="text-xs text-muted-foreground">{m?.name} · {m && periodLabel(a.period_start, m.period, true)}</span>
                         <span className="flex items-center gap-1 text-xs"><Person p={people[a.asker_id]} /> → <Person p={people[a.assignee_id]} /></span>

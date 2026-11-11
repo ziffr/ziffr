@@ -155,24 +155,3 @@ export async function setActionStatus(actionId: number, status: "open" | "closed
   await db.from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId);
   revalidatePath("/", "layout");
 }
-
-export async function togglePin(dashboardId: number, metricId: number, pinned: boolean) {
-  if (pinned) {
-    await db.from("dashboard_items").delete().eq("dashboard_id", dashboardId).eq("metric_id", metricId);
-  } else {
-    const { count } = await db.from("dashboard_items").select("*", { count: "exact", head: true }).eq("dashboard_id", dashboardId);
-    await db.from("dashboard_items").insert({ dashboard_id: dashboardId, metric_id: metricId, position: count ?? 0 });
-  }
-  revalidatePath("/", "layout");
-}
-
-export async function createDashboard(form: FormData) {
-  const viewer = await viewerId();
-  const { data } = await db.from("dashboards").insert({ name: String(form.get("name")), owner_id: viewer }).select("id").single();
-  const metricIds = form.getAll("metrics").map(Number);
-  if (data && metricIds.length) {
-    await db.from("dashboard_items").insert(metricIds.map((m, i) => ({ dashboard_id: data.id, metric_id: m, position: i })));
-  }
-  revalidatePath("/", "layout");
-  redirect(`/dashboards/${data?.id}`);
-}

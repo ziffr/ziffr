@@ -6,13 +6,17 @@ import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Sparkline } from "@/views/sparkline";
 import { getAllSeries, getProfileMap } from "@/lib/data";
+import { visibleMetricIds } from "@/lib/access";
+import { viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, SOURCE_LABEL, targetText } from "@/lib/format";
 
 export default async function MetricsPage() {
-  const [{ metrics, series }, people] = await Promise.all([getAllSeries(), getProfileMap()]);
+  const [{ metrics: all, series }, people, viewer] = await Promise.all([getAllSeries(), getProfileMap(), viewerId()]);
+  const visible = await visibleMetricIds(viewer, all);
+  const metrics = all.filter((m) => visible.has(m.id));
   return (
     <>
-      <PageHeader title="Metrics" sub="Every number Ziffr keeps, each one described before it can receive values.">
+      <PageHeader title="Metrics" sub="The metrics you own, report, or that were shared with you.">
         <Link href="/metrics/new" className={buttonVariants()}>
           <Plus /> New metric
         </Link>

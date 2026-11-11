@@ -14,6 +14,9 @@ import { Person } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MetricWorkspace } from "./workspace";
 import { PinMenu } from "./pin";
+import { ShareDialog } from "@/components/share-dialog";
+import { buttonVariants } from "@/components/ui/button";
+import { getShares, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 
@@ -25,6 +28,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const [{ metrics, observations, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
+  const visible = await visibleMetricIds(viewer, metrics);
   const peopleById = Object.fromEntries(people.map((p) => [p.id, p]));
 
   const all = series[slug] ?? [];
@@ -36,14 +40,23 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tone = health(metric, last?.value);
   const improving = change === null || metric.polarity === "target" ? null : (change > 0) === (metric.polarity === "higher");
 
-  const correlations = rankCorrelations(metric, metrics, series);
+  const correlations = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), series);
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
-  const [actions, { data: tokens }, { data: dashboards }, { data: items }] = await Promise.all([
+  if (!visible.has(metric.id)) {
+    return (
+      <div className="mx-auto max-w-md rounded-xl border border-dashed bg-background p-8 text-center text-sm">
+        <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
+        <p className="font-medium">{metric.name} isn’t shared with you</p>
+        <p className="mt-1 text-muted-foreground">Ask {peopleById[metric.owner_id]?.name} to share it.</p>
+      </div>
+    );
+  }
+  const [actions, { data: tokens }, dashboards, shares] = await Promise.all([
     getActions({ metricId: metric.id }),
     db.from("tokens").select("*").eq("metric_id", metric.id),
-    db.from("dashboards").select("*").order("id"),
-    db.from("dashboard_items").select("*").eq("metric_id", metric.id),
+    visibleDashboards(viewer),
+    getShares(),
   ]);
   const markers = [...new Set(actions.map((a) => a.period_start))];
   const obs = observations.filter((o) => o.metric_id === metric.id).slice(-12).reverse();
@@ -65,7 +78,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         }
         sub={metric.description}
       >
-        <PinMenu metricId={metric.id} dashboards={(dashboards ?? []).map((d) => ({ id: d.id, name: d.name, pinned: !!items?.some((i) => i.dashboard_id === d.id) }))} />
+        <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
+        <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+        {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} />}
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">

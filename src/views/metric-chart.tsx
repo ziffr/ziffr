@@ -14,6 +14,7 @@ export function MetricChart({
   markers = [],
   selected,
   onSelect,
+  onPointContext,
   height = 300,
 }: {
   metric: MetricDescription;
@@ -22,7 +23,8 @@ export function MetricChart({
   markers?: string[];
   selected?: string | null;
   onSelect?: (period: string) => void;
-  height?: number;
+  onPointContext?: (period: string) => void;
+  height?: number | string;
 }) {
   const rows: Row[] = points.map((p) => ({ period: p.period, value: p.value }));
   if (forecast?.length && rows.length) {
@@ -61,12 +63,23 @@ export function MetricChart({
           <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, true)} tick={{ fontSize: 11 }} minTickGap={24} stroke="var(--muted-foreground)" />
           <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11 }} width={64} stroke="var(--muted-foreground)" />
           <Tooltip
-            formatter={(v, name) => {
-              if (Array.isArray(v)) return [`${formatValue(metric, Number(v[0]))} – ${formatValue(metric, Number(v[1]))}`, "Forecast range"];
-              return [formatValue(metric, Number(v)), name === "fc" ? "Forecast" : metric.name];
+            content={({ active, payload }) => {
+              const r = payload?.[0]?.payload as Row | undefined;
+              if (!active || !r) return null;
+              return (
+                <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow">
+                  <div className="font-medium">{periodLabel(r.period, mp)}</div>
+                  {r.value !== undefined ? (
+                    <div>{metric.name}: {formatValue(metric, r.value)}</div>
+                  ) : (
+                    <>
+                      <div className="text-primary">Forecast: {formatValue(metric, r.fc!)}</div>
+                      {r.band && <div className="text-muted-foreground">Likely {formatValue(metric, r.band[0])} – {formatValue(metric, r.band[1])}</div>}
+                    </>
+                  )}
+                </div>
+              );
             }}
-            labelFormatter={(p) => periodLabel(String(p), mp)}
-            contentStyle={{ borderRadius: 8, fontSize: 12 }}
           />
           <Area dataKey="band" stroke="none" fill="var(--chart-1)" fillOpacity={0.12} isAnimationActive={false} />
           <Line dataKey="fc" stroke="var(--chart-1)" strokeDasharray="5 4" dot={false} isAnimationActive={false} />
@@ -80,8 +93,8 @@ export function MetricChart({
               if (p.cx === undefined || p.cy === undefined || p.payload?.value === undefined) return <g key={p.index} />;
               const period = p.payload.period;
               return (
-                <g key={p.index} data-period={period} onClick={onSelect ? () => onSelect(period) : undefined} className={onSelect ? "cursor-pointer" : undefined}>
-                  {onSelect && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
+                <g key={p.index} data-period={period} onClick={onSelect ? () => onSelect(period) : undefined} onContextMenu={onPointContext ? () => onPointContext(period) : undefined} className={onSelect ? "cursor-pointer" : undefined}>
+                  {(onSelect || onPointContext) && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
                   {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--background)" stroke="var(--chart-1)" strokeWidth={1.5} />}
                 </g>
               );

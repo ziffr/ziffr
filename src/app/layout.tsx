@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-muted/30 font-sans antialiased`}>
         <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
             <Link href="/" className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-lg bg-primary font-mono text-sm font-bold text-primary-foreground">Z</span>
               <span className="font-semibold">Ziffr</span>
@@ -35,6 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </Link>
             <nav className="flex flex-wrap items-center gap-1">
               <NavLink href="/dashboards">Dashboards</NavLink>
+              <NavLink href="/analyze">Analyze</NavLink>
               <NavLink href="/metrics">Metrics</NavLink>
               <NavLink href="/sources">Sources</NavLink>
               <NavLink href="/actions">
@@ -48,7 +49,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6 pb-40">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-6 pb-40">{children}</main>
         <Tour />
         <Toaster />
       </body>

@@ -7,13 +7,15 @@ export function ScatterView({
   x,
   y,
   pairs,
+  height = 260,
 }: {
   x: MetricDescription;
   y: MetricDescription;
   pairs: { period: string; x: number; y: number }[];
+  height?: number | string;
 }) {
   return (
-    <div style={{ height: 260 }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 12, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="var(--border)" />
