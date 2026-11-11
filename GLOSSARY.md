@@ -60,11 +60,67 @@ _Avoid_: Dedup rule, overwrite policy
 A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?"
 _Avoid_: Reminder, nudge
 
+### Presentation
+
+**View**:
+A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table.
+_Avoid_: Chart type, visualization plugin
+
+**Widget Template**:
+A predefined view plus default settings that a new widget starts from. If none is chosen, the default template is used.
+_Avoid_: Preset, widget type
+
+**Widget**:
+One metric drawn with a view and its settings, such as time window, target band or visible history. A saved widget can be reused; placing it on a dashboard places an independent copy.
+_Avoid_: Tile, card, panel, chart
+
+**Pool**:
+The side panel that holds everything a user can drag onto a canvas: the metrics they can see and their saved widgets.
+_Avoid_: Library, palette, sidebar
+
+**Dashboard**:
+A canvas of widgets that a user arranges and can share.
+_Avoid_: Board, report, page
+
+**Analysis Canvas**:
+A workspace where a user drops one or more metrics and runs analyses on them.
+_Avoid_: Workbench, lab, playground
+
+**Analysis**:
+A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget.
+_Avoid_: Stats, model, insight
+
+**Recipe**:
+A ready-made analysis setup that runs with one click, e.g. "What drives Cost?"
+_Avoid_: Preset analysis, template
+
+### Sharing
+
+**Share**:
+Giving another user access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
+_Avoid_: Invite, publish
+
+**Viewer**:
+A user a dashboard or metric is shared with who can look at it, inspect history and assign actions, but not change it.
+_Avoid_: Reader, guest
+
+**Editor**:
+A user a dashboard is shared with who can also arrange its widgets.
+_Avoid_: Collaborator, co-owner
+
 ### Collaboration
 
 **Action**:
-A question or task about a specific observation or time range of a metric that one user assigns to another, e.g. "Why is cost so high this month?" It moves from open to answered to closed, and can be reopened.
-_Avoid_: Task, ticket, request, to-do
+A question or task about a specific observation or time range of a metric that one user assigns to another. It moves from open to answered to closed, and can be reopened.
+_Avoid_: Ticket, request, to-do
+
+**Question**:
+An action that is done once the assignee has answered it, e.g. "Why is cost so high this month?"
+_Avoid_: Inquiry
+
+**Task**:
+An action that is done once the assignee has carried it out, e.g. "Renegotiate the shipping rate", optionally with a due date.
+_Avoid_: To-do, job
 
 **Assignee**:
 The user an action is assigned to.
