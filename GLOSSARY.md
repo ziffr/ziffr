@@ -104,6 +104,10 @@ _Avoid_: Presentation, slideshow, report
 One 16:9 page of a deck. Its order follows its position on the deck canvas, left to right and top to bottom.
 _Avoid_: Page, frame, board
 
+**Master**:
+A deck's shared design (background, logo, footer, slide number and type sizes) drawn behind every slide. Masters belong to the team; a slide may hide it.
+_Avoid_: Template, theme, layout, brand kit
+
 **Snapshot**:
 The values a widget shows at the moment a deck is exported, stamped with that date. An exported deck never changes when observations do.
 _Avoid_: Copy, freeze, export data
