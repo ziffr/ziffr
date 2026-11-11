@@ -49,8 +49,11 @@ export async function saveMaster(id: number | null, input: MasterInput): Promise
 }
 
 export async function makeDefaultMaster(id: number) {
-  await db.from("masters").update({ is_default: false }).neq("id", id);
+  // Only the creator may change their master, including making it the team default.
+  const { data: m } = await db.from("masters").select("owner_id").eq("id", id).single();
+  if (!m || m.owner_id !== (await viewerId())) throw new Error("Only the creator can make this master the default");
   await db.from("masters").update({ is_default: true }).eq("id", id);
+  await db.from("masters").update({ is_default: false }).neq("id", id);
   revalidatePath("/decks", "layout");
 }
 

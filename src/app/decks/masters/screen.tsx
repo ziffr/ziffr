@@ -167,7 +167,7 @@ export function MastersScreen({ masters, current, isNew, people, viewer }: { mas
 
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" onClick={save}>{isNew ? "Create master" : "Save master"}</Button>
-            {!isNew && !m.is_default && (
+            {!isNew && canEdit && !m.is_default && (
               <Button type="button" variant="outline" onClick={() => start(async () => { await makeDefaultMaster(m.id); toast.success(`${m.name} is now the default for new decks`); })}>
                 <Star aria-hidden /> Make default
               </Button>
