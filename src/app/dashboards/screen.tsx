@@ -15,6 +15,7 @@ import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@/lib/types";
 import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   data: CanvasData;
@@ -44,6 +45,16 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
   const [layout, setLayout] = useState<Layout>(toLayout(widgets));
   useEffect(() => setLayout(toLayout(widgets)), [widgets]);
   const targets = dashboards.filter((d) => d.role !== "viewer");
+  // Under 40rem the grid becomes one column in reading order, full width, not draggable.
+  const narrow = mounted && width < 640;
+  const stacked: Layout = [...layout]
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .reduce<{ items: Layout; y: number }>((acc, it) => {
+      const h = Math.max(it.h, 5);
+      acc.items = [...acc.items, { ...it, x: 0, y: acc.y, w: 1, h }];
+      acc.y += h;
+      return acc;
+    }, { items: [], y: 0 }).items;
   const people = Object.fromEntries(data.people.map((p) => [p.id, p]));
 
   const persist = (l: Layout) => {
@@ -66,34 +77,34 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
       <div className="order-1 min-w-0 lg:order-2">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {dashboards.map((d) => (
-            <Link key={d.id} href={`/dashboards/${d.id}`} className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm", d.id === current?.id ? "border-primary bg-primary/5 font-medium" : "bg-background hover:bg-muted")}>
-              {d.role !== "owner" && <span title={`Shared by ${people[d.owner_id]?.name}`} className="size-2 rounded-full" style={{ background: people[d.owner_id]?.color }} />}
+            <Link key={d.id} href={`/dashboards/${d.id}`} aria-current={d.id === current?.id ? "page" : undefined} className={cn("flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] px-3 text-sm transition-colors", d.id === current?.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
               {d.name}
+              {d.role !== "owner" && <span className="text-xs text-muted-foreground">from {people[d.owner_id]?.name.split(" ")[0]}</span>}
             </Link>
           ))}
-          <button onClick={newDashboard} className="flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-sm text-muted-foreground hover:text-foreground"><Plus className="size-3.5" /> New dashboard</button>
+          <button onClick={newDashboard} className="flex min-h-9 items-center gap-1 rounded-[var(--radius-stock)] px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Plus aria-hidden className="size-3.5" /> New dashboard</button>
         </div>
 
         {!current ? (
-          <div className="rounded-xl border border-dashed bg-background p-12 text-center">
+          <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="font-medium">No dashboards yet</p>
             <p className="mt-1 text-sm text-muted-foreground">Create one, or ask a colleague to share theirs with you.</p>
-            <button onClick={newDashboard} className="mt-4 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground">Create dashboard</button>
+            <Button onClick={newDashboard} className="mt-4">Create dashboard</Button>
           </div>
         ) : (
           <>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">{current.name}</h1>
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {current.role === "owner" ? <><Users className="size-3.5" /> Yours</> : current.role === "editor" ? <><Pencil className="size-3.5" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye className="size-3.5" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}
-                  <span className="mx-1">·</span><MousePointerClick className="size-3.5" /> Right-click any widget for history, questions and tasks
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-[length:var(--text-2xl)] leading-tight">{current.name}</h1>
+                <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
+                  <span className="flex items-center gap-1.5"><MousePointerClick aria-hidden className="size-4" /> Right-click a widget for its history, a question or a task</span>
                 </p>
               </div>
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} />}
             </div>
-            <div ref={containerRef} className={cn("relative min-h-[60vh] rounded-xl", editable && "bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:20px_20px]")}>
+            <div ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                   {editable ? "Drag metrics or saved widgets from the Pool and drop them here." : "This dashboard is empty."}
@@ -101,13 +112,13 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
               )}
               {mounted && (
                 <ReactGridLayout
-                  layout={layout}
+                  layout={narrow ? stacked : layout}
                   width={width}
-                  gridConfig={{ cols: 12, rowHeight: 36, margin: [12, 12] }}
-                  dragConfig={{ enabled: editable, handle: ".widget-drag" }}
-                  resizeConfig={{ enabled: editable }}
+                  gridConfig={{ cols: narrow ? 1 : 12, rowHeight: 36, margin: [16, 16], containerPadding: [16, 16] }}
+                  dragConfig={{ enabled: editable && !narrow, handle: ".widget-drag" }}
+                  resizeConfig={{ enabled: editable && !narrow }}
                   dropConfig={{
-                    enabled: editable,
+                    enabled: editable && !narrow,
                     defaultItem: TEMPLATES[DEFAULT_TEMPLATE].size,
                     onDragOver: () => sizeOf(getDrag(), saved),
                   }}

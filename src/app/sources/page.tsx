@@ -35,7 +35,7 @@ export default async function SourcesPage() {
         <Simulator source="slack" {...by("slack")} profiles={profiles} viewer={viewer} metricNames={metricNames} />
         <Simulator source="mail" {...by("mail")} profiles={profiles} viewer={viewer} metricNames={metricNames} />
       </div>
-      <section className="mt-6 rounded-xl border bg-background p-5">
+      <section className="mt-6 stock rounded-[var(--radius-card)] p-5">
         <h2 className="mb-1 flex items-center gap-2 font-medium"><FileInput className="size-4" /> Web form <span className="text-xs font-normal text-muted-foreground">(real)</span></h2>
         <p className="mb-3 text-sm text-muted-foreground">Each Submitter has a personal link per metric. The link is the Token, so no login is needed.</p>
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

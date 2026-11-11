@@ -34,7 +34,7 @@ const BLANK: MetricDescription = {
   sources: ["web_form"],
 };
 
-const field = "h-9 w-full rounded-lg border bg-background px-2.5 text-sm";
+const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
 export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string }> }) {
   const sp = await searchParams;
@@ -47,7 +47,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     return (
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
-        <Link href="/metrics/new?scratch=1" className="mb-8 flex items-center gap-3 rounded-xl border border-dashed bg-background p-4 hover:bg-muted/40">
+        <Link href="/metrics/new?scratch=1" className="mb-8 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
           <PenLine className="size-5 text-muted-foreground" />
           <div>
             <div className="font-medium">Start from scratch</div>
@@ -58,13 +58,13 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
         <div className="space-y-6">
           {groups.map(([cat, list]) => (
             <section key={cat}>
-              <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{cat}</h3>
+              <h3 className="mb-2 text-sm font-medium tracking-normal text-muted-foreground">{cat}</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {list!.map((c) => (
-                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}`} className="rounded-xl border bg-background p-4 transition-shadow hover:shadow-md">
+                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                     <div className="font-medium">{c.name}</div>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)]">
                       <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) })}</span>
@@ -145,7 +145,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
             </div>
           </Section>
 
-          <Section title="What does good look like?">
+          <Section title="Target and polarity">
             <div className="grid gap-4 sm:grid-cols-3">
               <F label="Polarity">
                 <select name="polarity" defaultValue={d.polarity} className={field}>
@@ -158,7 +158,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </Section>
         </div>
         <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-          <div className="rounded-xl border bg-background p-4 text-sm">
+          <div className="stock rounded-[var(--radius-card)] p-4 text-sm">
             <div className="font-medium">Owner</div>
             <p className="mt-1 text-muted-foreground">You ({people.find((p) => p.id === viewer)?.name}). The owner keeps the description up to date and accepts Corrections.</p>
           </div>
@@ -172,7 +172,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border bg-background p-5">
+    <section className="stock rounded-[var(--radius-card)] p-5">
       <h2 className="mb-4 font-medium">{title}</h2>
       {children}
     </section>

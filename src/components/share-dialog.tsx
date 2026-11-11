@@ -17,7 +17,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
   return (
     <Dialog>
       <DialogTrigger className={buttonVariants({ variant: "outline" })}>
-        <Share2 /> Share{n ? ` · ${n}` : ""}
+        <Share2 aria-hidden /> Share{n ? <span className="fig text-muted-foreground">{n}</span> : null}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -41,7 +41,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
                   setRoles((r) => ({ ...r, [p.id]: v }));
                   start(() => setShare(objectType, objectId, p.id, (v || null) as never));
                 }}
-                className="h-8 rounded-md border bg-background px-2 text-sm"
+                className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
               >
                 <option value="">No access</option>
                 <option value="viewer">Viewer</option>

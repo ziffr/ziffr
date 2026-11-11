@@ -22,18 +22,18 @@ export default async function ActionsPage() {
         {groups.map((g) => (
           <section key={g.title}>
             <h2 className="mb-2 text-sm font-semibold">{g.title} <span className="font-normal text-muted-foreground">{g.list.length}</span></h2>
-            {g.list.length === 0 ? <p className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">Nothing here.</p> : (
-              <ul className="overflow-hidden rounded-xl border bg-background">
+            {g.list.length === 0 ? <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">Nothing here.</p> : (
+              <ul className="overflow-hidden stock rounded-[var(--radius-card)]">
                 {g.list.map((a) => {
                   const m = byId[a.metric_id];
                   return (
-                    <li key={a.id} className="border-b last:border-0">
-                      <Link href={`/actions/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/40">
+                    <li key={a.id} className="border-b border-border last:border-0">
+                      <Link href={`/actions/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-[var(--color-paper-2)]">
                         <StatusBadge status={a.status} kind={a.kind} />
-                        {a.kind === "task" && <span className="rounded border px-1.5 text-[11px] text-muted-foreground">Task{a.due_date ? ` · due ${a.due_date.slice(5)}` : ""}</span>}
+                        {a.kind === "task" && <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]">Task{a.due_date ? `, due ${a.due_date.slice(5)}` : ""}</span>}
                         <span className="min-w-0 flex-1 font-medium">{a.question}</span>
-                        <span className="text-xs text-muted-foreground">{m?.name} · {m && periodLabel(a.period_start, m.period, true)}</span>
-                        <span className="flex items-center gap-1 text-xs"><Person p={people[a.asker_id]} /> → <Person p={people[a.assignee_id]} /></span>
+                        <span className="text-xs text-muted-foreground">{m?.name}, {m && periodLabel(a.period_start, m.period, true)}</span>
+                        <span className="flex items-center gap-1 text-xs"><Person p={people[a.asker_id]} /> asked <Person p={people[a.assignee_id]} /></span>
                       </Link>
                     </li>
                   );

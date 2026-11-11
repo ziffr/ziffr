@@ -5,20 +5,18 @@ import type { Profile } from "@/lib/types";
 
 export function ViewAs({ profiles, current }: { profiles: Profile[]; current: string }) {
   const [pending, start] = useTransition();
-  const me = profiles.find((p) => p.id === current);
   return (
-    <label className="flex items-center gap-2 rounded-full border bg-background py-1 pr-1 pl-3 text-xs">
-      <span className="text-muted-foreground">View as</span>
-      <span className="size-2.5 rounded-full" style={{ background: me?.color }} />
+    <label className="flex items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Viewing as</span>
       <select
         value={current}
         disabled={pending}
         onChange={(e) => start(() => setViewer(e.target.value))}
-        className="rounded-full bg-transparent py-0.5 pr-1 font-medium outline-none"
+        className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 font-medium"
       >
         {profiles.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.name.split(" ")[0]} ({p.role})
+            {p.name.split(" ")[0]}, {p.role.toLowerCase()}
           </option>
         ))}
       </select>

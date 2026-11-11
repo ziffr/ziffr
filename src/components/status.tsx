@@ -1,15 +1,28 @@
 import { cn } from "@/lib/utils";
 import type { ActionStatus } from "@/lib/types";
 
-export function StatusDot({ status }: { status: ActionStatus | string }) {
-  const c = status === "open" ? "bg-amber-500" : status === "answered" ? "bg-primary" : "bg-muted-foreground/40";
-  return <span title={status} className={`size-2 shrink-0 rounded-full ${c}`} />;
-}
+const label = (status: ActionStatus | string, kind: "question" | "task" = "question") =>
+  kind === "task" && status === "answered" ? "Done" : status === "answered" ? "Answered" : status === "open" ? "Open" : "Closed";
 
-export function StatusBadge({ status, kind = "question" }: { status: ActionStatus; kind?: "question" | "task" }) {
+/** Status as a word, never a coloured dot. Open and answered are ink outlines;
+ *  a settled outcome (closed, done) is pressed into the paper in coral (Coral § Surfaces). */
+export function StatusBadge({ status, kind = "question", size = "md" }: { status: ActionStatus; kind?: "question" | "task"; size?: "sm" | "md" }) {
+  const settled = status === "closed" || (kind === "task" && status === "answered");
+  if (settled) return <span className={cn("pressed shrink-0", size === "sm" ? "text-xs" : "text-sm")}>{label(status, kind)}</span>;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium capitalize", status === "open" && "border-amber-500/40 bg-amber-500/10 text-amber-700", status === "answered" && "border-primary/40 bg-primary/10 text-primary", status === "closed" && "text-muted-foreground")}>
-      <StatusDot status={status} /> {kind === "task" && status === "answered" ? "done" : status}
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-[var(--radius-input)] border px-1.5 font-medium",
+        size === "sm" ? "text-xs" : "py-0.5 text-xs",
+        status === "open" ? "border-foreground text-foreground" : "border-[var(--color-rule-2)] text-[var(--color-ink-2)]",
+      )}
+    >
+      {label(status, kind)}
     </span>
   );
+}
+
+/** Compact form for lists. */
+export function StatusDot({ status, kind }: { status: ActionStatus | string; kind?: "question" | "task" }) {
+  return <StatusBadge status={status as ActionStatus} kind={kind} size="sm" />;
 }

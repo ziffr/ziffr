@@ -1,13 +1,14 @@
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** People are named, not colour-coded: an initial on cotton stock, then the name. */
 export function Avatar({ p, size = "md" }: { p?: Profile; size?: "sm" | "md" }) {
   if (!p) return null;
   return (
     <span
       title={`${p.name}, ${p.role}`}
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-full font-medium text-white", size === "sm" ? "size-5 text-[10px]" : "size-7 text-xs")}
-      style={{ background: p.color }}
+      aria-hidden
+      className={cn("stock inline-flex shrink-0 items-center justify-center rounded-full font-semibold", size === "sm" ? "size-6 text-xs" : "size-8 text-sm")}
     >
       {p.name[0]}
     </span>

@@ -42,38 +42,38 @@ export function MetricChart({
   const mp = metric.period;
 
   return (
-    <div style={{ height }} >
+    <div style={{ height }} role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s${points.length ? `, latest ${formatValue(metric, points[points.length - 1].value)}` : ""}`}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           accessibilityLayer={false}
           data={rows}
           margin={{ top: 12, right: 12, bottom: 0, left: 8 }}
         >
-          <CartesianGrid vertical={false} stroke="var(--border)" />
+          <CartesianGrid vertical={false} stroke="var(--color-rule)" />
           {(metric.target_min !== null || metric.target_max !== null) && (
             <ReferenceArea
               y1={metric.target_min ?? domain[0]}
               y2={metric.target_max ?? domain[1]}
-              fill="var(--chart-2)"
-              fillOpacity={0.08}
+              fill="var(--color-band)"
+              fillOpacity={0.6}
               stroke="none"
               ifOverflow="extendDomain"
             />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, true)} tick={{ fontSize: 11 }} minTickGap={24} stroke="var(--muted-foreground)" />
-          <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11 }} width={64} stroke="var(--muted-foreground)" />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
+          <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
               const r = payload?.[0]?.payload as Row | undefined;
               if (!active || !r) return null;
               return (
-                <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow">
+                <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
                   <div className="font-medium">{periodLabel(r.period, mp)}</div>
                   {r.value !== undefined ? (
-                    <div>{metric.name}: {formatValue(metric, r.value)}</div>
+                    <div>{metric.name}: <span className="fig">{formatValue(metric, r.value)}</span></div>
                   ) : (
                     <>
-                      <div className="text-primary">Forecast: {formatValue(metric, r.fc!)}</div>
+                      <div>Forecast: <span className="fig">{formatValue(metric, r.fc!)}</span></div>
                       {r.band && <div className="text-muted-foreground">Likely {formatValue(metric, r.band[0])} – {formatValue(metric, r.band[1])}</div>}
                     </>
                   )}
@@ -81,12 +81,12 @@ export function MetricChart({
               );
             }}
           />
-          <Area dataKey="band" stroke="none" fill="var(--chart-1)" fillOpacity={0.12} isAnimationActive={false} />
-          <Line dataKey="fc" stroke="var(--chart-1)" strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+          <Area dataKey="band" stroke="none" fill="var(--color-ink-2)" fillOpacity={0.07} isAnimationActive={false} />
+          <Line dataKey="fc" stroke="var(--color-muted)" strokeDasharray="5 4" dot={false} isAnimationActive={false} />
           <Line
             dataKey="value"
-            stroke="var(--chart-1)"
-            strokeWidth={2}
+            stroke="var(--color-ink-2)"
+            strokeWidth={1.75}
             isAnimationActive={false}
             activeDot={false}
             dot={(p: { cx?: number; cy?: number; index?: number; payload?: Row }) => {
@@ -95,18 +95,18 @@ export function MetricChart({
               return (
                 <g key={p.index} data-period={period} onClick={onSelect ? () => onSelect(period) : undefined} onContextMenu={onPointContext ? () => onPointContext(period) : undefined} className={onSelect ? "cursor-pointer" : undefined}>
                   {(onSelect || onPointContext) && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
-                  {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--background)" stroke="var(--chart-1)" strokeWidth={1.5} />}
+                  {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke="var(--color-ink-2)" strokeWidth={1.5} />}
                 </g>
               );
             }}
           />
           {markers.map((p) =>
             byPeriod.get(p)?.value !== undefined ? (
-              <ReferenceDot key={p} x={p} y={byPeriod.get(p)!.value!} r={9} fill="var(--chart-5)" fillOpacity={0.25} stroke="var(--chart-5)" />
+              <ReferenceDot key={p} x={p} y={byPeriod.get(p)!.value!} r={9} fill="none" stroke="var(--color-ink)" strokeWidth={1.5} strokeDasharray="3 2" />
             ) : null,
           )}
           {selected && byPeriod.get(selected)?.value !== undefined && (
-            <ReferenceDot x={selected} y={byPeriod.get(selected)!.value!} r={7} fill="var(--primary)" stroke="var(--background)" strokeWidth={2} />
+            <ReferenceDot x={selected} y={byPeriod.get(selected)!.value!} r={7} fill="var(--color-ink)" stroke="var(--color-cotton)" strokeWidth={2} />
           )}
         </ComposedChart>
       </ResponsiveContainer>

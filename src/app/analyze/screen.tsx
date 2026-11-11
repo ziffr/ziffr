@@ -66,7 +66,7 @@ export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; o
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Wand2 className="size-3.5" /> Recipes</span>
           {recipes.map((r) => (
-            <button key={r.label} onClick={r.go} disabled={pending} className="rounded-full border bg-background px-3 py-1 text-sm hover:border-primary hover:bg-primary/5">{r.label}</button>
+            <button key={r.label} onClick={r.go} disabled={pending} className="stock min-h-9 rounded-[var(--radius-stock)] px-3 text-sm transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)] active:translate-y-px">{r.label}</button>
           ))}
           {!recipes.length && <span className="text-xs text-muted-foreground">Recipes appear once the metrics they need are shared with you.</span>}
         </div>
@@ -82,20 +82,20 @@ export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; o
             setDrag(null);
             drop(s);
           }}
-          className={cn("rounded-xl border-2 border-dashed bg-background p-4 transition-colors", over ? "border-primary bg-primary/5" : "border-border")}
+          className={cn("desk rounded-[var(--radius-card)] p-4 outline-2 -outline-offset-2", over ? "outline-dashed outline-[var(--color-ink-2)]" : "outline-transparent")}
         >
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <FlaskConical className="size-4 text-primary" /> Analysis canvas
-            <span className="font-normal text-muted-foreground">· {n} metric{n === 1 ? "" : "s"}</span>
-            {n > 0 && <button onClick={() => { setResults([]); start(() => canvasSet([])); }} className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
+            <span className="fig font-normal text-muted-foreground">{n}</span><span className="font-normal text-muted-foreground">metric{n === 1 ? "" : "s"}</span>
+            {n > 0 && <button onClick={() => { setResults([]); start(() => canvasSet([])); }} className="ml-auto flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
           </div>
           {n === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Drop metrics here. One metric → forecast. Two → correlation. More → drivers and a matrix.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {ms.map((m, i) => (
-                <span key={m.id} className="flex items-center gap-1.5 rounded-lg border bg-muted/40 py-1 pr-1 pl-2.5 text-sm">
-                  {i === 0 && n > 1 && <span className="rounded bg-primary/10 px-1 text-[10px] font-semibold text-primary uppercase">target</span>}
+                <span key={m.id} className="stock flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] py-1 pr-1 pl-2.5 text-sm">
+                  {i === 0 && n > 1 && <span className="rounded-[var(--radius-input)] border border-foreground px-1 text-xs font-medium">Target</span>}
                   {m.name}
                   <span className="text-xs text-muted-foreground">{m.period === "day" ? "daily" : m.period === "week" ? "weekly" : "monthly"}</span>
                   <button onClick={() => start(() => canvasRemove(m.id))} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
@@ -110,11 +110,11 @@ export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; o
                 disabled={!s.ok || pending}
                 onClick={s.go}
                 title={s.locked ? "Coming soon" : !s.ok ? s.why : undefined}
-                className={cn("flex items-start gap-2 rounded-lg border p-2.5 text-left text-sm", s.ok ? "hover:border-primary hover:bg-primary/5" : "cursor-not-allowed opacity-50", s.locked && "border-dashed")}
+                className={cn("flex items-start gap-2 rounded-[var(--radius-stock)] p-2.5 text-left text-sm transition-[transform,box-shadow]", s.ok ? "stock hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]" : "cursor-not-allowed border border-dashed border-[var(--color-rule-2)] text-muted-foreground", s.locked && "border-dashed")}
               >
                 {s.locked ? <Lock className="mt-0.5 size-3.5 shrink-0" /> : <Play className="mt-0.5 size-3.5 shrink-0 text-primary" />}
                 <span>
-                  <span className="font-medium">{s.label}</span>{s.locked && <span className="text-xs text-muted-foreground"> · coming soon</span>}
+                  <span className="font-medium">{s.label}</span>{s.locked && <span className="text-xs text-muted-foreground">, coming soon</span>}
                   <span className="block text-xs text-muted-foreground">{s.ok || s.locked ? s.blurb : s.why}</span>
                 </span>
               </button>

@@ -35,11 +35,11 @@ export function Tour() {
   };
   const count = done.filter(Boolean).length;
   return (
-    <div className="fixed right-4 bottom-4 z-40 w-[min(24rem,calc(100vw-2rem))] rounded-xl border bg-background shadow-lg">
+    <div className="fixed right-4 bottom-4 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)]">
       <button onClick={() => save(done, !open)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium">
         <Compass className="size-4 text-primary" />
         Guided tour
-        {!open && count < STEPS.length && <span className="truncate font-normal text-muted-foreground">· Next: {STEPS[done.findIndex((d) => !d)].title}</span>}
+        {!open && count < STEPS.length && <span className="truncate font-normal text-muted-foreground">Next: {STEPS[done.findIndex((d) => !d)].title}</span>}
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">{count}/{STEPS.length}</span>
         {open ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
       </button>
@@ -48,7 +48,7 @@ export function Tour() {
           {STEPS.map((s, i) => (
             <li key={i} className="flex gap-2 rounded-lg p-2 hover:bg-muted/60">
               <button aria-label="Mark done" onClick={() => save(done.map((d, j) => (j === i ? !d : d)), open)} className="mt-0.5 shrink-0">
-                {done[i] ? <CheckCircle2 className="size-4 text-chart-2" /> : <Circle className="size-4 text-muted-foreground" />}
+                {done[i] ? <CheckCircle2 className="size-4 text-[var(--color-success)]" /> : <Circle className="size-4 text-muted-foreground" />}
               </button>
               <Link href={s.href} className="text-sm">
                 <span className={done[i] ? "text-muted-foreground line-through" : "font-medium"}>

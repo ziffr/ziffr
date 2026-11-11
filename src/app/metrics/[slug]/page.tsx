@@ -45,7 +45,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   if (!visible.has(metric.id)) {
     return (
-      <div className="mx-auto max-w-md rounded-xl border border-dashed bg-background p-8 text-center text-sm">
+      <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
         <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
         <p className="font-medium">{metric.name} isn’t shared with you</p>
         <p className="mt-1 text-muted-foreground">Ask {peopleById[metric.owner_id]?.name} to share it.</p>
@@ -64,7 +64,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   return (
     <>
       {sp.created && (
-        <div className="mb-4 rounded-xl border border-chart-2/40 bg-chart-2/10 p-4 text-sm">
+        <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
           <span className="font-medium">Metric created.</span> It has no values yet. Its Submitters got a Token and a first Prompt.{" "}
           <Link href="/sources" className="font-medium underline">Go to Sources</Link> to answer it.
         </div>
@@ -84,22 +84,22 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Stat label={last ? `Latest · ${periodLabel(last.period, metric.period)}` : "Latest"}>
+        <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period)}` : "Latest"}>
           <span className={cn(tone === "bad" && "text-destructive")}>{last ? formatValue(metric, last.value) : "–"}</span>
         </Stat>
         <Stat label="Change vs. previous period">
           {change === null ? "–" : (
-            <span className={cn("flex items-center gap-1", improving === true && "text-chart-2", improving === false && "text-destructive")}>
+            <span className={cn("flex items-center gap-1", improving === true && "text-[var(--color-success)]", improving === false && "text-destructive")}>
               {change > 0 ? <ArrowUpRight className="size-5" /> : <ArrowDownRight className="size-5" />}
               {(change * 100).toFixed(1)} %
             </span>
           )}
         </Stat>
-        <Stat label={`Target · ${POLARITY_LABEL[metric.polarity].toLowerCase()}`}>{targetText(metric)}</Stat>
+        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`}><span className="fig">{targetText(metric)}</span></Stat>
       </div>
 
       {points.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-background p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
           No Observations yet. Values arrive through {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="/sources" className="underline">Open Sources</Link>.
         </div>
       ) : (
@@ -108,12 +108,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
-          <section className="rounded-xl border bg-background p-5">
+          <section className="stock rounded-[var(--radius-card)] p-5">
             <h2 className="mb-4 flex items-center gap-2 font-medium"><Sparkles className="size-4 text-primary" /> Analyses</h2>
             <div className="mb-5 flex flex-wrap gap-2">
               {ANALYSES.map((a) => (
-                <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs", a.available ? "border-primary/40 bg-primary/5 font-medium" : "border-dashed text-muted-foreground")}>
-                  {!a.available && <Lock className="size-3" />} {a.label} {!a.available && "· coming soon"}
+                <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 py-1 text-xs", a.available ? "stock font-medium" : "border-dashed text-muted-foreground")}>
+                  {!a.available && <Lock aria-hidden className="size-3" />} {a.label}{!a.available && ", coming soon"}
                 </span>
               ))}
             </div>
@@ -137,8 +137,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {correlations.slice(0, 5).map((c) => (
-                        <Link key={c.metric.id} href={`?vs=${c.metric.slug}`} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "border-primary bg-primary/5" : "hover:bg-muted")}>
-                          {c.metric.name} <span className="font-mono text-muted-foreground">{c.result.r.toFixed(2)}</span>
+                        <Link key={c.metric.id} href={`?vs=${c.metric.slug}`} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
+                          {c.metric.name} <span className="fig text-muted-foreground">{c.result.r.toFixed(2)}</span>
                         </Link>
                       ))}
                     </div>
@@ -154,7 +154,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             )}
           </section>
 
-          <section className="rounded-xl border bg-background p-5">
+          <section className="stock rounded-[var(--radius-card)] p-5">
             <h2 className="mb-3 flex items-center gap-2 font-medium"><MessageSquare className="size-4" /> Actions</h2>
             {actions.length === 0 ? <p className="text-sm text-muted-foreground">No Actions yet. Click a point on the chart to assign one.</p> : (
               <ul className="divide-y">
@@ -173,8 +173,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           </section>
 
           {!metric.formula && (
-            <section className="rounded-xl border bg-background p-5">
-              <h2 className="mb-3 font-medium">Latest Observations</h2>
+            <section className="stock rounded-[var(--radius-card)] p-5">
+              <h2 className="mb-3 font-medium">Latest observations</h2>
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground">
                   <tr><th className="pb-2 font-normal">Period</th><th className="pb-2 font-normal">Value</th><th className="pb-2 font-normal">Source</th><th className="pb-2 font-normal">Submitter</th></tr>
@@ -184,7 +184,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                     <tr key={o.id} className="border-t">
                       <td className="py-2">{periodLabel(o.period_start, metric.period)}</td>
                       <td className="py-2 font-medium">
-                        {formatValue(metric, o.value)}
+                        <span className="fig font-normal">{formatValue(metric, o.value)}</span>
                         {o.original_value !== null && <span className="ml-2 text-xs font-normal text-muted-foreground line-through">{formatValue(metric, o.original_value)}</span>}
                         {o.original_value !== null && <Badge variant="outline" className="ml-2">Corrected</Badge>}
                       </td>
@@ -199,8 +199,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <section className="rounded-xl border bg-background p-5 text-sm">
-            <h2 className="mb-3 font-medium">Metric Description</h2>
+          <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
+            <h2 className="mb-3 font-medium">Metric description</h2>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
@@ -218,7 +218,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && (
-            <section className="rounded-xl border bg-background p-5 text-sm">
+            <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
               <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Tokens</h2>
               <p className="mb-3 text-xs text-muted-foreground">Who may submit values. Usually invisible: implied by the sender’s Slack handle or mail address.</p>
               <ul className="space-y-2">
@@ -226,8 +226,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <li key={t.id} className="flex items-center justify-between gap-2">
                     <Person p={peopleById[t.submitter_id]} />
                     {metric.sources.includes("web_form") ? (
-                      <Link href={`/submit/${t.code}`} className="font-mono text-xs text-primary underline">form link</Link>
-                    ) : <code className="font-mono text-xs text-muted-foreground">{t.code}</code>}
+                      <Link href={`/submit/${t.code}`} className="text-xs underline">Open form</Link>
+                    ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
                   </li>
                 ))}
                 {!tokens?.length && <li className="text-muted-foreground">No Submitters yet.</li>}
@@ -242,7 +242,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border bg-background p-4">
+    <div className="stock rounded-[var(--radius-card)] p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-semibold tracking-tight">{children}</div>
     </div>

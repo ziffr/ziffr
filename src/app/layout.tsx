@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { getProfiles, openActionCount } from "@/lib/data";
@@ -9,9 +8,6 @@ import { NavLink } from "@/components/nav-link";
 import { Tour } from "@/components/tour";
 import { ResetButton } from "@/components/reset-button";
 import { Toaster } from "@/components/ui/sonner";
-
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Ziffr (prototype)",
@@ -25,22 +21,28 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const open = await openActionCount(viewer);
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-muted/30 font-sans antialiased`}>
-        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-primary font-mono text-sm font-bold text-primary-foreground">Z</span>
-              <span className="font-semibold">Ziffr</span>
-              <span className="rounded border border-dashed border-amber-500 px-1.5 py-px font-mono text-[10px] font-semibold tracking-wide text-amber-600 uppercase">Prototype</span>
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        {/* App Router root layout: these load on every route. */}
+        <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 sm:px-6">
+            <Link href="/" className="flex items-baseline gap-2 py-1">
+              <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
+              <span className="text-xs text-muted-foreground">prototype</span>
             </Link>
-            <nav className="flex flex-wrap items-center gap-1">
+            <nav aria-label="Main" className="order-3 -mx-1.5 flex w-full flex-wrap gap-x-0.5 sm:order-none sm:mx-0 sm:w-auto sm:gap-x-1">
               <NavLink href="/dashboards">Dashboards</NavLink>
               <NavLink href="/analyze">Analyze</NavLink>
               <NavLink href="/metrics">Metrics</NavLink>
               <NavLink href="/sources">Sources</NavLink>
               <NavLink href="/actions">
                 Actions
-                {open > 0 && <span className="rounded-full bg-primary px-1.5 text-[10px] leading-4 font-semibold text-primary-foreground">{open}</span>}
+                {open > 0 && <span className="fig text-xs text-muted-foreground" aria-label={`${open} waiting for you`}>{open}</span>}
               </NavLink>
             </nav>
             <div className="ml-auto flex items-center gap-2">
@@ -49,7 +51,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-6 pb-40">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{children}</main>
         <Tour />
         <Toaster />
       </body>

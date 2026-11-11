@@ -44,15 +44,15 @@ export function WidgetBody({ widget, data, onPointContext }: Props) {
       return (
         <div className="flex h-full flex-col">
           <div className="flex items-baseline gap-2">
-            <span className={cn("text-3xl font-semibold tracking-tight", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
+            <span className={cn("text-[length:var(--text-3xl)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
             {change !== null && (
-              <span className={cn("flex items-center text-xs", good === true && "text-chart-2", good === false && "text-destructive")}>
+              <span className={cn("fig flex items-center text-xs", good === true && "text-[var(--color-success)]", good === false && "text-destructive")}>
                 {change > 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
                 {(change * 100).toFixed(1)} %
               </span>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period) : "No values yet"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period) : "No values yet"}</div>
           {pts.length > 1 && <div className="mt-auto min-h-10 flex-1 pt-2"><Sparkline points={pts} height="100%" tone={tone} /></div>}
         </div>
       );
@@ -82,9 +82,9 @@ export function WidgetBody({ widget, data, onPointContext }: Props) {
         <table className="w-full text-sm">
           <tbody>
             {rows.map((r) => (
-              <tr key={r.period} className="border-b last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
+              <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
                 <td className="py-1.5 text-muted-foreground">{periodLabel(r.period, m.period, true)}</td>
-                <td className={cn("py-1.5 text-right font-medium tabular-nums", health(m, r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
+                <td className={cn("fig py-1.5 text-right", health(m, r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
               </tr>
             ))}
           </tbody>
@@ -97,7 +97,7 @@ export function WidgetBody({ widget, data, onPointContext }: Props) {
       if (!b || !res) return <Empty>Needs two metrics with the same period and at least 6 shared values.</Empty>;
       return (
         <div className="flex h-full flex-col">
-          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship · r = {res.r.toFixed(2)} over {res.n} {m.period}s</p>
+          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{res.r.toFixed(2)}</span> over {res.n} {m.period}s</p>
           <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" /></div>
         </div>
       );
@@ -116,18 +116,18 @@ function Empty({ children }: { children: React.ReactNode }) {
 function Bars({ metric, points, showTarget, onPointContext }: { metric: Metric; points: Point[]; showTarget: boolean; onPointContext?: (p: string) => void }) {
   const hovered = useRef<string | null>(null);
   return (
-    <div className="h-full" onContextMenu={() => hovered.current && onPointContext?.(hovered.current)}>
+    <div className="h-full" role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s`} onContextMenu={() => hovered.current && onPointContext?.(hovered.current)}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <BarChart accessibilityLayer={false} data={points} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
           {showTarget && (metric.target_min !== null || metric.target_max !== null) && (
-            <ReferenceArea y1={metric.target_min ?? 0} y2={metric.target_max ?? undefined} fill="var(--chart-2)" fillOpacity={0.08} ifOverflow="extendDomain" />
+            <ReferenceArea y1={metric.target_min ?? 0} y2={metric.target_max ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, true)} tick={{ fontSize: 10 }} minTickGap={16} stroke="var(--muted-foreground)" />
-          <YAxis tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 10 }} width={52} stroke="var(--muted-foreground)" />
-          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--muted)" }} />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
+          <YAxis tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={56} stroke="var(--color-rule-2)" />
+          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
-              <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--destructive)" : "var(--chart-1)"} fillOpacity={0.85} />
+              <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--color-error)" : "var(--color-ink-2)"} fillOpacity={0.85} />
             ))}
           </Bar>
         </BarChart>
@@ -144,7 +144,7 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
         <thead>
           <tr>
             <th />
-            {metrics.map((m) => <th key={m.id} className="max-w-20 px-1 pb-1 text-left font-medium [writing-mode:vertical-rl] rotate-180">{m.name}</th>)}
+            {metrics.map((m) => <th key={m.id} className="max-w-20 rotate-180 px-1 pb-1 text-left font-medium [writing-mode:vertical-rl]">{m.name}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -153,9 +153,9 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
               <th className="pr-2 text-right font-medium whitespace-nowrap">{a.name}</th>
               {metrics.map((b) => {
                 const r = a.id === b.id ? 1 : a.period === b.period ? pearson(series[a.slug] ?? [], series[b.slug] ?? [])?.r ?? null : null;
-                const bg = r === null ? "var(--muted)" : r >= 0 ? `color-mix(in oklch, var(--chart-1) ${Math.abs(r) * 80}%, transparent)` : `color-mix(in oklch, var(--chart-5) ${Math.abs(r) * 80}%, transparent)`;
+                const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-ink-2) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
-                  <td key={b.id} title={r === null ? "Different periods" : `r = ${r.toFixed(2)}`} className="size-10 text-center font-mono tabular-nums" style={{ background: bg }}>
+                  <td key={b.id} title={r === null ? "Different periods" : `r = ${r.toFixed(2)}`} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
                     {r === null ? "–" : r.toFixed(2)}
                   </td>
                 );
@@ -180,12 +180,12 @@ function Drivers({ target, others, series }: { target: Metric; others: Metric[];
     <div className="flex h-full flex-col gap-2">
       <ul className="space-y-1">
         {ranked.map(({ o, res }) => (
-          <li key={o.id} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2 text-xs">
+          <li key={o.id} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
             <span className="truncate">{o.name}</span>
-            <span className="h-2 rounded-full bg-muted">
-              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res!.r) * 100}%`, background: res!.r >= 0 ? "var(--chart-1)" : "var(--chart-5)" }} />
+            <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
+              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res!.r) * 100}%`, background: res!.r >= 0 ? "var(--color-ink-2)" : "var(--color-error)" }} />
             </span>
-            <span className="text-right font-mono tabular-nums">{res!.r.toFixed(2)}</span>
+            <span className="fig text-right">{res!.r.toFixed(2)}</span>
           </li>
         ))}
       </ul>

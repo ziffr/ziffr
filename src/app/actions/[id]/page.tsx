@@ -40,18 +40,18 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
-      <div className="rounded-xl border bg-background p-5">
+      <div className="stock rounded-[var(--radius-card)] p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <StatusBadge status={a.status} kind={a.kind} />
-          <span className="rounded-full border px-2 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
+          <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {format(new Date(a.due_date), "d MMM")}</span>}
-          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link>· {periodLabel(a.period_start, m.period)}
-          {obs && <>· <span className="font-medium text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
+          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link><span>{periodLabel(a.period_start, m.period)}</span>
+          {obs && <><span className="fig text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
         </div>
         <div className="mt-3 flex gap-3">
           <Avatar p={people[a.asker_id]} />
           <div>
-            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> {a.kind === "task" ? "assigned" : "asked"} <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
+            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> {a.kind === "task" ? "assigned" : "asked"} <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
             <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
           </div>
         </div>
@@ -60,16 +60,16 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
 
       <ol className="mt-4 space-y-3">
         {thread.map((t) => (
-          <li key={t.id} className="flex gap-3 rounded-xl border bg-background p-4">
+          <li key={t.id} className="flex gap-3 stock rounded-[var(--radius-card)] p-4">
             <Avatar p={people[t.author_id]} />
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span> · {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
+              <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span>, {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
               <p className="mt-0.5 text-sm whitespace-pre-wrap">{t.body}</p>
               {t.correction_value !== null && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-2 text-sm">
                   <PencilLine className="size-4 text-primary" />
                   Correction: <span className="line-through text-muted-foreground">{formatValue(m, obs?.original_value ?? obs?.value)}</span> → <span className="font-semibold">{formatValue(m, Number(t.correction_value))}</span>
-                  <span className="ml-auto text-xs capitalize text-muted-foreground">{t.correction_status}</span>
+                  {t.correction_status === "accepted" ? <span className="pressed ml-auto text-sm">Corrected</span> : <span className="ml-auto text-xs capitalize text-muted-foreground">{t.correction_status}</span>}
                   {t.correction_status === "proposed" && isOwner && (
                     <span className="flex gap-1.5">
                       <form action={decideCorrection.bind(null, t.id, true)}><Button type="submit" size="sm"><Check /> Accept</Button></form>
@@ -85,7 +85,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
       </ol>
 
       {a.status !== "closed" && (isAsker || isAssignee || isOwner) ? (
-        <form action={replyToAction.bind(null, a.id)} className="mt-4 rounded-xl border bg-background p-4">
+        <form action={replyToAction.bind(null, a.id)} className="mt-4 stock rounded-[var(--radius-card)] p-4">
           {isAsker && !isAssignee && a.status === "open" && (
             <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
               Waiting for {people[a.assignee_id]?.name.split(" ")[0]}. To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “View as” (top right).
@@ -107,12 +107,12 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           </div>
         </form>
       ) : a.status === "closed" ? (
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+        <div className="mt-4 flex items-center justify-between rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">
           Closed.
           {isAsker && <form action={setActionStatus.bind(null, a.id, "open")}><Button type="submit" variant="outline" size="sm">Reopen</Button></form>}
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+        <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">
           You’re viewing as {people[viewer]?.name}. Switch “View as” to {people[a.assignee_id]?.name.split(" ")[0]} (top right) to answer this.
         </p>
       )}

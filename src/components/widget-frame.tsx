@@ -121,21 +121,21 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
       <ContextMenu>
         <ContextMenuTrigger
           ref={frame}
-          className={cn("group/widget flex h-full flex-col overflow-hidden rounded-xl border bg-background shadow-xs", panel && "ring-2 ring-primary/40", className)}
+          className={cn("stock group/widget flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", panel && "outline-2 outline-offset-2 outline-ring", className)}
           onContextMenuCapture={() => setPeriod(null)}
         >
-          <div className={cn("flex items-center gap-1.5 px-3 pt-2.5 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
-            {dragHandle && <GripVertical className="-ml-1 size-3.5 text-muted-foreground/50 opacity-0 group-hover/widget:opacity-100" />}
-            <span className="truncate text-sm font-medium">{title}</span>
-            {open > 0 && <span title={`${open} open action(s)`} className="flex items-center gap-0.5 rounded-full bg-chart-5/15 px-1.5 text-[11px] text-chart-5"><MessageSquare className="size-3" />{open}</span>}
+          <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
+            {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
+            <span className="truncate text-sm font-semibold">{title}</span>
+            {open > 0 && <span title={`${open} open action(s)`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><MessageSquare aria-hidden className="size-3.5" /><span className="fig">{open}</span> open</span>}
             <DropdownMenu>
-              <DropdownMenuTrigger className="ml-auto rounded p-0.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100 hover:bg-muted data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
+              <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">{items(DM)}</DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="min-h-0 flex-1 px-3 pb-3">
+          <div className="min-h-0 flex-1 px-4 pb-4">
             <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} />
           </div>
         </ContextMenuTrigger>
@@ -180,16 +180,16 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
   return (
     <div className="max-h-[70vh] overflow-y-auto">
       <div className="border-b p-3">
-        <div className="text-sm font-medium">{m.name} · history</div>
-        <div className="text-xs text-muted-foreground">{data.series[m.slug]?.length ?? 0} {m.period}s on record</div>
+        <div className="text-sm font-semibold">History of {m.name}</div>
+        <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
         <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} /></div>
       </div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
-          <div className="mb-1 text-xs font-semibold text-muted-foreground">Actions</div>
+          <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
           {h.actions.map((a) => (
             <Link key={a.id} href={`/actions/${a.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted">
-              <StatusDot status={a.status} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, true)}</span>
+              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, true)}</span>
             </Link>
           ))}
         </div>
@@ -200,7 +200,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           {h?.observations.slice(0, 60).map((o) => (
             <tr key={o.id} className="border-b last:border-0">
               <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, true)}</td>
-              <td className="py-1.5 font-medium tabular-nums">
+              <td className="fig py-1.5">
                 {formatValue(m, Number(o.value))}
                 {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value))}</span>}
               </td>
@@ -243,28 +243,28 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind
         });
       }}
     >
-      <div className="flex rounded-lg bg-muted p-0.5 text-xs">
+      <div className="flex rounded-[12px] bg-muted p-1 text-sm shadow-[var(--press-groove)]">
         {(["question", "task"] as const).map((k) => (
-          <button key={k} type="button" onClick={() => setKind(k)} className={cn("flex-1 rounded-md py-1 capitalize", kind === k && "bg-background font-medium shadow-xs")}>{k}</button>
+          <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} className={cn("min-h-8 flex-1 rounded-[var(--radius-input)] capitalize transition-colors", kind === k ? "stock font-medium" : "text-muted-foreground hover:text-foreground")}>{k}</button>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <label className="space-y-1">
           <span className="text-muted-foreground">About</span>
-          <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-8 w-full rounded-md border bg-background px-1.5">
-            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, true)} · {formatValue(metric, p.value)}</option>)}
+          <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
+            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, true)}, {formatValue(metric, p.value)}</option>)}
           </select>
         </label>
         <label className="space-y-1">
           <span className="text-muted-foreground">{kind === "task" ? "Assign to" : "Ask"}</span>
-          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-8 w-full rounded-md border bg-background px-1.5">
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
             {others.map((p) => <option key={p.id} value={p.id}>{p.name.split(" ")[0]}</option>)}
           </select>
         </label>
       </div>
       <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} autoFocus />
       {kind === "task" && (
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">Due <Input type="date" value={due} min={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setDue(e.target.value)} className="h-8" /></label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">Due <Input type="date" value={due} min={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setDue(e.target.value)} /></label>
       )}
       <Button type="submit" className="w-full" disabled={pending || !text.trim()}>{kind === "task" ? "Assign task" : "Send question"}</Button>
     </form>

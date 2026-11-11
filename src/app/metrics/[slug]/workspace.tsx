@@ -42,28 +42,28 @@ export function MetricWorkspace({
   };
 
   return (
-    <div className="rounded-xl border bg-background p-4">
+    <div className="stock rounded-[var(--radius-card)] p-4">
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5"><MousePointerClick className="size-3.5" /> Click a point to ask someone about it</span>
         <span className="flex items-center gap-3">
-          <Legend className="bg-chart-2/20" label="Target range" />
-          {forecast && <Legend className="border-t-2 border-dashed border-chart-1" label="Forecast" />}
+          <Legend className="bg-[var(--color-band)]" label="Target range" />
+          {forecast && <Legend className="border-t-2 border-dashed border-[var(--color-muted)]" label="Forecast" />}
           {markers.length > 0 && <Legend className="rounded-full border border-chart-5 bg-chart-5/25" label="Action" />}
         </span>
       </div>
       <MetricChart metric={metric} points={points} forecast={forecast} markers={markers} selected={selected} onSelect={pick} />
       {selected && point && (
-        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+        <div className="mt-3 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3">
           <div className="mb-2 flex items-center gap-2 text-sm">
             <MessageSquarePlus className="size-4 text-primary" />
             <span className="font-medium">New Action about {periodLabel(selected, metric.period)}</span>
-            <span className="text-muted-foreground">· {formatValue(metric, point.value)}</span>
+            <span className="fig text-muted-foreground">{formatValue(metric, point.value)}</span>
             <button onClick={() => setSelected(null)} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Cancel"><X className="size-4" /></button>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="flex shrink-0 items-center gap-2 text-sm">
               Assign to
-              <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-9 rounded-lg border bg-background px-2 text-sm">
+              <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
                 {others.map((p) => <option key={p.id} value={p.id}>{p.name.split(" ")[0]} ({p.role})</option>)}
               </select>
             </label>

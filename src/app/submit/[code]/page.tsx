@@ -25,10 +25,10 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
         <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
         <div className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm">
           For <span className="font-medium">{periodLabel(period, m.period)}</span>
-          {existing?.[0] && <> · already has <span className="font-medium">{formatValue(m, Number(existing[0].value))}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
+          {existing?.[0] && <>, already has <span className="font-medium">{formatValue(m, Number(existing[0].value))}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
         </div>
         {sp.detail && (
-          <div className={`mt-4 rounded-lg border px-3 py-2 text-sm ${ok ? "border-chart-2/40 bg-chart-2/10" : "border-destructive/30 bg-destructive/5"}`}>{sp.detail}</div>
+          <div className={`mt-4 rounded-lg border px-3 py-2 text-sm ${ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5"}`}>{sp.detail}</div>
         )}
         <form action={submitWebForm.bind(null, code)} className="mt-4 flex gap-2">
           <Input name="value" required inputMode="decimal" placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} className="h-10 text-base" autoFocus />

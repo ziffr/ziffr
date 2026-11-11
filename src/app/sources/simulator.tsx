@@ -47,10 +47,10 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
 
   const Icon = source === "slack" ? Hash : Mail;
   return (
-    <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-xl border bg-background">
-      <div className={cn("flex items-center gap-2 border-b px-4 py-2.5 text-sm font-medium", source === "slack" ? "bg-[#3f0e40] text-white" : "bg-sky-50 text-sky-900")}>
+    <section className="flex min-h-[28rem] flex-col overflow-hidden stock rounded-[var(--radius-card)]">
+      <div className={cn("flex items-center gap-2 border-b px-4 py-2.5 text-sm font-medium", source === "slack" ? "bg-primary text-primary-foreground" : "bg-[var(--color-paper-3)] text-foreground")}>
         <Icon className="size-4" /> {source === "slack" ? "ziffr-reports" : "reports@ziffr.example"}
-        <span className="ml-auto rounded bg-white/15 px-1.5 py-px text-[10px] font-normal uppercase">simulated</span>
+        <span className="ml-auto text-xs font-normal opacity-80">simulated</span>
       </div>
       <div className="flex max-h-[26rem] flex-1 flex-col-reverse overflow-y-auto">
         <ul className="space-y-3 p-4">
@@ -58,12 +58,12 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
           {timeline.map((t) =>
             t.kind === "prompt" ? (
               <li key={`p${t.p.id}`} className="flex gap-2.5">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"><Bot className="size-4" /></span>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-primary text-primary-foreground"><Bot aria-hidden className="size-4" /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs"><span className="font-semibold">Ziffr</span> <span className="text-muted-foreground">to {profiles.find((p) => p.id === t.p.submitter_id)?.name.split(" ")[0]} · {format(new Date(t.at), "d MMM HH:mm")}</span></div>
+                  <div className="text-xs"><span className="font-semibold">Ziffr</span> <span className="text-muted-foreground">to {profiles.find((p) => p.id === t.p.submitter_id)?.name.split(" ")[0]}, {format(new Date(t.at), "d MMM HH:mm")}</span></div>
                   <div className="text-sm">{t.p.text}</div>
                   {t.p.answered_at ? (
-                    <div className="mt-1 text-xs text-chart-2">✓ answered</div>
+                    <div className="mt-1 text-xs text-[var(--color-success)]">✓ answered</div>
                   ) : (
                     <button
                       onClick={() => {
@@ -71,7 +71,7 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
                         const p = profiles.find((x) => x.id === t.p.submitter_id);
                         if (p) setSender(ident(p));
                       }}
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      className="mt-1 -ml-1.5 inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs font-medium text-foreground hover:bg-muted"
                     >
                       <Reply className="size-3" /> Reply
                     </button>
@@ -80,7 +80,7 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
               </li>
             ) : (
               <li key={`m${t.l.id}`} className="flex gap-2.5">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-medium text-white" style={{ background: byIdent[t.l.sender]?.color ?? "#9ca3af" }}>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-medium text-white" style={{ background: byIdent[t.l.sender]?.color ?? "var(--color-muted)" }}>
                   {(byIdent[t.l.sender]?.name ?? t.l.sender.replace(/^@/, ""))[0].toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -101,9 +101,10 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
           </div>
         )}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <label className="flex items-center gap-1 rounded-lg border px-2 text-xs text-muted-foreground">
-            <AtSign className="size-3" />
-            <select value={sender} onChange={(e) => setSender(e.target.value)} className="h-8 bg-transparent text-foreground outline-none">
+          <label className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] border border-input bg-card pl-2.5 text-sm text-muted-foreground focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring">
+            <AtSign aria-hidden className="size-3.5 shrink-0" />
+            <span className="sr-only">Send as</span>
+            <select value={sender} onChange={(e) => setSender(e.target.value)} className="h-full min-w-0 flex-1 bg-transparent pr-2 text-foreground outline-none">
               {profiles.map((p) => <option key={p.id} value={ident(p)}>{ident(p)}</option>)}
               <option value={stranger}>{stranger} (unknown)</option>
             </select>
@@ -135,10 +136,10 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
 export function Outcome({ entry, metricName }: { entry: IntakeEntry; metricName?: string }) {
   const o = OUTCOME[entry.outcome] ?? { label: entry.outcome, ok: false };
   return (
-    <div className={cn("mt-1 rounded-md border px-2 py-1 text-xs", o.ok ? "border-chart-2/40 bg-chart-2/10" : "border-destructive/30 bg-destructive/5")}>
-      <span className={cn("font-semibold", o.ok ? "text-chart-2" : "text-destructive")}>{o.label}</span>
-      {metricName && <span className="text-muted-foreground"> · {metricName}</span>}
-      {entry.token_code && <span className="font-mono text-muted-foreground"> · {entry.token_code}</span>}
+    <div className={cn("mt-1 rounded-md border px-2 py-1 text-xs", o.ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5")}>
+      <span className={cn("font-semibold", o.ok ? "text-[var(--color-success)]" : "text-destructive")}>{o.label}</span>
+      {metricName && <span className="text-muted-foreground"> for {metricName}</span>}
+      {entry.token_code && <span className="text-muted-foreground"> with token <span className="fig">{entry.token_code}</span></span>}
       <div className="text-muted-foreground">{entry.detail}</div>
     </div>
   );
