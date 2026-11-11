@@ -11,24 +11,31 @@ import { renameDeck, saveDeck } from "@/app/deck-actions";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { DEFAULT_TEMPLATE, METRIC_TEMPLATES, TEMPLATES } from "@/views/templates";
-import type { CanvasData, TemplateId, Widget } from "@/lib/types";
+import type { CanvasData, Master, TemplateId, Widget } from "@/lib/types";
+import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
+import { setDeckMaster } from "@/app/master-actions";
+import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
 
-const shapeUtils = [WidgetShapeUtil];
+const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown }; data: CanvasData; saved: Widget[] };
+type Props = { deck: { id: number; name: string; document: unknown; master_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] };
 
-export function DeckEditor({ deck, data, saved }: Props) {
+export function DeckEditor({ deck, data, saved, masters }: Props) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [name, setName] = useState(deck.name);
+  const [masterId, setMasterId] = useState<number | null>(deck.master_id);
+  const master = masters.find((m) => m.id === masterId) ?? null;
   const [status, setStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const masterRef = useRef<Master | null>(null);
+  masterRef.current = master;
 
   // Read once: a new snapshot object on every render would make tldraw reload its store.
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
@@ -42,7 +49,7 @@ export function DeckEditor({ deck, data, saved }: Props) {
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
       if (!orderedSlides(ed).length) {
-        const id = addSlide(ed, "title");
+        const id = addSlide(ed, "title", masterRef.current);
         ed.zoomToBounds(ed.getShapePageBounds(id)!, { inset: 48 });
       } else {
         ed.zoomToBounds(ed.getShapePageBounds(orderedSlides(ed)[0].id)!, { inset: 48 });
@@ -64,6 +71,12 @@ export function DeckEditor({ deck, data, saved }: Props) {
   );
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
+  useEffect(() => {
+    setDeckExportMaster(master);
+    return () => {
+      setDeckExportMaster(null);
+    };
+  }, [master]);
   useEffect(() => {
     setDeckExportData(data);
     return () => {
@@ -113,7 +126,7 @@ export function DeckEditor({ deck, data, saved }: Props) {
 
   const newSlide = (layout: LayoutId) => {
     if (!editor) return;
-    const id = addSlide(editor, layout);
+    const id = addSlide(editor, layout, master);
     editor.select(id);
     editor.zoomToBounds(editor.getShapePageBounds(id)!, { inset: 48, animation: { duration: 220 } });
   };
@@ -122,7 +135,7 @@ export function DeckEditor({ deck, data, saved }: Props) {
     if (!editor) return;
     setBusy(kind);
     try {
-      if (kind === "pptx") await exportPptx(editor, data, name);
+      if (kind === "pptx") await exportPptx(editor, data, name, master);
       else await exportPdf(editor, name);
       toast.success(kind === "pptx" ? "PowerPoint downloaded" : "PDF ready to print", { description: "Values are a snapshot of today. The deck in Ziffr stays live." });
     } catch (e) {
@@ -135,6 +148,7 @@ export function DeckEditor({ deck, data, saved }: Props) {
 
   return (
     <DeckData.Provider value={data}>
+      <DeckMaster.Provider value={master}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Presentation aria-hidden className="size-5 text-muted-foreground" />
         <label className="min-w-0 flex-1">
@@ -147,6 +161,22 @@ export function DeckEditor({ deck, data, saved }: Props) {
           />
         </label>
         <span className="text-xs text-muted-foreground" aria-live="polite">{status === "saved" ? "Saved" : status === "saving" ? "Saving…" : "Unsaved changes"}</span>
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Master</span>
+          <select
+            value={masterId ?? ""}
+            onChange={(e) => {
+              const v = e.target.value ? Number(e.target.value) : null;
+              setMasterId(v);
+              start(() => setDeckMaster(deck.id, v));
+            }}
+            className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2"
+          >
+            <option value="">None</option>
+            {masters.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          <Link href={`/decks/masters${masterId ? `?id=${masterId}` : ""}`} className="text-sm underline">Edit</Link>
+        </label>
         <DropdownMenu>
           <DropdownMenuTrigger className={buttonVariants({ variant: "outline" })}><Plus aria-hidden /> Slide</DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
@@ -198,16 +228,37 @@ export function DeckEditor({ deck, data, saved }: Props) {
       <p className="mt-2 text-xs text-muted-foreground">
         Slides export in reading order, left to right and top to bottom. Line and bar widgets become editable PowerPoint charts; gauges and analyses go in as images.
       </p>
+      </DeckMaster.Provider>
     </DeckData.Provider>
   );
 }
 
 /** Restyle the selected widget, the same templates as on a dashboard. */
 function SelectionPanel({ editor }: { editor: Editor }) {
+  const slide = useValue("selected slide", () => {
+    const s = editor.getOnlySelectedShape();
+    return s && s.type === "frame" ? s : null;
+  }, [editor]);
   const shape = useValue("selected widget", () => {
     const s = editor.getOnlySelectedShape();
     return s && s.type === WIDGET_SHAPE ? (s as WidgetShape) : null;
   }, [editor]);
+  if (slide) {
+    return (
+      <div className="stock rounded-[var(--radius-card)] p-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(slide.meta?.hideMaster)}
+            onChange={(e) => editor.updateShape({ id: slide.id, type: "frame", meta: { ...slide.meta, hideMaster: e.target.checked } })}
+            className="size-4 accent-[var(--color-ink)]"
+          />
+          Hide master on this slide
+        </label>
+        <p className="mt-1.5 text-xs text-muted-foreground">For full-bleed title or image slides.</p>
+      </div>
+    );
+  }
   if (!shape || TEMPLATES[shape.props.template as TemplateId]?.kind !== "metric") return null;
   return (
     <div className="stock rounded-[var(--radius-card)] p-3">

@@ -1,5 +1,6 @@
 // Slide layouts: a 16:9 frame plus placeholder text, the way a deck tool starts a slide.
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
+import type { Master } from "@/lib/types";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
@@ -27,7 +28,10 @@ export function orderedSlides(editor: Editor) {
 }
 
 /** Adds a slide below the last one and returns its id. */
-export function addSlide(editor: Editor, layout: LayoutId): TLShapeId {
+export function addSlide(editor: Editor, layout: LayoutId, master?: Master | null): TLShapeId {
+  // Type sizes come from the master: tldraw text sizes are xl = 44px and m = 24px at scale 1.
+  const title = (master?.title_size ?? 44) / 44;
+  const body = (master?.body_size ?? 24) / 24;
   const existing = slides(editor);
   const last = existing[existing.length - 1];
   const x = last ? last.x : 0;
@@ -38,14 +42,12 @@ export function addSlide(editor: Editor, layout: LayoutId): TLShapeId {
     const text = (t: string, px: number, py: number, w: number, size: "s" | "m" | "l" | "xl", scale = 1) =>
       editor.createShape({ type: "text", parentId: id, x: px, y: py, props: { richText: toRichText(t), size, w, autoSize: false, scale, color: "black", font: "sans" } });
     if (layout === "title") {
-      text("Title", MARGIN, 250, SLIDE_W - MARGIN * 2, "xl", 1.6);
-      text("Subtitle, date or presenter", MARGIN, 380, SLIDE_W - MARGIN * 2, "m");
-    } else if (layout === "title-content") {
-      text("Slide title", MARGIN, 48, SLIDE_W - MARGIN * 2, "xl");
-    } else if (layout === "two-up") {
-      text("Slide title", MARGIN, 48, SLIDE_W - MARGIN * 2, "xl");
+      text("Title", MARGIN, 250, SLIDE_W - MARGIN * 2, "xl", title * 1.4);
+      text("Subtitle, date or presenter", MARGIN, 380, SLIDE_W - MARGIN * 2, "m", body);
+    } else if (layout === "title-content" || layout === "two-up") {
+      text("Slide title", MARGIN, 56, SLIDE_W - MARGIN * 2 - 200, "xl", title);
     } else if (layout === "section") {
-      text("Section", MARGIN, 300, SLIDE_W - MARGIN * 2, "xl", 1.8);
+      text("Section", MARGIN, 300, SLIDE_W - MARGIN * 2, "xl", title * 1.6);
     }
   });
   return id;

@@ -78,6 +78,8 @@
   --sidebar-primary-foreground: var(--color-board-type); --sidebar-accent: var(--color-paper-3);
   --sidebar-accent-foreground: var(--color-ink); --sidebar-border: var(--color-rule); --sidebar-ring: var(--color-focus);
   --color-band: var(--color-paper-3);
+  /* exported decks travel to machines without our web fonts: slides use a universal face */
+  --font-deck: Arial, Helvetica, sans-serif;
   /* off-target: a deep wine, darker and cooler than the coral of the settled stamp */
   --color-error: oklch(41% 0.12 4);
 }

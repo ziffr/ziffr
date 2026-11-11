@@ -14,7 +14,8 @@ async function ownDeck(id: number) {
 
 export async function createDeck(form: FormData) {
   const name = String(form.get("name") ?? "").trim() || "Untitled deck";
-  const { data } = await db.from("decks").insert({ name, owner_id: await viewerId() }).select("id").single();
+  const { data: def } = await db.from("masters").select("id").eq("is_default", true).limit(1);
+  const { data } = await db.from("decks").insert({ name, owner_id: await viewerId(), master_id: def?.[0]?.id ?? null }).select("id").single();
   revalidatePath("/decks");
   redirect(`/decks/${data?.id}`);
 }

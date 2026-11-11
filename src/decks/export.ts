@@ -5,7 +5,8 @@
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
 import { formatValue, periodLabel } from "@/lib/format";
-import type { CanvasData } from "@/lib/types";
+import type { CanvasData, Master } from "@/lib/types";
+import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
@@ -50,7 +51,7 @@ async function shapeImage(editor: Editor, ids: TLShape["id"][]) {
   return url;
 }
 
-export async function exportPptx(editor: Editor, data: CanvasData, deckName: string) {
+export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: Master | null) {
   const PptxGenJS = (await import("pptxgenjs")).default;
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
@@ -58,6 +59,27 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
   pptx.theme = { headFontFace: FONT, bodyFontFace: FONT };
   const asOf = format(new Date(), "d MMMM yyyy");
   const frames = orderedSlides(editor);
+  const MASTER = "ZIFFR_MASTER";
+  const hex = (c: string) => c.replace("#", "").toUpperCase();
+  if (master) {
+    // A native PowerPoint slide master: background, logo, footer and number live on the master,
+    // so editing the master in PowerPoint changes every slide there too.
+    const k = IN_PER_SLIDE_W / SLIDE_W;
+    const g = masterGeometry(master, SLIDE_W, SLIDE_H);
+    const objects: NonNullable<Parameters<typeof pptx.defineSlideMaster>[0]["objects"]> = [];
+    if (master.logo) objects.push({ image: { x: g.logo.x * k, y: g.logo.y * k, w: g.logo.w * k, h: g.logo.h * k, data: master.logo } });
+    if (master.footer && master.logo_position !== "bottom-left")
+      objects.push({ text: { text: master.footer, options: { x: g.footer.x * k, y: g.footer.y * k, w: g.footer.w * k, h: g.footer.h * k, fontSize: Math.round(g.footer.size * k * 72), color: hex(master.text_color), transparency: 38, fontFace: FONT, margin: 0 } } });
+    pptx.defineSlideMaster({
+      title: MASTER,
+      background: master.background_image ? { data: master.background_image } : { color: hex(master.background_color) },
+      objects,
+      slideNumber:
+        master.show_slide_number && master.logo_position !== "bottom-right"
+          ? { x: g.number.x * k, y: g.number.y * k, w: g.number.w * k, h: g.number.h * k, fontSize: Math.round(g.number.size * k * 72), color: hex(master.text_color), fontFace: FONT, align: "right" }
+          : undefined,
+    });
+  }
 
   for (const [index, frame] of frames.entries()) {
     const fw = (frame.props as { w: number }).w || SLIDE_W;
@@ -66,8 +88,9 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
     const ky = IN_PER_SLIDE_H / fh;
     const k = Math.min(kx, ky);
     const pos = (b: Box) => ({ x: b.x * kx, y: b.y * ky, w: Math.max(b.w * kx, 0.05), h: Math.max(b.h * ky, 0.05) });
-    const slide = pptx.addSlide();
-    slide.background = { color: PAPER };
+    const usesMaster = Boolean(master) && !(frame.meta as { hideMaster?: boolean })?.hideMaster;
+    const slide = usesMaster ? pptx.addSlide({ masterName: MASTER }) : pptx.addSlide();
+    if (!usesMaster) slide.background = { color: PAPER };
 
     for (const shape of descendants(editor, frame.id)) {
       const box = frameBox(editor, frame, shape);
@@ -129,8 +152,10 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
       }
     }
 
-    slide.addText(`Data as of ${asOf}`, { x: 0.4, y: IN_PER_SLIDE_H - 0.4, w: 6, h: 0.25, fontSize: 9, color: MUTED, fontFace: FONT, margin: 0 });
-    slide.addText(`${index + 1}`, { x: IN_PER_SLIDE_W - 1, y: IN_PER_SLIDE_H - 0.4, w: 0.6, h: 0.25, fontSize: 9, color: MUTED, align: "right", fontFace: FONT, margin: 0 });
+    // The snapshot stamp sits centred, clear of the master's footer and number.
+    const footerY = ((SLIDE_H - 36 - 21) * IN_PER_SLIDE_W) / SLIDE_W; // same line as the master footer
+    slide.addText(`Data as of ${asOf}`, { x: IN_PER_SLIDE_W / 2 - 1.5, y: footerY, w: 3, h: 0.22, fontSize: 9, color: MUTED, fontFace: FONT, align: "center", margin: 0 });
+    if (!usesMaster) slide.addText(`${index + 1}`, { x: IN_PER_SLIDE_W - 1, y: footerY, w: 0.6, h: 0.22, fontSize: 9, color: MUTED, align: "right", fontFace: FONT, margin: 0 });
   }
 
   await pptx.writeFile({ fileName: `${deckName.replace(/[^\w\- ]+/g, "").trim() || "Ziffr deck"}.pptx` });

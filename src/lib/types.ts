@@ -144,3 +144,22 @@ export type CanvasData = {
   /** Submitters per metric id (from Tokens). */
   submitters: Record<number, string[]>;
 };
+
+export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type Master = {
+  id: number;
+  owner_id: string;
+  name: string;
+  background_color: string;
+  background_image: string | null;
+  logo: string | null;
+  logo_ratio: number;
+  logo_position: LogoPosition;
+  logo_width: number;
+  footer: string;
+  show_slide_number: boolean;
+  text_color: string;
+  title_size: number;
+  body_size: number;
+  is_default: boolean;
+};
