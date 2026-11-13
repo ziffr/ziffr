@@ -8,9 +8,11 @@ import { evaluate, formulaInputs } from "./formula";
 import { periodLabel } from "./format";
 import type { Metric, Period, Point } from "./types";
 
+/** Which Comparison: the previous period, a calendar span to date (day, week, month, quarter, half) or the year before. */
 export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
 type Grain = "day" | "week" | "month" | "quarter" | "half" | "year";
 
+/** How each Comparison is named in the interface. */
 export const COMPARE_LABEL: Record<CompareKey, string> = {
   prev: "vs previous period", dod: "DoD", wow: "WoW", mom: "MoM", qoq: "QoQ", hoh: "HoH", yoy: "YoY",
 };
@@ -23,6 +25,7 @@ export function comparisonsFor(period: Period): CompareKey[] {
   return all.filter((k) => k === "prev" || k === "yoy" || RANK[GRAIN[k as keyof typeof GRAIN]] >= RANK[period]);
 }
 
+/** One Comparison of a metric: the two values, their difference, and whether that is good (GLOSSARY: Comparison). */
 export type Comparison = {
   key: CompareKey;
   label: string;
@@ -97,6 +100,7 @@ function spanLabel(start: string, end: string, p: Period) {
   return start === end ? periodLabel(start, p, true) : `${periodLabel(start, p, true)} to ${periodLabel(end, p, true)}`;
 }
 
+/** Comparisons for a metric's latest period, combining periods by the metric's Aggregation; `full` compares complete spans instead of spans to date. */
 export function compare(metric: Metric, resolve: Resolver, opts: { keys?: CompareKey[]; full?: boolean; asOf?: string } = {}): Comparison[] {
   const r = resolve(metric.slug);
   const pts = (r?.points ?? []).filter((p) => !opts.asOf || p.period <= opts.asOf);

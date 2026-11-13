@@ -5,6 +5,7 @@ import { compare, resolverFrom, targetFor } from "./compare";
 import { compactValue, periodLabel } from "./format";
 import type { CanvasData, Metric, Widget, WidgetSettings } from "./types";
 
+/** The Placeholders a story's words can use, with what each one becomes. */
 export const PLACEHOLDERS = [
   { key: "metric", hint: "the metric's name" },
   { key: "metrics", hint: "all the story's metrics, as a list" },
@@ -55,6 +56,7 @@ export const listOf = (names: string[]) => (names.length < 2 ? names.join("") : 
 
 /** Fills every placeholder it can; one it cannot fill stays visible, so the author sees what is missing. */
 
+/** Fills every Placeholder it can in a text; one it cannot fill stays visible, so the author sees what is missing. */
 export function fillText(text: string | undefined, metrics: Metric[], data: CanvasData): string | undefined {
   if (!text || !text.includes("{")) return text;
   return text.replace(PATTERN, (all, key: string, n?: string) => {

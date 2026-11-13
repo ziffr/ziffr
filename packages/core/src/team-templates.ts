@@ -8,6 +8,7 @@ type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 /** Something in the widget that points at one period or one row, which another metric will not have. */
 export type Specific = { key: string; kind: "period" | "row"; text: string; at: string };
 
+/** The rules a note tied to one period or row can follow instead, when a widget becomes a template. */
 export const RULES_FOR: Record<Specific["kind"], { rule: AnchorRule; label: string }[]> = {
   period: [
     { rule: "last", label: "Latest period" },
@@ -22,6 +23,7 @@ export const RULES_FOR: Record<Specific["kind"], { rule: AnchorRule; label: stri
   ],
 };
 
+/** Notes in a widget tied to one period or row, which another metric will not have. */
 export function specifics(widget: W): Specific[] {
   const out: Specific[] = [];
   (widget.settings.callouts ?? []).forEach((c, i) => {
@@ -51,6 +53,7 @@ function placeholderize(text: string | undefined, ms: Metric[]) {
   return t;
 }
 
+/** For each such note: the rule it follows from now on, or "drop" to leave it out. */
 export type Choices = Record<string, AnchorRule | "drop">;
 
 /** Slots shared by everything in one template: the same metric (or list of metrics) is one slot. */
@@ -166,6 +169,7 @@ const widgetOf = (sh: SlideShape): W => ({
   title: (sh.props.title as string) || null,
 });
 
+/** Notes tied to one period or row in any widget on a slide. */
 export function slideSpecifics(shapes: SlideShape[]): Specific[] {
   return shapes.flatMap((sh, i) => (sh.type === "ziffr-widget" ? specifics(widgetOf(sh)).map((x) => ({ ...x, key: `s${i}:${x.key}` })) : []));
 }
@@ -178,6 +182,7 @@ function mapRich(node: unknown, f: (t: string) => string): unknown {
   return { ...n, ...(typeof n.text === "string" ? { text: f(n.text) } : {}), ...(Array.isArray(n.content) ? { content: n.content.map((c) => mapRich(c, f)) } : {}) };
 }
 
+/** The slide layout a slide makes: shared slots for its widgets, placeholders in its words, and what changed on the way. */
 export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = []) {
   const ctx = newCtx();
   const notices: string[] = [];

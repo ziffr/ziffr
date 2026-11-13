@@ -6,6 +6,7 @@ import type { Metric, Period, Profile, WorkflowConfig, WorkflowStep } from "./ty
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
 
+/** The start of the period n periods before or after a period start. */
 export function shiftPeriod(start: string, p: Period, n: number) {
   const d = parseISO(start);
   return iso(p === "day" ? addDays(d, n) : p === "week" ? addWeeks(d, n) : addMonths(d, n));
@@ -14,6 +15,7 @@ export function shiftPeriod(start: string, p: Period, n: number) {
 /** The last day of a period. */
 export const periodEnd = (start: string, p: Period) => iso(addDays(parseISO(shiftPeriod(start, p, 1)), -1));
 
+/** A date n working days later, skipping Saturdays and Sundays. */
 export function addWorkingDays(date: string, n: number) {
   let d = parseISO(date);
   let left = n;
@@ -46,6 +48,7 @@ export function unusualReasons(m: Metric, value: number, previous: number | unde
   return out;
 }
 
+/** A Workflow step in words, as the editor shows it. */
 export function stepLabel(s: WorkflowStep, people: Profile[]) {
   const name = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
   switch (s.type) {
@@ -57,4 +60,5 @@ export function stepLabel(s: WorkflowStep, people: Profile[]) {
   }
 }
 
+/** The short name of each kind of Workflow step. */
 export const STEP_TITLE: Record<WorkflowStep["type"], string> = { remind: "Remind", escalate: "Escalate", check: "Check", approve: "Approve", publish: "Publish" };

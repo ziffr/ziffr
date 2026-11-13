@@ -1,0 +1,18 @@
+# Words GLOSSARY.md lists under Avoid, where the replacement is unambiguous. The glossary itself and the ADRs,
+# which discuss alternatives, are not checked (see the docs CI job).
+extends: substitution
+message: "Use '%s' (GLOSSARY.md) instead of '%s'."
+level: error
+ignorecase: true
+swap:
+  tenant: Workspace
+  personal access token: Access Key
+  API token: Access Key
+  out of office: Away
+  deadline: Due Date
+  sign-off: Approval
+  outlier: Unusual Value
+  notification settings: Delivery Preference
+  deputy: Stand-in
+  dashboard tile: widget
+  chart card: widget

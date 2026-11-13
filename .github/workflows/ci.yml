@@ -20,3 +20,16 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prose (Vale)
+        run: |
+          curl -sSL https://github.com/errata-ai/vale/releases/download/v3.27.0/vale_3.27.0_Linux_64-bit.tar.gz | tar xz vale
+          ./vale --minAlertLevel=error docs/guides docs/specs README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md
+      - name: Public surface changes come with docs
+        if: github.event_name == 'pull_request'
+        run: .github/scripts/docs-touched.sh

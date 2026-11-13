@@ -1,9 +1,15 @@
+/** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
 export type Period = "day" | "week" | "month";
+/** What a second value for the same period does (GLOSSARY: Submission Rule). */
 export type SubmissionRule = "reject" | "overwrite" | "add" | "keep_both";
+/** Whether higher, lower or a range of values is good. */
 export type Polarity = "higher" | "lower" | "target";
+/** How a metric's values are written. */
 export type Format = "number" | "currency" | "percent";
+/** Where values can arrive from (GLOSSARY: Source). */
 export type SourceId = "slack" | "mail" | "web_form";
 
+/** A person in the workspace, with where Connectors reach them. */
 export type Profile = {
   id: string;
   name: string;
@@ -14,8 +20,10 @@ export type Profile = {
   phone?: string | null;
 };
 
+/** How a metric's values combine over longer spans (GLOSSARY: Aggregation). */
 export type Aggregation = "sum" | "average" | "last" | "none";
 
+/** What defines a metric, apart from who owns it (GLOSSARY: Metric). */
 export type MetricDescription = {
   name: string;
   aggregation: Aggregation;
@@ -31,6 +39,7 @@ export type MetricDescription = {
   sources: SourceId[];
 };
 
+/** A metric with its owner and, for a Derived Metric, its formula. */
 export type Metric = MetricDescription & {
   id: number;
   slug: string;
@@ -40,8 +49,10 @@ export type Metric = MetricDescription & {
   created_at: string;
 };
 
+/** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */
 export type CatalogMetric = MetricDescription & { id: number; category: string };
 
+/** One value of a metric for one period (GLOSSARY: Observation). */
 export type Observation = {
   id: number;
   metric_id: number;
@@ -56,8 +67,10 @@ export type Observation = {
 /** One plotted value per period (latest wins when a rule keeps both). */
 export type Point = { period: string; value: number };
 
+/** The standing permission that links one submitter to one metric (GLOSSARY: Token). */
 export type Token = { id: number; code: string; metric_id: number; submitter_id: string };
 
+/** A message asking a submitter for a value (GLOSSARY: Prompt). */
 export type Prompt = {
   id: number;
   metric_id: number;
@@ -69,6 +82,7 @@ export type Prompt = {
   answered_at: string | null;
 };
 
+/** One incoming message as it was received, with what intake made of it. */
 export type IntakeEntry = {
   id: number;
   at: string;
@@ -82,8 +96,11 @@ export type IntakeEntry = {
   detail: string;
 };
 
+/** Where a question or task stands. */
 export type ActionStatus = "open" | "answered" | "closed";
+/** A question or a task (GLOSSARY: Action). */
 export type ActionKind = "question" | "task";
+/** A question or task about a specific value of a metric (GLOSSARY: Action). */
 export type Action = {
   breakdown_label: string | null;
   /** null: everyone may read the thread; else only this Group (and the people on it). */
@@ -104,6 +121,7 @@ export type Action = {
   updated_at: string;
 };
 
+/** One reply in a Thread, possibly proposing a Correction. */
 export type ThreadMessage = {
   id: number;
   action_id: number;
@@ -114,8 +132,10 @@ export type ThreadMessage = {
   created_at: string;
 };
 
+/** A dashboard and the Theme it uses (null: the team default). */
 export type Dashboard = { id: number; name: string; owner_id: string; theme_id: number | null };
 
+/** The built-in Widget Templates. */
 export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
@@ -123,15 +143,19 @@ export type Callout = { period: string; text: string; rule?: AnchorRule };
 
 /** GLOSSARY: Panel, Measure, Bridge. */
 export type PanelType = "period-bars" | "line" | "bridge" | "ranked" | "share" | "pictogram";
+/** What a Panel shows of a metric: the value or a change (GLOSSARY: Measure). */
 export type MeasureId = "value" | "pct-prev" | "pct-yoy" | "attainment";
 /** What an annotation is attached to (GLOSSARY: Annotation): a rule, a period or a breakdown row, never a position. */
 export type AnchorRule = "max" | "min" | "last" | "first" | "largest-step";
+/** What an Annotation is attached to: a rule, a period or a breakdown row, never a position. */
 export type Anchor =
   | { type: "rule"; rule: AnchorRule }
   | { type: "period"; period: string }
   | { type: "row"; label: string };
+/** A ring, callout or note on a Panel (GLOSSARY: Annotation). */
 export type Annotation = { kind: "callout" | "ring" | "note"; anchor: Anchor; text?: string; arrow?: boolean };
 
+/** One chart inside a story (GLOSSARY: Panel). */
 export type Panel = {
   annotations?: Annotation[];
   type: PanelType;
@@ -153,6 +177,7 @@ export type Panel = {
   title?: string;
 };
 
+/** Everything a widget can be set to; each view uses the parts it needs. */
 export type WidgetSettings = {
   window?: number;
   showTarget?: boolean;
@@ -179,6 +204,7 @@ export type WidgetSettings = {
   canvasSeed?: { template: TemplateId; metric_ids: number[]; settings: WidgetSettings } | null;
 };
 
+/** A widget on a dashboard, or saved to its owner's Pool (GLOSSARY: Widget). */
 export type Widget = {
   id: number;
   owner_id: string;
@@ -194,6 +220,7 @@ export type Widget = {
   h: number;
 };
 
+/** The role a Share gives (GLOSSARY: Viewer, Editor). */
 export type ShareRole = "viewer" | "editor";
 /** A share names a person or a Group; group shares are also handed out per member, with via_group set. */
 export type Share = { id: number; object_type: "metric" | "dashboard" | "deck"; object_id: number; user_id: string; role: ShareRole; group_id?: number | null; via_group?: number };
@@ -243,13 +270,17 @@ export type SlideShape = {
   props: Record<string, unknown>;
   widget?: { metricSlots: number[]; settings: WidgetSettings; title: string | null };
 };
+/** The shapes a slide layout keeps. */
 export type SlideBody = { shapes: SlideShape[] };
 /** A whole slide saved with its metrics left open (a slide layout). */
 export type SlideTemplate = TemplateBase & { kind: "slide"; view: "slide"; body: SlideBody };
+/** A team's Widget Template: for one widget, or a whole slide. */
 export type TeamTemplate = WidgetTemplate | SlideTemplate;
 
+/** One row of a Breakdown. */
 export type BreakdownRow = { label: string; value: number };
 
+/** Where a Theme puts the logo on a slide. */
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 /** What a Theme puts on every slide (GLOSSARY: Theme): logo, footer, slide number, background image, type sizes. */
 export type ThemeSlides = {
@@ -268,6 +299,7 @@ export type SlideDesign = ThemeSlides & { background_color: string; text_color: 
 
 /** GLOSSARY: Theme. Colours are hex so the PowerPoint export can use them as they are. */
 export type FontId = "general-sans" | "inter" | "ibm-plex-sans" | "libre-franklin" | "source-serif" | "playfair" | "georgia" | "arial" | "geist-mono" | "ibm-plex-mono";
+/** The colours, fonts and card style of a Theme. Colours are hex so the PowerPoint export can use them as they are. */
 export type ThemeTokens = {
   /** Behind the cards: the dashboard desk. */
   canvas: string;
@@ -291,6 +323,7 @@ export type ThemeTokens = {
   /** paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all. */
   cards: "paper" | "flat" | "plain";
 };
+/** A named look for everything that shows numbers (GLOSSARY: Theme). */
 export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; slides: ThemeSlides; is_default: boolean; updated_at: string };
 
 /** GLOSSARY: Workflow. Steps run in order after the submitter is asked at the end of a period. */
@@ -300,7 +333,11 @@ export type WorkflowStep =
   | { type: "check"; changePct: number; outsideTarget: boolean }
   | { type: "approve"; approvers: string[] }
   | { type: "publish"; lock: boolean };
+/** A Workflow's Due Date and its steps. */
 export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
+/** A named, reusable path a metric's value takes each period (GLOSSARY: Workflow). */
 export type Workflow = { id: number; owner_id: string; name: string; config: WorkflowConfig; updated_at: string };
+/** Where a metric's period is in its Workflow. */
 export type PeriodStateName = "asked" | "submitted" | "approval" | "published" | "locked";
+/** A metric's period in its Workflow, with the steps done and the current approval. */
 export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; approval_action_id?: number | null; note: string | null; updated_at: string };

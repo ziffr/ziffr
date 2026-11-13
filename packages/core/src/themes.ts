@@ -5,6 +5,7 @@ import type { FontId, SlideDesign, Theme, ThemeTokens } from "./types";
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
 const G = (family: string) => `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
 
+/** The fonts a Theme can use, with the stylesheet that loads them and the name PowerPoint knows. */
 export const FONTS: Record<FontId, Font> = {
   "general-sans": { label: "General Sans", stack: '"General Sans", ui-sans-serif, system-ui, sans-serif', href: "https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap", office: "Arial", kind: "sans" },
   inter: { label: "Inter", stack: '"Inter", ui-sans-serif, system-ui, sans-serif', href: G("Inter:wght@400;500;600;700"), office: "Inter", kind: "sans" },
@@ -18,6 +19,7 @@ export const FONTS: Record<FontId, Font> = {
   "ibm-plex-mono": { label: "IBM Plex Mono", stack: '"IBM Plex Mono", ui-monospace, monospace', href: G("IBM+Plex+Mono:wght@400;500"), office: "IBM Plex Mono", kind: "mono" },
 };
 
+/** A colour as stored in a Theme: # and six hex digits. */
 export const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** The theme a dashboard or deck uses: its own, or the team default. */

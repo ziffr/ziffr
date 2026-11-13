@@ -1,9 +1,12 @@
 // Tiny evaluator for Derived Metric formulas like "({revenue} - {cost}) / {revenue} * 100".
 // Supports + - * / parentheses, numbers and {slug} references. PROTOTYPE: no error recovery.
+
+/** The slugs of the metrics a Derived Metric's formula reads, each once. */
 export function formulaInputs(formula: string): string[] {
   return [...new Set([...formula.matchAll(/\{([a-z0-9-]+)\}/g)].map((m) => m[1]))];
 }
 
+/** A formula's value for the given inputs; null when an input is missing or the result is not a number. */
 export function evaluate(formula: string, vars: Record<string, number>): number | null {
   const tokens = formula.match(/\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/g) ?? [];
   let i = 0;
