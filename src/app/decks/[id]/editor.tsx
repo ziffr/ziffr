@@ -37,7 +37,7 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string } | null };
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null };
 
 export function DeckEditor({ deck, data, saved, sharing }: Props) {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -230,7 +230,7 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
-        {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} />}
+        {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>

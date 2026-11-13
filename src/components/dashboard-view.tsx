@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { getCanvasData, getRawShares, visibleDashboards } from "@/lib/access";
+import { getCanvasData, getRawShares, revealedBy, visibleDashboards } from "@/lib/access";
+import { widgetMetricIds } from "@/lib/widget-metrics";
 import { DashboardScreen } from "@/app/dashboards/screen";
 import type { Widget } from "@/lib/types";
 
@@ -14,5 +15,8 @@ export async function DashboardView({ id }: { id?: number }) {
   ]);
   const current = dashboards.find((d) => d.id === id) ?? (id ? null : dashboards[0] ?? null);
   const { data: widgets } = current ? await db.from("widgets").select("*").eq("dashboard_id", current.id).order("id") : { data: [] };
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={(widgets ?? []) as Widget[]} saved={(saved ?? []) as Widget[]} shares={shares} />;
+  const ws = (widgets ?? []) as Widget[];
+  // Only the owner shares, so only they need to know what a share would also show.
+  const reveals = current?.role === "owner" ? await revealedBy([...new Set(ws.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))], current.owner_id) : {};
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={(saved ?? []) as Widget[]} shares={shares} reveals={reveals} />;
 }

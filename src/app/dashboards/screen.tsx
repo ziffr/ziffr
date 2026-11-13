@@ -30,6 +30,7 @@ type Props = {
   widgets: Widget[];
   saved: Widget[];
   shares: Share[];
+  reveals?: Record<string, string[]>;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -46,7 +47,7 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
-export function DashboardScreen({ data, dashboards, current, widgets, saved, shares }: Props) {
+export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -124,7 +125,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
               {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
               <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
               <VersionsDialog type="dashboard" id={current.id} people={data.people} />
-              {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} groups={data.groups} />}
+              {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} groups={data.groups} reveals={reveals} />}
               </div>
             </div>
             <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">

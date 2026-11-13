@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getGroups, getRawShares, visibleDecks } from "@/lib/access";
+import { deckMetricIds, getGroups, getRawShares, revealedBy, visibleDecks } from "@/lib/access";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getCanvasData } from "@/lib/access";
@@ -24,7 +24,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
       deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }}
       data={data}
       saved={(saved ?? []) as Widget[]}
-      sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id } : null}
+      sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
     />
   );
 }

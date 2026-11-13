@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import type { Group, Profile, Share } from "@/lib/types";
 
 /** GLOSSARY: Share. Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
-export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[] }) {
+export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {} }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> }) {
   const [pending, start] = useTransition();
   const others = people.filter((p) => p.id !== ownerId);
   const initial = (id: string) => shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === id)?.role ?? "";
@@ -36,7 +36,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
           {others.map((p) => (
             <li key={p.id} className="flex items-center gap-3 text-sm">
               <span className="flex size-7 items-center justify-center rounded-full text-xs font-medium text-white" style={{ background: p.color }}>{p.name[0]}</span>
-              <span className="flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role}</span></span>
+              <span className="flex-1">{p.name}<span className="block text-xs text-muted-foreground">{p.role}</span><Reveals names={reveals[p.id]} /></span>
               <select
                 disabled={pending}
                 value={roleOf(p.id)}
@@ -61,7 +61,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
               {groups.map((g) => (
                 <li key={g.id} className="flex items-center gap-3 text-sm">
                   <span className="flex size-7 items-center justify-center rounded-full border border-border text-xs font-medium">{g.name[0]}</span>
-                  <span className="flex-1">{g.name}<span className="block text-xs text-muted-foreground">{g.members.map((id) => people.find((p) => p.id === id)?.name.split(" ")[0]).filter(Boolean).join(", ")}</span></span>
+                  <span className="flex-1">{g.name}<span className="block text-xs text-muted-foreground">{g.members.map((id) => people.find((p) => p.id === id)?.name.split(" ")[0]).filter(Boolean).join(", ")}</span><Reveals names={reveals[`g${g.id}`]} /></span>
                   <select
                     disabled={pending}
                     aria-label={`Access for ${g.name}`}
@@ -85,4 +85,10 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Says what a share shows that was not shared on its own (GLOSSARY: Share). */
+function Reveals({ names }: { names?: string[] }) {
+  if (!names?.length) return null;
+  return <span className="block text-xs text-[var(--color-accent-2)]">Also shows {names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ")}</span>;
 }

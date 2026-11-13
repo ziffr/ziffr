@@ -158,3 +158,20 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }
+
+/** What sharing these metrics would show each person or Group that they cannot see on their own: they don't
+ * own them, don't submit to them, and they were not shared with them directly. Keys: person id, or "g<id>". */
+export async function revealedBy(metricIds: number[], ownerId: string): Promise<Record<string, string[]>> {
+  const [people, groups, shares, { data: tokens }, { data: metrics }] = await Promise.all([
+    getProfiles(), getGroups(), getShares(), db.from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at"),
+    db.from("metrics").select("id, name, owner_id").in("id", metricIds),
+  ]);
+  const own = (person: string, m: { id: number; owner_id: string }) =>
+    m.owner_id === person ||
+    (tokens ?? []).some((t) => t.metric_id === m.id && t.submitter_id === person && tokenValid(t, tokens ?? [])) ||
+    shares.some((s) => s.object_type === "metric" && s.object_id === m.id && s.user_id === person);
+  const out: Record<string, string[]> = {};
+  for (const p of people) if (p.id !== ownerId) out[p.id] = (metrics ?? []).filter((m) => !own(p.id, m)).map((m) => m.name);
+  for (const g of groups) out[`g${g.id}`] = (metrics ?? []).filter((m) => g.members.some((u) => u !== ownerId && !own(u, m))).map((m) => m.name);
+  return out;
+}
