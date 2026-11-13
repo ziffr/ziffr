@@ -32,7 +32,7 @@ export async function createViewLink(type: "dashboard" | "deck", id: number, inp
   // Only what its owner may see goes out.
   await assertCanSeeMetrics(view!.data.metrics.map((m) => m.id), viewer);
   const token = randomBytes(24).toString("base64url");
-  await db.from("view_links").insert({ token, object_type: type, object_id: id, created_by: viewer, label: String(input.label ?? "").slice(0, 80), expires_at: input.expires, frozen: input.frozen ? view : null });
+  await db.from("view_links").insert({ token, object_type: type, object_id: id, created_by: viewer, label: String(input.label ?? "").slice(0, 80), expires_at: input.expires, frozen: input.frozen ? view : null, metric_ids: view!.data.metrics.map((m) => m.id) });
   revalidatePath("/", "layout");
   return token;
 }

@@ -30,3 +30,6 @@ create table view_links (
   created_at timestamptz not null default now()
 );
 alter table view_links enable row level security;
+
+-- A live View Link shows only the metrics its owner agreed to when making it.
+alter table view_links add column metric_ids int[] not null default '{}';

@@ -21,7 +21,7 @@ export type ViewPayload = {
 const pick = <T extends Record<string, unknown>>(o: T, ids: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => ids.has(Number(k)))) as T;
 
 /** Everything a View Link page needs, built as its owner sees it and cut down to the object. */
-export async function buildView(type: "dashboard" | "deck", id: number): Promise<ViewPayload | null> {
+export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[]): Promise<ViewPayload | null> {
   const { data: obj } = await db.from(type === "deck" ? "decks" : "dashboards").select("*").eq("id", id).maybeSingle();
   if (!obj) return null;
   let widgets: Widget[] | undefined;
@@ -32,10 +32,11 @@ export async function buildView(type: "dashboard" | "deck", id: number): Promise
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
   } else metricIds = deckMetricIds(obj.document);
   const full = await getCanvasData(obj.owner_id);
-  const ids = new Set(metricIds.filter((m) => full.metrics.some((x) => x.id === m)));
+  // Only metrics the owner can see and, for a live link, agreed to when making it; added ones stay out.
+  const ids = new Set(metricIds.filter((m) => full.metrics.some((x) => x.id === m) && (!allowed || allowed.includes(m))));
   const metrics = full.metrics.filter((m) => ids.has(m.id));
-  // A derived metric needs its inputs' series to compute comparisons; those stay out of the list of metrics.
-  const slugs = new Set(metrics.flatMap((m) => [m.slug, ...[...(m.formula ?? "").matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => x[1])]));
+  // Only the shown metrics' own series: a derived metric's inputs stay out (its comparisons then do not show).
+  const slugs = new Set(metrics.map((m) => m.slug));
   const data: CanvasData = {
     viewer: "",
     metrics,
@@ -62,5 +63,5 @@ export async function openViewLink(token: string): Promise<ViewPayload | null> {
   const { data: link } = await db.from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
   if (link.frozen) return link.frozen as ViewPayload;
-  return buildView(link.object_type, link.object_id);
+  return buildView(link.object_type, link.object_id, link.metric_ids ?? []);
 }
