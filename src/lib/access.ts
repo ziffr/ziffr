@@ -1,8 +1,9 @@
 import "server-only";
 import { db } from "./db";
 import { tokenValid } from "./tokens";
+import { widgetMetricIds } from "./widget-metrics";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
-import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
 
 // GLOSSARY: Share / Viewer / Editor.
 // A user sees a metric if they own it, submit to it, it was shared with them,
@@ -66,6 +67,33 @@ export async function visibleDashboards(viewer: string): Promise<DashboardAccess
     .filter((d): d is DashboardAccess => d !== null);
 }
 
+export type DeckAccess = { id: number; name: string; owner_id: string; updated_at: string; role: "owner" | ShareRole };
+
+/** Decks the viewer owns or that were shared with them (directly or through a Group). */
+export async function visibleDecks(viewer: string): Promise<DeckAccess[]> {
+  const [{ data: decks }, shares] = await Promise.all([db.from("decks").select("id, name, owner_id, updated_at").order("updated_at", { ascending: false }), getShares()]);
+  return (decks ?? [])
+    .map((d) => {
+      if (d.owner_id === viewer) return { ...d, role: "owner" as const };
+      const s = shares.find((x) => x.object_type === ("deck" as string) && x.object_id === d.id && x.user_id === viewer);
+      return s ? { ...d, role: s.role } : null;
+    })
+    .filter((d): d is DeckAccess => d !== null);
+}
+
+/** Every metric drawn by the widgets on a deck's slides. */
+export function deckMetricIds(document: unknown): number[] {
+  const store = (document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null)?.store ?? {};
+  const out: number[] = [];
+  for (const r of Object.values(store)) {
+    if (r?.type !== "ziffr-widget") continue;
+    let settings: WidgetSettings | undefined;
+    try { settings = typeof r.props?.settings === "string" ? JSON.parse(r.props.settings) : undefined; } catch {}
+    out.push(...widgetMetricIds(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as number[]) : [], settings));
+  }
+  return [...new Set(out.map(Number).filter(Number.isFinite))];
+}
+
 export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promise<Set<number>> {
   const [{ data: tokens }, shares, dashboards] = await Promise.all([
     db.from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at"),
@@ -77,10 +105,16 @@ export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promi
   // Submitters see their metrics; a stand-in only while their stand-in Token is valid.
   for (const t of tokens ?? []) if (t.submitter_id === viewer && tokenValid(t, tokens ?? [])) ids.add(t.metric_id);
   for (const s of shares) if (s.object_type === "metric" && s.user_id === viewer) ids.add(s.object_id);
+  // Whatever a dashboard or deck shared with them shows, they see: widgets, story panels, widgets on slides.
   const sharedDash = dashboards.filter((d) => d.role !== "owner").map((d) => d.id);
   if (sharedDash.length) {
-    const { data: ws } = await db.from("widgets").select("metric_ids").in("dashboard_id", sharedDash);
-    for (const w of ws ?? []) for (const id of w.metric_ids) ids.add(id);
+    const { data: ws } = await db.from("widgets").select("metric_ids, settings").in("dashboard_id", sharedDash);
+    for (const w of ws ?? []) for (const id of widgetMetricIds(w.metric_ids, w.settings)) ids.add(id);
+  }
+  const sharedDecks = (await visibleDecks(viewer)).filter((d) => d.role !== "owner").map((d) => d.id);
+  if (sharedDecks.length) {
+    const { data: ds } = await db.from("decks").select("document").in("id", sharedDecks);
+    for (const d of ds ?? []) for (const id of deckMetricIds(d.document)) ids.add(id);
   }
   // Derived metrics are visible when all their inputs are.
   for (const m of metrics) {

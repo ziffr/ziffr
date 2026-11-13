@@ -24,21 +24,22 @@ import type { SlideShape, SlideTemplate } from "@/lib/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
-import type { CanvasData, SlideDesign, TemplateId, Widget } from "@/lib/types";
+import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "@/lib/types";
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { VersionsDialog } from "@/components/versions-dialog";
+import { ShareDialog } from "@/components/share-dialog";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[] };
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string } | null };
 
-export function DeckEditor({ deck, data, saved }: Props) {
+export function DeckEditor({ deck, data, saved, sharing }: Props) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [name, setName] = useState(deck.name);
   const [footer, setFooter] = useState<string | null>(deck.footer);
@@ -229,6 +230,7 @@ export function DeckEditor({ deck, data, saved }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
+        {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>

@@ -196,7 +196,7 @@ export type Widget = {
 
 export type ShareRole = "viewer" | "editor";
 /** A share names a person or a Group; group shares are also handed out per member, with via_group set. */
-export type Share = { id: number; object_type: "metric" | "dashboard"; object_id: number; user_id: string; role: ShareRole; group_id?: number | null; via_group?: number };
+export type Share = { id: number; object_type: "metric" | "dashboard" | "deck"; object_id: number; user_id: string; role: ShareRole; group_id?: number | null; via_group?: number };
 /** GLOSSARY: Group. */
 export type Group = { id: number; name: string; members: string[] };
 

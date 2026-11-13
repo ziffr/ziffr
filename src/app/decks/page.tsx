@@ -2,6 +2,8 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Presentation } from "lucide-react";
 import { db } from "@/lib/db";
+import { visibleDecks } from "@/lib/access";
+import { getProfileMap } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
 import { createDeck } from "@/app/deck-actions";
 import { PageHeader } from "@/components/page-header";
@@ -10,7 +12,9 @@ import { Input } from "@/components/ui/input";
 
 export default async function DecksPage() {
   const viewer = await viewerId();
-  const { data: decks } = await db.from("decks").select("id, name, updated_at, document").eq("owner_id", viewer).order("updated_at", { ascending: false });
+  const access = await visibleDecks(viewer);
+  const { data: rows } = await db.from("decks").select("id, document").in("id", access.map((d) => d.id));
+  const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows?.find((r) => r.id === d.id)?.document }))];
   return (
     <>
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
@@ -32,11 +36,12 @@ export default async function DecksPage() {
             const slides = d.document ? Object.values((d.document as { store?: Record<string, { typeName?: string; type?: string }> }).store ?? {}).filter((r) => r.typeName === "shape" && r.type === "frame").length : 0;
             return (
               <li key={d.id}>
-                <Link href={`/decks/${d.id}`} className="stock block rounded-[var(--radius-card)] p-4 no-underline transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
+                <Link href={d.role === "viewer" ? `/decks/${d.id}/present` : `/decks/${d.id}`} className="stock block rounded-[var(--radius-card)] p-4 no-underline transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                   <div className="desk mb-3 aspect-video rounded-[var(--radius-input)]" aria-hidden />
                   <div className="font-medium">{d.name}</div>
                   <div className="text-xs text-muted-foreground">
                     <span className="fig">{slides}</span> slide{slides === 1 ? "" : "s"}, edited {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
+                    {d.role !== "owner" && <span className="block">From {people[d.owner_id]?.name.split(" ")[0]}, you {d.role === "editor" ? "can edit it" : "can present it"}</span>}
                   </div>
                 </Link>
               </li>

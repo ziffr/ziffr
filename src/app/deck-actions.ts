@@ -5,12 +5,21 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
+import { deckMetricIds, visibleDecks } from "@/lib/access";
+import { assertCanSeeMetrics } from "@/lib/guards";
 
-// PROTOTYPE: decks are private to their owner (sharing decks is not built yet).
+// GLOSSARY: Share. A deck's owner and its Editors change it; Viewers only present it; only the owner deletes it.
 
 async function ownDeck(id: number) {
   const { data } = await db.from("decks").select("id, owner_id").eq("id", id).single();
   if (!data || data.owner_id !== (await viewerId())) throw new Error("Forbidden");
+}
+
+async function editDeck(id: number) {
+  const viewer = await viewerId();
+  const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
+  if (role !== "owner" && role !== "editor") throw new Error("Forbidden");
+  return viewer;
 }
 
 export async function createDeck(form: FormData) {
@@ -21,14 +30,19 @@ export async function createDeck(form: FormData) {
 }
 
 export async function saveDeck(id: number, document: unknown) {
-  await ownDeck(id);
-  await ensureBaseline("deck", id, await viewerId());
+  const viewer = await editDeck(id);
+  // A deck shows its metrics to everyone it is shared with: only metrics the saver may see can be added to it.
+  const { data: before } = await db.from("decks").select("document").eq("id", id).single();
+  const had = new Set(deckMetricIds(before?.document));
+  const added = deckMetricIds(document).filter((m) => !had.has(m));
+  if (added.length) await assertCanSeeMetrics(added, viewer);
+  await ensureBaseline("deck", id, viewer);
   await db.from("decks").update({ document, updated_at: new Date().toISOString() }).eq("id", id);
   await recordVersion("deck", id, await viewerId());
 }
 
 export async function renameDeck(id: number, name: string) {
-  await ownDeck(id);
+  await editDeck(id);
   await db.from("decks").update({ name: name.trim() || "Untitled deck", updated_at: new Date().toISOString() }).eq("id", id);
   await recordVersion("deck", id, await viewerId());
   revalidatePath("/decks");
@@ -43,8 +57,7 @@ export async function deleteDeck(id: number) {
 
 /** The deck's own footer; null uses the theme's. */
 export async function setDeckFooter(id: number, footer: string | null) {
-  await ownDeck(id);
-  const viewer = await viewerId();
+  const viewer = await editDeck(id);
   await ensureBaseline("deck", id, viewer);
   await db.from("decks").update({ footer: footer === null ? null : String(footer).slice(0, 120), updated_at: new Date().toISOString() }).eq("id", id);
   await recordVersion("deck", id, viewer);

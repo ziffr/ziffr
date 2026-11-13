@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import type { Group, Profile, Share } from "@/lib/types";
 
 /** GLOSSARY: Share. Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
-export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [] }: { objectType: "metric" | "dashboard"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[] }) {
+export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[] }) {
   const [pending, start] = useTransition();
   const others = people.filter((p) => p.id !== ownerId);
   const initial = (id: string) => shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === id)?.role ?? "";
@@ -27,7 +27,9 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
           <DialogDescription>
             {objectType === "dashboard"
               ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."
-              : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description."}
+              : objectType === "deck"
+                ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics on its slides."
+                : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description."}
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-2">
@@ -47,7 +49,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
               >
                 <option value="">No access</option>
                 <option value="viewer">Viewer</option>
-                {objectType === "dashboard" && <option value="editor">Editor</option>}
+                {objectType !== "metric" && <option value="editor">Editor</option>}
               </select>
             </li>
           ))}
@@ -73,7 +75,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
                   >
                     <option value="">No access</option>
                     <option value="viewer">Viewer</option>
-                    {objectType === "dashboard" && <option value="editor">Editor</option>}
+                    {objectType !== "metric" && <option value="editor">Editor</option>}
                   </select>
                 </li>
               ))}

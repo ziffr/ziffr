@@ -162,12 +162,12 @@ export async function createDashboardNamed(name: string) {
   return data?.id as number;
 }
 
-export async function setShare(objectType: "metric" | "dashboard", objectId: number, userId: string, role: ShareRole | null) {
+export async function setShare(objectType: "metric" | "dashboard" | "deck", objectId: number, userId: string, role: ShareRole | null) {
   const viewer = await viewerId();
-  if (objectType !== "metric" && objectType !== "dashboard") forbidden();
+  if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();
-  const { data: obj } = await db.from(objectType === "metric" ? "metrics" : "dashboards").select("owner_id").eq("id", objectId).single();
+  const { data: obj } = await db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).single();
   if (!obj || obj.owner_id !== viewer || userId === viewer) forbidden();
   await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("user_id", userId);
   if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, user_id: userId, role });
@@ -175,13 +175,13 @@ export async function setShare(objectType: "metric" | "dashboard", objectId: num
 }
 
 /** Shares with a Group: everyone in it, now and later (GLOSSARY: Group). */
-export async function setGroupShare(objectType: "metric" | "dashboard", objectId: number, groupId: number, role: ShareRole | null) {
+export async function setGroupShare(objectType: "metric" | "dashboard" | "deck", objectId: number, groupId: number, role: ShareRole | null) {
   const viewer = await viewerId();
-  if (objectType !== "metric" && objectType !== "dashboard") forbidden();
+  if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();
   const [{ data: obj }, { data: g }] = await Promise.all([
-    db.from(objectType === "metric" ? "metrics" : "dashboards").select("owner_id").eq("id", objectId).single(),
+    db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).single(),
     db.from("groups").select("id").eq("id", groupId).maybeSingle(),
   ]);
   if (!obj || obj.owner_id !== viewer || !g) forbidden();

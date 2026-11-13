@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
+import { visibleDecks } from "@/lib/access";
 import { assertCanEditDashboard, assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
@@ -68,8 +69,8 @@ export async function setDashboardTheme(dashboardId: number, themeId: number | n
 
 export async function setDeckTheme(deckId: number, themeId: number | null) {
   const viewer = await viewerId();
-  const { data: deck } = await db.from("decks").select("owner_id").eq("id", deckId).single();
-  if (!deck || deck.owner_id !== viewer) forbidden();
+  const role = (await visibleDecks(viewer)).find((d) => d.id === deckId)?.role;
+  if (role !== "owner" && role !== "editor") forbidden();
   if (themeId !== null && !(await db.from("themes").select("id").eq("id", themeId).single()).data) forbidden();
   await ensureBaseline("deck", deckId, viewer);
   await db.from("decks").update({ theme_id: themeId }).eq("id", deckId);

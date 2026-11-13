@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
-import { visibleDashboards, visibleMetricIds } from "@/lib/access";
+import { visibleDashboards, visibleDecks, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
@@ -17,9 +17,8 @@ const forbidden = () => {
 /** Who may see and who may restore each kind of object (the same rules as editing it). */
 async function access(type: VersionType, id: number, viewer: string): Promise<{ view: boolean; edit: boolean }> {
   if (type === "deck") {
-    const { data } = await db.from("decks").select("owner_id").eq("id", id).single();
-    const own = data?.owner_id === viewer;
-    return { view: own, edit: own };
+    const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
+    return { view: Boolean(role), edit: role === "owner" || role === "editor" };
   }
   if (type === "workflow") {
     const { data } = await db.from("workflows").select("owner_id").eq("id", id).single();
