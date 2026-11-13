@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { RequestAccess } from "@/components/who-can-see";
 import { deckMetricIds, getGroups, getRawShares, revealedBy, visibleDecks } from "@/lib/access";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
@@ -11,7 +12,16 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const viewer = await viewerId();
   const { data: deck } = await db.from("decks").select("*").eq("id", id).single();
   const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
-  if (!deck || !role) notFound();
+  if (!deck) notFound();
+  if (!role) {
+    const { data: owner } = await db.from("profiles").select("name").eq("id", deck.owner_id).single();
+    return (
+      <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
+        <p className="font-medium">This deck isn&rsquo;t shared with you</p>
+        <RequestAccess type="deck" id={id} owner={owner?.name.split(" ")[0] ?? "the owner"} />
+      </div>
+    );
+  }
   if (role === "viewer") redirect(`/decks/${id}/present`);
   const [data, { data: saved }, shares, groups] = await Promise.all([
     getCanvasData(viewer),

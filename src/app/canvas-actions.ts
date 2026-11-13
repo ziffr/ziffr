@@ -6,7 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@/lib/team-templates";
-import { readableActions } from "@/lib/access";
+import { deckMetricIds, readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
 import { finishTask } from "@/lib/threads";
 import type { ConnectorId } from "@/connectors";
@@ -169,6 +169,11 @@ export async function setShare(objectType: "metric" | "dashboard" | "deck", obje
   if (objectType === "metric" && role === "editor") forbidden();
   const { data: obj } = await db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).single();
   if (!obj || obj.owner_id !== viewer || userId === viewer) forbidden();
+  // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
+  if (objectType === "deck" && role) {
+    const { data: deck } = await db.from("decks").select("document").eq("id", objectId).single();
+    await assertCanSeeMetrics(deckMetricIds(deck?.document), viewer);
+  }
   await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("user_id", userId);
   if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, user_id: userId, role });
   done();
@@ -185,6 +190,11 @@ export async function setGroupShare(objectType: "metric" | "dashboard" | "deck",
     db.from("groups").select("id").eq("id", groupId).maybeSingle(),
   ]);
   if (!obj || obj.owner_id !== viewer || !g) forbidden();
+  // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
+  if (objectType === "deck" && role) {
+    const { data: deck } = await db.from("decks").select("document").eq("id", objectId).single();
+    await assertCanSeeMetrics(deckMetricIds(deck?.document), viewer);
+  }
   await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("group_id", groupId);
   if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, group_id: groupId, role });
   done();

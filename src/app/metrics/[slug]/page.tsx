@@ -23,6 +23,7 @@ import { PinMenu } from "./pin";
 import { ShareDialog } from "@/components/share-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
+import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
 import { workingPeriod } from "@/lib/workflow-rules";
 import type { PeriodState, Workflow } from "@/lib/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
@@ -57,7 +58,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
         <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
         <p className="font-medium">{metric.name} isn’t shared with you</p>
-        <p className="mt-1 text-muted-foreground">Ask {peopleById[metric.owner_id]?.name} to share it.</p>
+        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id]?.name} owns it.</p>
+        <RequestAccess type="metric" id={metric.id} owner={peopleById[metric.owner_id]?.name.split(" ")[0] ?? "the owner"} />
       </div>
     );
   }
@@ -105,6 +107,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
         <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+        <WhoCanSee type="metric" id={metric.id} people={people} />
         <VersionsDialog type="metric" id={metric.id} people={people} />
         {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} groups={groups} />}
       </PageHeader>

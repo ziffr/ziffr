@@ -89,3 +89,13 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   await db.from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body });
   return true;
 }
+
+/** A plain notice through someone's Connector, not about a question or task (e.g. an access request). */
+export async function deliverNotice(input: { recipientId: string; senderId: string; subject: string; text: string; link: string }) {
+  if (input.recipientId === input.senderId) return;
+  const via = await connectorFor(input.recipientId, "reply", null);
+  await db.from("deliveries").insert({
+    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice",
+    subject: input.subject, body: `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${input.link}`,
+  });
+}

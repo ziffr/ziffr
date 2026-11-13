@@ -175,3 +175,46 @@ export async function revealedBy(metricIds: number[], ownerId: string): Promise<
   for (const g of groups) out[`g${g.id}`] = (metrics ?? []).filter((m) => g.members.some((u) => u !== ownerId && !own(u, m))).map((m) => m.name);
   return out;
 }
+
+export type ObjectType = "metric" | "dashboard" | "deck";
+export type Audience = { person: string; how: string[] }[];
+
+/** Everyone who can see a metric, dashboard or deck, and why (GLOSSARY: Share, Group, Token). */
+export async function audience(type: ObjectType, id: number): Promise<{ owner: string; people: Audience } | null> {
+  const table = type === "metric" ? "metrics" : type === "deck" ? "decks" : "dashboards";
+  const { data: obj } = await db.from(table).select("owner_id").eq("id", id).maybeSingle();
+  if (!obj) return null;
+  const [people, groups, raw, { data: tokens }] = await Promise.all([getProfiles(), getGroups(), getRawShares(), db.from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at")]);
+  const how = new Map<string, string[]>(people.map((p) => [p.id, []]));
+  const add = (person: string, why: string) => how.get(person)?.push(why);
+  add(obj.owner_id, "owner");
+  const roleWord = (r: string) => (r === "editor" ? "Editor" : "Viewer");
+  const sharesOf = (t: string, oid: number) => raw.filter((s) => s.object_type === t && s.object_id === oid);
+  for (const s of sharesOf(type, id)) {
+    if (s.user_id) add(s.user_id, `shared as ${roleWord(s.role)}`);
+    if (s.group_id) {
+      const g = groups.find((x) => x.id === s.group_id);
+      for (const u of g?.members ?? []) add(u, `${roleWord(s.role)} through ${g!.name}`);
+    }
+  }
+  if (type === "metric") {
+    for (const t of tokens ?? []) if (t.metric_id === id && tokenValid(t, tokens ?? [])) add(t.submitter_id, t.stands_in_for ? "stand-in" : "submits values");
+    // Dashboards and decks that show it, and whoever they are shared with.
+    const [{ data: ws }, { data: dashboards }, { data: decks }] = await Promise.all([
+      db.from("widgets").select("dashboard_id, metric_ids, settings").not("dashboard_id", "is", null),
+      db.from("dashboards").select("id, name, owner_id"),
+      db.from("decks").select("id, name, owner_id, document"),
+    ]);
+    const via = (t: "dashboard" | "deck", oid: number, name: string, ownerId: string) => {
+      const label = `on the ${t} ${name}`;
+      add(ownerId, label);
+      for (const s of sharesOf(t, oid)) {
+        if (s.user_id) add(s.user_id, label);
+        if (s.group_id) for (const u of groups.find((x) => x.id === s.group_id)?.members ?? []) add(u, label);
+      }
+    };
+    for (const d of dashboards ?? []) if ((ws ?? []).some((w) => w.dashboard_id === d.id && widgetMetricIds(w.metric_ids, w.settings).includes(id))) via("dashboard", d.id, d.name, d.owner_id);
+    for (const d of decks ?? []) if (deckMetricIds(d.document).includes(id)) via("deck", d.id, d.name, d.owner_id);
+  }
+  return { owner: obj.owner_id, people: [...how.entries()].map(([person, h]) => ({ person, how: [...new Set(h)] })) };
+}

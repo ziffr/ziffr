@@ -18,6 +18,7 @@ import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSlotFill } from "@/components/slot-dialog";
+import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDashboardTheme } from "@/app/theme-actions";
@@ -31,6 +32,8 @@ type Props = {
   saved: Widget[];
   shares: Share[];
   reveals?: Record<string, string[]>;
+  /** A dashboard the viewer opened by link but may not see. */
+  closed?: { id: number; owner: string } | null;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -47,7 +50,7 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
-export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals }: Props) {
+export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals, closed }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -104,7 +107,12 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
           <button onClick={newDashboard} className="flex min-h-9 items-center gap-1 rounded-[var(--radius-stock)] px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Plus aria-hidden className="size-3.5" /> New dashboard</button>
         </div>
 
-        {!current ? (
+        {closed ? (
+          <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
+            <p className="font-medium">This dashboard isn&rsquo;t shared with you</p>
+            <RequestAccess type="dashboard" id={closed.id} owner={closed.owner} />
+          </div>
+        ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="font-medium">No dashboards yet</p>
@@ -124,6 +132,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
               <div className="flex flex-wrap items-center gap-2">
               {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
               <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
+              <WhoCanSee type="dashboard" id={current.id} people={data.people} />
               <VersionsDialog type="dashboard" id={current.id} people={data.people} />
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} groups={data.groups} reveals={reveals} />}
               </div>

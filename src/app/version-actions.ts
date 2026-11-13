@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
-import { visibleDashboards, visibleDecks, visibleMetricIds } from "@/lib/access";
+import { deckMetricIds, visibleDashboards, visibleDecks, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
@@ -87,6 +87,14 @@ export async function restoreVersion(versionId: number) {
     if (hidden.length) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the dashboard owner.");
   }
   if (v.object_type === "template" && !((s.view as string) in TEMPLATES || s.view === "slide")) forbidden();
+  // A deck restore may only bring back metrics the restorer can see, as saving a deck does.
+  if (v.object_type === "deck") {
+    const { data: cur } = await db.from("decks").select("document").eq("id", v.object_id).single();
+    const had = new Set(deckMetricIds(cur?.document));
+    const added = deckMetricIds(s.document).filter((m) => !had.has(m));
+    const visible = await visibleMetricIds(viewer, await getMetrics());
+    if (added.some((m) => !visible.has(m))) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the deck owner.");
+  }
   // A theme picked back then may be gone since; the dashboard or deck then follows the default.
   if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {
     const { data: t } = await db.from("themes").select("id").eq("id", s.theme_id as number).maybeSingle();
