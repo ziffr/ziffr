@@ -2,9 +2,10 @@
 // Themes (GLOSSARY: Theme): only the workspace owner changes them; dashboard editors and deck owners pick one.
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { setDashboardTheme as coreSetDashboardTheme } from "@ziffr/core/dashboards";
 import { visibleDecks } from "@/lib/access";
-import { actingWorkspace, assertCanEditDashboard, assertInWorkspace, assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertInWorkspace, assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { ThemeSlides, ThemeTokens } from "@ziffr/core/types";
@@ -59,12 +60,7 @@ export async function setDefaultTheme(id: number) {
 
 /** null: follow the team default. */
 export async function setDashboardTheme(dashboardId: number, themeId: number | null) {
-  const viewer = await viewerId();
-  await assertCanEditDashboard(dashboardId, viewer);
-  if (themeId !== null && !(await db.from("themes").select("id").eq("id", themeId).eq("workspace_id", await actingWorkspace()).maybeSingle()).data) forbidden();
-  await ensureBaseline("dashboard", dashboardId, viewer);
-  await db.from("dashboards").update({ theme_id: themeId }).eq("id", dashboardId);
-  await recordVersion("dashboard", dashboardId, viewer);
+  await coreSetDashboardTheme(await currentActor(), Number(dashboardId), themeId === null ? null : Number(themeId));
   done();
 }
 

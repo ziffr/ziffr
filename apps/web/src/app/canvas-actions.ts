@@ -4,163 +4,67 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { share as coreShare, shareWithGroup as coreShareWithGroup } from "@ziffr/core/sharing";
-import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import { actingWorkspace, assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
-import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
-import { readableActions } from "@/lib/access";
+import * as dash from "@ziffr/core/dashboards";
+import type { DropSource } from "@ziffr/core/dashboards";
+import { actingWorkspace, assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
 import { deliver } from "@/lib/deliveries";
 import { finishTask } from "@/lib/threads";
 import type { ConnectorId } from "@/connectors";
-import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
+import type { ActionKind, ShareRole, TemplateId, WidgetSettings } from "@ziffr/core/types";
 
 // Every lookup by an id from the browser is limited to the acting person's workspace, and every record created
 // here lands in it (rows that belong to a dashboard or Metric take its workspace in the database).
 
 const done = () => revalidatePath("/", "layout");
 
-export type DropSource =
-  | { type: "metric"; id: number }
-  | { type: "widget"; id: number }
-  | { type: "spec"; template: TemplateId; metricIds: number[]; settings?: WidgetSettings; title?: string }
-  /** A team template; fills holds the metrics per slot, asked for when it is dropped. */
-  | { type: "template"; id: number; fills?: number[][] };
+export type { DropSource } from "@ziffr/core/dashboards";
 
-/** A team template made into a widget: every slot filled, every metric one the viewer can see. */
-async function fromTeamTemplate(id: number, fills: number[][] | undefined, viewer: string) {
-  const { data } = await db.from("team_templates").select("*").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
-  const t = data as TeamTemplate | null;
-  if (!t || t.kind !== "widget" || !fills || !fillsComplete(t.slots, fills)) forbidden();
-  const w = fromTemplate(t as WidgetTemplate, fills!);
-  await assertCanSeeMetrics(widgetMetricIds(w.metric_ids, w.settings), viewer);
-  return { ...w, w: t!.w, h: t!.h };
-}
-
-async function specFrom(source: DropSource, viewer: string) {
-  if (source.type === "metric") {
-    await assertCanSeeMetrics([source.id], viewer);
-    const t = TEMPLATES[DEFAULT_TEMPLATE];
-    return { template: t.id, metric_ids: [source.id], settings: t.settings, title: null as string | null, w: t.size.w, h: t.size.h };
-  }
-  if (source.type === "widget") {
-    const { data } = await db.from("widgets").select("*").eq("id", source.id).eq("workspace_id", await actingWorkspace()).maybeSingle();
-    const w = data as Widget;
-    if (!w) forbidden();
-    if (w.dashboard_id === null ? w.owner_id !== viewer : !(await dashboardRole(w.dashboard_id, viewer))) forbidden();
-    return { template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, w: w.w, h: w.h };
-  }
-  if (source.type === "template") return fromTeamTemplate(source.id, source.fills, viewer);
-  if (!(source.template in TEMPLATES)) forbidden();
-  await assertCanSeeMetrics(widgetMetricIds(source.metricIds, source.settings), viewer);
-  const t = TEMPLATES[source.template];
-  return { template: source.template, metric_ids: source.metricIds, settings: source.settings ?? t.settings, title: source.title ?? null, w: t.size.w, h: t.size.h };
-}
-
-/** Dropping onto a dashboard always places an independent copy (GLOSSARY: Widget). */
+/** Drops something onto a dashboard: always an independent copy (GLOSSARY: Widget). */
 export async function placeWidget(dashboardId: number, source: DropSource, pos?: { x: number; y: number }) {
-  const viewer = await viewerId();
-  await assertCanEditDashboard(dashboardId, viewer);
-  await ensureBaseline("dashboard", dashboardId, viewer);
-  const spec = await specFrom(source, viewer);
-  let { x, y } = pos ?? { x: 0, y: 0 };
-  if (!pos) {
-    const { data: existing } = await db.from("widgets").select("y,h").eq("dashboard_id", dashboardId);
-    y = Math.max(0, ...(existing ?? []).map((e) => e.y + e.h));
-    x = 0;
-  }
-  const { error } = await db.from("widgets").insert({ ...spec, owner_id: viewer, dashboard_id: dashboardId, saved: false, x, y });
-  if (error) throw new Error(`Widget not placed: ${error.message}`);
-  await recordVersion("dashboard", dashboardId, viewer);
+  await dash.placeWidget(await currentActor(), Number(dashboardId), source, pos);
   done();
 }
 
+/** Saves where the widgets of a dashboard sit and how large they are. */
 export async function saveLayout(dashboardId: number, items: { i: string; x: number; y: number; w: number; h: number }[]) {
-  const viewer = await viewerId();
-  await assertCanEditDashboard(dashboardId, viewer);
-  await ensureBaseline("dashboard", dashboardId, viewer);
-  await Promise.all(items.map((it) => db.from("widgets").update({ x: it.x, y: it.y, w: it.w, h: it.h }).eq("id", Number(it.i)).eq("dashboard_id", dashboardId)));
-  await recordVersion("dashboard", dashboardId, viewer);
+  await dash.saveLayout(await currentActor(), Number(dashboardId), items);
 }
 
+/** Changes a widget's template, settings, title or Metrics. */
 export async function updateWidget(id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null; metricIds?: number[] }) {
-  const viewer = await viewerId();
-  await assertCanEditWidget(id, viewer);
-  if (patch.template && !(patch.template in TEMPLATES)) forbidden();
-  if (patch.metricIds || patch.settings) {
-    const { data: cur } = await db.from("widgets").select("metric_ids").eq("id", id).single();
-    await assertCanSeeMetrics(widgetMetricIds(patch.metricIds ?? cur?.metric_ids ?? [], patch.settings), viewer);
-  }
-  await ensureBaseline("widget", id, viewer);
-  const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
-  if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
-  const { metricIds, ...rest } = patch;
-  const update: Record<string, unknown> = { ...rest, ...(metricIds ? { metric_ids: metricIds } : {}) };
-  if (patch.template) {
-    const t = TEMPLATES[patch.template];
-    update.settings = { ...t.settings, ...(patch.settings ?? {}) };
-    if (patch.template === "canvas") {
-      // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
-      const { data: w } = await db.from("widgets").select("template, metric_ids, settings").eq("id", id).single();
-      update.settings = { canvasSeed: w ? { template: w.template, metric_ids: w.metric_ids, settings: w.settings } : null, canvas: null };
-    }
-    if (patch.template === "story") {
-      // A composed story starts with one panel: this metric's change on the previous year, as period bars.
-      const { data: w } = await db.from("widgets").select("metric_ids").eq("id", id).single();
-      update.settings = { ...(update.settings as object), panels: [{ type: "period-bars", metricIds: w?.metric_ids ?? [], measure: "pct-yoy", periods: 6, highlight: "projection", projections: true }] };
-    }
-  }
-  const { error } = await db.from("widgets").update(update).eq("id", id);
-  if (error) throw new Error(`Widget not updated: ${error.message}`);
-  await recordVersion("widget", id, viewer);
-  const { data: w } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
-  if (w?.dashboard_id) await recordVersion("dashboard", w.dashboard_id, viewer);
+  await dash.updateWidget(await currentActor(), Number(id), patch ?? {});
   done();
 }
 
 /** Change visualization to a team template: the widget becomes the template, filled with these metrics. */
 export async function applyTemplate(id: number, templateId: number, fills: number[][]) {
-  const viewer = await viewerId();
-  await assertCanEditWidget(id, viewer);
-  const w = await fromTeamTemplate(templateId, fills, viewer);
-  await ensureBaseline("widget", id, viewer);
-  const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
-  if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
-  const { error } = await db.from("widgets").update({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) }).eq("id", id);
-  if (error) throw new Error(`Template not applied: ${error.message}`);
-  await recordVersion("widget", id, viewer, { message: "Made from a template" });
-  if (w0?.dashboard_id) await recordVersion("dashboard", w0.dashboard_id, viewer);
+  await dash.applyTemplate(await currentActor(), Number(id), Number(templateId), fills);
   done();
 }
 
+/** Removes a widget. */
 export async function removeWidget(id: number) {
-  const viewer = await viewerId();
-  await assertCanEditWidget(id, viewer);
-  const { data: w } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
-  if (w?.dashboard_id) await ensureBaseline("dashboard", w.dashboard_id, viewer);
-  await db.from("widgets").delete().eq("id", id);
-  if (w?.dashboard_id) await recordVersion("dashboard", w.dashboard_id, viewer);
+  await dash.removeWidget(await currentActor(), Number(id));
   done();
 }
 
 /** Save a copy of a widget (or an analysis result) into the viewer's Pool. */
 export async function saveToPool(source: DropSource, title: string) {
-  const viewer = await viewerId();
-  const spec = await specFrom(source, viewer);
-  const { error } = await db.from("widgets").insert({ ...spec, title, owner_id: viewer, dashboard_id: null, saved: true, workspace_id: await actingWorkspace() });
-  if (error) throw new Error(`Widget not saved: ${error.message}`);
+  await dash.saveToPool(await currentActor(), source, String(title ?? ""));
   done();
 }
 
+/** Deletes one of the viewer's saved widgets. */
 export async function deleteSavedWidget(id: number) {
-  await db.from("widgets").delete().eq("id", id).eq("saved", true).eq("owner_id", await viewerId());
+  await dash.deleteSavedWidget(await currentActor(), Number(id));
   done();
 }
 
+/** Creates a dashboard. */
 export async function createDashboardNamed(name: string) {
-  const viewer = await viewerId();
-  const { data } = await db.from("dashboards").insert({ name: String(name ?? "").trim().slice(0, 120) || "Untitled", owner_id: viewer, workspace_id: await actingWorkspace() }).select("id").single();
+  const id = await dash.createDashboard(await currentActor(), String(name ?? ""));
   done();
-  return data?.id as number;
+  return id;
 }
 
 /** Shares something the viewer owns with a member, or takes the Share away; the core decides who may. */
@@ -176,40 +80,27 @@ export async function setGroupShare(objectType: "metric" | "dashboard" | "deck",
 }
 
 // Analysis Canvas: one scratch canvas per user.
+/** Adds Metrics to the viewer's Analysis Canvas. */
 export async function canvasAdd(metricIds: number[]) {
-  const viewer = await viewerId();
-  await assertCanSeeMetrics(metricIds, viewer);
-  const { data: existing } = await db.from("analysis_canvas").select("metric_id").eq("user_id", viewer);
-  const have = new Set((existing ?? []).map((e) => e.metric_id));
-  const rows = metricIds.filter((m) => !have.has(m)).map((m, i) => ({ user_id: viewer, metric_id: m, position: have.size + i }));
-  if (rows.length) await db.from("analysis_canvas").insert(rows);
+  await dash.canvasAdd(await currentActor(), metricIds);
   done();
 }
 
+/** Takes a Metric off the viewer's Analysis Canvas. */
 export async function canvasRemove(metricId: number) {
-  const viewer = await viewerId();
-  await db.from("analysis_canvas").delete().eq("user_id", viewer).eq("metric_id", metricId);
+  await dash.canvasRemove(await currentActor(), Number(metricId));
   done();
 }
 
+/** Sets the Metrics on the viewer's Analysis Canvas. */
 export async function canvasSet(metricIds: number[]) {
-  const viewer = await viewerId();
-  await assertCanSeeMetrics(metricIds, viewer);
-  await db.from("analysis_canvas").delete().eq("user_id", viewer);
-  if (metricIds.length) await db.from("analysis_canvas").insert(metricIds.map((m, i) => ({ user_id: viewer, metric_id: m, position: i })));
+  await dash.canvasSet(await currentActor(), metricIds);
   done();
 }
 
 /** History popover: every Observation plus Actions for one metric. */
 export async function getHistory(metricId: number) {
-  const viewer = await viewerId();
-  await assertCanSeeMetrics([metricId], viewer);
-  const [{ data: obs }, actions, { data: superseded }] = await Promise.all([
-    db.from("observations").select("*").eq("metric_id", metricId).order("period_start", { ascending: false }).order("created_at", { ascending: false }).limit(400),
-    readableActions(viewer, { metricId }).then((a) => [...a].sort((x, y) => y.created_at.localeCompare(x.created_at))),
-    db.from("observation_history").select("*").eq("metric_id", metricId).order("superseded_at", { ascending: false }).limit(100),
-  ]);
-  return { observations: obs ?? [], actions, superseded: superseded ?? [] };
+  return dash.metricHistory(await currentActor(), Number(metricId));
 }
 
 /** Ask a Question or assign a Task right where the viewer is. */

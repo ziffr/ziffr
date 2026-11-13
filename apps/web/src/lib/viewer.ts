@@ -16,19 +16,8 @@ export const WORKSPACE_COOKIE = "ziffr-workspace";
 /** The demo workspace that holds the prototype's data (see the workspaces migration). */
 export const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
 
-/** Set while a View Link is shown: its owner and their workspace, so the page sees exactly what the owner sees. */
-const viewLinkOwner = cache(() => ({ personId: null as string | null, workspaceId: null as string | null }));
-
-/** For a View Link page only (lib/view-links.ts, after the link checked out): the rest of this request reads data as
- * the link's owner does, in the owner's workspace. People opening a View Link have no session of their own. */
-export function seeAsViewLinkOwner(personId: string, workspaceId: string) {
-  Object.assign(viewLinkOwner(), { personId, workspaceId });
-}
-
 /** The person looking. Outside Demo Mode, someone without a session is sent to sign in. Once per request. */
 export const viewerId = cache(async (): Promise<string> => {
-  const link = viewLinkOwner();
-  if (link.personId) return link.personId;
   if (await isDemo()) {
     // Only ever one of the demo's own people, whatever the cookie says: a demo visit never acts as a real person.
     const wanted = (await cookies()).get(VIEWER_COOKIE)?.value ?? "sara";
@@ -50,8 +39,6 @@ export async function myWorkspaces(personId: string) {
 /** The workspace being looked at: the one chosen, if the person belongs to it, else their first. Someone with no
  * workspace yet is sent to create one. Once per request. */
 export const currentWorkspaceId = cache(async (): Promise<string> => {
-  const link = viewLinkOwner();
-  if (link.workspaceId) return link.workspaceId;
   if (await isDemo()) return DEMO_WORKSPACE_ID;
   const mine = await myWorkspaces(await viewerId());
   if (!mine.length) redirect("/welcome");
