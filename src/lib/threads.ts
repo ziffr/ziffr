@@ -11,10 +11,18 @@ export async function participants(actionId: number) {
   return { ...a, owner_id: (a.metrics as unknown as { owner_id: string }).owner_id };
 }
 
-/** Adds a reply and tells the others, through each one's Connector. */
+/** Adds a reply and tells the others, through each one's Connector. On an approval task, "approve" or
+ * "send back: …" from the approver decide it, from Ziffr or from Slack, email or WhatsApp. */
 export async function postReply(actionId: number, authorId: string, body: string, correction: number | null) {
   const a = await participants(actionId);
   if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
+  const { data: full } = await db.from("actions").select("purpose").eq("id", actionId).single();
+  if (full?.purpose === "approval" && a.assignee_id === authorId && a.status === "open" && correction === null) {
+    const { approve, sendBack } = await import("./workflow");
+    if (/^\s*approved?\b/i.test(body)) { await approve(actionId, authorId); return; }
+    const back = body.match(/^\s*send back\s*:?\s*([\s\S]*)$/i);
+    if (back) { await sendBack(actionId, authorId, back[1].trim()); return; }
+  }
   await db.from("thread_messages").insert({
     action_id: actionId,
     author_id: authorId,

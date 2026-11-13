@@ -40,6 +40,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               <NavLink href="/analyze">Analyze</NavLink>
               <NavLink href="/decks">Decks</NavLink>
               <NavLink href="/metrics">Metrics</NavLink>
+              <NavLink href="/workflows">Workflows</NavLink>
               <NavLink href="/connectors">Connectors</NavLink>
               <NavLink href="/team">Team</NavLink>
               <NavLink href="/activity">Activity</NavLink>

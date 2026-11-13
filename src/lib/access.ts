@@ -32,6 +32,12 @@ export async function getShares(): Promise<Share[]> {
   return out;
 }
 
+function byMetric(rows: { metric_id: number; period_start: string; state: string }[] | null, state: string, ids: Set<number>) {
+  const out: Record<number, string[]> = {};
+  for (const r of rows ?? []) if (r.state === state && ids.has(r.metric_id)) (out[r.metric_id] ??= []).push(r.period_start);
+  return out;
+}
+
 /** Who may read a Thread: the people on it, then everyone, or only the members of its Group. */
 export function threadReader(viewer: string, groups: Group[], metricOwner: (metricId: number) => string | undefined) {
   const mine = new Set(groups.filter((g) => g.members.includes(viewer)).map((g) => g.id));
@@ -85,12 +91,13 @@ export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promi
 
 /** Visible metrics + their series + people: everything a canvas draws from. */
 export async function getCanvasData(viewer: string): Promise<CanvasData> {
-  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups] = await Promise.all([
+  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }] = await Promise.all([
     getAllSeries(), getProfiles(), readableActions(viewer), db.from("tokens").select("metric_id, submitter_id"),
     db.from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").order("name"),
     db.from("themes").select("id, owner_id, name, tokens, slides, is_default, updated_at").order("id"),
     db.from("profiles").select("is_owner").eq("id", viewer).single(),
     getGroups(),
+    db.from("period_states").select("metric_id, period_start, state").in("state", ["approval", "locked"]),
   ]);
   const ids = await visibleMetricIds(viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
@@ -110,6 +117,8 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
     themes: (themes ?? []) as Theme[],
     canEditThemes: Boolean(me?.is_owner),
     groups,
+    pending: byMetric(states, "approval", ids),
+    locked: byMetric(states, "locked", ids),
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }

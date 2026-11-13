@@ -7,11 +7,11 @@ import { TeamScreen } from "./screen";
 
 export default async function TeamPage() {
   const viewer = await viewerId();
-  const [people, groups, { data: me }] = await Promise.all([getProfiles(), getGroups(), db.from("profiles").select("is_owner").eq("id", viewer).single()]);
+  const [people, groups, { data: me }, { data: away }] = await Promise.all([getProfiles(), getGroups(), db.from("profiles").select("is_owner").eq("id", viewer).single(), db.from("away").select("*")]);
   return (
     <>
       <PageHeader title="Team" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included." />
-      <TeamScreen people={people} groups={groups} canEdit={Boolean(me?.is_owner)} />
+      <TeamScreen people={people} groups={groups} canEdit={Boolean(me?.is_owner)} viewer={viewer} away={away ?? []} />
     </>
   );
 }

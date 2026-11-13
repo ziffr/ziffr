@@ -50,21 +50,24 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 }
 
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null }) {
-  const [{ data: metric }, { data: person }, { data: token }] = await Promise.all([
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean }) {
+  const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
     db.from("metrics").select("id, name, period, sources, formula").eq("id", input.metricId).single(),
     db.from("profiles").select("*").eq("id", input.submitterId).single(),
-    db.from("tokens").select("code").eq("metric_id", input.metricId).eq("submitter_id", input.submitterId).maybeSingle(),
+    db.from("tokens").select("code, submitter_id, stand_in_id").eq("metric_id", input.metricId),
   ]);
+  // The submitter's own Token, or the one they stand in for.
+  const token = tokens?.find((t) => t.submitter_id === input.submitterId) ?? tokens?.find((t) => t.stand_in_id === input.submitterId);
   if (!metric || !person || !token || metric.formula) return false;
   let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(person.id, "prompt", null);
   if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers
   const c = CONNECTORS[via];
   // Answering in place only where the connector receives values and the metric accepts them from there.
   const answerHere = Boolean(c.sourceId && c.capabilities.includes("values") && (metric.sources as string[]).includes(c.sourceId));
-  const period = periodStart(new Date(), metric.period as Period);
-  const label = metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
-  const question = `What’s the number for ${metric.name} ${label}?`;
+  const current = periodStart(new Date(), metric.period as Period);
+  const period = input.period ?? current;
+  const label = period !== current ? `for ${periodLabel(period, metric.period as Period)}` : metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
+  const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db.from("prompts").insert({ metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: `/submit/${token.code}` });
   await db.from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body });

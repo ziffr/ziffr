@@ -6,6 +6,7 @@ import { compactValue, formatValue, health, periodLabel } from "@/lib/format";
 import { forecast } from "@/analyses/forecast";
 import { pearson, strength } from "@/analyses/correlation";
 import type { CanvasData, Metric, Point, Widget } from "@/lib/types";
+import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
 import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
@@ -57,7 +58,10 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
           <div className="flex items-baseline gap-2">
             <span className={cn("text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period) : "No values yet"}</div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            {last ? periodLabel(last.period, m.period) : "No values yet"}
+            {last && <ApprovalMark data={data} metricId={m.id} period={last.period} />}
+          </div>
           {pts.length > 1 && <div className="mt-auto min-h-10 flex-1 pt-2"><Sparkline points={pts} height="100%" tone={tone} /></div>}
         </div>
       );
@@ -88,7 +92,7 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
           <tbody>
             {rows.map((r) => (
               <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
-                <td className="py-1.5 text-muted-foreground">{periodLabel(r.period, m.period, true)}</td>
+                <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1">{periodLabel(r.period, m.period, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} short /></span></td>
                 <td className={cn("fig py-1.5 text-right", health(m, r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
               </tr>
             ))}
@@ -198,4 +202,12 @@ function Drivers({ target, others, series }: { target: Metric; others: Metric[];
       <div className="min-h-0 flex-1"><ScatterView x={top.o} y={target} pairs={top.res!.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" /></div>
     </div>
   );
+}
+
+/** Whether a value waits for Approval or is locked (GLOSSARY: Approval, Lock), wherever a value is shown. */
+export function ApprovalMark({ data, metricId, period, short }: { data: CanvasData; metricId: number; period: string; short?: boolean }) {
+  if (data.pending?.[metricId]?.includes(period))
+    return <span title="Not approved yet" className="rounded-[var(--radius-input)] border border-dashed border-[var(--color-accent-2)] px-1 text-[10px] leading-4 text-[var(--color-accent-2)]">{short ? "unapproved" : "not approved yet"}</span>;
+  if (data.locked?.[metricId]?.includes(period)) return <Lock aria-label="Locked" className="size-3" />;
+  return null;
 }

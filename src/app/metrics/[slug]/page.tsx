@@ -9,7 +9,8 @@ import { SeriesForm } from "./series-form";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { countryCode } from "@/lib/countries";
 import { viewerId } from "@/lib/viewer";
-import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
+import { formatValue, health, PERIOD_LABEL, periodLabel, periodStart, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
+import { format } from "date-fns";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
 import { ANALYSES } from "@/analyses";
@@ -21,6 +22,9 @@ import { MetricWorkspace } from "./workspace";
 import { PinMenu } from "./pin";
 import { ShareDialog } from "@/components/share-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { MetricWorkflow } from "@/components/metric-workflow";
+import { workingPeriod } from "@/lib/workflow-rules";
+import type { PeriodState, Workflow } from "@/lib/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
@@ -57,13 +61,17 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </div>
     );
   }
-  const [actions, { data: tokens }, dashboards, shares, groups] = await Promise.all([
+  const [actions, { data: tokens }, dashboards, shares, groups, { data: workflows }, { data: wfRow }] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     db.from("tokens").select("*").eq("metric_id", metric.id),
     visibleDashboards(viewer),
     getRawShares(),
     getGroups(),
+    db.from("workflows").select("*").order("id"),
+    db.from("metrics").select("workflow_id").eq("id", metric.id).single(),
   ]);
+  const wfPeriod = workingPeriod(format(new Date(), "yyyy-MM-dd"), metric.period, periodStart);
+  const { data: wfState } = await db.from("period_states").select("*").eq("metric_id", metric.id).eq("period_start", wfPeriod).maybeSingle();
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id], observations))[metric.id] ?? {};
@@ -316,6 +324,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               )}
             </dl>
           </section>
+          {!metric.formula && (
+            <MetricWorkflow metric={metric} workflowId={wfRow?.workflow_id ?? null} workflows={(workflows ?? []) as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens ?? []} people={people} isOwner={metric.owner_id === viewer} />
+          )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
               <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Tokens</h2>

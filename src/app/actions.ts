@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
+import { onValue } from "@/lib/workflow";
 import { intake, type IntakeResult } from "@/sources/intake";
 import type { SourceId } from "@/lib/types";
 import { recordVersion } from "@/lib/versions";
@@ -28,6 +29,7 @@ export async function resetDemo() {
   await db.rpc("prototype_seed_themes");
   await db.rpc("prototype_seed_connectors");
   await db.rpc("prototype_seed_groups");
+  await db.rpc("prototype_seed_workflows");
   revalidatePath("/", "layout");
   redirect("/");
 }
@@ -141,6 +143,17 @@ export async function decideCorrection(messageId: number, accept: boolean) {
       .eq("id", msg.actions.observation_id);
   }
   await db.from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId);
+  // A correction changes the value: it goes through its Workflow again, so a locked period unlocks for re-approval.
+  if (accept) {
+    const { data: act } = await db.from("actions").select("metric_id, period_start").eq("id", msg.action_id).single();
+    if (act) {
+      if (!msg.actions.observation_id) {
+        await db.from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form" });
+      }
+      await db.from("period_states").update({ state: "submitted" }).eq("metric_id", act.metric_id).eq("period_start", act.period_start);
+      await onValue(act.metric_id, act.period_start, msg.author_id);
+    }
+  }
   await deliver({ kind: "decision", actionId: msg.action_id, senderId: await viewerId(), recipientId: msg.author_id, text: accept ? "accepted" : "declined" });
   revalidatePath("/", "layout");
 }

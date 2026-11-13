@@ -4,6 +4,8 @@ import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "@/lib/forma
 import { normalizeMetric } from "@/lib/data";
 import type { Metric, Profile, SourceId, Token } from "@/lib/types";
 import { parseBreakdown } from "./parse";
+import { isLocked, onValue } from "@/lib/workflow";
+import { deliver } from "@/lib/deliveries";
 
 export type IntakeInput = {
   source: SourceId;
@@ -71,7 +73,8 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   } else {
     sender = profiles?.find((p) => (input.source === "slack" ? p.slack_handle : p.email) === input.sender.trim().toLowerCase());
     if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
-    candidates = (tokens ?? []).filter((t) => t.submitter_id === sender!.id);
+    // Their own Tokens, and those they are the Stand-in for.
+    candidates = (tokens ?? []).filter((t) => t.submitter_id === sender!.id || (t as Token & { stand_in_id?: string | null }).stand_in_id === sender!.id);
   }
   const senderId = sender?.id ?? null;
   if (candidates.length === 0) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for any metric, so nothing can be recorded.` });
@@ -120,6 +123,19 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   const fv = (v: number) => formatValue(metric, v);
   const when = periodLabel(period, metric.period);
 
+  // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
+  if (await isLocked(metric.id, period)) {
+    const { data: a } = await db.from("actions").insert({
+      metric_id: metric.id, period_start: period, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
+      question: `${metric.name} for ${when} is locked. ${sender?.name.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
+    }).select("id").single();
+    if (a) {
+      await db.from("thread_messages").insert({ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" });
+      if (senderId) await deliver({ kind: "correction", actionId: a.id, senderId, recipientId: metric.owner_id, correction: value, text: "Late value for a locked period." });
+    }
+    return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
+  }
+
   // 4. Submission Rule
   const { data: existing } = await db.from("observations").select("*").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false });
   const prev = existing?.[0];
@@ -147,5 +163,10 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
     result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
   }
   if (prompt && result.ok) await db.from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", prompt.id);
+  // The metric's Workflow takes it from here: check, approval, publish.
+  if (result.ok && senderId) {
+    const next = await onValue(metric.id, period, senderId);
+    if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
+  }
   return log({ ...base, ...result });
 }

@@ -88,6 +88,8 @@ export type Action = {
   breakdown_label: string | null;
   /** null: everyone may read the thread; else only this Group (and the people on it). */
   read_group_id: number | null;
+  /** Approval requests and escalations are Actions the Workflow creates. */
+  purpose?: "approval" | "escalation" | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
@@ -220,6 +222,9 @@ export type CanvasData = {
   canEditThemes: boolean;
   /** GLOSSARY: Group. */
   groups: Group[];
+  /** Periods per metric id whose value waits for Approval, and periods that are locked (GLOSSARY: Approval, Lock). */
+  pending: Record<number, string[]>;
+  locked: Record<number, string[]>;
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */
@@ -287,3 +292,15 @@ export type ThemeTokens = {
   cards: "paper" | "flat" | "plain";
 };
 export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; slides: ThemeSlides; is_default: boolean; updated_at: string };
+
+/** GLOSSARY: Workflow. Steps run in order after the submitter is asked at the end of a period. */
+export type WorkflowStep =
+  | { type: "remind"; daysBefore: number }
+  | { type: "escalate"; to: "stand-in" | "owner"; daysAfter: number }
+  | { type: "check"; changePct: number; outsideTarget: boolean }
+  | { type: "approve"; approvers: string[] }
+  | { type: "publish"; lock: boolean };
+export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
+export type Workflow = { id: number; owner_id: string; name: string; config: WorkflowConfig; updated_at: string };
+export type PeriodStateName = "asked" | "submitted" | "approval" | "published" | "locked";
+export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; note: string | null; updated_at: string };

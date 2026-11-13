@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Action, ThreadMessage } from "@/lib/types";
 import { CONNECTORS, type ConnectorId } from "@/connectors";
 import { getGroups, threadReader } from "@/lib/access";
+import { ApprovalBar } from "@/components/approval-bar";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
@@ -63,6 +64,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         {window.length > 1 && <div className="mt-4"><MetricChart metric={m} points={window} markers={[a.period_start]} height={180} /></div>}
+        {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
         {(sent ?? []).length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground">
             <summary className="cursor-pointer">Sent {(sent ?? []).length} time{(sent ?? []).length === 1 ? "" : "s"} through connectors</summary>

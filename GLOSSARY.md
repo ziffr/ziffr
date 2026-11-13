@@ -90,6 +90,38 @@ _Avoid_: Dedup rule, overwrite policy
 A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?" It goes out through the submitter's Connector; where that Connector receives values, answering it records the value, elsewhere it carries the personal form link.
 _Avoid_: Reminder, nudge
 
+**Workflow**:
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
+_Avoid_: Process, pipeline, flow
+
+**Due Date**:
+When a period's value must be in, counted in working days after the period ends, e.g. the 3rd working day.
+_Avoid_: Deadline, cut-off
+
+**Stand-in**:
+The person asked instead of a submitter who is Away, or who has not answered by the Due Date.
+_Avoid_: Deputy, backup, substitute
+
+**Away**:
+The dates a person is not available. While someone is away, Prompts meant for them go to their Stand-in.
+_Avoid_: Absence, out of office, leave
+
+**Escalation**:
+A Workflow step that, when a value is still missing, asks the Stand-in or tells the metric owner.
+_Avoid_: Alert, warning
+
+**Unusual Value**:
+A value that changes more than a set share against the period before, or falls outside the target. Only unusual values need Approval.
+_Avoid_: Outlier, anomaly
+
+**Approval**:
+Confirming an Unusual Value, by each Approver in order. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet.
+_Avoid_: Sign-off, review, verification
+
+**Lock**:
+A published period of a metric that takes no more values. A late value or a correction becomes a proposal that needs Approval again; only the metric owner unlocks it, with a reason.
+_Avoid_: Freeze, finalize, close
+
 ### Presentation
 
 **View**:

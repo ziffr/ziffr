@@ -8,7 +8,7 @@ import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
-import type { ThemeSlides, ThemeTokens } from "@/lib/types";
+import type { ThemeSlides, ThemeTokens, WorkflowConfig } from "@/lib/types";
 
 const forbidden = () => {
   throw new Error("Forbidden");
@@ -20,6 +20,10 @@ async function access(type: VersionType, id: number, viewer: string): Promise<{ 
     const { data } = await db.from("decks").select("owner_id").eq("id", id).single();
     const own = data?.owner_id === viewer;
     return { view: own, edit: own };
+  }
+  if (type === "workflow") {
+    const { data } = await db.from("workflows").select("owner_id").eq("id", id).single();
+    return { view: Boolean(data), edit: data?.owner_id === viewer };
   }
   if (type === "theme") {
     const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).single(), db.from("profiles").select("is_owner").eq("id", viewer).single()]);
@@ -90,6 +94,9 @@ export async function restoreVersion(versionId: number) {
     if (!t) s.theme_id = null;
   }
   switch (v.object_type as VersionType) {
+    case "workflow":
+      await saveWorkflowRow(id, s);
+      break;
     case "theme": {
       const tokens = cleanTokens(s.tokens as ThemeTokens);
       if (!tokens) forbidden();
@@ -126,4 +133,10 @@ export async function saveNamedVersion(type: VersionType, id: number, name: stri
   const viewer = await viewerId();
   if (!(await access(type, id, viewer)).edit) forbidden();
   await recordVersion(type, id, viewer, { name: name.trim().slice(0, 80) || "Named version" });
+}
+
+async function saveWorkflowRow(id: number, s: Record<string, unknown>) {
+  // Restores go through the same checks as edits.
+  const { saveWorkflow } = await import("./workflow-actions");
+  await saveWorkflow(id, String(s.name ?? ""), s.config as WorkflowConfig);
 }

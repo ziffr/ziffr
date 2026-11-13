@@ -2,7 +2,7 @@ import "server-only";
 // Versions (GLOSSARY: Version): what people build keeps its history, git-like but inside Ziffr.
 import { db } from "./db";
 
-export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme";
+export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow";
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -20,6 +20,10 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
   }
   if (type === "deck") {
     const { data } = await db.from("decks").select("name, theme_id, footer, document").eq("id", id).single();
+    return data;
+  }
+  if (type === "workflow") {
+    const { data } = await db.from("workflows").select("name, config").eq("id", id).single();
     return data;
   }
   if (type === "theme") {
