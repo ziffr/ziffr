@@ -8,12 +8,28 @@ secret() { echo "Blocked: .env files hold secrets. Agents never read or write th
 
 if [ "$tool" = "Bash" ]; then
   cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
-  # Commit messages may talk about these files: leave out the text of -m "..." or -m '...' before checking.
+  # Matching shell text is a speed bump against accidents, not a security boundary: quoting, globs and
+  # variables can always spell a file name differently. The boundary is the OS (file permissions or a sandbox).
+  # Commit messages may name these files: only messages that cannot run anything are left out of the check,
+  # i.e. single-quoted ones, and double-quoted ones without $, backticks or backslashes.
   cmd=$(python3 -c '
 import re, sys
-print(re.sub(r"-[a-zA-Z]*m\s+(\"(?:[^\"\\]|\\.)*\"|\x27[^\x27]*\x27)", "-m MSG", sys.stdin.read()))' <<<"$cmd")
-  # Any mention of a .env file other than .env.example.
-  if grep -Eq '\.env([^.a-zA-Z0-9_-]|$|\.(local|production|development|test)|\*)' <<<"$cmd"; then secret; fi
+s = sys.stdin.read()
+s = re.sub(r"-[a-zA-Z]*m\s+\x27[^\x27]*\x27", "-m MSG", s)
+s = re.sub(r"-[a-zA-Z]*m\s+\"[^\"$`\\]*\"", "-m MSG", s)
+print(s)' <<<"$cmd")
+  # Any .env name except exactly .env.example, and any attempt to build one from pieces.
+  # Names in path position only (not process.env in code); quotes are removed and globs count as wildcards.
+  if python3 -c '
+import fnmatch, re, sys
+s = sys.stdin.read()
+for tok in re.findall(r"(?<![\w$])\.[\w.?*\[\]\x27\"-]+", s):
+    name = tok.replace("\x27", "").replace("\"", "")
+    if not name.startswith(".e") or name == ".env.example":
+        continue
+    if name.startswith(".env") or any(fnmatch.fnmatch(t, name) for t in (".env", ".env.local", ".env.production")):
+        sys.exit(0)
+sys.exit(1)' <<<"$cmd"; then secret; fi
   exit 0
 fi
 
