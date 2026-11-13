@@ -13,7 +13,7 @@ import type { Metric } from "@ziffr/core/types";
 export default async function SubmitPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ outcome?: string; detail?: string }> }) {
   const { code } = await params;
   const sp = await searchParams;
-  const { data: token } = await db.from("tokens").select("*, metrics(*), profiles(*)").eq("code", code).single();
+  const { data: token } = await db.from("tokens").select("*, metrics(*), profiles!tokens_submitter_id_fkey(*)").eq("code", code).single();
   if (!token) notFound();
   // A stand-in's form works only while they are the stand-in (GLOSSARY: Stand-in).
   if (token.stands_in_for) {

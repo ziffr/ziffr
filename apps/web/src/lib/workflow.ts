@@ -46,8 +46,9 @@ async function latestValue(metricId: number, period: string) {
 }
 
 /** Runs every workflow as of a day: asks, reminds and escalates for missing values, and checks values that came in. */
-export async function runWorkflows(asOf: string, actorId: string) {
-  const { data: rows } = await db.from("metrics").select("*").not("workflow_id", "is", null);
+/** Runs the Workflows of one workspace's Metrics as of a day. */
+export async function runWorkflows(asOf: string, actorId: string, workspaceId: string) {
+  const { data: rows } = await db.from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null);
   const log: string[] = [];
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;

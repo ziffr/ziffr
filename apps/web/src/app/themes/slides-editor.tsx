@@ -88,7 +88,7 @@ export function SlidesEditor({ s, onChange }: { s: ThemeSlides; onChange: (s: Th
       )}
       <label className="block">
         <span className="mb-1 block text-xs font-medium">Footer</span>
-        <Input value={s.footer} placeholder="e.g. Northwind Goods, internal" onChange={(e) => set("footer", e.target.value)} />
+        <Input value={s.footer} placeholder="e.g. Company name, internal" onChange={(e) => set("footer", e.target.value)} />
         <span className="mt-1 block text-xs text-muted-foreground">A deck can set its own footer.</span>
       </label>
       <div className="grid grid-cols-3 items-end gap-2 text-xs">

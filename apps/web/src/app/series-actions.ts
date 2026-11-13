@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
+import { actingWorkspace } from "@/lib/guards";
 import { periodStart } from "@ziffr/core/format";
 import type { Period } from "@ziffr/core/types";
 
@@ -24,7 +25,7 @@ function parseLine(line: string, period: Period): { period: string; value: numbe
 
 export async function uploadSeries(metricId: number, kind: "target" | "projection", text: string, note: string) {
   const viewer = await viewerId();
-  const { data: m } = await db.from("metrics").select("owner_id, period, slug").eq("id", metricId).single();
+  const { data: m } = await db.from("metrics").select("owner_id, period, slug").eq("id", metricId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!m || m.owner_id !== viewer) throw new Error("Only the metric owner can upload targets and projections");
   if (kind !== "target" && kind !== "projection") throw new Error("Unknown series");
   const lines = text.split(/\r?\n/).filter((l) => l.trim());

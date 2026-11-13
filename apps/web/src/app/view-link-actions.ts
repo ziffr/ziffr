@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { assertCanSeeMetrics, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics, forbidden } from "@/lib/guards";
 import { buildView } from "@/lib/view-links";
 
 const MAX_DAYS = 90;
 
 async function assertOwner(type: "dashboard" | "deck", id: number, viewer: string) {
   if (type !== "dashboard" && type !== "deck") forbidden();
-  const { data } = await db.from(type === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", id).maybeSingle();
+  const { data } = await db.from(type === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!data || data.owner_id !== viewer) forbidden();
 }
 

@@ -16,30 +16,32 @@ const forbidden = () => {
 
 /** Who may see and who may restore each kind of object (the same rules as editing it). */
 async function access(type: VersionType, id: number, viewer: string): Promise<{ view: boolean; edit: boolean }> {
+  // Only objects of the workspace being worked in: a version of something elsewhere is neither seen nor restored.
+  const ws = await currentWorkspaceId();
   if (type === "deck") {
     const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
     return { view: Boolean(role), edit: role === "owner" || role === "editor" };
   }
   if (type === "workflow") {
-    const { data } = await db.from("workflows").select("owner_id").eq("id", id).single();
+    const { data } = await db.from("workflows").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
     return { view: Boolean(data), edit: data?.owner_id === viewer };
   }
   if (type === "theme") {
-    const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).single(), db.from("memberships").select("role").eq("workspace_id", await currentWorkspaceId()).eq("user_id", viewer).maybeSingle()]);
+    const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).eq("workspace_id", ws).maybeSingle(), db.from("memberships").select("role").eq("workspace_id", ws).eq("user_id", viewer).maybeSingle()]);
     return { view: Boolean(data), edit: Boolean(data && (me?.role === "owner" || me?.role === "admin")) };
   }
   if (type === "template") {
-    const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();
+    const { data } = await db.from("team_templates").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
     return { view: Boolean(data), edit: data?.owner_id === viewer };
   }
   if (type === "metric") {
-    const { data } = await db.from("metrics").select("owner_id").eq("id", id).single();
+    const { data } = await db.from("metrics").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
     const visible = await visibleMetricIds(viewer, await getMetrics());
     return { view: visible.has(id), edit: data?.owner_id === viewer };
   }
-  const dashboardId = type === "dashboard" ? id : (await db.from("widgets").select("dashboard_id, owner_id").eq("id", id).single()).data?.dashboard_id;
+  const dashboardId = type === "dashboard" ? id : (await db.from("widgets").select("dashboard_id, owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle()).data?.dashboard_id;
   if (!dashboardId) {
-    const { data } = await db.from("widgets").select("owner_id").eq("id", id).single();
+    const { data } = await db.from("widgets").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
     const own = data?.owner_id === viewer;
     return { view: own, edit: own };
   }

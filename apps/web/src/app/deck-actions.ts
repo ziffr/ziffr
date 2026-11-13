@@ -6,12 +6,12 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import { deckMetricIds, visibleDecks } from "@/lib/access";
-import { assertCanSeeMetrics } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics } from "@/lib/guards";
 
 // GLOSSARY: Share. A deck's owner and its Editors change it; Viewers only present it; only the owner deletes it.
 
 async function ownDeck(id: number) {
-  const { data } = await db.from("decks").select("id, owner_id").eq("id", id).single();
+  const { data } = await db.from("decks").select("id, owner_id").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!data || data.owner_id !== (await viewerId())) throw new Error("Forbidden");
 }
 
@@ -24,7 +24,7 @@ async function editDeck(id: number) {
 
 export async function createDeck(form: FormData) {
   const name = String(form.get("name") ?? "").trim() || "Untitled deck";
-  const { data } = await db.from("decks").insert({ name, owner_id: await viewerId() }).select("id").single();
+  const { data } = await db.from("decks").insert({ name: name.slice(0, 120), owner_id: await viewerId(), workspace_id: await actingWorkspace() }).select("id").single();
   revalidatePath("/decks");
   redirect(`/decks/${data?.id}`);
 }

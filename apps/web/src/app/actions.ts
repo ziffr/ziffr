@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
+import { actingWorkspace, assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
 import { onValue } from "@/lib/workflow";
@@ -12,14 +14,19 @@ import { intake, type IntakeResult } from "@/sources/intake";
 import type { SourceId } from "@ziffr/core/types";
 import { recordVersion } from "@/lib/versions";
 
-// PROTOTYPE: no validation beyond what keeps the demo runnable.
+// PROTOTYPE: little validation beyond what keeps the demo runnable; but every record lands in the acting person's
+// workspace, and ids and people sent by the browser must belong to it.
 
 export async function setViewer(id: string) {
+  // "View as" only exists in Demo Mode; everywhere else identity comes from signing in.
+  if (!isDemo()) throw new Error("Not available.");
   (await cookies()).set(VIEWER_COOKIE, id, { path: "/" });
   revalidatePath("/", "layout");
 }
 
 export async function resetDemo() {
+  // Resetting wipes all data and seeds the demo: only ever in Demo Mode.
+  if (!isDemo()) throw new Error("Not available.");
   await db.rpc("prototype_reset");
   await db.rpc("prototype_seed_breakdowns");
   await db.rpc("prototype_seed_comparisons");
@@ -43,9 +50,11 @@ function slugify(s: string) {
 
 export async function createMetric(form: FormData) {
   const viewer = await viewerId();
-  const name = String(form.get("name"));
-  let slug = slugify(name);
-  const { data: clash } = await db.from("metrics").select("id").eq("slug", slug);
+  const ws = await actingWorkspace();
+  const name = String(form.get("name") ?? "").trim().slice(0, 120);
+  if (!name) throw new Error("Give the Metric a name.");
+  let slug = slugify(name) || "metric";
+  const { data: clash } = await db.from("metrics").select("id").eq("slug", slug).eq("workspace_id", ws);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
   const sources = form.getAll("sources").map(String);
   const { data: metric } = await db
@@ -66,11 +75,13 @@ export async function createMetric(form: FormData) {
       sources,
       owner_id: viewer,
       from_catalog_id: num(form.get("from_catalog_id")),
+      workspace_id: ws,
     })
     .select()
     .single();
   if (metric) await recordVersion("metric", metric.id, viewer, { message: metric.from_catalog_id ? "Created from the Metric Catalog" : "Created" });
   const submitters = form.getAll("submitters").map(String);
+  await assertMembers(submitters);
   if (metric && submitters.length) {
     await db.from("tokens").insert(
       submitters.map((s) => ({ code: `tk-${s}-${slug}`, metric_id: metric.id, submitter_id: s })),
@@ -83,6 +94,8 @@ export async function createMetric(form: FormData) {
 }
 
 export async function simulateMessage(input: { source: SourceId; sender: string; text: string; promptId?: number }): Promise<IntakeResult> {
+  // Sending as anyone on an outside channel is only for Demo Mode.
+  if (!isDemo()) forbidden();
   const r = await intake(input);
   revalidatePath("/", "layout");
   return r;
@@ -100,6 +113,8 @@ export async function submitWebForm(code: string, form: FormData) {
 
 export async function createAction(input: { metricId: number; period: string; assigneeId: string; question: string }) {
   const viewer = await viewerId();
+  await assertCanSeeMetrics([input.metricId], viewer);
+  await assertMembers([input.assigneeId]);
   const { data: obs } = await db
     .from("observations")
     .select("id")

@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { getProfiles, openActionCount } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
+import { isDemo, personFor, sessionUser } from "@/lib/auth";
+import { AccountMenu } from "@/components/account-menu";
 import { ViewAs } from "@/components/view-as";
 import { NavLink } from "@/components/nav-link";
 import { Tour } from "@/components/tour";
@@ -31,8 +33,29 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </html>
     );
   }
+  // Signed out, or signed in without a workspace yet: the page (login, welcome, a form link) and only the name.
+  const demo = isDemo();
+  const user = demo ? null : await sessionUser();
+  const person = user ? await personFor(user) : null;
+  const workspaces = person ? await myWorkspaces(person) : [];
+  if (!demo && !workspaces.length) {
+    return (
+      <html lang="en">
+        <head>
+          <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+          <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
+        </head>
+        <body className="min-h-screen bg-background font-sans antialiased">
+          <header className="mx-auto flex max-w-7xl px-4 py-3 sm:px-6"><span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span></header>
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+          <Toaster />
+        </body>
+      </html>
+    );
+  }
   const [profiles, viewer] = await Promise.all([getProfiles(), viewerId()]);
-  const open = await openActionCount(viewer);
+  const [open, workspaceId] = await Promise.all([openActionCount(viewer), currentWorkspaceId()]);
   return (
     <html lang="en">
       <head>
@@ -64,13 +87,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               </NavLink>
             </nav>
             <div className="ml-auto flex items-center gap-2">
-              <ViewAs profiles={profiles} current={viewer} />
-              <ResetButton />
+              {demo ? (
+                <>
+                  <ViewAs profiles={profiles} current={viewer} />
+                  <ResetButton />
+                </>
+              ) : (
+                <AccountMenu name={profiles.find((p) => p.id === viewer)?.name ?? ""} workspaces={workspaces} current={workspaceId} />
+              )}
             </div>
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{children}</main>
-        <Tour />
+        {demo && <Tour />}
         <Toaster />
       </body>
     </html>

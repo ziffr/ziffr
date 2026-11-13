@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { assertCanSeeMetrics, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics, forbidden } from "@/lib/guards";
 import { audience, deckMetricIds, visibleDashboards, visibleDecks, visibleMetricIds, type ObjectType } from "@/lib/access";
 import { getMetrics } from "@/lib/data";
 import { deliverNotice } from "@/lib/deliveries";
@@ -34,7 +34,7 @@ export async function whoCanSee(type: ObjectType, id: number) {
 export async function requestAccess(type: ObjectType, id: number) {
   const viewer = await viewerId();
   if (!TYPES.includes(type)) forbidden();
-  const { data: obj } = await db.from(table(type)).select("*").eq("id", id).maybeSingle();
+  const { data: obj } = await db.from(table(type)).select("*").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!obj) forbidden();
   if (await canSee(type, id, viewer)) return "You can see it already.";
   const { data: open } = await db.from("access_requests").select("id").eq("requester_id", viewer).eq("object_type", type).eq("object_id", id).eq("status", "open").maybeSingle();
@@ -49,9 +49,9 @@ export async function requestAccess(type: ObjectType, id: number) {
 /** The owner grants Viewer access, or declines; the requester is told either way. */
 export async function decideAccess(requestId: number, grant: boolean) {
   const viewer = await viewerId();
-  const { data: r } = await db.from("access_requests").select("*").eq("id", requestId).eq("status", "open").single();
+  const { data: r } = await db.from("access_requests").select("*").eq("id", requestId).eq("status", "open").eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!r) forbidden();
-  const { data: obj } = await db.from(table(r.object_type)).select("*").eq("id", r.object_id).single();
+  const { data: obj } = await db.from(table(r.object_type)).select("*").eq("id", r.object_id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!obj || obj.owner_id !== viewer) forbidden();
   if (grant) {
     if (r.object_type === "deck") await assertCanSeeMetrics(deckMetricIds(obj.document), viewer);

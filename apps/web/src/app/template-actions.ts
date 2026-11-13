@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
-import { assertCanEditWidget, assertCanSeeMetrics, forbidden, widgetMetricIds } from "@/lib/guards";
+import { actingWorkspace, assertCanEditWidget, assertCanSeeMetrics, forbidden, widgetMetricIds } from "@/lib/guards";
 import { SLIDE_SHAPES, toSlideLayout, toTemplate, type Choices } from "@ziffr/core/team-templates";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
@@ -13,7 +13,7 @@ import type { AnchorRule, SlideShape, Widget, WidgetSettings } from "@ziffr/core
 const RULES: AnchorRule[] = ["max", "min", "last", "first", "largest-step"];
 
 async function assertOwnsTemplate(id: number, viewer: string) {
-  const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();
+  const { data } = await db.from("team_templates").select("owner_id").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!data || data.owner_id !== viewer) forbidden();
 }
 
@@ -22,7 +22,7 @@ const cleanChoices = (c: Choices): Choices => Object.fromEntries(Object.entries(
 /** Writes a template row, new or replacing one of the viewer's own of the same kind, and records the version. */
 async function store(viewer: string, kind: "widget" | "slide", replaceId: number | null | undefined, row: Record<string, unknown>) {
   if (replaceId) {
-    const { data } = await db.from("team_templates").select("owner_id, kind").eq("id", replaceId).single();
+    const { data } = await db.from("team_templates").select("owner_id, kind").eq("id", replaceId).eq("workspace_id", await actingWorkspace()).maybeSingle();
     if (!data || data.owner_id !== viewer || data.kind !== kind) forbidden();
     await ensureBaseline("template", replaceId, viewer);
     await db.from("team_templates").update(row).eq("id", replaceId);
@@ -30,7 +30,7 @@ async function store(viewer: string, kind: "widget" | "slide", replaceId: number
     revalidatePath("/", "layout");
     return replaceId;
   }
-  const { data: created, error } = await db.from("team_templates").insert({ ...row, kind, owner_id: viewer }).select("id").single();
+  const { data: created, error } = await db.from("team_templates").insert({ ...row, kind, owner_id: viewer, workspace_id: await actingWorkspace() }).select("id").single();
   if (error) throw new Error(`Template not saved: ${error.message}`);
   await recordVersion("template", created!.id, viewer, { message: "Created" });
   revalidatePath("/", "layout");
@@ -45,7 +45,7 @@ const names = (name: string, description: string, fallback: string) => ({
 /** Saves a slide of the viewer's own deck as a team slide layout. The shapes come from the editor, so each is checked. */
 export async function saveSlideLayout(input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
   const viewer = await viewerId();
-  const { data: deck } = await db.from("decks").select("owner_id").eq("id", input.deckId).single();
+  const { data: deck } = await db.from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!deck || deck.owner_id !== viewer) forbidden();
   const shapes = Array.isArray(input.shapes) ? input.shapes : [];
   if (shapes.length > 80 || JSON.stringify(shapes).length > 400_000) throw new Error("This slide is too large to save as a layout.");
@@ -70,7 +70,7 @@ export async function saveSlideLayout(input: { deckId: number; shapes: SlideShap
 /** Saves a widget as a team template, new or replacing one of the viewer's own. Built from the stored widget, not from the browser. */
 export async function saveTemplate(input: { widgetId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
   const viewer = await viewerId();
-  const { data } = await db.from("widgets").select("*").eq("id", input.widgetId).single();
+  const { data } = await db.from("widgets").select("*").eq("id", input.widgetId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   const w = data as Widget | null;
   if (!w) forbidden();
   // A template is seen by the whole team, so only someone who may change the widget, and sees all it draws, publishes it.

@@ -1,6 +1,6 @@
 // Themes (GLOSSARY: Theme): a theme becomes CSS custom properties on the element that holds content.
 // Widgets, stories and slides only use tokens, so one wrapper repaints all of them. Pure.
-import type { FontId, SlideDesign, Theme, ThemeTokens } from "./types";
+import type { FontId, SlideDesign, Theme, ThemeSlides, ThemeTokens } from "./types";
 
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
 const G = (family: string) => `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
@@ -72,3 +72,14 @@ export function isDark(t: ThemeTokens) {
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b < 110;
 }
+
+/** The Theme every new Workspace starts with: Coral, with nothing of any other workspace (no logo, no footer). */
+export const STARTER_THEME: { name: string; tokens: ThemeTokens; slides: ThemeSlides } = {
+  name: "Coral",
+  tokens: {
+    canvas: "#F0EBE7", surface: "#FDFBF8", ink: "#221B19", muted: "#615955", rule: "#D9D3CF", accent: "#BB3D31",
+    data: ["#312926", "#8C7B6E", "#C7BFBA", "#5E7C6B"], good: "#21763C", bad: "#BE2323", band: "#E8E1DD",
+    fontHeading: "general-sans", fontBody: "general-sans", fontFigures: "geist-mono", radius: 8, cards: "paper",
+  },
+  slides: { background_image: null, logo: null, logo_ratio: 3, logo_position: "top-right", logo_width: 140, footer: "", show_slide_number: true, title_size: 56, body_size: 24 },
+};

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
+import { actingWorkspace, assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
 import { deckMetricIds, readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
@@ -13,8 +13,8 @@ import type { ConnectorId } from "@/connectors";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 
-// PROTOTYPE: identity is the "View as" cookie, so these checks enforce the sharing model
-// (Owner / Editor / Viewer) rather than real security. Real auth replaces viewerId() later.
+// Every lookup by an id from the browser is limited to the acting person's workspace, and every record created
+// here lands in it (rows that belong to a dashboard or Metric take its workspace in the database).
 
 const done = () => revalidatePath("/", "layout");
 
@@ -27,7 +27,7 @@ export type DropSource =
 
 /** A team template made into a widget: every slot filled, every metric one the viewer can see. */
 async function fromTeamTemplate(id: number, fills: number[][] | undefined, viewer: string) {
-  const { data } = await db.from("team_templates").select("*").eq("id", id).single();
+  const { data } = await db.from("team_templates").select("*").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   const t = data as TeamTemplate | null;
   if (!t || t.kind !== "widget" || !fills || !fillsComplete(t.slots, fills)) forbidden();
   const w = fromTemplate(t as WidgetTemplate, fills!);
@@ -42,7 +42,7 @@ async function specFrom(source: DropSource, viewer: string) {
     return { template: t.id, metric_ids: [source.id], settings: t.settings, title: null as string | null, w: t.size.w, h: t.size.h };
   }
   if (source.type === "widget") {
-    const { data } = await db.from("widgets").select("*").eq("id", source.id).single();
+    const { data } = await db.from("widgets").select("*").eq("id", source.id).eq("workspace_id", await actingWorkspace()).maybeSingle();
     const w = data as Widget;
     if (!w) forbidden();
     if (w.dashboard_id === null ? w.owner_id !== viewer : !(await dashboardRole(w.dashboard_id, viewer))) forbidden();
@@ -145,7 +145,7 @@ export async function removeWidget(id: number) {
 export async function saveToPool(source: DropSource, title: string) {
   const viewer = await viewerId();
   const spec = await specFrom(source, viewer);
-  const { error } = await db.from("widgets").insert({ ...spec, title, owner_id: viewer, dashboard_id: null, saved: true });
+  const { error } = await db.from("widgets").insert({ ...spec, title, owner_id: viewer, dashboard_id: null, saved: true, workspace_id: await actingWorkspace() });
   if (error) throw new Error(`Widget not saved: ${error.message}`);
   done();
 }
@@ -157,7 +157,7 @@ export async function deleteSavedWidget(id: number) {
 
 export async function createDashboardNamed(name: string) {
   const viewer = await viewerId();
-  const { data } = await db.from("dashboards").insert({ name, owner_id: viewer }).select("id").single();
+  const { data } = await db.from("dashboards").insert({ name: String(name ?? "").trim().slice(0, 120) || "Untitled", owner_id: viewer, workspace_id: await actingWorkspace() }).select("id").single();
   done();
   return data?.id as number;
 }
@@ -167,8 +167,9 @@ export async function setShare(objectType: "metric" | "dashboard" | "deck", obje
   if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();
-  const { data: obj } = await db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).single();
+  const { data: obj } = await db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!obj || obj.owner_id !== viewer || userId === viewer) forbidden();
+  await assertMembers([userId]);
   // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
   if (objectType === "deck" && role) {
     const { data: deck } = await db.from("decks").select("document").eq("id", objectId).single();
@@ -186,8 +187,8 @@ export async function setGroupShare(objectType: "metric" | "dashboard" | "deck",
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();
   const [{ data: obj }, { data: g }] = await Promise.all([
-    db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).single(),
-    db.from("groups").select("id").eq("id", groupId).maybeSingle(),
+    db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).eq("workspace_id", await actingWorkspace()).maybeSingle(),
+    db.from("groups").select("id").eq("id", groupId).eq("workspace_id", await actingWorkspace()).maybeSingle(),
   ]);
   if (!obj || obj.owner_id !== viewer || !g) forbidden();
   // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
@@ -242,6 +243,7 @@ export async function assignInPlace(input: { metricId: number; period: string; a
   const viewer = await viewerId();
   await assertCanSeeMetrics([input.metricId], viewer);
   if (input.kind !== "question" && input.kind !== "task") forbidden();
+  await assertMembers([input.assigneeId]);
   const { data: obs } = await db
     .from("observations")
     .select("id")
@@ -261,7 +263,7 @@ export async function assignInPlace(input: { metricId: number; period: string; a
       kind: input.kind,
       due_date: input.due || null,
       breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
-      read_group_id: input.readGroupId && (await db.from("groups").select("id").eq("id", input.readGroupId).maybeSingle()).data ? input.readGroupId : null,
+      read_group_id: input.readGroupId && (await db.from("groups").select("id").eq("id", input.readGroupId).eq("workspace_id", await actingWorkspace()).maybeSingle()).data ? input.readGroupId : null,
     })
     .select("id")
     .single();

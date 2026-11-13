@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertMembers, assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { approve, closePeriod, runWorkflows, sendBack, setLock } from "@/lib/workflow";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
@@ -14,8 +14,9 @@ const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Ma
 
 /** Steps as they may be stored: known types, sane numbers, real people, at most one check, approval and publish. */
 async function cleanConfig(c: WorkflowConfig): Promise<WorkflowConfig> {
-  const { data: people } = await db.from("profiles").select("id");
-  const ids = new Set((people ?? []).map((p) => p.id));
+  // Approvers must be members of this workspace.
+  const { data: people } = await db.from("memberships").select("user_id").eq("workspace_id", await actingWorkspace());
+  const ids = new Set((people ?? []).map((p) => p.user_id));
   const steps: WorkflowStep[] = [];
   for (const s of (Array.isArray(c?.steps) ? c.steps : []).slice(0, 12)) {
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
@@ -30,7 +31,7 @@ async function cleanConfig(c: WorkflowConfig): Promise<WorkflowConfig> {
 }
 
 async function assertOwnsWorkflow(id: number, viewer: string) {
-  const { data } = await db.from("workflows").select("owner_id").eq("id", id).single();
+  const { data } = await db.from("workflows").select("owner_id").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!data || data.owner_id !== viewer) forbidden();
 }
 
@@ -42,7 +43,7 @@ export async function saveWorkflow(id: number | null, name: string, config: Work
     await ensureBaseline("workflow", id, viewer);
     await db.from("workflows").update(row).eq("id", id);
   } else {
-    const { data } = await db.from("workflows").insert({ ...row, owner_id: viewer }).select("id").single();
+    const { data } = await db.from("workflows").insert({ ...row, owner_id: viewer, workspace_id: await actingWorkspace() }).select("id").single();
     id = data!.id as number;
   }
   await recordVersion("workflow", id!, viewer);
@@ -59,9 +60,9 @@ export async function deleteWorkflow(id: number) {
 /** A metric's owner decides which workflow its values take. */
 export async function setMetricWorkflow(metricId: number, workflowId: number | null) {
   const viewer = await viewerId();
-  const { data: m } = await db.from("metrics").select("owner_id, formula").eq("id", metricId).single();
+  const { data: m } = await db.from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!m || m.owner_id !== viewer || m.formula) forbidden();
-  if (workflowId !== null && !(await db.from("workflows").select("id").eq("id", workflowId).maybeSingle()).data) forbidden();
+  if (workflowId !== null && !(await db.from("workflows").select("id").eq("id", workflowId).eq("workspace_id", await actingWorkspace()).maybeSingle()).data) forbidden();
   await db.from("metrics").update({ workflow_id: workflowId }).eq("id", metricId);
   done();
 }
@@ -70,7 +71,7 @@ export async function setMetricWorkflow(metricId: number, workflowId: number | n
 export async function runWorkflowsNow(asOf: string) {
   const viewer = await viewerId();
   if (!DAY.test(asOf)) forbidden();
-  const log = await runWorkflows(asOf, viewer);
+  const log = await runWorkflows(asOf, viewer, await actingWorkspace());
   done();
   return log;
 }
@@ -102,9 +103,9 @@ export async function closeWorkflowPeriod(workflowId: number, asOf: string) {
 /** The metric owner chooses who stands in for each submitter. */
 export async function setStandIn(metricId: number, submitterId: string, standInId: string | null) {
   const viewer = await viewerId();
-  const { data: m } = await db.from("metrics").select("owner_id").eq("id", metricId).single();
+  const { data: m } = await db.from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!m || m.owner_id !== viewer || standInId === submitterId) forbidden();
-  if (standInId && !(await db.from("profiles").select("id").eq("id", standInId).maybeSingle()).data) forbidden();
+  if (standInId) await assertMembers([standInId]);
   await db.from("tokens").update({ stand_in_id: standInId }).eq("metric_id", metricId).eq("submitter_id", submitterId).is("stands_in_for", null);
   // Whoever stood in before loses their stand-in Token at once.
   await db.from("tokens").delete().eq("metric_id", metricId).eq("stands_in_for", submitterId).neq("submitter_id", standInId ?? "");
@@ -114,7 +115,10 @@ export async function setStandIn(metricId: number, submitterId: string, standInI
 /** People set their own away dates; the workspace owner can set anyone's. null clears them. */
 export async function setAway(userId: string, starts: string | null, ends: string | null) {
   const viewer = await viewerId();
-  if (userId !== viewer) await assertWorkspaceOwner(viewer);
+  if (userId !== viewer) {
+    await assertWorkspaceOwner(viewer);
+    await assertMembers([userId]);
+  }
   await db.from("away").delete().eq("user_id", userId);
   if (starts && ends) {
     if (!DAY.test(starts) || !DAY.test(ends) || ends < starts) throw new Error("Pick a start and an end date.");

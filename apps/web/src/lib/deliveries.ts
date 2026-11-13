@@ -3,6 +3,7 @@ import "server-only";
 // PROTOTYPE: deliveries are recorded and shown in the Outbox; nothing is actually sent.
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { currentWorkspaceId } from "./viewer";
 import { periodLabel, periodStart } from "@ziffr/core/format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "@/connectors";
 import type { Period, Profile } from "@ziffr/core/types";
@@ -16,9 +17,11 @@ export async function connectorFor(recipientId: string, kind: DeliveryKind, acti
     const { data: earlier } = await db.from("deliveries").select("connector").eq("action_id", actionId).eq("recipient_id", recipientId).order("id").limit(1);
     if (earlier?.[0]) return earlier[0].connector as ConnectorId;
   }
+  // Preferences are per workspace: the same person may want Slack in one team and email in another.
+  const ws = await currentWorkspaceId();
   const [{ data: mine }, { data: teams }] = await Promise.all([
-    db.from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).eq("user_id", recipientId).limit(1),
-    db.from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).is("user_id", null).limit(1),
+    db.from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).eq("user_id", recipientId).eq("workspace_id", ws).limit(1),
+    db.from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).is("user_id", null).eq("workspace_id", ws).limit(1),
   ]);
   const own = mine?.[0]?.connector;
   const team = teams?.[0]?.connector;
@@ -95,7 +98,7 @@ export async function deliverNotice(input: { recipientId: string; senderId: stri
   if (input.recipientId === input.senderId) return;
   const via = await connectorFor(input.recipientId, "reply", null);
   await db.from("deliveries").insert({
-    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice",
+    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice", workspace_id: await currentWorkspaceId(),
     subject: input.subject, body: `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${input.link}`,
   });
 }

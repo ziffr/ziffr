@@ -1,12 +1,14 @@
 "use server";
 // Connectors (GLOSSARY: Connector, Delivery, Delivery Preference). PROTOTYPE: the outside side is simulated
-// here: anyone can play the recipient answering in Slack, email or WhatsApp, or closing a ticket, the way
-// the Sources page lets anyone play a submitter.
+// here: in Demo Mode anyone can play the recipient answering in Slack, email or WhatsApp, or closing a ticket, the
+// way the Sources page lets anyone play a submitter. Outside Demo Mode the simulations refuse: real answers come
+// in through the Connectors themselves.
 import { revalidatePath } from "next/cache";
 import { addDays, format } from "date-fns";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { isDemo } from "@/lib/auth";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { periodStart } from "@ziffr/core/format";
 import { intake } from "@/sources/intake";
@@ -16,6 +18,10 @@ import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type Preferenc
 
 const KINDS: PreferenceKind[] = ["question", "task", "reminder", "update"];
 const done = () => revalidatePath("/", "layout");
+/** Playing someone else on an outside channel is only for Demo Mode. */
+const demoOnly = () => {
+  if (!isDemo()) forbidden();
+};
 
 /** A person sets their own; the team default (userId null) is the workspace owner's. null connector: follow the team. */
 export async function setPreference(userId: string | null, kind: PreferenceKind, connector: ConnectorId | null) {
@@ -25,9 +31,10 @@ export async function setPreference(userId: string | null, kind: PreferenceKind,
     await assertWorkspaceOwner(viewer);
     if (!connector) forbidden();
   } else if (userId !== viewer) forbidden();
-  if (userId === null) await db.from("delivery_preferences").delete().is("user_id", null).eq("kind", kind);
-  else await db.from("delivery_preferences").delete().eq("user_id", userId).eq("kind", kind);
-  if (connector) await db.from("delivery_preferences").insert({ user_id: userId, kind, connector });
+  const ws = await actingWorkspace();
+  if (userId === null) await db.from("delivery_preferences").delete().is("user_id", null).eq("kind", kind).eq("workspace_id", ws);
+  else await db.from("delivery_preferences").delete().eq("user_id", userId).eq("kind", kind).eq("workspace_id", ws);
+  if (connector) await db.from("delivery_preferences").insert({ user_id: userId, kind, connector, workspace_id: ws });
   done();
 }
 
@@ -39,6 +46,7 @@ async function deliveryById(id: number) {
 
 /** The recipient answers where the Delivery reached them; the answer lands in the Thread. */
 export async function simulateReply(deliveryId: number, text: string) {
+  demoOnly();
   const d = await deliveryById(deliveryId);
   if (!CONNECTORS[d.connector as ConnectorId]?.capabilities.includes("replies")) forbidden();
   const { body, correction } = parseReply(String(text ?? "").slice(0, 2000));
@@ -50,6 +58,7 @@ export async function simulateReply(deliveryId: number, text: string) {
 
 /** Closing the ticket marks the task done in Ziffr. */
 export async function simulateTicketClose(deliveryId: number) {
+  demoOnly();
   const d = await deliveryById(deliveryId);
   if (d.connector !== "tickets") forbidden();
   const ok = await finishTask(d.action_id, d.recipient_id);
@@ -61,8 +70,9 @@ export async function simulateTicketClose(deliveryId: number) {
 /** What a scheduler would do each morning: remind assignees of open tasks due within two days. */
 export async function sendDueReminders() {
   await viewerId();
+  const ws = await actingWorkspace();
   const soon = format(addDays(new Date(), 2), "yyyy-MM-dd");
-  const { data } = await db.from("actions").select("id, asker_id, assignee_id").eq("kind", "task").eq("status", "open").not("due_date", "is", null).lte("due_date", soon);
+  const { data } = await db.from("actions").select("id, asker_id, assignee_id").eq("kind", "task").eq("status", "open").eq("workspace_id", ws).not("due_date", "is", null).lte("due_date", soon);
   for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id });
   done();
   return data?.length ?? 0;
@@ -71,7 +81,8 @@ export async function sendDueReminders() {
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing. */
 export async function askForMissingValues() {
   const viewer = await viewerId();
-  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id").is("stands_in_for", null), db.from("metrics").select("id, period, formula")]);
+  const ws = await actingWorkspace();
+  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws).is("stands_in_for", null), db.from("metrics").select("id, period, formula").eq("workspace_id", ws)]);
   let n = 0;
   for (const t of tokens ?? []) {
     const m = metrics?.find((x) => x.id === t.metric_id);
@@ -90,6 +101,7 @@ export async function askForMissingValues() {
 
 /** The submitter answers a Prompt where it reached them; the answer goes through intake and its Submission Rule. */
 export async function simulatePromptAnswer(deliveryId: number, text: string) {
+  demoOnly();
   const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).single();
   const p = d?.prompts as { id: number; source: string } | null;
   if (!d || d.kind !== "prompt" || !p || (p.source !== "slack" && p.source !== "mail")) forbidden();
