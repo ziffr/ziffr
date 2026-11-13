@@ -55,7 +55,7 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
       return (
         <div className="flex h-full flex-col">
           <div className="flex items-baseline gap-2">
-            <span className={cn("text-[length:var(--text-3xl)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
+            <span className={cn("text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
           </div>
           <div className="mt-1 text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period) : "No values yet"}</div>
           {pts.length > 1 && <div className="mt-auto min-h-10 flex-1 pt-2"><Sparkline points={pts} height="100%" tone={tone} /></div>}

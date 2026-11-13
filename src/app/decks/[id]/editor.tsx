@@ -6,7 +6,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { setDeckTheme } from "@/app/theme-actions";
 import { isDark, themeFor } from "@/lib/themes";
 import { toast } from "sonner";
-import { FileDown, LayoutTemplate, Plus, Presentation, Printer } from "lucide-react";
+import { FileDown, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -247,6 +247,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
         </DropdownMenu>
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
+        <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
         <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>
       </div>

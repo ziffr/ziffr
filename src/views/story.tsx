@@ -100,8 +100,8 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
   if (widget.template === "story") return <ComposedStory widget={widget} data={data} headline={headline} subline={subline} source={source} />;
   return (
     <div className="flex h-full flex-col">
-      <div className="text-[length:var(--text-lg)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-xs text-muted-foreground">{subline}</div>}
+      <div className="text-[length:clamp(var(--text-lg),3.4cqw,2.8rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.75rem,1.5cqw,1.2rem)] text-muted-foreground">{subline}</div>}
       <div className="mt-3 min-h-0 flex-1">
         {empty ? (
           <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
@@ -115,7 +115,7 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
           <StoryLine widget={widget} data={data} m={m} />
         )}
       </div>
-      <div className="mt-2 truncate text-[11px] leading-snug text-muted-foreground">{source}</div>
+      <div className="mt-2 truncate text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">{source}</div>
     </div>
   );
 }
@@ -219,7 +219,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
         marginRight: 56,
         marginTop: 24,
         marginBottom: 24,
-        style: { fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--color-muted)", background: "transparent" },
+        style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, 17px)", color: "var(--color-muted)", background: "transparent" },
         x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, true), label: null },
         y: { axis: null, nice: true, zero: false },
         marks: [
@@ -254,9 +254,9 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
   };
   return (
     <div className="flex h-full flex-col">
-      {s.kicker && <div className="mb-1 text-xs font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
-      <div className="text-[length:var(--text-xl)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-sm text-muted-foreground">{subline}</div>}
+      {s.kicker && <div className="mb-1 text-[length:clamp(0.75rem,1.3cqw,1.05rem)] font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
+      <div className="text-[length:clamp(var(--text-xl),3.6cqw,3.2rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.875rem,1.6cqw,1.3rem)] text-muted-foreground">{subline}</div>}
       <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4">
         {panels.length === 0 && <p className="m-auto text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
         {panels.map((panel, i) => (
@@ -276,7 +276,7 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[11px] leading-snug text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">
         {s.footnote && <span className="max-w-[70%]">{s.footnote}</span>}
         <span className="ml-auto">{source}</span>
       </div>

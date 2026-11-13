@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { Eye, LayoutDashboard, MousePointerClick, Pencil, Plus, Users } from "lucide-react";
+import { Eye, LayoutDashboard, MonitorPlay, MousePointerClick, Pencil, Plus, Users } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { ShareDialog } from "@/components/share-dialog";
@@ -16,7 +16,7 @@ import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@/lib/types";
 import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useSlotFill } from "@/components/slot-dialog";
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
@@ -122,6 +122,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
               </div>
               <div className="flex flex-wrap items-center gap-2">
               {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
+              <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
               <VersionsDialog type="dashboard" id={current.id} people={data.people} />
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} />}
               </div>

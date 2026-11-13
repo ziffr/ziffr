@@ -110,6 +110,8 @@
   background-color: var(--color-desk);
   background-image: radial-gradient(90% 120% at 0% 20%, var(--color-cotton), transparent 62%), var(--tex-desk);
 }
+/* Slideshow: slides only, no frame names. */
+.slideshow .tl-frame-heading { display: none; }
 .fig { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
 
 /* The settled state, pressed into the stock in coral (Coral § Surfaces) */

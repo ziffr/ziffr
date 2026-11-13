@@ -210,7 +210,8 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
             </DropdownMenu>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
-            <div className="min-h-0 flex-1">
+            {/* A size container: values and story words scale with the card, from phone to wall screen. */}
+            <div className="@container min-h-0 flex-1">
             <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
             </div>
             {m && TEMPLATES[widget.template].kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}

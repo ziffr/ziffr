@@ -98,7 +98,7 @@ function usePlot(draw: (width: number, height: number) => Element | null, deps: 
   return box;
 }
 
-const STYLE = { fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--color-muted)", background: "transparent", overflow: "visible" };
+const STYLE = { fontFamily: "var(--font-body)", fontSize: "clamp(12px, 1.2cqw, 18px)", color: "var(--color-muted)", background: "transparent", overflow: "visible" };
 
 /** Bars per period with signed direct labels; the highlighted bars (last or projected) stand out. */
 function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; panel: Panel; domain?: [number, number] }) {
