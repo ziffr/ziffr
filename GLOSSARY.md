@@ -173,8 +173,12 @@ _Avoid_: Copy, freeze, export data
 ### Sharing
 
 **Share**:
-Giving another user access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
+Giving another user or a Group access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
 _Avoid_: Invite, publish
+
+**Group**:
+A named set of users, such as Management or Sales, that things are shared with or a Thread is limited to. Whoever joins a group gets what was shared with it. The workspace owner manages groups.
+_Avoid_: Team, role, department
 
 **Viewer**:
 A user a dashboard or metric is shared with who can look at it, inspect history and assign actions, but not change it.
@@ -213,7 +217,7 @@ The user an action is assigned to.
 _Avoid_: Owner, responsible
 
 **Thread**:
-The replies between asker and assignee on an action.
+The replies between asker and assignee on an action. Everyone can read it, unless the asker limits it to a Group; the people on it can always read it.
 _Avoid_: Conversation, chat, comments
 
 **Correction**:

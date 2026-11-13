@@ -86,6 +86,8 @@ export type ActionStatus = "open" | "answered" | "closed";
 export type ActionKind = "question" | "task";
 export type Action = {
   breakdown_label: string | null;
+  /** null: everyone may read the thread; else only this Group (and the people on it). */
+  read_group_id: number | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
@@ -191,7 +193,10 @@ export type Widget = {
 };
 
 export type ShareRole = "viewer" | "editor";
-export type Share = { id: number; object_type: "metric" | "dashboard"; object_id: number; user_id: string; role: ShareRole };
+/** A share names a person or a Group; group shares are also handed out per member, with via_group set. */
+export type Share = { id: number; object_type: "metric" | "dashboard"; object_id: number; user_id: string; role: ShareRole; group_id?: number | null; via_group?: number };
+/** GLOSSARY: Group. */
+export type Group = { id: number; name: string; members: string[] };
 
 /** Everything a canvas needs to draw widgets client-side. */
 export type CanvasData = {
@@ -213,6 +218,8 @@ export type CanvasData = {
   themes: Theme[];
   /** May change themes (the workspace owner). */
   canEditThemes: boolean;
+  /** GLOSSARY: Group. */
+  groups: Group[];
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */

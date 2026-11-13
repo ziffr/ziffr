@@ -368,6 +368,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
   const [text, setText] = useState(draft(period));
   const [due, setDue] = useState("");
   const [via, setVia] = useState<ConnectorId | "">("");
+  const [readers, setReaders] = useState<string>("");
   const [pending, start] = useTransition();
   return (
     <form
@@ -375,7 +376,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row, via: via || null });
+          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row, via: via || null, readGroupId: readers ? Number(readers) : null });
           onDone(id, others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "");
         });
       }}
@@ -404,6 +405,13 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
       {kind === "task" && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">Due <Input type="date" value={due} min={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setDue(e.target.value)} /></label>
       )}
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        Who can read
+        <select value={readers} onChange={(e) => setReaders(e.target.value)} className="h-8 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
+          <option value="">Everyone</option>
+          {data.groups.map((g) => <option key={g.id} value={g.id}>{g.name} only</option>)}
+        </select>
+      </label>
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
         Send via
         <select value={via} onChange={(e) => setVia(e.target.value as ConnectorId | "")} className="h-8 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">

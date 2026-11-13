@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Action, ThreadMessage } from "@/lib/types";
 import { CONNECTORS, type ConnectorId } from "@/connectors";
+import { getGroups, threadReader } from "@/lib/access";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
@@ -30,6 +31,9 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   if (!action) notFound();
   const a = action as Action;
   const m = metrics.find((x) => x.id === a.metric_id)!;
+  // A thread limited to a Group is read by its members and the people on it (GLOSSARY: Thread).
+  const groups = await getGroups();
+  if (!threadReader(viewer, groups, (id) => metrics.find((x) => x.id === id)?.owner_id)(a)) notFound();
   const pts = series[m.slug] ?? [];
   const idx = pts.findIndex((p) => p.period === a.period_start);
   const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));

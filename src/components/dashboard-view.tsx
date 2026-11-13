@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { getCanvasData, getShares, visibleDashboards } from "@/lib/access";
+import { getCanvasData, getRawShares, visibleDashboards } from "@/lib/access";
 import { DashboardScreen } from "@/app/dashboards/screen";
 import type { Widget } from "@/lib/types";
 
@@ -9,7 +9,7 @@ export async function DashboardView({ id }: { id?: number }) {
   const [dashboards, data, shares, { data: saved }] = await Promise.all([
     visibleDashboards(viewer),
     getCanvasData(viewer),
-    getShares(),
+    getRawShares(),
     db.from("widgets").select("*").eq("owner_id", viewer).eq("saved", true).order("id"),
   ]);
   const current = dashboards.find((d) => d.id === id) ?? (id ? null : dashboards[0] ?? null);

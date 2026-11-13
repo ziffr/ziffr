@@ -6,6 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@/lib/team-templates";
+import { readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
 import { finishTask } from "@/lib/threads";
 import type { ConnectorId } from "@/connectors";
@@ -173,6 +174,22 @@ export async function setShare(objectType: "metric" | "dashboard", objectId: num
   done();
 }
 
+/** Shares with a Group: everyone in it, now and later (GLOSSARY: Group). */
+export async function setGroupShare(objectType: "metric" | "dashboard", objectId: number, groupId: number, role: ShareRole | null) {
+  const viewer = await viewerId();
+  if (objectType !== "metric" && objectType !== "dashboard") forbidden();
+  if (role !== null && role !== "viewer" && role !== "editor") forbidden();
+  if (objectType === "metric" && role === "editor") forbidden();
+  const [{ data: obj }, { data: g }] = await Promise.all([
+    db.from(objectType === "metric" ? "metrics" : "dashboards").select("owner_id").eq("id", objectId).single(),
+    db.from("groups").select("id").eq("id", groupId).maybeSingle(),
+  ]);
+  if (!obj || obj.owner_id !== viewer || !g) forbidden();
+  await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("group_id", groupId);
+  if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, group_id: groupId, role });
+  done();
+}
+
 // Analysis Canvas: one scratch canvas per user.
 export async function canvasAdd(metricIds: number[]) {
   const viewer = await viewerId();
@@ -200,17 +217,18 @@ export async function canvasSet(metricIds: number[]) {
 
 /** History popover: every Observation plus Actions for one metric. */
 export async function getHistory(metricId: number) {
-  await assertCanSeeMetrics([metricId], await viewerId());
-  const [{ data: obs }, { data: actions }, { data: superseded }] = await Promise.all([
+  const viewer = await viewerId();
+  await assertCanSeeMetrics([metricId], viewer);
+  const [{ data: obs }, actions, { data: superseded }] = await Promise.all([
     db.from("observations").select("*").eq("metric_id", metricId).order("period_start", { ascending: false }).order("created_at", { ascending: false }).limit(400),
-    db.from("actions").select("*").eq("metric_id", metricId).order("created_at", { ascending: false }),
+    readableActions(viewer, { metricId }).then((a) => [...a].sort((x, y) => y.created_at.localeCompare(x.created_at))),
     db.from("observation_history").select("*").eq("metric_id", metricId).order("superseded_at", { ascending: false }).limit(100),
   ]);
-  return { observations: obs ?? [], actions: actions ?? [], superseded: superseded ?? [] };
+  return { observations: obs ?? [], actions, superseded: superseded ?? [] };
 }
 
 /** Ask a Question or assign a Task right where the viewer is. */
-export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null; via?: ConnectorId | null }) {
+export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null; via?: ConnectorId | null; readGroupId?: number | null }) {
   const viewer = await viewerId();
   await assertCanSeeMetrics([input.metricId], viewer);
   if (input.kind !== "question" && input.kind !== "task") forbidden();
@@ -233,6 +251,7 @@ export async function assignInPlace(input: { metricId: number; period: string; a
       kind: input.kind,
       due_date: input.due || null,
       breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
+      read_group_id: input.readGroupId && (await db.from("groups").select("id").eq("id", input.readGroupId).maybeSingle()).data ? input.readGroupId : null,
     })
     .select("id")
     .single();

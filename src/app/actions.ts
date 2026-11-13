@@ -27,6 +27,7 @@ export async function resetDemo() {
   await db.rpc("prototype_seed_templates");
   await db.rpc("prototype_seed_themes");
   await db.rpc("prototype_seed_connectors");
+  await db.rpc("prototype_seed_groups");
   revalidatePath("/", "layout");
   redirect("/");
 }

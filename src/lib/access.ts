@@ -1,15 +1,49 @@
 import "server-only";
 import { db } from "./db";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
-import type { CanvasData, Dashboard, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 
 // GLOSSARY: Share / Viewer / Editor.
 // A user sees a metric if they own it, submit to it, it was shared with them,
 // or it sits on a dashboard shared with them.
 
-export async function getShares(): Promise<Share[]> {
+export async function getGroups(): Promise<Group[]> {
+  const [{ data: groups }, { data: members }] = await Promise.all([db.from("groups").select("id, name").order("name"), db.from("group_members").select("group_id, user_id")]);
+  return (groups ?? []).map((g) => ({ ...g, members: (members ?? []).filter((m) => m.group_id === g.id).map((m) => m.user_id) }));
+}
+
+/** Shares as stored: to a person or to a Group. For the Share dialog. */
+export async function getRawShares(): Promise<Share[]> {
   const { data } = await db.from("shares").select("*");
-  return data ?? [];
+  return (data ?? []) as Share[];
+}
+
+/** Shares per person: a share with a Group counts for each of its members (the stronger role wins). */
+export async function getShares(): Promise<Share[]> {
+  const [raw, groups] = await Promise.all([getRawShares(), getGroups()]);
+  const out: Share[] = raw.filter((s) => s.user_id);
+  for (const s of raw.filter((x) => x.group_id)) {
+    for (const user of groups.find((g) => g.id === s.group_id)?.members ?? []) {
+      const have = out.find((x) => x.object_type === s.object_type && x.object_id === s.object_id && x.user_id === user);
+      if (!have) out.push({ ...s, user_id: user, via_group: s.group_id! });
+      else if (have.role === "viewer" && s.role === "editor") have.role = "editor";
+    }
+  }
+  return out;
+}
+
+/** Who may read a Thread: the people on it, then everyone, or only the members of its Group. */
+export function threadReader(viewer: string, groups: Group[], metricOwner: (metricId: number) => string | undefined) {
+  const mine = new Set(groups.filter((g) => g.members.includes(viewer)).map((g) => g.id));
+  return (a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id">) =>
+    a.asker_id === viewer || a.assignee_id === viewer || metricOwner(a.metric_id) === viewer || a.read_group_id === null || mine.has(a.read_group_id);
+}
+
+/** The Actions this viewer may read. */
+export async function readableActions(viewer: string, filter?: { metricId?: number }) {
+  const [actions, groups, { data: metrics }] = await Promise.all([getActions(filter), getGroups(), db.from("metrics").select("id, owner_id")]);
+  const can = threadReader(viewer, groups, (id) => metrics?.find((m) => m.id === id)?.owner_id);
+  return actions.filter(can);
 }
 
 export type DashboardAccess = Dashboard & { role: "owner" | ShareRole };
@@ -51,11 +85,12 @@ export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promi
 
 /** Visible metrics + their series + people: everything a canvas draws from. */
 export async function getCanvasData(viewer: string): Promise<CanvasData> {
-  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }] = await Promise.all([
-    getAllSeries(), getProfiles(), getActions(), db.from("tokens").select("metric_id, submitter_id"),
+  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups] = await Promise.all([
+    getAllSeries(), getProfiles(), readableActions(viewer), db.from("tokens").select("metric_id, submitter_id"),
     db.from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").order("name"),
     db.from("themes").select("id, owner_id, name, tokens, slides, is_default, updated_at").order("id"),
     db.from("profiles").select("is_owner").eq("id", viewer).single(),
+    getGroups(),
   ]);
   const ids = await visibleMetricIds(viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
@@ -74,6 +109,7 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
     templates: (templates ?? []) as TeamTemplate[],
     themes: (themes ?? []) as Theme[],
     canEditThemes: Boolean(me?.is_owner),
+    groups,
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }

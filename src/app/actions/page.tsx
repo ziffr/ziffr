@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getActions, getMetrics, getProfileMap } from "@/lib/data";
+import { getMetrics, getProfileMap } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
+import { readableActions } from "@/lib/access";
 import { periodLabel } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
@@ -8,7 +9,7 @@ import { StatusBadge } from "@/components/status";
 import type { Action } from "@/lib/types";
 
 export default async function ActionsPage() {
-  const [actions, metrics, people, viewer] = await Promise.all([getActions(), getMetrics(), getProfileMap(), viewerId()]);
+  const [actions, metrics, people, viewer] = await Promise.all([viewerId().then((v) => readableActions(v)), getMetrics(), getProfileMap(), viewerId()]);
   const byId = Object.fromEntries(metrics.map((m) => [m.id, m]));
   const groups: { title: string; hint: string; list: Action[] }[] = [
     { title: "Waiting for your answer", hint: "Actions assigned to you", list: actions.filter((a) => a.assignee_id === viewer && a.status === "open") },

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
-import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "@/lib/data";
+import { getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@/lib/compare";
 import { SeriesForm } from "./series-form";
@@ -21,7 +21,7 @@ import { MetricWorkspace } from "./workspace";
 import { PinMenu } from "./pin";
 import { ShareDialog } from "@/components/share-dialog";
 import { buttonVariants } from "@/components/ui/button";
-import { getShares, visibleDashboards, visibleMetricIds } from "@/lib/access";
+import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 
@@ -57,11 +57,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </div>
     );
   }
-  const [actions, { data: tokens }, dashboards, shares] = await Promise.all([
-    getActions({ metricId: metric.id }),
+  const [actions, { data: tokens }, dashboards, shares, groups] = await Promise.all([
+    readableActions(viewer, { metricId: metric.id }),
     db.from("tokens").select("*").eq("metric_id", metric.id),
     visibleDashboards(viewer),
-    getShares(),
+    getRawShares(),
+    getGroups(),
   ]);
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
@@ -97,7 +98,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
         <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
         <VersionsDialog type="metric" id={metric.id} people={people} />
-        {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} />}
+        {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} groups={groups} />}
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
