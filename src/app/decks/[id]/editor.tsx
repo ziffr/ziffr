@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDeckTheme } from "@/app/theme-actions";
-import { isDark, themeFor } from "@/lib/themes";
+import { isDark, slideDesign, themeFor } from "@/lib/themes";
 import { toast } from "sonner";
 import { FileDown, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { renameDeck, saveDeck } from "@/app/deck-actions";
+import { renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
+import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { dropSpec } from "@/lib/drop-spec";
@@ -23,9 +24,8 @@ import type { SlideShape, SlideTemplate } from "@/lib/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
-import type { CanvasData, Master, TemplateId, Widget } from "@/lib/types";
+import type { CanvasData, SlideDesign, TemplateId, Widget } from "@/lib/types";
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
-import { setDeckMaster } from "@/app/master-actions";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
@@ -36,22 +36,21 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; master_id: number | null; theme_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] };
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[] };
 
-export function DeckEditor({ deck, data, saved, masters }: Props) {
+export function DeckEditor({ deck, data, saved }: Props) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [name, setName] = useState(deck.name);
-  const [masterId, setMasterId] = useState<number | null>(deck.master_id);
+  const [footer, setFooter] = useState<string | null>(deck.footer);
   const [themeId, setThemeId] = useState<number | null>(deck.theme_id);
   const theme = themeFor(data.themes, themeId);
-  const baseMaster = masters.find((m) => m.id === masterId) ?? null;
-  // The master keeps the layout; its colours come from the deck's theme (GLOSSARY: Master, Theme).
-  const master = useMemo(() => (baseMaster && theme ? { ...baseMaster, background_color: theme.tokens.surface, text_color: theme.tokens.ink } : baseMaster), [baseMaster, theme]);
+  // What every slide shows comes from the deck's theme; the deck may have its own footer (GLOSSARY: Theme).
+  const master = useMemo(() => slideDesign(theme, footer), [theme, footer]);
   const [status, setStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const masterRef = useRef<Master | null>(null);
+  const masterRef = useRef<SlideDesign | null>(null);
   masterRef.current = master;
 
   // Read once: a new snapshot object on every render would make tldraw reload its store.
@@ -199,22 +198,6 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
           />
         </label>
         <span className="text-xs text-muted-foreground" aria-live="polite">{status === "saved" ? "Saved" : status === "saving" ? "Saving…" : "Unsaved changes"}</span>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Master</span>
-          <select
-            value={masterId ?? ""}
-            onChange={(e) => {
-              const v = e.target.value ? Number(e.target.value) : null;
-              setMasterId(v);
-              start(() => setDeckMaster(deck.id, v));
-            }}
-            className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2"
-          >
-            <option value="">None</option>
-            {masters.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-          <Link href={`/decks/masters${masterId ? `?id=${masterId}` : ""}`} className="text-sm underline">Edit</Link>
-        </label>
         <DropdownMenu>
           <DropdownMenuTrigger className={buttonVariants({ variant: "outline" })}><Plus aria-hidden /> Slide</DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
@@ -257,6 +240,15 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
+          <label className="stock block rounded-[var(--radius-card)] p-3 text-sm">
+            <span className="mb-1 block text-xs font-medium">Footer on every slide</span>
+            <Input
+              defaultValue={footer ?? ""}
+              placeholder={theme?.slides.footer || "No footer"}
+              onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== footer) { setFooter(v); start(() => setDeckFooter(deck.id, v)); } }}
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">Empty uses the theme&rsquo;s footer. Logo, slide numbers and type come from the theme.</span>
+          </label>
           {layoutShapes && <SaveSlideDialog deckId={deck.id} shapes={layoutShapes} data={data} onClose={() => setLayoutShapes(null)} />}
         </div>
         <div
@@ -312,7 +304,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
             onChange={(e) => editor.updateShape({ id: slide.id, type: "frame", meta: { ...slide.meta, hideMaster: e.target.checked } })}
             className="size-4 accent-[var(--color-ink)]"
           />
-          Hide master on this slide
+          Hide logo, footer and number on this slide
         </label>
         <p className="mt-1.5 text-xs text-muted-foreground">For full-bleed title or image slides.</p>
         <Button

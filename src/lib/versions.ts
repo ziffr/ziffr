@@ -2,7 +2,7 @@ import "server-only";
 // Versions (GLOSSARY: Version): what people build keeps its history, git-like but inside Ziffr.
 import { db } from "./db";
 
-export type VersionType = "widget" | "dashboard" | "deck" | "master" | "metric" | "template" | "theme";
+export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme";
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -19,19 +19,15 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
     return d ? { name: d.name, theme_id: d.theme_id, widgets: ws ?? [] } : null;
   }
   if (type === "deck") {
-    const { data } = await db.from("decks").select("name, master_id, theme_id, document").eq("id", id).single();
+    const { data } = await db.from("decks").select("name, theme_id, footer, document").eq("id", id).single();
     return data;
   }
   if (type === "theme") {
-    const { data } = await db.from("themes").select("name, tokens").eq("id", id).single();
+    const { data } = await db.from("themes").select("name, tokens, slides").eq("id", id).single();
     return data;
   }
   if (type === "template") {
     const { data } = await db.from("team_templates").select("kind, name, description, view, slots, body, w, h").eq("id", id).single();
-    return data;
-  }
-  if (type === "master") {
-    const { data } = await db.from("masters").select("name, background_color, background_image, logo, logo_ratio, logo_position, logo_width, footer, show_slide_number, text_color, title_size, body_size").eq("id", id).single();
     return data;
   }
   const { data } = await db.from("metrics").select("name, description, unit, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula").eq("id", id).single();

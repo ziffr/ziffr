@@ -1,7 +1,7 @@
 // Themes (GLOSSARY: Theme): a theme becomes CSS custom properties on the element that holds content.
 // Widgets, stories and slides only use tokens, so one wrapper repaints all of them. Pure.
 import type { CSSProperties } from "react";
-import type { FontId, Theme, ThemeTokens } from "./types";
+import type { FontId, SlideDesign, Theme, ThemeTokens } from "./types";
 
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
 const G = (family: string) => `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
@@ -24,6 +24,12 @@ export const HEX = /^#[0-9a-fA-F]{6}$/;
 /** The theme a dashboard or deck uses: its own, or the team default. */
 export function themeFor(themes: Theme[], id: number | null | undefined): Theme | undefined {
   return themes.find((t) => t.id === id) ?? themes.find((t) => t.is_default) ?? themes[0];
+}
+
+/** What a deck draws behind every slide: the theme's slide part in its colours, the deck's footer if it has one. */
+export function slideDesign(theme: Theme | undefined, footer?: string | null): SlideDesign | null {
+  if (!theme) return null;
+  return { ...theme.slides, footer: footer ?? theme.slides.footer, background_color: theme.tokens.surface, text_color: theme.tokens.ink };
 }
 
 const mix = (a: string, b: string, pct: number) => `color-mix(in oklab, ${a} ${pct}%, ${b})`;

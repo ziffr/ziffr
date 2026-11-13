@@ -14,7 +14,7 @@ export default async function DecksPage() {
   return (
     <>
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
-        <Link href="/decks/masters" className="text-sm underline">Masters</Link>
+        <Link href="/themes" className="text-sm underline">Themes</Link>
         <form action={createDeck} className="flex gap-2">
           <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
           <Button type="submit">New deck</Button>

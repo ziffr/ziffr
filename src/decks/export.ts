@@ -5,7 +5,7 @@
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
 import { formatValue, periodLabel } from "@/lib/format";
-import type { CanvasData, Master } from "@/lib/types";
+import type { CanvasData, SlideDesign } from "@/lib/types";
 import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
@@ -69,7 +69,7 @@ async function shapeImage(editor: Editor, ids: TLShape["id"][]) {
   return url;
 }
 
-export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: Master | null, theme?: Theme) {
+export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: SlideDesign | null, theme?: Theme) {
   applyExportTheme(theme);
   const PptxGenJS = (await import("pptxgenjs")).default;
   const pptx = new PptxGenJS();

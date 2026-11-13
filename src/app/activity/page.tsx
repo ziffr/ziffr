@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 
 // Governance: who changed what, and when, across everything the viewer may see.
-const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard", deck: "deck", master: "master", metric: "metric description" };
+const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard", deck: "deck", metric: "metric description", template: "template", theme: "theme" };
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
@@ -43,7 +43,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
           : v.object_type === "deck" ? decks?.find((d) => d.id === v.object_id)?.name
           : v.object_type === "widget" ? (() => { const w = widgets?.find((x) => x.id === v.object_id); return w?.title ?? metrics.find((m) => m.id === w?.metric_ids?.[0])?.name; })()
           : undefined;
-        const href = v.object_type === "metric" ? `/metrics/${metrics.find((m) => m.id === v.object_id)?.slug}` : v.object_type === "dashboard" ? `/dashboards/${v.object_id}` : v.object_type === "deck" ? `/decks/${v.object_id}` : v.object_type === "master" ? `/decks/masters?id=${v.object_id}` : null;
+        const href = v.object_type === "metric" ? `/metrics/${metrics.find((m) => m.id === v.object_id)?.slug}` : v.object_type === "dashboard" ? `/dashboards/${v.object_id}` : v.object_type === "deck" ? `/decks/${v.object_id}` : v.object_type === "theme" ? `/themes?id=${v.object_id}` : null;
         return { at: v.updated_at, who: v.author_id, text: `${v.name ? `named “${v.name}” on` : v.message?.startsWith("Restored") ? v.message.toLowerCase() + " of" : v.message === "Before version history" ? "started the history of" : v.version === 1 ? "created" : "edited"} the ${NOUN[v.object_type]}${label ? ` ${label}` : ""}`, version: v.version, href, kind: "version" as const };
       }),
     ...(superseded ?? [])
@@ -67,7 +67,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         ))}
       </nav>
       {items.length === 0 ? (
-        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">No changes yet. Edits to widgets, dashboards, decks, masters and metric descriptions show up here, and so do replaced values.</p>
+        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">No changes yet. Edits to widgets, dashboards, decks, templates, themes and metric descriptions show up here, and so do replaced values.</p>
       ) : (
         <ol className="stock divide-y divide-border rounded-[var(--radius-card)]">
           {items.map((i, n) => (

@@ -54,7 +54,7 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
   const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }] = await Promise.all([
     getAllSeries(), getProfiles(), getActions(), db.from("tokens").select("metric_id, submitter_id"),
     db.from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").order("name"),
-    db.from("themes").select("id, owner_id, name, tokens, is_default, updated_at").order("id"),
+    db.from("themes").select("id, owner_id, name, tokens, slides, is_default, updated_at").order("id"),
     db.from("profiles").select("is_owner").eq("id", viewer).single(),
   ]);
   const ids = await visibleMetricIds(viewer, metrics);

@@ -12,8 +12,9 @@ import { ThemeScope } from "@/components/theme-scope";
 import { WidgetFrame, type FrameWidget } from "@/components/widget-frame";
 import { VersionsPanel } from "@/components/versions-panel";
 import { deleteTheme, duplicateTheme, saveTheme, setDefaultTheme } from "@/app/theme-actions";
-import { FONTS } from "@/lib/themes";
-import type { CanvasData, FontId, Theme, ThemeTokens } from "@/lib/types";
+import { FONTS, slideDesign } from "@/lib/themes";
+import { SlidePreview, SlidesEditor } from "./slides-editor";
+import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards">; label: string }[] = [
@@ -31,13 +32,14 @@ const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontB
 export function ThemesScreen({ data, current }: { data: CanvasData; current: Theme }) {
   const router = useRouter();
   const [t, setT] = useState<ThemeTokens>(current.tokens);
+  const [slides, setSlides] = useState<ThemeSlides>(current.slides);
   const [name, setName] = useState(current.name);
   const [versions, setVersions] = useState(false);
   const [pending, start] = useTransition();
   const can = data.canEditThemes;
-  const dirty = name !== current.name || JSON.stringify(t) !== JSON.stringify(current.tokens);
+  const dirty = name !== current.name || JSON.stringify(t) !== JSON.stringify(current.tokens) || JSON.stringify(slides) !== JSON.stringify(current.slides);
   const set = <K extends keyof ThemeTokens>(k: K, v: ThemeTokens[K]) => setT((x) => ({ ...x, [k]: v }));
-  const draft: Theme = { ...current, name, tokens: t };
+  const draft: Theme = { ...current, name, tokens: t, slides };
 
   // Real widgets with real numbers, so a theme is judged on what it will actually show.
   const ids = data.metrics.slice(0, 3).map((m) => m.id);
@@ -72,7 +74,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
       <div className="grid min-w-0 gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
         <form
           className="space-y-4 text-sm"
-          onSubmit={(e) => { e.preventDefault(); act(() => saveTheme(current.id, name, t), "Theme saved"); }}
+          onSubmit={(e) => { e.preventDefault(); act(() => saveTheme(current.id, name, t, slides), "Theme saved"); }}
         >
           <fieldset disabled={!can || pending} className="space-y-4">
             <label className="block">
@@ -124,11 +126,15 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
                 </select>
               </label>
             </div>
+            <div className="border-t border-border pt-4">
+              <div className="mb-2 text-xs font-medium">Slides</div>
+              <SlidesEditor s={slides} onChange={setSlides} />
+            </div>
           </fieldset>
           {can && (
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={pending || !dirty}>Save theme</Button>
-              {dirty && <Button type="button" variant="outline" onClick={() => { setT(current.tokens); setName(current.name); }}>Discard</Button>}
+              {dirty && <Button type="button" variant="outline" onClick={() => { setT(current.tokens); setSlides(current.slides); setName(current.name); }}>Discard</Button>}
             </div>
           )}
           <div className="flex flex-wrap gap-1 border-t border-border pt-3">
@@ -139,7 +145,8 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
           </div>
         </form>
 
-        <ThemeScope theme={draft} className="desk min-w-0 rounded-[var(--radius-card)] p-4" aria-label="Preview">
+        <ThemeScope theme={draft} className="desk min-w-0 space-y-4 rounded-[var(--radius-card)] p-4" aria-label="Preview">
+          <SlidePreview design={slideDesign(draft)!} />
           <div className="grid gap-4 sm:grid-cols-2">
             {samples.map((w, i) => (
               <div key={i} className={cn(i >= 2 ? "h-80 sm:col-span-2" : "h-52")}>

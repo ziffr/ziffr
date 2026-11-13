@@ -15,8 +15,7 @@ async function ownDeck(id: number) {
 
 export async function createDeck(form: FormData) {
   const name = String(form.get("name") ?? "").trim() || "Untitled deck";
-  const { data: def } = await db.from("masters").select("id").eq("is_default", true).limit(1);
-  const { data } = await db.from("decks").insert({ name, owner_id: await viewerId(), master_id: def?.[0]?.id ?? null }).select("id").single();
+  const { data } = await db.from("decks").insert({ name, owner_id: await viewerId() }).select("id").single();
   revalidatePath("/decks");
   redirect(`/decks/${data?.id}`);
 }
@@ -40,4 +39,14 @@ export async function deleteDeck(id: number) {
   await db.from("decks").delete().eq("id", id);
   revalidatePath("/decks");
   redirect("/decks");
+}
+
+/** The deck's own footer; null uses the theme's. */
+export async function setDeckFooter(id: number, footer: string | null) {
+  await ownDeck(id);
+  const viewer = await viewerId();
+  await ensureBaseline("deck", id, viewer);
+  await db.from("decks").update({ footer: footer === null ? null : String(footer).slice(0, 120), updated_at: new Date().toISOString() }).eq("id", id);
+  await recordVersion("deck", id, viewer);
+  revalidatePath(`/decks/${id}`);
 }

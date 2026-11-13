@@ -238,11 +238,8 @@ export type TeamTemplate = WidgetTemplate | SlideTemplate;
 export type BreakdownRow = { label: string; value: number };
 
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
-export type Master = {
-  id: number;
-  owner_id: string;
-  name: string;
-  background_color: string;
+/** What a Theme puts on every slide (GLOSSARY: Theme): logo, footer, slide number, background image, type sizes. */
+export type ThemeSlides = {
   background_image: string | null;
   logo: string | null;
   logo_ratio: number;
@@ -250,11 +247,11 @@ export type Master = {
   logo_width: number;
   footer: string;
   show_slide_number: boolean;
-  text_color: string;
   title_size: number;
   body_size: number;
-  is_default: boolean;
 };
+/** Everything drawn behind a slide: the theme's slide part in the theme's colours, with the deck's own footer if it has one. */
+export type SlideDesign = ThemeSlides & { background_color: string; text_color: string };
 
 /** GLOSSARY: Theme. Colours are hex so the PowerPoint export can use them as they are. */
 export type FontId = "general-sans" | "inter" | "ibm-plex-sans" | "libre-franklin" | "source-serif" | "playfair" | "georgia" | "arial" | "geist-mono" | "ibm-plex-mono";
@@ -281,4 +278,4 @@ export type ThemeTokens = {
   /** paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all. */
   cards: "paper" | "flat" | "plain";
 };
-export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; is_default: boolean; updated_at: string };
+export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; slides: ThemeSlides; is_default: boolean; updated_at: string };

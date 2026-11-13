@@ -3,24 +3,22 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
-import type { Master, Widget } from "@/lib/types";
+import type { Widget } from "@/lib/types";
 
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const viewer = await viewerId();
   const { data: deck } = await db.from("decks").select("*").eq("id", id).single();
   if (!deck || deck.owner_id !== viewer) notFound();
-  const [data, { data: saved }, { data: masters }] = await Promise.all([
+  const [data, { data: saved }] = await Promise.all([
     getCanvasData(viewer),
     db.from("widgets").select("*").eq("owner_id", viewer).eq("saved", true).order("id"),
-    db.from("masters").select("*").order("id"),
   ]);
   return (
     <DeckEditorLoader
-      deck={{ id: deck.id, name: deck.name, document: deck.document, master_id: deck.master_id, theme_id: deck.theme_id }}
+      deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }}
       data={data}
       saved={(saved ?? []) as Widget[]}
-      masters={(masters ?? []) as Master[]}
     />
   );
 }

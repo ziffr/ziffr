@@ -1,6 +1,6 @@
 // Checks a theme's tokens before they are stored: colours are hex, fonts are known, sizes are sane.
 import { FONTS, HEX } from "./themes";
-import type { FontId, ThemeTokens } from "./types";
+import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
 
@@ -18,4 +18,25 @@ export function cleanTokens(t: ThemeTokens): ThemeTokens | null {
     data: t.data.map((c) => c.toUpperCase()),
     fontHeading, fontBody, fontFigures, radius, cards: t.cards,
   } as ThemeTokens;
+}
+
+const POSITIONS: LogoPosition[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
+const DATA_IMAGE = /^data:image\/(png|jpeg|webp|svg\+xml);base64,[a-z0-9+/=]+$/i;
+const MAX_IMAGE = 3_000_000; // characters of data URL
+
+/** The slide part of a theme: images must be inline pictures of a sane size, numbers within range. */
+export function cleanSlides(s: ThemeSlides): ThemeSlides {
+  const img = (v: string | null) => (v && DATA_IMAGE.test(v) && v.length <= MAX_IMAGE ? v : null);
+  const int = (v: number, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
+  return {
+    background_image: img(s?.background_image ?? null),
+    logo: img(s?.logo ?? null),
+    logo_ratio: Number(s?.logo_ratio) > 0 ? Math.min(20, Number(s.logo_ratio)) : 3,
+    logo_position: POSITIONS.includes(s?.logo_position) ? s.logo_position : "top-right",
+    logo_width: int(s?.logo_width, 40, 400, 140),
+    footer: String(s?.footer ?? "").slice(0, 120),
+    show_slide_number: Boolean(s?.show_slide_number),
+    title_size: int(s?.title_size, 24, 96, 56),
+    body_size: int(s?.body_size, 12, 48, 24),
+  };
 }

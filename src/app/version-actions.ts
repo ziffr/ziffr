@@ -7,8 +7,8 @@ import { getMetrics } from "@/lib/data";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
-import { cleanTokens } from "@/lib/theme-tokens";
-import type { ThemeTokens } from "@/lib/types";
+import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
+import type { ThemeSlides, ThemeTokens } from "@/lib/types";
 
 const forbidden = () => {
   throw new Error("Forbidden");
@@ -27,10 +27,6 @@ async function access(type: VersionType, id: number, viewer: string): Promise<{ 
   }
   if (type === "template") {
     const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();
-    return { view: Boolean(data), edit: data?.owner_id === viewer };
-  }
-  if (type === "master") {
-    const { data } = await db.from("masters").select("owner_id").eq("id", id).single();
     return { view: Boolean(data), edit: data?.owner_id === viewer };
   }
   if (type === "metric") {
@@ -97,7 +93,7 @@ export async function restoreVersion(versionId: number) {
     case "theme": {
       const tokens = cleanTokens(s.tokens as ThemeTokens);
       if (!tokens) forbidden();
-      await db.from("themes").update({ name: s.name, tokens, updated_at: new Date().toISOString() }).eq("id", id);
+      await db.from("themes").update({ name: s.name, tokens, ...(s.slides ? { slides: cleanSlides(s.slides as ThemeSlides) } : {}), updated_at: new Date().toISOString() }).eq("id", id);
       break;
     }
     case "template":
@@ -115,10 +111,7 @@ export async function restoreVersion(versionId: number) {
       break;
     }
     case "deck":
-      await db.from("decks").update({ name: s.name, master_id: s.master_id, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), document: s.document, updated_at: new Date().toISOString() }).eq("id", id);
-      break;
-    case "master":
-      await db.from("masters").update({ ...s, updated_at: new Date().toISOString() }).eq("id", id);
+      await db.from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: new Date().toISOString() }).eq("id", id);
       break;
     case "metric":
       await db.from("metrics").update(s).eq("id", id);

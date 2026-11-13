@@ -11,20 +11,20 @@ import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
 import { DeckMaster, SlideFrameUtil } from "./master";
 import { orderedSlides } from "./layouts";
-import { isDark, themeFor } from "@/lib/themes";
+import { isDark, slideDesign, themeFor } from "@/lib/themes";
 import { useFullscreen, useStepper } from "@/lib/use-stepper";
-import type { CanvasData, Master } from "@/lib/types";
+import type { CanvasData } from "@/lib/types";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 
-export function Slideshow({ deck, master: baseMaster, data, start }: { deck: { id: number; name: string; document: unknown; theme_id: number | null }; master: Master | null; data: CanvasData; start: number }) {
+export function Slideshow({ deck, data, start }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; start: number }) {
   const router = useRouter();
   const back = `/decks/${deck.id}`;
   const [editor, setEditor] = useState<Editor | null>(null);
   const [count, setCount] = useState(0);
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
   const theme = themeFor(data.themes, deck.theme_id);
-  const master = useMemo(() => (baseMaster && theme ? { ...baseMaster, background_color: theme.tokens.surface, text_color: theme.tokens.ink } : baseMaster), [baseMaster, theme]);
+  const master = useMemo(() => slideDesign(theme, deck.footer), [theme, deck.footer]);
   const step = useStepper(count, start, () => router.push(back));
   const { go } = step;
   // The slides are known only once tldraw has loaded the deck: jump to the requested one then.

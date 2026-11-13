@@ -1,6 +1,6 @@
 // Slide layouts: a 16:9 frame plus placeholder text, the way a deck tool starts a slide.
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
-import type { Master } from "@/lib/types";
+import type { SlideDesign } from "@/lib/types";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
@@ -28,7 +28,7 @@ export function orderedSlides(editor: Editor) {
 }
 
 /** Adds a slide below the last one and returns its id. */
-export function addSlide(editor: Editor, layout: LayoutId, master?: Master | null): TLShapeId {
+export function addSlide(editor: Editor, layout: LayoutId, master?: SlideDesign | null): TLShapeId {
   // Type sizes come from the master: tldraw text sizes are xl = 44px and m = 24px at scale 1.
   const title = (master?.title_size ?? 44) / 44;
   const body = (master?.body_size ?? 24) / 24;

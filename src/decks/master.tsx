@@ -1,21 +1,21 @@
 "use client";
-// GLOSSARY: Master. One design drawn behind every slide of a deck.
+// What a Theme draws behind every slide of a deck (GLOSSARY: Theme): logo, footer, number, background.
 // MasterArt uses inline styles only, so it renders the same in the editor, inside tldraw's SVG
 // export (foreignObject, where class-based CSS does not travel) and in the Masters editor.
 import { createContext, useContext } from "react";
 import { FrameShapeUtil, HTMLContainer, useEditor, useValue, type SvgExportContext, type TLFrameShape } from "tldraw";
-import type { Master } from "@/lib/types";
+import type { SlideDesign } from "@/lib/types";
 
 export const MARGIN_X = 48;
 export const MARGIN_Y = 36;
 const FOOTER_PX = 15;
 
-export const DeckMaster = createContext<Master | null>(null);
-let exportMaster: Master | null = null;
-export const setDeckExportMaster = (m: Master | null) => (exportMaster = m);
+export const DeckMaster = createContext<SlideDesign | null>(null);
+let exportMaster: SlideDesign | null = null;
+export const setDeckExportMaster = (m: SlideDesign | null) => (exportMaster = m);
 
 /** Where the master's parts sit, in slide pixels (w × h). Shared with the PowerPoint export. */
-export function masterGeometry(m: Master, w: number, h: number) {
+export function masterGeometry(m: SlideDesign, w: number, h: number) {
   const lw = m.logo_width;
   const lh = lw / (Number(m.logo_ratio) || 3);
   const left = m.logo_position.endsWith("left");
@@ -27,7 +27,7 @@ export function masterGeometry(m: Master, w: number, h: number) {
   };
 }
 
-export function MasterArt({ master, w, h, index, sample }: { master: Master; w: number; h: number; index?: number; sample?: boolean }) {
+export function MasterArt({ master, w, h, index, sample }: { master: SlideDesign; w: number; h: number; index?: number; sample?: boolean }) {
   const g = masterGeometry(master, w, h);
   const logoAtBottomLeft = master.logo && master.logo_position === "bottom-left";
   const logoAtBottomRight = master.logo && master.logo_position === "bottom-right";
@@ -65,7 +65,7 @@ export function MasterArt({ master, w, h, index, sample }: { master: Master; w: 
       {sample && (
         <>
           <div style={{ position: "absolute", left: 64, top: 48, fontSize: master.title_size, fontWeight: 700, color: master.text_color, lineHeight: 1.1 }}>Slide title</div>
-          <div style={{ position: "absolute", left: 64, top: 48 + master.title_size * 1.4, fontSize: master.body_size, color: master.text_color, lineHeight: 1.4 }}>Body text sits here at the master’s size.</div>
+          <div style={{ position: "absolute", left: 64, top: 48 + master.title_size * 1.4, fontSize: master.body_size, color: master.text_color, lineHeight: 1.4 }}>Body text sits here at the theme’s size.</div>
         </>
       )}
     </div>
