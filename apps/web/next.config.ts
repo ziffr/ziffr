@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+// Local settings stay at the repository root, shared by every app; package.json's scripts hand them to Node.
+
 const nextConfig: NextConfig = {
   // Master logos and backgrounds travel as data URLs in server actions (prototype; Storage later).
   experimental: { serverActions: { bodySizeLimit: "4mb" } },

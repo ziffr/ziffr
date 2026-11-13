@@ -6,12 +6,12 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 
 - `pnpm prototype`: local Supabase and the app on http://localhost:3000; `pnpm prototype:reset` re-seeds the demo data.
 - `pnpm exec tsc --noEmit` and `pnpm lint`: must pass before you finish.
-- Tests: none yet in the prototype; new pure modules get unit tests from now on.
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`: run across all packages, as CI does.
 
 ## Rules
 
 1. **Words:** use `GLOSSARY.md` terms in code, UI text and docs, never its _Avoid_ words. New or changed concept: update the glossary in the same change.
-2. **One core:** reading data that depends on who is asking, and every change to data, go through core functions that take the acting person and check permissions. UI, API and MCP never query the database directly. In the prototype the checks live in `src/lib/guards.ts` and `src/lib/access.ts`; use them, don't write new ones inline.
+2. **One core:** reading data that depends on who is asking, and every change to data, go through core functions that take the acting person and check permissions. UI, API and MCP never query the database directly. In the prototype the checks live in `apps/web/src/lib/guards.ts` and `apps/web/src/lib/access.ts` until they move into `packages/core`; use them, don't write new ones inline.
 3. **Visibility is the product:** whatever you return must be something the person may see (Shares, Groups, Tokens, Stand-ins, View Links). Anything sent to a browser, a Connector or a View Link carries only what is needed. Say so in a comment where it matters.
 4. **Data from browsers, Connectors and links is untrusted:** validate shapes, sizes and ids on the server; never build query filters from strings.
 5. **Migrations are add-only.** New file, never edit one that exists.
@@ -22,6 +22,6 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 10. **Specs and tickets:** work from a ticket (a GitHub issue); bigger work has a spec in `docs/specs/` (see its README). Each pull request closes its ticket with `Closes #…`.
 11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, and the commit message says why.
 
-## Where things are (prototype layout)
+## Where things are
 
-`src/app` pages and server actions · `src/lib` domain logic, access and guards · `src/views` widget and story views · `src/components` UI · `src/connectors` Connectors · `src/decks`, `src/canvas` slides and free layouts · `src/sources` intake · `supabase/migrations` schema and demo seed functions. The target layout (monorepo with `packages/core`, `apps/web`, `apps/mcp`, connector kit) is described in `CONTRIBUTING.md`.
+`packages/core` the core (new; logic moves in ticket by ticket) · `apps/web/src/app` pages and server actions · `apps/web/src/lib` domain logic, access and guards · `apps/web/src/views` widget and story views · `apps/web/src/components` UI · `apps/web/src/connectors` Connectors · `apps/web/src/decks`, `apps/web/src/canvas` slides and free layouts · `apps/web/src/sources` intake · `supabase/migrations` schema and demo seed functions. More apps and packages (MCP server, connector kit) follow; see `docs/specs/0001-hardening.md`.

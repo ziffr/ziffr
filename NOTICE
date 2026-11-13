@@ -16,7 +16,7 @@ Third-party software and assets
   https://tldraw.dev/legal
 - General Sans is loaded from Fontshare (Indian Type Foundry) and is not
   bundled; it is used under the ITF Free Font License.
-- flag-icons (public/flags) is MIT licensed.
-- Paper and felt textures (src/app/cotton.svg, felt.svg): provenance and
+- flag-icons (apps/web/public/flags) is MIT licensed.
+- Paper and felt textures (apps/web/src/app/cotton.svg, felt.svg): provenance and
   license to be confirmed before publishing.
 - All npm dependencies keep their own licenses; see `pnpm licenses list`.

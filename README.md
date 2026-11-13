@@ -40,7 +40,7 @@ Starting visibility: Sara owns most Metrics and shares *Monthly overview* with B
 | Token check, Submission Rules, Prompts, intake log | Slack and Mail are simulators feeding the same intake |
 | Web form Source (`/submit/<token>`) | Real Slack app and inbound mail |
 | Forecast (Holt's linear trend), correlation (Pearson) | Clustering, impact analysis (shown as "coming soon") |
-| Derived Metrics (formula over other metrics) | Plugin APIs: Sources, Views and Analyses are hardcoded in `src/sources`, `src/views`, `src/analyses` |
+| Derived Metrics (formula over other metrics) | Plugin APIs: Sources, Views and Analyses are hardcoded in `apps/web/src/sources`, `apps/web/src/views`, `apps/web/src/analyses` |
 | Actions (Questions and Tasks), Threads, Corrections | Real users and login: "View as…" is a cookie |
 | Pool, drag-and-drop dashboards, Widgets, sharing | User-made Widget Templates (built-in only; Views become pluggable later) |
 | Analysis Canvas + 3 Recipes | Saved analyses (later) |
