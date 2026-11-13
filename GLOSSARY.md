@@ -18,6 +18,18 @@ _Avoid_: Settings, config, schema
 A metric computed by a formula from other metrics. It never receives observations directly.
 _Avoid_: Calculated field, formula metric
 
+**Aggregation**:
+How a metric's values combine into a longer period: summed (revenue, deals), averaged (a score), the last value (a balance), or not at all (a rate).
+_Avoid_: Roll-up, rollup method, combine rule
+
+**Target Series**:
+Target values for individual periods, such as a monthly budget, uploaded like observations. Where a period has none, the metric's target range applies.
+_Avoid_: Budget, plan, goal series
+
+**Projection**:
+A value for a future period, from an outside forecast or Ziffr's own, uploaded like an observation and always shown as a projection, never as an observation.
+_Avoid_: Forecast value, estimate, prediction
+
 **Polarity**:
 Which direction is good for a metric: higher is better, lower is better, or closer to target is better.
 _Avoid_: Direction, trend preference
@@ -41,6 +53,16 @@ _Avoid_: Number, entry, data point, upload
 **Breakdown**:
 Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it.
 _Avoid_: Dimension, segment, table, drill-down
+
+### Comparing
+
+**Comparison**:
+A metric's latest value against an earlier span: the previous period, or the same span one day, week, month, quarter, half-year or year earlier (DoD, WoW, MoM, QoQ, HoH, YoY), as an absolute and a relative change. Spans longer than the metric's period compare to date against the same span before, unless a widget asks for full periods.
+_Avoid_: Delta, variance, period over period
+
+**Attainment**:
+How far a value reaches its target, as a percentage where higher is always better, whichever way the metric's polarity runs.
+_Avoid_: Achievement, target fulfilment, performance
 
 ### Input
 
@@ -71,8 +93,20 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **Story Widget**:
-A widget set as an editorial graphic: a headline that states the finding, a subline, one chart with direct labels, one highlighted row, optional callouts and a source line.
+A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels.
 _Avoid_: Infographic, chart card, editorial chart
+
+**Panel**:
+One chart inside a story, such as ranked bars, period bars, a bridge or an annotated line, showing one measure of one or more metrics. Several metrics in one panel are drawn side by side as small multiples.
+_Avoid_: Chart, subplot, facet
+
+**Measure**:
+What a panel draws from a metric: its value, a comparison, its attainment or a share of a breakdown.
+_Avoid_: Field, calculation, KPI
+
+**Bridge**:
+A panel that walks from a start value through signed steps to an end value, either from one breakdown's rows or from the change between two periods, row by row.
+_Avoid_: Waterfall, walk, cascade
 
 **Widget Template**:
 A predefined view plus default settings that a new widget starts from. If none is chosen, the default template is used.
