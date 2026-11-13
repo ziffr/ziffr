@@ -15,15 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Action, ThreadMessage } from "@/lib/types";
+import { CONNECTORS, type ConnectorId } from "@/connectors";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
-  const [{ data: action }, { data: msgs }, { metrics, series, observations }, people, viewer] = await Promise.all([
+  const [{ data: action }, { data: msgs }, { metrics, series, observations }, people, viewer, { data: sent }] = await Promise.all([
     db.from("actions").select("*").eq("id", id).single(),
     db.from("thread_messages").select("*").eq("action_id", id).order("created_at"),
     getAllSeries(),
     getProfileMap(),
     viewerId(),
+    db.from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("action_id", id).order("id"),
   ]);
   if (!action) notFound();
   const a = action as Action;
@@ -57,6 +59,17 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         {window.length > 1 && <div className="mt-4"><MetricChart metric={m} points={window} markers={[a.period_start]} height={180} /></div>}
+        {(sent ?? []).length > 0 && (
+          <details className="mt-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer">Sent {(sent ?? []).length} time{(sent ?? []).length === 1 ? "" : "s"} through connectors</summary>
+            <ul className="mt-1.5 space-y-0.5">
+              {(sent ?? []).map((d) => (
+                <li key={d.id}>{d.kind} to {people[d.recipient_id]?.name.split(" ")[0]} via {CONNECTORS[d.connector as ConnectorId]?.label}{d.external_ref ? ` (${d.external_ref})` : ""}, {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</li>
+              ))}
+            </ul>
+            <Link href="/connectors" className="mt-1 inline-block underline">Outbox</Link>
+          </details>
+        )}
       </div>
 
       <ol className="mt-4 space-y-3">

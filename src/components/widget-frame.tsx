@@ -28,6 +28,7 @@ import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, W
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
+import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@/connectors";
 import { useSlotFill } from "@/components/slot-dialog";
 
 export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };
@@ -366,6 +367,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
   };
   const [text, setText] = useState(draft(period));
   const [due, setDue] = useState("");
+  const [via, setVia] = useState<ConnectorId | "">("");
   const [pending, start] = useTransition();
   return (
     <form
@@ -373,7 +375,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row });
+          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row, via: via || null });
           onDone(id, others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "");
         });
       }}
@@ -402,6 +404,13 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
       {kind === "task" && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">Due <Input type="date" value={due} min={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setDue(e.target.value)} /></label>
       )}
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        Send via
+        <select value={via} onChange={(e) => setVia(e.target.value as ConnectorId | "")} className="h-8 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2">
+          <option value="">{others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "Their"}&rsquo;s choice</option>
+          {CONNECTOR_IDS.map((c) => <option key={c} value={c}>{CONNECTORS[c].label}</option>)}
+        </select>
+      </label>
       <Button type="submit" className="w-full" disabled={pending || !text.trim()}>{kind === "task" ? "Assign task" : "Send question"}</Button>
     </form>
   );

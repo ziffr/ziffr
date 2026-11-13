@@ -5,3 +5,4 @@ select prototype_seed_stories();
 select prototype_reset_decks();
 select prototype_seed_templates();
 select prototype_seed_themes();
+select prototype_seed_connectors();

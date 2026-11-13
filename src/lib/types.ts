@@ -11,6 +11,7 @@ export type Profile = {
   color: string;
   slack_handle: string;
   email: string;
+  phone?: string | null;
 };
 
 export type Aggregation = "sum" | "average" | "last" | "none";

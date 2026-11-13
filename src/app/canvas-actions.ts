@@ -6,6 +6,9 @@ import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@/lib/team-templates";
+import { deliver } from "@/lib/deliveries";
+import { finishTask } from "@/lib/threads";
+import type { ConnectorId } from "@/connectors";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@/lib/types";
 
@@ -207,7 +210,7 @@ export async function getHistory(metricId: number) {
 }
 
 /** Ask a Question or assign a Task right where the viewer is. */
-export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null }) {
+export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null; via?: ConnectorId | null }) {
   const viewer = await viewerId();
   await assertCanSeeMetrics([input.metricId], viewer);
   if (input.kind !== "question" && input.kind !== "task") forbidden();
@@ -233,11 +236,13 @@ export async function assignInPlace(input: { metricId: number; period: string; a
     })
     .select("id")
     .single();
+  // Tell the assignee where they want to hear it, or where the asker chose for this one message.
+  if (data) await deliver({ kind: input.kind, actionId: data.id, senderId: viewer, recipientId: input.assigneeId, via: input.via });
   done();
   return data?.id as number;
 }
 
 export async function markTaskDone(actionId: number) {
-  await db.from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId).eq("assignee_id", await viewerId()).eq("kind", "task").eq("status", "open");
+  await finishTask(actionId, await viewerId());
   done();
 }

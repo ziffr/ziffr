@@ -66,9 +66,13 @@ _Avoid_: Achievement, target fulfilment, performance
 
 ### Input
 
+**Connector**:
+A link between Ziffr and an outside system, such as Slack, email, WhatsApp, a ticket system or the web form, and what it can do there: receive values, send reminders, send questions and tasks, bring replies back, keep a task's status in step.
+_Avoid_: Integration, plugin, channel
+
 **Source**:
-A channel through which observations arrive, such as mail, a messenger, Slack or a web form.
-_Avoid_: Input, integration, connector
+A Connector used to receive observations, such as mail, a messenger, Slack or a web form.
+_Avoid_: Input, integration
 
 **Submitter**:
 A user allowed to record observations for a given metric.
@@ -215,3 +219,15 @@ _Avoid_: Conversation, chat, comments
 **Correction**:
 A change to an observation proposed in an action's thread, which takes effect once the metric owner accepts it.
 _Avoid_: Fix, edit, amendment
+
+**Delivery**:
+One message Ziffr sends through a Connector to one person: a new question or task, a reminder, a reply, a proposed correction or a closed task. Answers to it come back into the Thread.
+_Avoid_: Notification, outbox item, message
+
+**Outbox**:
+Every Delivery, newest first, with what it said and where it went.
+_Avoid_: Sent items, log
+
+**Delivery Preference**:
+Where a person wants to get questions, tasks, reminders and replies. The team sets a default; whoever sends may choose another for one message.
+_Avoid_: Notification settings, routing

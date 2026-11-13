@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
+import { deliver } from "@/lib/deliveries";
+import { postReply } from "@/lib/threads";
 import { intake, type IntakeResult } from "@/sources/intake";
 import type { SourceId } from "@/lib/types";
 import { periodStart } from "@/lib/format";
@@ -25,6 +27,7 @@ export async function resetDemo() {
   await db.rpc("prototype_reset_decks");
   await db.rpc("prototype_seed_templates");
   await db.rpc("prototype_seed_themes");
+  await db.rpc("prototype_seed_connectors");
   revalidatePath("/", "layout");
   redirect("/");
 }
@@ -125,6 +128,7 @@ export async function createAction(input: { metricId: number; period: string; as
     })
     .select("id")
     .single();
+  if (data) await deliver({ kind: "question", actionId: data.id, senderId: viewer, recipientId: input.assigneeId });
   revalidatePath("/", "layout");
   return data?.id as number;
 }
@@ -133,20 +137,7 @@ export async function replyToAction(actionId: number, form: FormData) {
   const viewer = await viewerId();
   const correction = num(form.get("correction"));
   const body = String(form.get("body") ?? "").trim();
-  await db.from("thread_messages").insert({
-    action_id: actionId,
-    author_id: viewer,
-    body: body || (correction !== null ? "Proposing a correction." : "…"),
-    correction_value: correction,
-    correction_status: correction !== null ? "proposed" : null,
-  });
-  const { data: action } = await db.from("actions").select("*").eq("id", actionId).single();
-  // The Assignee replying moves an open Action to answered.
-  if (action && action.assignee_id === viewer && action.status === "open") {
-    await db.from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId);
-  } else {
-    await db.from("actions").update({ updated_at: new Date().toISOString() }).eq("id", actionId);
-  }
+  await postReply(actionId, viewer, body, correction);
   revalidatePath("/", "layout");
 }
 
@@ -162,12 +153,15 @@ export async function decideCorrection(messageId: number, accept: boolean) {
       .eq("id", msg.actions.observation_id);
   }
   await db.from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId);
+  await deliver({ kind: "decision", actionId: msg.action_id, senderId: await viewerId(), recipientId: msg.author_id, text: accept ? "accepted" : "declined" });
   revalidatePath("/", "layout");
 }
 
 export async function setActionStatus(actionId: number, status: "open" | "closed") {
   if (status !== "open" && status !== "closed") return;
   // Only the asker closes or reopens an Action.
-  await db.from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("asker_id", await viewerId());
+  const viewer = await viewerId();
+  const { data } = await db.from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("asker_id", viewer).select("assignee_id");
+  if (status === "closed" && data?.[0]) await deliver({ kind: "closed", actionId, senderId: viewer, recipientId: data[0].assignee_id });
   revalidatePath("/", "layout");
 }
