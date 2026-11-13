@@ -64,7 +64,16 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => start(async () => { await restoreVersion(v.id); toast.success(`Restored version ${v.version}`, { description: "Restoring adds a new version, so nothing is lost." }); await load(); onRestored?.(); })}
+                      onClick={() => start(async () => {
+                        try {
+                          await restoreVersion(v.id);
+                          toast.success(`Restored version ${v.version}`, { description: "Restoring adds a new version, so nothing is lost." });
+                          await load();
+                          onRestored?.();
+                        } catch (err) {
+                          toast.error("Not restored", { description: (err as Error).message });
+                        }
+                      })}
                       className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs hover:bg-muted"
                     >
                       <RotateCcw aria-hidden className="size-3.5" /> Restore
