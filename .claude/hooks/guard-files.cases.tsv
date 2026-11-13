@@ -1,11 +1,13 @@
-0	{"tool_name":"Bash","tool_input":{"command":"git commit -qm \"blocks .env files for Read\""}}
-0	{"tool_name":"Bash","tool_input":{"command":"git commit -qm 'blocks .env files for Read'"}}
+2	{"tool_name":"Bash","tool_input":{"command":"git commit -qm \"blocks .env files for Read\""}}
 2	{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat .env.local)\""}}
-2	{"tool_name":"Bash","tool_input":{"command":"git commit -m \"x .env y\" && cat .env.local"}}
 2	{"tool_name":"Bash","tool_input":{"command":"cat .env"}}
 2	{"tool_name":"Bash","tool_input":{"command":"cat .env.staging"}}
 2	{"tool_name":"Bash","tool_input":{"command":"cat .e\"\"nv"}}
 2	{"tool_name":"Bash","tool_input":{"command":"cat .en?"}}
+2	{"tool_name":"Bash","tool_input":{"command":"cat .*nv"}}
+2	{"tool_name":"Bash","tool_input":{"command":"cat .e\\nv"}}
+2	{"tool_name":"Bash","tool_input":{"command":"cat .{e,x}nv"}}
 0	{"tool_name":"Bash","tool_input":{"command":"cat .env.example"}}
 0	{"tool_name":"Bash","tool_input":{"command":"pnpm exec tsc --noEmit"}}
 0	{"tool_name":"Bash","tool_input":{"command":"node -e 'console.log(process.env.HOME)'"}}
+0	{"tool_name":"Bash","tool_input":{"command":"ls -la src/app"}}
