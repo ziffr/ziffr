@@ -139,7 +139,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                 >
                   {widgets.map((w) => (
                     <div key={String(w.id)}>
-                      <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={editable} dragHandle={editable} />
+                      <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={editable} dragHandle={editable} saved={saved} />
                     </div>
                   ))}
                 </ReactGridLayout>

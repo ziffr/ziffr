@@ -87,17 +87,24 @@ export async function saveLayout(dashboardId: number, items: { i: string; x: num
   await recordVersion("dashboard", dashboardId, viewer);
 }
 
-export async function updateWidget(id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null }) {
+export async function updateWidget(id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null; metricIds?: number[] }) {
   const viewer = await viewerId();
   await assertCanEditWidget(id, viewer);
   if (patch.template && !(patch.template in TEMPLATES)) forbidden();
+  if (patch.metricIds) await assertCanSeeMetrics(patch.metricIds, viewer);
   await ensureBaseline("widget", id, viewer);
   const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
   if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
-  const update: Record<string, unknown> = { ...patch };
+  const { metricIds, ...rest } = patch;
+  const update: Record<string, unknown> = { ...rest, ...(metricIds ? { metric_ids: metricIds } : {}) };
   if (patch.template) {
     const t = TEMPLATES[patch.template];
     update.settings = { ...t.settings, ...(patch.settings ?? {}) };
+    if (patch.template === "canvas") {
+      // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
+      const { data: w } = await db.from("widgets").select("template, metric_ids, settings").eq("id", id).single();
+      update.settings = { canvasSeed: w ? { template: w.template, metric_ids: w.metric_ids, settings: w.settings } : null, canvas: null };
+    }
     if (patch.template === "story") {
       // A composed story starts with one panel: this metric's change on the previous year, as period bars.
       const { data: w } = await db.from("widgets").select("metric_ids").eq("id", id).single();

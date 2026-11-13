@@ -47,7 +47,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
     (ed: Editor) => {
       setEditor(ed);
       if (process.env.NODE_ENV === "development") (window as unknown as { __deckEditor?: Editor }).__deckEditor = ed;
-      ed.user.updateUserPreferences({ colorScheme: "light" });
+      ed.user.updateUserPreferences({ colorScheme: "light", locale: "en" }); // the app is English, whatever the browser says
       // A deck is set in clean type with solid lines, not tldraw's hand-drawn defaults.
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
@@ -64,7 +64,10 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
           if (saveTimer.current) clearTimeout(saveTimer.current);
           saveTimer.current = setTimeout(() => {
             setStatus("saving");
-            saveDeck(deck.id, getSnapshot(ed.store).document).then(() => setStatus("saved"));
+            // Plain JSON only: tldraw records can hold class instances that server actions cannot carry.
+            saveDeck(deck.id, JSON.parse(JSON.stringify(getSnapshot(ed.store).document)))
+              .then(() => setStatus("saved"))
+              .catch(() => setStatus("unsaved"));
           }, 800);
         },
         { source: "user", scope: "document" },

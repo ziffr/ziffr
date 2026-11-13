@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { Check, GitBranch, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
@@ -26,7 +28,7 @@ import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, W
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 
-export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number };
+export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };
 
 type Props = {
   widget: FrameWidget;
@@ -38,11 +40,17 @@ type Props = {
   /** Analysis results: restyling isn't offered. */
   className?: string;
   dragHandle?: boolean;
+  /** Saved widgets, for the Pool inside the layout editor. */
+  saved?: Widget[];
 };
 
 type Panel = "history" | "ask" | "story" | "versions" | null;
 
-export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle }: Props) {
+// The layout editor pulls in tldraw, so it loads only when opened.
+const LayoutEditor = dynamic(() => import("@/canvas/layout-editor"), { ssr: false });
+
+export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const router = useRouter();
   const frame = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(null);
@@ -62,7 +70,8 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
     matrix: () => `Correlation matrix (${ms.length} metrics)`,
   };
   // A story carries its own headline, so its frame header stays quiet.
-  const title = widget.title ?? (isStory ? "" : isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
+  const isLayout = TEMPLATES[widget.template].kind === "layout";
+  const title = widget.title ?? (isStory || isLayout ? "" : isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
@@ -123,6 +132,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         </K.Sub>
       )}
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit story…</K.Item>}
+      {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
       <K.Item
         onClick={() => {
@@ -181,6 +191,34 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
       </ContextMenu>
 
+      {layoutOpen && widget.id && (
+        <Dialog
+          open
+          onOpenChange={(o, details) => {
+            // tldraw uses Escape and outside clicks itself: only Cancel, Save or the close button end editing.
+            const reason = (details as { reason?: string } | undefined)?.reason;
+            if (!o && reason !== "escape-key" && reason !== "outside-press") setLayoutOpen(false);
+          }}
+        >
+          <DialogContent className="h-[90vh] w-[94vw] max-w-none sm:max-w-none">
+            <DialogTitle className="sr-only">Edit layout</DialogTitle>
+            <LayoutEditor
+              widget={{ w: widget.w ?? 8, h: widget.h ?? 10, settings: widget.settings }}
+              data={data}
+              saved={saved}
+              onCancel={() => setLayoutOpen(false)}
+              onSave={(settings, metricIds) => start(async () => {
+                try {
+                  await updateWidget(widget.id!, { settings, metricIds });
+                  setLayoutOpen(false);
+                } catch (err) {
+                  toast.error("Layout not saved", { description: (err as Error).message });
+                }
+              })}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
       <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); setRow(null); } }}>
         <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" || panel === "story" || panel === "versions" ? "w-[26rem]" : "w-80")}>
           {panel === "history" && m && <HistoryPanel metricId={m.id} data={data} />}

@@ -6,7 +6,7 @@ export type TemplateDef = {
   id: TemplateId;
   label: string;
   blurb: string;
-  kind: "metric" | "analysis" | "story";
+  kind: "metric" | "analysis" | "story" | "layout";
   /** Story templates that draw one period's Breakdown. */
   needsBreakdown?: boolean;
   size: { w: number; h: number };
@@ -27,6 +27,7 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   share: { id: "share", label: "Story: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Story: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, size: { w: 4, h: 8 }, settings: {} },
   story: { id: "story", label: "Story: composed", blurb: "A frame around one or more panels: period bars, bridges, small multiples.", kind: "story", size: { w: 8, h: 10 }, settings: { panels: [] } },
+  canvas: { id: "canvas", label: "Free layout", blurb: "Place widgets, text, arrows and shapes freely, like on a slide.", kind: "layout", size: { w: 8, h: 10 }, settings: {} },
   "story-line": { id: "story-line", label: "Story: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
 };
 
@@ -34,4 +35,4 @@ export const DEFAULT_TEMPLATE: TemplateId = "number";
 export const METRIC_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "metric");
 export const STORY_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "story");
 /** Templates one metric can be shown in: story templates that need a breakdown only when it has one. */
-export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES.filter((t) => !t.needsBreakdown || hasBreakdown)];
+export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES.filter((t) => !t.needsBreakdown || hasBreakdown), TEMPLATES.canvas];

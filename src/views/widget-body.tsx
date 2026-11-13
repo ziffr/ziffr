@@ -11,6 +11,10 @@ import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
 import { ScatterView } from "./scatter";
 import { StoryBody } from "./story";
+import dynamic from "next/dynamic";
+
+// tldraw is browser-only; free layouts load it on demand.
+const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false });
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -27,6 +31,7 @@ export function widgetMetrics(widget: Pick<Widget, "metric_ids">, data: CanvasDa
 
 export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props) {
   const ms = widgetMetrics(widget, data);
+  if (widget.template === "canvas") return <LayoutView settings={widget.settings} data={data} />;
   if (ms.length < widget.metric_ids.length) {
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;
   }

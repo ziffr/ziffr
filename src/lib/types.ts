@@ -111,7 +111,7 @@ export type ThreadMessage = {
 
 export type Dashboard = { id: number; name: string; owner_id: string };
 
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
 
 export type Callout = { period: string; text: string };
 
@@ -164,6 +164,10 @@ export type WidgetSettings = {
   /** Comparison strip (GLOSSARY: Comparison); undefined means the default. */
   compare?: import("./compare").CompareKey[];
   fullPeriods?: boolean;
+  /** Free layout: a tldraw document with its artboard, and the latest period per metric when it was drawn. */
+  canvas?: { document: unknown; stamp: Record<string, string> } | null;
+  /** The widget this free layout started from, placed on the artboard the first time it opens. */
+  canvasSeed?: { template: TemplateId; metric_ids: number[]; settings: WidgetSettings } | null;
 };
 
 export type Widget = {
