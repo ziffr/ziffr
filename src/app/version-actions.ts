@@ -6,6 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
+import { TEMPLATES } from "@/views/templates";
 
 const forbidden = () => {
   throw new Error("Forbidden");
@@ -66,6 +67,16 @@ export async function restoreVersion(versionId: number) {
   if (!v || !(await access(v.object_type, v.object_id, viewer)).edit) forbidden();
   const s = v.snapshot as Record<string, unknown>;
   const id = v.object_id as number;
+  // A restore places widgets like a drop does: only metrics the restorer can see, only known templates.
+  // Otherwise an old version could bring back a metric that was taken off a shared dashboard.
+  if (v.object_type === "widget" || v.object_type === "dashboard") {
+    const ws = (v.object_type === "widget" ? [s] : ((s.widgets as Record<string, unknown>[]) ?? [])) as { template?: string; metric_ids?: number[] }[];
+    if (ws.some((w) => !w.template || !(w.template in TEMPLATES))) forbidden();
+    const ids = [...new Set(ws.flatMap((w) => w.metric_ids ?? []))];
+    const visible = await visibleMetricIds(viewer, await getMetrics());
+    const hidden = ids.filter((m) => !visible.has(m));
+    if (hidden.length) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the dashboard owner.");
+  }
   switch (v.object_type as VersionType) {
     case "widget":
       await db.from("widgets").update({ template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title }).eq("id", id);
