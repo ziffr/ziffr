@@ -190,7 +190,7 @@ function StepFields({ s, people, onChange }: { s: WorkflowStep; people: Profile[
             <span key={i} className="flex items-center gap-1">
               {i > 0 && <span>then</span>}
               <select aria-label={`Approver ${i + 1}`} value={a} onChange={(e) => onChange({ ...s, approvers: s.approvers.map((x, j) => (j === i ? e.target.value : x)) })} className={field}>
-                {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {people.filter((p) => !p.contact).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <IconBtn label="Remove approver" onClick={() => onChange({ ...s, approvers: s.approvers.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>
             </span>

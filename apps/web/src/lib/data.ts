@@ -3,14 +3,31 @@ import { db } from "./db";
 import { currentWorkspaceId } from "./viewer";
 import { evaluate, formulaInputs } from "@ziffr/core/formula";
 import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "@ziffr/core/types";
+import { peopleOf, type ContactRow } from "@ziffr/core/people";
 
-/** The people in the current Workspace (its members). */
-export async function getProfiles(): Promise<Profile[]> {
-  const { data: members } = await db.from("memberships").select("user_id").eq("workspace_id", await currentWorkspaceId());
-  const ids = (members ?? []).map((m) => m.user_id);
+/** The people of a Workspace: its members, then its Contacts (flagged `contact`). A Contact's email, Slack handle
+ * and phone are only included with `contactDetails`: for intake, Prompts and owners or admins on the Team page,
+ * never for pages that go to every member's browser. Not tied to a request, so intake can use it. */
+export async function getPeopleIn(ws: string, { contactDetails = false } = {}): Promise<Profile[]> {
+  // The details are not even loaded unless asked for, so they cannot slip into a page.
+  const columns: string = contactDetails ? "workspace_id, person_id, email, slack_handle, phone" : "workspace_id, person_id";
+  const [{ data: members }, { data: contacts }] = await Promise.all([
+    db.from("memberships").select("user_id").eq("workspace_id", ws),
+    db.from("contacts").select(columns).eq("workspace_id", ws),
+  ]);
+  const rows = ((contacts ?? []) as unknown as Partial<ContactRow>[]).map((c) => ({ email: null, slack_handle: null, phone: null, ...c }) as ContactRow);
+  const ids = [...(members ?? []).map((m) => m.user_id), ...rows.map((c) => c.person_id)];
   if (!ids.length) return [];
   const { data } = await db.from("profiles").select("*").in("id", ids).order("name");
-  return data ?? [];
+  const memberIds = new Set((members ?? []).map((m) => m.user_id));
+  const profiles = (data ?? []) as Profile[];
+  return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
+}
+
+/** The people in the current Workspace: members, then Contacts (flagged). Pickers for sharing or asking leave the
+ * Contacts out: they have no login and only submit values. */
+export async function getProfiles(): Promise<Profile[]> {
+  return getPeopleIn(await currentWorkspaceId());
 }
 
 export async function getProfileMap() {

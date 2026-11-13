@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { DEMO_WORKSPACE_ID, VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
-import { actingWorkspace, assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics, assertMembers, assertSubmitters, forbidden } from "@/lib/guards";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
 import { onValue } from "@/lib/workflow";
@@ -55,7 +55,7 @@ export async function createMetric(form: FormData) {
   const sources = form.getAll("sources").map(String);
   // Submitters are checked before anything is written.
   const submitters = form.getAll("submitters").map(String);
-  await assertMembers(submitters);
+  await assertSubmitters(submitters);
   const { data: metric } = await db
     .from("metrics")
     .insert({

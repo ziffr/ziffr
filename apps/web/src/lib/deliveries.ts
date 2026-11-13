@@ -57,7 +57,13 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean }) {
   const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
     db.from("metrics").select("id, name, period, sources, formula").eq("id", input.metricId).single(),
-    db.from("profiles").select("*").eq("id", input.submitterId).single(),
+    // A Contact is reached by the details this workspace keeps for them; a member by their own.
+    db.from("profiles").select("*").eq("id", input.submitterId).single().then(async (r) => {
+      if (!r.data) return r;
+      const { data: m } = await db.from("metrics").select("workspace_id").eq("id", input.metricId).single();
+      const { data: c } = m ? await db.from("contacts").select("email, slack_handle, phone").eq("workspace_id", m.workspace_id).eq("person_id", input.submitterId).maybeSingle() : { data: null };
+      return c ? { ...r, data: { ...r.data, email: c.email ?? "", slack_handle: c.slack_handle ?? "", phone: c.phone } } : r;
+    }),
     db.from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", input.metricId),
   ]);
   // The person's own Token. A Stand-in gets one of their own, marked as standing in: never the submitter's.

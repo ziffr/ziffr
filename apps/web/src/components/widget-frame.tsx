@@ -374,7 +374,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
 
 function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: { kind: ActionKind; setKind: (k: ActionKind) => void; metric: CanvasData["metrics"][number]; data: CanvasData; initialPeriod: string | null; row: string | null; onDone: (id: number, who: string) => void }) {
   const pts = [...(data.series[metric.slug] ?? [])].reverse();
-  const others = data.people.filter((p) => p.id !== data.viewer);
+  const others = data.people.filter((p) => p.id !== data.viewer && !p.contact); // Contacts are not asked in threads
   const [period, setPeriod] = useState(initialPeriod ?? pts[0]?.period ?? "");
   // Default recipient: whoever reports the metric, else its owner.
   const preferred = [...(data.submitters[metric.id] ?? []), metric.owner_id].find((id) => id !== data.viewer);

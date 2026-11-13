@@ -70,7 +70,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
               </tr>
             </thead>
             <tbody>
-              {[{ id: null as string | null, label: "Team default", can: isOwner }, ...people.map((p) => ({ id: p.id as string | null, label: p.name, can: p.id === viewer }))].map((row) => (
+              {[{ id: null as string | null, label: "Team default", can: isOwner }, ...people.filter((p) => !p.contact).map((p) => ({ id: p.id as string | null, label: p.name, can: p.id === viewer }))].map((row) => (
                 <tr key={row.id ?? "team"} className="border-t border-border">
                   <th scope="row" className="py-2 pr-3 text-left font-medium">{row.label}{row.id === viewer && <span className="font-normal text-muted-foreground">, you</span>}</th>
                   {KINDS.map((k) => (

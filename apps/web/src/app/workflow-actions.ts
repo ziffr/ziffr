@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { actingWorkspace, assertMembers, assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertMembers, assertSubmitters, assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { approve, closePeriod, runWorkflows, sendBack, setLock } from "@/lib/workflow";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
@@ -105,7 +105,7 @@ export async function setStandIn(metricId: number, submitterId: string, standInI
   const viewer = await viewerId();
   const { data: m } = await db.from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!m || m.owner_id !== viewer || standInId === submitterId) forbidden();
-  if (standInId) await assertMembers([standInId]);
+  if (standInId) await assertSubmitters([standInId]); // a Contact may stand in, too
   await db.from("tokens").update({ stand_in_id: standInId }).eq("metric_id", metricId).eq("submitter_id", submitterId).is("stands_in_for", null);
   // Whoever stood in before loses their stand-in Token at once.
   await db.from("tokens").delete().eq("metric_id", metricId).eq("stands_in_for", submitterId).neq("submitter_id", standInId ?? "");

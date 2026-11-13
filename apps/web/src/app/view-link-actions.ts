@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
-import { actingWorkspace, assertCanSeeMetrics, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics, assertCanShare, forbidden } from "@/lib/guards";
 import { buildView } from "@/lib/view-links";
 
 const MAX_DAYS = 90;
@@ -27,6 +27,7 @@ export async function createViewLink(type: "dashboard" | "deck", id: number, inp
   // Visitors share the demo: a View Link from it would let anyone publish their own text under this site.
   if (await isDemo()) throw new Error("View Links cannot be made in the demo.");
   await assertOwner(type, id, viewer);
+  await assertCanShare(); // a View Link is sharing; Guests may still revoke the ones they have
   const today = new Date().toISOString().slice(0, 10);
   const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.expires) || input.expires < today || input.expires > latest) throw new Error(`Pick an end date within ${MAX_DAYS} days.`);

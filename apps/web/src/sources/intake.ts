@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "@ziffr/core/format";
-import { normalizeMetric } from "@/lib/data";
+import { getPeopleIn, normalizeMetric } from "@/lib/data";
+import { recogniseSender } from "@ziffr/core/people";
 import type { Metric, Profile, SourceId, Token } from "@ziffr/core/types";
 import { parseBreakdown } from "./parse";
 import { isLocked, onValue } from "@/lib/workflow";
@@ -70,9 +71,9 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
     workspaceId = t.workspace_id;
   }
   if (!workspaceId) throw new Error("Intake needs the workspace the message is meant for.");
-  const { data: members } = await db.from("memberships").select("user_id").eq("workspace_id", workspaceId);
-  const [{ data: profiles }, { data: tokens }, { data: metricRows }] = await Promise.all([
-    db.from("profiles").select("*").in("id", (members ?? []).map((m) => m.user_id)),
+  // Members and Contacts of that workspace (GLOSSARY: Contact): both submit, Contacts without a login.
+  const [profiles, { data: tokens }, { data: metricRows }] = await Promise.all([
+    getPeopleIn(workspaceId, { contactDetails: true }),
     db.from("tokens").select("*").eq("workspace_id", workspaceId),
     db.from("metrics").select("*").eq("workspace_id", workspaceId),
   ]);
@@ -84,10 +85,10 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   if (input.source === "web_form") {
     const t = live.find((t) => t.code === input.sender);
     if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
-    sender = profiles?.find((p) => p.id === t.submitter_id);
+    sender = profiles.find((p) => p.id === t.submitter_id);
     candidates = [t];
   } else {
-    sender = profiles?.find((p) => (input.source === "slack" ? p.slack_handle : p.email) === input.sender.trim().toLowerCase());
+    sender = recogniseSender(profiles, input.source === "slack" ? "slack" : "mail", input.sender);
     if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
     candidates = live.filter((t) => t.submitter_id === sender!.id);
   }

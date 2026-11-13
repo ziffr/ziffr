@@ -89,7 +89,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <div className="ml-auto flex items-center gap-2">
               {demo ? (
                 <>
-                  <ViewAs profiles={profiles} current={viewer} />
+                  <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
                   <ResetButton />
                   <Link href="/demo/leave" prefetch={false} className="flex h-9 items-center rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</Link>
                 </>

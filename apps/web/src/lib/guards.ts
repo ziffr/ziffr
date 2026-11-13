@@ -67,7 +67,21 @@ export async function assertInWorkspace(table: WorkspaceTable, ids: number[]) {
   if ((data ?? []).length !== unique.length) forbidden();
 }
 
-/** Refuses people who are not members of the current workspace (assignees, people shared with, Group members). */
+/** Refuses anyone who is neither a member nor a Contact of the current workspace: for who may submit values. */
+export async function assertSubmitters(personIds: string[]) {
+  const unique = [...new Set(personIds.map(String))];
+  if (!unique.length) return;
+  const ws = await actingWorkspace();
+  const [{ data: m }, { data: c }] = await Promise.all([
+    db.from("memberships").select("user_id").eq("workspace_id", ws).in("user_id", unique),
+    db.from("contacts").select("person_id").eq("workspace_id", ws).in("person_id", unique),
+  ]);
+  const known = new Set([...(m ?? []).map((x) => x.user_id), ...(c ?? []).map((x) => x.person_id)]);
+  if (!unique.every((id) => known.has(id))) forbidden();
+}
+
+/** Refuses people who are not members of the current workspace (assignees, people shared with, Group members).
+ * Contacts are not members: nothing is shared with them and they are not asked in threads. */
 export async function assertMembers(personIds: string[]) {
   const unique = [...new Set(personIds.map(String))];
   if (!unique.length) return;

@@ -18,6 +18,8 @@ export type Profile = {
   slack_handle: string;
   email: string;
   phone?: string | null;
+  /** A Contact (GLOSSARY: Contact): known to the workspace, no login, only submits values. */
+  contact?: boolean;
 };
 
 /** How a metric's values combine over longer spans (GLOSSARY: Aggregation). */

@@ -9,7 +9,8 @@ import type { Group, Profile, Share } from "@ziffr/core/types";
 /** GLOSSARY: Share. Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
 export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {} }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> }) {
   const [pending, start] = useTransition();
-  const others = people.filter((p) => p.id !== ownerId);
+  // Contacts have no login: nothing is shared with them.
+  const others = people.filter((p) => p.id !== ownerId && !p.contact);
   const initial = (id: string) => shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === id)?.role ?? "";
   const [roles, setRoles] = useState<Record<string, string>>(() => Object.fromEntries(people.map((p) => [p.id, initial(p.id)])));
   const roleOf = (id: string) => roles[id] ?? "";
