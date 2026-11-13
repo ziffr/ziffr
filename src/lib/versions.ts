@@ -23,7 +23,7 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
     return data;
   }
   if (type === "template") {
-    const { data } = await db.from("team_templates").select("name, description, view, slots, body, w, h").eq("id", id).single();
+    const { data } = await db.from("team_templates").select("kind, name, description, view, slots, body, w, h").eq("id", id).single();
     return data;
   }
   if (type === "master") {

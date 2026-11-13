@@ -2,7 +2,7 @@
 import "tldraw/tldraw.css";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileDown, Plus, Presentation, Printer } from "lucide-react";
+import { FileDown, LayoutTemplate, Plus, Presentation, Printer } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -12,6 +12,10 @@ import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { dropSpec } from "@/lib/drop-spec";
 import { useSlotFill } from "@/components/slot-dialog";
+import { SaveSlideDialog } from "@/components/save-template-dialog";
+import { fromSlideLayout } from "@/lib/team-templates";
+import { fillText } from "@/lib/placeholders";
+import type { SlideShape, SlideTemplate } from "@/lib/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
@@ -131,6 +135,21 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
     });
   };
 
+  const [layoutShapes, setLayoutShapes] = useState<SlideShape[] | null>(null);
+  /** A team slide layout: its slots filled, its words filled in from today's data, as a new slide at the end. */
+  const newSlideFrom = async (t: SlideTemplate) => {
+    if (!editor) return;
+    const fills = t.slots.length ? await slotFill.ask(t) : [];
+    if (!fills) return;
+    const byId = (ids: number[]) => ids.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
+    const shapes = fromSlideLayout(t.body, fills, (txt, ids) => fillText(txt, byId(ids), data) ?? txt);
+    const id = addSlide(editor, "blank", master);
+    editor.run(() => {
+      editor.createShapes(shapes.map((sh) => ({ id: createShapeId(), parentId: id, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as never);
+    });
+    editor.select(id);
+    editor.zoomToBounds(editor.getShapePageBounds(id)!, { inset: 48, animation: { duration: 220 } });
+  };
   const newSlide = (layout: LayoutId) => {
     if (!editor) return;
     const id = addSlide(editor, layout, master);
@@ -198,6 +217,20 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>
+            {data.templates.some((t) => t.kind === "slide") && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Team layouts</DropdownMenuLabel>
+                {data.templates.filter((t): t is SlideTemplate => t.kind === "slide").map((t) => (
+                  <DropdownMenuItem key={t.id} onClick={() => setTimeout(() => newSlideFrom(t), 0)}>
+                    <LayoutTemplate aria-hidden />
+                    <span className="flex flex-col">
+                      <span>{t.name}</span>
+                      <span className="text-xs text-muted-foreground">{t.description || `${t.slots.length} slot${t.slots.length === 1 ? "" : "s"}`}, by {t.owner_id === data.viewer ? "you" : data.people.find((p) => p.id === t.owner_id)?.name.split(" ")[0]}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
@@ -209,7 +242,8 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
         <div className="order-2 space-y-4 lg:order-1">
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
-          {editor && <SelectionPanel editor={editor} data={data} />}
+          {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
+          {layoutShapes && <SaveSlideDialog deckId={deck.id} shapes={layoutShapes} data={data} onClose={() => setLayoutShapes(null)} />}
         </div>
         <div
           className="order-1 h-[calc(100vh-13rem)] min-h-[32rem] overflow-hidden rounded-[var(--radius-card)] border border-border lg:order-2"
@@ -243,7 +277,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
 }
 
 /** Restyle the selected widget, the same templates as on a dashboard. */
-function SelectionPanel({ editor, data }: { editor: Editor; data: CanvasData }) {
+function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: CanvasData; onSaveLayout: (shapes: SlideShape[]) => void }) {
   const slide = useValue("selected slide", () => {
     const s = editor.getOnlySelectedShape();
     return s && s.type === "frame" ? s : null;
@@ -265,6 +299,18 @@ function SelectionPanel({ editor, data }: { editor: Editor; data: CanvasData }) 
           Hide master on this slide
         </label>
         <p className="mt-1.5 text-xs text-muted-foreground">For full-bleed title or image slides.</p>
+        <Button
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={() => {
+            // Plain JSON of the slide's own shapes, in slide coordinates.
+            const shapes = editor.getSortedChildIdsForParent(slide.id).map((cid) => editor.getShape(cid)!).filter(Boolean)
+              .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as SlideShape);
+            onSaveLayout(shapes);
+          }}
+        >
+          <LayoutTemplate aria-hidden /> Save slide as layout…
+        </Button>
       </div>
     );
   }

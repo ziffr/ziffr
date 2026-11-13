@@ -81,7 +81,7 @@ export async function restoreVersion(versionId: number) {
     const hidden = ids.filter((m) => !visible.has(m));
     if (hidden.length) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the dashboard owner.");
   }
-  if (v.object_type === "template" && !((s.view as string) in TEMPLATES)) forbidden();
+  if (v.object_type === "template" && !((s.view as string) in TEMPLATES || s.view === "slide")) forbidden();
   switch (v.object_type as VersionType) {
     case "template":
       await db.from("team_templates").update({ ...s, updated_at: new Date().toISOString() }).eq("id", id);

@@ -14,7 +14,7 @@ export function dropSpec(s: DropSource, data: CanvasData, saved: Widget[], metri
   }
   if (s.type === "template") {
     const t = data.templates.find((x) => x.id === s.id);
-    if (!t || !s.fills) return null;
+    if (!t || t.kind !== "widget" || !s.fills) return null;
     const w = fromTemplate(t, s.fills);
     return { template: w.template, metricIds: w.metric_ids, settings: w.settings, title: w.title ?? "", grid: { w: t.w, h: t.h } };
   }

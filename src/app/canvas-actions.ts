@@ -7,7 +7,7 @@ import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@/lib/team-templates";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings } from "@/lib/types";
+import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@/lib/types";
 
 // PROTOTYPE: identity is the "View as" cookie, so these checks enforce the sharing model
 // (Owner / Editor / Viewer) rather than real security. Real auth replaces viewerId() later.
@@ -25,8 +25,8 @@ export type DropSource =
 async function fromTeamTemplate(id: number, fills: number[][] | undefined, viewer: string) {
   const { data } = await db.from("team_templates").select("*").eq("id", id).single();
   const t = data as TeamTemplate | null;
-  if (!t || !fills || !fillsComplete(t.slots, fills)) forbidden();
-  const w = fromTemplate(t!, fills!);
+  if (!t || t.kind !== "widget" || !fills || !fillsComplete(t.slots, fills)) forbidden();
+  const w = fromTemplate(t as WidgetTemplate, fills!);
   await assertCanSeeMetrics(widgetMetricIds(w.metric_ids, w.settings), viewer);
   return { ...w, w: t!.w, h: t!.h };
 }
@@ -81,7 +81,7 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   const viewer = await viewerId();
   await assertCanEditWidget(id, viewer);
   if (patch.template && !(patch.template in TEMPLATES)) forbidden();
-  if (patch.metricIds || patch.settings?.panels) {
+  if (patch.metricIds || patch.settings) {
     const { data: cur } = await db.from("widgets").select("metric_ids").eq("id", id).single();
     await assertCanSeeMetrics(widgetMetricIds(patch.metricIds ?? cur?.metric_ids ?? [], patch.settings), viewer);
   }

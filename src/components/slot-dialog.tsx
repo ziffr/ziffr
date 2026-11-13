@@ -31,7 +31,7 @@ export function useSlotFill(data: CanvasData) {
   const complete = useCallback(async (s: DropSource): Promise<DropSource | null> => {
     if (s.type !== "template" || s.fills) return s;
     const t = data.templates.find((x) => x.id === s.id);
-    if (!t) return null;
+    if (!t || t.kind !== "widget") return null;
     const fills = await ask(t);
     return fills ? { ...s, fills } : null;
   }, [ask, data.templates]);
@@ -41,6 +41,8 @@ export function useSlotFill(data: CanvasData) {
     setState(null);
   };
 
+  // Only names of metrics this viewer can see.
+  const example = (ids?: number[]) => (ids ?? []).map((id) => data.metrics.find((m) => m.id === id)?.name).filter(Boolean).join(", ");
   const dialog = state && (
     <Dialog open onOpenChange={(o) => { if (!o) close(null); }}>
       <DialogContent className="max-w-md">
@@ -56,7 +58,7 @@ export function useSlotFill(data: CanvasData) {
           {state.t.slots.map((slot, i) => (
             <fieldset key={i} className="space-y-1">
               <legend className="text-sm font-medium">{slot.label}{slot.multiple && <span className="font-normal text-muted-foreground">, one or more</span>}</legend>
-              {slot.example && <p className="text-xs text-muted-foreground">In the original: {slot.example}</p>}
+              {example(slot.exampleIds) && <p className="text-xs text-muted-foreground">In the original: {example(slot.exampleIds)}</p>}
               {slot.multiple ? (
                 <ul className="max-h-44 space-y-0.5 overflow-y-auto rounded-[var(--radius-input)] border border-input p-1.5">
                   {data.metrics.map((m) => {

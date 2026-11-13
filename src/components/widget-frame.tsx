@@ -24,7 +24,7 @@ import { resolverFrom } from "@/lib/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@/lib/compare";
 import { applyTemplate, assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
 import { formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
-import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings } from "@/lib/types";
+import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
@@ -84,7 +84,8 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
     // Let the menu close first, so its outside-press doesn't dismiss the popover.
     setTimeout(() => setPanel(p), 0);
   };
-  const applyTeamTemplate = async (t: CanvasData["templates"][number]) => {
+  const widgetTemplates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget");
+  const applyTeamTemplate = async (t: WidgetTemplate) => {
     if (!widget.id) return;
     const fills = await slotFill.ask(t, ms.map((x) => x.id));
     if (!fills) return;
@@ -117,10 +118,10 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
                 <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
               </K.Item>
             ))}
-            {widget.id && data.templates.length > 0 && (
+            {widget.id && widgetTemplates.length > 0 && (
               <>
                 <K.Separator />
-                {data.templates.map((t) => (
+                {widgetTemplates.map((t) => (
                   <K.Item key={`t${t.id}`} onClick={() => setTimeout(() => applyTeamTemplate(t), 0)} title={t.description}>
                     <LayoutTemplate aria-hidden /> {t.name}…
                   </K.Item>

@@ -1,7 +1,7 @@
 // Team Widget Templates (GLOSSARY: Widget Template, Slot, Placeholder): turning a widget into a template
 // with its metrics left open, and filling a template's slots to make a widget again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
-import type { AnchorRule, Metric, Slot, TeamTemplate, TemplateId, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -53,32 +53,37 @@ function placeholderize(text: string | undefined, ms: Metric[]) {
 
 export type Choices = Record<string, AnchorRule | "drop">;
 
-/** The template a widget makes: slots, settings with slot numbers instead of metrics, and what changed on the way. */
-export function toTemplate(widget: W, metrics: Metric[], choices: Choices, labels: string[] = []) {
+/** Slots shared by everything in one template: the same metric (or list of metrics) is one slot. */
+type SlotCtx = { slots: Slot[]; slotIds: number[][] };
+const newCtx = (): SlotCtx => ({ slots: [], slotIds: [] });
+function slotFor(ctx: SlotCtx, ids: number[]) {
+  let i = ctx.slotIds.findIndex((x) => x.length === ids.length && x.every((v, j) => v === ids[j]));
+  if (i < 0) {
+    ctx.slotIds.push(ids);
+    ctx.slots.push({ label: "", multiple: ids.length > 1, exampleIds: ids });
+    i = ctx.slots.length - 1;
+  }
+  return i;
+}
+function nameSlots(ctx: SlotCtx, labels: string[]) {
+  ctx.slots.forEach((x, i) => (x.label = labels[i]?.trim() || (ctx.slots.length === 1 ? "Metric" : `Metric ${i + 1}`)));
+  return ctx.slots;
+}
+
+/** One widget with its metrics turned into slots of ctx. Keys of choices carry the prefix of this widget. */
+function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
   const s = widget.settings;
   const ms = metricsInOrder(widget, metrics);
-  const name = (id: number) => metrics.find((m) => m.id === id)?.name ?? "a metric";
-  const slots: Slot[] = [];
-  const slotIds: number[][] = [];
-  const slotFor = (ids: number[]) => {
-    let i = slotIds.findIndex((x) => x.length === ids.length && x.every((v, j) => v === ids[j]));
-    if (i < 0) {
-      slotIds.push(ids);
-      slots.push({ label: "", multiple: ids.length > 1, example: ids.map(name).join(", ") });
-      i = slots.length - 1;
-    }
-    return i;
-  };
   const notices: string[] = [];
   const p = (t: string | undefined) => placeholderize(t, ms);
 
   // A composed story's own metric only names it; its panels carry the metrics, so they make the slots.
   const panelIds = new Set((s.panels ?? []).flatMap((x) => x.metricIds));
   const fromPanels = widget.template === "story" && panelIds.size > 0 && widget.metric_ids.every((id) => panelIds.has(id));
-  const metricSlots = fromPanels ? [] : widget.metric_ids.map((id) => slotFor([id]));
+  const metricSlots = fromPanels ? [] : widget.metric_ids.map((id) => slotFor(ctx, [id]));
   const callouts = (s.callouts ?? []).flatMap((c, i) => {
     if (c.rule) return [{ ...c, text: p(c.text) ?? "" }];
-    const choice = choices[`callout:${i}`] ?? "drop";
+    const choice = choices[`${prefix}callout:${i}`] ?? "drop";
     if (choice === "drop") return [];
     return [{ period: "", rule: choice, text: p(c.text) ?? "" }];
   });
@@ -86,7 +91,7 @@ export function toTemplate(widget: W, metrics: Metric[], choices: Choices, label
     const annotations = (panel.annotations ?? []).flatMap((a, ai) => {
       const text = p(a.text);
       if (a.anchor.type === "rule") return [{ ...a, text }];
-      const choice = choices[`ann:${pi}:${ai}`] ?? "drop";
+      const choice = choices[`${prefix}ann:${pi}:${ai}`] ?? "drop";
       if (choice === "drop") return [];
       return [{ ...a, text, anchor: { type: "rule" as const, rule: choice } }];
     });
@@ -99,28 +104,37 @@ export function toTemplate(widget: W, metrics: Metric[], choices: Choices, label
       annotations,
       highlight: fixedHighlight ? "last" : panel.highlight,
       bridge: panel.bridge ? { ...panel.bridge, period: null, from: null } : undefined,
-      ...(panel.metricIds.length ? { slot: slotFor(panel.metricIds) } : {}),
+      ...(panel.metricIds.length ? { slot: slotFor(ctx, panel.metricIds) } : {}),
       metricIds: [],
     };
   });
   if (s.highlight) notices.push(`The highlight on “${s.highlight}” becomes the largest row.`);
   if (s.period) notices.push("It will show the latest breakdown, not a fixed period.");
-  const dropped = specifics(widget).filter((x) => (choices[x.key] ?? "drop") === "drop");
+  const dropped = specifics(widget).filter((x) => (choices[prefix + x.key] ?? "drop") === "drop");
+  const words = [s.kicker, s.headline, s.subline, s.footnote, s.source, widget.title, ...(s.callouts ?? []).map((c) => c.text), ...(s.panels ?? []).flatMap((x) => [x.title, ...(x.annotations ?? []).map((a) => a.text)])];
+  if (words.some((t) => t && /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
   if (dropped.length) notices.push(`${dropped.length} note${dropped.length > 1 ? "s" : ""} tied to one period or row will be left out.`);
 
+  // Only what a template means to carry: no free-layout documents, no comparison choices of the original.
   const settings: WidgetSettings = {
-    ...s,
+    window: s.window, showTarget: s.showTarget, showForecast: s.showForecast, rows: s.rows, fullPeriods: s.fullPeriods,
     kicker: p(s.kicker), headline: p(s.headline), subline: p(s.subline), footnote: p(s.footnote), source: p(s.source),
     highlight: null, period: null,
     ...(s.callouts ? { callouts } : {}),
     ...(s.panels ? { panels } : {}),
   };
-  slots.forEach((x, i) => (x.label = labels[i]?.trim() || (slots.length === 1 ? "Metric" : `Metric ${i + 1}`)));
-  return { slots, body: { metricSlots, settings, title: p(widget.title ?? undefined) ?? null }, notices };
+  return { metricSlots, settings, title: p(widget.title ?? undefined) ?? null, notices };
+}
+
+/** The template a widget makes: slots, settings with slot numbers instead of metrics, and what changed on the way. */
+export function toTemplate(widget: W, metrics: Metric[], choices: Choices, labels: string[] = []) {
+  const ctx = newCtx();
+  const { notices, ...body } = templatize(widget, metrics, choices, ctx);
+  return { slots: nameSlots(ctx, labels), body, notices };
 }
 
 /** The widget a template makes once each slot has its metrics. */
-export function fromTemplate(t: Pick<TeamTemplate, "view" | "body">, fills: number[][]): { template: TemplateId; metric_ids: number[]; settings: WidgetSettings; title: string | null } {
+export function fromTemplate(t: Pick<WidgetTemplate, "view" | "body">, fills: number[][]): { template: TemplateId; metric_ids: number[]; settings: WidgetSettings; title: string | null } {
   const s = t.body.settings;
   const own = t.body.metricSlots.flatMap((i) => fills[i] ?? []);
   const firstPanel = s.panels?.find((p) => p.slot !== undefined);
@@ -137,3 +151,61 @@ export function fromTemplate(t: Pick<TeamTemplate, "view" | "body">, fills: numb
 
 /** Fills are valid when every slot has one metric, or at least one for a "one or more" slot. */
 export const fillsComplete = (slots: Slot[], fills: number[][]) => slots.every((s, i) => (fills[i]?.length ?? 0) >= 1 && (s.multiple || fills[i].length === 1));
+
+// Slide layouts: a whole slide saved as a template. Widgets on it share one set of slots; words in its
+// text boxes become placeholders and are filled in once, when a slide is made from the layout.
+
+
+/** Shapes a layout may hold: text, drawing and widgets. Images point at files the deck owns, so they stay behind. */
+export const SLIDE_SHAPES = ["ziffr-widget", "text", "geo", "arrow", "line", "note", "draw", "highlight"];
+
+const widgetOf = (sh: SlideShape): W => ({
+  template: sh.props.template as TemplateId,
+  metric_ids: (sh.props.metricIds as number[]) ?? [],
+  settings: typeof sh.props.settings === "string" ? (JSON.parse(sh.props.settings || "{}") as WidgetSettings) : {},
+  title: (sh.props.title as string) || null,
+});
+
+export function slideSpecifics(shapes: SlideShape[]): Specific[] {
+  return shapes.flatMap((sh, i) => (sh.type === "ziffr-widget" ? specifics(widgetOf(sh)).map((x) => ({ ...x, key: `s${i}:${x.key}` })) : []));
+}
+
+/** Rich text is a tree of nodes; only its text leaves change. */
+type RichNode = { text?: string; content?: RichNode[]; [k: string]: unknown };
+function mapRich(node: unknown, f: (t: string) => string): unknown {
+  if (!node || typeof node !== "object") return node;
+  const n = node as RichNode;
+  return { ...n, ...(typeof n.text === "string" ? { text: f(n.text) } : {}), ...(Array.isArray(n.content) ? { content: n.content.map((c) => mapRich(c, f)) } : {}) };
+}
+
+export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = []) {
+  const ctx = newCtx();
+  const notices: string[] = [];
+  // {metric} on the slide is the first metric of its first widget, {metric 2} the next new one, and so on.
+  const slideIds = [...new Set(shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? metricsInOrder(widgetOf(sh), metrics).map((m) => m.id) : [])))];
+  const slideMetrics = slideIds.map((id) => metrics.find((m) => m.id === id)!).filter(Boolean);
+  const out = shapes.map((sh, i): SlideShape => {
+    if (sh.type === "ziffr-widget") {
+      const { notices: n, ...widget } = templatize(widgetOf(sh), metrics, choices, ctx, `s${i}:`);
+      notices.push(...n);
+      const { metricIds: _m, settings: _s, title: _t, ...props } = sh.props; // eslint-disable-line @typescript-eslint/no-unused-vars
+      return { ...sh, props, widget };
+    }
+    return sh.props.richText ? { ...sh, props: { ...sh.props, richText: mapRich(sh.props.richText, (t) => placeholderize(t, slideMetrics) ?? t) } } : sh;
+  });
+  const texts: string[] = [];
+  for (const sh of out) if (sh.props.richText) mapRich(sh.props.richText, (t) => (texts.push(t), t));
+  if (texts.some((t) => /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
+  return { slots: nameSlots(ctx, labels), body: { shapes: out } as SlideBody, notices: [...new Set(notices)] };
+}
+
+/** The shapes of a new slide from a layout, with slots filled and its words filled in from today's data. */
+export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (t: string, metricIds: number[]) => string): SlideShape[] {
+  const made = body.shapes.map((sh) => (sh.widget ? { sh, w: fromTemplate({ view: sh.props.template as TemplateId, body: sh.widget }, fills) } : { sh, w: null }));
+  const ids = [...new Set(made.flatMap((x) => (x.w ? [...x.w.metric_ids, ...(x.w.settings.panels ?? []).flatMap((p) => p.metricIds)] : [])))];
+  return made.map(({ sh, w }) => {
+    const { widget: _w, ...rest } = sh; // eslint-disable-line @typescript-eslint/no-unused-vars
+    if (w) return { ...rest, props: { ...sh.props, metricIds: w.metric_ids, settings: JSON.stringify(w.settings), title: w.title ?? "" } };
+    return sh.props.richText ? { ...rest, props: { ...sh.props, richText: mapRich(sh.props.richText, (t) => fillWords(t, ids)) } } : rest;
+  });
+}

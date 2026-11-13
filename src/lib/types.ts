@@ -211,20 +211,25 @@ export type CanvasData = {
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */
-export type Slot = { label: string; multiple: boolean; example?: string };
+/** exampleIds: the metrics it was made with; each viewer sees only the names of those they can see. */
+export type Slot = { label: string; multiple: boolean; exampleIds?: number[] };
+type TemplateBase = { id: number; owner_id: string; name: string; description: string; slots: Slot[]; w: number; h: number; updated_at: string };
 /** A widget saved with its metrics left open: settings keep Panel.slot instead of metric ids. */
-export type TeamTemplate = {
-  id: number;
-  owner_id: string;
-  name: string;
-  description: string;
-  view: TemplateId;
-  slots: Slot[];
-  body: { metricSlots: number[]; settings: WidgetSettings; title?: string | null };
-  w: number;
-  h: number;
-  updated_at: string;
+export type WidgetTemplate = TemplateBase & { kind: "widget"; view: TemplateId; body: { metricSlots: number[]; settings: WidgetSettings; title?: string | null } };
+/** One shape on a slide, in slide coordinates. Widget shapes carry their template part instead of metrics. */
+export type SlideShape = {
+  type: string;
+  x: number;
+  y: number;
+  rotation: number;
+  opacity: number;
+  props: Record<string, unknown>;
+  widget?: { metricSlots: number[]; settings: WidgetSettings; title: string | null };
 };
+export type SlideBody = { shapes: SlideShape[] };
+/** A whole slide saved with its metrics left open (a slide layout). */
+export type SlideTemplate = TemplateBase & { kind: "slide"; view: "slide"; body: SlideBody };
+export type TeamTemplate = WidgetTemplate | SlideTemplate;
 
 export type BreakdownRow = { label: string; value: number };
 

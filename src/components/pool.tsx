@@ -16,7 +16,8 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase());
   const metrics = data.metrics.filter((m) => match(m.name));
   const widgets = saved.filter((w) => match(w.title ?? ""));
-  const templates = data.templates.filter((t) => match(t.name));
+  // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
+  const templates = data.templates.filter((t) => t.kind === "widget" && match(t.name));
 
   const drag = (s: DropSource) => ({
     draggable: true,
