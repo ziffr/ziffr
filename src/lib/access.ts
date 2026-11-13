@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { tokenValid } from "./tokens";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 
@@ -67,13 +68,14 @@ export async function visibleDashboards(viewer: string): Promise<DashboardAccess
 
 export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promise<Set<number>> {
   const [{ data: tokens }, shares, dashboards] = await Promise.all([
-    db.from("tokens").select("metric_id").eq("submitter_id", viewer),
+    db.from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at"),
     getShares(),
     visibleDashboards(viewer),
   ]);
   const ids = new Set<number>();
   for (const m of metrics) if (m.owner_id === viewer) ids.add(m.id);
-  for (const t of tokens ?? []) ids.add(t.metric_id);
+  // Submitters see their metrics; a stand-in only while their stand-in Token is valid.
+  for (const t of tokens ?? []) if (t.submitter_id === viewer && tokenValid(t, tokens ?? [])) ids.add(t.metric_id);
   for (const s of shares) if (s.object_type === "metric" && s.user_id === viewer) ids.add(s.object_id);
   const sharedDash = dashboards.filter((d) => d.role !== "owner").map((d) => d.id);
   if (sharedDash.length) {

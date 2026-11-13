@@ -55,16 +55,25 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
     db.from("metrics").select("id, name, period, sources, formula").eq("id", input.metricId).single(),
     db.from("profiles").select("*").eq("id", input.submitterId).single(),
-    db.from("tokens").select("code, submitter_id, stand_in_id").eq("metric_id", input.metricId),
+    db.from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", input.metricId),
   ]);
   // The person's own Token. A Stand-in gets one of their own, marked as standing in: never the submitter's.
-  let token = tokens?.find((t) => t.submitter_id === input.submitterId);
+  // Asking a stand-in (re)opens their own Token for 14 days; it lapses as soon as they stop being the stand-in.
+  const expires = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  let token = tokens?.find((t) => t.submitter_id === input.submitterId && !t.stands_in_for);
   if (!token) {
-    const standsInFor = tokens?.find((t) => t.stand_in_id === input.submitterId)?.submitter_id;
+    const standsInFor = tokens?.find((t) => t.stand_in_id === input.submitterId && !t.stands_in_for)?.submitter_id;
     if (!standsInFor) return false;
-    const { data: created } = await db.from("tokens").insert({ code: `tk-${input.submitterId}-${randomUUID().slice(0, 8)}`, metric_id: input.metricId, submitter_id: input.submitterId, stands_in_for: standsInFor }).select("code, submitter_id, stand_in_id").single();
-    token = created ?? undefined;
+    const mine = tokens?.find((t) => t.submitter_id === input.submitterId && t.stands_in_for === standsInFor);
+    if (mine) {
+      await db.from("tokens").update({ expires_at: expires }).eq("id", mine.id);
+      token = mine;
+    } else {
+      const { data: created } = await db.from("tokens").insert({ code: `tk-${input.submitterId}-${randomUUID().slice(0, 8)}`, metric_id: input.metricId, submitter_id: input.submitterId, stands_in_for: standsInFor, expires_at: expires }).select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").single();
+      token = created ?? undefined;
+    }
   }
+  if (!token) return false;
   if (!metric || !person || !token || metric.formula) return false;
   let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(person.id, "prompt", null);
   if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers

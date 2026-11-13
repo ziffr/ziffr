@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { tokenValid } from "@/lib/tokens";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { normalizeMetric } from "@/lib/data";
@@ -14,6 +15,11 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
   const sp = await searchParams;
   const { data: token } = await db.from("tokens").select("*, metrics(*), profiles(*)").eq("code", code).single();
   if (!token) notFound();
+  // A stand-in's form works only while they are the stand-in (GLOSSARY: Stand-in).
+  if (token.stands_in_for) {
+    const { data: theirs } = await db.from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", token.metric_id);
+    if (!tokenValid(token, theirs ?? [])) notFound();
+  }
   const m = normalizeMetric(token.metrics) as Metric;
   const period = periodStart(new Date(), m.period);
   const { data: existing } = await db.from("observations").select("value").eq("metric_id", m.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);

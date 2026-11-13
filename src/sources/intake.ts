@@ -5,6 +5,7 @@ import { normalizeMetric } from "@/lib/data";
 import type { Metric, Profile, SourceId, Token } from "@/lib/types";
 import { parseBreakdown } from "./parse";
 import { isLocked, onValue } from "@/lib/workflow";
+import { tokenValid } from "@/lib/tokens";
 import { deliver } from "@/lib/deliveries";
 
 export type IntakeInput = {
@@ -62,18 +63,19 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
     db.from("metrics").select("*"),
   ]);
   const metrics = (metricRows ?? []).map(normalizeMetric) as Metric[];
+  const live = (tokens ?? []).filter((t) => tokenValid(t, tokens ?? []));
   const metricById = Object.fromEntries(metrics.map((m) => [m.id, m]));
   let sender: Profile | undefined;
   let candidates: Token[] = [];
   if (input.source === "web_form") {
-    const t = (tokens ?? []).find((t) => t.code === input.sender);
+    const t = live.find((t) => t.code === input.sender);
     if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
     sender = profiles?.find((p) => p.id === t.submitter_id);
     candidates = [t];
   } else {
     sender = profiles?.find((p) => (input.source === "slack" ? p.slack_handle : p.email) === input.sender.trim().toLowerCase());
     if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
-    candidates = (tokens ?? []).filter((t) => t.submitter_id === sender!.id);
+    candidates = live.filter((t) => t.submitter_id === sender!.id);
   }
   const senderId = sender?.id ?? null;
   if (candidates.length === 0) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for any metric, so nothing can be recorded.` });

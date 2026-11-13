@@ -105,7 +105,9 @@ export async function setStandIn(metricId: number, submitterId: string, standInI
   const { data: m } = await db.from("metrics").select("owner_id").eq("id", metricId).single();
   if (!m || m.owner_id !== viewer || standInId === submitterId) forbidden();
   if (standInId && !(await db.from("profiles").select("id").eq("id", standInId).maybeSingle()).data) forbidden();
-  await db.from("tokens").update({ stand_in_id: standInId }).eq("metric_id", metricId).eq("submitter_id", submitterId);
+  await db.from("tokens").update({ stand_in_id: standInId }).eq("metric_id", metricId).eq("submitter_id", submitterId).is("stands_in_for", null);
+  // Whoever stood in before loses their stand-in Token at once.
+  await db.from("tokens").delete().eq("metric_id", metricId).eq("stands_in_for", submitterId).neq("submitter_id", standInId ?? "");
   done();
 }
 
