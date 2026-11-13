@@ -1,7 +1,8 @@
 "use client";
 // The signed-in person's corner of the header (ADR 0003): which workspace they are in, switching, signing out.
 import { useTransition } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Plus } from "lucide-react";
 import { signOut, switchWorkspace } from "@/app/auth-actions";
 
 export function AccountMenu({ name, workspaces, current }: { name: string; workspaces: { id: string; name: string }[]; current: string }) {
@@ -18,6 +19,9 @@ export function AccountMenu({ name, workspaces, current }: { name: string; works
       ) : (
         <span className="text-muted-foreground">{workspaces[0]?.name}</span>
       )}
+      <Link href="/welcome?another=1" className="flex size-9 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" aria-label="New workspace" title="New workspace">
+        <Plus aria-hidden className="size-4" />
+      </Link>
       <span className="font-medium">{name}</span>
       <button type="button" disabled={pending} onClick={() => start(() => signOut())} className="flex size-9 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" aria-label="Sign out" title="Sign out">
         <LogOut aria-hidden className="size-4" />

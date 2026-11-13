@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import { actingWorkspace, assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
+import { actingWorkspace, assertCanEditDashboard, assertCanShare, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
 import { deckMetricIds, readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
@@ -164,6 +164,7 @@ export async function createDashboardNamed(name: string) {
 
 export async function setShare(objectType: "metric" | "dashboard" | "deck", objectId: number, userId: string, role: ShareRole | null) {
   const viewer = await viewerId();
+  await assertCanShare();
   if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();
@@ -183,6 +184,7 @@ export async function setShare(objectType: "metric" | "dashboard" | "deck", obje
 /** Shares with a Group: everyone in it, now and later (GLOSSARY: Group). */
 export async function setGroupShare(objectType: "metric" | "dashboard" | "deck", objectId: number, groupId: number, role: ShareRole | null) {
   const viewer = await viewerId();
+  await assertCanShare();
   if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
   if (role !== null && role !== "viewer" && role !== "editor") forbidden();
   if (objectType === "metric" && role === "editor") forbidden();

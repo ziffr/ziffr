@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { tokenValid } from "@ziffr/core/tokens";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
-import { canReadThread, deckMetricIds, expandGroupShares, objectRole, visibleMetricIdsFrom } from "@ziffr/core/visibility";
+import { canReadThread, deckMetricIds, expandGroupShares, objectRole, visibleMetricIdsFrom, withEveryone } from "@ziffr/core/visibility";
 import { currentWorkspaceId } from "./viewer";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "@ziffr/core/types";
@@ -13,11 +13,14 @@ import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, Te
 /** The Groups of the current workspace with their members. */
 export async function getGroups(): Promise<(Group & { workspace_id: string })[]> {
   const ws = await currentWorkspaceId();
-  const [{ data: groups }, { data: members }] = await Promise.all([
-    db.from("groups").select("id, name, workspace_id").eq("workspace_id", ws).order("name"),
+  const [{ data: groups }, { data: members }, { data: memberships }] = await Promise.all([
+    // Everyone in the workspace first: it is the one most often shared with.
+    db.from("groups").select("id, name, workspace_id, everyone").eq("workspace_id", ws).order("everyone", { ascending: false }).order("name"),
     db.from("group_members").select("group_id, user_id").eq("workspace_id", ws),
+    db.from("memberships").select("user_id, role, workspace_id").eq("workspace_id", ws),
   ]);
-  return (groups ?? []).map((g) => ({ ...g, members: (members ?? []).filter((m) => m.group_id === g.id).map((m) => m.user_id) }));
+  const stored = (groups ?? []).map((g) => ({ ...g, members: (members ?? []).filter((m) => m.group_id === g.id).map((m) => m.user_id) }));
+  return withEveryone(ws, stored, memberships ?? []);
 }
 
 /** Shares as stored: to a person or to a Group. For the Share dialog. */

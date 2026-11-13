@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assertCan, assertSameWorkspace, can, Forbidden, type Actor } from "./actor";
-import { canReadThread, expandGroupShares, objectRole, visibleMetricIdsFrom, type MetricFacts } from "./visibility";
+import { canReadThread, expandGroupShares, objectRole, visibleMetricIdsFrom, withEveryone, type InWorkspace, type MetricFacts } from "./visibility";
+import type { Group } from "./types";
 import { metric } from "./test/fixtures";
 
 const A = "ws-a";
@@ -82,8 +83,30 @@ describe("workspace roles", () => {
     const as = (role: Actor["role"]): Actor => ({ personId: "x", workspaceId: A, role });
     expect(can(as("member"), "create")).toBe(true);
     expect(can(as("guest"), "create")).toBe(false);
+    expect(can(as("member"), "share")).toBe(true);
+    expect(can(as("guest"), "share")).toBe(false);
     expect(can(as("admin"), "manage-members")).toBe(true);
     expect(can(as("admin"), "billing")).toBe(false);
     expect(() => assertCan(as("guest"), "create")).toThrow(Forbidden);
+  });
+});
+
+describe("the Everyone group", () => {
+  const groups: (Group & InWorkspace)[] = [inA({ id: 1, name: "Everyone in the workspace", members: [], everyone: true }), inA({ id: 2, name: "Sales", members: ["anna"] })];
+  const members = [inA({ user_id: "sara", role: "owner" }), inA({ user_id: "ben", role: "member" }), inA({ user_id: "gus", role: "guest" }), inB({ user_id: "zoe", role: "owner" })];
+  it("holds every member of the workspace except guests, and nobody from another workspace", () => {
+    expect(withEveryone(A, groups, members).find((g) => g.everyone)?.members).toEqual(["sara", "ben"]);
+  });
+  it("leaves the other groups as they are, and drops groups of other workspaces", () => {
+    const out = withEveryone(A, [...groups, inB({ id: 3, name: "Board", members: ["zoe"] })], members);
+    expect(out.map((g) => g.id)).toEqual([1, 2]);
+    expect(out.find((g) => g.id === 2)?.members).toEqual(["anna"]);
+  });
+  it("shares with everyone reach each member, including those who join later", () => {
+    const share = inA({ id: 1, object_type: "dashboard" as const, object_id: 5, group_id: 1, user_id: null as unknown as string, role: "viewer" as const });
+    const before = expandGroupShares(A, [share], withEveryone(A, groups, members));
+    expect(before.map((s) => s.user_id)).toEqual(["sara", "ben"]);
+    const after = expandGroupShares(A, [share], withEveryone(A, groups, [...members, inA({ user_id: "nia", role: "member" })]));
+    expect(after.map((s) => s.user_id)).toEqual(["sara", "ben", "nia"]);
   });
 });

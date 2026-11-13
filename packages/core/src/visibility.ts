@@ -13,6 +13,16 @@ export type ObjectRole = "owner" | ShareRole;
 
 const mine = <T extends InWorkspace>(ws: string, rows: readonly T[]) => rows.filter((r) => r.workspace_id === ws);
 
+/** A membership of a Workspace, as far as Groups need it. */
+export type MemberFact = InWorkspace & { user_id: string; role: string };
+
+/** The workspace's Groups with the built-in Everyone group filled in: every member except Guests, who only see what
+ * is shared with them by name (GLOSSARY: Workspace Role). Groups and members of other workspaces are left out. */
+export function withEveryone<G extends Group & InWorkspace>(ws: string, groups: readonly G[], members: readonly MemberFact[]): G[] {
+  const everyone = mine(ws, members).filter((m) => m.role !== "guest").map((m) => m.user_id);
+  return mine(ws, groups).map((g) => (g.everyone ? { ...g, members: everyone } : g));
+}
+
 /** Shares per person: a share with a Group counts for each of its members (the stronger role wins). */
 export function expandGroupShares(ws: string, raw: readonly (Share & InWorkspace)[], groups: readonly (Group & InWorkspace)[]): (Share & InWorkspace)[] {
   const out = mine(ws, raw).filter((s) => s.user_id).map((s) => ({ ...s }));

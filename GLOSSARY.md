@@ -233,7 +233,7 @@ A link that shows one dashboard or deck to someone outside the team, without log
 _Avoid_: Public link, guest access, embed
 
 **Group**:
-A named set of users, such as Management or Sales, that things are shared with or a Thread is limited to. Whoever joins a group gets what was shared with it. The workspace owner manages groups.
+A named set of users, such as Management or Sales, that things are shared with or a Thread is limited to. Whoever joins a group gets what was shared with it. The workspace owner manages groups. Every workspace also has the group Everyone in the workspace: all its members except guests, kept up to date by itself.
 _Avoid_: Team, role, department
 
 **Viewer**:

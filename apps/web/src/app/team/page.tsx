@@ -12,8 +12,8 @@ export default async function TeamPage() {
   const { data: away } = await db.from("away").select("*").in("user_id", people.map((p) => p.id));
   return (
     <>
-      <PageHeader title="Team" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included." />
-      <TeamScreen people={people} groups={groups} canEdit={me?.role === "owner" || me?.role === "admin"} viewer={viewer} away={away ?? []} />
+      <PageHeader title="Team" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included. Everyone in the workspace is a group of its own: all members except guests." />
+      <TeamScreen people={people} groups={groups.filter((g) => !g.everyone)} canEdit={me?.role === "owner" || me?.role === "admin"} viewer={viewer} away={away ?? []} />
     </>
   );
 }

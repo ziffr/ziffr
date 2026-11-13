@@ -42,6 +42,11 @@ export async function assertWorkspaceOwner(viewer: string) {
   if (actor.personId !== viewer || !can(actor, "manage-members")) forbidden();
 }
 
+/** Refuses people whose Workspace Role may not share (Guests), even with things they still own from before. */
+export async function assertCanShare() {
+  if (!can(await currentActor(), "share")) forbidden();
+}
+
 /** Tables whose rows belong to one Workspace and are looked up by id from a browser. */
 type WorkspaceTable = "metrics" | "dashboards" | "decks" | "groups" | "themes" | "workflows" | "team_templates" | "widgets" | "actions" | "deliveries" | "view_links" | "access_requests" | "versions" | "thread_messages";
 

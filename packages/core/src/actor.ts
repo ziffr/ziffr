@@ -14,16 +14,16 @@ export type Actor = {
 };
 
 /** What a Workspace Role may do in its workspace as a whole. */
-export type Capability = "create" | "manage-members" | "manage-themes" | "manage-groups" | "billing";
+export type Capability = "create" | "share" | "manage-members" | "manage-themes" | "manage-groups" | "billing";
 
 const CAN: Record<WorkspaceRoleName, Capability[]> = {
-  owner: ["create", "manage-members", "manage-themes", "manage-groups", "billing"],
-  admin: ["create", "manage-members", "manage-themes", "manage-groups"],
-  member: ["create"],
+  owner: ["create", "share", "manage-members", "manage-themes", "manage-groups", "billing"],
+  admin: ["create", "share", "manage-members", "manage-themes", "manage-groups"],
+  member: ["create", "share"],
   guest: [],
 };
 
-/** Whether the actor's Workspace Role allows this. Guests create nothing; only owners handle billing. */
+/** Whether the actor's Workspace Role allows this. Guests create and share nothing; only owners handle billing. */
 export function can(actor: Actor, capability: Capability): boolean {
   return CAN[actor.role].includes(capability);
 }

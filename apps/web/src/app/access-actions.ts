@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { actingWorkspace, assertCanSeeMetrics, forbidden } from "@/lib/guards";
+import { actingWorkspace, assertCanSeeMetrics, assertCanShare, forbidden } from "@/lib/guards";
 import { audience, deckMetricIds, visibleDashboards, visibleDecks, visibleMetricIds, type ObjectType } from "@/lib/access";
 import { getMetrics } from "@/lib/data";
 import { deliverNotice } from "@/lib/deliveries";
@@ -54,6 +54,7 @@ export async function decideAccess(requestId: number, grant: boolean) {
   const { data: obj } = await db.from(table(r.object_type)).select("*").eq("id", r.object_id).eq("workspace_id", await actingWorkspace()).maybeSingle();
   if (!obj || obj.owner_id !== viewer) forbidden();
   if (grant) {
+    await assertCanShare(); // granting is sharing
     if (r.object_type === "deck") await assertCanSeeMetrics(deckMetricIds(obj.document), viewer);
     await db.from("shares").delete().eq("object_type", r.object_type).eq("object_id", r.object_id).eq("user_id", r.requester_id);
     await db.from("shares").insert({ object_type: r.object_type, object_id: r.object_id, user_id: r.requester_id, role: "viewer" });
