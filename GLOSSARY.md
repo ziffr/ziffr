@@ -38,6 +38,10 @@ _Avoid_: Template library, presets
 One value of a metric for one period.
 _Avoid_: Number, entry, data point, upload
 
+**Breakdown**:
+Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it.
+_Avoid_: Dimension, segment, table, drill-down
+
 ### Input
 
 **Source**:
@@ -65,6 +69,10 @@ _Avoid_: Reminder, nudge
 **View**:
 A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table.
 _Avoid_: Chart type, visualization plugin
+
+**Story Widget**:
+A widget set as an editorial graphic: a headline that states the finding, a subline, one chart with direct labels, one highlighted row, optional callouts and a source line.
+_Avoid_: Infographic, chart card, editorial chart
 
 **Widget Template**:
 A predefined view plus default settings that a new widget starts from. If none is chosen, the default template is used.
