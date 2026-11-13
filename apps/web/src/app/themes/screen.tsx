@@ -68,7 +68,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
             {x.is_default && <span className="text-xs text-muted-foreground">team default</span>}
           </Link>
         ))}
-        {!can && <p className="px-2.5 pt-2 text-xs text-muted-foreground">Only the workspace owner changes themes. You can pick one for your dashboards and decks.</p>}
+        {!can && <p className="px-2.5 pt-2 text-xs text-muted-foreground">Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks.</p>}
       </nav>
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">

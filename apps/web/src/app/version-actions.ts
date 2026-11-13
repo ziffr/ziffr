@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
 import { deckMetricIds, visibleDashboards, visibleDecks, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
@@ -25,8 +25,8 @@ async function access(type: VersionType, id: number, viewer: string): Promise<{ 
     return { view: Boolean(data), edit: data?.owner_id === viewer };
   }
   if (type === "theme") {
-    const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).single(), db.from("profiles").select("is_owner").eq("id", viewer).single()]);
-    return { view: Boolean(data), edit: Boolean(data && me?.is_owner) };
+    const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).single(), db.from("memberships").select("role").eq("workspace_id", await currentWorkspaceId()).eq("user_id", viewer).maybeSingle()]);
+    return { view: Boolean(data), edit: Boolean(data && (me?.role === "owner" || me?.role === "admin")) };
   }
   if (type === "template") {
     const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();

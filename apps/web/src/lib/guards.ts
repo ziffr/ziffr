@@ -2,6 +2,8 @@ import "server-only";
 // Who may do what (PROTOTYPE: identity is the "View as" cookie, so these enforce the sharing model, not real security).
 // Kept out of the "use server" files: everything exported there becomes a callable action.
 import { db } from "./db";
+import { currentActor } from "./viewer";
+import { can } from "@ziffr/core/actor";
 import { visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./data";
 
@@ -35,8 +37,9 @@ export async function assertCanEditWidget(id: number, viewer: string) {
 
 /** Themes are the workspace owner's to change. */
 export async function assertWorkspaceOwner(viewer: string) {
-  const { data } = await db.from("profiles").select("is_owner").eq("id", viewer).single();
-  if (!data?.is_owner) forbidden();
+  // Owners and admins run the workspace (GLOSSARY: Workspace Role); the actor is checked against its workspace.
+  const actor = await currentActor();
+  if (actor.personId !== viewer || !can(actor, "manage-members")) forbidden();
 }
 
 export { widgetMetricIds } from "@ziffr/core/widget-metrics";

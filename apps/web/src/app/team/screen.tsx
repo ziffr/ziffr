@@ -66,7 +66,7 @@ export function TeamScreen({ people, groups, canEdit, viewer, away }: { people: 
           <Button type="submit" variant="outline" disabled={pending || !name.trim()}><Plus aria-hidden /> Add</Button>
         </form>
       ) : (
-        <p className="text-sm text-muted-foreground">Only the workspace owner changes groups.</p>
+        <p className="text-sm text-muted-foreground">Only owners and admins of the workspace change groups.</p>
       )}
     </div>
   );

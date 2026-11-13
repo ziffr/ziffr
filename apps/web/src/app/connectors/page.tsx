@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getProfiles } from "@/lib/data";
 import { readableActions } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
@@ -11,7 +11,7 @@ export default async function ConnectorsPage() {
     getProfiles(),
     db.from("delivery_preferences").select("user_id, kind, connector"),
     db.from("deliveries").select("*, actions(kind, status, question), prompts(source, answered_at, submitter_id, metric_id)").order("id", { ascending: false }).limit(80),
-    db.from("profiles").select("is_owner").eq("id", await viewerId()).single(),
+    db.from("memberships").select("role").eq("workspace_id", await currentWorkspaceId()).eq("user_id", await viewerId()).maybeSingle(),
     db.from("tokens").select("code, metric_id, submitter_id"),
   ]);
   // Deliveries about a thread the viewer may not read stay hidden.
@@ -20,7 +20,7 @@ export default async function ConnectorsPage() {
   return (
     <>
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
-      <ConnectorsScreen viewer={viewer} isOwner={Boolean(me?.is_owner)} people={people} prefs={(prefs ?? []) as PrefRow[]} deliveries={visible as DeliveryRow[]} tokens={tokens ?? []} />
+      <ConnectorsScreen viewer={viewer} isOwner={me?.role === "owner" || me?.role === "admin"} people={people} prefs={(prefs ?? []) as PrefRow[]} deliveries={visible as DeliveryRow[]} tokens={tokens ?? []} />
     </>
   );
 }

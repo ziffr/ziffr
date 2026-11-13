@@ -1,10 +1,15 @@
 import "server-only";
 import { db } from "./db";
+import { currentWorkspaceId } from "./viewer";
 import { evaluate, formulaInputs } from "@ziffr/core/formula";
 import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "@ziffr/core/types";
 
+/** The people in the current Workspace (its members). */
 export async function getProfiles(): Promise<Profile[]> {
-  const { data } = await db.from("profiles").select("*").order("name");
+  const { data: members } = await db.from("memberships").select("user_id").eq("workspace_id", await currentWorkspaceId());
+  const ids = (members ?? []).map((m) => m.user_id);
+  if (!ids.length) return [];
+  const { data } = await db.from("profiles").select("*").in("id", ids).order("name");
   return data ?? [];
 }
 
@@ -13,7 +18,7 @@ export async function getProfileMap() {
 }
 
 export async function getMetrics(): Promise<Metric[]> {
-  const { data } = await db.from("metrics").select("*").order("id");
+  const { data } = await db.from("metrics").select("*").eq("workspace_id", await currentWorkspaceId()).order("id");
   return (data ?? []).map(normalizeMetric);
 }
 
@@ -26,7 +31,7 @@ export function normalizeMetric(m: Metric): Metric {
 }
 
 export async function getObservations(metricIds?: number[]): Promise<Observation[]> {
-  let q = db.from("observations").select("*").order("period_start").order("created_at");
+  let q = db.from("observations").select("*").eq("workspace_id", await currentWorkspaceId()).order("period_start").order("created_at");
   if (metricIds) q = q.in("metric_id", metricIds);
   const { data } = await q.limit(20000);
   return (data ?? []).map((o) => ({ ...o, value: Number(o.value), original_value: o.original_value === null ? null : Number(o.original_value) }));
@@ -73,7 +78,7 @@ export async function getAllSeries() {
 }
 
 export async function getActions(filter?: { metricId?: number }): Promise<Action[]> {
-  let q = db.from("actions").select("*").order("updated_at", { ascending: false });
+  let q = db.from("actions").select("*").eq("workspace_id", await currentWorkspaceId()).order("updated_at", { ascending: false });
   if (filter?.metricId) q = q.eq("metric_id", filter.metricId);
   const { data } = await q;
   return data ?? [];
@@ -89,7 +94,7 @@ export async function openActionCount(viewer: string) {
 
 /** Target Series and Projections per metric. */
 export async function getSeriesValues(metricIds: number[]) {
-  const { data } = await db.from("series_values").select("metric_id, kind, period_start, value").in("metric_id", metricIds).order("period_start");
+  const { data } = await db.from("series_values").select("metric_id, kind, period_start, value").eq("workspace_id", await currentWorkspaceId()).in("metric_id", metricIds).order("period_start");
   const targets: Record<number, Point[]> = {};
   const projections: Record<number, Point[]> = {};
   for (const r of data ?? []) ((r.kind === "target" ? targets : projections)[r.metric_id] ??= []).push({ period: r.period_start, value: Number(r.value) });
@@ -101,7 +106,7 @@ export async function getBreakdowns(metricIds: number[], observations: Observati
   const wanted = new Set(metricIds);
   const obs = observations.filter((o) => wanted.has(o.metric_id));
   if (!obs.length) return {};
-  const { data } = await db.from("breakdown_rows").select("observation_id, label, value, position").in("observation_id", obs.map((o) => o.id)).order("position").limit(20000);
+  const { data } = await db.from("breakdown_rows").select("observation_id, label, value, position").eq("workspace_id", await currentWorkspaceId()).in("observation_id", obs.map((o) => o.id)).order("position").limit(20000);
   const rowsByObs = new Map<number, BreakdownRow[]>();
   for (const r of data ?? []) {
     const list = rowsByObs.get(r.observation_id) ?? [];
