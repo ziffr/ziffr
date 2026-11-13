@@ -26,6 +26,9 @@ export function Slideshow({ deck, master: baseMaster, data, start }: { deck: { i
   const theme = themeFor(data.themes, deck.theme_id);
   const master = useMemo(() => (baseMaster && theme ? { ...baseMaster, background_color: theme.tokens.surface, text_color: theme.tokens.ink } : baseMaster), [baseMaster, theme]);
   const step = useStepper(count, start, () => router.push(back));
+  const { go } = step;
+  // The slides are known only once tldraw has loaded the deck: jump to the requested one then.
+  useEffect(() => { if (count) go(start); }, [count, start, go]);
   const full = useFullscreen();
 
   // Fit the current slide to the screen, now and whenever the screen changes size.
@@ -62,6 +65,7 @@ export function Slideshow({ deck, master: baseMaster, data, start }: { deck: { i
                 }}
               />
             </div>
+            {editor && count === 0 && <p className="absolute inset-0 m-auto h-fit text-center text-sm text-[var(--color-muted)]">This deck has no slides yet. <Link href={back} className="underline">Add slides in the deck</Link>.</p>}
             {/* Click the right half to go on, the left half to go back. */}
             <button type="button" aria-label="Previous slide" tabIndex={-1} onClick={step.prev} className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize opacity-0" />
             <button type="button" aria-label="Next slide" tabIndex={-1} onClick={step.next} className="absolute inset-y-0 right-0 w-2/3 cursor-e-resize opacity-0" />

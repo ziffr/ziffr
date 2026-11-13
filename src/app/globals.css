@@ -112,6 +112,7 @@
 }
 /* Slideshow: slides only, no frame names. */
 .slideshow .tl-frame-heading { display: none; }
+.slideshow .tl-frame__body { stroke: transparent; }
 .fig { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
 
 /* The settled state, pressed into the stock in coral (Coral § Surfaces) */
