@@ -48,6 +48,11 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 - Migrations are add-only: never edit a migration that is already merged.
 - Typecheck, lint, tests and the docs checks must pass; the CLA must be signed.
 - Commit messages: an imperative subject of at most 72 characters, then a body that says why. Agent-written commits keep their `Co-Authored-By` line.
+- Anything people who use or run Ziffr will notice gets a release note: `pnpm changeset`, or a file in `.changeset/` as its README shows. Say in one or two plain sentences what changes for them; start notes for self-hosters with "Self-hosters:" and for developers with "Developers:". CI asks for it.
+
+## Versions and releases
+
+Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0.
 
 ## Running it
 

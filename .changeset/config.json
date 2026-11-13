@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "baseBranch": "next",
+  "fixed": [["@ziffr/web", "@ziffr/core"]],
+  "privatePackages": { "version": true, "tag": false },
+  "changelog": false,
+  "commit": false,
+  "format": false,
+  "access": "restricted"
+}

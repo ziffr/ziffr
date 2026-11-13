@@ -20,7 +20,8 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 8. **ADR** only for decisions that are hard to reverse, surprising and a real trade-off (`docs/adr/`).
 9. **Paid features** go in `ee/` and only add; the rest must work without them.
 10. **Specs and tickets:** work from a ticket (a GitHub issue); bigger work has a spec in `docs/specs/` (see its README). Each pull request closes its ticket with `Closes #…`.
-11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, and the commit message says why.
+11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, the commit message says why, and anything people notice has a release note in `.changeset/` (format in `.changeset/README.md`; write the file, `pnpm changeset` is interactive).
+12. **Releases** are made by a person with `pnpm release` (ADR 0004); never edit a released section of `CHANGELOG.md` or a version number by hand.
 
 ## Where things are
 

@@ -33,3 +33,6 @@ jobs:
       - name: Public surface changes come with docs
         if: github.event_name == 'pull_request'
         run: .github/scripts/docs-touched.sh
+      - name: Changes people use or run come with a release note
+        if: github.event_name == 'pull_request'
+        run: .github/scripts/release-note-present.sh
