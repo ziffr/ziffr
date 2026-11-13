@@ -8,6 +8,10 @@ export const email: Connector = {
   address: (p) => p.email,
   sourceId: "mail",
   replyHint: "Reply to the email. A line “Correction: 1234” proposes a new value.",
+  renderPrompt: (e) => ({
+    subject: `${e.question} (${e.metric}, ${e.period})`,
+    body: [`Hi ${e.recipient.name.split(" ")[0]},`, "", e.question, "", e.answerHere ? "Just reply to this email with the number. A breakdown works too, one row per line." : `Enter it in your form: ${e.formLink}`].join("\n"),
+  }),
   render: (e) => ({
     subject: `${headline(e)} [${e.ref}]`,
     body: [

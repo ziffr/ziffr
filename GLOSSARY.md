@@ -87,7 +87,7 @@ Part of a metric's description that sets its period and what happens when a seco
 _Avoid_: Dedup rule, overwrite policy
 
 **Prompt**:
-A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?"
+A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?" It goes out through the submitter's Connector; where that Connector receives values, answering it records the value, elsewhere it carries the personal form link.
 _Avoid_: Reminder, nudge
 
 ### Presentation

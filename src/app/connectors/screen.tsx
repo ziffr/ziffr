@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { BellRing, CheckCircle2, Mail, MessageCircle, MessageSquare, Ticket } from "lucide-react";
+import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { sendDueReminders, setPreference, simulateReply, simulateTicketClose } from "@/app/connector-actions";
+import { askForMissingValues, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
 import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@/connectors";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,9 @@ export type DeliveryRow = {
   id: number; connector: ConnectorId; recipient_id: string; sender_id: string | null; kind: string; action_id: number | null;
   subject: string; body: string; external_ref: string | null; status: "sent" | "answered" | "closed"; created_at: string;
   actions: { kind: "question" | "task"; status: string; question: string } | null;
+  prompts: { source: string; answered_at: string | null; submitter_id: string; metric_id: number } | null;
 };
+type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
 const ICON: Record<ConnectorId, typeof Mail> = { slack: MessageSquare, email: Mail, whatsapp: MessageCircle, tickets: Ticket };
 const KINDS: { id: PreferenceKind; label: string }[] = [
@@ -28,7 +30,7 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
   { id: "update", label: "Replies and updates" },
 ];
 
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[] }) {
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[] }) {
   const [pending, start] = useTransition();
   const name = (id: string | null) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
   const pref = (user: string | null, kind: PreferenceKind) => prefs.find((p) => p.user_id === user && p.kind === kind)?.connector ?? null;
@@ -98,15 +100,20 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries }:
             <h2 id="o-h" className="text-[length:var(--text-lg)]">Outbox</h2>
             <p className="mt-1 text-sm text-muted-foreground">What Ziffr sent, as it looks on the other side. Answer as the recipient to see it come back.</p>
           </div>
+          <span className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
+            <Hash aria-hidden /> Ask for missing values now
+          </Button>
           <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); toast.success(n ? `Reminded ${n} open task${n === 1 ? "" : "s"}` : "No open tasks due in the next two days"); })}>
             <BellRing aria-hidden /> Send due reminders now
           </Button>
+          </span>
         </div>
         {deliveries.length === 0 ? (
           <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">Nothing sent yet. Right-click a widget on a dashboard and ask a question or assign a task.</p>
         ) : (
           <ol className="mt-4 space-y-3">
-            {deliveries.map((d) => <DeliveryCard key={d.id} d={d} to={name(d.recipient_id)} />)}
+            {deliveries.map((d) => <DeliveryCard key={d.id} d={d} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
           </ol>
         )}
       </section>
@@ -115,13 +122,15 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries }:
 }
 
 /** One Delivery, drawn the way its system shows it. */
-function DeliveryCard({ d, to }: { d: DeliveryRow; to: string }) {
+function DeliveryCard({ d, to, formCode }: { d: DeliveryRow; to: string; formCode?: string }) {
   const [reply, setReply] = useState("");
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const c = CONNECTORS[d.connector];
   const Icon = ICON[d.connector];
-  const canReply = c.capabilities.includes("replies") && d.action_id;
+  const isPrompt = d.kind === "prompt" && d.prompts;
+  const answerHere = isPrompt && (d.prompts!.source === "slack" || d.prompts!.source === "mail") && !d.prompts!.answered_at;
+  const canReply = (c.capabilities.includes("replies") && d.action_id) || answerHere;
   const canClose = d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
   const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { await f(); toast.success(ok); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
 
@@ -139,6 +148,9 @@ function DeliveryCard({ d, to }: { d: DeliveryRow; to: string }) {
         <div className="font-medium">{d.subject}</div>
         <pre className="mt-1 font-[family-name:var(--font-body)] text-sm whitespace-pre-wrap text-muted-foreground">{d.body.replace(/<([^|>]+)\|([^>]+)>/g, "$2").replace(/\*([^*]+)\*/g, "$1")}</pre>
       </div>
+      {isPrompt && !answerHere && !d.prompts!.answered_at && formCode && (
+        <Link href={`/submit/${formCode}`} className="mt-2 inline-flex min-h-8 items-center px-3 text-sm underline">Open the form as {to}</Link>
+      )}
       {(canReply || canClose) && (
         <div className="mt-2">
           {!open ? (
@@ -147,9 +159,17 @@ function DeliveryCard({ d, to }: { d: DeliveryRow; to: string }) {
               {canClose && <Button variant="ghost" size="sm" disabled={pending} onClick={() => run(() => simulateTicketClose(d.id), "Ticket closed: the task is done in Ziffr")}>Close ticket as {to}</Button>}
             </div>
           ) : (
-            <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(() => simulateReply(d.id, reply), `${to}'s answer is in the thread`); }}>
+            <form className="space-y-2" onSubmit={(e) => {
+              e.preventDefault();
+              if (isPrompt) start(async () => {
+                const r = await simulatePromptAnswer(d.id, reply);
+                (r.ok ? toast.success : toast.error)(r.ok ? "Value recorded" : "Not recorded", { description: r.detail });
+                if (r.ok) { setOpen(false); setReply(""); }
+              });
+              else run(() => simulateReply(d.id, reply), `${to}'s answer is in the thread`);
+            }}>
               <Textarea rows={2} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={`Answer as ${to} in ${c.label}`} aria-label={`Answer as ${to}`} autoFocus />
-              <p className="text-xs text-muted-foreground">{c.replyHint}</p>
+              <p className="text-xs text-muted-foreground">{isPrompt ? "Reply with the number, e.g. 42, or a breakdown with one row per line." : c.replyHint}</p>
               <div className="flex gap-2">
                 <Button type="submit" size="sm" disabled={pending || !reply.trim()}>Send in {c.label}</Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>

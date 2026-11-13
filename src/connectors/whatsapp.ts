@@ -7,6 +7,10 @@ export const whatsapp: Connector = {
   capabilities: ["reminders", "actions", "replies"],
   address: (p) => p.phone ?? "no number",
   replyHint: "Answer in the chat. A line “Correction: 1234” proposes a new value.",
+  renderPrompt: (e) => ({
+    subject: `Message to ${e.recipient.phone ?? e.recipient.name}`,
+    body: [`${e.question}`, `${e.metric}, ${e.period}`, `Enter it here: ${e.formLink}`].join("\n"),
+  }),
   render: (e) => ({
     subject: `Message to ${e.recipient.phone ?? e.recipient.name}`,
     body: [

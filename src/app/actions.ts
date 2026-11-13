@@ -5,11 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
-import { deliver } from "@/lib/deliveries";
+import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
 import { intake, type IntakeResult } from "@/sources/intake";
 import type { SourceId } from "@/lib/types";
-import { periodStart } from "@/lib/format";
 import { recordVersion } from "@/lib/versions";
 
 // PROTOTYPE: no validation beyond what keeps the demo runnable.
@@ -72,20 +71,8 @@ export async function createMetric(form: FormData) {
     await db.from("tokens").insert(
       submitters.map((s) => ({ code: `tk-${s}-${slug}`, metric_id: metric.id, submitter_id: s })),
     );
-    // Every Submitter on a chat/mail Source gets a first Prompt, so the loop can continue right away.
-    const promptSource = sources.find((s) => s !== "web_form");
-    if (promptSource) {
-      const label = metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
-      await db.from("prompts").insert(
-        submitters.map((s) => ({
-          metric_id: metric.id,
-          submitter_id: s,
-          source: promptSource,
-          text: `What’s the ${name.toLowerCase()} for ${label}?`,
-          period_start: periodStart(new Date(), metric.period),
-        })),
-      );
-    }
+    // Every Submitter gets a first Prompt through their Connector, so the loop can continue right away.
+    for (const s of submitters) await deliverPrompt({ metricId: metric.id, submitterId: s, senderId: viewer });
   }
   revalidatePath("/", "layout");
   redirect(`/metrics/${slug}?created=1`);

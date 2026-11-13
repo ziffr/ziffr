@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/types";
 export type ConnectorId = "slack" | "email" | "whatsapp" | "tickets";
 /** values: receives observations (a Source); reminders, actions: sends them; replies: answers come back; status: a task's state stays in step. */
 export type Capability = "values" | "reminders" | "actions" | "replies" | "status";
-export type DeliveryKind = "question" | "task" | "reminder" | "reply" | "correction" | "decision" | "closed" | "done";
+export type DeliveryKind = "question" | "task" | "reminder" | "reply" | "correction" | "decision" | "closed" | "done" | "prompt";
 export type PreferenceKind = "question" | "task" | "reminder" | "update";
 
 /** Everything a connector needs to word one Delivery. */
@@ -24,6 +24,9 @@ export type DeliveryEvent = {
 
 export type Rendered = { subject: string; body: string };
 
+/** A Prompt (GLOSSARY: Prompt): asking a submitter for a value. answerHere: a reply records the value. */
+export type PromptEvent = { recipient: Profile; metric: string; question: string; period: string; answerHere: boolean; formLink: string };
+
 export type Connector = {
   id: ConnectorId;
   label: string;
@@ -32,6 +35,8 @@ export type Connector = {
   /** Where this person is reached on that system. */
   address: (p: Profile) => string;
   render: (e: DeliveryEvent) => Rendered;
+  /** How a Prompt reads there; only connectors that send reminders have one. */
+  renderPrompt?: (e: PromptEvent) => Rendered;
   /** How someone answers there, shown under the message. */
   replyHint: string;
   /** The inbound Source this connector also is, if any. */
@@ -48,7 +53,7 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
 
 export const PREFERENCE_KIND: Record<DeliveryKind, PreferenceKind> = {
   question: "question", task: "task", reminder: "reminder",
-  reply: "update", correction: "update", decision: "update", closed: "update", done: "update",
+  reply: "update", correction: "update", decision: "update", closed: "update", done: "update", prompt: "reminder",
 };
 
 /** "Correction: 1,234" on a line of its own proposes a new value, whatever the system. */
@@ -72,5 +77,6 @@ export function headline(e: DeliveryEvent): string {
     case "decision": return `${who} ${e.text === "accepted" ? "accepted" : "declined"} your correction for ${about}`;
     case "closed": return `${who} closed the ${e.action.kind} on ${about}`;
     case "done": return `${who} marked the task on ${about} as done`;
+    case "prompt": return `Value needed: ${about}`;
   }
 }

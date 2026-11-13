@@ -7,7 +7,10 @@ import { addDays, format } from "date-fns";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { assertWorkspaceOwner, forbidden } from "@/lib/guards";
-import { deliver } from "@/lib/deliveries";
+import { deliver, deliverPrompt } from "@/lib/deliveries";
+import { periodStart } from "@/lib/format";
+import { intake } from "@/sources/intake";
+import type { Period } from "@/lib/types";
 import { finishTask, postReply } from "@/lib/threads";
 import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type PreferenceKind } from "@/connectors";
 
@@ -63,4 +66,36 @@ export async function sendDueReminders() {
   for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id });
   done();
   return data?.length ?? 0;
+}
+
+/** What a scheduler would do each period: ask every submitter whose value for the current period is missing. */
+export async function askForMissingValues() {
+  const viewer = await viewerId();
+  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id"), db.from("metrics").select("id, period, formula")]);
+  let n = 0;
+  for (const t of tokens ?? []) {
+    const m = metrics?.find((x) => x.id === t.metric_id);
+    if (!m || m.formula) continue;
+    const period = periodStart(new Date(), m.period as Period);
+    const [{ count: have }, { count: asked }] = await Promise.all([
+      db.from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("period_start", period),
+      db.from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", t.submitter_id).eq("period_start", period).is("answered_at", null).gte("sent_at", format(new Date(), "yyyy-MM-dd")),
+    ]);
+    if (have || asked) continue; // already there, or already asked today
+    if (await deliverPrompt({ metricId: m.id, submitterId: t.submitter_id, senderId: viewer })) n++;
+  }
+  done();
+  return n;
+}
+
+/** The submitter answers a Prompt where it reached them; the answer goes through intake and its Submission Rule. */
+export async function simulatePromptAnswer(deliveryId: number, text: string) {
+  const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).single();
+  const p = d?.prompts as { id: number; source: string } | null;
+  if (!d || d.kind !== "prompt" || !p || (p.source !== "slack" && p.source !== "mail")) forbidden();
+  const { data: person } = await db.from("profiles").select("slack_handle, email").eq("id", d!.recipient_id).single();
+  const r = await intake({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id });
+  if (r.ok) await db.from("deliveries").update({ status: "answered" }).eq("id", deliveryId);
+  done();
+  return r;
 }
