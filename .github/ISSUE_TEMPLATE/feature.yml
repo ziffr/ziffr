@@ -1,0 +1,11 @@
+name: Idea
+description: Something Ziffr should do
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: The problem, description: "Who has it and when. Use GLOSSARY.md words where they fit." }
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes: { label: What would help }

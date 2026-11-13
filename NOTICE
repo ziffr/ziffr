@@ -1,0 +1,22 @@
+Ziffr
+Copyright (c) 2026 Stefan Sonntag
+
+Ziffr is source-available under the Business Source License 1.1 (LICENSE),
+except the ee/ directory (ee/LICENSE) and directories with their own LICENSE.
+
+Modified versions: if you distribute a modified version of Ziffr, every file
+you changed must carry a prominent notice that you changed it and when, and
+your distribution must include this NOTICE file. Changes against the original
+Ziffr must be recognisable as such.
+
+Third-party software and assets
+
+- tldraw (deck editor and free layouts) is not open source. Production use
+  needs a license from tldraw Inc. or shows tldraw's watermark. See
+  https://tldraw.dev/legal
+- General Sans is loaded from Fontshare (Indian Type Foundry) and is not
+  bundled; it is used under the ITF Free Font License.
+- flag-icons (public/flags) is MIT licensed.
+- Paper and felt textures (src/app/cotton.svg, felt.svg): provenance and
+  license to be confirmed before publishing.
+- All npm dependencies keep their own licenses; see `pnpm licenses list`.

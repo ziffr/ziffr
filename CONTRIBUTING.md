@@ -1,0 +1,50 @@
+# Contributing to Ziffr
+
+Thank you for helping. This page says how we work; `CLAUDE.md` says the same for coding agents, and both point to the same standards.
+
+## Before you start
+
+- **License:** Ziffr is source-available under the BSL 1.1, with a paid business license for `ee/` and MIT for the connector kit and client libraries (`docs/adr/0002-source-available-license.md`). Your first pull request asks you to accept the [CLA](CLA.md).
+- **Bigger changes:** open an issue first. A new concept or a change to an existing one starts with the words: see "Domain language" below.
+
+## Domain language
+
+`GLOSSARY.md` is the vocabulary of Ziffr: a Metric, an Observation, a Prompt, a Delivery, a Workflow. Code, UI text, docs, issues and pull requests use these words and never the ones listed under _Avoid_. A new concept, or a sharper meaning for an existing one, updates the glossary in the same pull request. The glossary holds definitions only, no implementation.
+
+## How the code is organised
+
+- **One core:** every change to data, and every read that depends on who is asking, goes through a function in the core that takes the acting person and checks permissions itself. The UI (server actions), the REST API and the MCP server are thin layers that call those functions; they never query the database on their own.
+- **Pure where possible:** rules that need no database (comparisons, formulas, placeholders, templates, workflow rules) live in pure modules with unit tests.
+- **Connectors** implement the Connector interface from the connector kit and never reach into the core's internals.
+- **Paid features** live in `ee/` and only add to what works without them.
+
+## Naming
+
+| What | Convention | Example |
+| --- | --- | --- |
+| Domain words in code | Glossary terms | `Observation`, `Prompt`, `Delivery` |
+| Files | kebab-case | `metric-workflow.tsx` |
+| React components | PascalCase | `MetricWorkflow` |
+| Core functions | verb + noun | `submitObservation`, `approveValue` |
+| Database tables, columns | snake_case, tables plural | `view_links`, `expires_at` |
+| Migrations | timestamp, verb, noun | `20261201120000_add_workspaces.sql` |
+| API routes | plural nouns | `/v1/metrics/{id}/observations` |
+| MCP tools | snake_case verb + noun | `submit_observation` |
+| Environment variables | `ZIFFR_` prefix | `ZIFFR_SESSION_SECRET` |
+| Branches | `feat/`, `fix/`, `docs/`, `chore/` | `feat/webhook-connector` |
+
+## Documentation and comments
+
+Read [docs/guides/documentation.md](docs/guides/documentation.md): what gets documented where, how comments are written, and what the checks enforce. Undocumented public surface does not pass review.
+
+## Pull requests
+
+- One concern per pull request; small is better.
+- Fill in the template: what and why, screenshots for UI, tests, migrations, security impact, docs.
+- Migrations are add-only: never edit a migration that is already merged.
+- Typecheck, lint, tests and the docs checks must pass; the CLA must be signed.
+- Commit messages: an imperative subject of at most 72 characters, then a body that says why. Agent-written commits keep their `Co-Authored-By` line.
+
+## Running it
+
+See the README. Never commit `.env.local` or any secret; ask in the issue if you need a key.
