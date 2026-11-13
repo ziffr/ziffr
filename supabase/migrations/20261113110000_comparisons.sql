@@ -42,3 +42,25 @@ end;
 $$;
 revoke execute on function prototype_seed_comparisons() from public, anon, authenticated;
 grant execute on function prototype_seed_comparisons() to service_role;
+
+-- Demo stories (GLOSSARY: Story Widget, Panel, Bridge): small multiples of YoY change and a revenue bridge.
+create or replace function prototype_seed_stories() returns void
+language plpgsql security definer set search_path = public as $$
+declare d int; rev int; ord int; cst int;
+begin
+  select id into rev from metrics where slug = 'revenue';
+  select id into ord from metrics where slug = 'orders';
+  select id into cst from metrics where slug = 'cost';
+  insert into dashboards (name, owner_id) values ('Board stories', 'sara') returning id into d;
+  insert into widgets (owner_id, dashboard_id, template, metric_ids, settings, x, y, w, h) values
+    ('sara', d, 'story', array[rev], jsonb_build_object(
+      'kicker', 'Northwind Goods, monthly report',
+      'footnote', 'November to January are projections from the sales plan of November 2026.',
+      'panels', jsonb_build_array(jsonb_build_object('type','period-bars','metricIds',jsonb_build_array(rev, ord, cst),'measure','pct-yoy','periods',5,'highlight','projection','projections',true))), 0, 0, 12, 11),
+    ('sara', d, 'story', array[rev], jsonb_build_object(
+      'kicker', 'Revenue bridge',
+      'panels', jsonb_build_array(jsonb_build_object('type','bridge','metricIds',jsonb_build_array(rev),'bridge',jsonb_build_object('mode','variance')))), 0, 11, 7, 11);
+end;
+$$;
+revoke execute on function prototype_seed_stories() from public, anon, authenticated;
+grant execute on function prototype_seed_stories() to service_role;

@@ -60,7 +60,8 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
     drivers: () => `Drivers of ${m?.name}`,
     matrix: () => `Correlation matrix (${ms.length} metrics)`,
   };
-  const title = widget.title ?? (isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
+  // A story carries its own headline, so its frame header stays quiet.
+  const title = widget.title ?? (isStory ? "" : isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
@@ -179,7 +180,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
       </ContextMenu>
 
       <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); setRow(null); } }}>
-        <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" ? "w-[26rem]" : "w-80")}>
+        <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" || panel === "story" ? "w-[26rem]" : "w-80")}>
           {panel === "history" && m && <HistoryPanel metricId={m.id} data={data} />}
           {panel === "story" && m && widget.id && (
             <StoryEditor

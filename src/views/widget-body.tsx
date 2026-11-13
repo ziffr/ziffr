@@ -42,6 +42,7 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
     case "share":
     case "pictogram":
     case "story-line":
+    case "story":
       return <StoryBody widget={widget} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
     case "number": {
       const tone = health(m, last?.value);

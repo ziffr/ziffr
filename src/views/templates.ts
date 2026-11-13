@@ -26,6 +26,7 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   ranked: { id: "ranked", label: "Story: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Story: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Story: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, size: { w: 4, h: 8 }, settings: {} },
+  story: { id: "story", label: "Story: composed", blurb: "A frame around one or more panels: period bars, bridges, small multiples.", kind: "story", size: { w: 8, h: 10 }, settings: { panels: [] } },
   "story-line": { id: "story-line", label: "Story: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
 };
 

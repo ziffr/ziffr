@@ -20,6 +20,7 @@ export async function resetDemo() {
   await db.rpc("prototype_reset");
   await db.rpc("prototype_seed_breakdowns");
   await db.rpc("prototype_seed_comparisons");
+  await db.rpc("prototype_seed_stories");
   await db.rpc("prototype_reset_decks");
   revalidatePath("/", "layout");
   redirect("/");

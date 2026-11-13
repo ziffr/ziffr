@@ -111,9 +111,30 @@ export type ThreadMessage = {
 
 export type Dashboard = { id: number; name: string; owner_id: string };
 
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story";
 
 export type Callout = { period: string; text: string };
+
+/** GLOSSARY: Panel, Measure, Bridge. */
+export type PanelType = "period-bars" | "line" | "bridge" | "ranked" | "share" | "pictogram";
+export type MeasureId = "value" | "pct-prev" | "pct-yoy" | "attainment";
+export type Panel = {
+  type: PanelType;
+  /** Several metrics are drawn side by side as small multiples. */
+  metricIds: number[];
+  measure?: MeasureId;
+  /** How many periods to show (period bars, line). */
+  periods?: number;
+  /** Which bars stand out: the last actual period, the projections, or one period. */
+  highlight?: "last" | "projection" | string;
+  /** Include Projections after the last actual period. */
+  projections?: boolean;
+  sharedScale?: boolean;
+  refLine?: { kind: "target" | "constant" | "average"; value?: number; label?: string } | null;
+  /** Bridge: walk one breakdown's rows, or the change between two periods row by row. */
+  bridge?: { mode: "rows" | "variance"; period?: string | null; from?: string | null };
+  title?: string;
+};
 
 export type WidgetSettings = {
   window?: number;
@@ -121,6 +142,9 @@ export type WidgetSettings = {
   showForecast?: boolean;
   rows?: number;
   /** Story Widgets (GLOSSARY: Story Widget). Empty fields fall back to text drawn from the data. */
+  kicker?: string;
+  footnote?: string;
+  panels?: Panel[];
   headline?: string;
   subline?: string;
   source?: string;

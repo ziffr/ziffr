@@ -88,6 +88,11 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   if (patch.template) {
     const t = TEMPLATES[patch.template];
     update.settings = { ...t.settings, ...(patch.settings ?? {}) };
+    if (patch.template === "story") {
+      // A composed story starts with one panel: this metric's change on the previous year, as period bars.
+      const { data: w } = await db.from("widgets").select("metric_ids").eq("id", id).single();
+      update.settings = { ...(update.settings as object), panels: [{ type: "period-bars", metricIds: w?.metric_ids ?? [], measure: "pct-yoy", periods: 6, highlight: "projection", projections: true }] };
+    }
   }
   const { error } = await db.from("widgets").update(update).eq("id", id);
   if (error) throw new Error(`Widget not updated: ${error.message}`);

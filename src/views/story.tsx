@@ -6,7 +6,8 @@ import * as Plot from "@observablehq/plot";
 import { User } from "lucide-react";
 import { compactValue, formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
 import { countryCode } from "@/lib/countries";
-import type { BreakdownRow, CanvasData, Metric, Widget } from "@/lib/types";
+import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@/lib/types";
+import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars } from "./story-panels";
 import { cn } from "@/lib/utils";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -35,6 +36,32 @@ export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
   const source = `Source: ${m.name} in Ziffr, reported via ${via}${when ? `, ${when}` : ""}`;
   const h = b.highlight;
   switch (widget.template) {
+    case "story": {
+      const panel = widget.settings.panels?.[0];
+      const pm = panel ? data.metrics.find((x) => x.id === panel.metricIds[0]) : undefined;
+      if (!panel || !pm) return { headline: "Add a panel to tell this story", subline: "", source };
+      const names = panel.metricIds.map((id) => data.metrics.find((x) => x.id === id)?.name).filter(Boolean).join(", ");
+      const pSource = `Source: ${names} in Ziffr`;
+      if (panel.type === "bridge") {
+        const { steps } = bridgeSteps(pm, data, panel);
+        const first = steps[0], end = steps[steps.length - 1];
+        const driver = steps.filter((x) => x.kind !== "total").sort((a, b) => Math.abs(b.end - b.start) - Math.abs(a.end - a.start))[0];
+        return {
+          headline: first && end ? `${pm.name}: ${compactValue(pm, first.end)} to ${compactValue(pm, end.end)}${driver ? `, most of it from ${driver.label}` : ""}` : `${pm.name} has no breakdown yet`,
+          subline: panel.bridge?.mode === "variance" ? `Change in ${pm.name.toLowerCase()} by row` : `${pm.name}, from ${first?.label ?? "start"} to ${end?.label ?? "end"}`,
+          source: pSource,
+        };
+      }
+      const rows = measureSeries(pm, data, panel);
+      const lastRow = rows.filter((r) => !r.projected).at(-1);
+      const measure = panel.measure ?? "value";
+      const how = measure === "value" ? "" : ` ${MEASURE_LABEL[measure].toLowerCase()}`;
+      return {
+        headline: lastRow ? (measure === "value" ? `${pm.name}: ${compactValue(pm, lastRow.value)} in ${lastRow.label}` : `${pm.name} ${lastRow.value >= 0 ? "up" : "down"} ${Math.abs(lastRow.value).toFixed(1)} %${measure === "pct-yoy" ? " on the previous year" : measure === "pct-prev" ? " on the previous period" : ""} in ${lastRow.label}`) : `${names}`,
+        subline: `${panel.metricIds.length > 1 ? names : pm.name}${how}`,
+        source: pSource,
+      };
+    }
     case "ranked":
       return {
         headline: h ? (b.additive ? `${h.label} brings in ${pct(h.value, b.sum)} % of ${name}` : `${h.label} has the highest ${name}`) : `${m.name} has no breakdown yet`,
@@ -68,7 +95,8 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
   const headline = s.headline || d.headline;
   const subline = s.subline || d.subline;
   const source = s.source || d.source;
-  const empty = widget.template !== "story-line" && b.rows.length === 0;
+  const empty = widget.template !== "story-line" && widget.template !== "story" && b.rows.length === 0;
+  if (widget.template === "story") return <ComposedStory widget={widget} data={data} headline={headline} subline={subline} source={source} />;
   return (
     <div className="flex h-full flex-col">
       <div className="text-[length:var(--text-lg)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)]">{headline}</div>
@@ -198,4 +226,41 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
     return () => ro.disconnect();
   }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.period, c.text])), m.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} className="h-full w-full" role="img" aria-label={`${m.name} over time${callouts.length ? `, ${callouts.map((c) => c.text).join("; ")}` : ""}`} />;
+}
+
+/** A composed story: kicker, headline, subline, the panels, footnotes and source (GLOSSARY: Story Widget, Panel). */
+function ComposedStory({ widget, data, headline, subline, source }: { widget: W; data: CanvasData; headline: string; subline: string; source: string }) {
+  const s = widget.settings;
+  const panels = s.panels ?? [];
+  const single = (panel: Panel, m: Metric) => ({ template: (panel.type === "line" ? "story-line" : panel.type) as W["template"], metric_ids: [m.id], settings: { ...s, panels: undefined, period: panel.bridge?.period ?? s.period, window: panel.periods ?? s.window } });
+  return (
+    <div className="flex h-full flex-col">
+      {s.kicker && <div className="mb-1 text-xs font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
+      <div className="text-[length:var(--text-xl)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)]">{headline}</div>
+      {subline && <div className="mt-1 text-sm text-muted-foreground">{subline}</div>}
+      <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4">
+        {panels.length === 0 && <p className="m-auto text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
+        {panels.map((panel, i) => (
+          <div key={i} className="min-h-0 flex-1">
+            <PanelView
+              panel={panel}
+              data={data}
+              render={(m, domain) =>
+                panel.type === "period-bars" ? <PeriodBars m={m} data={data} panel={panel} domain={domain} />
+                : panel.type === "bridge" ? <Bridge m={m} data={data} panel={panel} />
+                : panel.type === "ranked" ? <Ranked rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} />
+                : panel.type === "share" ? <Share rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).sum} />
+                : panel.type === "pictogram" ? <Pictogram rows={storyBreakdown(single(panel, m), data, m).rows} highlight={storyBreakdown(single(panel, m), data, m).highlight} sum={storyBreakdown(single(panel, m), data, m).sum} />
+                : <StoryLine widget={single(panel, m)} data={data} m={m} />
+              }
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[11px] leading-snug text-muted-foreground">
+        {s.footnote && <span className="max-w-[70%]">{s.footnote}</span>}
+        <span className="ml-auto">{source}</span>
+      </div>
+    </div>
+  );
 }

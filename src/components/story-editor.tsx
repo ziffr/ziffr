@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { periodLabel } from "@/lib/format";
+import { PanelEditor } from "@/components/panel-editor";
 import type { CanvasData, Callout, Metric, Widget, WidgetSettings } from "@/lib/types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -19,6 +20,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
   const series = data.series[m.slug] ?? [];
   const callouts = s.callouts ?? [];
   const isLine = widget.template === "story-line";
+  const composed = widget.template === "story";
 
   return (
     <form
@@ -29,6 +31,11 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
       }}
     >
       <div className="font-semibold">Story</div>
+      {composed && (
+        <Labelled label="Kicker" hint="A short line above the headline, such as the topic and the period.">
+          <Input value={s.kicker ?? ""} onChange={(e) => set("kicker", e.target.value)} />
+        </Labelled>
+      )}
       <Labelled label="Headline" hint="State the finding. Leave empty to use the suggestion.">
         <Textarea rows={2} value={s.headline ?? ""} placeholder={d.headline} onChange={(e) => set("headline", e.target.value)} />
       </Labelled>
@@ -36,7 +43,13 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
         <Input value={s.subline ?? ""} placeholder={d.subline} onChange={(e) => set("subline", e.target.value)} />
       </Labelled>
 
-      {!isLine && b.periods.length > 0 && (
+      {composed && (
+        <Labelled label="Panels">
+          <PanelEditor panels={s.panels ?? []} data={data} onChange={(p) => set("panels", p)} />
+        </Labelled>
+      )}
+
+      {!isLine && !composed && b.periods.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           <Labelled label="Breakdown of">
             <select value={s.period ?? ""} onChange={(e) => set("period", e.target.value || null)} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
@@ -81,6 +94,11 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
         </Labelled>
       )}
 
+      {composed && (
+        <Labelled label="Footnotes">
+          <Textarea rows={2} value={s.footnote ?? ""} onChange={(e) => set("footnote", e.target.value)} />
+        </Labelled>
+      )}
       <Labelled label="Source line">
         <Input value={s.source ?? ""} placeholder={d.source} onChange={(e) => set("source", e.target.value)} />
       </Labelled>
