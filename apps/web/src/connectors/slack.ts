@@ -11,11 +11,11 @@ export const slack: Connector = {
   sourceId: "slack",
   replyHint: "Reply in the thread. A line “Correction: 1234” proposes a new value.",
   renderPrompt: (e) => ({
-    subject: `Direct message to ${handle(e.recipient.slack_handle)}`,
+    subject: `Direct message to ${e.recipient.name}`,
     body: [`*${e.question}*`, `${e.metric}, ${e.period}`, e.answerHere ? "Reply with the number, here in the thread." : `<${e.formLink}|Enter it in your form>`].join("\n"),
   }),
   render: (e) => ({
-    subject: `Direct message to ${handle(e.recipient.slack_handle)}`,
+    subject: `Direct message to ${e.recipient.name}`,
     body: [
       `*${headline(e)}*`,
       e.kind === "question" || e.kind === "task" ? `> ${e.action.question}` : e.text && e.kind !== "decision" ? `> ${e.text}` : "",
