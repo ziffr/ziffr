@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MEASURE_LABEL } from "@/views/story-panels";
 import { periodLabel } from "@/lib/format";
-import type { CanvasData, MeasureId, Panel, PanelType } from "@/lib/types";
+import type { Anchor, Annotation, CanvasData, MeasureId, Panel, PanelType } from "@/lib/types";
 
 const TYPES: { id: PanelType; label: string }[] = [
   { id: "period-bars", label: "Period bars" },
@@ -83,6 +83,16 @@ export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data:
                 )}
               </div>
             )}
+            {(["period-bars", "bridge", "ranked", "line"] as PanelType[]).includes(p.type) && m && (
+              <Annotations
+                value={p.annotations ?? []}
+                onChange={(a) => set(i, { annotations: a })}
+                periods={(data.series[m.slug] ?? []).slice(-24).map((x) => x.period).reverse()}
+                rows={[...new Set(Object.values(data.breakdowns[m.id] ?? {}).flat().map((r) => r.label))]}
+                bridge={p.type === "bridge"}
+                labelFor={(x) => periodLabel(x, m.period, true)}
+              />
+            )}
             {(p.type === "period-bars" || p.type === "bridge") && (
               <div className="grid grid-cols-2 gap-1.5">
                 <select aria-label="Reference line" value={p.refLine?.kind ?? ""} onChange={(e) => set(i, { refLine: e.target.value ? { kind: e.target.value as "target" | "constant" | "average", value: p.refLine?.value, label: p.refLine?.label } : null })} className={select}>
@@ -99,6 +109,53 @@ export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data:
       })}
       <button type="button" onClick={() => onChange([...panels, { type: "period-bars", metricIds: panels.at(-1)?.metricIds ?? [], measure: "pct-yoy", periods: 6, highlight: "last" }])} className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
         <Plus aria-hidden className="size-3.5" /> Add panel
+      </button>
+    </div>
+  );
+}
+
+const RULES: { id: Extract<Anchor, { type: "rule" }>["rule"]; label: string }[] = [
+  { id: "max", label: "the highest" }, { id: "min", label: "the lowest" }, { id: "last", label: "the last" }, { id: "first", label: "the first" }, { id: "largest-step", label: "the largest step" },
+];
+
+/** Annotations attach to what they are about: a rule, a period or a row (GLOSSARY: Annotation). */
+function Annotations({ value, onChange, periods, rows, bridge, labelFor }: { value: Annotation[]; onChange: (a: Annotation[]) => void; periods: string[]; rows: string[]; bridge: boolean; labelFor: (p: string) => string }) {
+  const set = (i: number, patch: Partial<Annotation>) => onChange(value.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  const anchorKey = (a: Anchor) => (a.type === "rule" ? `rule:${a.rule}` : a.type === "period" ? `period:${a.period}` : `row:${a.label}`);
+  const parseAnchor = (k: string): Anchor => {
+    const [t, ...rest] = k.split(":");
+    const v = rest.join(":");
+    return t === "rule" ? { type: "rule", rule: v as never } : t === "period" ? { type: "period", period: v } : { type: "row", label: v };
+  };
+  return (
+    <div className="space-y-1.5">
+      {value.map((a, i) => (
+        <div key={i} className="space-y-1 rounded-[var(--radius-input)] bg-[var(--color-paper-2)] p-1.5">
+          <div className="grid grid-cols-[6rem_1fr_auto] gap-1">
+            <select aria-label="Kind" value={a.kind} onChange={(e) => set(i, { kind: e.target.value as Annotation["kind"] })} className={select}>
+              <option value="callout">Callout</option>
+              <option value="ring">Ring</option>
+              <option value="note">Note</option>
+            </select>
+            <select aria-label="Attached to" value={anchorKey(a.anchor)} onChange={(e) => set(i, { anchor: parseAnchor(e.target.value) })} className={select}>
+              <optgroup label="Follows the data">
+                {RULES.filter((r) => bridge || r.id !== "largest-step").map((r) => <option key={r.id} value={`rule:${r.id}`}>{r.label}</option>)}
+              </optgroup>
+              {!bridge && periods.length > 0 && <optgroup label="A period">{periods.map((p) => <option key={p} value={`period:${p}`}>{labelFor(p)}</option>)}</optgroup>}
+              {rows.length > 0 && <optgroup label="A row">{rows.map((r) => <option key={r} value={`row:${r}`}>{r}</option>)}</optgroup>}
+            </select>
+            <button type="button" aria-label="Remove annotation" onClick={() => onChange(value.filter((_, j) => j !== i))} className="flex size-9 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted"><Trash2 className="size-3.5" /></button>
+          </div>
+          {a.kind !== "ring" && (
+            <div className="flex items-center gap-1.5">
+              <Input aria-label="Text" value={a.text ?? ""} placeholder="e.g. Booking error, corrected" onChange={(e) => set(i, { text: e.target.value })} className="h-8 text-xs" />
+              {a.kind === "callout" && <label className="flex shrink-0 items-center gap-1 text-xs"><input type="checkbox" checked={a.arrow !== false} onChange={(e) => set(i, { arrow: e.target.checked })} className="size-3.5 accent-[var(--color-ink)]" /> Arrow</label>}
+            </div>
+          )}
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...value, { kind: "callout", anchor: { type: "rule", rule: bridge ? "largest-step" : "max" }, text: "", arrow: true }])} className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+        <Plus aria-hidden className="size-3.5" /> Add annotation
       </button>
     </div>
   );

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { attainment, compare, resolverFrom, targetFor } from "@/lib/compare";
 import { compactValue, formatValue, periodLabel } from "@/lib/format";
-import type { CanvasData, MeasureId, Metric, Panel, Point } from "@/lib/types";
+import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@/lib/types";
 
 export const MEASURE_LABEL: Record<MeasureId, string> = {
   value: "Value",
@@ -39,6 +39,40 @@ export function measureSeries(m: Metric, data: CanvasData, panel: Panel): Bar[] 
     if (v !== null && v !== undefined && Number.isFinite(v)) rows.push({ period: p.period, label: periodLabel(p.period, m.period, true), value: v, projected: projected.has(p.period) });
   }
   return rows.slice(-n);
+}
+
+/** Finds an annotation's target among a panel's items; undefined when the target is gone. */
+export function resolveAnchor<T extends { label: string; value: number; period?: string; delta?: number }>(items: T[], a: Anchor): T | undefined {
+  if (!items.length) return undefined;
+  if (a.type === "period") return items.find((x) => x.period === a.period);
+  if (a.type === "row") return items.find((x) => x.label.toLowerCase() === a.label.toLowerCase());
+  switch (a.rule) {
+    case "max": return items.reduce((m, x) => (x.value > m.value ? x : m));
+    case "min": return items.reduce((m, x) => (x.value < m.value ? x : m));
+    case "first": return items[0];
+    case "last": return items[items.length - 1];
+    case "largest-step": {
+      const steps = items.filter((x) => x.delta !== undefined);
+      return steps.length ? steps.reduce((m, x) => (Math.abs(x.delta!) > Math.abs(m.delta!) ? x : m)) : undefined;
+    }
+  }
+}
+
+/** Plot marks for annotations at resolved points: ring, callout (with optional arrow) or note. */
+function annotationMarks(anns: Annotation[] | undefined, items: { label: string; value: number; period?: string; delta?: number; top: number }[], span: number) {
+  const marks: Plot.Markish[] = [];
+  for (const a of anns ?? []) {
+    const t = resolveAnchor(items, a.anchor);
+    if (!t) continue; // the data moved on: the annotation hides rather than point at the wrong thing
+    const lift = span * 0.2;
+    if (a.kind === "ring") marks.push(Plot.dot([t], { x: "label", y: "top", r: 16, stroke: "var(--color-accent-2)", strokeWidth: 2, fill: "none" }));
+    if (a.kind === "callout" && a.text) {
+      marks.push(Plot.text([t], { x: "label", y: (d: typeof t) => d.top + lift, text: () => a.text!, fill: "var(--color-accent-2)", fontWeight: 600, fontSize: 12, lineWidth: 12, dy: -6 }));
+      if (a.arrow !== false) marks.push(Plot.arrow([t], { x1: "label", x2: "label", y1: (d: typeof t) => d.top + lift, y2: "top", stroke: "var(--color-accent-2)", insetStart: 4, insetEnd: 18, headLength: 6 }));
+    }
+    if (a.kind === "note" && a.text) marks.push(Plot.text([t], { x: "label", y: "top", text: () => a.text!, dy: -26, fill: "var(--color-muted)", fontSize: 11, lineWidth: 12 }));
+  }
+  return marks;
 }
 
 const isPct = (panel: Panel) => (panel.measure ?? "value") !== "value";
@@ -76,7 +110,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   const box = usePlot(
     (width, height) =>
       Plot.plot({
-        width, height, marginTop: 28, marginBottom: 28, marginLeft: 4, marginRight: ref ? 40 : 4, style: STYLE,
+        width, height, marginTop: panel.annotations?.length ? 56 : 28, marginBottom: 28, marginLeft: 4, marginRight: ref ? 40 : 4, style: STYLE,
         x: { type: "band", domain: rows.map((r) => r.label), label: null, tickSize: 0, padding: 0.18 },
         y: { axis: null, domain: domain ?? undefined, nice: true, zero: true },
         marks: [
@@ -92,9 +126,10 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
             Plot.text(subset as Bar[], { x: "label", y: "value", text: (r: Bar) => fmt(m, panel, r.value, isPct(panel)), dy: dy as number, fill: "var(--color-print)", fontWeight: weight as number }),
           ),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 38, text: "label", fill: "var(--color-accent-2)" })] : []),
+          ...annotationMarks(panel.annotations, rows.map((r) => ({ ...r, top: Math.max(0, r.value) })), Math.max(...rows.map((r) => Math.abs(r.value)), 1)),
         ],
       }),
-    [JSON.stringify(rows), panel.highlight, domain?.join(), ref?.value],
+    [JSON.stringify(rows), panel.highlight, domain?.join(), ref?.value, JSON.stringify(panel.annotations)],
   );
   return (
     <figure className="flex h-full min-w-0 flex-col">
@@ -188,12 +223,12 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
   const box = usePlot(
     (width, height) =>
       Plot.plot({
-        width, height, marginTop: 30, marginBottom: rotate ? 52 : 30, marginLeft: 4, marginRight: ref ? 44 : 4, style: STYLE,
+        width, height, marginTop: panel.annotations?.length ? 60 : 30, marginBottom: rotate ? 52 : 30, marginLeft: 4, marginRight: ref ? 44 : 4, style: STYLE,
         x: { type: "band", domain: steps.map((x) => x.label), label: null, tickSize: 0, padding: 0.25, tickRotate: rotate ? -30 : 0 },
         y: { axis: null, domain, nice: !variance, zero: !variance },
-        clip: true,
         marks: [
-          Plot.barY(steps, { x: "label", y1: (x: Step) => (variance && x.kind === "total" ? domain![0] : x.start), y2: "end", fill }),
+          // Only the bars are clipped (totals cut at the zoomed floor); labels and callouts may sit above.
+          Plot.barY(steps, { x: "label", y1: (x: Step) => (variance && x.kind === "total" ? domain![0] : x.start), y2: "end", fill, clip: true }),
           Plot.tickY(connectors, { x: "label", y: "y", stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
           Plot.text(steps, {
             x: "label", y: (x: Step) => Math.max(x.start, x.end), dy: -10,
@@ -201,9 +236,14 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
             fill: (x: Step) => (x.kind === "down" ? "var(--color-error)" : "var(--color-print)"), fontWeight: 700, fontSize: 13,
           }),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 42, text: "label", fill: "var(--color-accent-2)" })] : []),
+          ...annotationMarks(
+            panel.annotations,
+            steps.map((x) => ({ label: x.label, value: x.end, top: Math.max(x.start, x.end), delta: x.kind === "total" ? undefined : x.end - x.start })),
+            ((domain ? domain[1] - domain[0] : Math.max(...steps.map((x) => Math.abs(x.end)), 1)) * 0.6),
+          ),
         ],
       }),
-    [JSON.stringify(steps), ref?.value, variance],
+    [JSON.stringify(steps), ref?.value, variance, JSON.stringify(panel.annotations)],
   );
   if (note) return <p className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">{note}</p>;
   return <div ref={box} className="h-full min-w-0" role="img" aria-label={`${m.name} bridge: ${steps.map((s) => `${s.label} ${compactValue(m, s.end - (s.kind === "total" ? 0 : s.start))}`).join(", ")}`} />;

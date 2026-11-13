@@ -7,7 +7,8 @@ import { User } from "lucide-react";
 import { compactValue, formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
 import { countryCode } from "@/lib/countries";
 import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@/lib/types";
-import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars } from "./story-panels";
+import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars, resolveAnchor } from "./story-panels";
+import type { Annotation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -126,20 +127,29 @@ function Flag({ label }: { label: string }) {
   return <img src={`/flags/${code}.svg`} alt="" className="h-3 w-4 shrink-0 rounded-[2px] object-cover shadow-[0_0_0_0.5px_var(--color-rule-2)]" />;
 }
 
-function Ranked({ rows, m, highlight, sum, onRowContext }: { rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number | null; onRowContext?: (label: string) => void }) {
+function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number | null; onRowContext?: (label: string) => void; annotations?: Annotation[] }) {
   const max = Math.max(...rows.map((r) => r.value), 0) || 1;
+  // Annotations attach to rows: a ring outlines the row, a callout or note follows its value.
+  const marks = new Map<string, Annotation[]>();
+  for (const a of annotations ?? []) {
+    const t = resolveAnchor(rows, a.anchor);
+    if (t) marks.set(t.label, [...(marks.get(t.label) ?? []), a]);
+  }
   return (
     <ol className="flex h-full flex-col justify-center gap-1.5" aria-label={`${m.name}, largest first`}>
       {rows.slice(0, 12).map((r) => {
         const on = r.label === highlight;
         return (
-          <li key={r.label} className="grid grid-cols-[minmax(0,7rem)_minmax(3rem,1fr)_auto] items-center gap-2 text-xs" onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
+          <li key={r.label} className={cn("grid grid-cols-[minmax(0,7rem)_minmax(3rem,1fr)_auto] items-center gap-2 rounded-[4px] text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
             <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-ink-2)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
               {compactValue(m, r.value)}
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
             </span>
+            {marks.get(r.label)?.filter((a) => a.text && a.kind !== "ring").map((a, i) => (
+              <span key={i} className={cn("col-span-3 -mt-1 pl-[7.5rem] text-[11px]", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
+            ))}
           </li>
         );
       })}
@@ -232,7 +242,12 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
 function ComposedStory({ widget, data, headline, subline, source }: { widget: W; data: CanvasData; headline: string; subline: string; source: string }) {
   const s = widget.settings;
   const panels = s.panels ?? [];
-  const single = (panel: Panel, m: Metric) => ({ template: (panel.type === "line" ? "story-line" : panel.type) as W["template"], metric_ids: [m.id], settings: { ...s, panels: undefined, period: panel.bridge?.period ?? s.period, window: panel.periods ?? s.window } });
+  const single = (panel: Panel, m: Metric) => {
+    // On a line, annotations become callouts at the periods their anchors resolve to.
+    const pts = (data.series[m.slug] ?? []).slice(-(panel.periods ?? s.window ?? 12)).map((p) => ({ label: p.period, period: p.period, value: p.value }));
+    const lineCallouts = (panel.annotations ?? []).flatMap((a) => { const t = resolveAnchor(pts, a.anchor); return t && a.text ? [{ period: t.period, text: a.text }] : []; });
+    return { template: (panel.type === "line" ? "story-line" : panel.type) as W["template"], metric_ids: [m.id], settings: { ...s, panels: undefined, period: panel.bridge?.period ?? s.period, window: panel.periods ?? s.window, callouts: [...(s.callouts ?? []), ...lineCallouts] } };
+  };
   return (
     <div className="flex h-full flex-col">
       {s.kicker && <div className="mb-1 text-xs font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
@@ -248,7 +263,7 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
               render={(m, domain) =>
                 panel.type === "period-bars" ? <PeriodBars m={m} data={data} panel={panel} domain={domain} />
                 : panel.type === "bridge" ? <Bridge m={m} data={data} panel={panel} />
-                : panel.type === "ranked" ? <Ranked rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} />
+                : panel.type === "ranked" ? <Ranked rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} annotations={panel.annotations} />
                 : panel.type === "share" ? <Share rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).sum} />
                 : panel.type === "pictogram" ? <Pictogram rows={storyBreakdown(single(panel, m), data, m).rows} highlight={storyBreakdown(single(panel, m), data, m).highlight} sum={storyBreakdown(single(panel, m), data, m).sum} />
                 : <StoryLine widget={single(panel, m)} data={data} m={m} />

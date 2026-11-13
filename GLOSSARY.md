@@ -104,6 +104,10 @@ _Avoid_: Chart, subplot, facet
 What a panel draws from a metric: its value, a comparison, its attainment or a share of a breakdown.
 _Avoid_: Field, calculation, KPI
 
+**Annotation**:
+A callout, highlight ring or note in a panel, attached to what it is about (the highest bar, the last period, the France row) rather than to a position, so it follows the data or disappears when its target is gone.
+_Avoid_: Label, comment, sticker, markup
+
 **Bridge**:
 A panel that walks from a start value through signed steps to an end value, either from one breakdown's rows or from the change between two periods, row by row.
 _Avoid_: Waterfall, walk, cascade

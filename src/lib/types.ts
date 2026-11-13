@@ -118,7 +118,15 @@ export type Callout = { period: string; text: string };
 /** GLOSSARY: Panel, Measure, Bridge. */
 export type PanelType = "period-bars" | "line" | "bridge" | "ranked" | "share" | "pictogram";
 export type MeasureId = "value" | "pct-prev" | "pct-yoy" | "attainment";
+/** What an annotation is attached to (GLOSSARY: Annotation): a rule, a period or a breakdown row, never a position. */
+export type Anchor =
+  | { type: "rule"; rule: "max" | "min" | "last" | "first" | "largest-step" }
+  | { type: "period"; period: string }
+  | { type: "row"; label: string };
+export type Annotation = { kind: "callout" | "ring" | "note"; anchor: Anchor; text?: string; arrow?: boolean };
+
 export type Panel = {
+  annotations?: Annotation[];
   type: PanelType;
   /** Several metrics are drawn side by side as small multiples. */
   metricIds: number[];
