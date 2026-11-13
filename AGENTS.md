@@ -19,7 +19,8 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 7. **Documentation:** module header comment naming the glossary term; a one-line doc comment on every export; comments say why. Generated reference is never edited by hand. Details: `docs/guides/documentation.md`.
 8. **ADR** only for decisions that are hard to reverse, surprising and a real trade-off (`docs/adr/`).
 9. **Paid features** go in `ee/` and only add; the rest must work without them.
-10. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, and the commit message says why.
+10. **Specs and tickets:** work from a ticket (a GitHub issue); bigger work has a spec in `docs/specs/` (see its README). Each pull request closes its ticket with `Closes #…`.
+11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, and the commit message says why.
 
 ## Where things are (prototype layout)
 
