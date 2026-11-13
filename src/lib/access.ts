@@ -180,7 +180,7 @@ export type ObjectType = "metric" | "dashboard" | "deck";
 export type Audience = { person: string; how: string[] }[];
 
 /** Everyone who can see a metric, dashboard or deck, and why (GLOSSARY: Share, Group, Token). */
-export async function audience(type: ObjectType, id: number): Promise<{ owner: string; people: Audience } | null> {
+export async function audience(type: ObjectType, id: number, viewer: string): Promise<{ owner: string; people: Audience } | null> {
   const table = type === "metric" ? "metrics" : type === "deck" ? "decks" : "dashboards";
   const { data: obj } = await db.from(table).select("owner_id").eq("id", id).maybeSingle();
   if (!obj) return null;
@@ -205,8 +205,11 @@ export async function audience(type: ObjectType, id: number): Promise<{ owner: s
       db.from("dashboards").select("id, name, owner_id"),
       db.from("decks").select("id, name, owner_id, document"),
     ]);
+    // Only dashboards and decks the viewer can see are named.
+    const [myDash, myDecks] = await Promise.all([visibleDashboards(viewer), visibleDecks(viewer)]);
     const via = (t: "dashboard" | "deck", oid: number, name: string, ownerId: string) => {
-      const label = `on the ${t} ${name}`;
+      const known = t === "dashboard" ? myDash.some((d) => d.id === oid) : myDecks.some((d) => d.id === oid);
+      const label = known ? `on the ${t} ${name}` : `on a ${t} you can't see`;
       add(ownerId, label);
       for (const s of sharesOf(t, oid)) {
         if (s.user_id) add(s.user_id, label);

@@ -45,6 +45,8 @@ type Props = {
   dragHandle?: boolean;
   /** Saved widgets, for the Pool inside the layout editor. */
   saved?: Widget[];
+  /** View Links: the card and its numbers only, no menus and nothing that calls the server. */
+  readOnly?: boolean;
 };
 
 type Panel = "history" | "ask" | "story" | "versions" | null;
@@ -52,7 +54,29 @@ type Panel = "history" | "ask" | "story" | "versions" | null;
 // The layout editor pulls in tldraw, so it loads only when opened.
 const LayoutEditor = dynamic(() => import("@/canvas/layout-editor"), { ssr: false });
 
-export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
+export function WidgetFrame(props: Props) {
+  if (props.readOnly) return <ReadOnlyFrame {...props} />;
+  return <InteractiveFrame {...props} />;
+}
+
+/** A widget seen through a View Link (GLOSSARY: View Link): what it shows, nothing it can do. */
+function ReadOnlyFrame({ widget, data, className }: Props) {
+  const ms = widgetMetrics(widget, data);
+  const m = ms[0];
+  const kind = TEMPLATES[widget.template].kind;
+  const title = widget.title ?? (kind === "story" || kind === "layout" ? "" : m?.name ?? "");
+  return (
+    <div className={cn("stock flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", className)}>
+      <div className="px-4 pt-3 pb-1"><span className="truncate text-sm font-semibold">{title}</span></div>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
+        <div className="@container min-h-0 flex-1"><WidgetBody widget={widget} data={data} /></div>
+        {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
+      </div>
+    </div>
+  );
+}
+
+function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const slotFill = useSlotFill(data);

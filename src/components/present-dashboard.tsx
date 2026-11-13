@@ -14,12 +14,14 @@ import type { DashboardAccess } from "@/lib/access";
 import type { CanvasData, Widget } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function PresentDashboard({ dashboard, data, widgets, start }: { dashboard: DashboardAccess; data: CanvasData; widgets: Widget[]; start: number }) {
+/** publicNote: seen through a View Link: read-only cards, no way back into the app, and when the numbers are from. */
+export function PresentDashboard({ dashboard, data, widgets, start, publicNote }: { dashboard: DashboardAccess; data: CanvasData; widgets: Widget[]; start: number; publicNote?: string }) {
+  const pub = publicNote !== undefined;
   const router = useRouter();
   const back = `/dashboards/${dashboard.id}`;
   const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
   const [mode, setMode] = useState<"overview" | "single">(start ? "single" : "overview");
-  const step = useStepper(ordered.length, start, () => router.push(back));
+  const step = useStepper(ordered.length, start, pub ? undefined : () => router.push(back));
   const full = useFullscreen();
   const rows = Math.max(1, ...ordered.map((w) => w.y + w.h));
   const theme = themeFor(data.themes, dashboard.theme_id);
@@ -34,7 +36,7 @@ export function PresentDashboard({ dashboard, data, widgets, start }: { dashboar
           <button type="button" aria-label="One at a time" aria-pressed={mode === "single"} onClick={() => setMode("single")} className={cn(bar, mode === "single" && "bg-[var(--muted)] font-medium")}><Square aria-hidden className="size-4" /> <span className="hidden sm:inline">One at a time</span></button>
         </div>
         <button type="button" onClick={full.toggle} className={bar} aria-label={full.on ? "Leave full screen" : "Full screen"}>{full.on ? <Minimize aria-hidden className="size-4" /> : <Maximize aria-hidden className="size-4" />}</button>
-        <Link href={back} className={bar} aria-label="Stop presenting"><X aria-hidden className="size-4" /> <span className="hidden sm:inline">Close</span></Link>
+        {pub ? <span className="text-xs text-[var(--muted-foreground)]">{publicNote}</span> : <Link href={back} className={bar} aria-label="Stop presenting"><X aria-hidden className="size-4" /> <span className="hidden sm:inline">Close</span></Link>}
       </header>
 
       {ordered.length === 0 ? (
@@ -52,14 +54,14 @@ export function PresentDashboard({ dashboard, data, widgets, start }: { dashboar
               style={{ "--x": w.x + 1, "--y": w.y + 1, "--w": w.w, "--h": w.h, "--sm": w.w >= 6 ? 2 : 1 } as React.CSSProperties}
               onDoubleClick={() => { step.go(n); setMode("single"); }}
             >
-              <WidgetFrame widget={w} data={data} targets={[]} />
+              <WidgetFrame widget={w} data={data} targets={[]} readOnly={pub} />
             </div>
           ))}
         </main>
       ) : (
         <main className="relative flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6" {...step.swipe} style={{ touchAction: "pan-y" }}>
           <div className="mx-auto min-h-0 w-full max-w-[min(100%,calc((100dvh-8rem)*1.9))] flex-1">
-            <WidgetFrame key={ordered[step.i].id} widget={ordered[step.i]} data={data} targets={[]} className="h-full" />
+            <WidgetFrame key={ordered[step.i].id} widget={ordered[step.i]} data={data} targets={[]} className="h-full" readOnly={pub} />
           </div>
           <nav aria-label="Widgets" className="mt-2 flex items-center justify-center gap-3 text-sm">
             <button type="button" onClick={step.prev} disabled={step.i === 0} className={cn(bar, "disabled:opacity-40")} aria-label="Previous"><ChevronLeft aria-hidden className="size-5" /></button>

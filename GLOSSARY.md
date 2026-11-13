@@ -208,6 +208,10 @@ _Avoid_: Copy, freeze, export data
 Giving another user or a Group access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
 _Avoid_: Invite, publish
 
+**View Link**:
+A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers, or numbers frozen when it was made.
+_Avoid_: Public link, guest access, embed
+
 **Group**:
 A named set of users, such as Management or Sales, that things are shared with or a Thread is limited to. Whoever joins a group gets what was shared with it. The workspace owner manages groups.
 _Avoid_: Team, role, department

@@ -33,6 +33,7 @@ import { exportPdf, exportPptx } from "@/decks/export";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { WhoCanSee } from "@/components/who-can-see";
+import { ViewLinks } from "@/components/view-links";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
@@ -232,6 +233,7 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
         </DropdownMenu>
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
         <WhoCanSee type="deck" id={deck.id} people={data.people} />
+        {sharing && <ViewLinks type="deck" id={deck.id} />}
         {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>

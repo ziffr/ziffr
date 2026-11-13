@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSlotFill } from "@/components/slot-dialog";
 import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
+import { ViewLinks } from "@/components/view-links";
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDashboardTheme } from "@/app/theme-actions";
@@ -133,6 +134,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
               {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
               <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
               <WhoCanSee type="dashboard" id={current.id} people={data.people} />
+              {current.role === "owner" && <ViewLinks type="dashboard" id={current.id} />}
               <VersionsDialog type="dashboard" id={current.id} people={data.people} />
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} groups={data.groups} reveals={reveals} />}
               </div>

@@ -17,7 +17,8 @@ import type { CanvasData } from "@/lib/types";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 
-export function Slideshow({ deck, data, start }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; start: number }) {
+export function Slideshow({ deck, data, start, publicNote }: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; start: number; publicNote?: string }) {
+  const pub = publicNote !== undefined;
   const router = useRouter();
   const back = `/decks/${deck.id}`;
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -25,7 +26,7 @@ export function Slideshow({ deck, data, start }: { deck: { id: number; name: str
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
   const theme = themeFor(data.themes, deck.theme_id);
   const master = useMemo(() => slideDesign(theme, deck.footer), [theme, deck.footer]);
-  const step = useStepper(count, start, () => router.push(back));
+  const step = useStepper(count, start, pub ? undefined : () => router.push(back));
   const { go } = step;
   // The slides are known only once tldraw has loaded the deck: jump to the requested one then.
   useEffect(() => { if (count) go(start); }, [count, start, go]);
@@ -77,7 +78,7 @@ export function Slideshow({ deck, data, start }: { deck: { id: number; name: str
             <button type="button" onClick={step.next} disabled={step.i >= count - 1} className={btn} aria-label="Next slide"><ChevronRight aria-hidden className="size-5" /></button>
             <span className="flex flex-1 justify-end gap-1">
               <button type="button" onClick={full.toggle} className={btn} aria-label={full.on ? "Leave full screen" : "Full screen"}>{full.on ? <Minimize aria-hidden className="size-4" /> : <Maximize aria-hidden className="size-4" />}</button>
-              <Link href={back} className={btn} aria-label="Stop presenting"><X aria-hidden className="size-4" /></Link>
+              {pub ? <span className="self-center text-xs">{publicNote}</span> : <Link href={back} className={btn} aria-label="Stop presenting"><X aria-hidden className="size-4" /></Link>}
             </span>
           </nav>
         </ThemeScope>

@@ -23,7 +23,7 @@ async function canSee(type: ObjectType, id: number, viewer: string) {
 export async function whoCanSee(type: ObjectType, id: number) {
   const viewer = await viewerId();
   if (!TYPES.includes(type) || !(await canSee(type, id, viewer))) forbidden();
-  const a = await audience(type, id);
+  const a = await audience(type, id, viewer);
   if (!a) forbidden();
   const requests = a!.owner === viewer
     ? (await db.from("access_requests").select("id, requester_id, created_at").eq("object_type", type).eq("object_id", id).eq("status", "open").order("id")).data ?? []

@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
@@ -17,6 +18,19 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // A View Link page gets the page and nothing of the app around it.
+  if ((await headers()).get("x-ziffr-view-link") === "1") {
+    return (
+      <html lang="en">
+        <head>
+          <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+          <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
+        </head>
+        <body className="min-h-screen bg-background font-sans antialiased">{children}</body>
+      </html>
+    );
+  }
   const [profiles, viewer] = await Promise.all([getProfiles(), viewerId()]);
   const open = await openActionCount(viewer);
   return (
