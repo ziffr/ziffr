@@ -8,6 +8,7 @@ import { MasterArt } from "@/decks/master";
 import { SLIDE_H, SLIDE_W } from "@/decks/layouts";
 import { makeDefaultMaster, saveMaster } from "@/app/master-actions";
 import { Button } from "@/components/ui/button";
+import { VersionsDialog } from "@/components/versions-dialog";
 import { Input } from "@/components/ui/input";
 import type { LogoPosition, Master, Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -167,6 +168,7 @@ export function MastersScreen({ masters, current, isNew, people, viewer }: { mas
 
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" onClick={save}>{isNew ? "Create master" : "Save master"}</Button>
+            {!isNew && <VersionsDialog type="master" id={m.id} people={people} />}
             {!isNew && canEdit && !m.is_default && (
               <Button type="button" variant="outline" onClick={() => start(async () => { await makeDefaultMaster(m.id); toast.success(`${m.name} is now the default for new decks`); })}>
                 <Star aria-hidden /> Make default

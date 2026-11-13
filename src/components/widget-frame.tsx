@@ -3,8 +3,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { Check, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { Check, GitBranch, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -17,6 +17,7 @@ import { templatesFor, TEMPLATES } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import { CompareTable } from "@/components/compare-table";
+import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@/lib/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@/lib/compare";
 import { assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
@@ -39,7 +40,7 @@ type Props = {
   dragHandle?: boolean;
 };
 
-type Panel = "history" | "ask" | "story" | null;
+type Panel = "history" | "ask" | "story" | "versions" | null;
 
 export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle }: Props) {
   const router = useRouter();
@@ -122,6 +123,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         </K.Sub>
       )}
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit story…</K.Item>}
+      {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
       <K.Item
         onClick={() => {
           const name = window.prompt("Save to your widgets as:", title ?? "My widget");
@@ -180,8 +182,9 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
       </ContextMenu>
 
       <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); setRow(null); } }}>
-        <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" || panel === "story" ? "w-[26rem]" : "w-80")}>
+        <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" || panel === "story" || panel === "versions" ? "w-[26rem]" : "w-80")}>
           {panel === "history" && m && <HistoryPanel metricId={m.id} data={data} />}
+          {panel === "versions" && widget.id && <div className="p-3"><VersionsPanel type="widget" id={widget.id} people={data.people} onRestored={() => router.refresh()} /></div>}
           {panel === "story" && m && widget.id && (
             <StoryEditor
               widget={widget}
@@ -218,7 +221,7 @@ const DM = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator, Sub: Drop
 
 function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }) {
   const m = data.metrics.find((x) => x.id === metricId)!;
-  const [h, setH] = useState<{ observations: Observation[]; actions: Action[] } | null>(null);
+  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null }[] } | null>(null);
   useEffect(() => {
     getHistory(metricId).then((r) => setH(r as never));
   }, [metricId]);
@@ -239,6 +242,20 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
               <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, true)}</span>
             </Link>
           ))}
+        </div>
+      )}
+      {h && h.superseded.length > 0 && (
+        <div className="border-b p-3">
+          <div className="mb-1 text-xs font-medium text-muted-foreground">Superseded values</div>
+          <ul className="space-y-0.5 text-xs">
+            {h.superseded.slice(0, 8).map((x) => (
+              <li key={x.id} className="flex gap-2">
+                <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, true)}</span>
+                <span className="fig line-through">{formatValue(m, Number(x.value))}</span>
+                <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} {formatDistanceToNow(new Date(x.superseded_at), { addSuffix: true })}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <table className="w-full text-xs">

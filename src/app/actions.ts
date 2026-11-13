@@ -8,6 +8,7 @@ import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { intake, type IntakeResult } from "@/sources/intake";
 import type { SourceId } from "@/lib/types";
 import { periodStart } from "@/lib/format";
+import { recordVersion } from "@/lib/versions";
 
 // PROTOTYPE: no validation beyond what keeps the demo runnable.
 
@@ -60,6 +61,7 @@ export async function createMetric(form: FormData) {
     })
     .select()
     .single();
+  if (metric) await recordVersion("metric", metric.id, viewer, { message: metric.from_catalog_id ? "Created from the Metric Catalog" : "Created" });
   const submitters = form.getAll("submitters").map(String);
   if (metric && submitters.length) {
     await db.from("tokens").insert(

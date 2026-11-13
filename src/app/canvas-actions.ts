@@ -6,6 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { getMetrics } from "@/lib/data";
+import { ensureBaseline, recordVersion } from "@/lib/versions";
 import type { ActionKind, ShareRole, TemplateId, Widget, WidgetSettings } from "@/lib/types";
 
 // PROTOTYPE: identity is the "View as" cookie, so these checks enforce the sharing model
@@ -64,6 +65,7 @@ async function specFrom(source: DropSource, viewer: string) {
 export async function placeWidget(dashboardId: number, source: DropSource, pos?: { x: number; y: number }) {
   const viewer = await viewerId();
   await assertCanEditDashboard(dashboardId, viewer);
+  await ensureBaseline("dashboard", dashboardId, viewer);
   const spec = await specFrom(source, viewer);
   let { x, y } = pos ?? { x: 0, y: 0 };
   if (!pos) {
@@ -73,17 +75,25 @@ export async function placeWidget(dashboardId: number, source: DropSource, pos?:
   }
   const { error } = await db.from("widgets").insert({ ...spec, owner_id: viewer, dashboard_id: dashboardId, saved: false, x, y });
   if (error) throw new Error(`Widget not placed: ${error.message}`);
+  await recordVersion("dashboard", dashboardId, viewer);
   done();
 }
 
 export async function saveLayout(dashboardId: number, items: { i: string; x: number; y: number; w: number; h: number }[]) {
-  await assertCanEditDashboard(dashboardId, await viewerId());
+  const viewer = await viewerId();
+  await assertCanEditDashboard(dashboardId, viewer);
+  await ensureBaseline("dashboard", dashboardId, viewer);
   await Promise.all(items.map((it) => db.from("widgets").update({ x: it.x, y: it.y, w: it.w, h: it.h }).eq("id", Number(it.i)).eq("dashboard_id", dashboardId)));
+  await recordVersion("dashboard", dashboardId, viewer);
 }
 
 export async function updateWidget(id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null }) {
-  await assertCanEditWidget(id, await viewerId());
+  const viewer = await viewerId();
+  await assertCanEditWidget(id, viewer);
   if (patch.template && !(patch.template in TEMPLATES)) forbidden();
+  await ensureBaseline("widget", id, viewer);
+  const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
+  if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
   const update: Record<string, unknown> = { ...patch };
   if (patch.template) {
     const t = TEMPLATES[patch.template];
@@ -96,12 +106,19 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   }
   const { error } = await db.from("widgets").update(update).eq("id", id);
   if (error) throw new Error(`Widget not updated: ${error.message}`);
+  await recordVersion("widget", id, viewer);
+  const { data: w } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
+  if (w?.dashboard_id) await recordVersion("dashboard", w.dashboard_id, viewer);
   done();
 }
 
 export async function removeWidget(id: number) {
-  await assertCanEditWidget(id, await viewerId());
+  const viewer = await viewerId();
+  await assertCanEditWidget(id, viewer);
+  const { data: w } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
+  if (w?.dashboard_id) await ensureBaseline("dashboard", w.dashboard_id, viewer);
   await db.from("widgets").delete().eq("id", id);
+  if (w?.dashboard_id) await recordVersion("dashboard", w.dashboard_id, viewer);
   done();
 }
 
@@ -166,11 +183,12 @@ export async function canvasSet(metricIds: number[]) {
 /** History popover: every Observation plus Actions for one metric. */
 export async function getHistory(metricId: number) {
   await assertCanSeeMetrics([metricId], await viewerId());
-  const [{ data: obs }, { data: actions }] = await Promise.all([
+  const [{ data: obs }, { data: actions }, { data: superseded }] = await Promise.all([
     db.from("observations").select("*").eq("metric_id", metricId).order("period_start", { ascending: false }).order("created_at", { ascending: false }).limit(400),
     db.from("actions").select("*").eq("metric_id", metricId).order("created_at", { ascending: false }),
+    db.from("observation_history").select("*").eq("metric_id", metricId).order("superseded_at", { ascending: false }).limit(100),
   ]);
-  return { observations: obs ?? [], actions: actions ?? [] };
+  return { observations: obs ?? [], actions: actions ?? [], superseded: superseded ?? [] };
 }
 
 /** Ask a Question or assign a Task right where the viewer is. */

@@ -41,6 +41,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               <NavLink href="/decks">Decks</NavLink>
               <NavLink href="/metrics">Metrics</NavLink>
               <NavLink href="/sources">Sources</NavLink>
+              <NavLink href="/activity">Activity</NavLink>
               <NavLink href="/actions">
                 Actions
                 {open > 0 && <span className="fig text-xs text-muted-foreground" aria-label={`${open} waiting for you`}>{open}</span>}

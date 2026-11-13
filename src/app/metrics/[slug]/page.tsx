@@ -6,6 +6,7 @@ import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues }
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@/lib/compare";
 import { SeriesForm } from "./series-form";
+import { VersionsDialog } from "@/components/versions-dialog";
 import { countryCode } from "@/lib/countries";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
@@ -95,6 +96,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
         <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+        <VersionsDialog type="metric" id={metric.id} people={people} />
         {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} />}
       </PageHeader>
 

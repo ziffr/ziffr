@@ -9,6 +9,7 @@ import { Eye, LayoutDashboard, MousePointerClick, Pencil, Plus, Users } from "lu
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { ShareDialog } from "@/components/share-dialog";
+import { VersionsDialog } from "@/components/versions-dialog";
 import { createDashboardNamed, placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
@@ -102,7 +103,10 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                   <span className="flex items-center gap-1.5"><MousePointerClick aria-hidden className="size-4" /> Right-click a widget for its history, a question or a task</span>
                 </p>
               </div>
+              <div className="flex gap-2">
+              <VersionsDialog type="dashboard" id={current.id} people={data.people} />
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} />}
+              </div>
             </div>
             <div ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (

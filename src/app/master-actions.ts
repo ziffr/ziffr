@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import type { LogoPosition, Master } from "@/lib/types";
+import { ensureBaseline, recordVersion } from "@/lib/versions";
 
 // GLOSSARY: Master. Masters belong to the team: everyone can use them, only the creator edits.
 
@@ -39,11 +40,13 @@ export async function saveMaster(id: number | null, input: MasterInput): Promise
   if (id) {
     const { data: m } = await db.from("masters").select("owner_id").eq("id", id).single();
     if (!m || m.owner_id !== viewer) throw new Error("Only the creator can edit this master");
+    await ensureBaseline("master", id, viewer);
     await db.from("masters").update(row).eq("id", id);
   } else {
     const { data } = await db.from("masters").insert({ ...row, owner_id: viewer }).select("id").single();
     id = data!.id as number;
   }
+  await recordVersion("master", id!, viewer);
   revalidatePath("/decks", "layout");
   return id!;
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
+import { ensureBaseline, recordVersion } from "@/lib/versions";
 
 // PROTOTYPE: decks are private to their owner (sharing decks is not built yet).
 
@@ -22,12 +23,15 @@ export async function createDeck(form: FormData) {
 
 export async function saveDeck(id: number, document: unknown) {
   await ownDeck(id);
+  await ensureBaseline("deck", id, await viewerId());
   await db.from("decks").update({ document, updated_at: new Date().toISOString() }).eq("id", id);
+  await recordVersion("deck", id, await viewerId());
 }
 
 export async function renameDeck(id: number, name: string) {
   await ownDeck(id);
   await db.from("decks").update({ name: name.trim() || "Untitled deck", updated_at: new Date().toISOString() }).eq("id", id);
+  await recordVersion("deck", id, await viewerId());
   revalidatePath("/decks");
 }
 

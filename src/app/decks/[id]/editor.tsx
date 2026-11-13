@@ -20,6 +20,7 @@ import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
+import { VersionsDialog } from "@/components/versions-dialog";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
@@ -195,6 +196,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
         <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>
       </div>
