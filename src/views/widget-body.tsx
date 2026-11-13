@@ -1,7 +1,6 @@
 "use client";
 // PROTOTYPE: renders a Widget by its template. Each branch is where a pluggable View would sit.
 import { useRef } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatValue, health, periodLabel } from "@/lib/format";
 import { forecast } from "@/analyses/forecast";
@@ -36,7 +35,6 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
   const win = widget.settings.window ?? 12;
   const pts = all.slice(-win);
   const last = all[all.length - 1];
-  const prev = all[all.length - 2];
   const ctx = onPointContext ? (p: string) => onPointContext(m.id, p) : undefined;
 
   switch (widget.template) {
@@ -46,19 +44,11 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
     case "story-line":
       return <StoryBody widget={widget} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
     case "number": {
-      const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
-      const good = change === null || m.polarity === "target" ? null : (change > 0) === (m.polarity === "higher");
       const tone = health(m, last?.value);
       return (
         <div className="flex h-full flex-col">
           <div className="flex items-baseline gap-2">
             <span className={cn("text-[length:var(--text-3xl)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
-            {change !== null && (
-              <span className={cn("fig flex items-center text-xs", good === true && "text-[var(--color-success)]", good === false && "text-destructive")}>
-                {change > 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-                {(change * 100).toFixed(1)} %
-              </span>
-            )}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period) : "No values yet"}</div>
           {pts.length > 1 && <div className="mt-auto min-h-10 flex-1 pt-2"><Sparkline points={pts} height="100%" tone={tone} /></div>}

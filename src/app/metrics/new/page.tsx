@@ -22,6 +22,7 @@ const RULE_HINT: Record<SubmissionRule, string> = {
 
 const BLANK: MetricDescription = {
   name: "",
+  aggregation: "sum",
   description: "",
   unit: "",
   format: "number",
@@ -119,6 +120,14 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               <F label="Submission Rule" hint="What a second value for the same period does.">
                 <select name="submission_rule" defaultValue={d.submission_rule} className={field}>
                   {(Object.keys(RULE_LABEL) as SubmissionRule[]).map((r) => <option key={r} value={r}>{RULE_LABEL[r]}: {RULE_HINT[r]}</option>)}
+                </select>
+              </F>
+              <F label="Aggregation" hint="How values combine into a longer period, for QoQ or YoY." className="sm:col-span-2">
+                <select name="aggregation" defaultValue={d.aggregation} className={field}>
+                  <option value="sum">Sum: counts and amounts, such as revenue or deals</option>
+                  <option value="average">Average: levels, such as a score or a delivery time</option>
+                  <option value="last">Last value: stocks, such as a balance or headcount</option>
+                  <option value="none">Does not combine: rates and ratios</option>
                 </select>
               </F>
               <F label="Sources" className="sm:col-span-2">

@@ -13,8 +13,11 @@ export type Profile = {
   email: string;
 };
 
+export type Aggregation = "sum" | "average" | "last" | "none";
+
 export type MetricDescription = {
   name: string;
+  aggregation: Aggregation;
   description: string;
   unit: string;
   format: Format;
@@ -126,6 +129,9 @@ export type WidgetSettings = {
   callouts?: Callout[];
   /** Period of the breakdown shown; empty means the latest one. */
   period?: string | null;
+  /** Comparison strip (GLOSSARY: Comparison); undefined means the default. */
+  compare?: import("./compare").CompareKey[];
+  fullPeriods?: boolean;
 };
 
 export type Widget = {
@@ -155,6 +161,9 @@ export type CanvasData = {
   openActions: Record<number, number>;
   /** Submitters per metric id (from Tokens). */
   submitters: Record<number, string[]>;
+  /** Target Series and Projections per metric id (GLOSSARY). */
+  targets: Record<number, Point[]>;
+  projections: Record<number, Point[]>;
   /** Breakdowns per metric id, then per period (GLOSSARY: Breakdown). */
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
 };

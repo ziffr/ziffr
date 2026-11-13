@@ -19,6 +19,7 @@ export async function setViewer(id: string) {
 export async function resetDemo() {
   await db.rpc("prototype_reset");
   await db.rpc("prototype_seed_breakdowns");
+  await db.rpc("prototype_seed_comparisons");
   await db.rpc("prototype_reset_decks");
   revalidatePath("/", "layout");
   redirect("/");
@@ -49,6 +50,7 @@ export async function createMetric(form: FormData) {
       period: form.get("period"),
       submission_rule: form.get("submission_rule"),
       polarity: form.get("polarity"),
+      aggregation: ["sum", "average", "last", "none"].includes(String(form.get("aggregation"))) ? form.get("aggregation") : "sum",
       target_min: num(form.get("target_min")),
       target_max: num(form.get("target_max")),
       sources,

@@ -87,6 +87,15 @@ export async function openActionCount(viewer: string) {
   return count ?? 0;
 }
 
+/** Target Series and Projections per metric. */
+export async function getSeriesValues(metricIds: number[]) {
+  const { data } = await db.from("series_values").select("metric_id, kind, period_start, value").in("metric_id", metricIds).order("period_start");
+  const targets: Record<number, Point[]> = {};
+  const projections: Record<number, Point[]> = {};
+  for (const r of data ?? []) ((r.kind === "target" ? targets : projections)[r.metric_id] ??= []).push({ period: r.period_start, value: Number(r.value) });
+  return { targets, projections };
+}
+
 /** Breakdowns per metric and period. When a period has several observations (keep both), the latest one with rows wins. */
 export async function getBreakdowns(metricIds: number[], observations: Observation[]): Promise<Record<number, Record<string, BreakdownRow[]>>> {
   const wanted = new Set(metricIds);

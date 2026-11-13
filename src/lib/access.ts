@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { getActions, getAllSeries, getBreakdowns, getProfiles } from "./data";
+import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
 import type { CanvasData, Dashboard, Metric, Share, ShareRole } from "./types";
 
 // GLOSSARY: Share / Viewer / Editor.
@@ -54,7 +54,7 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
   const [{ metrics, series, observations }, people, actions, { data: tokens }] = await Promise.all([getAllSeries(), getProfiles(), getActions(), db.from("tokens").select("metric_id, submitter_id")]);
   const ids = await visibleMetricIds(viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
-  const breakdowns = await getBreakdowns([...ids], observations);
+  const [breakdowns, { targets, projections }] = await Promise.all([getBreakdowns([...ids], observations), getSeriesValues([...ids])]);
   const openActions: Record<number, number> = {};
   for (const a of actions) if (a.status !== "closed" && ids.has(a.metric_id)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
   return {
@@ -64,6 +64,8 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
     people,
     openActions,
     breakdowns,
+    targets,
+    projections,
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }

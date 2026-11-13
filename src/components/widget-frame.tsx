@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Check, PencilLine, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Check, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -15,6 +15,10 @@ import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { MetricChart } from "@/views/metric-chart";
 import { templatesFor, TEMPLATES } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
+import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
+import { CompareTable } from "@/components/compare-table";
+import { resolverFrom } from "@/lib/compare";
+import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@/lib/compare";
 import { assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
 import { formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings } from "@/lib/types";
@@ -66,6 +70,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
     setTimeout(() => setPanel(p), 0);
   };
   const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
+  const setCompare = (keys: CompareKey[]) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, compare: keys } }));
   const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
 
   // One item list, rendered both as right-click menu and ⋯ menu.
@@ -92,6 +97,26 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
                 {widget.template === "line" && <K.CheckboxItem checked={!!widget.settings.showForecast} onCheckedChange={() => toggle("showForecast")}>Show forecast</K.CheckboxItem>}
               </>
             )}
+          </K.SubContent>
+        </K.Sub>
+      )}
+      {m && TEMPLATES[widget.template].kind === "metric" && editable && widget.id && (
+        <K.Sub>
+          <K.SubTrigger><Scale /> Comparisons</K.SubTrigger>
+          <K.SubContent>
+            {comparisonsFor(m.period).map((k) => {
+              const keys = widget.settings.compare ?? DEFAULT_COMPARE;
+              const on = keys.includes(k);
+              return (
+                <K.Item key={k} onClick={() => setCompare(on ? keys.filter((x) => x !== k) : [...keys, k])}>
+                  <Check aria-hidden className={on ? "" : "invisible"} /> {COMPARE_LABEL[k]}
+                </K.Item>
+              );
+            })}
+            <K.Separator />
+            <K.Item onClick={() => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, fullPeriods: !widget.settings.fullPeriods } }))}>
+              <Check aria-hidden className={widget.settings.fullPeriods ? "" : "invisible"} /> Full periods instead of to date
+            </K.Item>
           </K.SubContent>
         </K.Sub>
       )}
@@ -143,8 +168,11 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
               <DropdownMenuContent align="end" className="w-56">{items(DM)}</DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="min-h-0 flex-1 px-4 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
+            <div className="min-h-0 flex-1">
             <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
+            </div>
+            {m && TEMPLATES[widget.template].kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
@@ -201,6 +229,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
         <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
         <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} /></div>
       </div>
+      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact /></div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
