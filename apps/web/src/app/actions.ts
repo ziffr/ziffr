@@ -30,6 +30,7 @@ export async function resetDemo() {
   await db.rpc("prototype_seed_connectors");
   await db.rpc("prototype_seed_groups");
   await db.rpc("prototype_seed_workflows");
+  await db.rpc("prototype_seed_memberships");
   revalidatePath("/", "layout");
   redirect("/");
 }
