@@ -16,9 +16,11 @@
       "Read(./**/.env*)",
       "Edit(./.env*)",
       "Write(./.env*)",
-      "Bash(git push:*)",
       "Bash(supabase db reset --linked:*)",
       "Bash(supabase db push:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)"
     ]
   },
   "hooks": {
