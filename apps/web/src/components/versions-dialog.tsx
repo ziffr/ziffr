@@ -4,7 +4,7 @@ import { History } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { VersionsPanel } from "./versions-panel";
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 
 /** A "Versions" button that opens the history of one object. */
 export function VersionsDialog({ type, id, people, reload }: { type: "dashboard" | "deck" | "metric"; id: number; people: Profile[]; reload?: "refresh" | "page" }) {

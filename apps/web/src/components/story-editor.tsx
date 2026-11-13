@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { storyBreakdown, storyDefaults } from "@/views/story";
-import { periodLabel } from "@/lib/format";
+import { periodLabel } from "@ziffr/core/format";
 import { PanelEditor } from "@/components/panel-editor";
-import { PLACEHOLDERS } from "@/lib/placeholders";
-import { RULES_FOR } from "@/lib/team-templates";
-import type { AnchorRule, CanvasData, Callout, Metric, Widget, WidgetSettings } from "@/lib/types";
+import { PLACEHOLDERS } from "@ziffr/core/placeholders";
+import { RULES_FOR } from "@ziffr/core/team-templates";
+import type { AnchorRule, CanvasData, Callout, Metric, Widget, WidgetSettings } from "@ziffr/core/types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 

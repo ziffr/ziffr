@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getCanvasData, visibleDashboards } from "@/lib/access";
 import { PresentDashboard } from "@/components/present-dashboard";
-import type { Widget } from "@/lib/types";
+import type { Widget } from "@ziffr/core/types";
 
 export default async function PresentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ at?: string }> }) {
   const id = Number((await params).id);

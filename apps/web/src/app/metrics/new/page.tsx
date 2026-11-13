@@ -9,8 +9,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
-import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@/lib/types";
+import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
 
 const RULE_HINT: Record<SubmissionRule, string> = {

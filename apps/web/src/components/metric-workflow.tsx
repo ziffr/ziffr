@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { GitPullRequestArrow, Lock, LockOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { lockPeriod, setMetricWorkflow, setStandIn } from "@/app/workflow-actions";
-import { dueDate } from "@/lib/workflow-rules";
-import { periodLabel } from "@/lib/format";
-import type { Metric, PeriodState, Profile, Workflow } from "@/lib/types";
+import { dueDate } from "@ziffr/core/workflow-rules";
+import { periodLabel } from "@ziffr/core/format";
+import type { Metric, PeriodState, Profile, Workflow } from "@ziffr/core/types";
 
 const STATE: Record<PeriodState["state"], string> = { asked: "asked, waiting for the value", submitted: "in, not approved yet", approval: "waiting for approval", published: "published", locked: "published and locked" };
 

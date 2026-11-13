@@ -3,8 +3,8 @@ import "server-only";
 // only the metrics it shows, people's names without their contact details, and nothing to act on.
 import { db } from "./db";
 import { deckMetricIds, getCanvasData } from "./access";
-import { widgetMetricIds } from "./widget-metrics";
-import type { CanvasData, Widget } from "./types";
+import { widgetMetricIds } from "@ziffr/core/widget-metrics";
+import type { CanvasData, Widget } from "@ziffr/core/types";
 
 export type ViewPayload = {
   type: "dashboard" | "deck";

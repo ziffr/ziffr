@@ -1,7 +1,7 @@
 // Every comparison for a metric, with spans, values and changes (GLOSSARY: Comparison, Attainment).
-import { formatValue, periodLabel } from "@/lib/format";
-import { comparisonsFor, summary, type Resolver } from "@/lib/compare";
-import type { Metric, Point } from "@/lib/types";
+import { formatValue, periodLabel } from "@ziffr/core/format";
+import { comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
+import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 export function CompareTable({ metric, resolve, targets, full, compact }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean }) {

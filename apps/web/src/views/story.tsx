@@ -4,11 +4,11 @@
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { User } from "lucide-react";
-import { compactValue, formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
+import { compactValue, formatValue, periodLabel, SOURCE_LABEL } from "@ziffr/core/format";
 import { countryCode } from "@/lib/countries";
-import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@/lib/types";
+import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@ziffr/core/types";
 import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars, resolveAnchor } from "./story-panels";
-import type { Annotation } from "@/lib/types";
+import type { Annotation } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;

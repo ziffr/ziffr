@@ -4,7 +4,7 @@
 // export (foreignObject, where class-based CSS does not travel) and in the Masters editor.
 import { createContext, useContext } from "react";
 import { FrameShapeUtil, HTMLContainer, useEditor, useValue, type SvgExportContext, type TLFrameShape } from "tldraw";
-import type { SlideDesign } from "@/lib/types";
+import type { SlideDesign } from "@ziffr/core/types";
 
 export const MARGIN_X = 48;
 export const MARGIN_Y = 36;

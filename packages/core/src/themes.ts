@@ -1,6 +1,5 @@
 // Themes (GLOSSARY: Theme): a theme becomes CSS custom properties on the element that holds content.
 // Widgets, stories and slides only use tokens, so one wrapper repaints all of them. Pure.
-import type { CSSProperties } from "react";
 import type { FontId, SlideDesign, Theme, ThemeTokens } from "./types";
 
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
@@ -35,7 +34,8 @@ export function slideDesign(theme: Theme | undefined, footer?: string | null): S
 const mix = (a: string, b: string, pct: number) => `color-mix(in oklab, ${a} ${pct}%, ${b})`;
 
 /** Every token the content uses, including the UI kit's aliases (they resolve where they are declared). */
-export function themeVars(t: ThemeTokens): CSSProperties {
+/** CSS custom properties and the two direct styles a theme sets on the element that holds content. */
+export function themeVars(t: ThemeTokens): Record<string, string | number | undefined> {
   const heading = FONTS[t.fontHeading]?.stack ?? FONTS["general-sans"].stack;
   const body = FONTS[t.fontBody]?.stack ?? FONTS["general-sans"].stack;
   const figures = FONTS[t.fontFigures]?.stack ?? FONTS["geist-mono"].stack;
@@ -58,7 +58,7 @@ export function themeVars(t: ThemeTokens): CSSProperties {
     "--radius-card": `${t.radius}px`, "--radius-input": `${Math.round(t.radius * 0.75)}px`, "--radius-stock": `${t.radius}px`, "--radius": `${t.radius}px`,
     ...(t.cards === "paper" ? {} : { "--tex-cotton": "none", "--tex-desk": "none", "--edge-stock": edge, "--cast-stock": "none", "--cast-stock-lift": "none" }),
   };
-  return { ...(vars as CSSProperties), color: t.ink, fontFamily: body };
+  return { ...vars, color: t.ink, fontFamily: body };
 }
 
 /** Stylesheets for the theme's web fonts. */

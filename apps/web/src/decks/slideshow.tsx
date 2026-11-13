@@ -11,9 +11,9 @@ import { ThemeScope } from "@/components/theme-scope";
 import { DeckData, WidgetShapeUtil } from "./widget-shape";
 import { DeckMaster, SlideFrameUtil } from "./master";
 import { orderedSlides } from "./layouts";
-import { isDark, slideDesign, themeFor } from "@/lib/themes";
+import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { useFullscreen, useStepper } from "@/lib/use-stepper";
-import type { CanvasData } from "@/lib/types";
+import type { CanvasData } from "@ziffr/core/types";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 

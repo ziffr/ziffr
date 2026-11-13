@@ -1,6 +1,6 @@
 // PROTOTYPE: built-in Widget Templates. In the real product each one maps onto a pluggable View,
 // so others can add templates (GLOSSARY: View, Widget Template).
-import type { TemplateId, WidgetSettings } from "@/lib/types";
+import type { TemplateId, WidgetSettings } from "@ziffr/core/types";
 
 export type TemplateDef = {
   id: TemplateId;

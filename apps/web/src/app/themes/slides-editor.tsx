@@ -6,7 +6,7 @@ import { ImagePlus, Trash2 } from "lucide-react";
 import { MasterArt } from "@/decks/master";
 import { SLIDE_H, SLIDE_W } from "@/decks/layouts";
 import { Input } from "@/components/ui/input";
-import type { LogoPosition, SlideDesign, ThemeSlides } from "@/lib/types";
+import type { LogoPosition, SlideDesign, ThemeSlides } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 const POSITIONS: { id: LogoPosition; label: string }[] = [

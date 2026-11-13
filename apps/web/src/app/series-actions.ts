@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
-import { periodStart } from "@/lib/format";
-import type { Period } from "@/lib/types";
+import { periodStart } from "@ziffr/core/format";
+import type { Period } from "@ziffr/core/types";
 
 // GLOSSARY: Target Series, Projection. Uploaded like observations: one "period value" line each.
 

@@ -1,7 +1,7 @@
 "use client";
 import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, periodLabel } from "@/lib/format";
-import type { MetricDescription } from "@/lib/types";
+import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import type { MetricDescription } from "@ziffr/core/types";
 
 export function ScatterView({
   x,

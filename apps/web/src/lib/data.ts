@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
-import { evaluate, formulaInputs } from "./formula";
-import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "./types";
+import { evaluate, formulaInputs } from "@ziffr/core/formula";
+import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "@ziffr/core/types";
 
 export async function getProfiles(): Promise<Profile[]> {
   const { data } = await db.from("profiles").select("*").order("name");

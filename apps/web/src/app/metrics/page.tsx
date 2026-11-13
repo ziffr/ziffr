@@ -7,7 +7,7 @@ import { Sparkline } from "@/views/sparkline";
 import { getAllSeries, getProfileMap } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { viewerId } from "@/lib/viewer";
-import { formatValue, health, PERIOD_LABEL, periodLabel, SOURCE_LABEL, targetText } from "@/lib/format";
+import { formatValue, health, PERIOD_LABEL, periodLabel, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { cn } from "@/lib/utils";
 
 export default async function MetricsPage() {

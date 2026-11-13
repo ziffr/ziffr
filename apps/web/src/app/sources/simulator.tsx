@@ -6,7 +6,7 @@ import { AtSign, Bot, Hash, Mail, Reply, Send } from "lucide-react";
 import { simulateMessage } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { IntakeEntry, Profile, Prompt, SourceId } from "@/lib/types";
+import type { IntakeEntry, Profile, Prompt, SourceId } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 

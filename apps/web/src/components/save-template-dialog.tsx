@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSlideLayout, saveTemplate } from "@/app/template-actions";
-import { RULES_FOR, slideSpecifics, specifics, toSlideLayout, toTemplate, type Choices, type Specific } from "@/lib/team-templates";
-import { periodLabel } from "@/lib/format";
-import type { CanvasData, Period, Slot, SlideShape, Widget } from "@/lib/types";
+import { RULES_FOR, slideSpecifics, specifics, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
+import { periodLabel } from "@ziffr/core/format";
+import type { CanvasData, Period, Slot, SlideShape, Widget } from "@ziffr/core/types";
 
 type Submit = { name: string; description: string; labels: string[]; choices: Choices; replaceId: number | null };
 

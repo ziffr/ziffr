@@ -6,7 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { approve, closePeriod, runWorkflows, sendBack, setLock } from "@/lib/workflow";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { WorkflowConfig, WorkflowStep } from "@/lib/types";
+import type { WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
 
 const done = () => revalidatePath("/", "layout");
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

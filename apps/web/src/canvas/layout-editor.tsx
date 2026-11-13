@@ -11,7 +11,7 @@ import { getDrag, setDrag } from "@/lib/drag";
 import { dropSpec } from "@/lib/drop-spec";
 import { useSlotFill } from "@/components/slot-dialog";
 import type { DropSource } from "@/app/canvas-actions";
-import type { CanvasData, Widget, WidgetSettings } from "@/lib/types";
+import type { CanvasData, Widget, WidgetSettings } from "@ziffr/core/types";
 import { ARTBOARD_UNIT, artboard, stampOf } from "./artboard";
 
 const shapeUtils = [WidgetShapeUtil];

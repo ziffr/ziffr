@@ -1,8 +1,8 @@
 "use client";
 // The comparison strip under a widget (GLOSSARY: Comparison, Attainment): one engine, one look everywhere.
-import { compactValue, formatValue } from "@/lib/format";
-import { COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@/lib/compare";
-import type { CanvasData, Metric } from "@/lib/types";
+import { compactValue, formatValue } from "@ziffr/core/format";
+import { COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
+import type { CanvasData, Metric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 export const DEFAULT_COMPARE: CompareKey[] = ["prev", "yoy"];

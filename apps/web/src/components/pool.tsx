@@ -5,7 +5,7 @@ import { TemplateMenu } from "./template-menu";
 import { setDrag } from "@/lib/drag";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { TEMPLATES } from "@/views/templates";
-import type { CanvasData, Widget } from "@/lib/types";
+import type { CanvasData, Widget } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 /** GLOSSARY: Pool. Metrics the viewer can see, their saved Widgets and the team's templates, draggable onto any canvas. */

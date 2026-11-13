@@ -5,13 +5,13 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
-import { fillsComplete, fromTemplate } from "@/lib/team-templates";
+import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
 import { deckMetricIds, readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
 import { finishTask } from "@/lib/threads";
 import type { ConnectorId } from "@/connectors";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@/lib/types";
+import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 
 // PROTOTYPE: identity is the "View as" cookie, so these checks enforce the sharing model
 // (Owner / Editor / Viewer) rather than real security. Real auth replaces viewerId() later.

@@ -7,7 +7,7 @@ import { visibleDecks } from "@/lib/access";
 import { assertCanEditDashboard, assertWorkspaceOwner, forbidden } from "@/lib/guards";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { ThemeSlides, ThemeTokens } from "@/lib/types";
+import type { ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 
 const done = () => revalidatePath("/", "layout");
 

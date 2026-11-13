@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createGroup, deleteGroup, renameGroup, setMember } from "@/app/team-actions";
 import { setAway } from "@/app/workflow-actions";
-import type { Group, Profile } from "@/lib/types";
+import type { Group, Profile } from "@ziffr/core/types";
 
 export function TeamScreen({ people, groups, canEdit, viewer, away }: { people: Profile[]; groups: Group[]; canEdit: boolean; viewer: string; away: { user_id: string; starts: string; ends: string }[] }) {
   const [pending, start] = useTransition();

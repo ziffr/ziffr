@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics } from "@/lib/data";
 import { assertCanEditWidget, assertCanSeeMetrics, forbidden, widgetMetricIds } from "@/lib/guards";
-import { SLIDE_SHAPES, toSlideLayout, toTemplate, type Choices } from "@/lib/team-templates";
+import { SLIDE_SHAPES, toSlideLayout, toTemplate, type Choices } from "@ziffr/core/team-templates";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
-import type { AnchorRule, SlideShape, Widget, WidgetSettings } from "@/lib/types";
+import type { AnchorRule, SlideShape, Widget, WidgetSettings } from "@ziffr/core/types";
 
 const RULES: AnchorRule[] = ["max", "min", "last", "first", "largest-step"];
 

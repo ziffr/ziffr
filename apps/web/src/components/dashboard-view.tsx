@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getCanvasData, getRawShares, revealedBy, visibleDashboards } from "@/lib/access";
-import { widgetMetricIds } from "@/lib/widget-metrics";
+import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { DashboardScreen } from "@/app/dashboards/screen";
-import type { Widget } from "@/lib/types";
+import type { Widget } from "@ziffr/core/types";
 
 export async function DashboardView({ id }: { id?: number }) {
   const viewer = await viewerId();

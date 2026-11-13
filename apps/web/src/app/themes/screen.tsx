@@ -12,9 +12,9 @@ import { ThemeScope } from "@/components/theme-scope";
 import { WidgetFrame, type FrameWidget } from "@/components/widget-frame";
 import { VersionsPanel } from "@/components/versions-panel";
 import { deleteTheme, duplicateTheme, saveTheme, setDefaultTheme } from "@/app/theme-actions";
-import { FONTS, slideDesign } from "@/lib/themes";
+import { FONTS, slideDesign } from "@ziffr/core/themes";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
-import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@/lib/types";
+import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards">; label: string }[] = [

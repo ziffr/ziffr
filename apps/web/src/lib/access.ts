@@ -1,9 +1,9 @@
 import "server-only";
 import { db } from "./db";
-import { tokenValid } from "./tokens";
-import { widgetMetricIds } from "./widget-metrics";
+import { tokenValid } from "@ziffr/core/tokens";
+import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
-import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme, WidgetSettings } from "@ziffr/core/types";
 
 // GLOSSARY: Share / Viewer / Editor.
 // A user sees a metric if they own it, submit to it, it was shared with them,

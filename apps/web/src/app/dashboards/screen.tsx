@@ -13,7 +13,7 @@ import { VersionsDialog } from "@/components/versions-dialog";
 import { createDashboardNamed, placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import type { CanvasData, Share, Widget } from "@/lib/types";
+import type { CanvasData, Share, Widget } from "@ziffr/core/types";
 import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import { ViewLinks } from "@/components/view-links";
 import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDashboardTheme } from "@/app/theme-actions";
-import { themeFor } from "@/lib/themes";
+import { themeFor } from "@ziffr/core/themes";
 
 type Props = {
   data: CanvasData;

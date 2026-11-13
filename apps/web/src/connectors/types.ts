@@ -1,7 +1,7 @@
 // Connectors (GLOSSARY: Connector): the plug-in point between Ziffr and outside systems, both ways.
 // A connector says what it can do and how a Delivery looks there. Adding Teams, Jira or SMS means
 // adding one module like these and registering it in ./index.ts. Pure: no server or React code.
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 
 export type ConnectorId = "slack" | "email" | "whatsapp" | "tickets";
 /** values: receives observations (a Source); reminders, actions: sends them; replies: answers come back; status: a task's state stays in step. */

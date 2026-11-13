@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { MessageSquarePlus, MousePointerClick, X } from "lucide-react";
 import { MetricChart } from "@/views/metric-chart";
 import { createAction } from "@/app/actions";
-import { formatValue, periodLabel } from "@/lib/format";
+import { formatValue, periodLabel } from "@ziffr/core/format";
 import type { ForecastPoint } from "@/analyses/forecast";
-import type { Metric, Point, Profile } from "@/lib/types";
+import type { Metric, Point, Profile } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 

@@ -39,4 +39,4 @@ export async function assertWorkspaceOwner(viewer: string) {
   if (!data?.is_owner) forbidden();
 }
 
-export { widgetMetricIds } from "./widget-metrics";
+export { widgetMetricIds } from "@ziffr/core/widget-metrics";

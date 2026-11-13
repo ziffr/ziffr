@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import type { CanvasData, Group, Share, Widget } from "@/lib/types";
+import type { CanvasData, Group, Share, Widget } from "@ziffr/core/types";
 import { Bone } from "@/components/skeleton";
 
 // tldraw is browser-only.

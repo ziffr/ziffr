@@ -1,7 +1,7 @@
 "use client";
 import { useTransition } from "react";
 import { setViewer } from "@/app/actions";
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 
 export function ViewAs({ profiles, current }: { profiles: Profile[]; current: string }) {
   const [pending, start] = useTransition();

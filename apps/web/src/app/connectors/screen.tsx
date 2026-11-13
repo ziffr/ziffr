@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askForMissingValues, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
 import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@/connectors";
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 export type PrefRow = { user_id: string | null; kind: PreferenceKind; connector: ConnectorId };

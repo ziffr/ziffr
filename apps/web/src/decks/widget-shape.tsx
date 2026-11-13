@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 import { BaseBoxShapeUtil, HTMLContainer, T, type TLShape } from "tldraw";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { TEMPLATES } from "@/views/templates";
-import type { CanvasData, TemplateId, WidgetSettings } from "@/lib/types";
+import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
 
 export const WIDGET_SHAPE = "ziffr-widget";
 

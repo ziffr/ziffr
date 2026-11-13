@@ -3,9 +3,9 @@
 // with Observable Plot; several metrics in one panel repeat it side by side as small multiples.
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
-import { attainment, compare, resolverFrom, targetFor } from "@/lib/compare";
-import { compactValue, formatValue, periodLabel } from "@/lib/format";
-import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@/lib/types";
+import { attainment, compare, resolverFrom, targetFor } from "@ziffr/core/compare";
+import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@ziffr/core/types";
 
 export const MEASURE_LABEL: Record<MeasureId, string> = {
   value: "Value",

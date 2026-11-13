@@ -9,7 +9,7 @@ import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
 import { onValue } from "@/lib/workflow";
 import { intake, type IntakeResult } from "@/sources/intake";
-import type { SourceId } from "@/lib/types";
+import type { SourceId } from "@ziffr/core/types";
 import { recordVersion } from "@/lib/versions";
 
 // PROTOTYPE: no validation beyond what keeps the demo runnable.

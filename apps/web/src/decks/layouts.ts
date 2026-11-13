@@ -1,6 +1,6 @@
 // Slide layouts: a 16:9 frame plus placeholder text, the way a deck tool starts a slide.
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
-import type { SlideDesign } from "@/lib/types";
+import type { SlideDesign } from "@ziffr/core/types";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;

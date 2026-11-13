@@ -1,8 +1,8 @@
 "use client";
 // Paints its children in a theme (GLOSSARY: Theme) and loads the theme's fonts once.
 import { createContext, useContext, useEffect } from "react";
-import { fontHrefs, themeVars } from "@/lib/themes";
-import type { Theme } from "@/lib/types";
+import { fontHrefs, themeVars } from "@ziffr/core/themes";
+import type { Theme } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 /** The theme around a piece of content, for things that render elsewhere (dialogs) but should look the same. */

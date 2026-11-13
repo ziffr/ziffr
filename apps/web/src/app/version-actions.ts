@@ -8,7 +8,7 @@ import { deckMetricIds, visibleDashboards, visibleDecks, visibleMetricIds } from
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
 import { cleanSlides, cleanTokens } from "@/lib/theme-tokens";
-import type { ThemeSlides, ThemeTokens, WorkflowConfig } from "@/lib/types";
+import type { ThemeSlides, ThemeTokens, WorkflowConfig } from "@ziffr/core/types";
 
 const forbidden = () => {
   throw new Error("Forbidden");

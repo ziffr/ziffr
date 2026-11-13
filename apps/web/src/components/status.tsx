@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ActionStatus } from "@/lib/types";
+import type { ActionStatus } from "@ziffr/core/types";
 
 const label = (status: ActionStatus | string, kind: "question" | "task" = "question") =>
   kind === "task" && status === "answered" ? "Done" : status === "answered" ? "Answered" : status === "open" ? "Open" : "Closed";

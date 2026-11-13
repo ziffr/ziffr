@@ -8,10 +8,10 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, LayoutGrid, Maximize, Minimize, Square, X } from "lucide-react";
 import { ThemeScope } from "@/components/theme-scope";
 import { WidgetFrame } from "@/components/widget-frame";
-import { themeFor } from "@/lib/themes";
+import { themeFor } from "@ziffr/core/themes";
 import { useFullscreen, useStepper } from "@/lib/use-stepper";
 import type { DashboardAccess } from "@/lib/access";
-import type { CanvasData, Widget } from "@/lib/types";
+import type { CanvasData, Widget } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 /** publicNote: seen through a View Link: read-only cards, no way back into the app, and when the numbers are from. */

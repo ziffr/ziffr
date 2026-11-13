@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button, buttonVariants } from "@/components/ui/button";
 import { decideAccess, requestAccess, whoCanSee } from "@/app/access-actions";
 import type { ObjectType } from "@/lib/access";
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 
 type Data = Awaited<ReturnType<typeof whoCanSee>>;
 

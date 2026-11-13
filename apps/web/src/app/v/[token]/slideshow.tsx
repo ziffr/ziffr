@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import type { CanvasData } from "@/lib/types";
+import type { CanvasData } from "@ziffr/core/types";
 
 // tldraw is browser-only.
 const Slideshow = dynamic(() => import("@/decks/slideshow").then((m) => m.Slideshow), { ssr: false });

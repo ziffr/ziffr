@@ -5,9 +5,9 @@ import { useCallback, useRef, useState } from "react";
 import { LayoutTemplate } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { fillsComplete } from "@/lib/team-templates";
+import { fillsComplete } from "@ziffr/core/team-templates";
 import type { DropSource } from "@/app/canvas-actions";
-import type { CanvasData, TeamTemplate } from "@/lib/types";
+import type { CanvasData, TeamTemplate } from "@ziffr/core/types";
 
 type Ask = { t: TeamTemplate; fills: number[][]; resolve: (f: number[][] | null) => void };
 

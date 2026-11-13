@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
-import type { Widget } from "@/lib/types";
+import type { Widget } from "@ziffr/core/types";
 
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);

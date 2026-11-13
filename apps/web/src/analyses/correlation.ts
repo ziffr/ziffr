@@ -1,4 +1,4 @@
-import type { Metric, Point } from "@/lib/types";
+import type { Metric, Point } from "@ziffr/core/types";
 
 export function pearson(a: Point[], b: Point[]) {
   const mb = new Map(b.map((p) => [p.period, p.value]));

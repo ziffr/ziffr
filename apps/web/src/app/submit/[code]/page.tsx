@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
-import { tokenValid } from "@/lib/tokens";
+import { tokenValid } from "@ziffr/core/tokens";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { normalizeMetric } from "@/lib/data";
-import { formatValue, periodLabel, periodStart, RULE_LABEL } from "@/lib/format";
+import { formatValue, periodLabel, periodStart, RULE_LABEL } from "@ziffr/core/format";
 import { submitWebForm } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BreakdownField } from "./breakdown-field";
-import type { Metric } from "@/lib/types";
+import type { Metric } from "@ziffr/core/types";
 
 export default async function SubmitPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ outcome?: string; detail?: string }> }) {
   const { code } = await params;

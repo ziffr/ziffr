@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { closeWorkflowPeriod, deleteWorkflow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
-import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@/lib/workflow-rules";
-import { periodLabel, periodStart } from "@/lib/format";
-import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@/lib/types";
+import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
+import { periodLabel, periodStart } from "@ziffr/core/format";
+import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };

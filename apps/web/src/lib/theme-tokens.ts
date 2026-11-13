@@ -1,6 +1,6 @@
 // Checks a theme's tokens before they are stored: colours are hex, fonts are known, sizes are sane.
-import { FONTS, HEX } from "./themes";
-import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
+import { FONTS, HEX } from "@ziffr/core/themes";
+import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
 

@@ -1,8 +1,8 @@
 // What a Pool item becomes on a slide or artboard: one place for metrics, saved widgets, specs and team templates.
 import { TEMPLATES } from "@/views/templates";
-import { fromTemplate } from "./team-templates";
+import { fromTemplate } from "@ziffr/core/team-templates";
 import type { DropSource } from "@/app/canvas-actions";
-import type { CanvasData, TemplateId, Widget, WidgetSettings } from "./types";
+import type { CanvasData, TemplateId, Widget, WidgetSettings } from "@ziffr/core/types";
 
 export type DropSpec = { template: TemplateId; metricIds: number[]; settings: WidgetSettings; title: string; grid?: { w: number; h: number } };
 

@@ -2,17 +2,17 @@
 // PROTOTYPE: renders a Widget by its template. Each branch is where a pluggable View would sit.
 import { useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, health, periodLabel } from "@/lib/format";
+import { compactValue, formatValue, health, periodLabel } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { pearson, strength } from "@/analyses/correlation";
-import type { CanvasData, Metric, Point, Widget } from "@/lib/types";
+import type { CanvasData, Metric, Point, Widget } from "@ziffr/core/types";
 import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
 import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
 import { ScatterView } from "./scatter";
 import { StoryBody } from "./story";
-import { fillSettings } from "@/lib/placeholders";
+import { fillSettings } from "@ziffr/core/placeholders";
 import dynamic from "next/dynamic";
 
 // tldraw is browser-only; free layouts load it on demand.

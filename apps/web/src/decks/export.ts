@@ -4,16 +4,16 @@
 // (editable) charts, number widgets text, history tables tables; everything else an image.
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
-import { formatValue, periodLabel } from "@/lib/format";
-import type { CanvasData, SlideDesign } from "@/lib/types";
+import { formatValue, periodLabel } from "@ziffr/core/format";
+import type { CanvasData, SlideDesign } from "@ziffr/core/types";
 import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
-import { fillSettings } from "@/lib/placeholders";
-import { FONTS } from "@/lib/themes";
-import type { Theme } from "@/lib/types";
+import { fillSettings } from "@ziffr/core/placeholders";
+import { FONTS } from "@ziffr/core/themes";
+import type { Theme } from "@ziffr/core/types";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.

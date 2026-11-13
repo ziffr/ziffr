@@ -1,4 +1,4 @@
-import type { Profile } from "@/lib/types";
+import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 /** People are named, not colour-coded: an initial on cotton stock, then the name. */

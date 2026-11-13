@@ -1,6 +1,6 @@
-import type { Point } from "@/lib/types";
+import type { Point } from "@ziffr/core/types";
 import { addDays, addMonths, addWeeks, format, parseISO } from "date-fns";
-import type { Period } from "@/lib/types";
+import type { Period } from "@ziffr/core/types";
 
 export type ForecastPoint = { period: string; value: number; lo: number; hi: number };
 

@@ -3,12 +3,12 @@ import "server-only";
 // PROTOTYPE: time-based steps run when someone presses "Run workflows" (with a date to pretend it is), not on a clock.
 import { format } from "date-fns";
 import { db } from "./db";
-import { periodLabel, periodStart, formatValue } from "./format";
+import { periodLabel, periodStart, formatValue } from "@ziffr/core/format";
 import { normalizeMetric } from "./data";
 import { deliver, deliverPrompt } from "./deliveries";
-import { targetFor } from "./compare";
-import { dueDate, shiftPeriod, unusualReasons, workingPeriod } from "./workflow-rules";
-import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
+import { targetFor } from "@ziffr/core/compare";
+import { dueDate, shiftPeriod, unusualReasons, workingPeriod } from "@ziffr/core/workflow-rules";
+import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "@ziffr/core/types";
 
 type Ctx = { m: Metric; wf: Workflow; period: string };
 

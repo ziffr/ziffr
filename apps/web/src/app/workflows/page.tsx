@@ -5,7 +5,7 @@ import { getMetrics, getProfiles } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
-import type { PeriodState, Workflow } from "@/lib/types";
+import type { PeriodState, Workflow } from "@ziffr/core/types";
 
 export default async function WorkflowsPage({ searchParams }: { searchParams: Promise<{ id?: string; asOf?: string }> }) {
   const sp = await searchParams;

@@ -3,9 +3,9 @@ import "server-only";
 // PROTOTYPE: deliveries are recorded and shown in the Outbox; nothing is actually sent.
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { periodLabel, periodStart } from "./format";
+import { periodLabel, periodStart } from "@ziffr/core/format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "@/connectors";
-import type { Period, Profile } from "./types";
+import type { Period, Profile } from "@ziffr/core/types";
 
 /** The ticket, email thread or chat a whole Action lives in on the other side. */
 export const refFor = (actionId: number) => `ZIF-${actionId}`;

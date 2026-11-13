@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { Palette } from "lucide-react";
-import type { Theme } from "@/lib/types";
+import type { Theme } from "@ziffr/core/types";
 
 export function ThemePicker({ themes, value, onChange, disabled }: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown>; disabled?: boolean }) {
   const [pending, start] = useTransition();

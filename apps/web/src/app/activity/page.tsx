@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics, getProfiles } from "@/lib/data";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
-import { formatValue, periodLabel } from "@/lib/format";
+import { formatValue, periodLabel } from "@ziffr/core/format";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 

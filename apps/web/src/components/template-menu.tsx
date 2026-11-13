@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VersionsPanel } from "./versions-panel";
 import { deleteTemplate, renameTemplate } from "@/app/template-actions";
-import type { Profile, TeamTemplate } from "@/lib/types";
+import type { Profile, TeamTemplate } from "@ziffr/core/types";
 
 export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boolean; people: Profile[] }) {
   const [versions, setVersions] = useState(false);

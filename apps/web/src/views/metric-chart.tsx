@@ -1,8 +1,8 @@
 "use client";
 // PROTOTYPE: Views are hardcoded. This folder is where the View plugin seam would go.
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, periodLabel } from "@/lib/format";
-import type { MetricDescription, Point } from "@/lib/types";
+import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@/analyses/forecast";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number] };

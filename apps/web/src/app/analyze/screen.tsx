@@ -6,7 +6,7 @@ import { WidgetFrame } from "@/components/widget-frame";
 import { canvasAdd, canvasRemove, canvasSet, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES } from "@/views/templates";
-import type { CanvasData, TemplateId } from "@/lib/types";
+import type { CanvasData, TemplateId } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };

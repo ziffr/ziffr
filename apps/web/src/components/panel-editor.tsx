@@ -3,8 +3,8 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MEASURE_LABEL } from "@/views/story-panels";
-import { periodLabel } from "@/lib/format";
-import type { Anchor, Annotation, CanvasData, MeasureId, Panel, PanelType } from "@/lib/types";
+import { periodLabel } from "@ziffr/core/format";
+import type { Anchor, Annotation, CanvasData, MeasureId, Panel, PanelType } from "@ziffr/core/types";
 
 const TYPES: { id: PanelType; label: string }[] = [
   { id: "period-bars", label: "Period bars" },

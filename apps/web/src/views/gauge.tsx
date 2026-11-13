@@ -1,6 +1,6 @@
 "use client";
-import { formatValue } from "@/lib/format";
-import type { Metric } from "@/lib/types";
+import { formatValue } from "@ziffr/core/format";
+import type { Metric } from "@ziffr/core/types";
 
 /** Semicircle gauge: target band in green, needle at the latest value. */
 export function Gauge({ metric, value, history }: { metric: Metric; value: number | undefined; history: number[] }) {

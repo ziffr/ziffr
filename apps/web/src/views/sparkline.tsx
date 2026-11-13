@@ -1,6 +1,6 @@
 "use client";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
-import type { Point } from "@/lib/types";
+import type { Point } from "@ziffr/core/types";
 
 export function Sparkline({ points, height = 48, tone = "neutral" }: { points: Point[]; height?: number | string; tone?: "good" | "bad" | "neutral" }) {
   const color = tone === "bad" ? "var(--color-error)" : tone === "good" ? "var(--color-success)" : "var(--color-data)";

@@ -2,11 +2,11 @@ import Link from "next/link";
 import { getMetrics, getProfileMap } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
 import { readableActions } from "@/lib/access";
-import { periodLabel } from "@/lib/format";
+import { periodLabel } from "@ziffr/core/format";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { StatusBadge } from "@/components/status";
-import type { Action } from "@/lib/types";
+import type { Action } from "@ziffr/core/types";
 
 export default async function ActionsPage() {
   const [actions, metrics, people, viewer] = await Promise.all([viewerId().then((v) => readableActions(v)), getMetrics(), getProfileMap(), viewerId()]);

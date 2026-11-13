@@ -4,7 +4,7 @@ import { Share2 } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
-import type { Group, Profile, Share } from "@/lib/types";
+import type { Group, Profile, Share } from "@ziffr/core/types";
 
 /** GLOSSARY: Share. Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
 export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {} }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> }) {

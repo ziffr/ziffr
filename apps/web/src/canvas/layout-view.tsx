@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Tldraw, type TLEditorSnapshot } from "tldraw";
 import { TriangleAlert } from "lucide-react";
 import { DeckData, WidgetShapeUtil } from "@/decks/widget-shape";
-import type { CanvasData, WidgetSettings } from "@/lib/types";
+import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
 import { artboard } from "./artboard";
 
 const shapeUtils = [WidgetShapeUtil];

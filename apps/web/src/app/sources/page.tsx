@@ -6,7 +6,7 @@ import { viewerId } from "@/lib/viewer";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Simulator } from "./simulator";
-import type { IntakeEntry, Prompt } from "@/lib/types";
+import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 
 export default async function SourcesPage() {
   const [profiles, metrics, viewer, { data: prompts }, { data: log }, { data: tokens }] = await Promise.all([
