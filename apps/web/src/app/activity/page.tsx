@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getMetrics, getProfiles } from "@/lib/data";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { formatValue, periodLabel } from "@ziffr/core/format";
@@ -14,14 +14,15 @@ const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard",
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
   const viewer = await viewerId();
+  const ws = await currentWorkspaceId();
   const [people, metrics, dashboards, { data: versions }, { data: superseded }, { data: decks }, { data: widgets }] = await Promise.all([
     getProfiles(),
     getMetrics(),
     visibleDashboards(viewer),
-    db.from("versions").select("id, object_type, object_id, version, author_id, message, name, updated_at").order("updated_at", { ascending: false }).limit(200),
-    db.from("observation_history").select("*").order("superseded_at", { ascending: false }).limit(100),
-    db.from("decks").select("id, name, owner_id"),
-    db.from("widgets").select("id, dashboard_id, owner_id, metric_ids, title"),
+    db.from("versions").select("id, object_type, object_id, version, author_id, message, name, updated_at").eq("workspace_id", ws).order("updated_at", { ascending: false }).limit(200),
+    db.from("observation_history").select("*").eq("workspace_id", ws).order("superseded_at", { ascending: false }).limit(100),
+    db.from("decks").select("id, name, owner_id").eq("workspace_id", ws),
+    db.from("widgets").select("id, dashboard_id, owner_id, metric_ids, title").eq("workspace_id", ws),
   ]);
   const visible = await visibleMetricIds(viewer, metrics);
   const dash = new Map(dashboards.map((d) => [d.id, d]));

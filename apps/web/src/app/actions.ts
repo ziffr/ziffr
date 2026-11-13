@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -57,6 +58,9 @@ export async function createMetric(form: FormData) {
   const { data: clash } = await db.from("metrics").select("id").eq("slug", slug).eq("workspace_id", ws);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
   const sources = form.getAll("sources").map(String);
+  // Submitters are checked before anything is written.
+  const submitters = form.getAll("submitters").map(String);
+  await assertMembers(submitters);
   const { data: metric } = await db
     .from("metrics")
     .insert({
@@ -80,11 +84,10 @@ export async function createMetric(form: FormData) {
     .select()
     .single();
   if (metric) await recordVersion("metric", metric.id, viewer, { message: metric.from_catalog_id ? "Created from the Metric Catalog" : "Created" });
-  const submitters = form.getAll("submitters").map(String);
-  await assertMembers(submitters);
   if (metric && submitters.length) {
     await db.from("tokens").insert(
-      submitters.map((s) => ({ code: `tk-${s}-${slug}`, metric_id: metric.id, submitter_id: s })),
+      // A Token code opens the submission form without signing in: random, never derived from names.
+      submitters.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: metric.id, submitter_id: s })),
     );
     // Every Submitter gets a first Prompt through their Connector, so the loop can continue right away.
     for (const s of submitters) await deliverPrompt({ metricId: metric.id, submitterId: s, senderId: viewer });

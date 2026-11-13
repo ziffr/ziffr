@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getMetrics, getProfiles } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
@@ -9,7 +9,7 @@ import type { PeriodState, Workflow } from "@ziffr/core/types";
 
 export default async function WorkflowsPage({ searchParams }: { searchParams: Promise<{ id?: string; asOf?: string }> }) {
   const sp = await searchParams;
-  const [viewer, people, all, { data: workflows }] = await Promise.all([viewerId(), getProfiles(), getMetrics(), db.from("workflows").select("*").order("id")]);
+  const [viewer, people, all, { data: workflows }] = await Promise.all([viewerId(), getProfiles(), getMetrics(), db.from("workflows").select("*").eq("workspace_id", await currentWorkspaceId()).order("id")]);
   // Only metrics this viewer may see, and only what the page shows of them.
   const ids = [...(await visibleMetricIds(viewer, all))];
   const [{ data: states }, { data: tokens }, { data: assigned }] = await Promise.all([

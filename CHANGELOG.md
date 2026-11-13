@@ -4,6 +4,8 @@ What changes for people who use or run Ziffr. Newest first; one line per change,
 
 ## Unreleased
 
+- Links to personal submission forms are now random and can no longer be guessed from a person and a Metric; links sent before keep working.
+
 - People now sign in with an email link (or Google, Microsoft, GitHub or LinkedIn once set up via `ZIFFR_AUTH_PROVIDERS`), create a workspace on first sign-in and see only their own workspaces' data. "View as", reset and the tour stay in Demo Mode (`pnpm demo`); `pnpm prototype` still starts the demo.
 - Workspace admins can now change themes, groups and team settings, like owners.
 - Developers: who sees what is decided in `@ziffr/core/visibility`, which ignores data from any other workspace; the app loads only the current workspace's data.

@@ -8,7 +8,7 @@ import { resolverFrom } from "@ziffr/core/compare";
 import { SeriesForm } from "./series-form";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { countryCode } from "@/lib/countries";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, periodStart, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { format } from "date-fns";
 import { forecast } from "@/analyses/forecast";
@@ -69,7 +69,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     visibleDashboards(viewer),
     getRawShares(),
     getGroups(),
-    db.from("workflows").select("*").order("id"),
+    db.from("workflows").select("*").eq("workspace_id", await currentWorkspaceId()).order("id"),
     db.from("metrics").select("workflow_id").eq("id", metric.id).single(),
   ]);
   const wfPeriod = workingPeriod(format(new Date(), "yyyy-MM-dd"), metric.period, periodStart);

@@ -1,7 +1,7 @@
 import "server-only";
 // Deliveries (GLOSSARY: Delivery, Delivery Preference): which Connector a message goes through, and what it says.
 // PROTOTYPE: deliveries are recorded and shown in the Outbox; nothing is actually sent.
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { currentWorkspaceId } from "./viewer";
 import { periodLabel, periodStart } from "@ziffr/core/format";
@@ -72,7 +72,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
       await db.from("tokens").update({ expires_at: expires }).eq("id", mine.id);
       token = mine;
     } else {
-      const { data: created } = await db.from("tokens").insert({ code: `tk-${input.submitterId}-${randomUUID().slice(0, 8)}`, metric_id: input.metricId, submitter_id: input.submitterId, stands_in_for: standsInFor, expires_at: expires }).select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").single();
+      const { data: created } = await db.from("tokens").insert({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: input.metricId, submitter_id: input.submitterId, stands_in_for: standsInFor, expires_at: expires }).select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").single();
       token = created ?? undefined;
     }
   }

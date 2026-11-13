@@ -50,10 +50,12 @@ export async function personFor(user: SessionAccount): Promise<string> {
     if (same) return same.id;
   }
   const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? verified?.split("@")[0] ?? "New person").slice(0, 80);
-  // Another person may already hold that address (not linked because the provider does not prove it): keep none.
-  const { data: taken } = verified ? await db.from("profiles").select("id").eq("email", verified).maybeSingle() : { data: null };
+  // The address is kept only when the way of signing in proves it, and nobody else holds it yet; otherwise none, so
+  // nobody is reached at, or matched by, an address they may not own.
+  const proven = verified && PROVES_EMAIL.has(provider) ? verified : null;
+  const { data: taken } = proven ? await db.from("profiles").select("id").eq("email", proven).maybeSingle() : { data: null };
   const { error } = await db.from("profiles").upsert(
-    { id: crypto.randomUUID(), auth_user_id: user.id, name, email: taken ? null : verified, role: "", color: COLORS[Math.floor(Math.random() * COLORS.length)] },
+    { id: crypto.randomUUID(), auth_user_id: user.id, name, email: taken ? null : proven, role: "", color: COLORS[Math.floor(Math.random() * COLORS.length)] },
     { onConflict: "auth_user_id", ignoreDuplicates: true },
   );
   if (error) throw new Error("Your account could not be set up. Try signing in again.");

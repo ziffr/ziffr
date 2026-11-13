@@ -2,24 +2,27 @@ import Link from "next/link";
 import { FileInput } from "lucide-react";
 import { db } from "@/lib/db";
 import { getMetrics, getProfiles } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Simulator } from "./simulator";
 import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 
 export default async function SourcesPage() {
+  const ws = await currentWorkspaceId();
   const [profiles, metrics, viewer, { data: prompts }, { data: log }, { data: tokens }] = await Promise.all([
     getProfiles(),
     getMetrics(),
     viewerId(),
-    db.from("prompts").select("*").order("sent_at"),
-    db.from("intake_log").select("*").order("at"),
-    db.from("tokens").select("*"),
+    db.from("prompts").select("*").eq("workspace_id", ws).order("sent_at"),
+    db.from("intake_log").select("*").eq("workspace_id", ws).order("at"),
+    db.from("tokens").select("*").eq("workspace_id", ws),
   ]);
   const metricNames = Object.fromEntries(metrics.map((m) => [m.id, m.name]));
   const peopleById = Object.fromEntries(profiles.map((p) => [p.id, p]));
-  const forms = (tokens ?? []).filter((t) => metrics.find((m) => m.id === t.metric_id)?.sources.includes("web_form"));
+  // Token codes open submission forms: outside Demo Mode only the viewer's own reach the browser.
+  const forms = (tokens ?? []).filter((t) => isDemo() || t.submitter_id === viewer).filter((t) => metrics.find((m) => m.id === t.metric_id)?.sources.includes("web_form"));
   const by = (s: string) => ({
     prompts: ((prompts ?? []) as Prompt[]).filter((p) => p.source === s),
     log: ((log ?? []) as IntakeEntry[]).filter((l) => l.source === s),
