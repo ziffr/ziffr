@@ -168,6 +168,16 @@ _Avoid_: Reader, guest
 A user a dashboard is shared with who can also arrange its widgets.
 _Avoid_: Collaborator, co-owner
 
+### Governance
+
+**Version**:
+A saved state of something people build (a widget, story, dashboard, deck, master or metric description) with its author, time and an optional message or name. Edits by one person within ten minutes form one version; restoring a version creates a new one.
+_Avoid_: Revision, snapshot, commit, backup
+
+**Superseded Value**:
+An earlier value of an observation or breakdown row, kept when an overwrite or correction replaced it, with the time it was replaced.
+_Avoid_: Old value, previous version, overwritten value
+
 ### Collaboration
 
 **Action**:
