@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { RequestAccess } from "@/components/who-can-see";
 import { deckMetricIds, getGroups, getRawShares, revealedBy, visibleDecks } from "@/lib/access";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
 import type { Widget } from "@ziffr/core/types";
@@ -10,7 +10,8 @@ import type { Widget } from "@ziffr/core/types";
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const viewer = await viewerId();
-  const { data: deck } = await db.from("decks").select("*").eq("id", id).single();
+  // Only decks of this workspace exist here; another workspace's deck ids and owners stay unknown.
+  const { data: deck } = await db.from("decks").select("*").eq("id", id).eq("workspace_id", await currentWorkspaceId()).maybeSingle();
   const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
   if (!deck) notFound();
   if (!role) {

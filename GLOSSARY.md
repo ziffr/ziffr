@@ -221,7 +221,7 @@ A secret a person creates so a program can use the API on their behalf, limited 
 _Avoid_: API token, personal access token, credential
 
 **Demo Mode**:
-A setting that shows Ziffr with made-up data, a switch to view as any demo person and a reset button. It only runs where no real accounts exist.
+A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people and resetting it. It sits next to real workspaces and never reaches them, and an installation can switch it off.
 _Avoid_: Sandbox, test mode
 
 **Share**:

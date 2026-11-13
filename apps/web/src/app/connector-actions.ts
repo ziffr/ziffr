@@ -1,13 +1,14 @@
 "use server";
 // Connectors (GLOSSARY: Connector, Delivery, Delivery Preference). PROTOTYPE: the outside side is simulated
 // here: in Demo Mode anyone can play the recipient answering in Slack, email or WhatsApp, or closing a ticket, the
-// way the Sources page lets anyone play a submitter. Outside Demo Mode the simulations refuse: real answers come
-// in through the Connectors themselves.
+// way the Sources page lets anyone play a submitter. Outside the demo the simulations refuse, and in it they only
+// reach the demo workspace: real answers come in through the Connectors themselves.
 import { revalidatePath } from "next/cache";
 import { addDays, format } from "date-fns";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { actingWorkspace, assertWorkspaceOwner, forbidden } from "@/lib/guards";
+import { DEMO_WORKSPACE_ID } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { periodStart } from "@ziffr/core/format";
@@ -18,9 +19,9 @@ import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type Preferenc
 
 const KINDS: PreferenceKind[] = ["question", "task", "reminder", "update"];
 const done = () => revalidatePath("/", "layout");
-/** Playing someone else on an outside channel is only for Demo Mode. */
-const demoOnly = () => {
-  if (!isDemo()) forbidden();
+/** Playing someone else on an outside channel is only for the demo. */
+const demoOnly = async () => {
+  if (!(await isDemo())) forbidden();
 };
 
 /** A person sets their own; the team default (userId null) is the workspace owner's. null connector: follow the team. */
@@ -39,14 +40,14 @@ export async function setPreference(userId: string | null, kind: PreferenceKind,
 }
 
 async function deliveryById(id: number) {
-  const { data } = await db.from("deliveries").select("*").eq("id", id).single();
+  const { data } = await db.from("deliveries").select("*").eq("id", id).eq("workspace_id", DEMO_WORKSPACE_ID).maybeSingle();
   if (!data || !data.action_id) forbidden();
   return data!;
 }
 
 /** The recipient answers where the Delivery reached them; the answer lands in the Thread. */
 export async function simulateReply(deliveryId: number, text: string) {
-  demoOnly();
+  await demoOnly();
   const d = await deliveryById(deliveryId);
   if (!CONNECTORS[d.connector as ConnectorId]?.capabilities.includes("replies")) forbidden();
   const { body, correction } = parseReply(String(text ?? "").slice(0, 2000));
@@ -58,7 +59,7 @@ export async function simulateReply(deliveryId: number, text: string) {
 
 /** Closing the ticket marks the task done in Ziffr. */
 export async function simulateTicketClose(deliveryId: number) {
-  demoOnly();
+  await demoOnly();
   const d = await deliveryById(deliveryId);
   if (d.connector !== "tickets") forbidden();
   const ok = await finishTask(d.action_id, d.recipient_id);
@@ -101,12 +102,12 @@ export async function askForMissingValues() {
 
 /** The submitter answers a Prompt where it reached them; the answer goes through intake and its Submission Rule. */
 export async function simulatePromptAnswer(deliveryId: number, text: string) {
-  demoOnly();
-  const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).single();
+  await demoOnly();
+  const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).eq("workspace_id", DEMO_WORKSPACE_ID).maybeSingle();
   const p = d?.prompts as { id: number; source: string } | null;
   if (!d || d.kind !== "prompt" || !p || (p.source !== "slack" && p.source !== "mail")) forbidden();
   const { data: person } = await db.from("profiles").select("slack_handle, email").eq("id", d!.recipient_id).single();
-  const r = await intake({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id });
+  const r = await intake({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id, workspaceId: DEMO_WORKSPACE_ID });
   if (r.ok) await db.from("deliveries").update({ status: "answered" }).eq("id", deliveryId);
   done();
   return r;

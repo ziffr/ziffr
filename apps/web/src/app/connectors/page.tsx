@@ -8,6 +8,7 @@ import { ConnectorsScreen, type DeliveryRow, type PrefRow } from "./screen";
 
 export default async function ConnectorsPage() {
   const ws = await currentWorkspaceId();
+  const demo = await isDemo();
   const [viewer, people, { data: prefs }, { data: deliveries }, { data: me }, { data: tokens }] = await Promise.all([
     viewerId(),
     getProfiles(),
@@ -19,9 +20,9 @@ export default async function ConnectorsPage() {
   // Deliveries about a thread the viewer may not read stay hidden.
   const readable = new Set((await readableActions(viewer)).map((a) => a.id));
   // Prompts and notices are private to their sender and recipient, except in Demo Mode, where anyone plays them.
-  const visible = (deliveries ?? []).filter((d) => (d.action_id ? readable.has(d.action_id) : isDemo() || d.recipient_id === viewer || d.sender_id === viewer));
+  const visible = (deliveries ?? []).filter((d) => (d.action_id ? readable.has(d.action_id) : demo || d.recipient_id === viewer || d.sender_id === viewer));
   // A Token code opens someone's submission form: only their own go to the browser (in Demo Mode, all of the demo).
-  const ownTokens = (tokens ?? []).filter((t) => isDemo() || t.submitter_id === viewer);
+  const ownTokens = (tokens ?? []).filter((t) => demo || t.submitter_id === viewer);
   return (
     <>
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />

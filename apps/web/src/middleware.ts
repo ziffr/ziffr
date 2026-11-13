@@ -1,10 +1,15 @@
 // Runs before every page and server action (ADR 0003, GLOSSARY: View Link, Demo Mode).
 // - View Links are seen by people outside the team: tell the root layout to leave out everything of the app around
 //   them. The marker is removed from every other request, so a browser cannot set it itself.
-// - Outside Demo Mode, keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
+// - The demo (ADR 0005): /demo starts a visit, /demo/leave ends it. During a visit no sign-in is needed; the pages
+//   then only reach the demo workspace and its made-up people (viewer.ts), so the cookie grants nothing else.
+// - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
 //   View Links and the personal submission form (used by Contacts, who have no login) stay open.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+
+// The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
+const DEMO_COOKIE = "ziffr-demo";
 
 const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//];
 
@@ -17,7 +22,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   let res = NextResponse.next({ request: { headers } });
-  if (process.env.ZIFFR_DEMO === "1") return res;
+  const demoOffered = process.env.ZIFFR_DEMO !== "0";
+  if (path === "/demo" || path === "/demo/leave") {
+    const visit = path === "/demo" && demoOffered;
+    const out = NextResponse.redirect(new URL(visit ? "/" : "/login", req.url));
+    if (visit) out.cookies.set(DEMO_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" });
+    else out.cookies.delete(DEMO_COOKIE);
+    return out;
+  }
+  if (demoOffered && req.cookies.get(DEMO_COOKIE)?.value === "1") return res;
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {

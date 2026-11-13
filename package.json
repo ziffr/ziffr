@@ -4,11 +4,11 @@
   "private": true,
   "license": "BUSL-1.1",
   "scripts": {
-    "prototype": "supabase start && pnpm --filter @ziffr/web demo",
+    "prototype": "supabase start && pnpm --filter @ziffr/web dev",
     "prototype:reset": "supabase db reset",
     "prototype:stop": "supabase stop",
     "dev": "pnpm --filter @ziffr/web dev",
-    "demo": "pnpm --filter @ziffr/web demo",
+    "demo": "pnpm --filter @ziffr/web dev",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",

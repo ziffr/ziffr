@@ -1,12 +1,22 @@
 import "server-only";
 // Sign-in (ADR 0003, GLOSSARY: Workspace, Demo Mode): the Supabase session in cookies, and the person it belongs to.
-// In Demo Mode there is no sign-in; the "view as" cookie decides who is looking (see viewer.ts).
+// In Demo Mode a visitor needs no account; the "view as" cookie decides which demo person they are (see viewer.ts).
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { db } from "./db";
 
-/** Whether Ziffr runs in Demo Mode (GLOSSARY: Demo Mode): made-up data, "view as", no sign-in. */
-export const isDemo = () => process.env.ZIFFR_DEMO === "1";
+/** Whether this Ziffr offers the demo (GLOSSARY: Demo Mode). On unless ZIFFR_DEMO=0, so a company installation can
+ * switch it off. */
+export const demoEnabled = () => process.env.ZIFFR_DEMO !== "0";
+
+/** Set by "Try the demo" (/demo), removed by "Leave the demo" (/demo/leave). */
+export const DEMO_COOKIE = "ziffr-demo";
+
+/** Whether this request is a visit to the demo (ADR 0005): the demo is offered and the visitor chose it. It only ever
+ * reaches the demo workspace and its made-up people, never a real workspace or account. */
+export async function isDemo(): Promise<boolean> {
+  return demoEnabled() && (await cookies()).get(DEMO_COOKIE)?.value === "1";
+}
 
 /** A Supabase client acting with the signed-in person's session, read from and written to cookies. */
 export async function authClient() {
@@ -28,6 +38,11 @@ export async function sessionUser() {
   return data.user ?? null;
 }
 
+/** The demo workspace (see the workspaces migration); its people are made up. */
+const DEMO_WORKSPACE = "d3e00000-0000-4000-8000-000000000001";
+/** The demo's made-up people (seeded with these ids), protected even while a reset is under way. */
+const DEMO_PEOPLE = ["sara", "ben", "anna"];
+
 const COLORS = ["#7C5A3A", "#3A6B7C", "#6B3A7C", "#3A7C52", "#7C3A45", "#5A5A7C"];
 
 /** Ways of signing in whose email Ziffr trusts to claim an existing person: the email link proves the address,
@@ -46,7 +61,9 @@ export async function personFor(user: SessionAccount): Promise<string> {
   const verified = user.email && user.email_confirmed_at ? user.email.toLowerCase() : null;
   const provider = String(user.app_metadata?.provider ?? "");
   if (verified && PROVES_EMAIL.has(provider)) {
-    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", verified).is("auth_user_id", null).select("id").maybeSingle();
+    // Never one of the demo's made-up people: they belong to the demo, which anyone may visit.
+    const { data: demoPeople } = await db.from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE);
+    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", verified).is("auth_user_id", null).not("id", "in", `(${[...DEMO_PEOPLE, ...(demoPeople ?? []).map((m) => m.user_id)].map((id) => `"${id}"`).join(",")})`).select("id").maybeSingle();
     if (same) return same.id;
   }
   const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? verified?.split("@")[0] ?? "New person").slice(0, 80);

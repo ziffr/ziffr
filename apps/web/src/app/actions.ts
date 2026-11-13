@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { VIEWER_COOKIE, viewerId } from "@/lib/viewer";
+import { DEMO_WORKSPACE_ID, VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { actingWorkspace, assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
@@ -19,26 +19,21 @@ import { recordVersion } from "@/lib/versions";
 // workspace, and ids and people sent by the browser must belong to it.
 
 export async function setViewer(id: string) {
-  // "View as" only exists in Demo Mode; everywhere else identity comes from signing in.
-  if (!isDemo()) throw new Error("Not available.");
+  // "View as" only exists in the demo, and only for its own made-up people; elsewhere identity comes from signing in.
+  if (!(await isDemo())) throw new Error("Not available.");
+  const { data: demoPerson } = await db.from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("user_id", String(id)).maybeSingle();
+  if (!demoPerson) forbidden();
   (await cookies()).set(VIEWER_COOKIE, id, { path: "/" });
   revalidatePath("/", "layout");
 }
 
 export async function resetDemo() {
-  // Resetting wipes all data and seeds the demo: only ever in Demo Mode.
-  if (!isDemo()) throw new Error("Not available.");
-  await db.rpc("prototype_reset");
-  await db.rpc("prototype_seed_breakdowns");
-  await db.rpc("prototype_seed_comparisons");
-  await db.rpc("prototype_seed_stories");
-  await db.rpc("prototype_reset_decks");
-  await db.rpc("prototype_seed_templates");
-  await db.rpc("prototype_seed_themes");
-  await db.rpc("prototype_seed_connectors");
-  await db.rpc("prototype_seed_groups");
-  await db.rpc("prototype_seed_workflows");
-  await db.rpc("prototype_seed_memberships");
+  // Resetting empties the demo workspace and seeds it again (ADR 0005); real workspaces are never touched.
+  if (!(await isDemo())) throw new Error("Not available.");
+  // One locked step in the database, at most once a minute: visitors share the demo and the database.
+  const { data: done, error } = await db.rpc("demo_reset");
+  if (error) throw new Error("The demo could not be reset. Try again in a minute.");
+  if (!done) throw new Error("The demo was reset a moment ago.");
   revalidatePath("/", "layout");
   redirect("/");
 }
@@ -97,9 +92,9 @@ export async function createMetric(form: FormData) {
 }
 
 export async function simulateMessage(input: { source: SourceId; sender: string; text: string; promptId?: number }): Promise<IntakeResult> {
-  // Sending as anyone on an outside channel is only for Demo Mode.
-  if (!isDemo()) forbidden();
-  const r = await intake(input);
+  // Playing someone on an outside channel is only for the demo, and only reaches the demo's people and Metrics.
+  if (!(await isDemo())) forbidden();
+  const r = await intake({ ...input, workspaceId: DEMO_WORKSPACE_ID });
   revalidatePath("/", "layout");
   return r;
 }

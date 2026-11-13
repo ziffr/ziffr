@@ -1,11 +1,2 @@
-select prototype_reset();
-select prototype_seed_breakdowns();
-select prototype_seed_comparisons();
-select prototype_seed_stories();
-select prototype_reset_decks();
-select prototype_seed_templates();
-select prototype_seed_themes();
-select prototype_seed_connectors();
-select prototype_seed_groups();
-select prototype_seed_workflows();
-select prototype_seed_memberships();
+-- The demo workspace with its made-up company (ADR 0005); the same function the demo's reset button runs.
+select demo_reset(interval '0 seconds');

@@ -14,6 +14,9 @@ export type IntakeInput = {
   sender: string;
   text: string;
   promptId?: number;
+  /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
+   * same handle or address may be known in several workspaces. */
+  workspaceId?: string;
 };
 
 export type IntakeResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string };
@@ -41,8 +44,11 @@ async function writeRows(observationId: number, rows: { label: string; value: nu
 }
 
 export async function intake(input: IntakeInput): Promise<IntakeResult> {
+  let workspaceId = input.workspaceId;
   const log = async (r: IntakeResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
-    await db.from("intake_log").insert({
+    // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
+    if (workspaceId) await db.from("intake_log").insert({
+      workspace_id: workspaceId,
       source: input.source,
       sender: input.sender,
       sender_id: r.senderId ?? null,
@@ -57,10 +63,18 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   };
 
   // 1. Who sent it? The Token is implied by the sender's identity on this Source.
+  // Everything is looked up inside one workspace only, so a message can never land in another one.
+  if (input.source === "web_form") {
+    const { data: t } = await db.from("tokens").select("workspace_id").eq("code", input.sender).maybeSingle();
+    if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
+    workspaceId = t.workspace_id;
+  }
+  if (!workspaceId) throw new Error("Intake needs the workspace the message is meant for.");
+  const { data: members } = await db.from("memberships").select("user_id").eq("workspace_id", workspaceId);
   const [{ data: profiles }, { data: tokens }, { data: metricRows }] = await Promise.all([
-    db.from("profiles").select("*"),
-    db.from("tokens").select("*"),
-    db.from("metrics").select("*"),
+    db.from("profiles").select("*").in("id", (members ?? []).map((m) => m.user_id)),
+    db.from("tokens").select("*").eq("workspace_id", workspaceId),
+    db.from("metrics").select("*").eq("workspace_id", workspaceId),
   ]);
   const metrics = (metricRows ?? []).map(normalizeMetric) as Metric[];
   const live = (tokens ?? []).filter((t) => tokenValid(t, tokens ?? []));
@@ -85,7 +99,7 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   let prompt: { id: number; metric_id: number; period_start: string } | null = null;
   let how = "";
   if (input.promptId) {
-    const { data } = await db.from("prompts").select("*").eq("id", input.promptId).single();
+    const { data } = await db.from("prompts").select("*").eq("id", input.promptId).eq("workspace_id", workspaceId).maybeSingle();
     prompt = data;
     token = candidates.find((t) => t.metric_id === prompt?.metric_id);
     if (!token) return log({ ok: false, senderId, metricId: prompt?.metric_id, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for ${metricById[prompt!.metric_id]?.name}.` });

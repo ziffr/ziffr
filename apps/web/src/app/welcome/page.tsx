@@ -4,7 +4,7 @@ import { myWorkspaces } from "@/lib/viewer";
 import { WelcomeForm } from "./form";
 
 export default async function WelcomePage() {
-  if (isDemo()) redirect("/");
+  if (await isDemo()) redirect("/");
   const user = await sessionUser();
   if (!user) redirect("/login");
   if ((await myWorkspaces(await personFor(user))).length) redirect("/");

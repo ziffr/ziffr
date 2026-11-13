@@ -11,6 +11,7 @@ import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 
 export default async function SourcesPage() {
   const ws = await currentWorkspaceId();
+  const demo = await isDemo();
   const [profiles, metrics, viewer, { data: prompts }, { data: log }, { data: tokens }] = await Promise.all([
     getProfiles(),
     getMetrics(),
@@ -22,7 +23,7 @@ export default async function SourcesPage() {
   const metricNames = Object.fromEntries(metrics.map((m) => [m.id, m.name]));
   const peopleById = Object.fromEntries(profiles.map((p) => [p.id, p]));
   // Token codes open submission forms: outside Demo Mode only the viewer's own reach the browser.
-  const forms = (tokens ?? []).filter((t) => isDemo() || t.submitter_id === viewer).filter((t) => metrics.find((m) => m.id === t.metric_id)?.sources.includes("web_form"));
+  const forms = (tokens ?? []).filter((t) => demo || t.submitter_id === viewer).filter((t) => metrics.find((m) => m.id === t.metric_id)?.sources.includes("web_form"));
   const by = (s: string) => ({
     prompts: ((prompts ?? []) as Prompt[]).filter((p) => p.source === s),
     log: ((log ?? []) as IntakeEntry[]).filter((l) => l.source === s),

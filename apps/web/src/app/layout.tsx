@@ -34,7 +34,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     );
   }
   // Signed out, or signed in without a workspace yet: the page (login, welcome, a form link) and only the name.
-  const demo = isDemo();
+  const demo = await isDemo();
   const user = demo ? null : await sessionUser();
   const person = user ? await personFor(user) : null;
   const workspaces = person ? await myWorkspaces(person) : [];
@@ -91,6 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <>
                   <ViewAs profiles={profiles} current={viewer} />
                   <ResetButton />
+                  <Link href="/demo/leave" prefetch={false} className="flex h-9 items-center rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</Link>
                 </>
               ) : (
                 <AccountMenu name={profiles.find((p) => p.id === viewer)?.name ?? ""} workspaces={workspaces} current={workspaceId} />

@@ -3,6 +3,7 @@ import "server-only";
 // only the metrics it shows, people's names without their contact details, and nothing to act on.
 import { db } from "./db";
 import { deckMetricIds, getCanvasData } from "./access";
+import { seeAsViewLinkOwner } from "./viewer";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import type { CanvasData, Widget } from "@ziffr/core/types";
 
@@ -24,6 +25,8 @@ const pick = <T extends Record<string, unknown>>(o: T, ids: Set<number>) => Obje
 export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[]): Promise<ViewPayload | null> {
   const { data: obj } = await db.from(type === "deck" ? "decks" : "dashboards").select("*").eq("id", id).maybeSingle();
   if (!obj) return null;
+  // Shown as its owner sees it, inside the owner's workspace, whoever opens the link.
+  seeAsViewLinkOwner(obj.owner_id, obj.workspace_id);
   let widgets: Widget[] | undefined;
   let metricIds: number[];
   if (type === "dashboard") {

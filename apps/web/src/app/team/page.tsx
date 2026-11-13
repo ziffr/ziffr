@@ -7,7 +7,9 @@ import { TeamScreen } from "./screen";
 
 export default async function TeamPage() {
   const viewer = await viewerId();
-  const [people, groups, { data: me }, { data: away }] = await Promise.all([getProfiles(), getGroups(), db.from("memberships").select("role").eq("workspace_id", await currentWorkspaceId()).eq("user_id", viewer).maybeSingle(), db.from("away").select("*")]);
+  const [people, groups, { data: me }] = await Promise.all([getProfiles(), getGroups(), db.from("memberships").select("role").eq("workspace_id", await currentWorkspaceId()).eq("user_id", viewer).maybeSingle()]);
+  // Away dates of this workspace's people only; nobody else's reach the browser.
+  const { data: away } = await db.from("away").select("*").in("user_id", people.map((p) => p.id));
   return (
     <>
       <PageHeader title="Team" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included." />

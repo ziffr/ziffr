@@ -2,7 +2,7 @@
 // Signing in and out (ADR 0003): an email link, or one of the providers that are set up.
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { authClient, sessionUser, personFor } from "@/lib/auth";
+import { authClient, DEMO_COOKIE, sessionUser, personFor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { STARTER_THEME } from "@ziffr/core/themes";
@@ -48,7 +48,9 @@ export async function createWorkspace(name: string) {
   await db.from("memberships").insert({ workspace_id: ws.id, user_id: person, role: "owner" });
   // Every workspace starts with the Theme Ziffr ships with, never a copy of another workspace's (logo, footer).
   await db.from("themes").insert({ ...STARTER_THEME, owner_id: person, is_default: true, workspace_id: ws.id });
-  (await cookies()).set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
+  const jar = await cookies();
+  jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
+  jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
   redirect("/");
 }
 
@@ -59,6 +61,8 @@ export async function switchWorkspace(id: string) {
   const person = await personFor(user);
   const { data } = await db.from("memberships").select("workspace_id").eq("user_id", person).eq("workspace_id", id).maybeSingle();
   if (!data) throw new Error("You are not in that workspace.");
-  (await cookies()).set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
+  const jar = await cookies();
+  jar.set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
+  jar.delete(DEMO_COOKIE);
   redirect("/");
 }
