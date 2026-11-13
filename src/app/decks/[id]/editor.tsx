@@ -10,6 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { renameDeck, saveDeck } from "@/app/deck-actions";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
+import { dropSpec } from "@/lib/drop-spec";
+import { useSlotFill } from "@/components/slot-dialog";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
@@ -91,22 +93,21 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
   }, [data]);
 
   /** Turn a Pool item into widget props. */
+  const slotFill = useSlotFill(data);
   const widgetProps = (s: DropSource) => {
-    if (s.type === "metric") {
-      const t = TEMPLATES[DECK_TEMPLATE];
-      return { template: t.id, metricIds: [s.id], settings: JSON.stringify(t.settings), title: "", w: 560, h: 320 };
-    }
-    if (s.type === "widget") {
-      const w = saved.find((x) => x.id === s.id);
-      if (!w) return null;
-      return { template: w.template, metricIds: w.metric_ids, settings: JSON.stringify(w.settings), title: w.title ?? "", w: Math.max(320, w.w * 80), h: Math.max(200, w.h * 44) };
-    }
-    const t = TEMPLATES[s.template];
-    return { template: s.template, metricIds: s.metricIds, settings: JSON.stringify(s.settings ?? t.settings), title: s.title ?? "", w: 560, h: 320 };
+    const d = dropSpec(s, data, saved, DECK_TEMPLATE);
+    if (!d) return null;
+    const size = d.grid ? { w: Math.min(SLIDE_W - 2 * MARGIN, Math.max(320, d.grid.w * 80)), h: Math.min(SLIDE_H - 2 * MARGIN, Math.max(200, d.grid.h * 44)) } : { w: 560, h: 320 };
+    return { template: d.template, metricIds: d.metricIds, settings: JSON.stringify(d.settings), title: d.title, ...size };
   };
 
   /** Place a widget at a page point, inside the slide under it (or the first slide). */
-  const place = (s: DropSource, page?: { x: number; y: number }) => {
+  /** Templates ask for their slots first; everything else lands at once. */
+  const place = async (s: DropSource, page?: { x: number; y: number }) => {
+    const c = await slotFill.complete(s);
+    if (c) placeNow(c, page);
+  };
+  const placeNow = (s: DropSource, page?: { x: number; y: number }) => {
     if (!editor) return;
     const props = widgetProps(s);
     if (!props) return;
@@ -207,6 +208,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
+          {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} />}
         </div>
         <div

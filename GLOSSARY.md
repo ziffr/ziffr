@@ -113,8 +113,16 @@ A panel that walks from a start value through signed steps to an end value, eith
 _Avoid_: Waterfall, walk, cascade
 
 **Widget Template**:
-A predefined view plus default settings that a new widget starts from. If none is chosen, the default template is used.
-_Avoid_: Preset, widget type
+A starting point for a new widget or story: a view, its settings and, when the team saved it, its words and annotations, with the metrics left open as Slots. Ziffr ships built-in templates; anyone can save a widget as a team template, which only its creator edits. If none is chosen, the default template is used.
+_Avoid_: Preset, widget type, blueprint
+
+**Slot**:
+A place in a Widget Template that is filled with a metric when the template is used. A slot takes exactly one metric, or one or more for small multiples.
+_Avoid_: Variable, parameter, input
+
+**Placeholder**:
+A word in a template's text that is filled in from the data when the template is used, such as the metric's name, the latest period or the change against last year.
+_Avoid_: Token, variable, merge field
 
 **Widget**:
 One metric drawn with a view and its settings, such as time window, target band or visible history. A saved widget can be reused; placing it on a dashboard places an independent copy.

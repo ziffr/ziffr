@@ -113,14 +113,16 @@ export type Dashboard = { id: number; name: string; owner_id: string };
 
 export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
 
-export type Callout = { period: string; text: string };
+/** A callout sits at one period, or (in templates) at whatever period a rule picks. */
+export type Callout = { period: string; text: string; rule?: AnchorRule };
 
 /** GLOSSARY: Panel, Measure, Bridge. */
 export type PanelType = "period-bars" | "line" | "bridge" | "ranked" | "share" | "pictogram";
 export type MeasureId = "value" | "pct-prev" | "pct-yoy" | "attainment";
 /** What an annotation is attached to (GLOSSARY: Annotation): a rule, a period or a breakdown row, never a position. */
+export type AnchorRule = "max" | "min" | "last" | "first" | "largest-step";
 export type Anchor =
-  | { type: "rule"; rule: "max" | "min" | "last" | "first" | "largest-step" }
+  | { type: "rule"; rule: AnchorRule }
   | { type: "period"; period: string }
   | { type: "row"; label: string };
 export type Annotation = { kind: "callout" | "ring" | "note"; anchor: Anchor; text?: string; arrow?: boolean };
@@ -130,6 +132,8 @@ export type Panel = {
   type: PanelType;
   /** Several metrics are drawn side by side as small multiples. */
   metricIds: number[];
+  /** In a team template: which Slot fills this panel's metrics (GLOSSARY: Slot). */
+  slot?: number;
   measure?: MeasureId;
   /** How many periods to show (period bars, line). */
   periods?: number;
@@ -202,6 +206,24 @@ export type CanvasData = {
   projections: Record<number, Point[]>;
   /** Breakdowns per metric id, then per period (GLOSSARY: Breakdown). */
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
+  /** The team's Widget Templates (GLOSSARY: Widget Template). */
+  templates: TeamTemplate[];
+};
+
+/** GLOSSARY: Slot. One metric, or one or more for small multiples. */
+export type Slot = { label: string; multiple: boolean; example?: string };
+/** A widget saved with its metrics left open: settings keep Panel.slot instead of metric ids. */
+export type TeamTemplate = {
+  id: number;
+  owner_id: string;
+  name: string;
+  description: string;
+  view: TemplateId;
+  slots: Slot[];
+  body: { metricSlots: number[]; settings: WidgetSettings; title?: string | null };
+  w: number;
+  h: number;
+  updated_at: string;
 };
 
 export type BreakdownRow = { label: string; value: number };

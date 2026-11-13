@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { periodLabel } from "@/lib/format";
 import { PanelEditor } from "@/components/panel-editor";
-import type { CanvasData, Callout, Metric, Widget, WidgetSettings } from "@/lib/types";
+import { PLACEHOLDERS } from "@/lib/placeholders";
+import { RULES_FOR } from "@/lib/team-templates";
+import type { AnchorRule, CanvasData, Callout, Metric, Widget, WidgetSettings } from "@/lib/types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -36,7 +38,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
           <Input value={s.kicker ?? ""} onChange={(e) => set("kicker", e.target.value)} />
         </Labelled>
       )}
-      <Labelled label="Headline" hint="State the finding. Leave empty to use the suggestion.">
+      <Labelled label="Headline" hint="State the finding. Leave empty to use the suggestion. Words in braces fill themselves in, see below.">
         <Textarea rows={2} value={s.headline ?? ""} placeholder={d.headline} onChange={(e) => set("headline", e.target.value)} />
       </Labelled>
       <Labelled label="Subline">
@@ -72,12 +74,20 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
             {callouts.map((c, i) => (
               <li key={i} className="flex gap-1.5">
                 <select
-                  aria-label="Period"
-                  value={c.period}
-                  onChange={(e) => set("callouts", callouts.map((x, j) => (j === i ? { ...x, period: e.target.value } : x)))}
-                  className="h-9 w-24 shrink-0 rounded-[var(--radius-input)] border border-input bg-card px-1.5 text-xs"
+                  aria-label="Where"
+                  value={c.rule ? `rule:${c.rule}` : c.period}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    set("callouts", callouts.map((x, j) => (j !== i ? x : v.startsWith("rule:") ? { ...x, period: "", rule: v.slice(5) as AnchorRule } : { text: x.text, period: v })));
+                  }}
+                  className="h-9 w-28 shrink-0 rounded-[var(--radius-input)] border border-input bg-card px-1.5 text-xs"
                 >
-                  {[...series].reverse().slice(0, s.window ?? 12).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, m.period, true)}</option>)}
+                  <optgroup label="Follows the data">
+                    {RULES_FOR.period.map((r) => <option key={r.rule} value={`rule:${r.rule}`}>{r.label}</option>)}
+                  </optgroup>
+                  <optgroup label="One period">
+                    {[...series].reverse().slice(0, s.window ?? 12).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, m.period, true)}</option>)}
+                  </optgroup>
                 </select>
                 <Input aria-label="Callout text" value={c.text} onChange={(e) => set("callouts", callouts.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
                 <button type="button" aria-label="Remove callout" onClick={() => set("callouts", callouts.filter((_, j) => j !== i))} className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
@@ -102,6 +112,13 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
       <Labelled label="Source line">
         <Input value={s.source ?? ""} placeholder={d.source} onChange={(e) => set("source", e.target.value)} />
       </Labelled>
+      <details className="rounded-[var(--radius-input)] border border-border p-2 text-xs text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">Words that fill themselves in</summary>
+        <ul className="mt-1.5 space-y-0.5">
+          {PLACEHOLDERS.map((p) => <li key={p.key}><code className="fig text-foreground">{`{${p.key}}`}</code> {p.hint}</li>)}
+        </ul>
+        <p className="mt-1.5">Add a number for another metric of the story, such as {"{metric 2}"}.</p>
+      </details>
       <Button type="submit" className="w-full">{saveLabel}</Button>
     </form>
   );

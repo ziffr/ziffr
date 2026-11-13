@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "./data";
-import type { CanvasData, Dashboard, Metric, Share, ShareRole } from "./types";
+import type { CanvasData, Dashboard, Metric, Share, ShareRole, TeamTemplate } from "./types";
 
 // GLOSSARY: Share / Viewer / Editor.
 // A user sees a metric if they own it, submit to it, it was shared with them,
@@ -51,7 +51,10 @@ export async function visibleMetricIds(viewer: string, metrics: Metric[]): Promi
 
 /** Visible metrics + their series + people: everything a canvas draws from. */
 export async function getCanvasData(viewer: string): Promise<CanvasData> {
-  const [{ metrics, series, observations }, people, actions, { data: tokens }] = await Promise.all([getAllSeries(), getProfiles(), getActions(), db.from("tokens").select("metric_id, submitter_id")]);
+  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }] = await Promise.all([
+    getAllSeries(), getProfiles(), getActions(), db.from("tokens").select("metric_id, submitter_id"),
+    db.from("team_templates").select("id, owner_id, name, description, view, slots, body, w, h, updated_at").order("name"),
+  ]);
   const ids = await visibleMetricIds(viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
   const [breakdowns, { targets, projections }] = await Promise.all([getBreakdowns([...ids], observations), getSeriesValues([...ids])]);
@@ -66,6 +69,7 @@ export async function getCanvasData(viewer: string): Promise<CanvasData> {
     breakdowns,
     targets,
     projections,
+    templates: (templates ?? []) as TeamTemplate[],
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }

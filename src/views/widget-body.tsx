@@ -11,6 +11,7 @@ import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
 import { ScatterView } from "./scatter";
 import { StoryBody } from "./story";
+import { fillSettings } from "@/lib/placeholders";
 import dynamic from "next/dynamic";
 
 // tldraw is browser-only; free layouts load it on demand.
@@ -48,7 +49,7 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
     case "pictogram":
     case "story-line":
     case "story":
-      return <StoryBody widget={widget} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
+      return <StoryBody widget={{ ...widget, settings: fillSettings(widget, data) }} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
     case "number": {
       const tone = health(m, last?.value);
       return (

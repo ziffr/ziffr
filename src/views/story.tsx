@@ -200,7 +200,11 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
 function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric }) {
   const box = useRef<HTMLDivElement>(null);
   const pts = (data.series[m.slug] ?? []).slice(-(widget.settings.window ?? 12)).map((p) => ({ date: new Date(p.period), value: p.value, period: p.period }));
-  const callouts = (widget.settings.callouts ?? []).map((c) => ({ ...c, point: pts.find((p) => p.period === c.period) })).filter((c) => c.point);
+  // A callout from a template follows a rule (highest, latest, …) instead of a fixed period.
+  const items = pts.map((p, i) => ({ ...p, label: p.period, delta: i ? p.value - pts[i - 1].value : undefined }));
+  const callouts = (widget.settings.callouts ?? [])
+    .map((c) => ({ ...c, point: c.rule ? resolveAnchor(items, { type: "rule", rule: c.rule }) : pts.find((p) => p.period === c.period) }))
+    .filter((c) => c.point);
   useEffect(() => {
     const el = box.current;
     if (!el || pts.length < 2) return;
@@ -234,7 +238,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
     const ro = new ResizeObserver(draw);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.period, c.text])), m.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.point?.period, c.text])), m.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} className="h-full w-full" role="img" aria-label={`${m.name} over time${callouts.length ? `, ${callouts.map((c) => c.text).join("; ")}` : ""}`} />;
 }
 

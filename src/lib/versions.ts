@@ -2,7 +2,7 @@ import "server-only";
 // Versions (GLOSSARY: Version): what people build keeps its history, git-like but inside Ziffr.
 import { db } from "./db";
 
-export type VersionType = "widget" | "dashboard" | "deck" | "master" | "metric";
+export type VersionType = "widget" | "dashboard" | "deck" | "master" | "metric" | "template";
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -20,6 +20,10 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
   }
   if (type === "deck") {
     const { data } = await db.from("decks").select("name, master_id, document").eq("id", id).single();
+    return data;
+  }
+  if (type === "template") {
+    const { data } = await db.from("team_templates").select("name, description, view, slots, body, w, h").eq("id", id).single();
     return data;
   }
   if (type === "master") {
@@ -70,7 +74,8 @@ export function diffSummary(type: VersionType, a: Record<string, unknown> | null
       const sa = (a.settings ?? {}) as Record<string, unknown>, sb = (b.settings ?? {}) as Record<string, unknown>;
       const keys = [...new Set([...Object.keys(sa), ...Object.keys(sb)])].filter((x) => JSON.stringify(sa[x]) !== JSON.stringify(sb[x]));
       out.push(`settings: ${keys.join(", ") || "changed"}`);
-    } else if (k === "document") out.push("slides edited");
+    } else if (k === "body") out.push("content replaced");
+    else if (k === "document") out.push("slides edited");
     else if (k === "logo" || k === "background_image") out.push(`${k.replace("_", " ")} ${b[k] ? "changed" : "removed"}`);
     else out.push(k.replace(/_/g, " "));
   }

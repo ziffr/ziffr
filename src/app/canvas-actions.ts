@@ -4,44 +4,32 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import { visibleDashboards, visibleMetricIds } from "@/lib/access";
-import { getMetrics } from "@/lib/data";
+import { assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
+import { fillsComplete, fromTemplate } from "@/lib/team-templates";
 import { ensureBaseline, recordVersion } from "@/lib/versions";
-import type { ActionKind, ShareRole, TemplateId, Widget, WidgetSettings } from "@/lib/types";
+import type { ActionKind, ShareRole, TeamTemplate, TemplateId, Widget, WidgetSettings } from "@/lib/types";
 
 // PROTOTYPE: identity is the "View as" cookie, so these checks enforce the sharing model
 // (Owner / Editor / Viewer) rather than real security. Real auth replaces viewerId() later.
 
 const done = () => revalidatePath("/", "layout");
 
-const forbidden = () => {
-  throw new Error("Forbidden");
-};
+export type DropSource =
+  | { type: "metric"; id: number }
+  | { type: "widget"; id: number }
+  | { type: "spec"; template: TemplateId; metricIds: number[]; settings?: WidgetSettings; title?: string }
+  /** A team template; fills holds the metrics per slot, asked for when it is dropped. */
+  | { type: "template"; id: number; fills?: number[][] };
 
-async function dashboardRole(dashboardId: number, viewer: string) {
-  return (await visibleDashboards(viewer)).find((d) => d.id === dashboardId)?.role ?? null;
+/** A team template made into a widget: every slot filled, every metric one the viewer can see. */
+async function fromTeamTemplate(id: number, fills: number[][] | undefined, viewer: string) {
+  const { data } = await db.from("team_templates").select("*").eq("id", id).single();
+  const t = data as TeamTemplate | null;
+  if (!t || !fills || !fillsComplete(t.slots, fills)) forbidden();
+  const w = fromTemplate(t!, fills!);
+  await assertCanSeeMetrics(widgetMetricIds(w.metric_ids, w.settings), viewer);
+  return { ...w, w: t!.w, h: t!.h };
 }
-
-async function assertCanEditDashboard(dashboardId: number, viewer: string) {
-  const role = await dashboardRole(dashboardId, viewer);
-  if (role !== "owner" && role !== "editor") forbidden();
-}
-
-async function assertCanSeeMetrics(ids: number[], viewer: string) {
-  const visible = await visibleMetricIds(viewer, await getMetrics());
-  if (!ids.every((id) => visible.has(id))) forbidden();
-}
-
-/** A widget may be edited by its dashboard's owner/editors, or (saved widgets) by its owner. */
-async function assertCanEditWidget(id: number, viewer: string) {
-  const { data: w } = await db.from("widgets").select("*").eq("id", id).single();
-  if (!w) forbidden();
-  if (w.dashboard_id === null) {
-    if (w.owner_id !== viewer) forbidden();
-  } else await assertCanEditDashboard(w.dashboard_id, viewer);
-}
-
-export type DropSource = { type: "metric"; id: number } | { type: "widget"; id: number } | { type: "spec"; template: TemplateId; metricIds: number[]; settings?: WidgetSettings; title?: string };
 
 async function specFrom(source: DropSource, viewer: string) {
   if (source.type === "metric") {
@@ -56,7 +44,9 @@ async function specFrom(source: DropSource, viewer: string) {
     if (w.dashboard_id === null ? w.owner_id !== viewer : !(await dashboardRole(w.dashboard_id, viewer))) forbidden();
     return { template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, w: w.w, h: w.h };
   }
-  await assertCanSeeMetrics(source.metricIds, viewer);
+  if (source.type === "template") return fromTeamTemplate(source.id, source.fills, viewer);
+  if (!(source.template in TEMPLATES)) forbidden();
+  await assertCanSeeMetrics(widgetMetricIds(source.metricIds, source.settings), viewer);
   const t = TEMPLATES[source.template];
   return { template: source.template, metric_ids: source.metricIds, settings: source.settings ?? t.settings, title: source.title ?? null, w: t.size.w, h: t.size.h };
 }
@@ -91,7 +81,10 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   const viewer = await viewerId();
   await assertCanEditWidget(id, viewer);
   if (patch.template && !(patch.template in TEMPLATES)) forbidden();
-  if (patch.metricIds) await assertCanSeeMetrics(patch.metricIds, viewer);
+  if (patch.metricIds || patch.settings?.panels) {
+    const { data: cur } = await db.from("widgets").select("metric_ids").eq("id", id).single();
+    await assertCanSeeMetrics(widgetMetricIds(patch.metricIds ?? cur?.metric_ids ?? [], patch.settings), viewer);
+  }
   await ensureBaseline("widget", id, viewer);
   const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
   if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
@@ -116,6 +109,21 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   await recordVersion("widget", id, viewer);
   const { data: w } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
   if (w?.dashboard_id) await recordVersion("dashboard", w.dashboard_id, viewer);
+  done();
+}
+
+/** Change visualization to a team template: the widget becomes the template, filled with these metrics. */
+export async function applyTemplate(id: number, templateId: number, fills: number[][]) {
+  const viewer = await viewerId();
+  await assertCanEditWidget(id, viewer);
+  const w = await fromTeamTemplate(templateId, fills, viewer);
+  await ensureBaseline("widget", id, viewer);
+  const { data: w0 } = await db.from("widgets").select("dashboard_id").eq("id", id).single();
+  if (w0?.dashboard_id) await ensureBaseline("dashboard", w0.dashboard_id, viewer);
+  const { error } = await db.from("widgets").update({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) }).eq("id", id);
+  if (error) throw new Error(`Template not applied: ${error.message}`);
+  await recordVersion("widget", id, viewer, { message: "Made from a template" });
+  if (w0?.dashboard_id) await recordVersion("dashboard", w0.dashboard_id, viewer);
   done();
 }
 

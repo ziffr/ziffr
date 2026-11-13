@@ -17,6 +17,7 @@ import type { CanvasData, Share, Widget } from "@/lib/types";
 import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useSlotFill } from "@/components/slot-dialog";
 
 type Props = {
   data: CanvasData;
@@ -27,13 +28,17 @@ type Props = {
   shares: Share[];
 };
 
-const sizeOf = (s: DropSource | null, saved: Widget[]) => {
+const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
   if (!s) return TEMPLATES[DEFAULT_TEMPLATE].size;
   if (s.type === "widget") {
     const w = saved.find((x) => x.id === s.id);
     return w ? { w: w.w, h: w.h } : TEMPLATES[DEFAULT_TEMPLATE].size;
   }
   if (s.type === "spec") return TEMPLATES[s.template].size;
+  if (s.type === "template") {
+    const t = templates.find((x) => x.id === s.id);
+    return t ? { w: t.w, h: t.h } : TEMPLATES[DEFAULT_TEMPLATE].size;
+  }
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
@@ -63,7 +68,14 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
     setLayout(items);
     if (current && editable) start(() => saveLayout(current.id, items));
   };
-  const add = (s: DropSource) => current && start(() => placeWidget(current.id, s));
+  const slotFill = useSlotFill(data);
+  /** Templates ask for their slots first, then land like any other drop. */
+  const place = async (s: DropSource, pos?: { x: number; y: number }) => {
+    if (!current) return;
+    const c = await slotFill.complete(s);
+    if (c) start(() => placeWidget(current.id, c, pos));
+  };
+  const add = (s: DropSource) => place(s);
 
   const newDashboard = () => {
     const name = window.prompt("Name of the new dashboard:", "My dashboard");
@@ -72,6 +84,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
 
   return (
     <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      {slotFill.dialog}
       <div className="order-2 lg:order-1">
         <Pool data={data} saved={saved} onAdd={editable ? add : undefined} hint={editable ? "Drag onto the dashboard, or click +." : "This dashboard is view-only for you."} />
       </div>
@@ -124,7 +137,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                   dropConfig={{
                     enabled: editable && !narrow,
                     defaultItem: TEMPLATES[DEFAULT_TEMPLATE].size,
-                    onDragOver: () => sizeOf(getDrag(), saved),
+                    onDragOver: () => sizeOf(getDrag(), saved, data.templates),
                   }}
                   onDragStop={(l) => persist(l)}
                   onResizeStop={(l) => persist(l)}
@@ -134,7 +147,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                       s = JSON.parse((e as DragEvent).dataTransfer?.getData("text/plain") ?? "") as DropSource;
                     } catch {}
                     setDrag(null);
-                    if (s && item && current) start(() => placeWidget(current.id, s!, { x: item.x, y: item.y }));
+                    if (s && item && current) place(s, { x: item.x, y: item.y });
                   }}
                 >
                   {widgets.map((w) => (

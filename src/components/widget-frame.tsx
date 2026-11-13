@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
-import { Check, GitBranch, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Check, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -22,11 +22,13 @@ import { CompareTable } from "@/components/compare-table";
 import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@/lib/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@/lib/compare";
-import { assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
+import { applyTemplate, assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
 import { formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
+import { SaveTemplateDialog } from "@/components/save-template-dialog";
+import { useSlotFill } from "@/components/slot-dialog";
 
 export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };
 
@@ -51,6 +53,8 @@ const LayoutEditor = dynamic(() => import("@/canvas/layout-editor"), { ssr: fals
 
 export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const slotFill = useSlotFill(data);
   const router = useRouter();
   const frame = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(null);
@@ -80,6 +84,18 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
     // Let the menu close first, so its outside-press doesn't dismiss the popover.
     setTimeout(() => setPanel(p), 0);
   };
+  const applyTeamTemplate = async (t: CanvasData["templates"][number]) => {
+    if (!widget.id) return;
+    const fills = await slotFill.ask(t, ms.map((x) => x.id));
+    if (!fills) return;
+    start(async () => {
+      try {
+        await applyTemplate(widget.id!, t.id, fills);
+      } catch (err) {
+        toast.error("Template not applied", { description: (err as Error).message });
+      }
+    });
+  };
   const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
   const setCompare = (keys: CompareKey[]) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, compare: keys } }));
   const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
@@ -101,6 +117,16 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
                 <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
               </K.Item>
             ))}
+            {widget.id && data.templates.length > 0 && (
+              <>
+                <K.Separator />
+                {data.templates.map((t) => (
+                  <K.Item key={`t${t.id}`} onClick={() => setTimeout(() => applyTeamTemplate(t), 0)} title={t.description}>
+                    <LayoutTemplate aria-hidden /> {t.name}…
+                  </K.Item>
+                ))}
+              </>
+            )}
             {(widget.template === "line" || widget.template === "bars") && (
               <>
                 <K.Separator />
@@ -142,6 +168,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
       >
         <BookmarkPlus /> Save as Widget
       </K.Item>
+      {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
       {targets.length > 0 && (
         <K.Sub>
           <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
@@ -191,6 +218,8 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
       </ContextMenu>
 
+      {slotFill.dialog}
+      {saveTemplateOpen && widget.id && <SaveTemplateDialog widget={widget as Widget} data={data} onClose={() => setSaveTemplateOpen(false)} />}
       {layoutOpen && widget.id && (
         <Dialog
           open

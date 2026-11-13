@@ -8,7 +8,9 @@ import { Pool } from "@/components/pool";
 import { Button } from "@/components/ui/button";
 import { DeckData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { getDrag, setDrag } from "@/lib/drag";
-import { TEMPLATES } from "@/views/templates";
+import { dropSpec } from "@/lib/drop-spec";
+import { useSlotFill } from "@/components/slot-dialog";
+import type { DropSource } from "@/app/canvas-actions";
 import type { CanvasData, Widget, WidgetSettings } from "@/lib/types";
 import { ARTBOARD_UNIT, artboard, stampOf } from "./artboard";
 
@@ -20,13 +22,12 @@ export default function LayoutEditor({ widget, data, saved, onSave, onCancel }: 
   const W = widget.w * ARTBOARD_UNIT.w;
   const H = widget.h * ARTBOARD_UNIT.h;
 
-  const place = (s: ReturnType<typeof getDrag>, page?: { x: number; y: number }) => {
+  const slotFill = useSlotFill(data);
+  const place = async (s0: DropSource | null, page?: { x: number; y: number }) => {
+    const s = s0 && (await slotFill.complete(s0));
     if (!editor || !s) return;
     const frame = artboard(editor);
-    const spec =
-      s.type === "metric" ? { template: "line", metricIds: [s.id], settings: TEMPLATES.line.settings, title: "" }
-      : s.type === "widget" ? (() => { const w = saved.find((x) => x.id === s.id); return w ? { template: w.template, metricIds: w.metric_ids, settings: w.settings, title: w.title ?? "" } : null; })()
-      : { template: s.template, metricIds: s.metricIds, settings: s.settings ?? {}, title: s.title ?? "" };
+    const spec = dropSpec(s, data, saved, "line");
     if (!spec) return;
     const w = Math.min(W * 0.6, 520), h = Math.min(H * 0.6, 320);
     const fb = frame ? editor.getShapePageBounds(frame)! : { x: 0, y: 0 };
@@ -38,6 +39,7 @@ export default function LayoutEditor({ widget, data, saved, onSave, onCancel }: 
     <DeckData.Provider value={data}>
       <div className="grid h-full gap-4 lg:grid-cols-[14rem_minmax(0,1fr)]">
         <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag widgets onto the artboard; use the toolbar for text, arrows and shapes." />
+        {slotFill.dialog}
         <div className="flex min-h-0 flex-col gap-3">
           <div
             className="min-h-0 flex-1 overflow-hidden rounded-[var(--radius-card)] border border-border"

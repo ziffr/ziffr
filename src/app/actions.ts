@@ -23,6 +23,7 @@ export async function resetDemo() {
   await db.rpc("prototype_seed_comparisons");
   await db.rpc("prototype_seed_stories");
   await db.rpc("prototype_reset_decks");
+  await db.rpc("prototype_seed_templates");
   revalidatePath("/", "layout");
   redirect("/");
 }

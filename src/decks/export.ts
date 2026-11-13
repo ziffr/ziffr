@@ -11,6 +11,7 @@ import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
+import { fillSettings } from "@/lib/placeholders";
 
 // Hex values for PowerPoint, which cannot read CSS variables. They mirror the Coral tokens.
 const INK = "2B2420";
@@ -222,7 +223,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     // Story: ranked bars as a native bar chart, its words as editable text.
     const d = storyDefaults(widget, data, m);
     const b = storyBreakdown(widget, data, m);
-    const s = widget.settings;
+    const s = fillSettings(widget, data);
     const rows = b.rows.slice(0, 12).reverse(); // PowerPoint draws bar charts bottom-up
     slide.addText(
       [

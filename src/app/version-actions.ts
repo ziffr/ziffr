@@ -19,6 +19,10 @@ async function access(type: VersionType, id: number, viewer: string): Promise<{ 
     const own = data?.owner_id === viewer;
     return { view: own, edit: own };
   }
+  if (type === "template") {
+    const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();
+    return { view: Boolean(data), edit: data?.owner_id === viewer };
+  }
   if (type === "master") {
     const { data } = await db.from("masters").select("owner_id").eq("id", id).single();
     return { view: Boolean(data), edit: data?.owner_id === viewer };
@@ -77,7 +81,11 @@ export async function restoreVersion(versionId: number) {
     const hidden = ids.filter((m) => !visible.has(m));
     if (hidden.length) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the dashboard owner.");
   }
+  if (v.object_type === "template" && !((s.view as string) in TEMPLATES)) forbidden();
   switch (v.object_type as VersionType) {
+    case "template":
+      await db.from("team_templates").update({ ...s, updated_at: new Date().toISOString() }).eq("id", id);
+      break;
     case "widget":
       await db.from("widgets").update({ template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title }).eq("id", id);
       break;

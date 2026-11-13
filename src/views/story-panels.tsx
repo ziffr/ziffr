@@ -65,7 +65,7 @@ function annotationMarks(anns: Annotation[] | undefined, items: { label: string;
     const t = resolveAnchor(items, a.anchor);
     if (!t) continue; // the data moved on: the annotation hides rather than point at the wrong thing
     const lift = span * 0.2;
-    if (a.kind === "ring") marks.push(Plot.dot([t], { x: "label", y: "top", r: 16, stroke: "var(--color-accent-2)", strokeWidth: 2, fill: "none" }));
+    if (a.kind === "ring") marks.push(Plot.dot([t], { x: "label", y: "top", dy: -9, r: 25, stroke: "var(--color-accent-2)", strokeWidth: 2, fill: "none" }));
     if (a.kind === "callout" && a.text) {
       marks.push(Plot.text([t], { x: "label", y: (d: typeof t) => d.top + lift, text: () => a.text!, fill: "var(--color-accent-2)", fontWeight: 600, fontSize: 12, lineWidth: 12, dy: -6 }));
       if (a.arrow !== false) marks.push(Plot.arrow([t], { x1: "label", x2: "label", y1: (d: typeof t) => d.top + lift, y2: "top", stroke: "var(--color-accent-2)", insetStart: 4, insetEnd: 18, headLength: 6 }));
@@ -77,7 +77,7 @@ function annotationMarks(anns: Annotation[] | undefined, items: { label: string;
 
 const isPct = (panel: Panel) => (panel.measure ?? "value") !== "value";
 const fmt = (m: Metric, panel: Panel, v: number, signed = false) =>
-  isPct(panel) ? `${signed && v > 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")} %` : `${signed && v > 0 ? "+" : ""}${compactValue(m, v)}`;
+  isPct(panel) ? `${signed && v > 0 ? "+" : ""}${v.toFixed(1)} %` : `${signed && v > 0 ? "+" : ""}${compactValue(m, v)}`;
 
 function usePlot(draw: (width: number, height: number) => Element | null, deps: unknown[]) {
   const box = useRef<HTMLDivElement>(null);

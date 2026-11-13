@@ -1,13 +1,14 @@
 "use client";
 import { useState, useTransition } from "react";
-import { BookmarkCheck, GripVertical, Plus, Search, Sigma, X } from "lucide-react";
+import { BookmarkCheck, GripVertical, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
+import { TemplateMenu } from "./template-menu";
 import { setDrag } from "@/lib/drag";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { TEMPLATES } from "@/views/templates";
 import type { CanvasData, Widget } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** GLOSSARY: Pool. Metrics the viewer can see + their saved Widgets, draggable onto any canvas. */
+/** GLOSSARY: Pool. Metrics the viewer can see, their saved Widgets and the team's templates, draggable onto any canvas. */
 export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasData; saved: Widget[]; onAdd?: (s: DropSource) => void; hint: string; metricsOnly?: boolean }) {
   const [q, setQ] = useState("");
   const [, start] = useTransition();
@@ -15,6 +16,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase());
   const metrics = data.metrics.filter((m) => match(m.name));
   const widgets = saved.filter((w) => match(w.title ?? ""));
+  const templates = data.templates.filter((t) => match(t.name));
 
   const drag = (s: DropSource) => ({
     draggable: true,
@@ -62,6 +64,21 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
               </Item>
             ))}
             {widgets.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Right-click any widget → “Save as Widget”.</p>}
+          </Section>
+        )}
+        {!metricsOnly && (
+          <Section title="Templates">
+            {templates.map((t) => (
+              <Item key={`t${t.id}`} {...drag({ type: "template", id: t.id })} onAdd={onAdd && (() => onAdd({ type: "template", id: t.id }))} title={t.description || undefined}>
+                <LayoutTemplate aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{t.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{t.slots.length} slot{t.slots.length === 1 ? "" : "s"}, by {t.owner_id === data.viewer ? "you" : people[t.owner_id]?.name.split(" ")[0]}</span>
+                </span>
+                <TemplateMenu t={t} mine={t.owner_id === data.viewer} people={data.people} />
+              </Item>
+            ))}
+            {templates.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Right-click any widget, then “Save as template…”.</p>}
           </Section>
         )}
       </div>
