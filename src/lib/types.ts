@@ -109,7 +109,7 @@ export type ThreadMessage = {
   created_at: string;
 };
 
-export type Dashboard = { id: number; name: string; owner_id: string };
+export type Dashboard = { id: number; name: string; owner_id: string; theme_id: number | null };
 
 export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
 
@@ -208,6 +208,10 @@ export type CanvasData = {
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   /** The team's Widget Templates (GLOSSARY: Widget Template). */
   templates: TeamTemplate[];
+  /** The team's Themes; one is the default (GLOSSARY: Theme). */
+  themes: Theme[];
+  /** May change themes (the workspace owner). */
+  canEditThemes: boolean;
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */
@@ -251,3 +255,30 @@ export type Master = {
   body_size: number;
   is_default: boolean;
 };
+
+/** GLOSSARY: Theme. Colours are hex so the PowerPoint export can use them as they are. */
+export type FontId = "general-sans" | "inter" | "ibm-plex-sans" | "libre-franklin" | "source-serif" | "playfair" | "georgia" | "arial" | "geist-mono" | "ibm-plex-mono";
+export type ThemeTokens = {
+  /** Behind the cards: the dashboard desk. */
+  canvas: string;
+  /** Cards and slides. */
+  surface: string;
+  ink: string;
+  muted: string;
+  rule: string;
+  /** What stands out: the highlighted bar, kickers, callouts. */
+  accent: string;
+  /** Data colours, the first for single series. */
+  data: string[];
+  good: string;
+  bad: string;
+  /** The target band. */
+  band: string;
+  fontHeading: FontId;
+  fontBody: FontId;
+  fontFigures: FontId;
+  radius: number;
+  /** paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all. */
+  cards: "paper" | "flat" | "plain";
+};
+export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; is_default: boolean; updated_at: string };

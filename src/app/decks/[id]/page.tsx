@@ -17,7 +17,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   ]);
   return (
     <DeckEditorLoader
-      deck={{ id: deck.id, name: deck.name, document: deck.document, master_id: deck.master_id }}
+      deck={{ id: deck.id, name: deck.name, document: deck.document, master_id: deck.master_id, theme_id: deck.theme_id }}
       data={data}
       saved={(saved ?? []) as Widget[]}
       masters={(masters ?? []) as Master[]}

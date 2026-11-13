@@ -159,8 +159,12 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Master**:
-A deck's shared design (background, logo, footer, slide number and type sizes) drawn behind every slide. Masters belong to the team; a slide may hide it.
+A deck's shared slide layout (background image, logo, footer, slide number and type sizes) drawn behind every slide. Its colours and fonts come from the Theme. Masters belong to the team; a slide may hide it.
 _Avoid_: Template, theme, layout, brand kit
+
+**Theme**:
+A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, and how cards are drawn. The team has one default theme; a dashboard or deck may use another. Ziffr's own screens keep their look. Only the workspace owner changes themes.
+_Avoid_: Skin, style, brand kit, palette
 
 **Snapshot**:
 The values a widget shows at the moment a deck is exported, stamped with that date. An exported deck never changes when observations do.

@@ -7,6 +7,8 @@ import { getMetrics } from "@/lib/data";
 import { visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { diffSummary, recordVersion, type VersionType } from "@/lib/versions";
 import { TEMPLATES } from "@/views/templates";
+import { cleanTokens } from "@/lib/theme-tokens";
+import type { ThemeTokens } from "@/lib/types";
 
 const forbidden = () => {
   throw new Error("Forbidden");
@@ -18,6 +20,10 @@ async function access(type: VersionType, id: number, viewer: string): Promise<{ 
     const { data } = await db.from("decks").select("owner_id").eq("id", id).single();
     const own = data?.owner_id === viewer;
     return { view: own, edit: own };
+  }
+  if (type === "theme") {
+    const [{ data }, { data: me }] = await Promise.all([db.from("themes").select("id").eq("id", id).single(), db.from("profiles").select("is_owner").eq("id", viewer).single()]);
+    return { view: Boolean(data), edit: Boolean(data && me?.is_owner) };
   }
   if (type === "template") {
     const { data } = await db.from("team_templates").select("owner_id").eq("id", id).single();
@@ -82,7 +88,18 @@ export async function restoreVersion(versionId: number) {
     if (hidden.length) throw new Error("This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the dashboard owner.");
   }
   if (v.object_type === "template" && !((s.view as string) in TEMPLATES || s.view === "slide")) forbidden();
+  // A theme picked back then may be gone since; the dashboard or deck then follows the default.
+  if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {
+    const { data: t } = await db.from("themes").select("id").eq("id", s.theme_id as number).maybeSingle();
+    if (!t) s.theme_id = null;
+  }
   switch (v.object_type as VersionType) {
+    case "theme": {
+      const tokens = cleanTokens(s.tokens as ThemeTokens);
+      if (!tokens) forbidden();
+      await db.from("themes").update({ name: s.name, tokens, updated_at: new Date().toISOString() }).eq("id", id);
+      break;
+    }
     case "template":
       await db.from("team_templates").update({ ...s, updated_at: new Date().toISOString() }).eq("id", id);
       break;
@@ -91,14 +108,14 @@ export async function restoreVersion(versionId: number) {
       break;
     case "dashboard": {
       const { data: d } = await db.from("dashboards").select("owner_id").eq("id", id).single();
-      await db.from("dashboards").update({ name: s.name }).eq("id", id);
+      await db.from("dashboards").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}) }).eq("id", id);
       await db.from("widgets").delete().eq("dashboard_id", id);
       const ws = (s.widgets as Record<string, unknown>[]) ?? [];
       if (ws.length) await db.from("widgets").insert(ws.map((w) => ({ ...w, owner_id: d?.owner_id ?? viewer, dashboard_id: id, saved: false })));
       break;
     }
     case "deck":
-      await db.from("decks").update({ name: s.name, master_id: s.master_id, document: s.document, updated_at: new Date().toISOString() }).eq("id", id);
+      await db.from("decks").update({ name: s.name, master_id: s.master_id, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), document: s.document, updated_at: new Date().toISOString() }).eq("id", id);
       break;
     case "master":
       await db.from("masters").update({ ...s, updated_at: new Date().toISOString() }).eq("id", id);

@@ -34,6 +34,12 @@ export async function assertCanEditWidget(id: number, viewer: string) {
 }
 
 
+/** Themes are the workspace owner's to change. */
+export async function assertWorkspaceOwner(viewer: string) {
+  const { data } = await db.from("profiles").select("is_owner").eq("id", viewer).single();
+  if (!data?.is_owner) forbidden();
+}
+
 /** Every metric a widget draws: its own, its story panels', and those of widgets inside a free layout. */
 export function widgetMetricIds(ids: number[], settings?: WidgetSettings): number[] {
   const store = (settings?.canvas?.document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown } }> } | undefined)?.store ?? {};

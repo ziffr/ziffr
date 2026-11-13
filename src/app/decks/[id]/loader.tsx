@@ -9,6 +9,6 @@ const DeckEditor = dynamic(() => import("./editor").then((m) => m.DeckEditor), {
   loading: () => <Bone className="h-[calc(100vh-12rem)] w-full" />,
 });
 
-export function DeckEditorLoader(props: { deck: { id: number; name: string; document: unknown; master_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] }) {
+export function DeckEditorLoader(props: { deck: { id: number; name: string; document: unknown; master_id: number | null; theme_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] }) {
   return <DeckEditor {...props} />;
 }

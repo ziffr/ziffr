@@ -115,7 +115,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
         y: { axis: null, domain: domain ?? undefined, nice: true, zero: true },
         marks: [
           Plot.barY(rows, { x: "label", y: "value", fill: (r: Bar) => (hl(r) ? "var(--color-accent-2)" : "var(--color-rule-2)") }),
-          Plot.ruleY([0], { stroke: "var(--color-ink-2)" }),
+          Plot.ruleY([0], { stroke: "var(--color-data)" }),
           // dy and fontWeight are constants in Plot, so labels split by sign and emphasis.
           ...[
             [rows.filter((r) => r.value >= 0 && !hl(r)), -9, 400],
@@ -209,7 +209,7 @@ export function bridgeSteps(m: Metric, data: CanvasData, panel: Panel): { steps:
 function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel }) {
   const { steps, note } = bridgeSteps(m, data, panel);
   const ref = panel.refLine?.kind === "constant" && panel.refLine.value !== undefined ? { value: panel.refLine.value, label: panel.refLine.label ?? compactValue(m, panel.refLine.value) } : null;
-  const fill = (s: Step) => (s.kind === "down" ? "var(--color-error)" : s.kind === "up" ? "var(--color-success)" : s.key === "e" ? "var(--color-ink-2)" : "var(--color-rule-2)");
+  const fill = (s: Step) => (s.kind === "down" ? "var(--color-error)" : s.kind === "up" ? "var(--color-success)" : s.key === "e" ? "var(--color-data)" : "var(--color-rule-2)");
   // A variance bridge zooms to the band where the steps happen (totals are cut at the bottom, as in finance);
   // a bridge of one breakdown's rows starts at zero, like the CFO's walk from gross to net.
   const variance = panel.bridge?.mode === "variance";

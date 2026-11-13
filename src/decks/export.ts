@@ -12,17 +12,33 @@ import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape"
 import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { fillSettings } from "@/lib/placeholders";
+import { FONTS } from "@/lib/themes";
+import type { Theme } from "@/lib/types";
 
-// Hex values for PowerPoint, which cannot read CSS variables. They mirror the Coral tokens.
-const INK = "2B2420";
-const INK_2 = "3D3530";
-const MUTED = "6E655E";
-const PAPER = "F7F4F0";
-const COTTON = "FCFBF8";
-const RULE = "DCD6CF";
-const ERROR = "6B1F2A";
-// Exported decks travel: use a face every PowerPoint and Keynote has, not the app's web fonts.
-const FONT = "Arial";
+// Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
+// (GLOSSARY: Theme); these defaults mirror Coral.
+let INK = "221B19";
+let INK_2 = "312926";
+let MUTED = "615955";
+let PAPER = "F1ECE8";
+let COTTON = "FDFBF8";
+let RULE = "D9D3CF";
+let ERROR = "BE2323";
+// Exported decks travel: the theme's fonts by the names PowerPoint knows; it substitutes ones it lacks.
+let FONT = "Arial";
+let HEAD_FONT = "Arial";
+
+function applyExportTheme(theme: Theme | undefined) {
+  if (!theme) return;
+  const t = theme.tokens;
+  const h = (c: string) => c.replace("#", "").toUpperCase();
+  INK = h(t.ink); INK_2 = h(t.data[0] ?? t.ink); MUTED = h(t.muted); COTTON = h(t.surface); RULE = h(t.rule); ERROR = h(t.bad);
+  PAPER = h(t.canvas);
+  FONT = FONTS[t.fontBody]?.office ?? "Arial";
+  HEAD_FONT = FONTS[t.fontHeading]?.office ?? FONT;
+  TL_COLORS.black = INK;
+  TL_COLORS.grey = MUTED;
+}
 
 const TL_COLORS: Record<string, string> = {
   black: INK, grey: MUTED, "light-violet": "B9A9E0", violet: "6A4FB3", blue: "3C64B4", "light-blue": "6FA8DC",
@@ -53,12 +69,13 @@ async function shapeImage(editor: Editor, ids: TLShape["id"][]) {
   return url;
 }
 
-export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: Master | null) {
+export async function exportPptx(editor: Editor, data: CanvasData, deckName: string, master: Master | null, theme?: Theme) {
+  applyExportTheme(theme);
   const PptxGenJS = (await import("pptxgenjs")).default;
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.title = deckName;
-  pptx.theme = { headFontFace: FONT, bodyFontFace: FONT };
+  pptx.theme = { headFontFace: HEAD_FONT, bodyFontFace: FONT };
   const asOf = format(new Date(), "d MMMM yyyy");
   const frames = orderedSlides(editor);
   const MASTER = "ZIFFR_MASTER";

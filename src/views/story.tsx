@@ -100,7 +100,7 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
   if (widget.template === "story") return <ComposedStory widget={widget} data={data} headline={headline} subline={subline} source={source} />;
   return (
     <div className="flex h-full flex-col">
-      <div className="text-[length:var(--text-lg)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)]">{headline}</div>
+      <div className="text-[length:var(--text-lg)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
       {subline && <div className="mt-1 text-xs text-muted-foreground">{subline}</div>}
       <div className="mt-3 min-h-0 flex-1">
         {empty ? (
@@ -142,7 +142,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: 
         return (
           <li key={r.label} className={cn("grid grid-cols-[minmax(0,7rem)_minmax(3rem,1fr)_auto] items-center gap-2 rounded-[4px] text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
-            <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-ink-2)" : "var(--color-rule-2)" }} />
+            <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
               {compactValue(m, r.value)}
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
@@ -158,7 +158,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: 
 }
 
 function Share({ rows, m, highlight, sum, onRowContext }: { rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number; onRowContext?: (label: string) => void }) {
-  const tones = ["var(--color-ink-2)", "var(--color-muted)", "var(--color-rule-2)", "var(--color-paper-3)", "var(--color-rule)"];
+  const tones = ["var(--color-data)", "var(--color-data-2)", "var(--color-data-3)", "var(--color-data-4)", "var(--color-rule)"];
   const ordered = [...rows].sort((a, b) => (a.label === highlight ? -1 : b.label === highlight ? 1 : b.value - a.value));
   return (
     <div className="flex h-full flex-col justify-center gap-4">
@@ -186,7 +186,7 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
     <div className="flex h-full flex-col items-center justify-center gap-3">
       <div className="grid grid-cols-5 gap-x-2 gap-y-1" role="img" aria-label={`${n} in 10`}>
         {Array.from({ length: 10 }, (_, i) => (
-          <User key={i} aria-hidden className="size-8" strokeWidth={1.75} style={{ color: i < n ? "var(--color-ink-2)" : "var(--color-rule-2)", fill: i < n ? "var(--color-ink-2)" : "none" }} />
+          <User key={i} aria-hidden className="size-8" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
         ))}
       </div>
       <div className="text-center text-xs text-muted-foreground">
@@ -224,11 +224,11 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
         y: { axis: null, nice: true, zero: false },
         marks: [
           Plot.ruleY([Math.min(...pts.map((p) => p.value))], { stroke: "var(--color-rule)" }),
-          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-ink-2)", strokeWidth: 2, curve: "monotone-x" }),
-          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-ink-2)", r: 3.5 }),
+          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2, curve: "monotone-x" }),
+          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 }),
           Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value), dx: 8, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
           Plot.ruleX(callouts, { x: (c) => c.point!.date, stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
-          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4, fill: "var(--color-cotton)", stroke: "var(--color-ink-2)" }),
+          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
           Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
         ],
       });
@@ -255,7 +255,7 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
   return (
     <div className="flex h-full flex-col">
       {s.kicker && <div className="mb-1 text-xs font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
-      <div className="text-[length:var(--text-xl)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)]">{headline}</div>
+      <div className="text-[length:var(--text-xl)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
       {subline && <div className="mt-1 text-sm text-muted-foreground">{subline}</div>}
       <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4">
         {panels.length === 0 && <p className="m-auto text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}

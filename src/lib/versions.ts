@@ -2,7 +2,7 @@ import "server-only";
 // Versions (GLOSSARY: Version): what people build keeps its history, git-like but inside Ziffr.
 import { db } from "./db";
 
-export type VersionType = "widget" | "dashboard" | "deck" | "master" | "metric" | "template";
+export type VersionType = "widget" | "dashboard" | "deck" | "master" | "metric" | "template" | "theme";
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -13,13 +13,17 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
   }
   if (type === "dashboard") {
     const [{ data: d }, { data: ws }] = await Promise.all([
-      db.from("dashboards").select("name").eq("id", id).single(),
+      db.from("dashboards").select("name, theme_id").eq("id", id).single(),
       db.from("widgets").select("template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", id).order("y").order("x"),
     ]);
-    return d ? { name: d.name, widgets: ws ?? [] } : null;
+    return d ? { name: d.name, theme_id: d.theme_id, widgets: ws ?? [] } : null;
   }
   if (type === "deck") {
-    const { data } = await db.from("decks").select("name, master_id, document").eq("id", id).single();
+    const { data } = await db.from("decks").select("name, master_id, theme_id, document").eq("id", id).single();
+    return data;
+  }
+  if (type === "theme") {
+    const { data } = await db.from("themes").select("name, tokens").eq("id", id).single();
     return data;
   }
   if (type === "template") {
@@ -74,7 +78,11 @@ export function diffSummary(type: VersionType, a: Record<string, unknown> | null
       const sa = (a.settings ?? {}) as Record<string, unknown>, sb = (b.settings ?? {}) as Record<string, unknown>;
       const keys = [...new Set([...Object.keys(sa), ...Object.keys(sb)])].filter((x) => JSON.stringify(sa[x]) !== JSON.stringify(sb[x]));
       out.push(`settings: ${keys.join(", ") || "changed"}`);
-    } else if (k === "body") out.push("content replaced");
+    } else if (k === "tokens") {
+      const ta = (a.tokens ?? {}) as Record<string, unknown>, tb = (b.tokens ?? {}) as Record<string, unknown>;
+      out.push(`changed ${[...new Set([...Object.keys(ta), ...Object.keys(tb)])].filter((x) => JSON.stringify(ta[x]) !== JSON.stringify(tb[x])).join(", ") || "look"}`);
+    } else if (k === "theme_id") out.push("theme");
+    else if (k === "body") out.push("content replaced");
     else if (k === "document") out.push("slides edited");
     else if (k === "logo" || k === "background_image") out.push(`${k.replace("_", " ")} ${b[k] ? "changed" : "removed"}`);
     else out.push(k.replace(/_/g, " "));

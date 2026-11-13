@@ -1,6 +1,10 @@
 "use client";
 import "tldraw/tldraw.css";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ThemeScope } from "@/components/theme-scope";
+import { ThemePicker } from "@/components/theme-picker";
+import { setDeckTheme } from "@/app/theme-actions";
+import { isDark, themeFor } from "@/lib/themes";
 import { toast } from "sonner";
 import { FileDown, LayoutTemplate, Plus, Presentation, Printer } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
@@ -32,13 +36,17 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; master_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] };
+type Props = { deck: { id: number; name: string; document: unknown; master_id: number | null; theme_id: number | null }; data: CanvasData; saved: Widget[]; masters: Master[] };
 
 export function DeckEditor({ deck, data, saved, masters }: Props) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [name, setName] = useState(deck.name);
   const [masterId, setMasterId] = useState<number | null>(deck.master_id);
-  const master = masters.find((m) => m.id === masterId) ?? null;
+  const [themeId, setThemeId] = useState<number | null>(deck.theme_id);
+  const theme = themeFor(data.themes, themeId);
+  const baseMaster = masters.find((m) => m.id === masterId) ?? null;
+  // The master keeps the layout; its colours come from the deck's theme (GLOSSARY: Master, Theme).
+  const master = useMemo(() => (baseMaster && theme ? { ...baseMaster, background_color: theme.tokens.surface, text_color: theme.tokens.ink } : baseMaster), [baseMaster, theme]);
   const [status, setStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
@@ -89,6 +97,10 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
       setDeckExportMaster(null);
     };
   }, [master]);
+  // tldraw draws its own text and arrows: a dark theme needs its dark mode so "black" reads light.
+  useEffect(() => {
+    if (editor && theme) editor.user.updateUserPreferences({ colorScheme: isDark(theme.tokens) ? "dark" : "light" });
+  }, [editor, theme]);
   useEffect(() => {
     setDeckExportData(data);
     return () => {
@@ -161,7 +173,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
     if (!editor) return;
     setBusy(kind);
     try {
-      if (kind === "pptx") await exportPptx(editor, data, name, master);
+      if (kind === "pptx") await exportPptx(editor, data, name, master, theme);
       else await exportPdf(editor, name);
       toast.success(kind === "pptx" ? "PowerPoint downloaded" : "PDF ready to print", { description: "Values are a snapshot of today. The deck in Ziffr stays live." });
     } catch (e) {
@@ -233,6 +245,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
         <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>
@@ -265,7 +278,9 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
             place(s, editor.screenToPage({ x: e.clientX, y: e.clientY }));
           }}
         >
-          <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} onMount={onMount} />
+          <ThemeScope theme={theme} className="h-full w-full">
+            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} onMount={onMount} />
+          </ThemeScope>
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">

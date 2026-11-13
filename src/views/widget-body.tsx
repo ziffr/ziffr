@@ -132,7 +132,7 @@ function Bars({ metric, points, showTarget, onPointContext }: { metric: Metric; 
           <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
-              <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--color-error)" : "var(--color-ink-2)"} fillOpacity={0.85} />
+              <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} />
             ))}
           </Bar>
         </BarChart>
@@ -158,7 +158,7 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
               <th className="pr-2 text-right font-medium whitespace-nowrap">{a.name}</th>
               {metrics.map((b) => {
                 const r = a.id === b.id ? 1 : a.period === b.period ? pearson(series[a.slug] ?? [], series[b.slug] ?? [])?.r ?? null : null;
-                const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-ink-2) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
+                const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-data) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
                   <td key={b.id} title={r === null ? "Different periods" : `r = ${r.toFixed(2)}`} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
                     {r === null ? "–" : r.toFixed(2)}
@@ -188,7 +188,7 @@ function Drivers({ target, others, series }: { target: Metric; others: Metric[];
           <li key={o.id} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
             <span className="truncate">{o.name}</span>
             <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
-              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res!.r) * 100}%`, background: res!.r >= 0 ? "var(--color-ink-2)" : "var(--color-error)" }} />
+              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res!.r) * 100}%`, background: res!.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
             </span>
             <span className="fig text-right">{res!.r.toFixed(2)}</span>
           </li>

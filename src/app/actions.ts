@@ -24,6 +24,7 @@ export async function resetDemo() {
   await db.rpc("prototype_seed_stories");
   await db.rpc("prototype_reset_decks");
   await db.rpc("prototype_seed_templates");
+  await db.rpc("prototype_seed_themes");
   revalidatePath("/", "layout");
   redirect("/");
 }

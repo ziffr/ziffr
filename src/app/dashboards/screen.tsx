@@ -18,6 +18,10 @@ import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSlotFill } from "@/components/slot-dialog";
+import { ThemeScope } from "@/components/theme-scope";
+import { ThemePicker } from "@/components/theme-picker";
+import { setDashboardTheme } from "@/app/theme-actions";
+import { themeFor } from "@/lib/themes";
 
 type Props = {
   data: CanvasData;
@@ -116,12 +120,13 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                   <span className="flex items-center gap-1.5"><MousePointerClick aria-hidden className="size-4" /> Right-click a widget for its history, a question or a task</span>
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+              {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
               <VersionsDialog type="dashboard" id={current.id} people={data.people} />
               {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} />}
               </div>
             </div>
-            <div ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
+            <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                   {editable ? "Drag metrics or saved widgets from the Pool and drop them here." : "This dashboard is empty."}
@@ -157,7 +162,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                   ))}
                 </ReactGridLayout>
               )}
-            </div>
+            </ThemeScope>
           </>
         )}
       </div>

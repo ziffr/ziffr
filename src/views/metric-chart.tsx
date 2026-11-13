@@ -81,11 +81,11 @@ export function MetricChart({
               );
             }}
           />
-          <Area dataKey="band" stroke="none" fill="var(--color-ink-2)" fillOpacity={0.07} isAnimationActive={false} />
+          <Area dataKey="band" stroke="none" fill="var(--color-data)" fillOpacity={0.07} isAnimationActive={false} />
           <Line dataKey="fc" stroke="var(--color-muted)" strokeDasharray="5 4" dot={false} isAnimationActive={false} />
           <Line
             dataKey="value"
-            stroke="var(--color-ink-2)"
+            stroke="var(--color-data)"
             strokeWidth={1.75}
             isAnimationActive={false}
             activeDot={false}
@@ -95,7 +95,7 @@ export function MetricChart({
               return (
                 <g key={p.index} data-period={period} onClick={onSelect ? () => onSelect(period) : undefined} onContextMenu={onPointContext ? () => onPointContext(period) : undefined} className={onSelect ? "cursor-pointer" : undefined}>
                   {(onSelect || onPointContext) && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
-                  {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke="var(--color-ink-2)" strokeWidth={1.5} />}
+                  {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke="var(--color-data)" strokeWidth={1.5} />}
                 </g>
               );
             }}

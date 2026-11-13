@@ -34,7 +34,7 @@ export function ScatterView({
               );
             }}
           />
-          <Scatter data={pairs} fill="var(--color-ink-2)" isAnimationActive={false} />
+          <Scatter data={pairs} fill="var(--color-data)" isAnimationActive={false} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>

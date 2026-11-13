@@ -121,9 +121,9 @@ export function MastersScreen({ masters, current, isNew, people, viewer }: { mas
           <legend className="sr-only">Master settings</legend>
           <Field label="Name"><Input value={m.name} onChange={(e) => set("name", e.target.value)} /></Field>
 
-          <Field label="Background">
+          <p className="text-xs text-muted-foreground">Colours and fonts come from the deck&rsquo;s theme. <a href="/themes" className="underline">Themes</a></p>
+          <Field label="Background image">
             <div className="flex items-center gap-2">
-              <input type="color" aria-label="Background colour" value={m.background_color} onChange={(e) => set("background_color", e.target.value)} className="h-9 w-12 rounded-[var(--radius-input)] border border-input bg-card p-1" />
               <ImageButton label={m.background_image ? "Replace image" : "Add image"} onChange={upload("background_image")} />
               {m.background_image && <IconButton label="Remove background image" onClick={() => set("background_image", null)} />}
             </div>
@@ -158,12 +158,11 @@ export function MastersScreen({ masters, current, isNew, people, viewer }: { mas
           </label>
 
           <Field label="Type">
-            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-              <label>Colour<input type="color" value={m.text_color} onChange={(e) => set("text_color", e.target.value)} className="mt-1 block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card p-1" /></label>
+            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <label>Title px<Input type="number" min={24} max={96} value={m.title_size} onChange={(e) => set("title_size", Number(e.target.value))} className="mt-1" /></label>
               <label>Body px<Input type="number" min={12} max={48} value={m.body_size} onChange={(e) => set("body_size", Number(e.target.value))} className="mt-1" /></label>
             </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">Sizes apply to slides you add from now on; the colour applies to the footer and number.</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Sizes apply to slides you add from now on.</p>
           </Field>
 
           <div className="flex flex-wrap gap-2 pt-1">
