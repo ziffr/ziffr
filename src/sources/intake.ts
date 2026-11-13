@@ -73,8 +73,7 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   } else {
     sender = profiles?.find((p) => (input.source === "slack" ? p.slack_handle : p.email) === input.sender.trim().toLowerCase());
     if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
-    // Their own Tokens, and those they are the Stand-in for.
-    candidates = (tokens ?? []).filter((t) => t.submitter_id === sender!.id || (t as Token & { stand_in_id?: string | null }).stand_in_id === sender!.id);
+    candidates = (tokens ?? []).filter((t) => t.submitter_id === sender!.id);
   }
   const senderId = sender?.id ?? null;
   if (candidates.length === 0) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for any metric, so nothing can be recorded.` });

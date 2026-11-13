@@ -2,19 +2,22 @@ import { format } from "date-fns";
 import { db } from "@/lib/db";
 import { viewerId } from "@/lib/viewer";
 import { getMetrics, getProfiles } from "@/lib/data";
+import { visibleMetricIds } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
 import type { PeriodState, Workflow } from "@/lib/types";
 
 export default async function WorkflowsPage({ searchParams }: { searchParams: Promise<{ id?: string; asOf?: string }> }) {
   const sp = await searchParams;
-  const [viewer, people, metrics, { data: workflows }, { data: states }, { data: tokens }, { data: assigned }] = await Promise.all([
-    viewerId(), getProfiles(), getMetrics(),
-    db.from("workflows").select("*").order("id"),
-    db.from("period_states").select("*"),
-    db.from("tokens").select("metric_id, submitter_id, stand_in_id"),
-    db.from("metrics").select("id, workflow_id"),
+  const [viewer, people, all, { data: workflows }] = await Promise.all([viewerId(), getProfiles(), getMetrics(), db.from("workflows").select("*").order("id")]);
+  // Only metrics this viewer may see, and only what the page shows of them.
+  const ids = [...(await visibleMetricIds(viewer, all))];
+  const [{ data: states }, { data: tokens }, { data: assigned }] = await Promise.all([
+    db.from("period_states").select("*").in("metric_id", ids),
+    db.from("tokens").select("metric_id, submitter_id, stand_in_id").in("metric_id", ids).is("stands_in_for", null),
+    db.from("metrics").select("id, workflow_id").in("id", ids),
   ]);
+  const metrics = all.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
   const list = (workflows ?? []) as Workflow[];
   const current = list.find((w) => w.id === Number(sp.id)) ?? list[0] ?? null;
   const asOf = sp.asOf && /^\d{4}-\d{2}-\d{2}$/.test(sp.asOf) ? sp.asOf : format(new Date(), "yyyy-MM-dd");

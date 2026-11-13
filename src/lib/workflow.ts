@@ -34,7 +34,7 @@ export async function isLocked(metricId: number, period: string) {
 
 /** Who is asked: the submitter, or their Stand-in while they are Away. */
 async function whoToAsk(metricId: number, day: string) {
-  const { data: tokens } = await db.from("tokens").select("submitter_id, stand_in_id").eq("metric_id", metricId);
+  const { data: tokens } = await db.from("tokens").select("submitter_id, stand_in_id").eq("metric_id", metricId).is("stands_in_for", null);
   const { data: away } = await db.from("away").select("user_id").lte("starts", day).gte("ends", day);
   const out = new Set((away ?? []).map((a) => a.user_id));
   return (tokens ?? []).map((t) => ({ submitter: t.submitter_id as string, standIn: t.stand_in_id as string | null, ask: out.has(t.submitter_id) && t.stand_in_id ? t.stand_in_id : t.submitter_id, away: out.has(t.submitter_id) }));
@@ -119,9 +119,11 @@ export async function onValue(metricId: number, period: string, submitterId: str
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, t);
   }
   const approvers = (approve?.approvers ?? []).filter((a) => a !== submitterId);
+  // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
+  await db.from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
   if (reasons.length && approvers.length) {
-    await setState(metricId, period, { state: "approval", approval_step: 0, note: reasons.join("; ") });
-    await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
+    const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
+    await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, note: reasons.join("; ") });
     return [`unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}`];
   }
   return [await publish(ctx)];
@@ -134,11 +136,12 @@ async function requestApproval(ctx: Ctx, approver: string, submitterId: string, 
     kind: "task", purpose: "approval",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });
+  return (data?.id as number | undefined) ?? null;
 }
 
 async function publish(ctx: Ctx) {
   const pub = ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "publish" }> => s.type === "publish");
-  await setState(ctx.m.id, ctx.period, { state: pub?.lock ? "locked" : "published", approval_step: null });
+  await setState(ctx.m.id, ctx.period, { state: pub?.lock ? "locked" : "published", approval_step: null, approval_action_id: null });
   return pub?.lock ? "published and locked" : "published";
 }
 
@@ -148,15 +151,15 @@ export async function approve(actionId: number, by: string) {
   if (!a || a.purpose !== "approval" || a.assignee_id !== by || a.status !== "open") throw new Error("This approval is not yours, or it is done.");
   const state = await getState(a.metric_id, a.period_start);
   const ctx = await metricCtx(a.metric_id, a.period_start);
-  if (!ctx || state?.state !== "approval") throw new Error("This value is not waiting for approval.");
+  if (!ctx || state?.state !== "approval" || state.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
   await db.from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId);
   await db.from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Approved." });
   const value = await latestValue(a.metric_id, a.period_start);
   const approvers = (ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve")?.approvers ?? []).filter((x) => x !== value?.submitter_id);
   const next = (state.approval_step ?? 0) + 1;
   if (next < approvers.length) {
-    await setState(a.metric_id, a.period_start, { state: "approval", approval_step: next, note: state.note });
-    await requestApproval(ctx, approvers[next], value?.submitter_id ?? a.asker_id, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
+    const nextAction = await requestApproval(ctx, approvers[next], value?.submitter_id ?? a.asker_id, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
+    await setState(a.metric_id, a.period_start, { state: "approval", approval_step: next, approval_action_id: nextAction, note: state.note });
     return `Approved; ${approvers[next]} approves next.`;
   }
   return `Approved; ${await publish(ctx)}.`;
@@ -166,9 +169,11 @@ export async function approve(actionId: number, by: string) {
 export async function sendBack(actionId: number, by: string, comment: string) {
   const { data: a } = await db.from("actions").select("*").eq("id", actionId).single();
   if (!a || a.purpose !== "approval" || a.assignee_id !== by || a.status !== "open") throw new Error("This approval is not yours, or it is done.");
+  const current = await getState(a.metric_id, a.period_start);
+  if (current?.state !== "approval" || current.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
   await db.from("thread_messages").insert({ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` });
   await db.from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId);
-  await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, note: `Sent back by ${by}: ${comment}` });
+  await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
   await deliver({ kind: "reply", actionId, senderId: by, recipientId: a.asker_id, text: `Sent back: ${comment}. Reply with “Correction: <value>” if it needs changing.` });
 }
 

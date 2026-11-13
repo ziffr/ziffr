@@ -325,7 +325,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && (
-            <MetricWorkflow metric={metric} workflowId={wfRow?.workflow_id ?? null} workflows={(workflows ?? []) as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens ?? []} people={people} isOwner={metric.owner_id === viewer} />
+            <MetricWorkflow metric={metric} workflowId={wfRow?.workflow_id ?? null} workflows={(workflows ?? []) as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={(tokens ?? []).filter((t) => !t.stands_in_for)} people={people} isOwner={metric.owner_id === viewer} />
           )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">

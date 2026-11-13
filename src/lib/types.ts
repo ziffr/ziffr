@@ -303,4 +303,4 @@ export type WorkflowStep =
 export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
 export type Workflow = { id: number; owner_id: string; name: string; config: WorkflowConfig; updated_at: string };
 export type PeriodStateName = "asked" | "submitted" | "approval" | "published" | "locked";
-export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; note: string | null; updated_at: string };
+export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; approval_action_id?: number | null; note: string | null; updated_at: string };

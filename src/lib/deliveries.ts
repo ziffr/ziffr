@@ -1,6 +1,7 @@
 import "server-only";
 // Deliveries (GLOSSARY: Delivery, Delivery Preference): which Connector a message goes through, and what it says.
 // PROTOTYPE: deliveries are recorded and shown in the Outbox; nothing is actually sent.
+import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { periodLabel, periodStart } from "./format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "@/connectors";
@@ -56,8 +57,14 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
     db.from("profiles").select("*").eq("id", input.submitterId).single(),
     db.from("tokens").select("code, submitter_id, stand_in_id").eq("metric_id", input.metricId),
   ]);
-  // The submitter's own Token, or the one they stand in for.
-  const token = tokens?.find((t) => t.submitter_id === input.submitterId) ?? tokens?.find((t) => t.stand_in_id === input.submitterId);
+  // The person's own Token. A Stand-in gets one of their own, marked as standing in: never the submitter's.
+  let token = tokens?.find((t) => t.submitter_id === input.submitterId);
+  if (!token) {
+    const standsInFor = tokens?.find((t) => t.stand_in_id === input.submitterId)?.submitter_id;
+    if (!standsInFor) return false;
+    const { data: created } = await db.from("tokens").insert({ code: `tk-${input.submitterId}-${randomUUID().slice(0, 8)}`, metric_id: input.metricId, submitter_id: input.submitterId, stands_in_for: standsInFor }).select("code, submitter_id, stand_in_id").single();
+    token = created ?? undefined;
+  }
   if (!metric || !person || !token || metric.formula) return false;
   let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(person.id, "prompt", null);
   if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers

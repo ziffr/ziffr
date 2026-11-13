@@ -71,7 +71,7 @@ export async function sendDueReminders() {
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing. */
 export async function askForMissingValues() {
   const viewer = await viewerId();
-  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id"), db.from("metrics").select("id, period, formula")]);
+  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id").is("stands_in_for", null), db.from("metrics").select("id, period, formula")]);
   let n = 0;
   for (const t of tokens ?? []) {
     const m = metrics?.find((x) => x.id === t.metric_id);

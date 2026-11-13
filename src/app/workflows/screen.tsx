@@ -28,7 +28,7 @@ const BLANK: WorkflowConfig = { dueWorkingDays: 3, steps: [NEW_STEP.remind, NEW_
 
 type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null };
 
-export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf }: { viewer: string; people: Profile[]; metrics: (Metric & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf }: { viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
