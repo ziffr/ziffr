@@ -75,7 +75,7 @@ A Connector used to receive observations, such as mail, a messenger, Slack or a 
 _Avoid_: Input, integration
 
 **Submitter**:
-A user allowed to record observations for a given metric.
+A person allowed to record observations for a given metric: a Member, a Guest, or a Contact without a login.
 _Avoid_: Reporter, contributor
 
 **Token**:
@@ -204,6 +204,26 @@ _Avoid_: Copy, freeze, export data
 
 ### Sharing
 
+**Workspace**:
+One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces.
+_Avoid_: Tenant, organisation, account, company
+
+**Workspace Role**:
+What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.
+_Avoid_: Permission level, admin rights
+
+**Contact**:
+A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A contact can be invited later and then becomes a Member or Guest.
+_Avoid_: External user, anonymous submitter
+
+**Access Key**:
+A secret a person creates so a program can use the API on their behalf, limited to some actions (such as reading metrics or submitting values), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace. Not to be confused with a Token, which lets a submitter record values for one metric.
+_Avoid_: API token, personal access token, credential
+
+**Demo Mode**:
+A setting that shows Ziffr with made-up data, a switch to view as any demo person and a reset button. It only runs where no real accounts exist.
+_Avoid_: Sandbox, test mode
+
 **Share**:
 Giving another user or a Group access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
 _Avoid_: Invite, publish
@@ -217,8 +237,8 @@ A named set of users, such as Management or Sales, that things are shared with o
 _Avoid_: Team, role, department
 
 **Viewer**:
-A user a dashboard or metric is shared with who can look at it, inspect history and assign actions, but not change it.
-_Avoid_: Reader, guest
+A user a dashboard or metric is shared with who can look at it, inspect history and assign actions, but not change it. Viewer is a role on one shared thing; Guest is a role in the whole Workspace.
+_Avoid_: Reader
 
 **Editor**:
 A user a dashboard is shared with who can also arrange its widgets.
