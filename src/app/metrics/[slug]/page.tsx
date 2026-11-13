@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
-import { getActions, getAllSeries, getBreakdowns, getProfiles } from "@/lib/data";
+import { getActions, getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "@/lib/data";
+import { CompareTable } from "@/components/compare-table";
+import { resolverFrom } from "@/lib/compare";
+import { SeriesForm } from "./series-form";
 import { countryCode } from "@/lib/countries";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
@@ -23,7 +26,7 @@ import { StatusDot } from "@/components/status";
 
 const DAILY_WINDOW = 90;
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const [{ metrics, observations, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
@@ -62,6 +65,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id], observations))[metric.id] ?? {};
+  const { targets, projections } = await getSeriesValues([metric.id]);
+  const tSeries = targets[metric.id] ?? [];
+  const pSeries = projections[metric.id] ?? [];
   const bdPeriods = Object.keys(bdByPeriod).sort().reverse();
   const bdPeriod = sp.bp && bdByPeriod[sp.bp] ? sp.bp : bdPeriods[0];
   const bdRows = bdPeriod ? [...bdByPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
@@ -161,6 +167,38 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} />
               </div>
             )}
+          </section>
+
+          <section className="stock rounded-[var(--radius-card)] p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-medium">Comparisons</h2>
+              <nav aria-label="Comparison mode" className="flex gap-1 text-xs">
+                <Link href="?" scroll={false} aria-current={!sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", !sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>To date</Link>
+                <Link href="?full=1" scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
+              </nav>
+            </div>
+            <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} />
+          </section>
+
+          <section className="stock rounded-[var(--radius-card)] p-5">
+            <h2 className="mb-3 font-medium">Targets and projections</h2>
+            {tSeries.length + pSeries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No target series or projections yet. The target range applies to every period.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground"><tr><th className="pb-1.5 font-normal">Period</th><th className="pb-1.5 text-right font-normal">Target</th><th className="pb-1.5 text-right font-normal">Projection</th></tr></thead>
+                <tbody>
+                  {[...new Set([...tSeries, ...pSeries].map((p) => p.period))].sort().reverse().slice(0, 8).map((p) => (
+                    <tr key={p} className="border-t border-border">
+                      <td className="py-1.5">{periodLabel(p, metric.period)}</td>
+                      <td className="fig py-1.5 text-right">{formatValue(metric, tSeries.find((x) => x.period === p)?.value ?? null)}</td>
+                      <td className="fig py-1.5 text-right">{formatValue(metric, pSeries.find((x) => x.period === p)?.value ?? null)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {metric.owner_id === viewer && !metric.formula && <SeriesForm metricId={metric.id} />}
           </section>
 
           <section className="stock rounded-[var(--radius-card)] p-5">
