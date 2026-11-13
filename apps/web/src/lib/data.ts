@@ -3,26 +3,11 @@ import { db } from "./db";
 import { currentWorkspaceId } from "./viewer";
 import { evaluate, formulaInputs } from "@ziffr/core/formula";
 import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "@ziffr/core/types";
-import { peopleOf, type ContactRow } from "@ziffr/core/people";
+import { peopleIn } from "@ziffr/core/submissions";
+import { normalizeMetric } from "@ziffr/core/metric-row";
 
-/** The people of a Workspace: its members, then its Contacts (flagged `contact`). A Contact's email, Slack handle
- * and phone are only included with `contactDetails`: for intake, Prompts and owners or admins on the Team page,
- * never for pages that go to every member's browser. Not tied to a request, so intake can use it. */
-export async function getPeopleIn(ws: string, { contactDetails = false } = {}): Promise<Profile[]> {
-  // The details are not even loaded unless asked for, so they cannot slip into a page.
-  const columns: string = contactDetails ? "workspace_id, person_id, email, slack_handle, phone" : "workspace_id, person_id";
-  const [{ data: members }, { data: contacts }] = await Promise.all([
-    db.from("memberships").select("user_id").eq("workspace_id", ws),
-    db.from("contacts").select(columns).eq("workspace_id", ws),
-  ]);
-  const rows = ((contacts ?? []) as unknown as Partial<ContactRow>[]).map((c) => ({ email: null, slack_handle: null, phone: null, ...c }) as ContactRow);
-  const ids = [...(members ?? []).map((m) => m.user_id), ...rows.map((c) => c.person_id)];
-  if (!ids.length) return [];
-  const { data } = await db.from("profiles").select("*").in("id", ids).order("name");
-  const memberIds = new Set((members ?? []).map((m) => m.user_id));
-  const profiles = (data ?? []) as Profile[];
-  return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
-}
+/** The people of a Workspace, members then Contacts; it lives in the core (see peopleIn there). */
+export const getPeopleIn = peopleIn;
 
 /** The people in the current Workspace: members, then Contacts (flagged). Pickers for sharing or asking leave the
  * Contacts out: they have no login and only submit values. */
@@ -36,16 +21,11 @@ export async function getProfileMap() {
 
 export async function getMetrics(): Promise<Metric[]> {
   const { data } = await db.from("metrics").select("*").eq("workspace_id", await currentWorkspaceId()).order("id");
-  return (data ?? []).map(normalizeMetric);
+  return (data ?? []).map((m) => normalizeMetric(m));
 }
 
-export function normalizeMetric(m: Metric): Metric {
-  return {
-    ...m,
-    target_min: m.target_min === null ? null : Number(m.target_min),
-    target_max: m.target_max === null ? null : Number(m.target_max),
-  };
-}
+/** A Metric with numeric targets; it lives in the core. */
+export { normalizeMetric } from "@ziffr/core/metric-row";
 
 export async function getObservations(metricIds?: number[]): Promise<Observation[]> {
   let q = db.from("observations").select("*").eq("workspace_id", await currentWorkspaceId()).order("period_start").order("created_at");

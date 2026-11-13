@@ -7,6 +7,7 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 - `pnpm prototype`: local Supabase and the app on http://localhost:3000; `pnpm prototype:reset` re-seeds the demo data.
 - `pnpm exec tsc --noEmit` and `pnpm lint`: must pass before you finish.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`: run across all packages, as CI does.
+- `pnpm --filter @ziffr/core test:db`: the core's operations against the local database (needs `supabase start`); CI runs it too.
 
 ## Rules
 

@@ -5,13 +5,13 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { DEMO_WORKSPACE_ID, VIEWER_COOKIE, viewerId } from "@/lib/viewer";
+import { currentActor, DEMO_WORKSPACE_ID, VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { actingWorkspace, assertCanSeeMetrics, assertMembers, assertSubmitters, forbidden } from "@/lib/guards";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
-import { onValue } from "@/lib/workflow";
-import { intake, type IntakeResult } from "@/sources/intake";
+import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionResult } from "@ziffr/core/submissions";
+import { correctionEffects, submissionEffects } from "@/lib/submission-effects";
 import type { SourceId } from "@ziffr/core/types";
 import { recordVersion } from "@/lib/versions";
 
@@ -91,10 +91,10 @@ export async function createMetric(form: FormData) {
   redirect(`/metrics/${slug}?created=1`);
 }
 
-export async function simulateMessage(input: { source: SourceId; sender: string; text: string; promptId?: number }): Promise<IntakeResult> {
+export async function simulateMessage(input: { source: SourceId; sender: string; text: string; promptId?: number }): Promise<SubmissionResult> {
   // Playing someone on an outside channel is only for the demo, and only reaches the demo's people and Metrics.
   if (!(await isDemo())) forbidden();
-  const r = await intake({ ...input, workspaceId: DEMO_WORKSPACE_ID });
+  const r = await submitValue({ ...input, workspaceId: DEMO_WORKSPACE_ID }, submissionEffects);
   revalidatePath("/", "layout");
   return r;
 }
@@ -104,7 +104,7 @@ export async function submitWebForm(code: string, form: FormData) {
   const value = String(form.get("value") ?? "").trim();
   const breakdown = String(form.get("breakdown") ?? "").trim();
   const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
-  const r = await intake({ source: "web_form", sender: code, text });
+  const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000) }, submissionEffects);
   revalidatePath("/", "layout");
   redirect(`/submit/${code}?outcome=${encodeURIComponent(r.outcome)}&detail=${encodeURIComponent(r.detail)}`);
 }
@@ -145,30 +145,9 @@ export async function replyToAction(actionId: number, form: FormData) {
   revalidatePath("/", "layout");
 }
 
+/** The Metric owner accepts or declines a Correction; the core decides who may and what changes. */
 export async function decideCorrection(messageId: number, accept: boolean) {
-  const { data: msg } = await db.from("thread_messages").select("*, actions(*, metrics(owner_id))").eq("id", messageId).single();
-  // Only the Metric Owner accepts or declines a Correction (GLOSSARY: Correction).
-  if (!msg || msg.actions.metrics.owner_id !== (await viewerId()) || msg.correction_status !== "proposed") return;
-  if (accept && msg.actions.observation_id) {
-    const { data: obs } = await db.from("observations").select("*").eq("id", msg.actions.observation_id).single();
-    await db
-      .from("observations")
-      .update({ value: msg.correction_value, original_value: obs?.original_value ?? obs?.value })
-      .eq("id", msg.actions.observation_id);
-  }
-  await db.from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId);
-  // A correction changes the value: it goes through its Workflow again, so a locked period unlocks for re-approval.
-  if (accept) {
-    const { data: act } = await db.from("actions").select("metric_id, period_start").eq("id", msg.action_id).single();
-    if (act) {
-      if (!msg.actions.observation_id) {
-        await db.from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form" });
-      }
-      await db.from("period_states").update({ state: "submitted" }).eq("metric_id", act.metric_id).eq("period_start", act.period_start);
-      await onValue(act.metric_id, act.period_start, msg.author_id);
-    }
-  }
-  await deliver({ kind: "decision", actionId: msg.action_id, senderId: await viewerId(), recipientId: msg.author_id, text: accept ? "accepted" : "declined" });
+  await coreDecideCorrection(await currentActor(), Number(messageId), Boolean(accept), correctionEffects);
   revalidatePath("/", "layout");
 }
 

@@ -28,9 +28,8 @@ async function setState(metricId: number, period: string, patch: Partial<PeriodS
   await db.from("period_states").upsert({ metric_id: metricId, period_start: period, state: "asked", ...patch, updated_at: new Date().toISOString() }, { onConflict: "metric_id,period_start", ignoreDuplicates: false });
 }
 
-export async function isLocked(metricId: number, period: string) {
-  return (await getState(metricId, period))?.state === "locked";
-}
+/** Whether a period is locked; decided in the core. */
+export { isLocked } from "@ziffr/core/submissions";
 
 /** Who is asked: the submitter, or their Stand-in while they are Away. */
 async function whoToAsk(metricId: number, day: string) {

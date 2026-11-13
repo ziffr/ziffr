@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { FileUp } from "lucide-react";
-import { parseBreakdown } from "@/sources/parse";
+import { parseBreakdown } from "@ziffr/core/parse";
 
 /** Paste rows from Excel or Sheets, or load a CSV; shows what Ziffr read before you submit. */
 export function BreakdownField() {

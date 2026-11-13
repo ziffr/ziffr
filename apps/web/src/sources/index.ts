@@ -1,5 +1,5 @@
 // PROTOTYPE: Sources are hardcoded. Slack and Mail are simulated; the web form is real.
-// All three feed the same intake (./intake.ts), so Tokens and Submission Rules behave for real.
+// All three feed the core's submitValue (@ziffr/core/submissions), so Tokens and Submission Rules behave for real.
 import type { SourceId } from "@ziffr/core/types";
 
 export const SOURCES: { id: SourceId; label: string; simulated: boolean; identity: string }[] = [

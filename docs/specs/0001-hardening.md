@@ -61,7 +61,7 @@ People sign in with an email link, Google, Microsoft, GitHub or LinkedIn. They w
 - **Sign-in.** Supabase Auth: email magic link, and Google, Microsoft, GitHub and LinkedIn, each shown only once its credentials are configured. A signed-in account maps to a person; the current workspace is chosen among their memberships. SAML and enforced two-factor are paid features in the `ee/` folder (ADR 0002).
 - **Contacts.** People without a login who submit values. A Token points to a member or a contact; intake recognises both. Contacts can be invited later and become members.
 - **Access Keys.** Scoped, bound to one workspace, ending on a date, revocable by their creator and by owners; they act with their creator's permissions within their scopes.
-- **Demo Mode.** Turned on by a setting. It keeps the demo seed, "view as" and reset, and refuses to start where real accounts exist.
+- **Demo Mode.** A demo workspace beside the real ones, open from the login page without an account, with "view as" and a reset that touch only the demo; on by default, switched off by a setting (ADR 0005, which replaced the earlier rule that it refuses to start where real accounts exist).
 - **Decisions recorded:** ADR 0002 (license), ADR 0003 (workspaces, roles, sign-in), and the glossary terms Workspace, Workspace Role, Contact, Access Key, Demo Mode.
 
 ## Testing Decisions

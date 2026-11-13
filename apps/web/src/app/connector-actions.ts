@@ -12,7 +12,8 @@ import { DEMO_WORKSPACE_ID } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { periodStart } from "@ziffr/core/format";
-import { intake } from "@/sources/intake";
+import { peopleIn, submitValue } from "@ziffr/core/submissions";
+import { submissionEffects } from "@/lib/submission-effects";
 import type { Period } from "@ziffr/core/types";
 import { finishTask, postReply } from "@/lib/threads";
 import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type PreferenceKind } from "@/connectors";
@@ -106,8 +107,10 @@ export async function simulatePromptAnswer(deliveryId: number, text: string) {
   const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).eq("workspace_id", DEMO_WORKSPACE_ID).maybeSingle();
   const p = d?.prompts as { id: number; source: string } | null;
   if (!d || d.kind !== "prompt" || !p || (p.source !== "slack" && p.source !== "mail")) forbidden();
-  const { data: person } = await db.from("profiles").select("slack_handle, email").eq("id", d!.recipient_id).single();
-  const r = await intake({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id, workspaceId: DEMO_WORKSPACE_ID });
+  // The recipient's handle or address as this workspace knows them (a Contact's are kept per workspace).
+  const person = (await peopleIn(DEMO_WORKSPACE_ID, { contactDetails: true })).find((x) => x.id === d!.recipient_id);
+  if (!person) forbidden();
+  const r = await submitValue({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id, workspaceId: DEMO_WORKSPACE_ID }, submissionEffects);
   if (r.ok) await db.from("deliveries").update({ status: "answered" }).eq("id", deliveryId);
   done();
   return r;
