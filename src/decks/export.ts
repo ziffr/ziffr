@@ -10,6 +10,7 @@ import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
+import { storyBreakdown, storyDefaults } from "@/views/story";
 
 // Hex values for PowerPoint, which cannot read CSS variables. They mirror the Coral tokens.
 const INK = "2B2420";
@@ -217,6 +218,31 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       ],
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
     );
+  } else if (widget.template === "ranked") {
+    // Story: ranked bars as a native bar chart, its words as editable text.
+    const d = storyDefaults(widget, data, m);
+    const b = storyBreakdown(widget, data, m);
+    const s = widget.settings;
+    const rows = b.rows.slice(0, 12).reverse(); // PowerPoint draws bar charts bottom-up
+    slide.addText(
+      [
+        { text: `${s.headline || d.headline}\n`, options: { fontSize: 16, bold: true, color: INK } },
+        { text: s.subline || d.subline, options: { fontSize: 10, color: MUTED } },
+      ],
+      { x: inner.x, y: inner.y, w: inner.w, h: 0.62, fontFace: FONT, valign: "top", margin: 0 },
+    );
+    slide.addChart(
+      pptx.ChartType.bar,
+      [{ name: m.name, labels: rows.map((r) => r.label), values: rows.map((r) => r.value) }],
+      {
+        x: inner.x, y: inner.y + 0.66, w: inner.w, h: Math.max(inner.h - 0.66 - 0.28, 0.4),
+        barDir: "bar", barGapWidthPct: 35, showLegend: false, showTitle: false,
+        chartColors: rows.map((r) => (r.label === b.highlight?.label ? INK_2 : RULE)),
+        showValue: true, dataLabelFontSize: 9, dataLabelColor: INK, dataLabelPosition: "outEnd", dataLabelFontFace: FONT,
+        valAxisHidden: true, valGridLine: { style: "none" }, catAxisLabelFontSize: 10, catAxisLabelColor: INK, catAxisLabelFontFace: FONT, catAxisLineShow: false,
+      },
+    );
+    slide.addText(s.source || d.source, { x: inner.x, y: inner.y + inner.h - 0.24, w: inner.w, h: 0.24, fontSize: 8, color: MUTED, fontFace: FONT, margin: 0 });
   } else if (widget.template === "table") {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
     const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();

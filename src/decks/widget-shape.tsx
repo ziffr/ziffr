@@ -40,10 +40,12 @@ function WidgetCard({ shape }: { shape: WidgetShape }) {
   const widget = widgetFromShape(shape);
   const ms = widgetMetrics(widget, data);
   const title = widget.title ?? (TEMPLATES[widget.template].kind === "metric" ? ms[0]?.name : `${TEMPLATES[widget.template].label}: ${ms.map((m) => m.name).join(" vs. ")}`);
+  const story = TEMPLATES[widget.template].kind === "story";
   return (
     <div className="stock flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] font-sans">
-      <div className="truncate px-4 pt-3 pb-1 text-sm font-semibold">{title}</div>
-      <div className="min-h-0 flex-1 px-4 pb-4">
+      {/* A story carries its own headline; other widgets get a title bar. */}
+      {!story && <div className="truncate px-4 pt-3 pb-1 text-sm font-semibold">{title}</div>}
+      <div className={story ? "min-h-0 flex-1 p-4" : "min-h-0 flex-1 px-4 pb-4"}>
         <WidgetBody widget={widget} data={data} />
       </div>
     </div>

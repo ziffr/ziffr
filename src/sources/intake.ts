@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "@/lib/format";
 import { normalizeMetric } from "@/lib/data";
 import type { Metric, Profile, SourceId, Token } from "@/lib/types";
+import { parseBreakdown } from "./parse";
 
 export type IntakeInput = {
   source: SourceId;
@@ -18,6 +19,22 @@ export type IntakeResult = { outcome: string; detail: string; ok: boolean; metri
 export function parseValue(text: string): number | null {
   const m = text.replace(/(\d)[ ,](?=\d{3}\b)/g, "$1").match(/-?\d+(?:\.\d+)?/);
   return m ? Number(m[0]) : null;
+}
+
+async function writeRows(observationId: number, rows: { label: string; value: number }[], mode: "replace" | "add") {
+  if (mode === "replace") {
+    await db.from("breakdown_rows").delete().eq("observation_id", observationId);
+    await db.from("breakdown_rows").insert(rows.map((r, i) => ({ observation_id: observationId, label: r.label, value: r.value, position: i })));
+    return;
+  }
+  const { data: existing } = await db.from("breakdown_rows").select("*").eq("observation_id", observationId).order("position");
+  const merged = [...(existing ?? []).map((r) => ({ label: r.label as string, value: Number(r.value) }))];
+  for (const r of rows) {
+    const hit = merged.find((m) => m.label.toLowerCase() === r.label.toLowerCase());
+    if (hit) hit.value += r.value;
+    else merged.push(r);
+  }
+  await writeRows(observationId, merged, "replace");
 }
 
 export async function intake(input: IntakeInput): Promise<IntakeResult> {
@@ -94,8 +111,10 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   if (!metric.sources.includes(input.source))
     return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
 
-  // 3. What value, for which period?
-  const value = parseValue(input.text);
+  // 3. What value, for which period? A breakdown's total (or the sum of its rows) is the value.
+  const breakdown = parseBreakdown(input.text);
+  const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
+  const value = breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
   if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
   const period = prompt?.period_start ?? periodStart(new Date(), metric.period);
   const fv = (v: number) => formatValue(metric, v);
@@ -121,6 +140,11 @@ export async function intake(input: IntakeInput): Promise<IntakeResult> {
   } else {
     const { data } = await db.from("observations").insert({ ...row, value }).select("id").single();
     result = { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${existing!.length} earlier value(s) for ${metric.name}, ${when}.`, observationId: data?.id };
+  }
+  if (breakdown && result.ok && result.observationId) {
+    await writeRows(result.observationId, breakdown.rows, result.outcome === "added" ? "add" : "replace");
+    const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
+    result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
   }
   if (prompt && result.ok) await db.from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", prompt.id);
   return log({ ...base, ...result });

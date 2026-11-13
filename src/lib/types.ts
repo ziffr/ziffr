@@ -81,6 +81,7 @@ export type IntakeEntry = {
 export type ActionStatus = "open" | "answered" | "closed";
 export type ActionKind = "question" | "task";
 export type Action = {
+  breakdown_label: string | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
@@ -107,13 +108,24 @@ export type ThreadMessage = {
 
 export type Dashboard = { id: number; name: string; owner_id: string };
 
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
+
+export type Callout = { period: string; text: string };
 
 export type WidgetSettings = {
   window?: number;
   showTarget?: boolean;
   showForecast?: boolean;
   rows?: number;
+  /** Story Widgets (GLOSSARY: Story Widget). Empty fields fall back to text drawn from the data. */
+  headline?: string;
+  subline?: string;
+  source?: string;
+  /** Label of the highlighted breakdown row. */
+  highlight?: string | null;
+  callouts?: Callout[];
+  /** Period of the breakdown shown; empty means the latest one. */
+  period?: string | null;
 };
 
 export type Widget = {
@@ -143,7 +155,11 @@ export type CanvasData = {
   openActions: Record<number, number>;
   /** Submitters per metric id (from Tokens). */
   submitters: Record<number, string[]>;
+  /** Breakdowns per metric id, then per period (GLOSSARY: Breakdown). */
+  breakdowns: Record<number, Record<string, BreakdownRow[]>>;
 };
+
+export type BreakdownRow = { label: string; value: number };
 
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type Master = {

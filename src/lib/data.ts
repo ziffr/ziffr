@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { evaluate, formulaInputs } from "./formula";
-import type { Action, Metric, Observation, Point, Profile } from "./types";
+import type { Action, BreakdownRow, Metric, Observation, Point, Profile } from "./types";
 
 export async function getProfiles(): Promise<Profile[]> {
   const { data } = await db.from("profiles").select("*").order("name");
@@ -85,4 +85,24 @@ export async function openActionCount(viewer: string) {
     .select("*", { count: "exact", head: true })
     .or(`and(assignee_id.eq.${viewer},status.eq.open),and(asker_id.eq.${viewer},status.eq.answered)`);
   return count ?? 0;
+}
+
+/** Breakdowns per metric and period. When a period has several observations (keep both), the latest one with rows wins. */
+export async function getBreakdowns(metricIds: number[], observations: Observation[]): Promise<Record<number, Record<string, BreakdownRow[]>>> {
+  const wanted = new Set(metricIds);
+  const obs = observations.filter((o) => wanted.has(o.metric_id));
+  if (!obs.length) return {};
+  const { data } = await db.from("breakdown_rows").select("observation_id, label, value, position").in("observation_id", obs.map((o) => o.id)).order("position").limit(20000);
+  const rowsByObs = new Map<number, BreakdownRow[]>();
+  for (const r of data ?? []) {
+    const list = rowsByObs.get(r.observation_id) ?? [];
+    list.push({ label: r.label, value: Number(r.value) });
+    rowsByObs.set(r.observation_id, list);
+  }
+  const out: Record<number, Record<string, BreakdownRow[]>> = {};
+  for (const o of [...obs].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+    const rows = rowsByObs.get(o.id);
+    if (rows) (out[o.metric_id] ??= {})[o.period_start] = rows;
+  }
+  return out;
 }

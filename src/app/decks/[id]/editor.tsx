@@ -10,7 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { renameDeck, saveDeck } from "@/app/deck-actions";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
-import { DEFAULT_TEMPLATE, METRIC_TEMPLATES, TEMPLATES } from "@/views/templates";
+import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
+import { StoryEditor } from "@/components/story-editor";
+import { widgetFromShape } from "@/decks/widget-shape";
 import type { CanvasData, Master, TemplateId, Widget } from "@/lib/types";
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
 import { setDeckMaster } from "@/app/master-actions";
@@ -200,7 +202,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <div className="order-2 space-y-4 lg:order-1">
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
-          {editor && <SelectionPanel editor={editor} />}
+          {editor && <SelectionPanel editor={editor} data={data} />}
         </div>
         <div
           className="order-1 h-[calc(100vh-13rem)] min-h-[32rem] overflow-hidden rounded-[var(--radius-card)] border border-border lg:order-2"
@@ -234,7 +236,7 @@ export function DeckEditor({ deck, data, saved, masters }: Props) {
 }
 
 /** Restyle the selected widget, the same templates as on a dashboard. */
-function SelectionPanel({ editor }: { editor: Editor }) {
+function SelectionPanel({ editor, data }: { editor: Editor; data: CanvasData }) {
   const slide = useValue("selected slide", () => {
     const s = editor.getOnlySelectedShape();
     return s && s.type === "frame" ? s : null;
@@ -259,7 +261,10 @@ function SelectionPanel({ editor }: { editor: Editor }) {
       </div>
     );
   }
-  if (!shape || TEMPLATES[shape.props.template as TemplateId]?.kind !== "metric") return null;
+  const kind = shape ? TEMPLATES[shape.props.template as TemplateId]?.kind : null;
+  if (!shape || (kind !== "metric" && kind !== "story")) return null;
+  const metric = data.metrics.find((x) => x.id === shape.props.metricIds[0]);
+  const hasBreakdown = !!metric && Object.keys(data.breakdowns[metric.id] ?? {}).length > 0;
   return (
     <div className="stock rounded-[var(--radius-card)] p-3">
       <label className="text-sm font-medium" htmlFor="deck-template">Visualization</label>
@@ -272,9 +277,20 @@ function SelectionPanel({ editor }: { editor: Editor }) {
         }}
         className="mt-1.5 h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
       >
-        {METRIC_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        {templatesFor(hasBreakdown).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
       </select>
-      <p className="mt-1.5 text-xs text-muted-foreground">Line and bars export as native, editable charts.</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">Line, bars and story ranked bars export as native, editable charts.</p>
+      {kind === "story" && metric && (
+        <div className="-mx-3 mt-3 border-t border-border">
+          <StoryEditor
+            key={shape.id}
+            widget={widgetFromShape(shape)}
+            data={data}
+            m={metric}
+            onSave={(settings) => editor.updateShape<WidgetShape>({ id: shape.id, type: WIDGET_SHAPE, props: { settings: JSON.stringify(settings) } })}
+          />
+        </div>
+      )}
     </div>
   );
 }

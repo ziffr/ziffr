@@ -18,6 +18,7 @@ export async function setViewer(id: string) {
 
 export async function resetDemo() {
   await db.rpc("prototype_reset");
+  await db.rpc("prototype_seed_breakdowns");
   await db.rpc("prototype_reset_decks");
   revalidatePath("/", "layout");
   redirect("/");
@@ -87,7 +88,11 @@ export async function simulateMessage(input: { source: SourceId; sender: string;
 }
 
 export async function submitWebForm(code: string, form: FormData) {
-  const r = await intake({ source: "web_form", sender: code, text: String(form.get("value")) });
+  // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line.
+  const value = String(form.get("value") ?? "").trim();
+  const breakdown = String(form.get("breakdown") ?? "").trim();
+  const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
+  const r = await intake({ source: "web_form", sender: code, text });
   revalidatePath("/", "layout");
   redirect(`/submit/${code}?outcome=${encodeURIComponent(r.outcome)}&detail=${encodeURIComponent(r.detail)}`);
 }

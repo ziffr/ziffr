@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
-import { getActions, getAllSeries, getProfiles } from "@/lib/data";
+import { getActions, getAllSeries, getBreakdowns, getProfiles } from "@/lib/data";
+import { countryCode } from "@/lib/countries";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@/lib/format";
 import { forecast } from "@/analyses/forecast";
@@ -22,7 +23,7 @@ import { StatusDot } from "@/components/status";
 
 const DAILY_WINDOW = 90;
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const [{ metrics, observations, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
@@ -59,6 +60,14 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     getShares(),
   ]);
   const markers = [...new Set(actions.map((a) => a.period_start))];
+  // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
+  const bdByPeriod = (await getBreakdowns([metric.id], observations))[metric.id] ?? {};
+  const bdPeriods = Object.keys(bdByPeriod).sort().reverse();
+  const bdPeriod = sp.bp && bdByPeriod[sp.bp] ? sp.bp : bdPeriods[0];
+  const bdRows = bdPeriod ? [...bdByPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
+  const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
+  const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
+  const bdAdds = bdTotal !== null && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
   const obs = observations.filter((o) => o.metric_id === metric.id).slice(-12).reverse();
 
   return (
@@ -155,6 +164,55 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           </section>
 
           <section className="stock rounded-[var(--radius-card)] p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-medium">Breakdown</h2>
+              {bdPeriods.length > 0 && (
+                <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
+                  {bdPeriods.slice(0, 6).map((p) => (
+                    <Link key={p} href={`?bp=${p}`} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
+                      {periodLabel(p, metric.period, true)}
+                    </Link>
+                  ))}
+                </nav>
+              )}
+            </div>
+            {bdRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No breakdown yet. Paste rows with the next value on the web form, or send one line per row, such as <code className="fig">Germany 61,200</code>.</p>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-muted-foreground">
+                    <tr><th className="pb-2 font-normal">Row</th><th className="pb-2 text-right font-normal">Value</th>{bdAdds && <th className="pb-2 text-right font-normal">Share</th>}</tr>
+                  </thead>
+                  <tbody>
+                    {bdRows.map((r) => {
+                      const code = countryCode(r.label);
+                      return (
+                        <tr key={r.label} className="border-t border-border">
+                          <td className="py-2">
+                            <span className="flex items-center gap-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              {code && <img src={`/flags/${code}.svg`} alt="" className="h-3 w-4 rounded-[2px] object-cover" />}
+                              {r.label}
+                            </span>
+                          </td>
+                          <td className="fig py-2 text-right">{formatValue(metric, r.value)}</td>
+                          {bdAdds && <td className="fig py-2 text-right text-muted-foreground">{((r.value / bdSum) * 100).toFixed(1)} %</td>}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {bdTotal !== null && !bdAdds && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    These rows don’t add up to the total ({formatValue(metric, bdTotal)}); the total stays the metric’s value{metric.format === "percent" ? ", as rates don’t add up" : ""}.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="stock rounded-[var(--radius-card)] p-5">
             <h2 className="mb-3 flex items-center gap-2 font-medium"><MessageSquare className="size-4" /> Actions</h2>
             {actions.length === 0 ? <p className="text-sm text-muted-foreground">No Actions yet. Click a point on the chart to assign one.</p> : (
               <ul className="divide-y">
@@ -162,7 +220,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <li key={a.id}>
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
-                      <span className="flex-1">{a.question}</span>
+                      <span className="flex-1">{a.question}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
                       <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, true)}</span>
                       <Person p={peopleById[a.assignee_id]} />
                     </Link>

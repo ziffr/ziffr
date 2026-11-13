@@ -6,6 +6,7 @@ import { formatValue, periodLabel, periodStart, RULE_LABEL } from "@/lib/format"
 import { submitWebForm } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BreakdownField } from "./breakdown-field";
 import type { Metric } from "@/lib/types";
 
 export default async function SubmitPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ outcome?: string; detail?: string }> }) {
@@ -30,9 +31,11 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
         {sp.detail && (
           <div className={`mt-4 rounded-lg border px-3 py-2 text-sm ${ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5"}`}>{sp.detail}</div>
         )}
-        <form action={submitWebForm.bind(null, code)} className="mt-4 flex gap-2">
-          <Input name="value" required inputMode="decimal" placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} className="h-10 text-base" autoFocus />
-          <Button type="submit" size="lg" className="h-10">Submit</Button>
+        <form action={submitWebForm.bind(null, code)} className="mt-4">
+          <label htmlFor="value" className="text-sm font-medium">Total</label>
+          <Input id="value" name="value" inputMode="decimal" placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} className="mt-1.5 h-10 text-base" autoFocus />
+          <BreakdownField />
+          <Button type="submit" size="lg" className="mt-4 w-full">Submit</Button>
         </form>
       </div>
       <p className="mt-4 text-center text-xs text-muted-foreground">

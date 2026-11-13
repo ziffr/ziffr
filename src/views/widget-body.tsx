@@ -11,19 +11,22 @@ import { MetricChart } from "./metric-chart";
 import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
 import { ScatterView } from "./scatter";
+import { StoryBody } from "./story";
 import { cn } from "@/lib/utils";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
   data: CanvasData;
   onPointContext?: (metricId: number, period: string) => void;
+  /** Right-click on one row of a breakdown. */
+  onRowContext?: (metricId: number, label: string, period: string) => void;
 };
 
 export function widgetMetrics(widget: Pick<Widget, "metric_ids">, data: CanvasData) {
   return widget.metric_ids.map((id) => data.metrics.find((m) => m.id === id)).filter((m): m is Metric => !!m);
 }
 
-export function WidgetBody({ widget, data, onPointContext }: Props) {
+export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props) {
   const ms = widgetMetrics(widget, data);
   if (ms.length < widget.metric_ids.length) {
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;
@@ -37,6 +40,11 @@ export function WidgetBody({ widget, data, onPointContext }: Props) {
   const ctx = onPointContext ? (p: string) => onPointContext(m.id, p) : undefined;
 
   switch (widget.template) {
+    case "ranked":
+    case "share":
+    case "pictogram":
+    case "story-line":
+      return <StoryBody widget={widget} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
     case "number": {
       const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
       const good = change === null || m.polarity === "target" ? null : (change > 0) === (m.polarity === "higher");

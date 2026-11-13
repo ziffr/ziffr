@@ -46,6 +46,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {format(new Date(a.due_date), "d MMM")}</span>}
           <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link><span>{periodLabel(a.period_start, m.period)}</span>
+          {a.breakdown_label && <span>row <span className="font-medium text-foreground">{a.breakdown_label}</span></span>}
           {obs && <><span className="fig text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
         </div>
         <div className="mt-3 flex gap-3">

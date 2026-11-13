@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Check, PencilLine, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { MetricChart } from "@/views/metric-chart";
-import { METRIC_TEMPLATES, TEMPLATES } from "@/views/templates";
+import { templatesFor, TEMPLATES } from "@/views/templates";
+import { StoryEditor } from "@/components/story-editor";
 import { assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
 import { formatValue, periodLabel, SOURCE_LABEL } from "@/lib/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings } from "@/lib/types";
@@ -34,7 +35,7 @@ type Props = {
   dragHandle?: boolean;
 };
 
-type Panel = "history" | "ask" | null;
+type Panel = "history" | "ask" | "story" | null;
 
 export function WidgetFrame({ widget, data, targets, editable = false, className, dragHandle }: Props) {
   const router = useRouter();
@@ -45,7 +46,10 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
   const [, start] = useTransition();
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
-  const isMetricWidget = TEMPLATES[widget.template].kind === "metric";
+  const isMetricWidget = TEMPLATES[widget.template].kind !== "analysis";
+  const isStory = TEMPLATES[widget.template].kind === "story";
+  const hasBreakdown = !!m && Object.keys(data.breakdowns[m.id] ?? {}).length > 0;
+  const [row, setRow] = useState<string | null>(null);
   const analysisTitle: Record<string, () => string> = {
     forecast: () => `Forecast: ${m?.name}`,
     correlation: () => `${ms[0]?.name} vs. ${ms[1]?.name}`,
@@ -75,9 +79,12 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         <K.Sub>
           <K.SubTrigger><Palette /> Change visualization</K.SubTrigger>
           <K.SubContent>
-            <K.RadioGroup value={widget.template} onValueChange={(v: string) => restyle(v as TemplateId)}>
-              {METRIC_TEMPLATES.map((t) => <K.RadioItem key={t.id} value={t.id}>{t.label}</K.RadioItem>)}
-            </K.RadioGroup>
+            {/* Plain items: Base UI's radio group did not fire inside this nested context submenu. */}
+            {templatesFor(hasBreakdown).map((t) => (
+              <K.Item key={t.id} onClick={() => restyle(t.id)} aria-current={widget.template === t.id ? "true" : undefined}>
+                <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
+              </K.Item>
+            ))}
             {(widget.template === "line" || widget.template === "bars") && (
               <>
                 <K.Separator />
@@ -88,6 +95,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
           </K.SubContent>
         </K.Sub>
       )}
+      {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit story…</K.Item>}
       <K.Item
         onClick={() => {
           const name = window.prompt("Save to your widgets as:", title ?? "My widget");
@@ -122,7 +130,7 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
         <ContextMenuTrigger
           ref={frame}
           className={cn("stock group/widget flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", panel && "outline-2 outline-offset-2 outline-ring", className)}
-          onContextMenuCapture={() => setPeriod(null)}
+          onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
@@ -136,18 +144,27 @@ export function WidgetFrame({ widget, data, targets, editable = false, className
             </DropdownMenu>
           </div>
           <div className="min-h-0 flex-1 px-4 pb-4">
-            <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} />
+            <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
       </ContextMenu>
 
-      <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); } }}>
+      <Popover open={panel !== null} onOpenChange={(o) => { if (!o) { setPanel(null); setPeriod(null); setRow(null); } }}>
         <PopoverContent anchor={frame} side="right" align="start" sideOffset={8} className={cn("p-0", panel === "history" ? "w-[26rem]" : "w-80")}>
           {panel === "history" && m && <HistoryPanel metricId={m.id} data={data} />}
+          {panel === "story" && m && widget.id && (
+            <StoryEditor
+              widget={widget}
+              data={data}
+              m={m}
+              onSave={(settings) => start(async () => { await updateWidget(widget.id!, { settings }); setPanel(null); })}
+            />
+          )}
           {panel === "ask" && m && (
             <AskPanel
-              key={`${kind}-${period}`}
+              key={`${kind}-${period}-${row}`}
+              row={row}
               kind={kind}
               setKind={setKind}
               metric={m}
@@ -214,7 +231,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
   );
 }
 
-function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind: ActionKind; setKind: (k: ActionKind) => void; metric: CanvasData["metrics"][number]; data: CanvasData; initialPeriod: string | null; onDone: (id: number, who: string) => void }) {
+function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: { kind: ActionKind; setKind: (k: ActionKind) => void; metric: CanvasData["metrics"][number]; data: CanvasData; initialPeriod: string | null; row: string | null; onDone: (id: number, who: string) => void }) {
   const pts = [...(data.series[metric.slug] ?? [])].reverse();
   const others = data.people.filter((p) => p.id !== data.viewer);
   const [period, setPeriod] = useState(initialPeriod ?? pts[0]?.period ?? "");
@@ -223,6 +240,8 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind
   const [assignee, setAssignee] = useState(preferred ?? others[0]?.id);
   const draft = (p: string) => {
     const label = periodLabel(p, metric.period);
+    // About one row of a breakdown: "What happened with France in October 2026?"
+    if (row) return kind === "task" ? `Look into ${row} for ${metric.name.toLowerCase()} in ${label}` : `What happened with ${row} in ${metric.name.toLowerCase()}, ${label}?`;
     const v = pts.find((x) => x.period === p)?.value;
     const off = v !== undefined && ((metric.target_max !== null && v > metric.target_max) || (metric.target_min !== null && v < metric.target_min));
     const word = metric.polarity === "lower" ? "high" : "low";
@@ -238,7 +257,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null });
+          const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row });
           onDone(id, others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "");
         });
       }}
@@ -248,6 +267,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, onDone }: { kind
           <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} className={cn("min-h-8 flex-1 rounded-[var(--radius-input)] capitalize transition-colors", kind === k ? "stock font-medium" : "text-muted-foreground hover:text-foreground")}>{k}</button>
         ))}
       </div>
+      {row && <p className="text-xs text-muted-foreground">About <span className="font-medium text-foreground">{row}</span> in the breakdown</p>}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <label className="space-y-1">
           <span className="text-muted-foreground">About</span>

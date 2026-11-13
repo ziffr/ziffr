@@ -71,7 +71,8 @@ export async function placeWidget(dashboardId: number, source: DropSource, pos?:
     y = Math.max(0, ...(existing ?? []).map((e) => e.y + e.h));
     x = 0;
   }
-  await db.from("widgets").insert({ ...spec, owner_id: viewer, dashboard_id: dashboardId, saved: false, x, y });
+  const { error } = await db.from("widgets").insert({ ...spec, owner_id: viewer, dashboard_id: dashboardId, saved: false, x, y });
+  if (error) throw new Error(`Widget not placed: ${error.message}`);
   done();
 }
 
@@ -88,7 +89,8 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
     const t = TEMPLATES[patch.template];
     update.settings = { ...t.settings, ...(patch.settings ?? {}) };
   }
-  await db.from("widgets").update(update).eq("id", id);
+  const { error } = await db.from("widgets").update(update).eq("id", id);
+  if (error) throw new Error(`Widget not updated: ${error.message}`);
   done();
 }
 
@@ -102,7 +104,8 @@ export async function removeWidget(id: number) {
 export async function saveToPool(source: DropSource, title: string) {
   const viewer = await viewerId();
   const spec = await specFrom(source, viewer);
-  await db.from("widgets").insert({ ...spec, title, owner_id: viewer, dashboard_id: null, saved: true });
+  const { error } = await db.from("widgets").insert({ ...spec, title, owner_id: viewer, dashboard_id: null, saved: true });
+  if (error) throw new Error(`Widget not saved: ${error.message}`);
   done();
 }
 
@@ -166,7 +169,7 @@ export async function getHistory(metricId: number) {
 }
 
 /** Ask a Question or assign a Task right where the viewer is. */
-export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null }) {
+export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null }) {
   const viewer = await viewerId();
   await assertCanSeeMetrics([input.metricId], viewer);
   if (input.kind !== "question" && input.kind !== "task") forbidden();
@@ -188,6 +191,7 @@ export async function assignInPlace(input: { metricId: number; period: string; a
       question: input.text,
       kind: input.kind,
       due_date: input.due || null,
+      breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
     })
     .select("id")
     .single();
