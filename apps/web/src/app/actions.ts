@@ -1,19 +1,18 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentActor, DEMO_WORKSPACE_ID, VIEWER_COOKIE, viewerId } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
-import { actingWorkspace, assertCanSeeMetrics, assertMembers, assertSubmitters, forbidden } from "@/lib/guards";
-import { deliver, deliverPrompt } from "@/lib/deliveries";
+import { assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
+import { deliver } from "@/lib/deliveries";
 import { postReply } from "@/lib/threads";
 import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionResult } from "@ziffr/core/submissions";
-import { correctionEffects, submissionEffects } from "@/lib/submission-effects";
+import { correctionEffects, metricEffects, submissionEffects } from "@/lib/core-effects";
+import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
 import type { SourceId } from "@ziffr/core/types";
-import { recordVersion } from "@/lib/versions";
 
 // PROTOTYPE: little validation beyond what keeps the demo runnable; but every record lands in the acting person's
 // workspace, and ids and people sent by the browser must belong to it.
@@ -40,53 +39,16 @@ export async function resetDemo() {
 
 const num = (v: FormDataEntryValue | null) => (v === null || v === "" ? null : Number(v));
 
-function slugify(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
+/** Creates a Metric from the form; the core checks the role and every field. */
 export async function createMetric(form: FormData) {
-  const viewer = await viewerId();
-  const ws = await actingWorkspace();
-  const name = String(form.get("name") ?? "").trim().slice(0, 120);
-  if (!name) throw new Error("Give the Metric a name.");
-  let slug = slugify(name) || "metric";
-  const { data: clash } = await db.from("metrics").select("id").eq("slug", slug).eq("workspace_id", ws);
-  if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
-  const sources = form.getAll("sources").map(String);
-  // Submitters are checked before anything is written.
-  const submitters = form.getAll("submitters").map(String);
-  await assertSubmitters(submitters);
-  const { data: metric } = await db
-    .from("metrics")
-    .insert({
-      slug,
-      name,
-      description: String(form.get("description") ?? ""),
-      unit: String(form.get("unit") ?? ""),
-      format: form.get("format"),
-      decimals: Number(form.get("decimals") ?? 0),
-      period: form.get("period"),
-      submission_rule: form.get("submission_rule"),
-      polarity: form.get("polarity"),
-      aggregation: ["sum", "average", "last", "none"].includes(String(form.get("aggregation"))) ? form.get("aggregation") : "sum",
-      target_min: num(form.get("target_min")),
-      target_max: num(form.get("target_max")),
-      sources,
-      owner_id: viewer,
-      from_catalog_id: num(form.get("from_catalog_id")),
-      workspace_id: ws,
-    })
-    .select()
-    .single();
-  if (metric) await recordVersion("metric", metric.id, viewer, { message: metric.from_catalog_id ? "Created from the Metric Catalog" : "Created" });
-  if (metric && submitters.length) {
-    await db.from("tokens").insert(
-      // A Token code opens the submission form without signing in: random, never derived from names.
-      submitters.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: metric.id, submitter_id: s })),
-    );
-    // Every Submitter gets a first Prompt through their Connector, so the loop can continue right away.
-    for (const s of submitters) await deliverPrompt({ metricId: metric.id, submitterId: s, senderId: viewer });
-  }
+  const num = (k: string) => (form.get(k) === null || form.get(k) === "" ? null : Number(form.get(k)));
+  const { slug } = await coreCreateMetric(await currentActor(), {
+    name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""),
+    format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
+    submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
+    targetMin: num("target_min"), targetMax: num("target_max"), fromCatalogId: num("from_catalog_id"),
+    sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
+  }, metricEffects);
   revalidatePath("/", "layout");
   redirect(`/metrics/${slug}?created=1`);
 }

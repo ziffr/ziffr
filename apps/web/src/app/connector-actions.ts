@@ -13,7 +13,7 @@ import { isDemo } from "@/lib/auth";
 import { deliver, deliverPrompt } from "@/lib/deliveries";
 import { periodStart } from "@ziffr/core/format";
 import { peopleIn, submitValue } from "@ziffr/core/submissions";
-import { submissionEffects } from "@/lib/submission-effects";
+import { submissionEffects } from "@/lib/core-effects";
 import type { Period } from "@ziffr/core/types";
 import { finishTask, postReply } from "@/lib/threads";
 import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type PreferenceKind } from "@/connectors";

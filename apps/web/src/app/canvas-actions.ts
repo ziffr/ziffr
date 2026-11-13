@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { share as coreShare, shareWithGroup as coreShareWithGroup } from "@ziffr/core/sharing";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
-import { actingWorkspace, assertCanEditDashboard, assertCanShare, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
+import { actingWorkspace, assertCanEditDashboard, assertCanEditWidget, assertCanSeeMetrics, assertMembers, dashboardRole, forbidden, widgetMetricIds } from "@/lib/guards";
 import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
-import { deckMetricIds, readableActions } from "@/lib/access";
+import { readableActions } from "@/lib/access";
 import { deliver } from "@/lib/deliveries";
 import { finishTask } from "@/lib/threads";
 import type { ConnectorId } from "@/connectors";
@@ -162,44 +163,15 @@ export async function createDashboardNamed(name: string) {
   return data?.id as number;
 }
 
+/** Shares something the viewer owns with a member, or takes the Share away; the core decides who may. */
 export async function setShare(objectType: "metric" | "dashboard" | "deck", objectId: number, userId: string, role: ShareRole | null) {
-  const viewer = await viewerId();
-  await assertCanShare();
-  if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
-  if (role !== null && role !== "viewer" && role !== "editor") forbidden();
-  if (objectType === "metric" && role === "editor") forbidden();
-  const { data: obj } = await db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).eq("workspace_id", await actingWorkspace()).maybeSingle();
-  if (!obj || obj.owner_id !== viewer || userId === viewer) forbidden();
-  await assertMembers([userId]);
-  // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
-  if (objectType === "deck" && role) {
-    const { data: deck } = await db.from("decks").select("document").eq("id", objectId).single();
-    await assertCanSeeMetrics(deckMetricIds(deck?.document), viewer);
-  }
-  await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("user_id", userId);
-  if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, user_id: userId, role });
+  await coreShare(await currentActor(), objectType, Number(objectId), String(userId), role);
   done();
 }
 
 /** Shares with a Group: everyone in it, now and later (GLOSSARY: Group). */
 export async function setGroupShare(objectType: "metric" | "dashboard" | "deck", objectId: number, groupId: number, role: ShareRole | null) {
-  const viewer = await viewerId();
-  await assertCanShare();
-  if (objectType !== "metric" && objectType !== "dashboard" && objectType !== "deck") forbidden();
-  if (role !== null && role !== "viewer" && role !== "editor") forbidden();
-  if (objectType === "metric" && role === "editor") forbidden();
-  const [{ data: obj }, { data: g }] = await Promise.all([
-    db.from(objectType === "metric" ? "metrics" : objectType === "deck" ? "decks" : "dashboards").select("owner_id").eq("id", objectId).eq("workspace_id", await actingWorkspace()).maybeSingle(),
-    db.from("groups").select("id").eq("id", groupId).eq("workspace_id", await actingWorkspace()).maybeSingle(),
-  ]);
-  if (!obj || obj.owner_id !== viewer || !g) forbidden();
-  // A deck shows its metrics to whoever it is shared with: its owner must be able to see all of them.
-  if (objectType === "deck" && role) {
-    const { data: deck } = await db.from("decks").select("document").eq("id", objectId).single();
-    await assertCanSeeMetrics(deckMetricIds(deck?.document), viewer);
-  }
-  await db.from("shares").delete().eq("object_type", objectType).eq("object_id", objectId).eq("group_id", groupId);
-  if (role) await db.from("shares").insert({ object_type: objectType, object_id: objectId, group_id: groupId, role });
+  await coreShareWithGroup(await currentActor(), objectType, Number(objectId), Number(groupId), role);
   done();
 }
 
