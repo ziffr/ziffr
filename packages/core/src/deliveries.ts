@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { periodLabel, periodStart } from "./format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
-import { initialMailState, sendNow } from "./mail";
+import { inboundEnabled, initialMailState, sendNow } from "./mail";
 import type { Period, Profile } from "./types";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -13,7 +13,7 @@ export const linkTo = (path: string) => `${(process.env.ZIFFR_SITE_URL ?? "").re
 
 /** Whether a reply to a message by this Connector comes back into Ziffr. Real email does once inbound mail is set up
  * (spec 0004, ticket #73); until then a sent email says to answer in Ziffr, so no reply is lost. */
-const repliesReturn = (via: ConnectorId, workspaceId: string) => via !== "email" || initialMailState(via, workspaceId) === "outbox" || Boolean(process.env.ZIFFR_INBOUND_DOMAIN);
+const repliesReturn = (via: ConnectorId, workspaceId: string) => via !== "email" || initialMailState(via, workspaceId) === "outbox" || inboundEnabled();
 
 /** The ticket, email thread or chat a whole Action lives in on the other side. */
 export const refFor = (actionId: number) => `ZIF-${actionId}`;

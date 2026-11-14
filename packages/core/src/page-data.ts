@@ -22,7 +22,9 @@ export async function connectorsView(actor: Actor) {
   const ws = actor.workspaceId;
   const [{ data: prefs }, { data: deliveries }, { data: tokens }, readable] = await Promise.all([
     db().from("delivery_preferences").select("user_id, kind, connector").eq("workspace_id", ws),
-    db().from("deliveries").select("*, actions(kind, status, question), prompts(source, answered_at, submitter_id, metric_id)").eq("workspace_id", ws).order("id", { ascending: false }).limit(80),
+    // Named columns only: a Delivery's reply token answers as its recipient, and its Message-ID is for the provider's
+    // logs; neither may reach a browser.
+    db().from("deliveries").select("id, connector, recipient_id, sender_id, kind, action_id, prompt_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status, question), prompts(source, answered_at, submitter_id, metric_id)").eq("workspace_id", ws).order("id", { ascending: false }).limit(80),
     db().from("tokens").select("code, metric_id, submitter_id").eq("workspace_id", ws),
     readableActions(ws, actor.personId),
   ]);
@@ -32,9 +34,7 @@ export async function connectorsView(actor: Actor) {
   const visible = (deliveries ?? []).filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser (in the demo, all of the demo).
   const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
-  // The provider's Message-ID is for finding a message in its logs, not for the browser.
-  const shown = visible.map((d) => { const rest = { ...d }; delete rest.provider_id; return rest; });
-  return { prefs: prefs ?? [], deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
+  return { prefs: prefs ?? [], deliveries: visible, tokens: own, isAdmin: await isAdmin(actor) };
 }
 
 /** The Sources page: Prompts and the intake log of the workspace, and the form links that are the person's. */

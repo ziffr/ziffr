@@ -2,6 +2,7 @@
 // Delivery; this sends it as plain text through SMTP (ZIFFR_SMTP_URL, from ZIFFR_MAIL_FROM). Only to a member or
 // Contact of the Delivery's workspace, at the address that workspace keeps, never in the demo, and nothing at all
 // without settings. Addresses are looked up when sending and never stored with the Delivery.
+import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -12,8 +13,8 @@ export const MAX_ATTEMPTS = 5;
 /** What a send did: sent, failed (and will be retried, or not after MAX_ATTEMPTS), or nothing to do. */
 export type SendResult = "sent" | "failed" | "skipped";
 
-/** A plain-text email ready to go out. */
-export type OutgoingMail = { to: string; subject: string; text: string };
+/** A plain-text email ready to go out; `replyTo` is the Delivery's own reply address, when replies come back. */
+export type OutgoingMail = { to: string; subject: string; text: string; replyTo?: string };
 
 /** Sends one email and returns the provider's Message-ID; tests pass their own. */
 export type MailTransport = (mail: OutgoingMail) => Promise<{ messageId: string }>;
@@ -62,7 +63,7 @@ export const smtpTransport: MailTransport = async (mail) => {
   const name = from.match(/^\s*([^<]+?)\s*</)?.[1];
   const info = await transporter.t.sendMail({
     from: name ? { name: headerSafe(name), address: fromAddress(process.env) } : fromAddress(process.env),
-    to: mail.to, subject: mail.subject, text: mail.text,
+    to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
     // Automated mail: no out-of-office replies to it (RFC 3834).
     headers: { "Auto-Submitted": "auto-generated" },
   });
@@ -76,6 +77,15 @@ export async function sendMail(mail: OutgoingMail, transport: MailTransport = sm
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
   return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text) })).messageId;
 }
+
+/** Whether replies by email come back into Ziffr (spec 0004, ticket #73): sending works, ZIFFR_INBOUND_DOMAIN names
+ * the domain replies go to, and ZIFFR_INBOUND_SECRET (32 characters or more) signs what the provider forwards. */
+export function inboundEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return mailEnabled(env) && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(env.ZIFFR_INBOUND_DOMAIN ?? "") && (env.ZIFFR_INBOUND_SECRET ?? "").length >= 32;
+}
+
+/** The reply address of a Delivery's token. */
+export const replyAddress = (token: string) => `reply+${token}@${String(process.env.ZIFFR_INBOUND_DOMAIN).toLowerCase()}`;
 
 /** The state a new Delivery starts in: queued when it will really be emailed, else it stays in the Outbox. */
 export function initialMailState(connector: string, workspaceId: string): "queued" | "outbox" {
@@ -99,7 +109,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
   const now = new Date().toISOString();
   const { data: claimed } = await db().from("deliveries").update({ mail_state: "sending", last_attempt_at: now })
-    .eq("id", id).eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).select("id, workspace_id, recipient_id, subject, body, attempts").maybeSingle();
+    .eq("id", id).eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).select("id, workspace_id, recipient_id, subject, body, attempts, reply_token").maybeSingle();
   if (!claimed) return "skipped";
   const attempts = Number(claimed.attempts) + 1;
   const fail = async (why: string, final = false) => {
@@ -110,8 +120,15 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled()) return fail("Email is not set up.", true);
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
   if (!to) return fail("No usable email address for this person here.", true);
+  // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
+  let replyTo: string | undefined;
+  if (inboundEnabled()) {
+    const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
+    if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
+    replyTo = replyAddress(token);
+  }
   try {
-    const { messageId } = await transport({ to, subject: headerSafe(claimed.subject), text: String(claimed.body) });
+    const { messageId } = await transport({ to, subject: headerSafe(claimed.subject), text: String(claimed.body), replyTo });
     await db().from("deliveries").update({ mail_state: "sent", attempts, sent_at: new Date().toISOString(), provider_id: messageId.slice(0, 300) || null, last_error: null }).eq("id", id);
     return "sent";
   } catch (e) {
