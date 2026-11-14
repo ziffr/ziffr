@@ -29,6 +29,7 @@ console.log(result.status); // "recorded", or "awaiting_approval" for an unusual
 
 - **Pages for you.** Every list has `list({ limit, cursor })` for one page and `all()` to iterate over every item.
 - **Waits out limits.** On a 429 it waits as long as the server's `Retry-After` says and tries again, up to `maxRetries` (default 3) and `maxRetryWait` seconds (default 60). A longer wait, such as the daily limit on values, throws at once.
+- **Never makes a Metric twice.** `metrics.create` sends a fresh idempotency key too; it needs a key with "Create metrics", and the Metric belongs to the key's creator.
 - **Never records a value twice.** Each `submit` sends a fresh idempotency key, so its own retries are safe. To make retries across runs of your program safe too, pass your own: `submit("orders", { value: 42 }, { idempotencyKey: "orders-2026-11" })`. A repeat with the same key and value gets the first answer back, with `replayed: true`.
 - **One kind of error.** Every failure is a `ZiffrError` with the HTTP `status` and the API's stable `code` (`not_found`, `forbidden`, `locked`, `rate_limited`, and so on; `network` when Ziffr could not be reached).
 
@@ -40,6 +41,7 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | --- | --- |
 | `metrics.list(options)`, `metrics.all()` | `GET /api/v1/metrics` |
 | `metrics.get(slug)` | `GET /api/v1/metrics/{slug}` |
+| `metrics.create({ name, period, unit, submit, ... }, { idempotencyKey })` | `POST /api/v1/metrics` |
 | `observations.list(slug, { from, to, limit, cursor })`, `observations.all(slug, { from, to })` | `GET /api/v1/metrics/{slug}/observations` |
 | `observations.submit(slug, { value, period, breakdown }, { idempotencyKey })` | `POST /api/v1/metrics/{slug}/observations` |
 | `people.list(options)`, `people.all()` | `GET /api/v1/people` |

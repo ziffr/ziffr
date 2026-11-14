@@ -1,6 +1,6 @@
 # 0003 Creating Metrics through the API
 
-**Status:** in progress. **Tracking issue:** #63 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0003`.
+**Status:** done. **Tracking issue:** #63 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0003`.
 
 ## Problem Statement
 

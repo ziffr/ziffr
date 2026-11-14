@@ -4,7 +4,7 @@ A local [MCP](https://modelcontextprotocol.io) server that lets an AI assistant,
 
 ## Setting it up
 
-1. In Ziffr, open the Team page and create an Access Key. Give it "Read metrics", and "Submit values" only if the assistant should record values. Copy the key: it is shown once.
+1. In Ziffr, open the Team page and create an Access Key. Give it "Read metrics", "Submit values" only if the assistant should record values, and "Create metrics" only if it should start new Metrics. Copy the key: it is shown once.
 2. Add the server to your assistant with two settings: `ZIFFR_URL`, where your Ziffr runs, and `ZIFFR_ACCESS_KEY`, the key.
 
 **Claude Code:**
@@ -27,7 +27,7 @@ claude mcp add ziffr --env ZIFFR_URL=https://ziffr.example.com --env ZIFFR_ACCES
 }
 ```
 
-Restart the assistant, then ask it, for example, "What was revenue in March?" or "Record 42 orders for this month."
+Restart the assistant, then ask it, for example, "What was revenue in March?" or "Record 42 orders for this month", or "Start tracking weekly signups."
 
 ## What the assistant gets
 
@@ -36,6 +36,7 @@ Restart the assistant, then ask it, for example, "What was revenue in March?" or
 | `list_metrics` | Every Metric the key may read: slug, name, period, unit, format, target |
 | `get_metric` | One Metric's description and its values for a range of periods (at most the 500 newest) |
 | `submit_value` | Records a value for the current or a named period, through the Metric's rules (Approvals, Locks) |
+| `create_metric` | Creates a Metric owned by the key's creator, when you ask for one (needs "Create metrics") |
 | `list_people` | The workspace's people and Contacts by id and name, to say who submitted a value |
 
 Each Metric is also a read-only resource, `ziffr://metrics/{slug}`, that you can attach to a conversation so the assistant has its values in context.
@@ -43,6 +44,6 @@ Each Metric is also a read-only resource, `ziffr://metrics/{slug}`, that you can
 ## Safety
 
 - The server runs on your computer and talks only to your Ziffr, over its API. It stores nothing.
-- A read-only key (without "Submit values") cannot record anything, whatever the assistant tries.
+- A read-only key (without "Submit values" or "Create metrics") cannot record or create anything, whatever the assistant tries.
 - Every call shows in the key's Access Log on the Team page. Revoke the key there to cut the assistant off at once.
 - Metric names and descriptions come from your workspace. Anyone who can name a Metric can put text in front of the assistant, so give it a read-only key unless it should submit values.

@@ -15,7 +15,7 @@ afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const json = (r: unknown) => JSON.parse((r as { content: { text: string }[] }).content[0].text);
 
-async function connect(scopes: ("metrics:read" | "values:submit")[] = ["metrics:read", "values:submit"]) {
+async function connect(scopes: ("metrics:read" | "values:submit" | "metrics:write")[] = ["metrics:read", "values:submit"]) {
   const w = await workspace(); cleanups.push(w.cleanup);
   const ben = await w.person("member"); const sara = await w.person("owner");
   const orders = await w.metric(ben, { name: "Orders", description: "Orders a month" }); await w.token(orders.id, ben);
@@ -33,7 +33,7 @@ async function connect(scopes: ("metrics:read" | "values:submit")[] = ["metrics:
 describe("@ziffr/mcp against the app", () => {
   it("offers four tools and calls each through the API", async () => {
     const { client, ben, orders, hidden } = await connect();
-    expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual(["get_metric", "list_metrics", "list_people", "submit_value"]);
+    expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual(["create_metric", "get_metric", "list_metrics", "list_people", "submit_value"]);
     const metrics = json(await client.callTool({ name: "list_metrics", arguments: {} })).metrics;
     expect(metrics.map((m: { slug: string }) => m.slug)).toEqual([orders.slug]);
     expect(JSON.stringify(metrics)).not.toContain(hidden.slug);
@@ -43,6 +43,14 @@ describe("@ziffr/mcp against the app", () => {
     const people = json(await client.callTool({ name: "list_people", arguments: {} })).people;
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
+  });
+  it("creates a Metric and submits its first value", async () => {
+    const { client } = await connect(["metrics:read", "values:submit", "metrics:write"]);
+    const created = json(await client.callTool({ name: "create_metric", arguments: { name: "Weekly signups", period: "week", submit: true } })).metric;
+    expect(created).toMatchObject({ slug: "weekly-signups", period: "week" });
+    expect(json(await client.callTool({ name: "submit_value", arguments: { slug: created.slug, value: 9 } }))).toMatchObject({ status: "recorded", value: 9 });
+    const refused = await (await connect()).client.callTool({ name: "create_metric", arguments: { name: "X" } });
+    expect(refused.isError).toBe(true);
   });
   it("lists each visible Metric as a resource and reads it", async () => {
     const { client, orders } = await connect();

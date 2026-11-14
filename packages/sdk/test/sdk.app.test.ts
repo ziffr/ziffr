@@ -13,7 +13,7 @@ afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const collect = async <T>(it: AsyncIterable<T>) => { const out: T[] = []; for await (const x of it) out.push(x); return out; };
 
-async function setup(scopes: ("metrics:read" | "values:submit")[] = ["metrics:read", "values:submit"]) {
+async function setup(scopes: ("metrics:read" | "values:submit" | "metrics:write")[] = ["metrics:read", "values:submit"]) {
   const w = await workspace(); cleanups.push(w.cleanup);
   const ben = await w.person("member");
   const orders = await w.metric(ben, { name: "Orders", submission_rule: "add" }); await w.token(orders.id, ben);
@@ -43,6 +43,14 @@ describe("@ziffr/sdk against the app", () => {
     const again = await ziffr.observations.submit(orders.slug, { value: 1, breakdown: [{ label: "Shop", value: 1 }] }, { idempotencyKey: "nightly-1" });
     expect(first).toMatchObject({ value: 8, replayed: false });
     expect(again).toMatchObject({ value: 8, replayed: true });
+  });
+  it("creates a Metric, replays a given idempotency key, and submits its first value", async () => {
+    const { ziffr } = await setup(["metrics:read", "values:submit", "metrics:write"]);
+    const created = await ziffr.metrics.create({ name: "Weekly signups", period: "week", unit: "signups", submit: true }, { idempotencyKey: "setup-1" });
+    expect(created).toMatchObject({ slug: "weekly-signups", period: "week", unit: "signups", replayed: false });
+    expect(await ziffr.metrics.create({ name: "Weekly signups", period: "week", unit: "signups", submit: true }, { idempotencyKey: "setup-1" })).toMatchObject({ slug: "weekly-signups", replayed: true });
+    expect(await ziffr.observations.submit(created.slug, { value: 12 })).toMatchObject({ status: "recorded", value: 12 });
+    await expect((await setup()).ziffr.metrics.create({ name: "X" })).rejects.toMatchObject({ status: 403, code: "forbidden" });
   });
   it("throws a ZiffrError with the API's code", async () => {
     const { extra, ziffr } = await setup(["metrics:read"]);

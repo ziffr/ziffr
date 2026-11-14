@@ -42,6 +42,23 @@ export type Group = { id: number; name: string; everyone: boolean };
 /** One page of a list; pass `next` as `cursor` for the following page (null on the last). */
 export type Page<T> = { items: T[]; next: string | null };
 
+/** What creating a Metric sends (scope metrics:write): a name, and as much of its description as you want to set;
+ * `submit` makes the key's creator its Submitter. */
+export type NewMetric = {
+  name: string;
+  description?: string;
+  unit?: string;
+  format?: Metric["format"];
+  decimals?: number;
+  period?: Metric["period"];
+  submission_rule?: "reject" | "overwrite" | "add" | "keep_both";
+  polarity?: Metric["polarity"];
+  aggregation?: Metric["aggregation"];
+  target_min?: number | null;
+  target_max?: number | null;
+  submit?: boolean;
+};
+
 /** What a submission sends. */
 export type SubmitValue = { value: number; period?: string; breakdown?: BreakdownRow[] };
 
@@ -116,6 +133,12 @@ export class Ziffr {
     all: () => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100 })),
     /** One Metric's description. */
     get: (slug: string) => this.get<Metric>(`/metrics/${encodeURIComponent(slug)}`),
+    /** Creates a Metric owned by the key's creator (scope metrics:write). A fresh idempotency key is sent unless one is
+     * given; pass your own to make retries across runs of your program safe too. */
+    create: async (metric: NewMetric, options: { idempotencyKey?: string } = {}): Promise<Metric & { replayed: boolean }> => {
+      const { body, headers } = await this.request<Metric>("POST", "/metrics", undefined, metric, options.idempotencyKey ?? newIdempotencyKey());
+      return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
+    },
   };
 
   /** A Metric's values. */
