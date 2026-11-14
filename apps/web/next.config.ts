@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 // Local settings stay at the repository root, shared by every app; package.json's scripts hand them to Node.
 
 const nextConfig: NextConfig = {
+  // `pnpm ci:local` builds into its own folder, so a running `pnpm dev` keeps its own.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // The core ships as TypeScript source inside the monorepo.
   transpilePackages: ["@ziffr/core"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).

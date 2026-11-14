@@ -49,7 +49,7 @@ describe("replies by email", () => {
     const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${annMail}"`)}`)).json() as { messages: { ID: string }[] };
     const headers = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}/headers`)).json() as Record<string, string[]>;
     expect(headers["Reply-To"]).toEqual([`reply+${d.reply_token}@${DOMAIN}`]);
-    const raw = reply({ from: annMail, token: d.reply_token!, text: "42 visits\r\n\r\nOn Mon, Ziffr wrote:\r\n> What's the number? Last time 7" , id: "first" });
+    const raw = reply({ from: annMail, token: d.reply_token!, text: "42 visits\r\n\r\nOn Mon, Ziffr wrote:\r\n> What's the number? Last time 7", id: `first-${randomUUID()}` });
     expect(await receiveEmail(await parseInbound(raw), { submission: quiet() })).toBe("recorded");
     expect(await valuesOf(m.id)).toMatchObject([{ value: 42, source: "mail" }]);
     // The same message again (the provider retried): nothing more.

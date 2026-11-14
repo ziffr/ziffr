@@ -8,6 +8,7 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 - `pnpm exec tsc --noEmit` and `pnpm lint`: must pass before you finish.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`: run across all packages, as CI does.
 - `pnpm --filter @ziffr/core test:db`: the core's operations against the local database (needs `supabase start`); CI runs it too.
+- `pnpm ci:local`: everything CI runs, on this machine. GitHub Actions minutes are counted: run it before pushing, push a branch when it is ready rather than every fix-up, and don't re-run CI to see if a flaky step passes.
 
 ## Rules
 
