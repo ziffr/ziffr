@@ -1,3 +1,61 @@
 # Changelog
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
+
+## 0.2.0 (2026-11-14)
+
+### For self-hosters
+
+- The demo is on by default and lives in its own workspace beside your real ones; set ZIFFR_DEMO=0 to offer none. `pnpm demo` is now the same as `pnpm dev`.
+- Email confirmations are now required (supabase/config.toml, enable_confirmations = true); set the same in production, so a confirmed address is one the person controls. Only the email link and Google count as proving an address for invitations, domain joining and existing people.
+- Every table now belongs to a Workspace and people get a Workspace Role through memberships; existing data moves into one workspace. Set `ZIFFR_SITE_URL` to where Ziffr is reached, and to offer sign-in providers list them in `ZIFFR_AUTH_PROVIDERS` (google, azure, github, linkedin_oidc) with their keys in `SUPABASE_AUTH_EXTERNAL_<PROVIDER>_CLIENT_ID` and `_SECRET`.
+
+### New and changed
+
+- Access Keys: on the Team page, create a key that lets a program read metrics or submit values for you in this workspace until a day you pick, and revoke it any time; Owners see and revoke every key. A key sees no more than you do, and stops when you leave the workspace. Self-hosters: run the new migration.
+- The API now limits each Access Key to about 60 calls a minute; a program that goes over gets a 429 answer with `Retry-After` and gets in again after waiting. Every call with a key goes into its Access Log (when, which endpoint, the result; never the data sent), shown under the key on the Team page and kept for 90 days. Owners and Admins see every key and its log, everyone else their own; only Owners and a key's creator can revoke it. Self-hosters: run the new migration.
+- Workspace admins can now change themes, groups and team settings, like owners.
+- Programs can create metrics: `POST /api/v1/metrics` with a key that may create metrics. The metric belongs to the key's creator, who can be made its Submitter in the same call, and an `Idempotency-Key` keeps a retry from making two. See the API guide.
+- Programs can list the Metrics they may read through the new API: `GET /api/v1/metrics` with an Access Key in the `Authorization` header. Errors share one JSON shape, lists page with a cursor, and a Metric the key's creator may not see is not found. See `docs/guides/api.md`.
+- The API describes itself: `GET /api/v1/openapi.json` serves an OpenAPI 3.1 document, so you can generate a client in any language, and `docs/reference/api.md` lists every endpoint with its parameters, answers and errors. Both are generated from the server's own validation, so they always match what the server does.
+- Programs can now read more through the API: a Metric's description (`GET /api/v1/metrics/{slug}`), its values for a range of periods with Breakdowns and whether each is recorded, waiting for Approval or locked (`/observations?from=&to=`), and the names of the workspace's people and Groups (`/people`, `/groups`). People come with id and name only, never an email or phone. A Metric the key's creator may not see answers 404, like one that doesn't exist.
+- Programs can submit values: `POST /api/v1/metrics/{slug}/observations` with a key that may submit values. The value goes through the same rules as one from a form or Slack (Submission Rule, Locks, Approvals), and the answer says whether it was recorded, waits for Approval or hit a locked period. Send an `Idempotency-Key` so a retry never records a value twice. Each key may submit 1,000 values a day. The Metric's history shows such values as from the API, with the key's name. Self-hosters: run the new migration.
+- Keep Contacts: people without a login, such as a field worker or an outside bookkeeper, with their email, Slack handle or phone (Team page). Make them submitters of a Metric, and their values by Slack, email or form link are recorded under their name. Removing a Contact keeps their values and stops their links.
+- Share with "Everyone in the workspace" in one click: every workspace has this group, which always holds all its members except guests. Start another workspace from the + next to your name, and switch between yours there.
+- Removing a member on the Team page asks who takes over: their metrics, dashboards, decks, templates, themes and Workflows pass to that person, open tasks and approvals go along, and their Tokens, stand-in roles, shares and Access Keys end at once. Nothing is deleted, and the handover shows in each object's version history. Self-hosters: run the new migration.
+- Invite people by email or with a link, each with a role; an invited Contact becomes a member and keeps their history. Owners and Admins change roles on the Team page (only Owners make Owners, and the last Owner stays). Owners can let people with an address at the company domain ask to join; an Owner or Admin lets each one in. Self-hosters: run the new migration.
+- Access Keys can now be allowed to create metrics ("Create metrics" on the Team page). Such a metric belongs to the key's creator, is checked like one made in the form, and its history names the key; a key creates at most 50 a day, and never more than its creator's role allows.
+- People now sign in with an email link (or Google, Microsoft, GitHub or LinkedIn once set up), create a workspace on first sign-in and see only their own workspaces. "View as", reset and the tour stay in Demo Mode (`pnpm demo`); `pnpm prototype` still starts the demo.
+- Anyone can try Ziffr without an account: "Try the demo" on the login page opens a made-up online shop next to the real workspaces. Switching between its people and resetting it only ever touch the demo.
+
+### Fixed
+
+- A late value for a locked period, once accepted as a Correction, now replaces the value that was there (which is kept as the original) instead of being added next to it.
+- Guests can no longer create dashboards or save widgets to the Pool. Widget positions and sizes stay in range, and very large widget settings are refused.
+- A View Link shows only the widgets the dashboard had when the link was made, and only widgets whose every Metric is shown; restoring an old version checks the Metrics named inside widgets too. Guests can no longer create decks or templates.
+- Messages listed on the Connectors page name the recipient instead of showing their Slack handle or phone number.
+- Guests can no longer create Metrics; a new Metric only takes known formats, periods, rules and Sources.
+- Guests can no longer share, grant access or make View Links, also not for things they owned before becoming a Guest.
+- Live View Links open again for people without an account; they had sent visitors to the sign-in page since workspaces arrived.
+- Links to personal submission forms are now random and can no longer be guessed from a person and a Metric; links sent before keep working.
+- A View Link to a deck shows only the shapes the deck had when the link was made, and widgets that name a hidden Metric anywhere in their settings are refused or left out. Self-hosters: run the new migration; the image optimizer is switched off (Ziffr does not use it).
+- Guests can no longer create or run Workflows, or send reminders; restoring a Workflow version saves it as the person restoring it.
+
+### For developers
+
+- Questions and tasks, Threads, Deliveries and Delivery Preferences, Workflows, approvals and Locks, the Connectors and the demo's simulated channels all live in the core. The web app has no permission code of its own any more: every server action calls a core function that takes the Actor first.
+- Dashboards, widgets, layouts, Free Layouts, the Analysis Canvas and View Links go through the core (`@ziffr/core/dashboards`, `view-links`), and versions and the built-in widget templates live there too.
+- Decks, Themes, Widget Templates and slide layouts, and the version history (list, name, restore) go through the core (`@ziffr/core/decks`, `workspace-themes`, `templates`, `version-history`). Self-hosters: run the new migration (View Links remember their widgets).
+- The core's exports and modules must be documented, prose in the docs is checked by Vale, and pull requests that change the public surface must change docs or the glossary, or add a release note.
+- `@ziffr/mcp`, an MIT-licensed MCP server, lets an assistant such as Claude Desktop or Claude Code read your Metrics and submit values with an Access Key: run `npx @ziffr/mcp` with `ZIFFR_URL` and `ZIFFR_ACCESS_KEY`. It offers `list_metrics`, `get_metric`, `submit_value` and `list_people`, and every visible Metric as a resource. It sees only what the key's creator sees. See `packages/mcp/README.md`.
+- The app lives in `apps/web`, shared domain rules in `packages/core`; `pnpm typecheck`, `pnpm lint` and `pnpm test` run across all of them, and CI runs them on every pull request.
+- Every page reads through the core (`@ziffr/core/page-data`, Actor first); the web app touches the database only to find the signed-in person and for the demo, and CI checks that it stays so.
+- Every pull request that changes what people use or run adds a release note (`pnpm changeset`); `pnpm release` sets the version, writes the changelog section and tags it, and the GitHub release shows the same text.
+- `@ziffr/sdk` gains `metrics.create`, and `@ziffr/mcp` a `create_metric` tool, so a script or an assistant can start tracking a new metric with a key that may create metrics. Both send an idempotency key, so a retry never makes two.
+- `@ziffr/sdk`, an MIT-licensed TypeScript client for the API. It has typed calls for every endpoint, iterates over pages for you, waits out a 429 as `Retry-After` says, and sends an idempotency key with every submission so a retry never records a value twice. See `packages/sdk/README.md`.
+- A threat model in docs/security; CI scans the whole history for secrets, fails on known-vulnerable production dependencies, and refuses client components that import core code reaching the database.
+- Creating Metrics and uploading their series, sharing, "who can see this", access requests, Groups and Contacts go through the core (`@ziffr/core/metrics`, `sharing`, `team`), with permission tests against the database. What a person sees is loaded in `@ziffr/core/access` and `workspace-data`.
+- Submitting values (intake, the web form, answers to Prompts) and deciding Corrections live in `@ziffr/core/submissions` and are tested against a real database (`pnpm --filter @ziffr/core test:db`, also in CI).
+- Who sees what is decided in `@ziffr/core/visibility`, which ignores data from any other workspace; the app loads only the current workspace's data.
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
