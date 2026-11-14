@@ -3,8 +3,8 @@
 // form or Slack, with an optional Idempotency-Key and at most 1,000 values a day per key.
 import { admitValues, once, submitObservation, VALUES_PER_DAY, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listObservations } from "@ziffr/core/api";
-import { ApiError, errorBody, json, jsonBody, keyRoute, observationsQuery, query, slugParam, toCursor } from "@/lib/api";
-import { ObservationList, SubmissionAnswer, SubmitObservation } from "../../../schemas";
+import { ApiError, errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
+import { IdempotencyKey, ObservationList, observationsQuery, slugParam, SubmissionAnswer, SubmitObservation } from "../../../schemas";
 
 type Ctx = { params: Promise<{ slug: string }> };
 
@@ -21,7 +21,7 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
 export const POST = keyRoute("values:submit", async (actor, req, ctx: Ctx) => {
   const slug = slugParam.parse((await ctx.params).slug);
   const idem = req.headers.get("idempotency-key");
-  if (idem !== null && !/^[\x21-\x7e]{1,200}$/.test(idem)) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
+  if (idem !== null && !IdempotencyKey.safeParse(idem).success) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
   const input = SubmitObservation.parse(await jsonBody(req));
   let retryAfter: number | null = null;
   const answer = async (): Promise<StoredAnswer> => {

@@ -93,29 +93,3 @@ export function query(req: Request): Record<string, string> {
 // A cursor is opaque to programs: the base64url of where the page before ended (an id, or a period for values).
 /** Encodes where to continue after as a cursor. */
 export const toCursor = (after: number | string | null) => (after === null ? null : Buffer.from(`v1:${after}`).toString("base64url"));
-
-/** A cursor parameter whose inside must match `pattern` (one capture group), or the request is invalid. */
-const cursorOf = (pattern: RegExp) => z.string().max(128).optional().transform((c, ctx) => {
-  if (c === undefined) return null;
-  const m = pattern.exec(Buffer.from(c, "base64url").toString());
-  if (!m) { ctx.addIssue({ code: "custom", message: "Not a cursor from this API." }); return z.NEVER; }
-  return m[1];
-});
-
-const limit = z.coerce.number().int().min(1).max(100).default(50);
-
-/** Paging parameters of lists ordered by a number id. */
-export const pageQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{1,15})$/).transform((c) => (c === null ? null : Number(c))) });
-
-/** Paging parameters of lists ordered by a text id (people). */
-export const textPageQuery = z.object({ limit, cursor: cursorOf(/^v1:([A-Za-z0-9_-]{1,64})$/) });
-
-/** A period's first day, as the API writes periods. */
-export const periodDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date as YYYY-MM-DD.").refine((d) => !Number.isNaN(Date.parse(d)), "Not a real date.");
-
-/** Paging and range parameters of a Metric's values. */
-export const observationsQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{4}-\d{2}-\d{2})$/), from: periodDate.optional(), to: periodDate.optional() })
-  .refine((q) => !q.from || !q.to || q.from <= q.to, { message: "from must not be after to.", path: ["from"] });
-
-/** A Metric's slug from the path: lower-case letters, digits and dashes, as the app makes them. */
-export const slugParam = z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/, "Not a Metric slug.");

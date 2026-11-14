@@ -1,8 +1,8 @@
 // GET /api/v1/metrics/{slug} (spec 0002): one Metric's description. Scope metrics:read. A Metric the key's creator
 // may not see, of another workspace, or missing answers 404 alike (the core's Forbidden).
 import { getMetric } from "@ziffr/core/api";
-import { json, keyRoute, slugParam } from "@/lib/api";
-import { MetricDescription } from "../../schemas";
+import { json, keyRoute } from "@/lib/api";
+import { MetricDescription, slugParam } from "../../schemas";
 
 type Ctx = { params: Promise<{ slug: string }> };
 

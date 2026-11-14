@@ -1,7 +1,7 @@
 // GET /api/v1/groups (spec 0002): the workspace's Groups, id and name only. Scope metrics:read.
 import { listGroups } from "@ziffr/core/api";
-import { json, keyRoute, pageQuery, query, toCursor } from "@/lib/api";
-import { GroupList } from "../schemas";
+import { json, keyRoute, query, toCursor } from "@/lib/api";
+import { GroupList, pageQuery } from "../schemas";
 
 /** Lists the workspace's Groups. */
 export const GET = keyRoute("metrics:read", async (actor, req) => {

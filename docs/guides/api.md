@@ -22,16 +22,7 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 
 ## Endpoints
 
-| Method and path | Scope | What it does |
-| --- | --- | --- |
-| `GET /api/v1/metrics` | read metrics | The Metrics the key's creator sees, by age, a page at a time |
-| `GET /api/v1/metrics/{slug}` | read metrics | One Metric's description: period, format, unit, Polarity, target |
-| `GET /api/v1/metrics/{slug}/observations` | read metrics | Its values, oldest first, with state, submitter and Breakdown; `from` and `to` (YYYY-MM-DD, both included) pick the periods |
-| `GET /api/v1/people` | read metrics | The workspace's people and Contacts: id and name, never contact details |
-| `GET /api/v1/groups` | read metrics | The workspace's Groups: id and name |
-| `POST /api/v1/metrics/{slug}/observations` | submit values | Submits a value for the current period, or the one named in `period` |
-
-More endpoints, the OpenAPI document and a reference page follow with spec 0002's tickets.
+Every endpoint, its parameters, answers and errors are in the [API reference](../reference/api.md), generated from the server's own validation. Programs can read the same description as OpenAPI 3.1 at `/api/v1/openapi.json` (no key needed) and generate a client from it in any language.
 
 ## Submitting values
 
