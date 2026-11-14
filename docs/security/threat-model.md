@@ -23,7 +23,8 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 1. **Browser to server.** Everything a browser sends is untrusted: ids, text, settings, layouts, documents. Server actions are public endpoints, whatever page they are called from.
 2. **App to core.** The web app's pages and server actions only call core functions (`packages/core`). Each takes the acting person (an `Actor`) or a key (`KeyActor`) first. The app has no permission code of its own.
 3. **Core to database.** The core reaches the database with the service role. The web app holds it too, only to find the signed-in person and their membership (`apps/web/src/lib/auth.ts`, `viewer.ts`) and for the demo's "view as" and reset; every page read and every change goes through the core (#42); it is never a `NEXT_PUBLIC_` variable, so Next.js never puts it in a browser bundle. Row Level Security is on for every table, with no policies, so the public key reads nothing.
-4. **Outside channels.** Values arriving by Slack, email or a form link are recognised by Token or by the sender's identity in one workspace. Connectors are simulated in the prototype.
+4. **Programs to the API.** `/api/v1` accepts only an Access Key in the `Authorization` header, never a session or the demo cookie, and the middleware leaves it alone. The route handlers turn the key into a `KeyActor`, check the endpoint's scope, validate input with zod, and call only core functions written for keys. Anything the key's creator may not see answers 404. No CORS headers and no caching (spec 0002).
+5. **Outside channels.** Values arriving by Slack, email or a form link are recognised by Token or by the sender's identity in one workspace. Connectors are simulated in the prototype.
 
 ## Threats and how they are met
 

@@ -73,6 +73,8 @@ jobs:
       - name: Local Supabase (database, API and auth only)
         run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta
       - run: pnpm --filter @ziffr/core test:db
+      - name: The API over HTTP (route handlers against the same database)
+        run: pnpm --filter @ziffr/web test:db
   docs:
     runs-on: ubuntu-latest
     steps:

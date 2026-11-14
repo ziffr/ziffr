@@ -70,6 +70,8 @@ export async function actorForKey(secret: string): Promise<KeyActor | null> {
   const stored = Buffer.from(k.secret_hash, "hex");
   if (given.length !== stored.length || !timingSafeEqual(given, stored)) return null;
   if (k.revoked_at || k.expires_on < today()) return null;
+  // The demo has no Access Keys (its made-up people are anyone's); one that got there anyway does nothing.
+  if (k.workspace_id === DEMO_WORKSPACE_ID) return null;
   const { data: membership } = await db().from("memberships").select("role").eq("workspace_id", k.workspace_id).eq("user_id", k.created_by).maybeSingle();
   if (!membership) return null;
   await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
