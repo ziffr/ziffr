@@ -1,4 +1,5 @@
-// The Email Connector (GLOSSARY: Connector): plain emails; replying to one answers in Ziffr. PROTOTYPE: simulated.
+// The Email Connector (GLOSSARY: Connector): plain emails; replying to one answers in Ziffr. Sent for real through
+// SMTP once mail is set up (spec 0004, ../mail.ts); this module only words the messages.
 import { headline, type Connector } from "./types";
 
 /** How Ziffr reaches people by Email, and how their answers come back. */
@@ -25,7 +26,7 @@ export const email: Connector = {
       e.kind === "question" || e.kind === "task" ? `${e.sender.name.split(" ")[0]} wrote:\n\n  ${e.action.question}` : e.text && e.kind !== "decision" ? `  ${e.text}` : headline(e) + ".",
       e.correction ? `\nProposed value: ${e.correction}` : "",
       "",
-      `Answer by replying to this email, or open it in Ziffr: ${e.link}`,
+      e.repliesReturn === false ? `Answer it in Ziffr: ${e.link}` : `Answer by replying to this email, or open it in Ziffr: ${e.link}`,
     ].join("\n"),
   }),
 };

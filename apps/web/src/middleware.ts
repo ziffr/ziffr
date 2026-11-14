@@ -4,7 +4,8 @@
 // - The demo (ADR 0005): /demo starts a visit, /demo/leave ends it. During a visit no sign-in is needed; the pages
 //   then only reach the demo workspace and its made-up people (viewer.ts), so the cookie grants nothing else.
 // - The API (/api/v1/, spec 0002): programs sign in with an Access Key in each request, never with a session or the
-//   demo cookie, so nothing here applies to it; the route handlers check the key.
+//   demo cookie, so nothing here applies to it; the route handlers check the key. The same for the jobs a scheduler
+//   calls (/api/jobs/, spec 0004), which check ZIFFR_JOB_SECRET themselves.
 // - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
 //   View Links and the personal submission form (used by Contacts, who have no login) stay open.
 import { NextResponse, type NextRequest } from "next/server";
@@ -24,7 +25,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/")) return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/")) return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
   const demoOffered = process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {

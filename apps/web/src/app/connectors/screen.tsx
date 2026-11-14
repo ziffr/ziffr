@@ -17,6 +17,8 @@ export type PrefRow = { user_id: string | null; kind: PreferenceKind; connector:
 export type DeliveryRow = {
   id: number; connector: ConnectorId; recipient_id: string; sender_id: string | null; kind: string; action_id: number | null;
   subject: string; body: string; external_ref: string | null; status: "sent" | "answered" | "closed"; created_at: string;
+  /** Whether an email really went out (spec 0004); "outbox" is recorded only, as for the simulated Connectors. */
+  mail_state: "outbox" | "queued" | "sending" | "sent" | "failed"; last_error: string | null;
   actions: { kind: "question" | "task"; status: string; question: string } | null;
   prompts: { source: string; answered_at: string | null; submitter_id: string; metric_id: number } | null;
 };
@@ -142,6 +144,7 @@ function DeliveryCard({ d, to, formCode }: { d: DeliveryRow; to: string; formCod
         <span>to {to}</span>
         <span>{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
+        {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} />}
         {d.action_id && <Link href={`/actions/${d.action_id}`} className="ml-auto underline">Open thread</Link>}
       </div>
       <div className={cn("mt-2 rounded-[var(--radius-input)] p-3", d.connector === "slack" && "border-l-4 border-[var(--color-rule-2)] bg-[var(--muted)]", d.connector === "whatsapp" && "max-w-md rounded-2xl rounded-tl-sm bg-[color-mix(in_oklab,var(--color-success)_10%,var(--card))]", d.connector === "email" && "border border-border", d.connector === "tickets" && "border border-border bg-[var(--muted)]")}>
@@ -179,5 +182,16 @@ function DeliveryCard({ d, to, formCode }: { d: DeliveryRow; to: string; formCod
         </div>
       )}
     </li>
+  );
+}
+
+const MAIL_STATE: Record<Exclude<DeliveryRow["mail_state"], "outbox">, string> = { queued: "Waiting to send", sending: "Sending", sent: "Emailed", failed: "Not sent" };
+
+/** Whether an email Delivery really went out, and why not when it failed. */
+function MailState({ state, error }: { state: Exclude<DeliveryRow["mail_state"], "outbox">; error: string | null }) {
+  return (
+    <span title={state === "failed" && error ? error : undefined} className={cn("rounded-[var(--radius-input)] border px-1.5", state === "failed" ? "border-destructive text-destructive" : "border-border")}>
+      {MAIL_STATE[state]}{state === "failed" && error ? `: ${error}` : ""}
+    </span>
   );
 }

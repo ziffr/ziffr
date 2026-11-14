@@ -32,7 +32,9 @@ export async function connectorsView(actor: Actor) {
   const visible = (deliveries ?? []).filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser (in the demo, all of the demo).
   const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
-  return { prefs: prefs ?? [], deliveries: visible, tokens: own, isAdmin: await isAdmin(actor) };
+  // The provider's Message-ID is for finding a message in its logs, not for the browser.
+  const shown = visible.map((d) => { const rest = { ...d }; delete rest.provider_id; return rest; });
+  return { prefs: prefs ?? [], deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
 }
 
 /** The Sources page: Prompts and the intake log of the workspace, and the form links that are the person's. */

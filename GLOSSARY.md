@@ -301,7 +301,7 @@ One message Ziffr sends through a Connector to one person: a new question or tas
 _Avoid_: Notification, outbox item, message
 
 **Outbox**:
-Every Delivery, newest first, with what it said and where it went.
+Every Delivery, newest first, with what it said and where it went. An email one also shows whether it was really sent, is waiting or failed; the other Connectors only record it.
 _Avoid_: Sent items, log
 
 **Delivery Preference**:

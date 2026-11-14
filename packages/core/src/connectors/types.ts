@@ -23,6 +23,8 @@ export type DeliveryEvent = {
   correction?: string | null;
   link: string;
   ref: string;
+  /** Whether a reply here comes back into Ziffr; when not, the message says to answer in Ziffr. Default yes. */
+  repliesReturn?: boolean;
 };
 
 /** A message as one Connector words it. */

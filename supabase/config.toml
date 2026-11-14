@@ -106,7 +106,8 @@ enabled = true
 # Port to use for the email testing server web interface.
 port = 55424
 # Uncomment to expose additional ports for testing user applications that send emails.
-# smtp_port = 54325
+# Ziffr sends real email here in development and tests (spec 0004); it lands in the web interface above.
+smtp_port = 55425
 # pop3_port = 54326
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
