@@ -25,5 +25,9 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 | Method and path | Scope | What it does |
 | --- | --- | --- |
 | `GET /api/v1/metrics` | read metrics | The Metrics the key's creator sees, by age, a page at a time |
+| `GET /api/v1/metrics/{slug}` | read metrics | One Metric's description: period, format, unit, Polarity, target |
+| `GET /api/v1/metrics/{slug}/observations` | read metrics | Its values, oldest first, with state, submitter and Breakdown; `from` and `to` (YYYY-MM-DD, both included) pick the periods |
+| `GET /api/v1/people` | read metrics | The workspace's people and Contacts: id and name, never contact details |
+| `GET /api/v1/groups` | read metrics | The workspace's Groups: id and name |
 
 More endpoints, the OpenAPI document and a reference page follow with spec 0002's tickets.
