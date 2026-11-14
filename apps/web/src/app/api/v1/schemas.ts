@@ -47,17 +47,17 @@ export const ObservationList = pageOf(ApiObservation);
 
 /** POST /api/v1/metrics/{slug}/observations takes this. */
 export const SubmitObservation = z.object({
-  value: z.number().finite().describe("The value. With a breakdown, the total; the rows need not add up to it."),
+  value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
   period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
-  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200).describe("What the part is."), value: z.number().finite() })).max(500).optional().describe("The value's parts, such as per shop."),
+  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200).describe("What the part is."), value: z.number() })).max(500).optional().describe("The value's parts, such as per shop."),
 }).strict();
 
 /** POST /api/v1/metrics/{slug}/observations answers this when the value was taken. */
 export const SubmissionAnswer = z.object({
   status: z.enum(["recorded", "awaiting_approval"]).describe("recorded, or waiting for Approval as an Unusual Value."),
   period: z.string().describe("The period it was recorded for, YYYY-MM-DD."),
-  value: z.number().describe("The period's value now: the Submission Rule may have added it to an earlier one."),
-  detail: z.string().describe("What happened, in words."),
+  value: z.number().describe("The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent."),
+  detail: z.string().describe("What happened, in words. For a key that may not read metrics, without earlier values."),
 });
 
 /** A person or Contact (GLOSSARY: Contact): id and name only, never contact details. */

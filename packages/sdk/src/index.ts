@@ -70,15 +70,20 @@ export type ZiffrOptions = {
 
 /** An error answer of the API, or a failure to reach it (status 0). `code` is stable; handle errors by it. */
 export class ZiffrError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    /** Seconds the server asked to wait, for `rate_limited`. */
-    readonly retryAfter: number | null = null,
-  ) {
+  /** The HTTP status; 0 when Ziffr could not be reached. */
+  readonly status: number;
+  /** The API's stable error code. */
+  readonly code: string;
+  /** Seconds the server asked to wait, for `rate_limited`. */
+  readonly retryAfter: number | null;
+
+  // Plain fields, not parameter properties, so Node can run this file with its built-in type stripping.
+  constructor(status: number, code: string, message: string, retryAfter: number | null = null) {
     super(message);
     this.name = "ZiffrError";
+    this.status = status;
+    this.code = code;
+    this.retryAfter = retryAfter;
   }
 }
 

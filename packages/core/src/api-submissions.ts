@@ -9,6 +9,15 @@ import { periodStart } from "./format";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
 
+// Refusals in words that hold nothing but the rule, for keys that may not read values.
+const REFUSED: Record<string, string> = {
+  rejected_duplicate: "This period already has a value, and the Metric's rule rejects a second one.",
+  rejected_derived: "This is a Derived Metric: it is computed, never submitted.",
+  rejected_source: "This Metric does not take values from its personal form link, so not from the API either.",
+  rejected_period: "That is not the first day of one of this Metric's periods, or it is in the future.",
+  rejected_no_value: "The value is not a number.",
+};
+
 /** Values one key may submit in any 24 hours. */
 export const VALUES_PER_DAY = 1000;
 /** How long an idempotency key's first answer is kept. */
@@ -17,7 +26,8 @@ export const IDEMPOTENCY_HOURS = 24;
 /** What a program sends: a value, optionally its period (first day; default the current one) and a Breakdown. */
 export type ApiSubmissionInput = { value: number; period?: string | null; breakdown?: { label: string; value: number }[] | null };
 
-/** What became of a program's value: recorded (published, or awaiting Approval as an Unusual Value), or refused
+/** What became of a program's value (for a key without metrics:read: the value it sent, and words that hold no
+ * earlier value or Metric name): recorded (published, or awaiting Approval as an Unusual Value), or refused
  * because the period is locked (it went to the Metric's owner as a proposed Correction), because the key's creator
  * does not submit to the Metric, or by another rule (the Submission Rule, a Derived Metric, a bad period). */
 export type ApiSubmissionResult =
@@ -33,7 +43,13 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
   if (!metric || !(await visibleMetricIds(actor.workspaceId, actor.personId, metrics)).has(metric.id)) throw new Forbidden();
   // The creator's own Token, not one they hold as a Stand-in: a key acts as its creator only.
   const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("submitter_id", actor.personId).is("stands_in_for", null).order("id").limit(1);
-  if (!tokens?.length) return { ok: false, reason: "not_submitter", detail: `You do not submit values for ${metric.name}.` };
+  // A key that may only submit learns nothing it could not send: not which Metrics its creator sees, not a value
+  // already there. Its answers name no Metric and no earlier value (they are the submitter's own words otherwise).
+  const reads = !actor.key || actor.key.scopes.includes("metrics:read");
+  if (!tokens?.length) {
+    if (!reads) throw new Forbidden();
+    return { ok: false, reason: "not_submitter", detail: `You do not submit values for ${metric.name}.` };
+  }
   const value = Number(input.value);
   const breakdown = (input.breakdown ?? []).map((r) => ({ label: String(r.label).slice(0, 200), value: Number(r.value) }));
   const period = input.period ?? periodStart(new Date(), metric.period);
@@ -41,11 +57,13 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
     source: "api", sender: tokens[0].code, text: JSON.stringify({ value, period, breakdown: breakdown.length ? breakdown : undefined }).slice(0, 4000),
     value: { value, breakdown }, period: input.period ?? undefined, accessKeyId: actor.key ? Number(actor.key.id) : undefined, workspaceId: actor.workspaceId,
   }, effects);
-  if (result.outcome === "proposed_locked") return { ok: false, reason: "locked", detail: result.detail };
-  if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: result.detail };
+  if (result.outcome === "proposed_locked") return { ok: false, reason: "locked", detail: reads ? result.detail : "The period is locked; the value went to the Metric's owner as a proposed correction." };
+  if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
   const { data: state } = await db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
   const { data: latest } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
-  return { ok: true, status: state?.state === "approval" ? "awaiting_approval" : "recorded", period, value: Number(latest?.[0]?.value ?? value), detail: result.detail };
+  const status = state?.state === "approval" ? "awaiting_approval" : "recorded";
+  if (!reads) return { ok: true, status, period, value, detail: status === "recorded" ? "Recorded." : "Recorded; it waits for Approval." };
+  return { ok: true, status, period, value: Number(latest?.[0]?.value ?? value), detail: result.detail };
 }
 
 /** Whether the key may submit another value now; if not, the seconds until it may (scope values:submit). Counted from

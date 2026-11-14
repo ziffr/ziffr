@@ -24,6 +24,10 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 
 [`@ziffr/sdk`](../../packages/sdk/README.md) wraps every endpoint with types, pages for you, waits out a 429 and sends an idempotency key with each submission.
 
+## From an AI assistant
+
+[`@ziffr/mcp`](../../packages/mcp/README.md) is a local MCP server for Claude Desktop, Claude Code and other assistants: it reads Metrics and submits values with an Access Key, and sees no more than the key does.
+
 ## Endpoints
 
 Every endpoint, its parameters, answers and errors are in the [API reference](../reference/api.md), generated from the server's own validation. Programs can read the same description as OpenAPI 3.1 at `/api/v1/openapi.json` (no key needed) and generate a client from it in any language.
@@ -40,6 +44,7 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
 - The key's creator must submit to the Metric (have a Token for it), and the Metric must take values from its personal form link: a program submits as that person, through the same rules. The value shows in the Metric's history as from the API, with the key's name.
 - `period` is the first day of a period (`2026-11-01` for a monthly Metric, a Monday for a weekly one); without it, the current period. A future period is refused.
 - The answer (201) says `recorded`, or `awaiting_approval` when the value is unusual and waits for Approval. A locked period answers 422 `locked`, and the value goes to the Metric's owner as a proposed Correction. The Submission Rule or a Derived Metric can refuse it with 422 `unprocessable`.
+- A key that may submit but not read gets answers without the period's earlier value or the Metric's name, and a Metric its creator does not submit to is not found for it: it learns nothing it did not send.
 - **Idempotency-Key** (optional, up to 200 characters): a repeat within 24 hours with the same key and body gets the first answer again, with `Idempotent-Replayed: true`, and records nothing. The same key with another body answers 409.
 - Each key may submit **1,000 values a day** (any 24 hours). Over that, 429 with `Retry-After`.
 

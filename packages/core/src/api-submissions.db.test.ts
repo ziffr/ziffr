@@ -26,7 +26,7 @@ describe("submitObservation", () => {
   it("records a value under the key's creator, naming the key, through the Submission Rule", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara, { submission_rule: "add" }); await w.token(m.id, ben);
-    const { id, key } = await keyFor(w, ben);
+    const { id, key } = await keyFor(w, ben, ["metrics:read", "values:submit"]);
     expect(await submitObservation(key, m.slug, { value: 40 }, quiet())).toMatchObject({ ok: true, status: "recorded", period: thisMonth(), value: 40 });
     expect(await submitObservation(key, m.slug, { value: 2, breakdown: [{ label: "Shop", value: 2 }] }, quiet())).toMatchObject({ ok: true, value: 42 });
     expect(await valuesOf(m.id)).toMatchObject([{ value: 42, submitter_id: ben, source: "api" }]);
@@ -69,7 +69,24 @@ describe("submitObservation", () => {
     await expect(submitObservation((await keyFor(w, ben, ["metrics:read"])).key, own.slug, { value: 1 })).rejects.toEqual(expect.any(Forbidden));
     await expect(submitObservation(key, hidden.slug, { value: 1 })).rejects.toEqual(expect.any(Forbidden));
     await expect(submitObservation(key, foreign.slug, { value: 1 })).rejects.toEqual(expect.any(Forbidden));
-    expect(await submitObservation(key, own.slug, { value: 1 })).toMatchObject({ ok: false, reason: "not_submitter" });
+    // Not a Submitter: said to a key that may read, hidden from one that may only submit.
+    await expect(submitObservation(key, own.slug, { value: 1 })).rejects.toEqual(expect.any(Forbidden));
+    expect(await submitObservation((await keyFor(w, ben, ["metrics:read", "values:submit"])).key, own.slug, { value: 1 })).toMatchObject({ ok: false, reason: "not_submitter" });
+  });
+  it("tell a key that may only submit nothing of the values already there", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const reject = await w.metric(ben, { name: "Revenue", submission_rule: "reject" }); await w.token(reject.id, ben);
+    const add = await w.metric(ben, { name: "Orders", submission_rule: "add" }); await w.token(add.id, ben);
+    await w.value(reject.id, "2026-03-01", 48200, ben); await w.value(add.id, "2026-03-01", 1234, ben);
+    const { key } = await keyFor(w, ben);
+    const refused = await submitObservation(key, reject.slug, { value: 0, period: "2026-03-01" }, quiet());
+    expect(refused).toMatchObject({ ok: false, reason: "refused" });
+    const added = await submitObservation(key, add.slug, { value: 1, period: "2026-03-01" }, quiet());
+    expect(added).toMatchObject({ ok: true, value: 1, detail: "Recorded." });
+    expect(JSON.stringify([refused, added])).not.toMatch(/48[,.]?200|1[,.]?23[45]|Revenue|Orders/);
+    // A key that may read gets the full words, as its creator would.
+    const reader = (await keyFor(w, ben, ["metrics:read", "values:submit"])).key;
+    expect(await submitObservation(reader, add.slug, { value: 1, period: "2026-03-01" }, quiet())).toMatchObject({ ok: true, value: 1236 });
   });
 });
 

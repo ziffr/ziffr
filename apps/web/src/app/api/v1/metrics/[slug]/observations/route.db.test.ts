@@ -10,7 +10,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
-async function setup(scopes: ("metrics:read" | "values:submit")[] = ["values:submit"]) {
+async function setup(scopes: ("metrics:read" | "values:submit")[] = ["metrics:read", "values:submit"]) {
   const w = await workspace(); cleanups.push(w.cleanup);
   const ben = await w.person("member");
   const m = await w.metric(ben, { submission_rule: "add" }); await w.token(m.id, ben);

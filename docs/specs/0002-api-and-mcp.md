@@ -1,6 +1,6 @@
 # 0002 The API and the MCP server
 
-**Status:** in progress. **Tracking issue:** #45 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0002`.
+**Status:** done. **Tracking issue:** #45 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0002`.
 
 ## Problem Statement
 

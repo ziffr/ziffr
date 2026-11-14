@@ -75,7 +75,7 @@ jobs:
       - run: pnpm --filter @ziffr/core test:db
       - name: The API over HTTP (route handlers against the same database)
         run: pnpm --filter @ziffr/web test:db
-      - name: The app, built and running, for the SDK
+      - name: The app, built and running, for the SDK and the MCP server
         run: |
           # The local Supabase's address and keys are fixed development values, not secrets.
           eval "$(supabase status -o json | node -e 'const s = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const k of ["API_URL", "ANON_KEY", "SERVICE_ROLE_KEY"]) console.log(`export ${k}=${JSON.stringify(s[k])}`)')"
@@ -86,6 +86,8 @@ jobs:
           cat "$RUNNER_TEMP/app.log"; exit 1
       - name: The SDK against the running app
         run: pnpm --filter @ziffr/sdk test:app
+      - name: The MCP server against the running app
+        run: pnpm --filter @ziffr/mcp test:app
   docs:
     runs-on: ubuntu-latest
     steps:

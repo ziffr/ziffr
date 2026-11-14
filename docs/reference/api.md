@@ -153,8 +153,8 @@ Records a value for the current period, or the one named, through the Metric's S
 | --- | --- | --- | --- |
 | `status` | `"recorded"`, `"awaiting_approval"` | yes | recorded, or waiting for Approval as an Unusual Value. |
 | `period` | string | yes | The period it was recorded for, YYYY-MM-DD. |
-| `value` | number | yes | The period's value now: the Submission Rule may have added it to an earlier one. |
-| `detail` | string | yes | What happened, in words. |
+| `value` | number | yes | The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent. |
+| `detail` | string | yes | What happened, in words. For a key that may not read metrics, without earlier values. |
 
 **Errors**
 
