@@ -1,15 +1,14 @@
 // Replies by email (spec 0004, ticket #73; GLOSSARY: Delivery, Thread, Prompt, Correction). A provider forwards a
 // raw message to the webhook; it is taken only for a known reply token, from the address the Delivery went to,
-// within 30 days, once. Then it goes the way a simulated reply always went: a Prompt's answer through submitValue
-// (source mail), a reply about a question or task into its Thread, a "Correction:" line as a proposed Correction.
+// within 30 days, once. Then it goes the way a simulated reply always went (reply-routing.ts, shared with Slack): a
+// Prompt's answer through submitValue (source mail), a reply about a question or task into its Thread, a
+// "Correction:" line as a proposed Correction.
 import PostalMime from "postal-mime";
-import { parseReply } from "./connectors/index";
 import { db } from "./db";
-import { linkTo } from "./deliveries";
 import { addressIn, headerSafe, isAddress, mailEnabled, sendMail, type MailTransport } from "./mail";
-import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
+import { routeReply } from "./reply-routing";
+import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { postReply } from "./threads";
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
@@ -126,7 +125,7 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   const { data: claim, error } = await db().from("inbound_emails").insert({ message_id: email.messageId, delivery_id: d.id, workspace_id: d.workspace_id, outcome: "taken" }).select("id").single();
   if (error?.code === "23505") return "duplicate";
   if (error || !claim) throw new Error("The email could not be recorded.");
-  const outcome = await route(email, d, address, effects);
+  const outcome = await routeReply(d, email.text, { source: "mail", sender: address, answer: (subject, text) => answer(address, subject, text, effects.transport) }, effects.submission);
   await db().from("inbound_emails").update({ outcome }).eq("id", claim.id);
   return outcome;
 }
@@ -142,33 +141,6 @@ async function log(d: DeliveryRow, outcome: InboundOutcome): Promise<InboundOutc
   // A refusal is noted once, without the Message-ID claim, so the real reply can still come in afterwards.
   await db().from("inbound_emails").insert({ message_id: null, delivery_id: d.id, workspace_id: d.workspace_id, outcome });
   return outcome;
-}
-
-async function route(email: InboundEmail, d: DeliveryRow, address: string, effects: { submission?: SubmissionEffects; transport?: MailTransport }): Promise<InboundOutcome> {
-  if (d.kind === "prompt" && d.prompt_id) {
-    const { data: prompt } = await db().from("prompts").select("id, source, metric_id, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
-    if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";
-    if (!email.text) return "empty";
-    if (prompt.source !== "mail") {
-      // The Metric does not take values by mail: the answer is not recorded, and the person gets their form link.
-      const { data: token } = await db().from("tokens").select("code").eq("workspace_id", d.workspace_id).eq("metric_id", prompt.metric_id).eq("submitter_id", d.recipient_id).is("stands_in_for", null).limit(1).maybeSingle();
-      await answer(address, "Your value was not recorded", token ? `This Metric takes values only through your form:\n${linkTo(`/submit/${token.code}`)}` : "This Metric does not take values by email.", effects.transport);
-      return "form_link";
-    }
-    const r = await submitValue({ source: "mail", sender: address, text: email.text, promptId: prompt.id, workspaceId: d.workspace_id }, effects.submission ?? submissionEffects);
-    if (r.ok) await db().from("deliveries").update({ status: "answered" }).eq("id", d.id);
-    // The person learns what became of their number, as the simulator shows it.
-    await answer(address, r.ok ? "Recorded" : "Not recorded", r.detail, effects.transport);
-    return r.ok ? "recorded" : "refused";
-  }
-  if (d.action_id) {
-    const { body, correction } = parseReply(email.text);
-    if (!body && correction === null) return "empty";
-    await postReply(d.workspace_id, d.action_id, d.recipient_id, body, correction);
-    await db().from("deliveries").update({ status: "answered" }).eq("id", d.id);
-    return correction === null ? "replied" : "corrected";
-  }
-  return "unknown_token";
 }
 
 /** A short answer to the person who wrote, from Ziffr's own address (no reply address: it needs no answer). */

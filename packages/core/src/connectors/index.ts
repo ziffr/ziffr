@@ -1,5 +1,6 @@
-// The registered Connectors (GLOSSARY: Connector). Email is real once mail is set up (spec 0004, ../mail.ts); Slack,
-// WhatsApp and the ticket system are simulated: their Deliveries are recorded in the Outbox, and nothing leaves.
+// The registered Connectors (GLOSSARY: Connector). Email is real once mail is set up (spec 0004, ../mail.ts), Slack
+// once a workspace connects it (spec 0007, ../slack-send.ts); WhatsApp and the ticket system are simulated: their
+// Deliveries are recorded in the Outbox, and nothing leaves.
 import { email } from "./email";
 import { slack } from "./slack";
 import { tickets } from "./tickets";

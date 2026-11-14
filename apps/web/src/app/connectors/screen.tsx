@@ -34,8 +34,9 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 ];
 
 /** Connectors, Delivery Preferences and the Outbox. `email` says whether this Ziffr sends real email, and takes
- * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004). */
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean }) {
+ * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004); `slack`, whether a
+ * Slack workspace is connected (spec 0007). */
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off" }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected" }) {
   const [pending, start] = useTransition();
   // Asking and reminding by hand is what the schedule does each morning: in the demo anyone plays it; elsewhere
   // owners and admins get it as a fallback, explained, and members do not see it.
@@ -74,7 +75,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                   {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
                 </ul>
                 {c.sourceId && demo && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
-                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
               </li>
             );
           })}
@@ -167,12 +168,12 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
         <span>to {to}</span>
         <span>{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
-        {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} />}
+        {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} slack={d.connector === "slack"} />}
         {d.action_id && <Link href={`/actions/${d.action_id}`} className="ml-auto underline">Open thread</Link>}
       </div>
       <div className={cn("mt-2 rounded-[var(--radius-input)] p-3", d.connector === "slack" && "border-l-4 border-[var(--color-rule-2)] bg-[var(--muted)]", d.connector === "whatsapp" && "max-w-md rounded-2xl rounded-tl-sm bg-[color-mix(in_oklab,var(--color-success)_10%,var(--card))]", d.connector === "email" && "border border-border", d.connector === "tickets" && "border border-border bg-[var(--muted)]")}>
         <div className="font-medium">{d.subject}</div>
-        <pre className="mt-1 font-[family-name:var(--font-body)] text-sm whitespace-pre-wrap text-muted-foreground">{d.body.replace(/<([^|>]+)\|([^>]+)>/g, "$2").replace(/\*([^*]+)\*/g, "$1")}</pre>
+        <pre className="mt-1 font-[family-name:var(--font-body)] text-sm whitespace-pre-wrap text-muted-foreground">{shown(d)}</pre>
       </div>
       {isPrompt && !answerHere && !d.prompts!.answered_at && formCode && (
         <Link href={`/submit/${formCode}`} className="mt-2 inline-flex min-h-8 items-center px-3 text-sm underline">Open the form as {to}</Link>
@@ -210,11 +211,17 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
 
 const MAIL_STATE: Record<Exclude<DeliveryRow["mail_state"], "outbox">, string> = { queued: "Waiting to send", sending: "Sending", sent: "Emailed", failed: "Not sent" };
 
-/** Whether an email Delivery really went out, and why not when it failed. */
-function MailState({ state, error }: { state: Exclude<DeliveryRow["mail_state"], "outbox">; error: string | null }) {
+/** Whether an email or Slack Delivery really went out, and why not when it failed. */
+function MailState({ state, error, slack }: { state: Exclude<DeliveryRow["mail_state"], "outbox">; error: string | null; slack: boolean }) {
   return (
     <span title={state === "failed" && error ? error : undefined} className={cn("rounded-[var(--radius-input)] border px-1.5", state === "failed" ? "border-destructive text-destructive" : "border-border")}>
-      {MAIL_STATE[state]}{state === "failed" && error ? `: ${error}` : ""}
+      {state === "sent" && slack ? "Sent on Slack" : MAIL_STATE[state]}{state === "failed" && error ? `: ${error}` : ""}
     </span>
   );
+}
+
+/** A Delivery's text as plain words: Slack's link and bold markup taken out, and its escapes undone. */
+function shown(d: DeliveryRow): string {
+  const plain = d.body.replace(/<([^|>]+)\|([^>]+)>/g, "$2").replace(/\*([^*]+)\*/g, "$1");
+  return d.connector === "slack" ? plain.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : plain;
 }

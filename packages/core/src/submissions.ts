@@ -68,8 +68,9 @@ async function writeRows(observationId: number, rows: { label: string; value: nu
 /** Takes a value that arrived by Slack, mail or a personal form link (GLOSSARY: Submission Rule, Token, Lock).
  * There is no signed-in Actor: the sender is known by their Token or their identity on the Source, which may be a
  * Contact without a login. Everything is looked up in one workspace only: the Token's, or the one given for Slack
- * and mail. */
-export async function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
+ * and mail. `provenSenderId` is for a Connector that proved who wrote (Slack signs it, spec 0007): the sender is then
+ * that person of the workspace, not whoever `sender` names. It is never taken from what a browser sends. */
+export async function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects, provenSenderId?: string): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
   const log = async (r: SubmissionResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
     // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
@@ -116,7 +117,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     if (!sender) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link is no longer in use." });
     candidates = [t];
   } else {
-    sender = recogniseSender(profiles, input.source === "slack" ? "slack" : "mail", input.sender);
+    sender = provenSenderId ? profiles.find((p) => p.id === provenSenderId) : recogniseSender(profiles, input.source === "slack" ? "slack" : "mail", input.sender);
     if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
     candidates = live.filter((t) => t.submitter_id === sender!.id);
   }

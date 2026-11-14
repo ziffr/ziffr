@@ -35,22 +35,27 @@ export async function optOutByToken(token: string): Promise<boolean> {
 async function stopEmail(workspaceId: string, personId: string): Promise<void> {
   const { data: added } = await db().from("email_opt_outs").upsert({ workspace_id: workspaceId, person_id: personId }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
   if (!added?.length) return;
-  // Someone who switches email off, on and off again tells the owners once a day at most, not at every flip; the
-  // claim is one statement in the database, so flips sent at once tell them once too.
-  const { data: mayTell } = await db().rpc("claim_opt_out_notice", { p_workspace: workspaceId, p_person: personId });
+  await tellOwnersOfStop(workspaceId, personId, "by email");
+}
+
+/** Tells the owners of the Metrics a person submits to that they stopped Prompts and reminders by email or on
+ * Slack: they ask for those values and should know. Once a day at most per person, by either way. */
+export async function tellOwnersOfStop(ws: string, personId: string, where: "by email" | "on Slack"): Promise<void> {
+  // Someone who switches it off, on and off again tells the owners once a day at most, not at every flip; the claim
+  // is one statement in the database, so flips sent at once tell them once too.
+  const { data: mayTell } = await db().rpc("claim_opt_out_notice", { p_workspace: ws, p_person: personId });
   if (mayTell !== true) return;
-  // The owners of the Metrics this person submits to there: they ask for those values and should know.
   const [{ data: tokens }, { data: person }] = await Promise.all([
-    db().from("tokens").select("metric_id").eq("workspace_id", workspaceId).eq("submitter_id", personId),
+    db().from("tokens").select("metric_id").eq("workspace_id", ws).eq("submitter_id", personId),
     db().from("profiles").select("name").eq("id", personId).maybeSingle(),
   ]);
   const metricIds = [...new Set((tokens ?? []).map((t) => t.metric_id as number))];
-  const { data: metrics } = metricIds.length ? await db().from("metrics").select("owner_id").eq("workspace_id", workspaceId).in("id", metricIds) : { data: [] };
+  const { data: metrics } = metricIds.length ? await db().from("metrics").select("owner_id").eq("workspace_id", ws).in("id", metricIds) : { data: [] };
   const owners = [...new Set((metrics ?? []).map((m) => m.owner_id as string))].filter((o) => o !== personId);
   for (const owner of owners) {
-    await deliverNotice(workspaceId, {
-      recipientId: owner, senderId: personId, subject: `${person?.name ?? "Someone"} stopped reminders by email`,
-      text: `${person?.name ?? "Someone"} will get no more Prompts or reminders by email in this workspace. Ask them another way, or set another Connector for them.`,
+    await deliverNotice(ws, {
+      recipientId: owner, senderId: personId, subject: `${person?.name ?? "Someone"} stopped reminders ${where}`,
+      text: `${person?.name ?? "Someone"} will get no more Prompts or reminders ${where} in this workspace. Ask them another way, or set another Connector for them.`,
       link: "/connectors",
     });
   }

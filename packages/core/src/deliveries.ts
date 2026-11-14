@@ -1,11 +1,14 @@
 // Deliveries (GLOSSARY: Delivery, Delivery Preference, Prompt): which Connector a message goes through, and what it
 // says. Every Delivery belongs to the Workspace of what it is about, and is recorded in the Outbox. Email ones are
-// also sent once mail is set up (spec 0004, mail.ts); the other Connectors are still simulated.
+// also sent once mail is set up (spec 0004, mail.ts), Slack ones once the workspace connects Slack (spec 0007,
+// slack-send.ts); WhatsApp and tickets are still simulated.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { periodLabel, periodStart } from "./format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
-import { FORM_LINK, inboundEnabled, initialMailState, sendNow } from "./mail";
+import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
+import { initialDeliveryState, sendQueuedNow } from "./outbound";
+import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -54,13 +57,13 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     sender, recipient, text: input.text, correction: input.correction == null ? null : String(input.correction),
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id),
   });
-  const mail_state = initialMailState(via, a.workspace_id);
+  const mail_state = await initialDeliveryState(via, a.workspace_id);
   const { data: d } = await db().from("deliveries").insert({
     connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id, workspace_id: a.workspace_id,
     subject, body, external_ref: via === "tickets" ? ref : null, mail_state,
   }).select("id").single();
   // A queued one waits for the deliveries job (sendWaiting): a run that sends many must not wait on the mail server.
-  if (!input.queue) await sendNow(d?.id, mail_state);
+  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
 }
 
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token.
@@ -106,9 +109,9 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: FORM_LINK });
-  const mail_state = initialMailState(via, metric.workspace_id);
+  const mail_state = await initialDeliveryState(via, metric.workspace_id);
   const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
-  if (!input.queue) await sendNow(d?.id, mail_state);
+  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
   return true;
 }
 
@@ -116,10 +119,11 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
 export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string; subject: string; text: string; link: string }) {
   if (input.recipientId === input.senderId) return;
   const via = await connectorFor(ws, input.recipientId, "reply", null);
-  const mail_state = initialMailState(via, ws);
+  const mail_state = await initialDeliveryState(via, ws);
   const { data: d } = await db().from("deliveries").insert({
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice", workspace_id: ws,
-    subject: input.subject, body: `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state,
+    // A notice holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
+    subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state,
   }).select("id").single();
-  await sendNow(d?.id, mail_state);
+  await sendQueuedNow(d?.id, mail_state, via);
 }

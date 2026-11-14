@@ -11,6 +11,7 @@ Ziffr is a Next.js app on top of a Supabase project (Postgres and its sign-in se
 | SMTP | Any mail provider, for Prompts, reminders and invitations | strongly advised: without it nothing reaches anyone |
 | A scheduler | Calls two jobs, hourly and every few minutes | yes, for Workflows to run and email to be retried |
 | Inbound mail | A domain whose mail is forwarded to Ziffr, for replies by email | optional |
+| A Slack app | Made from the manifest in the [Slack](slack.md) guide, for messages and answers on Slack | optional |
 
 Ziffr keeps everything in Postgres. The server makes outgoing connections only to Supabase and to your SMTP server.
 
@@ -60,6 +61,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)) |
 | `ZIFFR_JOB_SECRET` | The secret your scheduler sends to the jobs, at least 32 characters ([jobs](jobs.md)) |
 | `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET`, `ZIFFR_INBOUND_AUTHSERV_ID` | Replies by email, optional ([email](email.md)) |
+| `ZIFFR_SLACK_CLIENT_ID`, `ZIFFR_SLACK_CLIENT_SECRET`, `ZIFFR_SLACK_SIGNING_SECRET`, `ZIFFR_SECRETS_KEY` | Slack, optional ([Slack](slack.md)); back up `ZIFFR_SECRETS_KEY`, which seals the stored bot tokens |
 
 Keep the secrets in your platform's secret store, never in the repository.
 
@@ -106,6 +108,7 @@ All of Ziffr's data is in the Postgres database: Metrics, values, dashboards, de
 - [ ] Scheduler: both jobs called with `ZIFFR_JOB_SECRET`; after the run hour, the Workflows page shows a run "by the clock"
 - [ ] The demo: filled in with `demo_reset`, or switched off with `ZIFFR_DEMO=0`
 - [ ] Replies by email, if used: the inbound domain's MX records, a signed forwarder, and `ZIFFR_INBOUND_AUTHSERV_ID`
+- [ ] Slack, if used: the app made from the manifest, its event and interactivity URLs verified by Slack, `ZIFFR_SECRETS_KEY` backed up
 - [ ] Decks: the slide editor uses tldraw, which needs a licence from tldraw for production use
 - [ ] Backups on, and one restore tried
 - [ ] The workspace's time zone and run hour set on the Team page
