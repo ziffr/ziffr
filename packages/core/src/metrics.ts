@@ -5,7 +5,8 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { periodStart } from "./format";
 import { parseSeriesLine } from "./series-lines";
-import type { Format, Period, Polarity, SourceId, SubmissionRule } from "./types";
+import { assertSeesMetrics } from "./sharing";
+import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
 import { deliverPrompt } from "./deliveries";
 import { audit } from "./audit-log";
@@ -22,6 +23,10 @@ export type MetricInput = {
   name: string; description?: string; unit?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null; sources?: string[]; submitters?: string[];
   fromCatalogId?: number | null;
+  /** The Workflow its values take; must be one of the workspace's. */
+  workflowId?: number | null;
+  /** The Metric this one duplicates; the actor must see it. */
+  duplicateOf?: number | null;
 };
 
 /** What creating a Metric sets off: its first version, and a first Prompt to each submitter. */
@@ -65,6 +70,11 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   if (!name) throw new Error("Give the Metric a name.");
   const submitters = [...new Set((input.submitters ?? []).map(String))];
   await assertSubmittersIn(actor, submitters);
+  const workflowId = numOrNull(input.workflowId);
+  if (workflowId !== null && !(await db().from("workflows").select("id").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data) throw new Forbidden();
+  // A duplicate names its original in the first Version, so only someone who sees the original may claim it.
+  const duplicateOf = numOrNull(input.duplicateOf);
+  const original = duplicateOf === null ? null : await duplicable(actor, duplicateOf);
   let slug = slugify(name) || "metric";
   const { data: clash } = await db().from("metrics").select("id").eq("slug", slug).eq("workspace_id", actor.workspaceId);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
@@ -80,13 +90,14 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     aggregation: pick(input.aggregation, AGGREGATIONS, "sum"),
     target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
-    from_catalog_id: numOrNull(input.fromCatalogId),
+    from_catalog_id: original ? null : numOrNull(input.fromCatalogId),
+    workflow_id: workflowId,
     access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,
   }).select("id, slug, from_catalog_id").single();
   if (error?.code === "ZF429") throw new TooManyMetrics();
   if (error || !metric) throw new Error("The Metric could not be created.");
-  await effects.recordCreated(metric.id, actor.personId, metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
-  await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id) } });
+  await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
+  await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });
   if (submitters.length) {
     // A Token code opens the submission form without signing in: random, never derived from names.
     await db().from("tokens").insert(submitters.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: metric.id, submitter_id: s })));
@@ -94,6 +105,38 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     for (const s of submitters) await effects.promptSubmitter(metric.id, s, actor.personId);
   }
   return { id: metric.id, slug: metric.slug };
+}
+
+/** What a duplicate of a Metric starts from (GLOSSARY: Metric Description): its description, Workflow and Submitters. */
+export type MetricDraft = MetricDescription & { original: string; workflow: { id: number; name: string } | null; submitters: string[]; duplicateOf: number };
+
+/** The Metric to duplicate, if the actor may: someone who creates (not a Guest) and sees it. A Derived Metric's
+ * formula cannot be copied into a plain Metric, so it is refused. */
+async function duplicable(actor: Actor, metricId: number) {
+  assertCan(actor, "create");
+  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m) throw new Forbidden();
+  await assertSeesMetrics(actor, [m.id]);
+  if (m.formula) throw new Forbidden("A Derived Metric cannot be duplicated.");
+  return m;
+}
+
+/** A Metric's description, Workflow and Submitters, prefilled for a duplicate the actor reviews before saving.
+ * Never its values, Shares, Target Series, Projections or history: those stay with the original. */
+export async function metricDraftFrom(actor: Actor, metricId: number): Promise<MetricDraft> {
+  const m = await duplicable(actor, metricId);
+  // Only the regular Submitters: a stand-in's Token covers one absence, not the Metric.
+  const [{ data: tokens }, { data: workflow }] = await Promise.all([
+    db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null),
+    m.workflow_id ? db().from("workflows").select("id, name").eq("id", m.workflow_id).eq("workspace_id", actor.workspaceId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  return {
+    original: m.name,
+    name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, format: m.format, decimals: m.decimals, period: m.period,
+    submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
+    target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
+    sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))], duplicateOf: m.id,
+  };
 }
 
 /** The core's own effects of a new Metric. */

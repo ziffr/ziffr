@@ -44,6 +44,7 @@ export async function createMetric(form: FormData) {
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
     targetMin: num("target_min"), targetMax: num("target_max"), fromCatalogId: num("from_catalog_id"),
+    workflowId: num("workflow_id"), duplicateOf: num("duplicate_of"),
     sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
   });
   revalidatePath("/", "layout");

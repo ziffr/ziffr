@@ -6,7 +6,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { setDeckTheme } from "@/app/theme-actions";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { toast } from "sonner";
-import { FileDown, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer } from "lucide-react";
+import { FileDown, Group as GroupIcon, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer, Ungroup } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -233,6 +233,7 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {editor && <GroupButtons editor={editor} />}
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
         <WhoCanSee type="deck" id={deck.id} people={data.people} />
         {sharing && <ViewLinks type="deck" id={deck.id} />}
@@ -289,6 +290,29 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
       </p>
       </DeckMaster.Provider>
     </DeckData.Provider>
+  );
+}
+
+/** Group and Ungroup for the selection: tldraw does both with Ctrl+G and its context menu, which few people find. */
+function GroupButtons({ editor }: { editor: Editor }) {
+  // Only shapes on one slide group together: a group across slides would leave both, and a slide in a group would
+  // no longer count as a slide.
+  const canGroup = useValue("can group", () => {
+    const sel = editor.getSelectedShapes();
+    return sel.length >= 2 && sel.every((s) => s.type !== "frame" && s.parentId === sel[0].parentId);
+  }, [editor]);
+  const canUngroup = useValue("can ungroup", () => editor.getSelectedShapes().some((s) => s.type === "group"), [editor]);
+  const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+  return (
+    <>
+      {/* The toolbar is full: below very wide screens the buttons show their icon, named by aria-label. */}
+      <Button variant="outline" disabled={!canGroup} aria-label="Group" title={`Group: keep the selected shapes together (${mod}G)`} onClick={() => editor.groupShapes(editor.getSelectedShapeIds())}>
+        <GroupIcon aria-hidden /> <span className="hidden 2xl:inline">Group</span>
+      </Button>
+      <Button variant="outline" disabled={!canUngroup} aria-label="Ungroup" title={`Ungroup: split the selected group (${mod}Shift+G)`} onClick={() => editor.ungroupShapes(editor.getSelectedShapes().filter((s) => s.type === "group").map((s) => s.id))}>
+        <Ungroup aria-hidden /> <span className="hidden 2xl:inline">Ungroup</span>
+      </Button>
+    </>
   );
 }
 

@@ -2,7 +2,7 @@
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
+import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
@@ -10,6 +10,7 @@ import { TargetsEditor } from "./series-form";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
+import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { formatValue, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
@@ -124,6 +125,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         {/* Only the owner shares a metric, so only they get the Share button; everyone gets the ⋯ menu. */}
         <ObjectToolbar type="metric" id={metric.id} people={people} share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null}>
           <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
+          {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
+          {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
           <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
         </ObjectToolbar>
       </PageHeader>

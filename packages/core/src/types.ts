@@ -53,7 +53,14 @@ export type Metric = MetricDescription & {
 };
 
 /** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */
-export type CatalogMetric = MetricDescription & { id: number; category: string };
+export type CatalogMetric = MetricDescription & {
+  id: number;
+  category: string;
+  /** Kinds of business it suits, as lowercase keys such as "saas" or "manufacturing"; null means any. */
+  industries: string[] | null;
+  /** Customer segments it suits ("b2b", "b2c"); null means any. */
+  segments: string[] | null;
+};
 
 /** One value of a metric for one period (GLOSSARY: Observation). */
 export type Observation = {

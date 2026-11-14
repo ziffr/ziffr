@@ -1,18 +1,22 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
+import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
+import { Forbidden } from "@ziffr/core/actor";
 import { getProfiles } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL } from "@ziffr/core/format";
 import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
+import { CatalogBrowser } from "./catalog-browser";
 
 const RULE_HINT: Record<SubmissionRule, string> = {
   reject: "The first value for a period is final.",
@@ -38,13 +42,15 @@ const BLANK: MetricDescription = {
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
-export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string }> }) {
+export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string }> }) {
   const sp = await searchParams;
   const items = (await metricCatalog()) as CatalogMetric[];
   const picked = sp.catalog ? items.find((c) => c.id === Number(sp.catalog)) : undefined;
+  // A duplicate starts from a Metric the person sees; the core refuses Guests and Metrics hidden from them.
+  const copy = sp.copy ? await draftOrNull(Number(sp.copy)) : null;
+  if (sp.copy && !copy) notFound();
 
-  if (!picked && !sp.scratch) {
-    const groups = Object.entries(Object.groupBy(items, (c) => c.category));
+  if (!picked && !sp.scratch && !copy) {
     return (
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
@@ -56,41 +62,27 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>
-        <div className="space-y-6">
-          {groups.map(([cat, list]) => (
-            <section key={cat}>
-              <h3 className="mb-2 text-sm font-medium tracking-normal text-muted-foreground">{cat}</h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {list!.map((c) => (
-                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
-                    <div className="font-medium">{c.name}</div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)]">
-                      <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) })}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        <CatalogBrowser items={items} />
       </>
     );
   }
 
-  const d: MetricDescription = picked ?? BLANK;
+  const d: MetricDescription = copy ?? picked ?? BLANK;
   const [people, viewer, demo] = await Promise.all([getProfiles(), viewerId(), isDemo()]);
   return (
     <>
-      <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>
+      {copy
+        ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Metrics</Link>
+        : <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>}
       <PageHeader
-        title={picked ? `New metric from “${picked.name}”` : "New metric"}
-        sub={picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
+        title={copy ? `Duplicate “${copy.original}”` : picked ? `New metric from “${picked.name}”` : "New metric"}
+        sub={copy
+          ? "A new metric of yours with the same description. Values, Shares, Target Series and history stay with the original."
+          : picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
       />
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <input type="hidden" name="from_catalog_id" value={picked?.id ?? ""} />
+        <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
+        <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />
         <div className="space-y-6">
           <Section title="What is it?">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -144,13 +136,21 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                 <div className="flex flex-wrap gap-4">
                   {people.map((p) => (
                     <label key={p.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="submitters" value={p.id} defaultChecked={p.id === "anna"} className="size-4 accent-primary" />
+                      <input type="checkbox" name="submitters" value={p.id} defaultChecked={copy ? copy.submitters.includes(p.id) : p.id === "anna"} className="size-4 accent-primary" />
                       <span className="size-2.5 rounded-full" style={{ background: p.color }} />
                       {p.name.split(" ")[0]} <span className="text-xs text-muted-foreground">{p.role}</span>
                     </label>
                   ))}
                 </div>
               </F>
+              {copy?.workflow && (
+                <F label="Workflow" hint="The path its values take each period, as for the original." className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="workflow_id" value={copy.workflow.id} defaultChecked className="size-4 accent-primary" />
+                    {copy.workflow.name}
+                  </label>
+                </F>
+              )}
             </div>
           </Section>
 
@@ -171,12 +171,23 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
             <div className="font-medium">Owner</div>
             <p className="mt-1 text-muted-foreground">You ({people.find((p) => p.id === viewer)?.name}). The owner keeps the description up to date and accepts corrections to its values.</p>
           </div>
-          <Button type="submit" size="lg" className="w-full">Create metric</Button>
+          <Button type="submit" size="lg" className="w-full">{copy ? "Create duplicate" : "Create metric"}</Button>
           <Link href="/metrics" className={buttonVariants({ variant: "ghost", className: "w-full" })}>Cancel</Link>
         </aside>
       </form>
     </>
   );
+}
+
+/** The prefilled duplicate, or null when the person may not duplicate that Metric. */
+async function draftOrNull(id: number): Promise<MetricDraft | null> {
+  if (!Number.isInteger(id)) return null;
+  try {
+    return await metricDraftFrom(await currentActor(), id);
+  } catch (e) {
+    if (e instanceof Forbidden) return null;
+    throw e;
+  }
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
