@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 const PURE = new Set([
   "actor", "compare", "format", "formula", "metric-row", "parse", "people", "placeholders", "series-lines", "team-templates", "theme-tokens",
-  "themes", "tokens", "types", "visibility", "widget-metrics", "widget-templates", "workflow-rules",
+  "themes", "tokens", "types", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
 ]);
 

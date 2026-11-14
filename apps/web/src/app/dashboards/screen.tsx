@@ -120,7 +120,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
             { title: "Add its first value", body: "Submit it yourself on the metric’s form link, or wait for the first answer.", done: Object.values(data.series).some((p) => p.length > 0), href: "/metrics" },
             ...(firstRun.canManage ? [{ title: "Invite a teammate", body: "They see what you share with them, and can submit values and answer questions.", done: data.people.filter((p) => !p.contact).length > 1, href: "/team" }] : []),
             { title: "Build a dashboard", body: "Drag metrics from the Pool onto it and share it with the team.", done: false, action: <Button size="sm" onClick={newDashboard}>Create dashboard</Button> },
-            ...(firstRun.canManage ? [{ title: "Set the workspace time", body: "The time zone and hour when Ziffr asks for values and sends reminders each day.", done: firstRun.clockSet, href: "/team" }] : []),
+            ...(firstRun.canManage ? [{ title: "Set the workspace time", body: "The time zone and hour when Ziffr asks for values and sends reminders each day.", done: firstRun.clockSet, href: "/settings/workspace" }] : []),
           ]} />
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">

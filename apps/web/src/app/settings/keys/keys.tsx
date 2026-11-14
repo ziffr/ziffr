@@ -1,5 +1,5 @@
 "use client";
-// Access Keys (GLOSSARY: Access Key) on the Team page: a person's own keys, and for Owners every key of the workspace.
+// Access Keys (GLOSSARY: Access Key) in the workspace settings (spec 0006): a person's own keys, and for Owners every key of the workspace.
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";

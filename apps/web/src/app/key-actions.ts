@@ -8,12 +8,12 @@ import type { Scope } from "@ziffr/core/actor";
 /** Creates a key; the secret is returned this once and never shown again. */
 export async function createKey(input: { name: string; scopes: Scope[]; expiresOn: string }) {
   const r = await keys.createAccessKey(await currentActor(), { name: String(input?.name ?? ""), scopes: input?.scopes ?? [], expiresOn: String(input?.expiresOn ?? "") });
-  revalidatePath("/team");
+  revalidatePath("/settings/keys");
   return r.secret;
 }
 
 /** Revokes a key. */
 export async function revokeKey(id: number) {
   await keys.revokeAccessKey(await currentActor(), Number(id));
-  revalidatePath("/team");
+  revalidatePath("/settings/keys");
 }

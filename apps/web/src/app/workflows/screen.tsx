@@ -225,7 +225,7 @@ function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; ca
   const last = schedule.lastRun;
   return (
     <div className="space-y-2 text-xs">
-      <p><span className="font-medium">Runs every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners change this on the Team page.</p>
+      <p><span className="font-medium">Runs every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners and Admins change this in the workspace settings.</p>
       {last ? (
         <p className={last.state === "failed" ? "text-destructive" : "text-muted-foreground"}>
           Last run {last.day === schedule.today ? "today" : `on ${formatDate(last.day)}`}{last.trigger === "manual" ? ", started by hand" : ""}: {last.state === "failed" ? "it failed" : last.state === "running" ? "still running" : `${last.counts.prompts} asked, ${last.counts.reminders} reminded, ${last.counts.escalations} escalated`}.

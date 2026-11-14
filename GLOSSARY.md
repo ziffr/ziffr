@@ -208,6 +208,10 @@ _Avoid_: Copy, freeze, export data
 One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces.
 _Avoid_: Tenant, organisation, account, company
 
+**Workspace Profile**:
+What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it.
+_Avoid_: Classification, company profile, firmographics, tenant settings
+
 **Workspace Role**:
 What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.
 _Avoid_: Permission level, admin rights

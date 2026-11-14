@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
+import { PERSON_COLORS } from "@ziffr/core/profile";
 
 /** Whether this Ziffr offers the demo (GLOSSARY: Demo Mode). On unless ZIFFR_DEMO=0, so a company installation can
  * switch it off. */
@@ -52,8 +53,6 @@ const DEMO_WORKSPACE = "d3e00000-0000-4000-8000-000000000001";
 /** The demo's made-up people (seeded with these ids), protected even while a reset is under way. */
 const DEMO_PEOPLE = ["sara", "ben", "anna"];
 
-const COLORS = ["#7C5A3A", "#3A6B7C", "#6B3A7C", "#3A7C52", "#7C3A45", "#5A5A7C"];
-
 /** Ways of signing in whose email Ziffr trusts to claim an existing person: the email link proves the address,
  * Google only hands out addresses it verified. Others (Microsoft's multi-tenant sign-in above all) may not. */
 const PROVES_EMAIL = new Set(["email", "google"]);
@@ -86,7 +85,7 @@ export async function personFor(user: SessionAccount): Promise<string> {
   // nobody is reached at, or matched by, an address they may not own.
   const { data: taken } = proven ? await db.from("profiles").select("id").eq("email", proven).maybeSingle() : { data: null };
   const { error } = await db.from("profiles").upsert(
-    { id: crypto.randomUUID(), auth_user_id: user.id, name, email: taken ? null : proven, role: "", color: COLORS[Math.floor(Math.random() * COLORS.length)] },
+    { id: crypto.randomUUID(), auth_user_id: user.id, name, email: taken ? null : proven, role: "", color: PERSON_COLORS[Math.floor(Math.random() * PERSON_COLORS.length)] },
     { onConflict: "auth_user_id", ignoreDuplicates: true },
   );
   if (error) throw new Error("Your account could not be set up. Try signing in again.");

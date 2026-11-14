@@ -127,7 +127,7 @@ function Contacts({ contacts, canEdit }: { contacts: Profile[]; canEdit: boolean
 }
 
 /** While someone is away, their Prompts go to their Stand-in (GLOSSARY: Away). */
-function AwayDates({ userId, current, can }: { userId: string; current?: { starts: string; ends: string }; can: boolean }) {
+export function AwayDates({ userId, current, can }: { userId: string; current?: { starts: string; ends: string }; can: boolean }) {
   const [starts, setStarts] = useState(current?.starts ?? "");
   const [ends, setEnds] = useState(current?.ends ?? "");
   const [pending, start] = useTransition();

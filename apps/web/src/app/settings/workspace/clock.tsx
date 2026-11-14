@@ -1,5 +1,5 @@
 "use client";
-// The workspace's clock on the Team page (spec 0005, ticket #84; GLOSSARY: Workflow): the time zone its days are
+// The workspace's clock in the workspace settings (spec 0005 #84, moved by spec 0006; GLOSSARY: Workflow): the time zone its days are
 // counted in and the hour its Workflows run each morning. Owners and Admins change it; others see it.
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
