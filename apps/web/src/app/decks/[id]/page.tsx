@@ -24,7 +24,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   }
   if (role === "viewer") redirect(`/decks/${id}/present`);
   const [data, saved, shares, groups] = await Promise.all([
-    getCanvasData(viewer),
+    // The deck's own widgets' series; one placed in the editor fetches its own.
+    getCanvasData(viewer, deckMetricIds(deck.document)),
     savedWidgets(actor),
     getRawShares(),
     getGroups(),

@@ -1,7 +1,9 @@
 // Who sees what, as loaded from the real database (GLOSSARY: Share, Group, Token, Stand-in): dashboards, decks and
 // Metrics read their shares once and decide as before, and nothing of another workspace counts.
 import { afterEach, describe, expect, it } from "vitest";
-import { revealedBy, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
+import { canvasSeries, getCanvasData, revealedBy, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
+import { Forbidden } from "./actor";
+import { share } from "./sharing";
 import { db } from "./db";
 import { workspace } from "./test/db-fixtures";
 import { getMetrics } from "./workspace-data";
@@ -52,5 +54,39 @@ describe("visibility facts", () => {
     expect(revealed[zoe].sort()).toEqual(["Direct", "Submitted"]);
     expect(revealed[`g${ops}`].sort()).toEqual(["Direct", "Submitted"]);
     expect(revealed[sara]).toBeUndefined();
+  });
+});
+
+describe("canvas series (ticket #125)", () => {
+  it("sends only the series a page asks for, with a Derived Metric's visible inputs, and fetches more only of what the person sees", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const a = await w.metric(sara, { name: "A" }); const b = await w.metric(sara, { name: "B" }); const hidden = await w.metric(sara, { name: "Hidden" });
+    const ratio = await w.metric(sara, { name: "Ratio", formula: `{${a.slug}} / {${b.slug}}` });
+    await w.value(a.id, "2026-10-01", 10); await w.value(b.id, "2026-10-01", 4); await w.value(hidden.id, "2026-10-01", 99);
+    for (const m of [a, ratio]) await share(w.actor(sara), "metric", m.id, ben, "viewer");
+
+    // Sara's dashboard draws Ratio: its series and its inputs' go out, nothing else; a Metric with no values gets [].
+    const page = await getCanvasData(w.id, sara, { seriesOf: [ratio.id] });
+    expect(Object.keys(page.series).sort()).toEqual([a.slug, b.slug, ratio.slug].sort());
+    expect(page.series[ratio.slug]).toEqual([{ period: "2026-10-01", value: 2.5 }]);
+    expect(page.metrics.map((m) => m.id).sort()).toEqual([a.id, b.id, hidden.id, ratio.id].sort());
+    expect(Object.keys((await getCanvasData(w.id, sara, { seriesOf: (v) => v.slice(0, 1).map((m) => m.id) })).series)).toHaveLength(1);
+    expect((await getCanvasData(w.id, sara, { seriesOf: [] })).series).toEqual({});
+
+    // Ben sees A and Ratio, not B: Ratio's value is computed from both, but B's series stays out.
+    const forBen = await getCanvasData(w.id, ben, { seriesOf: [ratio.id, hidden.id] });
+    expect(Object.keys(forBen.series).sort()).toEqual([a.slug, ratio.slug].sort());
+    expect(forBen.series[ratio.slug]).toEqual([{ period: "2026-10-01", value: 2.5 }]);
+
+    // Fetching more: only visible Metrics, whole positive ids, at most 200.
+    const more = await canvasSeries(w.actor(ben, "member"), [hidden.id, b.id, a.id]);
+    expect(Object.keys(more.series)).toEqual([a.slug]);
+    expect(JSON.stringify(more)).not.toContain("99");
+    for (const bad of ["1,2", [1.5], [-1], [0], Array.from({ length: 201 }, (_, i) => i + 1), [`${a.id}`]]) {
+      await expect(canvasSeries(w.actor(ben, "member"), bad)).rejects.toEqual(expect.any(Forbidden));
+    }
+    // Another workspace's actor gets nothing of this one.
+    const other = await ws("Other"); const zoe = await other.person("owner");
+    expect((await canvasSeries(other.actor(zoe), [a.id, b.id])).series).toEqual({});
   });
 });

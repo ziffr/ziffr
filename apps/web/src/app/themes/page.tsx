@@ -5,7 +5,8 @@ import { ThemesScreen } from "./screen";
 
 export default async function ThemesPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   const sp = await searchParams;
-  const data = await getCanvasData(await viewerId());
+  // The preview draws the first three Metrics only.
+  const data = await getCanvasData(await viewerId(), (visible) => visible.slice(0, 3).map((m) => m.id));
   const current = data.themes.find((t) => t.id === Number(sp.id)) ?? data.themes.find((t) => t.is_default) ?? data.themes[0];
   return (
     <>

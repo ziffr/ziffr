@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { FlaskConical, Lock, Play, Trash2, Wand2, X } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
@@ -11,7 +12,16 @@ import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };
 
-export function AnalyzeScreen({ data, onCanvas, targets, demo = false }: { data: CanvasData; onCanvas: number[]; targets: { id: number; name: string }[]; demo?: boolean }) {
+type AnalyzeProps = { data: CanvasData; onCanvas: number[]; targets: { id: number; name: string }[]; demo?: boolean };
+
+/** The Analysis Canvas. The page sends the series of what is on it; an analysis of another Metric fetches its own
+ * (ticket #125). */
+export function AnalyzeScreen(props: AnalyzeProps) {
+  const { data, ensure } = useCanvasSeries(props.data);
+  return <SeriesProvider ensure={ensure}><AnalyzeCanvas {...props} data={data} /></SeriesProvider>;
+}
+
+function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) {
   const [results, setResults] = useState<Result[]>([]);
   const [over, setOver] = useState(false);
   const [pending, start] = useTransition();

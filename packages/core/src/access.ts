@@ -4,7 +4,8 @@ import { db } from "./db";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
-import { allRows, getActions, getAllSeries, getBreakdowns, getSeriesValues } from "./workspace-data";
+import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
+import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 
@@ -110,10 +111,47 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
   });
 }
 
-/** Visible metrics + their series + people: everything a canvas draws from. */
-export async function getCanvasData(ws: string, viewer: string): Promise<CanvasData> {
-  const [{ metrics, series }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }] = await Promise.all([
-    getAllSeries(ws), peopleIn(ws),
+/** The parts of CanvasData that are per Metric and can be large: values, Breakdowns, Target Series, Projections. */
+export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections">;
+
+/** Which Metrics' series a page sends: some ids, or chosen from the visible Metrics (in the order they are listed). */
+export type SeriesOf = number[] | ((visible: Metric[]) => number[]);
+
+/** Most Metrics one request for series may name; a canvas asks for the few it is about to draw. */
+export const MAX_SERIES_REQUEST = 200;
+
+/** Series, Breakdowns, Target Series and Projections of some visible Metrics, with the visible inputs of the Derived
+ * ones among them (comparisons resolve through them). A Metric with no values gets an empty series, so a missing
+ * key always means "not sent". Only what is asked for is read from the database. */
+async function seriesFor(ws: string, metrics: Metric[], visible: Set<number>, ids: Iterable<number>): Promise<CanvasSeries> {
+  const wanted = withInputs(metrics, [...ids].filter((id) => visible.has(id))).filter((id) => visible.has(id));
+  if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {} };
+  // Derived values are computed from all their inputs, also ones the person does not see; only visible series go out.
+  const [series, breakdowns, { targets, projections }] = await Promise.all([getSeriesOf(ws, metrics, wanted), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted)]);
+  const byId = new Map(metrics.map((m) => [m.id, m]));
+  return {
+    series: Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []])),
+    breakdowns,
+    targets,
+    projections,
+  };
+}
+
+/** More series for a canvas that is open: the Metrics a person just placed or picked. Only Metrics they see; ids
+ * come from a browser, so they are checked as whole numbers and capped. */
+export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSeries> {
+  if (!Array.isArray(ids) || ids.length > MAX_SERIES_REQUEST || !ids.every((id) => Number.isSafeInteger(id) && id > 0)) throw new Forbidden("Ask for at most 200 Metrics by id.");
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  const visible = await visibleMetricIds(ws, actor.personId, metrics);
+  return seriesFor(ws, metrics, visible, ids as number[]);
+}
+
+/** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
+ * `seriesOf` every visible Metric's series is sent; pages pass the ones they show, and fetch more with canvasSeries. */
+export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf?: SeriesOf } = {}): Promise<CanvasData> {
+  const [metrics, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }] = await Promise.all([
+    getMetrics(ws), peopleIn(ws),
     // Only the Actions still open, with the columns that decide who may read them: the canvas only counts them.
     allRows<Pick<Action, "id" | "metric_id" | "status" | "asker_id" | "assignee_id" | "read_group_id"> & { workspace_id: string }>((from, to) =>
       db().from("actions").select("id, metric_id, status, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).neq("status", "closed").order("id").range(from, to),
@@ -127,7 +165,8 @@ export async function getCanvasData(ws: string, viewer: string): Promise<CanvasD
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
-  const [breakdowns, { targets, projections }] = await Promise.all([getBreakdowns(ws, [...ids]), getSeriesValues(ws, [...ids])]);
+  const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
+  const { series, breakdowns, targets, projections } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
   const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws);
   const openActions: Record<number, number> = {};
@@ -135,7 +174,7 @@ export async function getCanvasData(ws: string, viewer: string): Promise<CanvasD
   return {
     viewer,
     metrics: visible,
-    series: Object.fromEntries(visible.map((m) => [m.slug, series[m.slug] ?? []])),
+    series,
     people,
     openActions,
     breakdowns,

@@ -8,6 +8,7 @@ import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layo
 import { Eye, LayoutDashboard, MonitorPlay, MoreHorizontal, Pencil, Plus, Users } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
+import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { createDashboardNamed, placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
@@ -34,7 +35,7 @@ type Props = {
   /** A dashboard the viewer opened by link but may not see. */
   closed?: { id: number; owner: string } | null;
   /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
-  firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean } | null;
+  firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -51,8 +52,14 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
-/** The Dashboards screen: the Pool, the viewer's dashboards and the canvas of the current one. */
-export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun }: Props) {
+/** The Dashboards screen: the Pool, the viewer's dashboards and the canvas of the current one. The page sends the
+ * series of the widgets on it; widgets and editors fetch any other they need (ticket #125). */
+export function DashboardScreen(props: Props) {
+  const { data, ensure } = useCanvasSeries(props.data);
+  return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
+}
+
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -117,7 +124,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
         ) : !current && firstRun?.canCreate ? (
           <FirstRun steps={[
             { title: "Describe a metric", body: "Pick one from the catalog, such as revenue or customer satisfaction, and say who submits it.", done: data.metrics.length > 0, href: "/metrics/new" },
-            { title: "Add its first value", body: "Submit it yourself on the metric’s form link, or wait for the first answer.", done: Object.values(data.series).some((p) => p.length > 0), href: "/metrics" },
+            { title: "Add its first value", body: "Submit it yourself on the metric’s form link, or wait for the first answer.", done: firstRun.hasValue, href: "/metrics" },
             ...(firstRun.canManage ? [{ title: "Invite a teammate", body: "They see what you share with them, and can submit values and answer questions.", done: data.people.filter((p) => !p.contact).length > 1, href: "/team" }] : []),
             { title: "Build a dashboard", body: "Drag metrics from the Pool onto it and share it with the team.", done: false, action: <Button size="sm" onClick={newDashboard}>Create dashboard</Button> },
             ...(firstRun.canManage ? [{ title: "Set the workspace time", body: "The time zone and hour when Ziffr asks for values and sends reminders each day.", done: firstRun.clockSet, href: "/settings/workspace" }] : []),

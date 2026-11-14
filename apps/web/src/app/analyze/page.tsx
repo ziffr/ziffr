@@ -9,14 +9,15 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const actor = await currentActor();
   const viewer = actor.personId;
   const sp = await searchParams;
-  const data = await getCanvasData(viewer);
-  // "Analyze" from a metric page drops that metric onto the canvas.
-  if (sp.add && data.metrics.some((m) => m.id === Number(sp.add))) await canvasAdd(actor, [Number(sp.add)]);
+  // "Analyze" from a metric page drops that metric onto the canvas (the core checks the person sees it).
+  if (sp.add && /^\d{1,12}$/.test(sp.add)) await canvasAdd(actor, [Number(sp.add)]).catch(() => {});
   const [canvas, dashboards, demo] = await Promise.all([
     canvasMetricIds(actor),
     visibleDashboards(viewer),
     isDemo(),
   ]);
+  // The series of what is on the canvas; analyses of other Metrics fetch theirs.
+  const data = await getCanvasData(viewer, canvas);
   const onCanvas = canvas.filter((id) => data.metrics.some((m) => m.id === id));
   return (
     <>

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { actionThread, activityView, closedDashboardOwner, connectorsView, dashboardWidgets, deckView, metricExtras, sourcesView, submissionForm, workflowsView } from "./page-data";
+import { actionThread, activityView, hasVisibleValue, closedDashboardOwner, connectorsView, dashboardWidgets, deckView, metricExtras, sourcesView, submissionForm, workflowsView } from "./page-data";
 import { createDashboard, placeWidget } from "./dashboards";
 import { share } from "./sharing";
 import { createDeck } from "./decks";
@@ -43,6 +43,15 @@ describe("page loaders", () => {
     expect(await log(ann, "member")).toEqual([["Ann's 7", annCode], ["Ann used Ben's link", null]]);
     expect(JSON.stringify(await sourcesView(w.actor(ann, "member")))).not.toContain(benCode);
     expect(await log(sara, "owner")).toEqual([]);
+  });
+  it("tell the first-run checklist whether a Metric the person sees has a value", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara);
+    expect(await hasVisibleValue(w.actor(sara))).toBe(false);
+    await w.value(m.id, month, 5);
+    expect(await hasVisibleValue(w.actor(sara))).toBe(true);
+    // Ben does not see Sara's Metric, so its value does not count for him.
+    expect(await hasVisibleValue(w.actor(ben, "member"))).toBe(false);
   });
   it("give a Metric's Token codes only to their submitter, its owner and admins", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");

@@ -30,6 +30,7 @@ import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
+import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { WhoCanSee } from "@/components/who-can-see";
@@ -41,7 +42,18 @@ const DECK_TEMPLATE: TemplateId = "line";
 
 type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null };
 
-export function DeckEditor({ deck, data, saved, sharing }: Props) {
+/** The deck editor. The page sends the series of the deck's widgets; a widget placed since fetches its own
+ * (ticket #125). */
+export function DeckEditor(props: Props) {
+  const { data, ensure } = useCanvasSeries(props.data);
+  return <SeriesProvider ensure={ensure}><DeckCanvas {...props} data={data} /></SeriesProvider>;
+}
+
+function DeckCanvas({ deck, data, saved, sharing }: Props) {
+  const ensure = useEnsure();
+  // The newest data, for an export that first fetched what it lacked.
+  const latest = useRef(data);
+  latest.current = data;
   const [editor, setEditor] = useState<Editor | null>(null);
   const [name, setName] = useState(deck.name);
   const [footer, setFooter] = useState<string | null>(deck.footer);
@@ -175,7 +187,12 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
     if (!editor) return;
     setBusy(kind);
     try {
-      if (kind === "pptx") await exportPptx(editor, data, name, master, theme);
+      if (kind === "pptx") {
+        // Slides not on screen were never drawn, so a widget there may still lack its series: fetch them first.
+        const ids = editor.store.allRecords().flatMap((r) => (r.typeName === "shape" && r.type === WIDGET_SHAPE ? (r as WidgetShape).props.metricIds : []));
+        if (ensure) { await ensure([...new Set(ids)]); await new Promise((r) => setTimeout(r, 0)); }
+        await exportPptx(editor, latest.current, name, master, theme);
+      }
       else await exportPdf(editor, name);
       // For the Audit Log; a failure to note it never spoils the export the person already has.
       noteDeckExport(deck.id, kind).catch(() => {});

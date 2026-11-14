@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { currentActor, viewerId } from "@/lib/viewer";
-import { getCanvasData } from "@/lib/access";
+import { deckMetricIds, getCanvasData } from "@/lib/access";
 import { deckView } from "@ziffr/core/page-data";
 import { SlideshowLoader } from "./loader";
 
@@ -9,6 +9,7 @@ export default async function DeckPresentPage({ params, searchParams }: { params
   const viewer = await viewerId();
   const deck = (await deckView(await currentActor(), id))?.deck;
   if (!deck) notFound();
-  const data = await getCanvasData(viewer);
+  // A slideshow draws only the deck's widgets: only their series go to the browser.
+  const data = await getCanvasData(viewer, deckMetricIds(deck.document));
   return <SlideshowLoader deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }} data={data} start={Number((await searchParams).at) || 0} />;
 }

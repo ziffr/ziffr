@@ -19,6 +19,8 @@ const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false })
 // Observable Plot is only needed by stories: their code loads with the first story shown (still rendered on the server).
 const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 import { cn } from "@/lib/utils";
+import { useSeriesReady } from "@/canvas/series-store";
+import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { TargetChip } from "@/components/target-chip";
 
 type Props = {
@@ -35,6 +37,9 @@ export function widgetMetrics(widget: Pick<Widget, "metric_ids">, data: CanvasDa
 
 export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props) {
   const ms = widgetMetrics(widget, data);
+  // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
+  const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);
+  if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;
   if (widget.template === "canvas") return <LayoutView settings={widget.settings} data={data} />;
   if (ms.length < widget.metric_ids.length) {
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;

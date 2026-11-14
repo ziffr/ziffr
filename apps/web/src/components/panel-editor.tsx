@@ -2,6 +2,7 @@
 // Edits the panels of a composed Story (GLOSSARY: Panel, Measure, Bridge).
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useSeriesReady } from "@/canvas/series-store";
 import { MEASURE_LABEL } from "@/views/story-panels";
 import { periodLabel } from "@ziffr/core/format";
 import type { Anchor, Annotation, CanvasData, MeasureId, Panel, PanelType } from "@ziffr/core/types";
@@ -17,6 +18,8 @@ const TYPES: { id: PanelType; label: string }[] = [
 const select = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-xs";
 
 export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data: CanvasData; onChange: (p: Panel[]) => void }) {
+  // A Metric ticked here may not have been sent with the page: its periods and values are fetched (ticket #125).
+  useSeriesReady([...new Set(panels.flatMap((p) => p.metricIds))], data);
   const set = (i: number, patch: Partial<Panel>) => onChange(panels.map((p, j) => (j === i ? { ...p, ...patch } : p)));
   return (
     <div className="space-y-3">

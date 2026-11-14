@@ -46,7 +46,8 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     widgets = (data ?? []) as Widget[];
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
   } else metricIds = deckMetricIds(obj.document);
-  const full = await getCanvasData(ws, obj.owner_id);
+  // Only the series this link can show are read; it filters them further below.
+  const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
   const ids = new Set(metricIds.filter((m) => full.metrics.some((x) => x.id === m) && (!allowed || allowed.includes(m))));
   const metrics = full.metrics.filter((m) => ids.has(m.id));

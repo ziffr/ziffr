@@ -1,4 +1,6 @@
 "use client";
+import { useEnsure } from "@/canvas/series-store";
+import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { BookmarkCheck, GripVertical, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
@@ -20,9 +22,19 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
   // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
   const templates = data.templates.filter((t) => t.kind === "widget" && match(t.name));
 
+  // Pointing at a Metric starts fetching its series, so it is usually there by the time it is dropped (ticket #125).
+  const ensure = useEnsure();
+  const prefetch = (s: DropSource) => {
+    if (!ensure) return;
+    if (s.type === "metric") void ensure([s.id]);
+    else if (s.type === "widget") { const w = saved.find((x) => x.id === s.id); if (w) void ensure(widgetMetricIds(w.metric_ids, w.settings)); }
+  };
   const drag = (s: DropSource) => ({
     draggable: true,
+    onPointerEnter: () => prefetch(s),
+    onFocus: () => prefetch(s),
     onDragStart: (e: React.DragEvent) => {
+      prefetch(s);
       setDrag(s);
       e.dataTransfer.setData("text/plain", JSON.stringify(s));
       e.dataTransfer.effectAllowed = "copy";
