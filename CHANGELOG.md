@@ -2,6 +2,43 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.5.0 (2026-11-14)
+
+### For self-hosters
+
+- The daily Workflow run and reminders sent in bulk now queue their emails, and the deliveries job (`POST /api/jobs/deliveries`) sends them within minutes, so a slow mail server no longer holds the run up. Keep that job scheduled every few minutes.
+
+### New and changed
+
+- Owners and Admins can see who did what, and when, at `/audit`: role changes, removals, invitations, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, settings, exports and sign-ins. They can filter it and download it as CSV. Events are kept for two years and cannot be changed or removed.
+- The Metric Catalog now holds 132 common business Metrics, from finance and sales to support and e-commerce, each with a definition of what it counts. On the New metric page you can search it and filter it by category.
+- With an industry in the Workspace Profile, the Metric Catalog offers a filter for the Metrics written for that industry.
+- The deck editor has Group and Ungroup buttons: select two or more shapes on a slide to keep them together, then move or resize them as one.
+- A Metric's page has a Duplicate button: it opens the new-metric form filled in with the same description, Workflow and Submitters, for you to review before saving. Values, Shares, Target Series and history stay with the original.
+- A Metric's owner can remove a saved target or projection from the targets table.
+- The top bar now shows Dashboards, Metrics, Analyze and Decks, with Actions as an inbox showing how many wait for you. Members and Groups, Connectors, Workflows, Sources, Access Keys, Activity and the workspace's settings are in the Workspace menu; your profile, your Deliveries, switching workspaces and signing out are under your name. On a phone, one menu button opens all of it.
+- Owners and Admins can connect the workspace's Slack with "Add to Slack" on the Connectors page, and disconnect it again. Self-hosters: this needs a Slack app and four new settings, `ZIFFR_SLACK_CLIENT_ID`, `ZIFFR_SLACK_CLIENT_SECRET`, `ZIFFR_SLACK_SIGNING_SECRET` and `ZIFFR_SECRETS_KEY` (see `.env.example`).
+- Answering a Slack message in its thread records the number, replies in the Thread or proposes a Correction, and the buttons approve a value or stop Prompts and reminders on Slack. Self-hosters: `docs/guides/slack.md` has the Slack app's manifest and the setup steps.
+- Once a workspace connects Slack, Prompts, reminders, questions, tasks and replies chosen for Slack arrive as real direct messages from the Ziffr app, and the Outbox shows whether each was sent, is waiting or failed. Self-hosters: the deliveries job now also retries Slack messages.
+- Colour now means one thing: green or red says whether a value is on target, shown as a small "Below target" or "On target" chip next to a neutral number, while arrows and signs show which way it changed. Dashboards and metric pages have one main Share button (with "Who can see this" and view links inside it), and Theme, Versions and the rest sit in a ⋯ menu.
+- A metric's page is split into Overview, Analysis, Targets, History and Settings tabs instead of one long scroll, and says which target applies to the latest period. Targets and projections are now an editable table: add a row, change a value, or paste two columns from a spreadsheet and check the preview before saving.
+- Ziffr reads like a finished product: no more "prototype" labels or developer hints, deleting or locking asks in a proper dialog that says what happens, dates read "4 Nov 2026" everywhere, and values use the body font with aligned digits. A new workspace gets a short checklist on the Dashboards page, and demo-only buttons (playing a recipient, running the schedule by hand, previews of analyses still to come) now show only in the demo; owners and admins elsewhere find "Run now" on the Connectors page.
+- Owners and Admins find the workspace's name, its time and its new Workspace Profile (industry, customers, country, currency, size and revenue) under Settings, Workspace, and Access Keys under Settings, Access Keys; both left the Team page. The settings side nav links Members and Groups, Connectors, Workflows, Sources, Activity and the Audit log.
+- You can change your own name and colour under Settings, Your profile, which also shows the address you signed in with. Your Deliveries gathers where Ziffr reaches you, whether Prompts and reminders come by email (now also stopped from Ziffr itself, not only from an email) and your Away dates.
+
+### Fixed
+
+- Only Owners and Admins can start the scheduled requests and reminders by hand ("Run now" on Connectors); in the demo everyone still can.
+- The Sources page shows each person only the Prompts and incoming messages that are their own, and no one else's Token code; the demo still shows all of them.
+- Charts, the Metrics list and the API no longer leave out the newest values once a workspace has many of them, and Breakdowns no longer go missing on Metrics with a long history. Self-hosters: keep Max Rows in your Supabase project's API settings at 1000 or more.
+- Pages that decide who sees what load faster in workspaces with many people, Groups and shares, and the Sources page shows the latest 300 Prompts and the latest 300 incoming messages.
+
+### For developers
+
+- `pnpm ci:local` runs everything CI checks on your machine, against the local Supabase; CI on GitHub runs less often and cancels runs a newer push replaces.
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
+
 ## 0.4.0 (2026-11-14)
 
 ### For self-hosters
