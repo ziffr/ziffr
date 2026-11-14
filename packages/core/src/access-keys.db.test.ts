@@ -19,7 +19,8 @@ describe("Access Keys", () => {
     const mine = await w.metric(ben, { name: "Mine" }); const hidden = await w.metric(sara, { name: "Hidden" });
     const { secret, id } = await createAccessKey(w.actor(ben, "member"), { name: "Script", scopes: ["metrics:read"], expiresOn: inDays(30) });
     const { data: row } = await db().from("access_keys").select("*").eq("id", id).single();
-    expect(JSON.stringify(row)).not.toContain(secret.split("_")[2]);
+    // The random part after "zk_<prefix>_" (it may itself contain "_"): never stored.
+    expect(JSON.stringify(row)).not.toContain(secret.slice("zk_".length + 12 + 1));
     expect(JSON.stringify(await listAccessKeys(w.actor(ben, "member")))).not.toContain(secret);
     const key = (await actorForKey(secret))!;
     expect(key).toMatchObject({ personId: ben, workspaceId: w.id, role: "member" });

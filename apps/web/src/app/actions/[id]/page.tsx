@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { db } from "@/lib/db";
 import { getAllSeries, getProfileMap } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { actionThread } from "@ziffr/core/page-data";
 import { formatValue, periodLabel } from "@ziffr/core/format";
 import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
 import { markTaskDone } from "@/app/canvas-actions";
@@ -14,28 +14,17 @@ import { StatusBadge } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { Action, ThreadMessage } from "@ziffr/core/types";
+import type { ThreadMessage } from "@ziffr/core/types";
 import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
-import { getGroups, threadReader } from "@/lib/access";
-import { currentWorkspaceId } from "@/lib/viewer";
 import { ApprovalBar } from "@/components/approval-bar";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
-  const [{ data: action }, { data: msgs }, { metrics, series, observations }, people, viewer, { data: sent }] = await Promise.all([
-    db.from("actions").select("*").eq("id", id).single(),
-    db.from("thread_messages").select("*").eq("action_id", id).order("created_at"),
-    getAllSeries(),
-    getProfileMap(),
-    viewerId(),
-    db.from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("action_id", id).order("id"),
-  ]);
-  if (!action) notFound();
-  const a = action as Action;
+  // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core.
+  const [thread0, { metrics, series, observations }, people, viewer] = await Promise.all([actionThread(await currentActor(), id), getAllSeries(), getProfileMap(), viewerId()]);
+  if (!thread0) notFound();
+  const { action: a, messages: msgs, deliveries: sent } = thread0;
   const m = metrics.find((x) => x.id === a.metric_id)!;
-  // A thread limited to a Group is read by its members and the people on it (GLOSSARY: Thread).
-  const groups = await getGroups();
-  if (!threadReader(viewer, groups, (id) => metrics.find((x) => x.id === id)?.owner_id, await currentWorkspaceId())(a as Action & { workspace_id: string })) notFound();
   const pts = series[m.slug] ?? [];
   const idx = pts.findIndex((p) => p.period === a.period_start);
   const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));
@@ -43,7 +32,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   const isAsker = viewer === a.asker_id;
   const isAssignee = viewer === a.assignee_id;
   const isOwner = viewer === m.owner_id;
-  const thread = (msgs ?? []) as ThreadMessage[];
+  const thread = msgs as ThreadMessage[];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -66,11 +55,11 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
         </div>
         {window.length > 1 && <div className="mt-4"><MetricChart metric={m} points={window} markers={[a.period_start]} height={180} /></div>}
         {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
-        {(sent ?? []).length > 0 && (
+        {sent.length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground">
-            <summary className="cursor-pointer">Sent {(sent ?? []).length} time{(sent ?? []).length === 1 ? "" : "s"} through connectors</summary>
+            <summary className="cursor-pointer">Sent {sent.length} time{sent.length === 1 ? "" : "s"} through connectors</summary>
             <ul className="mt-1.5 space-y-0.5">
-              {(sent ?? []).map((d) => (
+              {sent.map((d) => (
                 <li key={d.id}>{d.kind} to {people[d.recipient_id]?.name.split(" ")[0]} via {CONNECTORS[d.connector as ConnectorId]?.label}{d.external_ref ? ` (${d.external_ref})` : ""}, {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</li>
               ))}
             </ul>

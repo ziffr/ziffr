@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
-import { db } from "@/lib/db";
+import { metricCatalog } from "@ziffr/core/page-data";
 import { getProfiles } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
@@ -39,8 +39,7 @@ const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-c
 
 export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string }> }) {
   const sp = await searchParams;
-  const { data: catalog } = await db.from("catalog_metrics").select("*").order("category").order("id");
-  const items = (catalog ?? []) as CatalogMetric[];
+  const items = (await metricCatalog()) as CatalogMetric[];
   const picked = sp.catalog ? items.find((c) => c.id === Number(sp.catalog)) : undefined;
 
   if (!picked && !sp.scratch) {

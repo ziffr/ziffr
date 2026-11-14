@@ -21,8 +21,8 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 ## Trust boundaries
 
 1. **Browser to server.** Everything a browser sends is untrusted: ids, text, settings, layouts, documents. Server actions are public endpoints, whatever page they are called from.
-2. **App to core.** The web app only calls core functions (`packages/core`). Each takes the acting person (an `Actor`) or a key (`KeyActor`) first. The app has no permission code of its own.
-3. **Core to database.** The core reaches the database with the service role. Until #42 the web app holds it too, for page reads and for checking the current person's membership (`apps/web/src/lib/db.ts`, `viewer.ts`); it is never a `NEXT_PUBLIC_` variable, so Next.js never puts it in a browser bundle. Row Level Security is on for every table, with no policies, so the public key reads nothing.
+2. **App to core.** The web app's pages and server actions only call core functions (`packages/core`). Each takes the acting person (an `Actor`) or a key (`KeyActor`) first. The app has no permission code of its own.
+3. **Core to database.** The core reaches the database with the service role. The web app holds it too, only to find the signed-in person and their membership (`apps/web/src/lib/auth.ts`, `viewer.ts`) and for the demo's "view as" and reset; every page read and every change goes through the core (#42); it is never a `NEXT_PUBLIC_` variable, so Next.js never puts it in a browser bundle. Row Level Security is on for every table, with no policies, so the public key reads nothing.
 4. **Outside channels.** Values arriving by Slack, email or a form link are recognised by Token or by the sender's identity in one workspace. Connectors are simulated in the prototype.
 
 ## Threats and how they are met
@@ -34,7 +34,7 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 | Doing more than one's role allows | Capabilities per Workspace Role (`actor.ts`); Guests create and share nothing; only Owners make or remove Owners; a database trigger keeps the last Owner | `invitations.db.test.ts`, `handover.db.test.ts`, `sharing.db.test.ts` |
 | Taking over someone's identity | An address counts only when confirmed through a way of signing in that proves it (email link, Google); email confirmations are required; Contacts carry no address on their person, so nobody can sign in as one | `invitations.db.test.ts`; `provenEmail` in `apps/web/src/lib/auth.ts` |
 | A leaked View Link | Unguessable token (24 random bytes); ends within 90 days; revocable; shows only the Metrics it was made with, only the dashboard widgets or deck records it was made with (links made before the security pass have no such list), people's names without contact details, and nothing to act on. A live link shows current values and current text inside the widgets and shapes it was made with, by design | `dashboards.db.test.ts`, `decks.db.test.ts` |
-| A leaked form link (Token) | Unguessable code; records values only for its Metric and submitter; stops when the Contact is removed or the person leaves | `submissions.db.test.ts`, `handover.db.test.ts` |
+| A leaked form link (Token) | Unguessable code; pages show a code only to its submitter, the Metric's owner and admins; records values only for its Metric and submitter; stops when the Contact is removed or the person leaves | `page-data.db.test.ts`, `submissions.db.test.ts`, `handover.db.test.ts` |
 | A leaked Access Key | Stored as a hash; scoped; ends on a day within a year; revocable by its creator and by Owners; stops when its creator leaves; a `KeyActor` is a type of its own that no core function accepts unless written for keys, and it holds no role capability | `access-keys.db.test.ts` (including a compile-time check) |
 | A leaked invitation link | Email invitations work once, for the proven address only; links make Members or Guests only, end within 7 days, are revocable, and are revoked when someone is removed | `invitations.db.test.ts`, `handover.db.test.ts` |
 | Someone who left keeps acting | Removal hands everything over in one database step and ends Tokens, stand-in roles, Shares, Group memberships, Access Keys, View Links and invite links; every request checks membership again | `handover.db.test.ts` |
@@ -53,6 +53,7 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 - **Secrets.** `gitleaks` scans the whole history on every pull request.
 - **Dependencies.** `pnpm audit --prod` fails on any known-vulnerable production dependency. Ignored advisories are listed below, each with its reason.
 - **Client imports.** Client components may import only the core's pure modules, and CI's production build fails if the database module is bundled for a browser.
+- **Database access from the app.** Outside sign-in, the session refresh and the demo, no file in the web app may import a database module or a Supabase client, or query the database (`.github/scripts/app-db-access.mjs`).
 - **Core against a real database.** `pnpm --filter @ziffr/core test:db` runs every operation's permission tests against Postgres with the migrations applied.
 
 ## Accepted risks
@@ -72,7 +73,6 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 - **The demo switch relies on `Sec-Fetch-Site`.** Browsers that do not send it, and sibling subdomains, can still switch a signed-in person into the demo; an explicit "switch to the demo" step would close it.
 - **Pinning actions.** CI actions are pinned by major version, not by commit; gitleaks is pinned and checksummed.
 
-- **Page reads through the core.** Pages in `apps/web/src/app` still read some data straight from the database, filtered by the current workspace. Every write and every permission check goes through the core; the reads move next (#42).
 - **Real Connectors and email.** Connectors are simulated, and invitation emails are not sent by Ziffr yet. Today the server makes no outgoing requests, so nothing can make it fetch from an attacker's address. Real Connectors change that: they need signed webhooks, an allowlist of addresses they call, and their own threat review.
 - **The API and the MCP server.** They will accept Access Keys; rate limiting and audit logging belong to their specs.
 - **Lawyer review** of the license texts before the repository is public (ADR 0002).

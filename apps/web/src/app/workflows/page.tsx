@@ -1,24 +1,19 @@
 import { format } from "date-fns";
-import { db } from "@/lib/db";
-import { currentWorkspaceId, viewerId } from "@/lib/viewer";
-import { getMetrics, getProfiles } from "@/lib/data";
-import { visibleMetricIds } from "@/lib/access";
+import { currentActor } from "@/lib/viewer";
+import { getProfiles } from "@/lib/data";
+import { workflowsView } from "@ziffr/core/page-data";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 
 export default async function WorkflowsPage({ searchParams }: { searchParams: Promise<{ id?: string; asOf?: string }> }) {
   const sp = await searchParams;
-  const [viewer, people, all, { data: workflows }] = await Promise.all([viewerId(), getProfiles(), getMetrics(), db.from("workflows").select("*").eq("workspace_id", await currentWorkspaceId()).order("id")]);
-  // Only metrics this viewer may see, and only what the page shows of them.
-  const ids = [...(await visibleMetricIds(viewer, all))];
-  const [{ data: states }, { data: tokens }, { data: assigned }] = await Promise.all([
-    db.from("period_states").select("*").in("metric_id", ids),
-    db.from("tokens").select("metric_id, submitter_id, stand_in_id").in("metric_id", ids).is("stands_in_for", null),
-    db.from("metrics").select("id, workflow_id").in("id", ids),
-  ]);
-  const metrics = all.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
-  const list = (workflows ?? []) as Workflow[];
+  const actor = await currentActor();
+  const viewer = actor.personId;
+  // Only Metrics this viewer may see, decided in the core, and only what the page shows of them.
+  const [people, { workflows, states, tokens, metrics: seen, assigned }] = await Promise.all([getProfiles(), workflowsView(actor)]);
+  const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
+  const list = workflows as Workflow[];
   const current = list.find((w) => w.id === Number(sp.id)) ?? list[0] ?? null;
   const asOf = sp.asOf && /^\d{4}-\d{2}-\d{2}$/.test(sp.asOf) ? sp.asOf : format(new Date(), "yyyy-MM-dd");
   return (
@@ -28,11 +23,11 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         key={current ? `${current.id}-${current.updated_at}` : "new"}
         viewer={viewer}
         people={people}
-        metrics={metrics.map((m) => ({ ...m, workflow_id: assigned?.find((a) => a.id === m.id)?.workflow_id ?? null }))}
+        metrics={metrics.map((m) => ({ ...m, workflow_id: assigned.find((a) => a.id === m.id)?.workflow_id ?? null }))}
         workflows={list}
         current={current}
-        states={(states ?? []) as PeriodState[]}
-        tokens={tokens ?? []}
+        states={states as PeriodState[]}
+        tokens={tokens}
         asOf={asOf}
       />
     </>

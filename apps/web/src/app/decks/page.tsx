@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Presentation } from "lucide-react";
-import { db } from "@/lib/db";
 import { visibleDecks } from "@/lib/access";
 import { getProfileMap } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { deckDocuments } from "@ziffr/core/page-data";
 import { createDeck } from "@/app/deck-actions";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 export default async function DecksPage() {
   const viewer = await viewerId();
   const access = await visibleDecks(viewer);
-  const { data: rows } = await db.from("decks").select("id, document").in("id", access.map((d) => d.id));
-  const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows?.find((r) => r.id === d.id)?.document }))];
+  const rows = await deckDocuments(await currentActor());
+  const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows.find((r) => r.id === d.id)?.document }))];
   return (
     <>
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">

@@ -4,9 +4,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { authClient, DEMO_COOKIE, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
-import { db } from "@/lib/db";
+import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
-import { STARTER_THEME } from "@ziffr/core/themes";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 
 /** Sends a sign-in link to the address; the same message whether or not an account exists. */
@@ -42,13 +41,7 @@ export async function createWorkspace(name: string) {
   const user = await sessionUser();
   if (!user) redirect("/login");
   const person = await personFor(user);
-  const title = String(name ?? "").trim().slice(0, 80);
-  if (!title) throw new Error("Give the workspace a name.");
-  const { data: ws, error } = await db.from("workspaces").insert({ name: title }).select("id").single();
-  if (error || !ws) throw new Error("The workspace could not be created.");
-  await db.from("memberships").insert({ workspace_id: ws.id, user_id: person, role: "owner" });
-  // Every workspace starts with the Theme Ziffr ships with, never a copy of another workspace's (logo, footer).
-  await db.from("themes").insert({ ...STARTER_THEME, owner_id: person, is_default: true, workspace_id: ws.id });
+  const ws = { id: await coreCreateWorkspace(person, String(name ?? "")) };
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
@@ -60,8 +53,7 @@ export async function switchWorkspace(id: string) {
   const user = await sessionUser();
   if (!user) redirect("/login");
   const person = await personFor(user);
-  const { data } = await db.from("memberships").select("workspace_id").eq("user_id", person).eq("workspace_id", id).maybeSingle();
-  if (!data) throw new Error("You are not in that workspace.");
+  if (!(await isMemberOf(person, String(id)))) throw new Error("You are not in that workspace.");
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE);

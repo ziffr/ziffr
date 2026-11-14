@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { db } from "@/lib/db";
-import { currentWorkspaceId, viewerId } from "@/lib/viewer";
-import { getMetrics, getProfiles } from "@/lib/data";
-import { visibleDashboards, visibleMetricIds } from "@/lib/access";
+import { currentActor } from "@/lib/viewer";
+import { getProfiles } from "@/lib/data";
+import { activityView } from "@ziffr/core/page-data";
 import { formatValue, periodLabel } from "@ziffr/core/format";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
@@ -13,30 +12,13 @@ const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard",
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
-  const viewer = await viewerId();
-  const ws = await currentWorkspaceId();
-  const [people, metrics, dashboards, { data: versions }, { data: superseded }, { data: decks }, { data: widgets }] = await Promise.all([
-    getProfiles(),
-    getMetrics(),
-    visibleDashboards(viewer),
-    db.from("versions").select("id, object_type, object_id, version, author_id, message, name, updated_at").eq("workspace_id", ws).order("updated_at", { ascending: false }).limit(200),
-    db.from("observation_history").select("*").eq("workspace_id", ws).order("superseded_at", { ascending: false }).limit(100),
-    db.from("decks").select("id, name, owner_id").eq("workspace_id", ws),
-    db.from("widgets").select("id, dashboard_id, owner_id, metric_ids, title").eq("workspace_id", ws),
-  ]);
-  const visible = await visibleMetricIds(viewer, metrics);
+  // The core passes only versions and replaced values the person may see, and what labels them.
+  const [people, { metrics, dashboards, versions, superseded, decks, widgets }] = await Promise.all([getProfiles(), activityView(await currentActor())]);
   const dash = new Map(dashboards.map((d) => [d.id, d]));
   const name = (id: string | null) => people.find((p) => p.id === id)?.name ?? "Someone";
 
   const items = [
-    ...(versions ?? [])
-      .filter((v) => {
-        if (v.object_type === "metric") return visible.has(v.object_id);
-        if (v.object_type === "dashboard") return dash.has(v.object_id);
-        if (v.object_type === "deck") return decks?.find((d) => d.id === v.object_id)?.owner_id === viewer;
-        if (v.object_type === "widget") { const w = widgets?.find((x) => x.id === v.object_id); return w ? (w.dashboard_id ? dash.has(w.dashboard_id) : w.owner_id === viewer) : false; }
-        return true;
-      })
+    ...versions
       .map((v) => {
         const label =
           v.object_type === "metric" ? metrics.find((m) => m.id === v.object_id)?.name
@@ -47,8 +29,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         const href = v.object_type === "metric" ? `/metrics/${metrics.find((m) => m.id === v.object_id)?.slug}` : v.object_type === "dashboard" ? `/dashboards/${v.object_id}` : v.object_type === "deck" ? `/decks/${v.object_id}` : v.object_type === "theme" ? `/themes?id=${v.object_id}` : null;
         return { at: v.updated_at, who: v.author_id, text: `${v.name ? `named “${v.name}” on` : v.message?.startsWith("Restored") ? v.message.toLowerCase() + " of" : v.message === "Before version history" ? "started the history of" : v.version === 1 ? "created" : "edited"} the ${NOUN[v.object_type]}${label ? ` ${label}` : ""}`, version: v.version, href, kind: "version" as const };
       }),
-    ...(superseded ?? [])
-      .filter((x) => visible.has(x.metric_id))
+    ...superseded
       .map((x) => {
         const m = metrics.find((y) => y.id === x.metric_id)!;
         return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, true)}: ${formatValue(m, Number(x.value))} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };

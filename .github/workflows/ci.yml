@@ -44,6 +44,8 @@ jobs:
         run: pnpm audit --prod
       - name: Client components import only pure core modules
         run: node .github/scripts/client-imports.mjs
+      - name: The app reaches the database only through the core
+        run: node .github/scripts/app-db-access.mjs
       # The production build fails if the core's database module is bundled for a browser (next.config.ts). It needs
       # no real settings: placeholders only, nothing is contacted.
       - name: Production build (no database code in browser bundles)

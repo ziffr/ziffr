@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { db } from "@/lib/db";
 import { getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { SeriesForm } from "./series-form";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { countryCode } from "@/lib/countries";
-import { currentWorkspaceId, viewerId } from "@/lib/viewer";
-import { formatValue, health, PERIOD_LABEL, periodLabel, periodStart, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { format } from "date-fns";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { metricExtras } from "@ziffr/core/page-data";
+import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
 import { ANALYSES } from "@/analyses";
@@ -24,7 +23,6 @@ import { ShareDialog } from "@/components/share-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
 import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
-import { workingPeriod } from "@ziffr/core/workflow-rules";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { cn } from "@/lib/utils";
@@ -63,17 +61,14 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </div>
     );
   }
-  const [actions, { data: tokens }, dashboards, shares, groups, { data: workflows }, { data: wfRow }] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
-    db.from("tokens").select("*").eq("metric_id", metric.id),
+    metricExtras(await currentActor(), metric.id, metric.period),
     visibleDashboards(viewer),
     getRawShares(),
     getGroups(),
-    db.from("workflows").select("*").eq("workspace_id", await currentWorkspaceId()).order("id"),
-    db.from("metrics").select("workflow_id").eq("id", metric.id).single(),
   ]);
-  const wfPeriod = workingPeriod(format(new Date(), "yyyy-MM-dd"), metric.period, periodStart);
-  const { data: wfState } = await db.from("period_states").select("*").eq("metric_id", metric.id).eq("period_start", wfPeriod).maybeSingle();
+  const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id], observations))[metric.id] ?? {};
@@ -328,22 +323,22 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && (
-            <MetricWorkflow metric={metric} workflowId={wfRow?.workflow_id ?? null} workflows={(workflows ?? []) as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={(tokens ?? []).filter((t) => !t.stands_in_for)} people={people} isOwner={metric.owner_id === viewer} />
+            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={metric.owner_id === viewer} />
           )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
               <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Tokens</h2>
               <p className="mb-3 text-xs text-muted-foreground">Who may submit values. Usually invisible: implied by the sender’s Slack handle or mail address.</p>
               <ul className="space-y-2">
-                {(tokens ?? []).map((t) => (
+                {tokens.map((t) => (
                   <li key={t.id} className="flex items-center justify-between gap-2">
                     <Person p={peopleById[t.submitter_id]} />
-                    {metric.sources.includes("web_form") ? (
+                    {!t.code ? null : metric.sources.includes("web_form") ? (
                       <Link href={`/submit/${t.code}`} className="text-xs underline">Open form</Link>
                     ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
                   </li>
                 ))}
-                {!tokens?.length && <li className="text-muted-foreground">No Submitters yet.</li>}
+                {!tokens.length && <li className="text-muted-foreground">No Submitters yet.</li>}
               </ul>
             </section>
           )}
