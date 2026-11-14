@@ -1,0 +1,59 @@
+# A pushed package tag (sdk-vX.Y.Z or mcp-vX.Y.Z) publishes that MIT package to npm with provenance (ADR 0004: the
+# packages others build on have versions of their own). A person pushes the tag; nothing here runs on its own.
+name: Publish a package
+on:
+  push:
+    tags: ["sdk-v*.*.*", "mcp-v*.*.*"]
+permissions:
+  contents: read
+  id-token: write # npm provenance and trusted publishing
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: The tag names the package and its version
+        id: tag
+        run: |
+          name="${GITHUB_REF_NAME%%-v*}"; version="${GITHUB_REF_NAME#*-v}"
+          actual=$(node -p "require('./packages/$name/package.json').version")
+          if [ "$actual" != "$version" ]; then echo "packages/$name is at $actual, the tag says $version."; exit 1; fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: What it depends on of ours is published already
+        run: |
+          for dep in $(node -p "Object.keys(require('./packages/${{ steps.tag.outputs.name }}/package.json').dependencies ?? {}).filter((d) => d.startsWith('@ziffr/')).join(' ')"); do
+            v=$(node -p "require('./packages/${dep#@ziffr/}/package.json').version")
+            npm view "$dep@$v" version > /dev/null || { echo "Publish $dep@$v first."; exit 1; }
+          done
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm lint && pnpm test
+      - name: The app, built and running, to test the package against
+        run: |
+          supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta
+          # The local Supabase's address and keys are fixed development values, not secrets.
+          eval "$(supabase status -o json | node -e 'const s = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const k of ["API_URL", "ANON_KEY", "SERVICE_ROLE_KEY"]) console.log(`export ${k}=${JSON.stringify(s[k])}`)')"
+          export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          pnpm --filter @ziffr/web build
+          (cd apps/web && nohup node ./node_modules/next/dist/bin/next start -p 3000 > "$RUNNER_TEMP/app.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/v1/openapi.json > /dev/null && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/app.log"; exit 1
+      - run: pnpm --filter "@ziffr/${{ steps.tag.outputs.name }}" test:app
+      - name: Build and pack
+        # pnpm pack writes real versions where the workspace says workspace:*.
+        run: |
+          pnpm --filter "@ziffr/${{ steps.tag.outputs.name }}" build
+          (cd "packages/${{ steps.tag.outputs.name }}" && pnpm pack --pack-destination "$RUNNER_TEMP/pack")
+      - name: Publish
+        # Trusted publishing once it is set up on npmjs.com; until then the NPM_TOKEN secret (first publish).
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx -y npm@11.6.2 publish "$RUNNER_TEMP"/pack/*.tgz --provenance --access public

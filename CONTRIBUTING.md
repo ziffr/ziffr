@@ -54,6 +54,15 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 
 Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0.
 
+### The MIT packages
+
+`@ziffr/sdk` and `@ziffr/mcp` have versions of their own and are published to npm, each on its own (ADR 0004). A maintainer:
+
+1. Sets the package's `version` in `packages/sdk/package.json` or `packages/mcp/package.json` in a pull request, and merges it.
+2. Tags that commit `sdk-vX.Y.Z` or `mcp-vX.Y.Z` and pushes the tag. The "Publish a package" workflow checks the tag against the version, checks that the `@ziffr` packages it depends on are published (the MCP server needs its SDK version), runs every check and the package's tests against the running app, and publishes with npm provenance.
+
+Before the first publish: create the npm organisation `ziffr` and add an npm automation token as the repository secret `NPM_TOKEN`. After the first publish of each package, set up trusted publishing for it on npmjs.com (repository `ziffr/ziffr`, workflow `publish-packages.yml`) and remove the secret.
+
 ## Running it
 
 See the README. Never commit `.env.local` or any secret; ask in the issue if you need a key.
