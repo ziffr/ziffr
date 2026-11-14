@@ -45,6 +45,22 @@ export const ApiObservation = z.object({
 /** GET /api/v1/metrics/{slug}/observations answers this. */
 export const ObservationList = pageOf(ApiObservation);
 
+/** POST /api/v1/metrics takes this (spec 0003): a Metric's description, as GET /api/v1/metrics/{slug} shows one. */
+export const CreateMetric = z.object({
+  name: z.string().trim().min(1).max(120).describe("What it is called; its slug is made from it."),
+  description: z.string().max(2000).optional(),
+  unit: z.string().max(20).optional().describe("Shown after the value, such as orders or EUR."),
+  format: z.enum(["number", "currency", "percent"]).optional().describe("Default number."),
+  decimals: z.number().int().min(0).max(6).optional().describe("Default 0."),
+  period: z.enum(["day", "week", "month"]).optional().describe("Default month."),
+  submission_rule: z.enum(["reject", "overwrite", "add", "keep_both"]).optional().describe("What a second value for a period does. Default overwrite."),
+  polarity: z.enum(["higher", "lower", "target"]).optional().describe("Default higher."),
+  aggregation: z.enum(["sum", "average", "last", "none"]).optional().describe("Default sum."),
+  target_min: z.number().nullable().optional(),
+  target_max: z.number().nullable().optional(),
+  submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
+}).strict();
+
 /** POST /api/v1/metrics/{slug}/observations takes this. */
 export const SubmitObservation = z.object({
   value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),

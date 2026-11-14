@@ -48,3 +48,20 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
 - **Idempotency-Key** (optional, up to 200 characters): a repeat within 24 hours with the same key and body gets the first answer again, with `Idempotent-Replayed: true`, and records nothing. The same key with another body answers 409.
 - Each key may submit **1,000 values a day** (any 24 hours). Over that, 429 with `Retry-After`.
 
+## Creating Metrics
+
+A key with the scope "Create metrics" can make new Metrics, owned by the person who made the key and checked as in the web form:
+
+```sh
+curl -X POST https://your-ziffr.example/api/v1/metrics \
+  -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: setup-weekly-signups" \
+  -d '{ "name": "Weekly signups", "period": "week", "unit": "signups", "submission_rule": "add", "submit": true }'
+```
+
+- The answer (201) is the new Metric as `GET /api/v1/metrics/{slug}` shows it; use its `slug` from then on. A name that is taken gets a slug with a suffix.
+- `submit: true` makes the key's creator its Submitter, so a key that may also submit values can send the first one at once.
+- The key's creator must be allowed to create Metrics: a Guest's key is refused (403), also when the person became a Guest after making the key.
+- Each key may create **50 Metrics in any 24 hours**, also when it calls in parallel; over that, 429 with `Retry-After`. An Idempotency-Key works as for values, and a replayed answer does not count.
+- A program cannot change, share or delete a Metric, or name other Submitters: that stays in the app.
+

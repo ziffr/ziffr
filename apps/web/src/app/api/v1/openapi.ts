@@ -8,7 +8,7 @@ type Endpoint = {
   path: string;
   summary: string;
   description: string;
-  scope: "metrics:read" | "values:submit";
+  scope: "metrics:read" | "values:submit" | "metrics:write";
   query?: z.ZodObject;
   body?: z.ZodType;
   idempotent?: boolean;
@@ -23,6 +23,15 @@ export const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/metrics", scope: "metrics:read", query: S.pageQuery, ok: { status: 200, name: "MetricList", schema: S.MetricList },
     summary: "List Metrics", description: "The Metrics the key's creator sees, oldest first, a page at a time.",
+  },
+  {
+    method: "post", path: "/metrics", scope: "metrics:write", body: S.CreateMetric, idempotent: true, ok: { status: 201, name: "Metric", schema: S.MetricDescription },
+    summary: "Create a Metric",
+    description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. Each key may create 50 Metrics in any 24 hours.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not create Metrics (Guests)." },
+      { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
+    ],
   },
   {
     method: "get", path: "/metrics/{slug}", scope: "metrics:read", ok: { status: 200, name: "Metric", schema: S.MetricDescription },

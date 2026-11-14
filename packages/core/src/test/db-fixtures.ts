@@ -41,6 +41,7 @@ export async function workspace(name = "Test") {
     return (data as { id: number }).id;
   };
   const lock = async (metricId: number, period: string) => { await must(db().from("period_states").insert({ metric_id: metricId, period_start: period, state: "locked", workspace_id: id })); };
+  const setRole = async (personId: string, role: Actor["role"]) => { await must(db().from("memberships").update({ role }).eq("workspace_id", id).eq("user_id", personId)); };
   const actor = (personId: string, role: Actor["role"] = "owner"): Actor => ({ personId, workspaceId: id, role });
   const cleanup = async () => {
     await db().from("breakdown_rows").delete().eq("workspace_id", id);
@@ -48,7 +49,7 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, value, lock, actor, cleanup };
+  return { id, person, contact, metric, token, value, lock, setRole, actor, cleanup };
 }
 
 /** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */

@@ -47,6 +47,62 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Create a Metric
+
+`POST /metrics` · scope `metrics:write`
+
+Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. Each key may create 50 Metrics in any 24 hours.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | string | no | A repeat with the same key and body within 24 hours gets the first answer, with `Idempotent-Replayed: true`. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 120 characters | yes | What it is called; its slug is made from it. |
+| `description` | string, at most 2000 characters | no |  |
+| `unit` | string, at most 20 characters | no | Shown after the value, such as orders or EUR. |
+| `format` | `"number"`, `"currency"`, `"percent"` | no | Default number. |
+| `decimals` | integer, 0 to 6 | no | Default 0. |
+| `period` | `"day"`, `"week"`, `"month"` | no | Default month. |
+| `submission_rule` | `"reject"`, `"overwrite"`, `"add"`, `"keep_both"` | no | What a second value for a period does. Default overwrite. |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | no | Default higher. |
+| `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | no | Default sum. |
+| `target_min` | number or null | no |  |
+| `target_max` | number or null | no |  |
+| `submit` | boolean | no | Make the key's creator its Submitter, so the key can submit values to it at once. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `slug` | string | yes | Stable id in paths; survives renames of the name. |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
+| `unit` | string | yes | Shown after the value, such as orders or EUR. |
+| `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
+| `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
+| `target_min` | number or null | yes | The low end of its target, if any. |
+| `target_max` | number or null | yes | The high end of its target, if any. |
+| `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope. Or the key's creator's role may not create Metrics (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 409: The Idempotency-Key was used with another body, or its first creation is still running.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## Describe a Metric
 
 `GET /metrics/{slug}` · scope `metrics:read`
