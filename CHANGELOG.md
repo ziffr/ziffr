@@ -2,6 +2,26 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.6.0 (2026-11-14)
+
+### For self-hosters
+
+- `ZIFFR_SECRETS_KEY` can be changed without connecting Slack again: put the old key in `ZIFFR_SECRETS_KEY_PREVIOUS` until every token was sealed again (see `docs/guides/slack.md`).
+- Ziffr now limits sign-in links itself, whatever Supabase's settings say: an hour allows 5 per address from one network address, 30 per address and 20 per network address. Set `ZIFFR_PROXY_HOPS` (usually `1`) to the number of proxies in front of Ziffr so it can tell network addresses apart.
+
+### New and changed
+
+- Slides and free layouts keep only images you paste or drop in: links, link previews, embedded pages and images from other sites are no longer placed, and ones saved before are left out when the deck or layout is shown, so showing it tells no other site that someone looked.
+- A Metric's owner can now delete it from its page by typing its name. Ziffr refuses while another Metric's formula, a widget, a deck or a working View Link uses it, and the Audit Log keeps who deleted it.
+
+### Fixed
+
+- The Audit Log can be exported at most 10 times an hour per workspace.
+- Someone signed in who opens a link to the demo now sees a page asking whether to open it, so no link from another site can drop them into the shared demo.
+- Dashboards in the starter theme Coral show their figures in the text font with aligned digits instead of a code-like monospace font; a figures font someone picked stays. End dates of Access Keys, invitations and view links read like every other date, e.g. "4 Nov 2026".
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
+
 ## 0.5.1 (2026-11-14)
 
 ### Fixed
