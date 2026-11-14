@@ -36,6 +36,11 @@ export async function workspace(name = "Test") {
     await must(db().from("tokens").insert({ code, metric_id: metricId, submitter_id: submitter }));
     return code;
   };
+  const value = async (metricId: number, period: string, v: number, submitter: string | null = null) => {
+    const { data } = await must(db().from("observations").insert({ metric_id: metricId, period_start: period, value: v, submitter_id: submitter, source: "api", workspace_id: id }).select("id").single());
+    return (data as { id: number }).id;
+  };
+  const lock = async (metricId: number, period: string) => { await must(db().from("period_states").insert({ metric_id: metricId, period_start: period, state: "locked", workspace_id: id })); };
   const actor = (personId: string, role: Actor["role"] = "owner"): Actor => ({ personId, workspaceId: id, role });
   const cleanup = async () => {
     await db().from("breakdown_rows").delete().eq("workspace_id", id);
@@ -43,7 +48,18 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, actor, cleanup };
+  return { id, person, contact, metric, token, value, lock, actor, cleanup };
+}
+
+/** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */
+export async function accessLogOf(keyId: number) {
+  const { data } = await db().from("access_log").select("method, route, status, submitted").eq("key_id", keyId).order("id");
+  return data ?? [];
+}
+
+/** Calls made with a key, written straight into its Access Log (to reach a limit without making them). */
+export async function logCalls(keyId: number, n: number, call: { status?: number; at?: string; submitted?: number } = {}) {
+  await must(db().from("access_log").insert(Array.from({ length: n }, () => ({ key_id: keyId, method: "GET", route: "/api/v1/metrics", status: call.status ?? 200, submitted: call.submitted ?? 0, ...(call.at ? { at: call.at } : {}) }))));
 }
 
 /** The values recorded for a Metric, oldest first. */

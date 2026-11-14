@@ -225,7 +225,7 @@ A person known to a Workspace who has no login, such as a field worker or an out
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
-A secret a person creates so a program can use the API on their behalf, limited to some actions (such as reading metrics or submitting values), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace. Not to be confused with a Token, which lets a submitter record values for one metric.
+A secret a person creates so a program can use the API on their behalf, limited to some actions (such as reading metrics or submitting values), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
 **Access Log**:

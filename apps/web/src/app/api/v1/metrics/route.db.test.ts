@@ -2,7 +2,7 @@
 // key may see is proven in the core's api.db.test.ts.
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { accessLogOf, logCalls, workspace } from "@ziffr/core/test/db-fixtures";
 import { GET } from "./route";
 import { GET as unknownEndpoint } from "../[...rest]/route";
 
@@ -15,8 +15,8 @@ async function setup(scopes: ("metrics:read" | "values:submit")[] = ["metrics:re
   const w = await workspace(); cleanups.push(w.cleanup);
   const ben = await w.person("member");
   for (const name of ["A", "B", "C"]) await w.metric(ben, { name });
-  const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Script", scopes, expiresOn: inDays(30) });
-  return secret;
+  const { id, secret } = await createAccessKey(w.actor(ben, "member"), { name: "Script", scopes, expiresOn: inDays(30) });
+  return Object.assign(secret, { id }) as string & { id: number };
 }
 
 describe("GET /api/v1/metrics", () => {
@@ -50,8 +50,21 @@ describe("GET /api/v1/metrics", () => {
     }
   });
   it("answers 404 in the API's shape for unknown endpoints", async () => {
-    const res = await unknownEndpoint();
+    const res = await unknownEndpoint(new Request("http://ziffr.test/api/v1/nope"));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: { code: "not_found", message: "No such endpoint." } });
+    const key = await setup();
+    expect((await unknownEndpoint(new Request("http://ziffr.test/api/v1/nope?x=1", { headers: { authorization: `Bearer ${key}` } }))).status).toBe(404);
+    expect(await accessLogOf(key.id)).toEqual([expect.objectContaining({ route: "/api/v1/nope", status: 404 })]);
+  });
+  it("records each call in the Access Log and answers 429 with Retry-After over the limit", async () => {
+    const key = await setup();
+    expect((await call("/api/v1/metrics?limit=1", key)).status).toBe(200);
+    expect(await accessLogOf(key.id)).toEqual([{ method: "GET", route: "/api/v1/metrics", status: 200, submitted: 0 }]);
+    await logCalls(key.id, 59);
+    const res = await call("/api/v1/metrics", key);
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect((await res.json()).error.code).toBe("rate_limited");
   });
 });

@@ -51,12 +51,15 @@ describe("Access Keys", () => {
     await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", ben);
     expect(await actorForKey(c.secret)).toBeNull();
   });
-  it("are seen and revoked by their creator, and by Owners for the whole workspace", async () => {
-    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");
+  it("are seen by their creator and the workspace's Owners and Admins, and revoked by their creator and Owners", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member"); const ada = await w.person("admin");
     const { id } = await createAccessKey(w.actor(ben, "member"), { name: "Ben's", scopes: ["metrics:read"], expiresOn: inDays(10) });
     expect(await listAccessKeys(w.actor(ann, "member"))).toEqual([]);
     expect((await listAccessKeys(w.actor(sara))).map((k) => k.id)).toEqual([id]);
+    expect((await listAccessKeys(w.actor(ada, "admin"))).map((k) => k.id)).toEqual([id]);
     await expect(revokeAccessKey(w.actor(ann, "member"), id)).rejects.toEqual(forbidden);
+    await expect(revokeAccessKey(w.actor(ada, "admin"), id)).rejects.toEqual(forbidden);
+    expect((await listAccessKeys(w.actor(sara)))[0].revoked).toBe(false);
     const other = await ws("Other"); const zoe = await other.person("owner");
     await expect(revokeAccessKey(other.actor(zoe), id)).rejects.toEqual(forbidden);
     await revokeAccessKey(w.actor(ben, "member"), id);

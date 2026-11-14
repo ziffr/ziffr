@@ -14,7 +14,7 @@ const DAY = 86_400_000;
 const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** A key as its owner and the workspace's Owners see it: never the secret. */
+/** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
 export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: string[]; expires_on: string; revoked: boolean; last_used_at: string | null; created_by: string };
 
 /** Creates a key for the actor (a signed-in person, never another key), working through the end of a day (UTC)
@@ -42,11 +42,12 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
   throw new Error("The key could not be created.");
 }
 
-/** The keys the actor may see: their own, or every key of the workspace for Owners. */
+/** The keys the actor may see: their own, or every key of the workspace for Owners and Admins (who see a key and its
+ * Access Log, but only Owners may revoke another person's key). */
 export async function listAccessKeys(actor: Actor): Promise<AccessKeyInfo[]> {
   if (actor.key) throw new Forbidden();
   let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by").eq("workspace_id", actor.workspaceId).order("id", { ascending: false });
-  if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
+  if (actor.role !== "owner" && actor.role !== "admin") q = q.eq("created_by", actor.personId);
   const { data } = await q;
   return (data ?? []).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at, created_by: k.created_by }));
 }

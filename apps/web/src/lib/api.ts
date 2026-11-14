@@ -3,6 +3,7 @@
 // program sends is untrusted (AGENTS.md rule 4): query and body go through the endpoint's zod schema first.
 import { z } from "zod";
 import { actorForKey } from "@ziffr/core/access-keys";
+import { admitCall, recordCall } from "@ziffr/core/access-log";
 import { Forbidden, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
@@ -35,25 +36,39 @@ function bearer(req: Request): string | null {
   return m ? m[1] : null;
 }
 
-/** Wraps an endpoint: it runs only for a valid key with the scope. A Forbidden from the core becomes 404, so a key
- * cannot tell a Metric it may not see from one that does not exist; invalid input becomes 400; anything unexpected
- * becomes 500 without details. */
-export function keyRoute<C>(scope: Scope, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>) {
+/** Wraps an endpoint: it runs only for a valid key with the scope, within the key's limit, and every call with a key
+ * lands in the Access Log. A Forbidden from the core becomes 404, so a key cannot tell a Metric it may not see from
+ * one that does not exist; invalid input becomes 400; anything unexpected becomes 500 without details. A handler
+ * that records values says how many in the `x-ziffr-submitted` header, which is logged and then removed. A null scope
+ * is for answers any valid key may get (an unknown endpoint), so they are limited and logged too. */
+export function keyRoute<C>(scope: Scope | null, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>) {
   return async (req: Request, ctx: C): Promise<Response> => {
     const secret = bearer(req);
     const actor = secret ? await actorForKey(secret) : null;
     if (!actor) return apiError("unauthorized", "Send a valid Access Key as \"Authorization: Bearer <key>\".", { "www-authenticate": "Bearer" });
-    if (!actor.key.scopes.includes(scope)) return apiError("forbidden", `This key may not ${scope.replace(":", " ")}.`);
-    try {
-      return await handler(actor, req, ctx);
-    } catch (e) {
-      if (e instanceof ApiError) return apiError(e.code, e.message);
-      if (e instanceof z.ZodError) return apiError("invalid_request", e.issues.map((i) => `${i.path.join(".") || "request"}: ${i.message}`).join("; "));
-      if (e instanceof Forbidden) return apiError("not_found", "Not found.");
-      console.error("API error", e);
-      return apiError("internal", "Something went wrong.");
-    }
+    const admitted = await admitCall(actor);
+    const res = !admitted.ok
+      ? apiError("rate_limited", `Too many calls with this key; try again in ${admitted.retryAfter} seconds.`, { "retry-after": String(admitted.retryAfter) })
+      : scope && !actor.key.scopes.includes(scope)
+        ? apiError("forbidden", `This key may not ${scope.replace(":", " ")}.`)
+        : await run(actor, req, ctx, handler);
+    const submitted = Number(res.headers.get("x-ziffr-submitted") ?? 0);
+    res.headers.delete("x-ziffr-submitted");
+    await recordCall(actor, { method: req.method, path: new URL(req.url).pathname, status: res.status, submitted });
+    return res;
   };
+}
+
+async function run<C>(actor: KeyActor, req: Request, ctx: C, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>): Promise<Response> {
+  try {
+    return await handler(actor, req, ctx);
+  } catch (e) {
+    if (e instanceof ApiError) return apiError(e.code, e.message);
+    if (e instanceof z.ZodError) return apiError("invalid_request", e.issues.map((i) => `${i.path.join(".") || "request"}: ${i.message}`).join("; "));
+    if (e instanceof Forbidden) return apiError("not_found", "Not found.");
+    console.error("API error", e);
+    return apiError("internal", "Something went wrong.");
+  }
 }
 
 /** The query string of a request as a plain object, for a zod schema. */
