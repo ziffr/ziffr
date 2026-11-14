@@ -4,9 +4,11 @@ import { comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
+/** A metric's latest value, its target and attainment, and every comparison that fits its period. */
 export function CompareTable({ metric, resolve, targets, full, compact }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean }) {
   const s = summary(metric, resolve, targets, { keys: comparisonsFor(metric.period), full });
   if (s.value === undefined) return <p className="text-sm text-muted-foreground">No values yet.</p>;
+  // Changes carry a sign, not a colour: colour is kept for on or off target (see target-chip).
   const sign = (n: number) => (n > 0 ? "+" : "");
   return (
     <div className={compact ? "text-xs" : "text-sm"}>
@@ -26,8 +28,8 @@ export function CompareTable({ metric, resolve, targets, full, compact }: { metr
               <td className="py-1.5 text-muted-foreground">
                 {c.available ? <>{c.currentSpan} <span className="fig text-foreground">{formatValue(metric, c.current)}</span><br />vs {c.previousSpan} <span className="fig text-foreground">{formatValue(metric, c.previous)}</span></> : c.reason}
               </td>
-              <td className={cn("fig py-1.5 text-right", c.good === true && "text-[var(--color-success)]", c.good === false && "text-destructive")}>{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs)}` : "–"}</td>
-              <td className={cn("fig py-1.5 text-right", c.good === true && "text-[var(--color-success)]", c.good === false && "text-destructive")}>{c.available && c.pct !== null && c.pct !== undefined ? `${sign(c.pct)}${c.pct.toFixed(1)}%` : "–"}</td>
+              <td className="fig py-1.5 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs)}` : "–"}</td>
+              <td className="fig py-1.5 text-right">{c.available && c.pct !== null && c.pct !== undefined ? `${sign(c.pct)}${c.pct.toFixed(1)}%` : "–"}</td>
             </tr>
           ))}
         </tbody>

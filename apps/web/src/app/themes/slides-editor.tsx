@@ -36,7 +36,7 @@ export function SlidePreview({ design }: { design: SlideDesign }) {
 function readImage(file: File, max: number): Promise<{ url: string; ratio: number }> {
   return new Promise((resolve, reject) => {
     if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) return reject(new Error("Use a PNG, JPEG, WebP or SVG image."));
-    if (file.size > max) return reject(new Error(`Keep it under ${Math.round(max / 1_000_000)} MB for the prototype.`));
+    if (file.size > max) return reject(new Error(`Use an image under ${Math.round(max / 1_000_000)} MB.`));
     const r = new FileReader();
     r.onload = () => {
       const url = String(r.result);

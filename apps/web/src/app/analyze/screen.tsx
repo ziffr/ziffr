@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };
 
-export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; onCanvas: number[]; targets: { id: number; name: string }[] }) {
+export function AnalyzeScreen({ data, onCanvas, targets, demo = false }: { data: CanvasData; onCanvas: number[]; targets: { id: number; name: string }[]; demo?: boolean }) {
   const [results, setResults] = useState<Result[]>([]);
   const [over, setOver] = useState(false);
   const [pending, start] = useTransition();
@@ -42,8 +42,11 @@ export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; o
     { label: "Correlation", blurb: "Do these two move together?", ok: n === 2 && samePeriod, why: n !== 2 ? "Drop exactly two metrics" : "Both need the same period", go: () => run("correlation", [ms[0].id, ms[1].id]) },
     { label: "Drivers", blurb: `What moves most with ${ms[0]?.name ?? "the first metric"}?`, ok: n >= 2, why: "Drop two or more metrics", go: () => run("drivers", ms.map((m) => m.id)) },
     { label: "Correlation matrix", blurb: "Every pair at once.", ok: n >= 3, why: "Drop three or more metrics", go: () => run("matrix", ms.map((m) => m.id)) },
-    { label: "Clustering", blurb: "Group periods that behave alike.", ok: false, locked: true },
-    { label: "Impact analysis", blurb: "How much does one move the other?", ok: false, locked: true },
+    // Analyses still to come are a preview for demo visitors; a real workspace sees only what it can run.
+    ...(demo ? [
+      { label: "Clustering", blurb: "Group periods that behave alike.", ok: false, locked: true },
+      { label: "Impact analysis", blurb: "How much does one move the other?", ok: false, locked: true },
+    ] : []),
   ];
 
   const cost = bySlug("cost");
@@ -131,7 +134,7 @@ export function AnalyzeScreen({ data, onCanvas, targets }: { data: CanvasData; o
             ))}
           </div>
         )}
-        {results.length > 0 && <p className="text-xs text-muted-foreground">Right-click a result → “Save as Widget” or “Add to dashboard”.</p>}
+        {results.length > 0 && <p className="text-xs text-muted-foreground">A result&rsquo;s ⋯ menu saves it as a widget or adds it to a dashboard.</p>}
       </div>
     </div>
   );

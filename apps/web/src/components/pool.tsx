@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { BookmarkCheck, GripVertical, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
 import { TemplateMenu } from "./template-menu";
@@ -50,7 +51,11 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
               {m.owner_id !== data.viewer && <span className="shrink-0 text-xs text-muted-foreground">{people[m.owner_id]?.name.split(" ")[0]}</span>}
             </Item>
           ))}
-          {metrics.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">No metrics yet. Ask someone to share one.</p>}
+          {metrics.length === 0 && (
+            <p className="px-2 py-1 text-xs text-muted-foreground">
+              {q ? "No metric matches." : <>No metrics yet. <Link href="/metrics/new" className="underline">Describe your first one</Link>; metrics teammates share with you show up here too.</>}
+            </p>
+          )}
         </Section>
         {!metricsOnly && (
           <Section title="My Widgets">
@@ -64,7 +69,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
                 <button title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(() => deleteSavedWidget(w.id))} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted focus-visible:opacity-100"><X className="size-3.5" /></button>
               </Item>
             ))}
-            {widgets.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Right-click any widget → “Save as Widget”.</p>}
+            {widgets.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Open any widget&rsquo;s ⋯ menu, then “Save as Widget”.</p>}
           </Section>
         )}
         {!metricsOnly && (
@@ -79,7 +84,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly }: { data: CanvasDa
                 <TemplateMenu t={t} mine={t.owner_id === data.viewer} people={data.people} />
               </Item>
             ))}
-            {templates.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Right-click any widget, then “Save as template…”.</p>}
+            {templates.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Open any widget&rsquo;s ⋯ menu, then “Save as template…”.</p>}
           </Section>
         )}
       </div>

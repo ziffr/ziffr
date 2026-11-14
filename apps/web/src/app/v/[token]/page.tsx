@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { openViewLink } from "@/lib/view-links";
 import { PresentDashboard } from "@/components/present-dashboard";
 import { PublicSlideshow } from "./slideshow";
+import { formatDate } from "@ziffr/core/format";
 
 // A View Link (GLOSSARY: View Link): no login, no viewer, nothing to act on. Never cached or indexed.
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function ViewLinkPage({ params }: { params: Promise<{ token
       </div>
     );
   }
-  const note = view.asOf ? `Numbers as of ${new Date(view.asOf).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : "";
+  const note = view.asOf ? `Numbers as of ${formatDate(view.asOf)}` : "";
   if (view.type === "deck") return <PublicSlideshow deck={{ id: view.id, name: view.name, document: view.document, theme_id: view.themeId, footer: view.footer ?? null }} data={view.data} note={note} />;
   return (
     <PresentDashboard

@@ -9,13 +9,17 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VersionsPanel } from "./versions-panel";
 import { deleteTemplate, renameTemplate } from "@/app/template-actions";
 import type { Profile, TeamTemplate } from "@ziffr/core/types";
+import { useConfirm } from "./confirm-dialog";
 
+/** The ⋯ menu of one team template in the Pool. */
 export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boolean; people: Profile[] }) {
   const [versions, setVersions] = useState(false);
   const [, start] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
   return (
     <>
+      {dialog}
       <DropdownMenu>
         <DropdownMenuTrigger aria-label={`More for ${t.name}`} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted focus-visible:opacity-100 data-[popup-open]:opacity-100">
           <MoreHorizontal className="size-4" />
@@ -39,8 +43,8 @@ export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boole
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => {
-                  if (!confirm(`Delete the template “${t.name}”? Widgets made from it stay as they are.`)) return;
+                onClick={async () => {
+                  if (!(await confirm({ title: `Delete the template “${t.name}”?`, description: "Widgets made from it stay as they are. Nobody can start a new widget from it.", confirmLabel: "Delete template" }))) return;
                   start(async () => { await deleteTemplate(t.id); toast.success("Template deleted"); });
                 }}
               >

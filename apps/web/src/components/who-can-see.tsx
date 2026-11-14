@@ -1,6 +1,6 @@
 "use client";
 // "Who can see this" (GLOSSARY: Share, Group): everyone with access and why; the owner also answers requests.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye, KeyRound } from "lucide-react";
@@ -12,18 +12,29 @@ import type { Profile } from "@ziffr/core/types";
 
 type Data = Awaited<ReturnType<typeof whoCanSee>>;
 
+/** A "Who can see this" button that opens the dialog. */
 export function WhoCanSee({ type, id, people }: { type: ObjectType; id: number; people: Profile[] }) {
-  const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><Eye aria-hidden /> Who can see this</button>
+      {open && <WhoCanSeeDialog type={type} id={id} people={people} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** The "Who can see this" dialog on its own, for menus that open it; it loads when it opens. */
+export function WhoCanSeeDialog({ type, id, people, onClose }: { type: ObjectType; id: number; people: Profile[]; onClose: () => void }) {
+  const [data, setData] = useState<Data | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
   const name = (pid: string) => people.find((p) => p.id === pid)?.name ?? pid;
   const load = () => whoCanSee(type, id).then(setData).catch(() => setData(null));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
   return (
     <>
-      <button type="button" onClick={() => { setOpen(true); load(); }} className={buttonVariants({ variant: "outline" })}><Eye aria-hidden /> Who can see this</button>
-      {open && (
-        <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
+      {(
+        <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
           <DialogContent className="sm:max-w-md">
             <DialogTitle>Who can see this</DialogTitle>
             <DialogDescription>Everyone with access, and why.</DialogDescription>

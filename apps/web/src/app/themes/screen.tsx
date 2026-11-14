@@ -16,6 +16,7 @@ import { FONTS, slideDesign } from "@ziffr/core/themes";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
 import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards">; label: string }[] = [
   { key: "canvas", label: "Behind the cards" },
@@ -36,6 +37,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
   const [name, setName] = useState(current.name);
   const [versions, setVersions] = useState(false);
   const [pending, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const can = data.canEditThemes;
   const dirty = name !== current.name || JSON.stringify(t) !== JSON.stringify(current.tokens) || JSON.stringify(slides) !== JSON.stringify(current.slides);
   const set = <K extends keyof ThemeTokens>(k: K, v: ThemeTokens[K]) => setT((x) => ({ ...x, [k]: v }));
@@ -58,6 +60,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
 
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      {dialog}
       <nav aria-label="Themes" className="space-y-1">
         {data.themes.map((x) => (
           <Link key={x.id} href={`/themes?id=${x.id}`} aria-current={x.id === current.id ? "page" : undefined} className={cn("flex min-h-12 items-center gap-2.5 rounded-[var(--radius-input)] px-2.5 text-sm hover:bg-muted", x.id === current.id && "stock font-medium")}>
@@ -141,7 +144,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
             {can && !current.is_default && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(() => setDefaultTheme(current.id), `${current.name} is now the team default`)}><Star aria-hidden /> Make team default</Button>}
             {can && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => start(async () => { const id = await duplicateTheme(current.id); router.push(`/themes?id=${id}`); })}><Copy aria-hidden /> Duplicate</Button>}
             <Button type="button" variant="ghost" size="sm" onClick={() => setVersions(true)}><GitBranch aria-hidden /> Versions</Button>
-            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={() => { if (confirm(`Delete ${current.name}? Dashboards and decks using it switch to the team default.`)) start(async () => { await deleteTheme(current.id); router.push("/themes"); }); }}><Trash2 aria-hidden /> Delete</Button>}
+            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete the theme ${current.name}?`, description: "Dashboards and decks that use it switch to the team default.", confirmLabel: "Delete theme" })) start(async () => { await deleteTheme(current.id); router.push("/themes"); }); }}><Trash2 aria-hidden /> Delete</Button>}
           </div>
         </form>
 

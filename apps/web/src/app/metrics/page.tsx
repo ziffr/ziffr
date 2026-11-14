@@ -8,7 +8,7 @@ import { getAllSeries, getProfileMap } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, PERIOD_LABEL, periodLabel, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { cn } from "@/lib/utils";
+import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 
 export default async function MetricsPage() {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
@@ -17,7 +17,7 @@ export default async function MetricsPage() {
   const metrics = all.filter((m) => visible.has(m.id));
   return (
     <>
-      <PageHeader title="Metrics" sub="Each metric is described once. Observations then arrive through its Sources.">
+      <PageHeader title="Metrics" sub="Each metric is described once. Its values then arrive by chat, mail, a form link or the API.">
         <Link href="/metrics/new" className={buttonVariants()}>
           <Plus aria-hidden /> New metric
         </Link>
@@ -30,6 +30,8 @@ export default async function MetricsPage() {
           <Link href="/metrics/new" className={buttonVariants({ className: "mt-4" })}>New metric</Link>
         </div>
       ) : (
+        <>
+        <p className="mb-2 text-xs text-muted-foreground">{COLOUR_LEGEND}</p>
         <div className="stock overflow-x-auto rounded-[var(--radius-card)]">
           <table className="w-full text-sm">
             <caption className="sr-only">Metrics with their latest value, change, trend, target and owner</caption>
@@ -50,9 +52,8 @@ export default async function MetricsPage() {
                 const prev = pts[pts.length - 2];
                 const tone = health(m, last?.value);
                 const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
-                const good = change === null || m.polarity === "target" ? null : (change > 0) === (m.polarity === "higher");
                 return (
-                  <tr key={m.id} className="group relative border-b border-border last:border-0 hover:bg-[var(--color-paper-2)]">
+                  <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)]">
                     <td className="px-4 py-3">
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
@@ -63,12 +64,13 @@ export default async function MetricsPage() {
                       <div className="fig mt-0.5 text-xs text-[var(--color-ink-2)] sm:hidden">Target {targetText(m)}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className={cn("fig whitespace-nowrap", tone === "bad" && "text-destructive")}>{last ? formatValue(m, last.value) : "–"}</div>
-                      <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period, true) : "No values yet"}</div>
+                      <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value) : "–"}</div>
+                      <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+                        <TargetChip metric={m} value={last?.value} />
+                        {last ? periodLabel(last.period, m.period, true) : "No values yet"}
+                      </div>
                     </td>
-                    <td className={cn("fig px-4 py-3 text-right text-xs whitespace-nowrap", good === true && "text-[var(--color-success)]", good === false && "text-destructive")}>
-                      {change === null ? "–" : `${change > 0 ? "+" : ""}${(change * 100).toFixed(1)} %`}
-                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)]"><Change pct={change} /></td>
                     <td className="hidden w-32 px-4 py-3 md:table-cell">{pts.length > 1 && <Sparkline points={pts.slice(-30)} height={28} tone={tone} />}</td>
                     <td className="fig hidden px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{targetText(m)}</td>
                     <td className="hidden px-4 py-3 lg:table-cell"><Person p={people[m.owner_id]} /></td>
@@ -78,6 +80,7 @@ export default async function MetricsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </>
   );

@@ -19,6 +19,7 @@ const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false })
 // Observable Plot is only needed by stories: their code loads with the first story shown (still rendered on the server).
 const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 import { cn } from "@/lib/utils";
+import { TargetChip } from "@/components/target-chip";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -57,10 +58,12 @@ export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props
       return (
         <div className="flex h-full flex-col">
           <div className="flex items-baseline gap-2">
-            <span className={cn("text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]", tone === "bad" && "text-destructive")}>{formatValue(m, last?.value)}</span>
+            {/* The headline stays neutral; the chip says on or off target (one colour rule, see target-chip). */}
+            <span className="text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]">{formatValue(m, last?.value)}</span>
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {last ? periodLabel(last.period, m.period) : "No values yet"}
+            <TargetChip metric={m} value={last?.value} />
             {last && <ApprovalMark data={data} metricId={m.id} period={last.period} />}
           </div>
           {pts.length > 1 && <div className="mt-auto min-h-10 flex-1 pt-2"><Sparkline points={pts} height="100%" tone={tone} /></div>}

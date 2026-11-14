@@ -125,7 +125,7 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
   added: { label: "Added up", ok: true },
   kept_both: { label: "Kept both", ok: true },
   rejected_duplicate: { label: "Rejected: duplicate", ok: false },
-  rejected_no_token: { label: "Rejected: no Token", ok: false },
+  rejected_no_token: { label: "Rejected: may not submit this metric", ok: false },
   rejected_unknown_sender: { label: "Rejected: unknown sender", ok: false },
   rejected_ambiguous: { label: "Rejected: which metric?", ok: false },
   rejected_no_value: { label: "Rejected: no number", ok: false },
@@ -139,7 +139,7 @@ export function Outcome({ entry, metricName }: { entry: IntakeEntry; metricName?
     <div className={cn("mt-1 rounded-md border px-2 py-1 text-xs", o.ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5")}>
       <span className={cn("font-semibold", o.ok ? "text-[var(--color-success)]" : "text-destructive")}>{o.label}</span>
       {metricName && <span className="text-muted-foreground"> for {metricName}</span>}
-      {entry.token_code && <span className="text-muted-foreground"> with token <span className="fig">{entry.token_code}</span></span>}
+      {entry.token_code && <span className="text-muted-foreground"> with token <code className="fig">{entry.token_code}</code></span>}
       <div className="text-muted-foreground">{entry.detail}</div>
     </div>
   );

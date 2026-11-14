@@ -1,18 +1,30 @@
 "use client";
 // View Links (GLOSSARY: View Link): the owner makes a link for someone outside, with an end date, live or frozen.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Copy, Link2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createViewLink, listViewLinks, revokeViewLink } from "@/app/view-link-actions";
+import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
+/** A "View link" button that opens the owner's View Links dialog. */
 export function ViewLinks({ type, id }: { type: "dashboard" | "deck"; id: number }) {
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><Link2 aria-hidden /> View link</button>
+      {open && <ViewLinksDialog type={type} id={id} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** The View Links dialog on its own, for menus that open it; it loads the links when it opens. Owner only. */
+export function ViewLinksDialog({ type, id, onClose }: { type: "dashboard" | "deck"; id: number; onClose: () => void }) {
   const [links, setLinks] = useState<Link[] | null>(null);
   const [label, setLabel] = useState("");
   const [expires, setExpires] = useState(inDays(30));
@@ -22,11 +34,11 @@ export function ViewLinks({ type, id }: { type: "dashboard" | "deck"; id: number
   const url = (token: string) => `${window.location.origin}/v/${token}`;
   const copy = (token: string) => navigator.clipboard?.writeText(url(token)).then(() => toast.success("Link copied"), () => toast.message(url(token)));
   const today = inDays(0);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
   return (
     <>
-      <button type="button" onClick={() => { setOpen(true); load(); }} className={buttonVariants({ variant: "outline" })}><Link2 aria-hidden /> View link</button>
-      {open && (
-        <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
+      {(
+        <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
           <DialogContent className="sm:max-w-lg">
             <DialogTitle>View links</DialogTitle>
             <DialogDescription>For someone outside the team, such as a board member or an investor. They see this {type} and nothing else, cannot change or ask anything, and no login is needed.</DialogDescription>
@@ -51,7 +63,7 @@ export function ViewLinks({ type, id }: { type: "dashboard" | "deck"; id: number
                   <li key={l.id} className="flex flex-wrap items-center gap-2">
                     <span className="min-w-0 flex-1">
                       <span className={ended ? "text-muted-foreground line-through" : "font-medium"}>{l.label || "Untitled link"}</span>
-                      <span className="block text-xs text-muted-foreground">{l.frozen ? "Frozen numbers" : "Live numbers"}, {l.revoked ? "revoked" : `until ${l.expires_at}`}</span>
+                      <span className="block text-xs text-muted-foreground">{l.frozen ? "Frozen numbers" : "Live numbers"}, {l.revoked ? "revoked" : `until ${formatDate(l.expires_at)}`}</span>
                     </span>
                     {!ended && <Button size="sm" variant="ghost" onClick={() => copy(l.token)}><Copy aria-hidden /> Copy</Button>}
                     {!ended && <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => start(async () => { await revokeViewLink(l.id); await load(); toast.success("Link revoked"); })}>Revoke</Button>}

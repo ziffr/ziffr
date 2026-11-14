@@ -7,9 +7,9 @@ export default function ScreenError({ error, reset }: { error: Error & { digest?
     <div role="alert" className="stock mx-auto max-w-md rounded-[var(--radius-card)] p-8 text-center">
       <h1 className="text-[length:var(--text-xl)]">This screen didn’t load</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Ziffr couldn’t reach its data. If the local database isn’t running, start it with <code className="fig">pnpm prototype</code>, then try again.
+        Something went wrong on our side while loading it. Try again in a moment. If it keeps happening, tell whoever runs Ziffr for your team and give them the reference below.
       </p>
-      {error.digest && <p className="fig mt-2 text-xs text-muted-foreground">Reference {error.digest}</p>}
+      {error.digest && <p className="mt-3 text-xs text-muted-foreground">Reference <code className="fig select-all">{error.digest}</code></p>}
       <Button onClick={reset} className="mt-5">Try again</Button>
     </div>
   );

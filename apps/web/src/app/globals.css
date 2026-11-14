@@ -113,7 +113,10 @@
 /* Slideshow: slides only, no frame names. */
 .slideshow .tl-frame-heading { display: none; }
 .slideshow .tl-frame__body { stroke: transparent; }
-.fig { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+/* Values on Ziffr's own screens: the body font with tabular figures, so columns line up without looking like code.
+ * Inside a Theme the figures font is the theme's choice; ids and codes (code.fig, .mono) stay monospace. */
+.fig { font-variant-numeric: tabular-nums; }
+.themed .fig, code.fig, .mono { font-family: var(--font-outlier); }
 
 /* The settled state, pressed into the stock in coral (Coral § Surfaces) */
 .pressed {

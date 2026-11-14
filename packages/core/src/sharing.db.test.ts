@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, saveSeriesRows, uploadSeries, type MetricEffects } from "./metrics";
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
@@ -40,6 +40,18 @@ describe("creating Metrics", () => {
     const other = await ws("Other");
     await expect(uploadSeries({ personId: sara, workspaceId: other.id, role: "owner" }, m.id, "target", "2026-12 10", "")).rejects.toEqual(forbidden);
     expect(await uploadSeries(w.actor(sara), m.id, "target", "2026-12 10\nnot a line", "")).toEqual({ saved: 1, skipped: 1 });
+  });
+  it("saves rows edited in the targets table, for the owner only, and refuses rows it cannot read", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara);
+    const rows = [{ period: "2026-12-15", value: 0.125 }, { period: "2027-01-01", value: 140000 }];
+    await expect(saveSeriesRows(w.actor(ben, "member"), m.id, "target", rows, "")).rejects.toEqual(forbidden);
+    await expect(saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "Dec", value: 1 }], "")).rejects.toThrow();
+    await expect(saveSeriesRows(w.actor(sara), m.id, "target", "2026-12 10", "")).rejects.toThrow();
+    expect(await saveSeriesRows(w.actor(sara), m.id, "target", rows, "Budget 2027")).toEqual({ saved: 2 });
+    const { data } = await db().from("series_values").select("period_start, value").eq("metric_id", m.id).order("period_start");
+    // A day inside a month is that month, and a value with three decimals stays what it was.
+    expect(data!.map((r) => [r.period_start, Number(r.value)])).toEqual([["2026-12-01", 0.125], ["2027-01-01", 140000]]);
   });
 });
 

@@ -4,11 +4,15 @@ import { compactValue, formatValue } from "@ziffr/core/format";
 import { COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
 import type { CanvasData, Metric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { COLOUR_LEGEND } from "./target-chip";
 
 export const DEFAULT_COMPARE: CompareKey[] = ["prev", "yoy"];
 
 const SHORT: Record<CompareKey, string> = { ...COMPARE_LABEL, prev: "vs prev." };
+const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±");
+const arrow = (n: number) => (n > 0 ? "↗ " : n < 0 ? "↘ " : "→ ");
 
+/** The attainment and comparisons under a widget's value. */
 export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { metric: Metric; data: CanvasData; keys?: CompareKey[]; full?: boolean }) {
   if (!keys.length) return null;
   const s = summary(metric, resolverFrom(data.metrics, data.series), data.targets[metric.id], { keys, full });
@@ -22,10 +26,11 @@ export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { m
       )}
       {s.comparisons.map((c) =>
         c.available ? (
-          <span key={c.key} title={`${c.currentSpan}: ${formatValue(metric, c.current)} vs ${c.previousSpan}: ${formatValue(metric, c.previous)}`}>
+          // Direction is an arrow and a sign in the text colour; colour is kept for the target (see target-chip).
+          <span key={c.key} title={`${c.currentSpan}: ${formatValue(metric, c.current)} vs ${c.previousSpan}: ${formatValue(metric, c.previous)}. ${COLOUR_LEGEND}`}>
             {SHORT[c.key]}{" "}
-            <span className={cn("fig font-medium", c.good === true && "text-[var(--color-success)]", c.good === false && "text-destructive")}>
-              {c.pct === null || c.pct === undefined ? `${c.abs! >= 0 ? "+" : ""}${compactValue(metric, c.abs!)}` : `${c.pct >= 0 ? "+" : ""}${c.pct.toFixed(1)}%`}
+            <span className="fig font-medium text-[var(--color-ink-2)]">
+              {arrow(c.pct ?? c.abs ?? 0)}{c.pct === null || c.pct === undefined ? `${sign(c.abs!)}${compactValue(metric, Math.abs(c.abs!))}` : `${sign(c.pct)}${Math.abs(c.pct).toFixed(1)}%`}
             </span>
           </span>
         ) : (

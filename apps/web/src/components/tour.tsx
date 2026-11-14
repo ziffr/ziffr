@@ -1,7 +1,8 @@
 "use client";
+// The guided tour of Demo Mode (GLOSSARY: Demo Mode): a few steps through the made-up company, remembered per browser.
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
 
 const STEPS = [
   { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog, adjust it, and choose who reports it." },
@@ -15,35 +16,52 @@ const STEPS = [
 
 const KEY = "ziffr-tour-v3";
 
+/** The demo's guided tour, bottom right; it folds down to a small round button so it never covers controls. */
 export function Tour() {
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));
   const [open, setOpen] = useState(false);
+  const [small, setSmall] = useState(false);
   useEffect(() => {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) ?? "null");
       if (s) {
         setDone(s.done);
         setOpen(s.open);
+        setSmall(Boolean(s.small));
       }
     } catch {}
   }, []);
-  const save = (d: boolean[], o: boolean) => {
+  const save = (d: boolean[], o: boolean, sm = small) => {
     setDone(d);
     setOpen(o);
+    setSmall(sm);
     try {
-      localStorage.setItem(KEY, JSON.stringify({ done: d, open: o }));
+      localStorage.setItem(KEY, JSON.stringify({ done: d, open: o, small: sm }));
     } catch {}
   };
   const count = done.filter(Boolean).length;
+  if (small) {
+    return (
+      <button onClick={() => save(done, true, false)} aria-label={`Open the guided tour, ${count} of ${STEPS.length} done`} title="Guided tour" className="stock fixed right-4 bottom-4 z-40 flex h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium">
+        <Compass aria-hidden className="size-4 text-primary" />
+        <span className="fig text-muted-foreground">{count}/{STEPS.length}</span>
+      </button>
+    );
+  }
   return (
     <div className="fixed right-4 bottom-4 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)]">
-      <button onClick={() => save(done, !open)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium">
-        <Compass className="size-4 text-primary" />
-        Guided tour
-        {!open && count < STEPS.length && <span className="truncate font-normal text-muted-foreground">Next: {STEPS[done.findIndex((d) => !d)].title}</span>}
-        <span className="ml-auto shrink-0 text-xs text-muted-foreground">{count}/{STEPS.length}</span>
-        {open ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
-      </button>
+      <div className="flex items-center">
+        <button onClick={() => save(done, !open)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left text-sm font-medium">
+          <Compass className="size-4 shrink-0 text-primary" />
+          Guided tour
+          {!open && count < STEPS.length && <span className="truncate font-normal text-muted-foreground">Next: {STEPS[done.findIndex((d) => !d)].title}</span>}
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">{count}/{STEPS.length}</span>
+          {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronUp className="size-4 shrink-0" />}
+        </button>
+        <button onClick={() => save(done, false, true)} aria-label="Fold the guided tour away" title="Fold away" className="mr-2 ml-1 flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Minus aria-hidden className="size-4" />
+        </button>
+      </div>
       {open && (
         <ol className="space-y-1 border-t px-2 py-2">
           {STEPS.map((s, i) => (

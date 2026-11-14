@@ -1,41 +1,169 @@
 "use client";
-import { useState, useTransition } from "react";
+// Target Series and Projections on a metric's page (GLOSSARY: Target Series, Projection): a table its owner edits
+// row by row or fills by pasting two spreadsheet columns, with a preview before anything changes. Others read it.
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { uploadSeries } from "@/app/series-actions";
+import { ClipboardPaste, Plus, X } from "lucide-react";
+import { addDays, addMonths, format as fmt, parseISO } from "date-fns";
+import { saveSeriesRows } from "@/app/series-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatValue, periodLabel, periodStart } from "@ziffr/core/format";
+import { parseSeriesText } from "@ziffr/core/series-lines";
+import type { Metric, Point } from "@ziffr/core/types";
+import { cn } from "@/lib/utils";
 
-/** Paste targets (a budget) or projections, one "period value" line each. Owner only. */
-export function SeriesForm({ metricId }: { metricId: number }) {
-  const [kind, setKind] = useState<"target" | "projection">("target");
-  const [text, setText] = useState("");
+type Kind = "target" | "projection";
+type Row = { key: string; period: string; value: string; saved?: number };
+type M = Pick<Metric, "id" | "period" | "format" | "decimals" | "unit">;
+
+const toRows = (pts: Point[]): Row[] => [...pts].sort((a, b) => a.period.localeCompare(b.period)).map((p) => ({ key: p.period, period: p.period, value: String(p.value), saved: p.value }));
+/** A typed value as a number: "140000", "140,000", "1.5" or "1,5"; null when it is not one. */
+const readNumber = (s: string) => {
+  let n = s.trim().replace(/['  ]/g, "");
+  if (!n) return null;
+  if (/,\d{1,2}$/.test(n) && !n.includes(".")) n = n.replace(",", ".");
+  else n = n.replace(/,/g, "");
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+};
+
+/** The targets and projections of one metric as an editable table (owner) or a plain one (everyone else). */
+export function TargetsEditor({ metric, targets, projections, canEdit }: { metric: M; targets: Point[]; projections: Point[]; canEdit: boolean }) {
+  const [kind, setKind] = useState<Kind>("target");
+  const [rows, setRows] = useState<Record<Kind, Row[]>>({ target: toRows(targets), projection: toRows(projections) });
   const [note, setNote] = useState("");
+  const [paste, setPaste] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
+  const list = rows[kind];
+  const setList = (f: (r: Row[]) => Row[]) => setRows((all) => ({ ...all, [kind]: f(all[kind]) }));
+  const month = metric.period === "month";
+  const changed = list.filter((r) => r.period && readNumber(r.value) !== null && readNumber(r.value) !== r.saved);
+  const invalid = list.filter((r) => !r.period || readNumber(r.value) === null);
+  const preview = useMemo(() => (paste ? parseSeriesText(paste, metric.period) : null), [paste, metric.period]);
+  const word = kind === "target" ? "target" : "projection";
+
+  const nextPeriod = () => {
+    const last = [...list].map((r) => r.period).filter(Boolean).sort().pop();
+    if (!last) return periodStart(new Date(), metric.period);
+    const d = parseISO(last);
+    return fmt(metric.period === "month" ? addMonths(d, 1) : addDays(d, metric.period === "week" ? 7 : 1), "yyyy-MM-dd");
+  };
+  const merge = (incoming: { period: string; value: number }[]) => setList((r) => {
+    const by = new Map(r.map((x) => [x.period, x]));
+    for (const p of incoming) by.set(p.period, { ...(by.get(p.period) ?? { key: `n${p.period}` }), period: p.period, value: String(p.value) });
+    return [...by.values()].sort((a, b) => a.period.localeCompare(b.period));
+  });
+  const save = () => start(async () => {
+    try {
+      const r = await saveSeriesRows(metric.id, kind, changed.map((x) => ({ period: x.period, value: readNumber(x.value)! })), note);
+      toast.success(`${r.saved} ${r.saved === 1 ? word : `${word}s`} saved`);
+      setList((all) => all.map((x) => (readNumber(x.value) !== null && x.period ? { ...x, saved: readNumber(x.value)! } : x)));
+      router.refresh();
+    } catch (err) {
+      toast.error("Not saved", { description: (err as Error).message });
+    }
+  });
+
+  if (!canEdit) {
+    const periods = [...new Set([...targets, ...projections].map((p) => p.period))].sort();
+    if (!periods.length) return <p className="text-sm text-muted-foreground">No target series or projections yet.</p>;
+    return (
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-muted-foreground"><tr><th className="pb-1.5 font-normal">Period</th><th className="pb-1.5 text-right font-normal">Target</th><th className="pb-1.5 text-right font-normal">Projection</th></tr></thead>
+        <tbody>
+          {periods.map((p) => (
+            <tr key={p} className="border-t border-border">
+              <td className="py-1.5">{periodLabel(p, metric.period)}</td>
+              <td className="fig py-1.5 text-right">{formatValue(metric, targets.find((x) => x.period === p)?.value ?? null)}</td>
+              <td className="fig py-1.5 text-right">{formatValue(metric, projections.find((x) => x.period === p)?.value ?? null)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
-    <form
-      className="mt-3 space-y-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        start(async () => {
-          try {
-            const r = await uploadSeries(metricId, kind, text, note);
-            toast.success(`${r.saved} ${kind === "target" ? "targets" : "projections"} saved`, { description: r.skipped ? `${r.skipped} lines skipped: use one "2026-12 140000" line per period.` : undefined });
-            if (r.saved) setText("");
-          } catch (err) {
-            toast.error("Not saved", { description: (err as Error).message });
-          }
-        });
-      }}
-    >
-      <div className="flex flex-wrap gap-2 text-sm">
-        <select aria-label="Series" value={kind} onChange={(e) => setKind(e.target.value as "target" | "projection")} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
-          <option value="target">Targets (budget)</option>
-          <option value="projection">Projections</option>
-        </select>
-        <Input aria-label="Note" placeholder="Note, e.g. Budget 2027" value={note} onChange={(e) => setNote(e.target.value)} className="w-56" />
+    <div className="space-y-3">
+      <div role="tablist" aria-label="Series" className="inline-flex rounded-[var(--radius-input)] border border-border p-0.5 text-sm">
+        {(["target", "projection"] as const).map((k) => (
+          <button key={k} role="tab" type="button" aria-selected={kind === k} onClick={() => { setKind(k); setPaste(null); }} className={cn("rounded-[calc(var(--radius-input)-2px)] px-3 py-1", kind === k ? "stock font-medium" : "text-muted-foreground hover:text-foreground")}>
+            {k === "target" ? "Targets" : "Projections"}
+          </button>
+        ))}
       </div>
-      <textarea aria-label="Period and value lines" rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"2026-12 140000\n2027-01 112000"} className="fig w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 py-2 text-sm" />
-      <Button type="submit" disabled={pending || !text.trim()}>Save</Button>
-    </form>
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr><th className="pb-1.5 font-normal">Period</th><th className="pb-1.5 font-normal">{kind === "target" ? "Target" : "Projection"}</th><th className="w-9"><span className="sr-only">Remove</span></th></tr>
+        </thead>
+        <tbody>
+          {list.length === 0 && <tr><td colSpan={3} className="py-3 text-muted-foreground">No {word}s yet. Add a row, or paste two columns from a spreadsheet.</td></tr>}
+          {list.map((r, i) => {
+            const bad = !r.period || readNumber(r.value) === null;
+            return (
+              <tr key={r.key} className="border-t border-border">
+                <td className="py-1.5 pr-2">
+                  {r.saved !== undefined ? <span>{periodLabel(r.period, metric.period)}</span> : (
+                    <Input
+                      type={month ? "month" : "date"}
+                      lang="en-GB"
+                      aria-label={`Period of row ${i + 1}`}
+                      value={month ? r.period.slice(0, 7) : r.period}
+                      onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, period: v ? (month ? `${v}-01` : periodStart(parseISO(v), metric.period)) : "" } : x))); }}
+                      className="h-8 w-44"
+                    />
+                  )}
+                </td>
+                <td className="py-1.5 pr-2">
+                  <Input
+                    inputMode="decimal"
+                    aria-label={`${kind === "target" ? "Target" : "Projection"} for ${r.period ? periodLabel(r.period, metric.period) : `row ${i + 1}`}`}
+                    aria-invalid={bad && r.value !== "" ? true : undefined}
+                    value={r.value}
+                    onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, value: v } : x))); }}
+                    className={cn("fig h-8 w-40 text-right", readNumber(r.value) !== r.saved && !bad && "border-[var(--color-accent-2)]")}
+                  />
+                </td>
+                <td className="py-1.5 text-right">
+                  {r.saved === undefined && (
+                    <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => setList((all) => all.filter((x) => x.key !== r.key))} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-3.5" /></button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setList((r) => [...r, { key: `n${Date.now()}`, period: nextPeriod(), value: "" }])}><Plus aria-hidden /> Add row</Button>
+        <Button type="button" variant="outline" size="sm" aria-expanded={paste !== null} onClick={() => setPaste(paste === null ? "" : null)}><ClipboardPaste aria-hidden /> Paste from a spreadsheet</Button>
+      </div>
+      {paste !== null && (
+        <div className="space-y-2 rounded-[var(--radius-card)] border border-border p-3">
+          <label className="block text-xs font-medium" htmlFor="series-paste">Copy two columns, period and value, and paste them here</label>
+          <textarea id="series-paste" rows={4} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={month ? "2026-12\t140000\n2027-01\t112000" : "2026-12-07\t140000"} className="fig w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 py-2 text-sm" />
+          {preview && (preview.rows.length > 0 || preview.skipped.length > 0) && (
+            <div className="text-sm">
+              <p className="text-xs text-muted-foreground">{preview.rows.length} row{preview.rows.length === 1 ? "" : "s"} read{preview.skipped.length ? `, ${preview.skipped.length} line${preview.skipped.length === 1 ? "" : "s"} skipped` : ""}. Rows for a period already in the table replace it there.</p>
+              {preview.rows.length > 0 && (
+                <ul className="mt-1 max-h-40 overflow-y-auto text-xs">
+                  {preview.rows.map((p) => <li key={p.period} className="flex justify-between border-t border-border py-1"><span>{periodLabel(p.period, metric.period)}</span><span className="fig">{formatValue(metric, p.value)}</span></li>)}
+                </ul>
+              )}
+              {preview.skipped.length > 0 && <p className="mt-1 text-xs text-destructive">Skipped: {preview.skipped.slice(0, 3).map((s) => `“${s}”`).join(", ")}{preview.skipped.length > 3 ? " …" : ""}</p>}
+              <Button type="button" size="sm" className="mt-2" disabled={!preview.rows.length} onClick={() => { merge(preview.rows); setPaste(null); }}>Add {preview.rows.length} to the table</Button>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+        <label className="text-xs text-muted-foreground">Note, for everyone who reads it<Input placeholder="e.g. Budget 2027" value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 w-56" /></label>
+        <Button type="button" disabled={pending || changed.length === 0} onClick={save}>{changed.length ? `Save ${changed.length} change${changed.length === 1 ? "" : "s"}` : "Saved"}</Button>
+        {invalid.length > 0 && <span className="text-xs text-destructive">{invalid.length} row{invalid.length === 1 ? " needs" : "s need"} a period and a number; {invalid.length === 1 ? "it is" : "they are"} not saved.</span>}
+      </div>
+    </div>
   );
 }

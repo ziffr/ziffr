@@ -1,16 +1,17 @@
+// A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
+// then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
+import { KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
-import { SeriesForm } from "./series-form";
-import { VersionsDialog } from "@/components/versions-dialog";
+import { TargetsEditor } from "./series-form";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
-import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatValue, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
 import { ANALYSES } from "@/analyses";
@@ -20,21 +21,35 @@ import { Person } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MetricWorkspace } from "./workspace";
 import { PinMenu } from "./pin";
-import { ShareDialog } from "@/components/share-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
-import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
+import { RequestAccess } from "@/components/who-can-see";
+import { ObjectToolbar } from "@/components/object-toolbar";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
+import { isDemo } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
+import { Change, TargetChip } from "@/components/target-chip";
 
 const DAILY_WINDOW = 90;
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "analysis", label: "Analysis" },
+  { id: "targets", label: "Targets" },
+  { id: "history", label: "History" },
+  { id: "settings", label: "Settings" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string }> }) {
+/** One metric: its latest value, chart and comparisons, and tabs for analyses, targets, history and settings. */
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const [{ metrics, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
+  const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
+  // Links inside a tab keep the tab; everything else about the page is in its own parameter.
+  const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
+  const [{ metrics, series }, people, viewer, demo] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -46,8 +61,6 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
-  const tone = health(metric, last?.value);
-  const improving = change === null || metric.polarity === "target" ? null : (change > 0) === (metric.polarity === "higher");
 
   const correlations = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), series);
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
@@ -79,20 +92,24 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const { targets, projections } = await getSeriesValues([metric.id]);
   const tSeries = targets[metric.id] ?? [];
   const pSeries = projections[metric.id] ?? [];
-  const bdPeriods = Object.keys(bdByPeriod).sort().reverse();
-  const bdPeriod = sp.bp && bdByPeriod[sp.bp] ? sp.bp : bdPeriods[0];
+  const bdPeriods = Object.keys(bdByPeriod).sort();
+  const bdPeriod = sp.bp && bdByPeriod[sp.bp] ? sp.bp : bdPeriods[bdPeriods.length - 1];
   const bdRows = bdPeriod ? [...bdByPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
   const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
   const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
   const bdAdds = bdTotal !== null && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
+  // Tables on this page read like the chart: oldest on top, newest at the bottom.
   const obs = (await getLastValues(metric.id, 12)).reverse();
+  const isOwner = metric.owner_id === viewer;
+  // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
+  const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
 
   return (
     <>
       {sp.created && (
         <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
-          <span className="font-medium">Metric created.</span> It has no values yet. Its Submitters got a Token and a first Prompt.{" "}
-          <Link href="/sources" className="font-medium underline">Go to Sources</Link> to answer it.
+          <span className="font-medium">Metric created.</span> It has no values yet. Everyone who submits it got a form link and a first request for the value.
+          {demo && <>{" "}<Link href="/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
         </div>
       )}
       <PageHeader
@@ -104,170 +121,200 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         }
         sub={metric.description}
       >
-        <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
-        <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
-        <WhoCanSee type="metric" id={metric.id} people={people} />
-        <VersionsDialog type="metric" id={metric.id} people={people} />
-        {metric.owner_id === viewer && <ShareDialog objectType="metric" objectId={metric.id} name={metric.name} ownerId={metric.owner_id} people={people} shares={shares} groups={groups} />}
+        {/* Only the owner shares a metric, so only they get the Share button; everyone gets the ⋯ menu. */}
+        <ObjectToolbar type="metric" id={metric.id} people={people} share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null}>
+          <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
+          <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+        </ObjectToolbar>
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period)}` : "Latest"}>
-          <span className={cn(tone === "bad" && "text-destructive")}>{last ? formatValue(metric, last.value) : "–"}</span>
+          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value) : "–"}<TargetChip metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
-          {change === null ? "–" : (
-            <span className={cn("flex items-center gap-1", improving === true && "text-[var(--color-success)]", improving === false && "text-destructive")}>
-              {change > 0 ? <ArrowUpRight className="size-5" /> : <ArrowDownRight className="size-5" />}
-              {(change * 100).toFixed(1)} %
-            </span>
-          )}
+          <Change pct={change} size="size-5" />
         </Stat>
-        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`}><span className="fig">{targetText(metric)}</span></Stat>
+        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
+          <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value) : targetText(metric)}</span>
+        </Stat>
       </div>
 
-      {points.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
-          No Observations yet. Values arrive through {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="/sources" className="underline">Open Sources</Link>.
+      <nav aria-label="Metric sections" className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.map((t) => (
+          <Link key={t.id} href={t.id === "overview" ? "?" : `?tab=${t.id}`} scroll={false} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm no-underline", tab === t.id ? "border-[var(--color-ink)] font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "overview" && (
+        <div className="space-y-6">
+          {points.length === 0 ? (
+            <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
+              No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
+            </div>
+          ) : (
+            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} markers={markers} people={people} viewer={viewer} />
+          )}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section className="stock rounded-[var(--radius-card)] p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-medium">Comparisons</h2>
+                <nav aria-label="Comparison mode" className="flex gap-1 text-xs">
+                  <Link href={at()} scroll={false} aria-current={!sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", !sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>To date</Link>
+                  <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
+                </nav>
+              </div>
+              <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} />
+            </section>
+
+            <section className="stock rounded-[var(--radius-card)] p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-medium">Breakdown</h2>
+                {bdPeriods.length > 0 && (
+                  <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
+                    {bdPeriods.slice(-6).map((p) => (
+                      <Link key={p} href={at({ bp: p })} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
+                        {periodLabel(p, metric.period, true)}
+                      </Link>
+                    ))}
+                  </nav>
+                )}
+              </div>
+              {bdRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No breakdown yet. Add rows with the next value on the form, or send one line per row, such as <code className="fig">Germany 61,200</code>.</p>
+              ) : (
+                <>
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-xs text-muted-foreground">
+                      <tr><th className="pb-2 font-normal">Row</th><th className="pb-2 text-right font-normal">Value</th>{bdAdds && <th className="pb-2 text-right font-normal">Share</th>}</tr>
+                    </thead>
+                    <tbody>
+                      {bdRows.map((r) => {
+                        const code = countryCode(r.label);
+                        return (
+                          <tr key={r.label} className="border-t border-border">
+                            <td className="py-2">
+                              <span className="flex items-center gap-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                {code && <img src={`/flags/${code}.svg`} alt="" className="h-3 w-4 rounded-[2px] object-cover" />}
+                                {r.label}
+                              </span>
+                            </td>
+                            <td className="fig py-2 text-right">{formatValue(metric, r.value)}</td>
+                            {bdAdds && <td className="fig py-2 text-right text-muted-foreground">{((r.value / bdSum) * 100).toFixed(1)} %</td>}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {bdTotal !== null && !bdAdds && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      These rows don’t add up to the total ({formatValue(metric, bdTotal)}); the total stays the metric’s value{metric.format === "percent" ? ", as rates don’t add up" : ""}.
+                    </p>
+                  )}
+                </>
+              )}
+            </section>
+          </div>
         </div>
-      ) : (
-        <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} markers={markers} people={people} viewer={viewer} />
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="space-y-6">
-          <section className="stock rounded-[var(--radius-card)] p-5">
-            <h2 className="mb-4 flex items-center gap-2 font-medium"><Sparkles className="size-4 text-primary" /> Analyses</h2>
-            <div className="mb-5 flex flex-wrap gap-2">
-              {ANALYSES.map((a) => (
-                <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 py-1 text-xs", a.available ? "stock font-medium" : "border-dashed text-muted-foreground")}>
-                  {!a.available && <Lock aria-hidden className="size-3" />} {a.label}{!a.available && ", coming soon"}
-                </span>
-              ))}
+      {tab === "analysis" && (
+        <section className="stock rounded-[var(--radius-card)] p-5">
+          <h2 className="mb-4 flex items-center gap-2 font-medium"><Sparkles className="size-4 text-primary" /> Analyses</h2>
+          <div className="mb-5 flex flex-wrap gap-2">
+            {/* Analyses still to come are a preview for demo visitors only. */}
+            {ANALYSES.filter((a) => a.available || demo).map((a) => (
+              <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 py-1 text-xs", a.available ? "stock font-medium" : "border-dashed text-muted-foreground")}>
+                {!a.available && <Lock aria-hidden className="size-3" />} {a.label}{!a.available && ", coming soon"}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-medium">Forecast</h3>
+              {fc ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length} {metric.period}s:{" "}
+                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period)}
+                  {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
+                </p>
+              ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least 4 values.</p>}
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <h3 className="text-sm font-medium">Forecast</h3>
-                {fc ? (
+            <div>
+              <h3 className="text-sm font-medium">Correlation</h3>
+              {partner ? (
+                <>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length} {metric.period}s:{" "}
-                    <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period)}
-                    {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
+                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {partner.result.r.toFixed(2)}, {partner.result.n} {metric.period}s).
                   </p>
-                ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least 4 values.</p>}
-              </div>
-              <div>
-                <h3 className="text-sm font-medium">Correlation</h3>
-                {partner ? (
-                  <>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {partner.result.r.toFixed(2)}, {partner.result.n} {metric.period}s).
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {correlations.slice(0, 5).map((c) => (
-                        <Link key={c.metric.id} href={`?vs=${c.metric.slug}`} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
-                          {c.metric.name} <span className="fig text-muted-foreground">{c.result.r.toFixed(2)}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  </>
-                ) : <p className="mt-1 text-sm text-muted-foreground">No other {PERIOD_LABEL[metric.period].toLowerCase()} metric with enough shared history.</p>}
-              </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {correlations.slice(0, 5).map((c) => (
+                      <Link key={c.metric.id} href={at({ vs: c.metric.slug })} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
+                        {c.metric.name} <span className="fig text-muted-foreground">{c.result.r.toFixed(2)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : <p className="mt-1 text-sm text-muted-foreground">No other {PERIOD_LABEL[metric.period].toLowerCase()} metric with enough shared history.</p>}
             </div>
-            {partner && (
-              <div className="mt-4">
-                <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {metric.period}</p>
-                <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} />
-              </div>
-            )}
-          </section>
-
-          <section className="stock rounded-[var(--radius-card)] p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-medium">Comparisons</h2>
-              <nav aria-label="Comparison mode" className="flex gap-1 text-xs">
-                <Link href="?" scroll={false} aria-current={!sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", !sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>To date</Link>
-                <Link href="?full=1" scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
-              </nav>
+          </div>
+          {partner && (
+            <div className="mt-4">
+              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {metric.period}</p>
+              <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} />
             </div>
-            <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} />
-          </section>
+          )}
+        </section>
+      )}
 
-          <section className="stock rounded-[var(--radius-card)] p-5">
-            <h2 className="mb-3 font-medium">Targets and projections</h2>
-            {tSeries.length + pSeries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No target series or projections yet. The target range applies to every period.</p>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground"><tr><th className="pb-1.5 font-normal">Period</th><th className="pb-1.5 text-right font-normal">Target</th><th className="pb-1.5 text-right font-normal">Projection</th></tr></thead>
-                <tbody>
-                  {[...new Set([...tSeries, ...pSeries].map((p) => p.period))].sort().reverse().slice(0, 8).map((p) => (
-                    <tr key={p} className="border-t border-border">
-                      <td className="py-1.5">{periodLabel(p, metric.period)}</td>
-                      <td className="fig py-1.5 text-right">{formatValue(metric, tSeries.find((x) => x.period === p)?.value ?? null)}</td>
-                      <td className="fig py-1.5 text-right">{formatValue(metric, pSeries.find((x) => x.period === p)?.value ?? null)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {metric.owner_id === viewer && !metric.formula && <SeriesForm metricId={metric.id} />}
-          </section>
+      {tab === "targets" && (
+        <section className="stock max-w-2xl rounded-[var(--radius-card)] p-5">
+          <h2 className="font-medium">Targets and projections</h2>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">
+            The target range ({targetText(metric).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
+          </p>
+          {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
+            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={isOwner} />
+          )}
+          {!isOwner && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} changes them.</p>}
+        </section>
+      )}
 
-          <section className="stock rounded-[var(--radius-card)] p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-medium">Breakdown</h2>
-              {bdPeriods.length > 0 && (
-                <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
-                  {bdPeriods.slice(0, 6).map((p) => (
-                    <Link key={p} href={`?bp=${p}`} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
-                      {periodLabel(p, metric.period, true)}
-                    </Link>
-                  ))}
-                </nav>
-              )}
-            </div>
-            {bdRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No breakdown yet. Paste rows with the next value on the web form, or send one line per row, such as <code className="fig">Germany 61,200</code>.</p>
-            ) : (
-              <>
+      {tab === "history" && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          {!metric.formula && (
+            <section className="stock rounded-[var(--radius-card)] p-5">
+              <h2 className="mb-3 font-medium">Latest values</h2>
+              {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
-                    <tr><th className="pb-2 font-normal">Row</th><th className="pb-2 text-right font-normal">Value</th>{bdAdds && <th className="pb-2 text-right font-normal">Share</th>}</tr>
+                    <tr><th className="pb-2 font-normal">Period</th><th className="pb-2 text-right font-normal">Value</th><th className="pb-2 pl-3 font-normal">From</th><th className="pb-2 font-normal">Submitted by</th></tr>
                   </thead>
                   <tbody>
-                    {bdRows.map((r) => {
-                      const code = countryCode(r.label);
-                      return (
-                        <tr key={r.label} className="border-t border-border">
-                          <td className="py-2">
-                            <span className="flex items-center gap-2">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              {code && <img src={`/flags/${code}.svg`} alt="" className="h-3 w-4 rounded-[2px] object-cover" />}
-                              {r.label}
-                            </span>
-                          </td>
-                          <td className="fig py-2 text-right">{formatValue(metric, r.value)}</td>
-                          {bdAdds && <td className="fig py-2 text-right text-muted-foreground">{((r.value / bdSum) * 100).toFixed(1)} %</td>}
-                        </tr>
-                      );
-                    })}
+                    {obs.map((o) => (
+                      <tr key={o.id} className="border-t">
+                        <td className="py-2">{periodLabel(o.period_start, metric.period)}</td>
+                        <td className="py-2 text-right">
+                          <span className="fig">{formatValue(metric, o.value)}</span>
+                          {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value)}</span> corrected</span>}
+                        </td>
+                        <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
+                        <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                {bdTotal !== null && !bdAdds && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    These rows don’t add up to the total ({formatValue(metric, bdTotal)}); the total stays the metric’s value{metric.format === "percent" ? ", as rates don’t add up" : ""}.
-                  </p>
-                )}
-              </>
-            )}
-          </section>
-
+              )}
+            </section>
+          )}
           <section className="stock rounded-[var(--radius-card)] p-5">
-            <h2 className="mb-3 flex items-center gap-2 font-medium"><MessageSquare className="size-4" /> Actions</h2>
-            {actions.length === 0 ? <p className="text-sm text-muted-foreground">No Actions yet. Click a point on the chart to assign one.</p> : (
+            <h2 className="mb-3 flex items-center gap-2 font-medium"><MessageSquare className="size-4" /> Questions and tasks</h2>
+            {actions.length === 0 ? <p className="text-sm text-muted-foreground">None yet. Click a point on the chart in Overview to ask about it.</p> : (
               <ul className="divide-y">
-                {actions.map((a) => (
+                {[...actions].sort((a, b) => a.period_start.localeCompare(b.period_start)).map((a) => (
                   <li key={a.id}>
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
@@ -280,83 +327,61 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               </ul>
             )}
           </section>
-
-          {!metric.formula && (
-            <section className="stock rounded-[var(--radius-card)] p-5">
-              <h2 className="mb-3 font-medium">Latest observations</h2>
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr><th className="pb-2 font-normal">Period</th><th className="pb-2 font-normal">Value</th><th className="pb-2 font-normal">Source</th><th className="pb-2 font-normal">Submitter</th></tr>
-                </thead>
-                <tbody>
-                  {obs.map((o) => (
-                    <tr key={o.id} className="border-t">
-                      <td className="py-2">{periodLabel(o.period_start, metric.period)}</td>
-                      <td className="py-2 font-medium">
-                        <span className="fig font-normal">{formatValue(metric, o.value)}</span>
-                        {o.original_value !== null && <span className="ml-2 text-xs font-normal text-muted-foreground line-through">{formatValue(metric, o.original_value)}</span>}
-                        {o.original_value !== null && <Badge variant="outline" className="ml-2">Corrected</Badge>}
-                      </td>
-                      <td className="py-2 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
-                      <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )}
         </div>
+      )}
 
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+      {tab === "settings" && (
+        <div className="grid gap-6 lg:grid-cols-3">
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
-            <h2 className="mb-3 font-medium">Metric description</h2>
+            <h2 className="mb-3 font-medium">Description</h2>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
-              <Row k="Polarity">{POLARITY_LABEL[metric.polarity]}</Row>
+              <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
               <Row k="Target">{targetText(metric)}</Row>
               {metric.formula ? (
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (
                 <>
-                  <Row k="Sources">{metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
-                  <Row k="Rule">{RULE_LABEL[metric.submission_rule]}</Row>
+                  <Row k="Values arrive by">{metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
+                  <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>
                 </>
               )}
             </dl>
           </section>
           {!metric.formula && (
-            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={metric.owner_id === viewer} />
+            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
           )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
-              <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Tokens</h2>
-              <p className="mb-3 text-xs text-muted-foreground">Who may submit values. Usually invisible: implied by the sender’s Slack handle or mail address.</p>
+              <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Who submits</h2>
+              <p className="mb-3 text-xs text-muted-foreground">Who may send values for this metric. Ziffr recognises them by their Slack name or mail address, or by their personal form link.</p>
               <ul className="space-y-2">
                 {tokens.map((t) => (
                   <li key={t.id} className="flex items-center justify-between gap-2">
                     <Person p={peopleById[t.submitter_id]} />
                     {!t.code ? null : metric.sources.includes("web_form") ? (
-                      <Link href={`/submit/${t.code}`} className="text-xs underline">Open form</Link>
+                      <Link href={`/submit/${t.code}`} className="text-xs underline">Open form link</Link>
                     ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
                   </li>
                 ))}
-                {!tokens.length && <li className="text-muted-foreground">No Submitters yet.</li>}
+                {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
             </section>
           )}
-        </aside>
-      </div>
+        </div>
+      )}
     </>
   );
 }
 
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+function Stat({ label, note, children }: { label: string; note?: string; children: React.ReactNode }) {
   return (
     <div className="stock rounded-[var(--radius-card)] p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-semibold tracking-tight">{children}</div>
+      {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
     </div>
   );
 }

@@ -12,9 +12,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
-import { periodLabel, periodStart } from "@ziffr/core/format";
+import { formatDate, periodLabel, periodStart } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/confirm-dialog";
+import { DemoControls } from "@/components/demo-controls";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
 const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
@@ -47,9 +49,11 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
   const move = (i: number, d: -1 | 1) => { const s = [...steps]; [s[i], s[i + d]] = [s[i + d], s[i]]; setCfg({ ...cfg, steps: s }); };
   const onIt = metrics.filter((m) => current && m.workflow_id === current.id);
   const run = (f: () => Promise<unknown>) => start(async () => { try { await f(); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const { confirm, dialog } = useConfirm();
 
   return (
     <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
+      {dialog}
       <nav aria-label="Workflows" className="space-y-1">
         {workflows.map((w) => (
           <Link key={w.id} href={`/workflows?id=${w.id}`} aria-current={w.id === current?.id ? "page" : undefined} className={cn("block rounded-[var(--radius-input)] px-2.5 py-2 text-sm hover:bg-muted", w.id === current?.id && "stock font-medium")}>
@@ -103,7 +107,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button disabled={pending} onClick={() => run(async () => { await saveWorkflow(current.id, name, cfg); toast.success("Workflow saved"); router.refresh(); })}>Save workflow</Button>
-                {onIt.length === 0 && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={() => { if (confirm(`Delete ${current.name}?`)) run(async () => { await deleteWorkflow(current.id); router.push("/workflows"); }); }}><Trash2 aria-hidden /> Delete</Button>}
+                {onIt.length === 0 && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete ${current.name}?`, description: "No metric uses this workflow. It goes away for everyone, with its steps.", confirmLabel: "Delete workflow" })) run(async () => { await deleteWorkflow(current.id); router.push("/workflows"); }); }}><Trash2 aria-hidden /> Delete</Button>}
               </div>
             )}
             {!canEdit && <p className="mt-4 pl-12 text-sm text-muted-foreground">{first(current.owner_id)} owns this workflow; only they change it.</p>}
@@ -120,7 +124,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
                       <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
-                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period)}, due {dueDate(period, m.period, cfg)}</div>
+                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
                       </div>
@@ -136,18 +140,19 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
               {schedule ? (
                 <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = await runTodayNow(); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
               ) : (
-                <>
-                  <label className="block text-xs">
-                    <span className="mb-1 block font-medium">Pretend today is</span>
-                    <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); router.replace(`/workflows?id=${current.id}&asOf=${e.target.value}`); }} />
-                  </label>
-                  <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = await runWorkflowsNow(day); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
-                  <p className="text-xs text-muted-foreground">In a real workspace this runs by itself every morning.</p>
-                </>
+                <DemoControls hint="In a real workspace Workflows run by themselves every morning. Here you pick the day and run them.">
+                  <div className="space-y-2">
+                    <label className="block text-xs">
+                      <span className="mb-1 block font-medium">Pretend today is</span>
+                      <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); router.replace(`/workflows?id=${current.id}&asOf=${e.target.value}`); }} />
+                    </label>
+                    <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = await runWorkflowsNow(day); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
+                  </div>
+                </DemoControls>
               )}
               {log && log.length > 0 && <ul className="space-y-0.5 rounded-[var(--radius-input)] bg-muted p-2 text-xs">{log.map((l, i) => <li key={i}>{l}</li>)}</ul>}
               {current.owner_id === viewer && onIt.length > 0 && (
-                <Button variant="outline" className="w-full" disabled={pending} onClick={() => { if (confirm(`Lock the last period for every metric on ${current.name} that has a value?`)) run(async () => { const n = await closeWorkflowPeriod(current.id, day); toast.success(`${n} metric${n === 1 ? "" : "s"} locked`); router.refresh(); }); }}><Lock aria-hidden /> Close the period</Button>
+                <Button variant="outline" className="w-full" disabled={pending} onClick={async () => { if (await confirm({ title: `Close the period on ${current.name}?`, description: "Every metric on it that has a value for the last period is locked. Late values and corrections then need approval, and only a metric's owner can unlock it.", confirmLabel: "Lock the period" })) run(async () => { const n = await closeWorkflowPeriod(current.id, day); toast.success(`${n} metric${n === 1 ? "" : "s"} locked`); router.refresh(); }); }}><Lock aria-hidden /> Close the period</Button>
               )}
             </div>
           </aside>
@@ -223,12 +228,12 @@ function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; ca
       <p><span className="font-medium">Runs every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners change this on the Team page.</p>
       {last ? (
         <p className={last.state === "failed" ? "text-destructive" : "text-muted-foreground"}>
-          Last run {last.day === schedule.today ? "today" : `on ${last.day}`}{last.trigger === "manual" ? ", started by hand" : ""}: {last.state === "failed" ? "it failed" : last.state === "running" ? "still running" : `${last.counts.prompts} asked, ${last.counts.reminders} reminded, ${last.counts.escalations} escalated`}.
+          Last run {last.day === schedule.today ? "today" : `on ${formatDate(last.day)}`}{last.trigger === "manual" ? ", started by hand" : ""}: {last.state === "failed" ? "it failed" : last.state === "running" ? "still running" : `${last.counts.prompts} asked, ${last.counts.reminders} reminded, ${last.counts.escalations} escalated`}.
         </p>
       ) : (
         <p className="text-muted-foreground">No run yet.</p>
       )}
-      {!schedule.scheduled && <p className="text-muted-foreground">Nothing has run by the clock here yet: whoever runs Ziffr calls the Workflows job every hour (docs/guides/jobs.md).</p>}
+      {!schedule.scheduled && <p className="text-muted-foreground">Nothing has run by the clock here yet. Whoever runs Ziffr for your team still has to turn on the hourly schedule; until then, run today’s steps by hand.</p>}
       {canRun && (
         <Button variant="outline" className="w-full" disabled={pending || schedule.todayRan} onClick={onRun}><Play aria-hidden /> {schedule.todayRan ? "Today's steps ran" : "Run today's steps now"}</Button>
       )}

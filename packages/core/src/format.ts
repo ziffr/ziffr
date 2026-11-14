@@ -34,6 +34,12 @@ export function periodLabel(p: string, period: Period, short = false) {
   return fmtDate(d, short ? "d MMM" : "EEE d MMM yyyy");
 }
 
+/** A calendar day the one way Ziffr writes it, e.g. "4 Nov 2026", from yyyy-mm-dd, a timestamp or a Date. */
+export function formatDate(d: string | Date) {
+  const date = typeof d === "string" ? (/^\d{4}-\d{2}-\d{2}$/.test(d) ? parseISO(d) : new Date(d)) : d;
+  return Number.isNaN(date.getTime()) ? "–" : fmtDate(date, "d MMM yyyy");
+}
+
 /** How each period length is named. */
 export const PERIOD_LABEL: Record<Period, string> = { day: "Daily", week: "Weekly", month: "Monthly" };
 
@@ -62,6 +68,14 @@ export function health(m: Pick<Metric, "target_min" | "target_max">, v: number |
   if (m.target_min !== null && v < Number(m.target_min)) return "bad" as const;
   if (m.target_max !== null && v > Number(m.target_max)) return "bad" as const;
   return "good" as const;
+}
+
+/** Where a value sits against its metric's Target Range: below, on or above it; null without a target or value. */
+export function targetStatus(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined): "below" | "on" | "above" | null {
+  if (v === null || v === undefined || (m.target_min === null && m.target_max === null)) return null;
+  if (m.target_min !== null && v < Number(m.target_min)) return "below";
+  if (m.target_max !== null && v > Number(m.target_max)) return "above";
+  return "on";
 }
 
 /** A metric's target as words, e.g. "at least 100 €". */

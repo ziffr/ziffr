@@ -9,6 +9,7 @@ import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
 import { finishTask, postReply } from "./threads";
 import { periodStart } from "./format";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connectors/index";
 import type { ActionKind, Period } from "./types";
 
@@ -80,18 +81,24 @@ export async function setPreference(actor: Actor, personId: string | null, kind:
   if (connector) await db().from("delivery_preferences").insert({ user_id: personId, kind, connector, workspace_id: ws });
 }
 
+/** Starting the scheduled run by hand messages the whole workspace: outside the demo only Owners and Admins may. */
+function assertRunsNow(actor: Actor): void {
+  assertCan(actor, "create");
+  if (actor.workspaceId !== DEMO_WORKSPACE_ID && actor.role !== "owner" && actor.role !== "admin") throw new Forbidden();
+}
+
 /** Reminds assignees of open tasks due within two days, now (the scheduled run does this each morning, spec 0005); the
  * emails are queued for the deliveries job.
  * Returns how many. */
 export async function sendDueReminders(actor: Actor): Promise<number> {
-  assertCan(actor, "create");
+  assertRunsNow(actor);
   return remindDueTasks(actor.workspaceId, format(new Date(), "yyyy-MM-dd"));
 }
 
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing.
  * Their emails are queued for the deliveries job. Returns how many were asked. */
 export async function askForMissingValues(actor: Actor): Promise<number> {
-  assertCan(actor, "create");
+  assertRunsNow(actor);
   const ws = actor.workspaceId;
   const [{ data: tokens }, { data: metrics }] = await Promise.all([
     db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws).is("stands_in_for", null),

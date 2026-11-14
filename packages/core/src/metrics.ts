@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { periodStart } from "./format";
+import { parseSeriesLine } from "./series-lines";
 import type { Format, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
 import { deliverPrompt } from "./deliveries";
@@ -101,30 +102,46 @@ export const metricEffects: MetricEffects = {
   promptSubmitter: async (metricId, submitterId, by) => { await deliverPrompt({ metricId, submitterId, senderId: by }); },
 };
 
-/** "2026-12 140000", "2026-12-01;140.000", "12/2026 140000" → period start and value. */
-export function parseSeriesLine(line: string, period: Period): { period: string; value: number } | null {
-  const m = line.trim().match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?[\s;,\t]+(-?[\d.,' ]+)$/) ?? line.trim().match(/^(\d{1,2})\/(\d{4})[\s;,\t]+(-?[\d.,' ]+)$/);
-  if (!m) return null;
-  const [y, mo, d, raw] = m.length === 5 && m[1].length === 4 ? [Number(m[1]), Number(m[2]), Number(m[3] ?? 1), m[4]] : [Number(m[2]), Number(m[1]), 1, m[3]];
-  let num = raw.replace(/[' ]/g, "");
-  if (/,\d{1,2}$/.test(num)) num = num.replace(/\./g, "").replace(",", ".");
-  else if (/^-?\d{1,3}(\.\d{3})+$/.test(num)) num = num.replace(/\./g, "");
-  else num = num.replace(/,/g, "");
-  const value = Number(num);
-  if (!Number.isFinite(value) || mo < 1 || mo > 12) return null;
-  return { period: periodStart(new Date(y, mo - 1, d), period), value };
-}
+/** Reading series lines is pure and lives in series-lines, so the browser can preview with the same rules. */
+export { parseSeriesLine };
 
 /** The Metric owner uploads a Target Series or Projection, one "period value" line each; lines that cannot be read
  * are skipped and counted. */
 export async function uploadSeries(actor: Actor, metricId: number, kind: "target" | "projection", text: string, note: string) {
+  const m = await seriesOwnerMetric(actor, metricId, kind);
+  const lines = String(text ?? "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 2000);
+  const read = lines.map((l) => parseSeriesLine(l, m.period as Period)).filter((r): r is { period: string; value: number } => r !== null);
+  const saved = await upsertSeries(metricId, kind, read, note);
+  return { saved, skipped: lines.length - saved };
+}
+
+/** The Metric owner saves Target Series or Projection rows edited in a table, as period start and value. Rows with a
+ * period or value that cannot be read are refused as a whole, since the table checked them already. */
+export async function saveSeriesRows(actor: Actor, metricId: number, kind: "target" | "projection", rows: unknown, note: string) {
+  const m = await seriesOwnerMetric(actor, metricId, kind);
+  // Rows come from a browser: check the shape, the size and every value before anything is written.
+  if (!Array.isArray(rows) || rows.length > 2000) throw new Error("Send at most 2,000 rows.");
+  const read = rows.map((r) => {
+    const period = typeof r?.period === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.period) ? r.period : null;
+    const value = typeof r?.value === "number" && Number.isFinite(r.value) ? r.value : null;
+    if (!period || value === null || Number.isNaN(new Date(`${period}T00:00:00`).getTime())) throw new Error("Every row needs a period and a number.");
+    // A day inside the period counts as that period, as in pasted lines.
+    return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period), value };
+  });
+  return { saved: await upsertSeries(metricId, kind, read, note) };
+}
+
+/** The metric, when the actor owns it in their workspace; only its owner sets targets and projections. */
+async function seriesOwnerMetric(actor: Actor, metricId: number, kind: string) {
   if (kind !== "target" && kind !== "projection") throw new Forbidden("Unknown series.");
   const { data: m } = await db().from("metrics").select("owner_id, period").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the metric owner can upload targets and projections.");
-  const lines = String(text ?? "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 2000);
-  const read = lines.map((l) => parseSeriesLine(l, m.period as Period)).filter((r): r is { period: string; value: number } => r !== null);
-  // One value per period: a later line for the same period wins.
-  const ok = [...new Map(read.map((r) => [r.period, r])).values()];
+  return m;
+}
+
+/** Writes rows, one value per period: a later row for the same period wins. Returns how many periods were saved. */
+async function upsertSeries(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
+  const ok = [...new Map(rows.map((r) => [r.period, r])).values()];
   if (ok.length) {
     const { error } = await db().from("series_values").upsert(
       ok.map((r) => ({ metric_id: metricId, kind, period_start: r.period, value: r.value, note: String(note ?? "").slice(0, 120) || null })),
@@ -132,5 +149,5 @@ export async function uploadSeries(actor: Actor, metricId: number, kind: "target
     );
     if (error) throw new Error("The series could not be saved.");
   }
-  return { saved: ok.length, skipped: lines.length - ok.length };
+  return ok.length;
 }

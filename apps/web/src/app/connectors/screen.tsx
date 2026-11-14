@@ -12,6 +12,7 @@ import { askForMissingValues, emailRemindersAgain, sendDueReminders, setPreferen
 import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { DemoControls } from "@/components/demo-controls";
 
 export type PrefRow = { user_id: string | null; kind: PreferenceKind; connector: ConnectorId };
 export type DeliveryRow = {
@@ -34,8 +35,20 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 
 /** Connectors, Delivery Preferences and the Outbox. `email` says whether this Ziffr sends real email, and takes
  * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004). */
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both" }) {
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean }) {
   const [pending, start] = useTransition();
+  // Asking and reminding by hand is what the schedule does each morning: in the demo anyone plays it; elsewhere
+  // owners and admins get it as a fallback, explained, and members do not see it.
+  const runNow = (
+    <span className="flex flex-wrap gap-2">
+      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
+        <Hash aria-hidden /> Ask for missing values now
+      </Button>
+      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); toast.success(n ? `Reminded ${n} open task${n === 1 ? "" : "s"}` : "No open tasks due in the next two days"); })}>
+        <BellRing aria-hidden /> Send due reminders now
+      </Button>
+    </span>
+  );
   const name = (id: string | null) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
   const pref = (user: string | null, kind: PreferenceKind) => prefs.find((p) => p.user_id === user && p.kind === kind)?.connector ?? null;
 
@@ -60,8 +73,8 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                 <ul className="mt-3 space-y-0.5 text-xs">
                   {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
                 </ul>
-                {c.sourceId && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
-                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : "Simulated in the prototype."}</p>
+                {c.sourceId && demo && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
+                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
               </li>
             );
           })}
@@ -108,22 +121,23 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="o-h" className="text-[length:var(--text-lg)]">Outbox</h2>
-            <p className="mt-1 text-sm text-muted-foreground">What Ziffr sent, as it looks on the other side. Answer as the recipient to see it come back.</p>
+            <p className="mt-1 text-sm text-muted-foreground">What Ziffr sent, newest first, as it looks on the other side.{demo ? " Answer as the recipient to see it come back." : ""}</p>
           </div>
-          <span className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
-            <Hash aria-hidden /> Ask for missing values now
-          </Button>
-          <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); toast.success(n ? `Reminded ${n} open task${n === 1 ? "" : "s"}` : "No open tasks due in the next two days"); })}>
-            <BellRing aria-hidden /> Send due reminders now
-          </Button>
-          </span>
         </div>
+        {demo ? (
+          <DemoControls className="mt-4" hint="In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning. Here you start it by hand.">{runNow}</DemoControls>
+        ) : isOwner && (
+          <details className="mt-4 rounded-[var(--radius-card)] border border-border p-4 text-sm">
+            <summary className="cursor-pointer font-medium">Run now</summary>
+            <p className="mt-2 mb-3 max-w-prose text-muted-foreground">Ziffr does this by itself every morning. Use it when the schedule did not run, or right after adding people: it asks everyone whose value for the current period is missing, and reminds people of tasks due in the next two days.</p>
+            {runNow}
+          </details>
+        )}
         {deliveries.length === 0 ? (
-          <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">Nothing sent yet. Right-click a widget on a dashboard and ask a question or assign a task.</p>
+          <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">Nothing sent yet. On a dashboard, open a widget&rsquo;s ⋯ menu to ask a question or assign a task.</p>
         ) : (
           <ol className="mt-4 space-y-3">
-            {deliveries.map((d) => <DeliveryCard key={d.id} d={d} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
+            {deliveries.map((d) => <DeliveryCard key={d.id} d={d} demo={demo} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
           </ol>
         )}
       </section>
@@ -132,7 +146,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
 }
 
 /** One Delivery, drawn the way its system shows it. */
-function DeliveryCard({ d, to, formCode }: { d: DeliveryRow; to: string; formCode?: string }) {
+function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; formCode?: string; demo: boolean }) {
   const [reply, setReply] = useState("");
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -140,8 +154,9 @@ function DeliveryCard({ d, to, formCode }: { d: DeliveryRow; to: string; formCod
   const Icon = ICON[d.connector];
   const isPrompt = d.kind === "prompt" && d.prompts;
   const answerHere = isPrompt && (d.prompts!.source === "slack" || d.prompts!.source === "mail") && !d.prompts!.answered_at;
-  const canReply = (c.capabilities.includes("replies") && d.action_id) || answerHere;
-  const canClose = d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
+  // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
+  const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
+  const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
   const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { await f(); toast.success(ok); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
 
   return (

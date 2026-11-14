@@ -3,7 +3,11 @@ import { closedDashboardOwner, dashboardWidgets, savedWidgets } from "@ziffr/cor
 import { getCanvasData, getRawShares, revealedBy, visibleDashboards } from "@/lib/access";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { DashboardScreen } from "@/app/dashboards/screen";
+import { can } from "@ziffr/core/actor";
+import { workspaceClock } from "@ziffr/core/workspace-clock";
+import { isDemo } from "@/lib/auth";
 
+/** One dashboard of the viewer's, or their first one, with everything its screen needs. */
 export async function DashboardView({ id }: { id?: number }) {
   const viewer = await viewerId();
   const actor = await currentActor();
@@ -19,5 +23,9 @@ export async function DashboardView({ id }: { id?: number }) {
     const owner = await closedDashboardOwner(actor, id);
     if (owner) closed = { id, owner };
   }
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={shares} reveals={reveals} closed={closed} />;
+  // A workspace without dashboards gets the first-run checklist; what it may show depends on the role.
+  const firstRun = !dashboards.length && !closed && !(await isDemo())
+    ? { canCreate: can(actor, "create"), canManage: can(actor, "manage-members"), clockSet: can(actor, "manage-members") ? (await workspaceClock(actor)).timeZone !== "UTC" : true }
+    : null;
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={shares} reveals={reveals} closed={closed} firstRun={firstRun} />;
 }

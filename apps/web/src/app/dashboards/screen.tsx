@@ -5,11 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { Eye, LayoutDashboard, MonitorPlay, MousePointerClick, Pencil, Plus, Users } from "lucide-react";
+import { Eye, LayoutDashboard, MonitorPlay, MoreHorizontal, Pencil, Plus, Users } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
-import { ShareDialog } from "@/components/share-dialog";
-import { VersionsDialog } from "@/components/versions-dialog";
 import { createDashboardNamed, placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
@@ -18,12 +16,12 @@ import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useSlotFill } from "@/components/slot-dialog";
-import { RequestAccess, WhoCanSee } from "@/components/who-can-see";
-import { ViewLinks } from "@/components/view-links";
+import { RequestAccess } from "@/components/who-can-see";
+import { ObjectToolbar } from "@/components/object-toolbar";
 import { ThemeScope } from "@/components/theme-scope";
-import { ThemePicker } from "@/components/theme-picker";
 import { setDashboardTheme } from "@/app/theme-actions";
 import { themeFor } from "@ziffr/core/themes";
+import { FirstRun } from "@/components/first-run";
 
 type Props = {
   data: CanvasData;
@@ -35,6 +33,8 @@ type Props = {
   reveals?: Record<string, string[]>;
   /** A dashboard the viewer opened by link but may not see. */
   closed?: { id: number; owner: string } | null;
+  /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
+  firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean } | null;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -51,7 +51,8 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
   return TEMPLATES[DEFAULT_TEMPLATE].size;
 };
 
-export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals, closed }: Props) {
+/** The Dashboards screen: the Pool, the viewer's dashboards and the canvas of the current one. */
+export function DashboardScreen({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -95,7 +96,7 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
     <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
       {slotFill.dialog}
       <div className="order-2 lg:order-1">
-        <Pool data={data} saved={saved} onAdd={editable ? add : undefined} hint={editable ? "Drag onto the dashboard, or click +." : "This dashboard is view-only for you."} />
+        <Pool data={data} saved={saved} onAdd={editable ? add : undefined} hint={editable ? "Drag onto the dashboard, or click +." : current ? "This dashboard is view-only for you." : "What you can place on a dashboard once you have one."} />
       </div>
       <div className="order-1 min-w-0 lg:order-2">
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -113,6 +114,14 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
             <p className="font-medium">This dashboard isn&rsquo;t shared with you</p>
             <RequestAccess type="dashboard" id={closed.id} owner={closed.owner} />
           </div>
+        ) : !current && firstRun?.canCreate ? (
+          <FirstRun steps={[
+            { title: "Describe a metric", body: "Pick one from the catalog, such as revenue or customer satisfaction, and say who submits it.", done: data.metrics.length > 0, href: "/metrics/new" },
+            { title: "Add its first value", body: "Submit it yourself on the metric’s form link, or wait for the first answer.", done: Object.values(data.series).some((p) => p.length > 0), href: "/metrics" },
+            ...(firstRun.canManage ? [{ title: "Invite a teammate", body: "They see what you share with them, and can submit values and answer questions.", done: data.people.filter((p) => !p.contact).length > 1, href: "/team" }] : []),
+            { title: "Build a dashboard", body: "Drag metrics from the Pool onto it and share it with the team.", done: false, action: <Button size="sm" onClick={newDashboard}>Create dashboard</Button> },
+            ...(firstRun.canManage ? [{ title: "Set the workspace time", body: "The time zone and hour when Ziffr asks for values and sends reminders each day.", done: firstRun.clockSet, href: "/team" }] : []),
+          ]} />
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
@@ -127,17 +136,19 @@ export function DashboardScreen({ data, dashboards, current, widgets, saved, sha
                 <h1 className="text-[length:var(--text-2xl)] leading-tight">{current.name}</h1>
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
-                  <span className="flex items-center gap-1.5"><MousePointerClick aria-hidden className="size-4" /> Right-click a widget for its history, a question or a task</span>
+                  <span className="flex items-center gap-1.5"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-              {editable && <ThemePicker themes={data.themes} value={current.theme_id} onChange={(id) => setDashboardTheme(current.id, id)} />}
-              <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
-              <WhoCanSee type="dashboard" id={current.id} people={data.people} />
-              {current.role === "owner" && <ViewLinks type="dashboard" id={current.id} />}
-              <VersionsDialog type="dashboard" id={current.id} people={data.people} />
-              {current.role === "owner" && <ShareDialog objectType="dashboard" objectId={current.id} name={current.name} ownerId={current.owner_id} people={data.people} shares={shares} groups={data.groups} reveals={reveals} />}
-              </div>
+              <ObjectToolbar
+                type="dashboard"
+                id={current.id}
+                people={data.people}
+                share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals } : null}
+                viewLinks={current.role === "owner"}
+                theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
+              >
+                <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
+              </ObjectToolbar>
             </div>
             <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (

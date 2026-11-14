@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
+import { isDemo } from "@/lib/auth";
 
 const RULE_HINT: Record<SubmissionRule, string> = {
   reject: "The first value for a period is final.",
@@ -80,7 +81,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   }
 
   const d: MetricDescription = picked ?? BLANK;
-  const [people, viewer] = await Promise.all([getProfiles(), viewerId()]);
+  const [people, viewer, demo] = await Promise.all([getProfiles(), viewerId(), isDemo()]);
   return (
     <>
       <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>
@@ -111,12 +112,12 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
           <Section title="How do values arrive?">
             <div className="grid gap-4 sm:grid-cols-2">
-              <F label="Period" hint="One Observation per period.">
+              <F label="Period" hint="One value per period.">
                 <select name="period" defaultValue={d.period} className={field}>
                   {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
                 </select>
               </F>
-              <F label="Submission Rule" hint="What a second value for the same period does.">
+              <F label="A second value for the same period" hint="What happens when one arrives.">
                 <select name="submission_rule" defaultValue={d.submission_rule} className={field}>
                   {(Object.keys(RULE_LABEL) as SubmissionRule[]).map((r) => <option key={r} value={r}>{RULE_LABEL[r]}: {RULE_HINT[r]}</option>)}
                 </select>
@@ -134,12 +135,12 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                   {SOURCES.map((s) => (
                     <label key={s.id} className="flex items-center gap-2 text-sm">
                       <input type="checkbox" name="sources" value={s.id} defaultChecked={(d.sources as SourceId[]).includes(s.id)} className="size-4 accent-primary" />
-                      {SOURCE_LABEL[s.id]} {s.simulated && <span className="text-xs text-muted-foreground">(simulated)</span>}
+                      {SOURCE_LABEL[s.id]} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
                     </label>
                   ))}
                 </div>
               </F>
-              <F label="Submitters" hint="Each gets a Token for this metric, plus a first Prompt on a chat or mail Source." className="sm:col-span-2">
+              <F label="Who submits" hint="Each gets a personal form link for this metric, and a first request for the value by chat or mail." className="sm:col-span-2">
                 <div className="flex flex-wrap gap-4">
                   {people.map((p) => (
                     <label key={p.id} className="flex items-center gap-2 text-sm">
@@ -153,9 +154,9 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
             </div>
           </Section>
 
-          <Section title="Target and polarity">
+          <Section title="Target">
             <div className="grid gap-4 sm:grid-cols-3">
-              <F label="Polarity">
+              <F label="Which way is good">
                 <select name="polarity" defaultValue={d.polarity} className={field}>
                   {(Object.keys(POLARITY_LABEL) as Polarity[]).map((p) => <option key={p} value={p}>{POLARITY_LABEL[p]}</option>)}
                 </select>
@@ -168,7 +169,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
         <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
           <div className="stock rounded-[var(--radius-card)] p-4 text-sm">
             <div className="font-medium">Owner</div>
-            <p className="mt-1 text-muted-foreground">You ({people.find((p) => p.id === viewer)?.name}). The owner keeps the description up to date and accepts Corrections.</p>
+            <p className="mt-1 text-muted-foreground">You ({people.find((p) => p.id === viewer)?.name}). The owner keeps the description up to date and accepts corrections to its values.</p>
           </div>
           <Button type="submit" size="lg" className="w-full">Create metric</Button>
           <Link href="/metrics" className={buttonVariants({ variant: "ghost", className: "w-full" })}>Cancel</Link>

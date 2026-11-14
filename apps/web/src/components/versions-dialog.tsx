@@ -19,3 +19,16 @@ export function VersionsDialog({ type, id, people, reload }: { type: "dashboard"
     </Dialog>
   );
 }
+
+/** The Versions dialog without its button, for menus that open it. */
+export function VersionsDialogOpen({ type, id, people, reload, onClose }: { type: "dashboard" | "deck" | "metric"; id: number; people: Profile[]; reload?: "refresh" | "page"; onClose: () => void }) {
+  const router = useRouter();
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogTitle className="sr-only">Versions</DialogTitle>
+        <VersionsPanel type={type} id={id} people={people} onRestored={() => (reload === "page" ? window.location.reload() : router.refresh())} />
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -13,8 +13,8 @@ import { ResetButton } from "@/components/reset-button";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Ziffr (prototype)",
-  description: "One home for all your numbers. A feedback prototype.",
+  title: "Ziffr",
+  description: "One home for your team's business numbers.",
 };
 
 export const dynamic = "force-dynamic";
@@ -70,7 +70,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 sm:px-6">
             <Link href="/" className="flex items-baseline gap-2 py-1">
               <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
-              <span className="text-xs text-muted-foreground">prototype</span>
+              {demo && <span className="text-xs text-muted-foreground">demo</span>}
             </Link>
             <nav aria-label="Main" className="order-3 -mx-1.5 flex w-full flex-wrap gap-x-0.5 sm:order-none sm:mx-0 sm:w-auto sm:gap-x-1">
               <NavLink href="/dashboards">Dashboards</NavLink>

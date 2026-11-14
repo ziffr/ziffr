@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { periodStart } from "./format";
-import { ask, markTaskDone, reply, setActionStatus, setPreference } from "./questions";
+import { ask, askForMissingValues, markTaskDone, reply, sendDueReminders, setActionStatus, setPreference } from "./questions";
 import { simulateMessage, simulateReply } from "./demo-channels";
 import { approveValue, lockPeriod, saveWorkflow, setAway, setMetricWorkflow, setStandIn, closeWorkflowPeriod } from "./workflows";
 import { submitValue } from "./submissions";
@@ -45,6 +45,16 @@ describe("questions and tasks", () => {
     await expect(setPreference(w.actor(ben, "member"), sara, "question", "slack")).rejects.toEqual(forbidden);
     await expect(setPreference(w.actor(ben, "member"), null, "question", "slack")).rejects.toEqual(forbidden);
     await setPreference(w.actor(sara), null, "question", "email");
+  });
+});
+
+describe("running the schedule by hand", () => {
+  it("is for Owners and Admins only, outside the demo", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ada = await w.person("admin"); const ben = await w.person("member");
+    await expect(askForMissingValues(w.actor(ben, "member"))).rejects.toEqual(forbidden);
+    await expect(sendDueReminders(w.actor(ben, "member"))).rejects.toEqual(forbidden);
+    expect(await askForMissingValues(w.actor(sara))).toBe(0);
+    expect(await sendDueReminders(w.actor(ada, "admin"))).toBe(0);
   });
 });
 

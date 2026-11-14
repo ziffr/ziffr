@@ -1,6 +1,7 @@
 "use client";
 import { formatValue } from "@ziffr/core/format";
 import type { Metric } from "@ziffr/core/types";
+import { TargetChip } from "@/components/target-chip";
 
 /** Semicircle gauge: target band in green, needle at the latest value. */
 export function Gauge({ metric, value, history }: { metric: Metric; value: number | undefined; history: number[] }) {
@@ -26,7 +27,8 @@ export function Gauge({ metric, value, history }: { metric: Metric; value: numbe
         {value !== undefined && <line x1={60} y1={60} x2={nx} y2={ny} stroke={ok ? "var(--color-ink)" : "var(--color-error)"} strokeWidth={2.5} strokeLinecap="round" />}
         <circle cx={60} cy={60} r={3.5} fill="var(--color-ink)" />
       </svg>
-      <div className={`-mt-1 text-xl font-semibold tracking-[-0.02em] ${ok ? "" : "text-destructive"}`}>{formatValue(metric, value)}</div>
+      <div className="-mt-1 text-xl font-semibold tracking-[-0.02em]">{formatValue(metric, value)}</div>
+      <TargetChip metric={metric} value={value} className="mt-1" />
     </div>
   );
 }

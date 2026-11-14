@@ -18,7 +18,7 @@ export default async function ActionsPage() {
   ];
   return (
     <>
-      <PageHeader title="Actions" sub={`Questions and Tasks about specific values. Ask them from anywhere: right-click a widget. You’re viewing as ${people[viewer]?.name}.`} />
+      <PageHeader title="Actions" sub={`Questions and Tasks about specific values. Ask them from any widget’s ⋯ menu. You’re viewing as ${people[viewer]?.name}.`} />
       <div className="space-y-6">
         {groups.map((g) => (
           <section key={g.title}>

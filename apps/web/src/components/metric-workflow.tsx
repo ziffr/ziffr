@@ -8,7 +8,7 @@ import { GitPullRequestArrow, Lock, LockOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { lockPeriod, setMetricWorkflow, setStandIn } from "@/app/workflow-actions";
 import { dueDate } from "@ziffr/core/workflow-rules";
-import { periodLabel } from "@ziffr/core/format";
+import { formatDate, periodLabel } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow } from "@ziffr/core/types";
 
 const STATE: Record<PeriodState["state"], string> = { asked: "asked, waiting for the value", submitted: "in, not approved yet", approval: "waiting for approval", published: "published", locked: "published and locked" };
@@ -31,7 +31,7 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
       </select>
       {wf && (
         <div className="mt-3 space-y-1 text-xs">
-          <p><span className="font-medium">{periodLabel(period, metric.period)}</span>, due {dueDate(period, metric.period, wf.config)}: {state ? STATE[state.state] : "not started"}.</p>
+          <p><span className="font-medium">{periodLabel(period, metric.period)}</span>, due {formatDate(dueDate(period, metric.period, wf.config))}: {state ? STATE[state.state] : "not started"}.</p>
           {state?.note && <p className="text-muted-foreground">{state.note}</p>}
           <Link href={`/workflows?id=${wf.id}`} className="underline">Open {wf.name}</Link>
         </div>
