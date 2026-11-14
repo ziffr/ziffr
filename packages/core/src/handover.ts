@@ -5,6 +5,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { audit } from "./audit-log";
 
 /** What a leaving member owns in the workspace, by kind, for the handover dialog and the version history. */
 export async function ownedBy(actor: Actor, personId: string) {
@@ -39,4 +40,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }
+  await audit(actor, { kind: "member.removed", object: { type: "person", id: personId, name: from }, details: {
+    role: leaving.role as string, successor_id: successorId, successor_name: to, handed_over: Object.values(owned).reduce((n, ids) => n + ids.length, 0),
+  } });
 }

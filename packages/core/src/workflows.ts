@@ -11,6 +11,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { WorkflowConfig, WorkflowStep } from "./types";
+import { audit } from "./audit-log";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
@@ -67,10 +68,14 @@ export async function deleteWorkflow(actor: Actor, id: number) {
 
 /** A Metric's owner decides which Workflow its values take (none for Derived Metrics). */
 export async function setMetricWorkflow(actor: Actor, metricId: number, workflowId: number | null) {
-  const { data: m } = await db().from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: m } = await db().from("metrics").select("name, owner_id, formula, workflow_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m || m.owner_id !== actor.personId || m.formula) throw new Forbidden();
-  if (workflowId !== null && !(await db().from("workflows").select("id").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data) throw new Forbidden();
+  const wf = workflowId === null ? null : (await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data;
+  if (workflowId !== null && !wf) throw new Forbidden();
   await db().from("metrics").update({ workflow_id: workflowId }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
+  if ((m.workflow_id ?? null) !== workflowId) {
+    await audit(actor, { kind: "metric.workflow_set", object: { type: "metric", id: metricId, name: m.name }, details: { workflow_id: workflowId, workflow_name: (wf?.name as string | undefined) ?? null, from_workflow_id: m.workflow_id ?? null } });
+  }
 }
 
 /** Runs the demo's Workflows as of any day, to try what the clock does in a real workspace (spec 0005). Only the
@@ -107,7 +112,9 @@ export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
   const { day: today } = localTime(new Date(), (await workspaceClock(actor)).timeZone);
   const runId = await claimDay(actor.workspaceId, today, "manual");
   if (runId === null) return null;
-  return runClaimedDay(runId, actor.workspaceId, today);
+  const counts = await runClaimedDay(runId, actor.workspaceId, today);
+  await audit(actor, { kind: "workflow.run_now", object: { type: "workspace", id: actor.workspaceId }, details: { day: today, ...counts } });
+  return counts;
 }
 
 /** The approver approves a value waiting for them. */
@@ -123,13 +130,19 @@ export async function sendValueBack(actor: Actor, actionId: number, comment: str
 /** The Metric owner locks or unlocks a period; unlocking needs a reason. */
 export async function lockPeriod(actor: Actor, metricId: number, period: string, lock: boolean, reason?: string) {
   await setLock(actor.workspaceId, Number(metricId), day(period), Boolean(lock), actor.personId, reason ? String(reason).slice(0, 300) : undefined);
+  // The period only: the reason is free text and stays with the period itself.
+  const { data: m } = await db().from("metrics").select("name").eq("id", Number(metricId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  await audit(actor, { kind: lock ? "period.locked" : "period.unlocked", object: { type: "metric", id: Number(metricId), name: m?.name ?? null }, details: { period } });
 }
 
 /** The Workflow's owner closes a period: every Metric of it with a value locks. Returns how many. */
 export async function closeWorkflowPeriod(actor: Actor, workflowId: number, asOf: string): Promise<number> {
   // Only the demo pretends; elsewhere the period is the one that has ended as of the workspace's today.
   const asOfDay = actor.workspaceId === DEMO_WORKSPACE_ID ? day(asOf) : localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
-  return closePeriod(actor.workspaceId, Number(workflowId), asOfDay, actor.personId);
+  const locked = await closePeriod(actor.workspaceId, Number(workflowId), asOfDay, actor.personId);
+  const { data: wf } = await db().from("workflows").select("name").eq("id", Number(workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  await audit(actor, { kind: "period.closed", object: { type: "workflow", id: Number(workflowId), name: wf?.name ?? null }, details: { as_of: asOfDay, locked } });
+  return locked;
 }
 
 /** The Metric owner chooses who stands in for a submitter: a member or a Contact of the workspace. */

@@ -8,6 +8,7 @@ import { parseSeriesLine } from "./series-lines";
 import type { Format, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
 import { deliverPrompt } from "./deliveries";
+import { audit } from "./audit-log";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -85,6 +86,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   if (error?.code === "ZF429") throw new TooManyMetrics();
   if (error || !metric) throw new Error("The Metric could not be created.");
   await effects.recordCreated(metric.id, actor.personId, metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
+  await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id) } });
   if (submitters.length) {
     // A Token code opens the submission form without signing in: random, never derived from names.
     await db().from("tokens").insert(submitters.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: metric.id, submitter_id: s })));

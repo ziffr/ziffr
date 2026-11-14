@@ -9,6 +9,7 @@ import { deliver, deliverPrompt } from "./deliveries";
 import { targetFor } from "./compare";
 import { dueDate, shiftPeriod, unusualReasons, workingPeriod } from "./workflow-rules";
 import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
+import { recordAudit } from "./audit-log";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string };
@@ -167,6 +168,8 @@ export async function approve(ws: string, actionId: number, by: string) {
   if (!ctx || state?.state !== "approval" || state.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId);
   await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Approved.", workspace_id: ws });
+  // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
+  await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
   const value = await latestValue(a.metric_id, a.period_start);
   const approvers = (ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve")?.approvers ?? []).filter((x) => x !== value?.submitter_id);
   const next = (state.approval_step ?? 0) + 1;
@@ -187,6 +190,9 @@ export async function sendBack(ws: string, actionId: number, by: string, comment
   await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` });
   await db().from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId);
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
+  // The period only: the comment is a message and stays in the Thread.
+  const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
+  await recordAudit(ws, by, { kind: "approval.sent_back", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start } });
   await deliver({ kind: "reply", actionId, senderId: by, recipientId: a.asker_id, text: `Sent back: ${comment}. Reply with “Correction: <value>” if it needs changing.` });
 }
 

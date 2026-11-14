@@ -11,6 +11,7 @@ import { getCanvasData } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
+import { audit } from "./audit-log";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days. */
@@ -133,10 +134,12 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   // Only what its owner may see goes out.
   await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
-  await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  const { data: made } = await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
-    workspace_id: actor.workspaceId });
+    workspace_id: actor.workspaceId }).select("id").single();
+  // Never the token: whoever reads the record must not be able to open the link from it.
+  await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), expires_on: expires, metrics: view.data.metrics.length } });
   return token;
 }
 
@@ -145,5 +148,8 @@ export async function revokeViewLink(actor: Actor, linkId: number) {
   const { data: l } = await db().from("view_links").select("object_type, object_id").eq("id", linkId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!l) throw new Forbidden();
   await assertOwner(actor, l.object_type, l.object_id);
-  await db().from("view_links").update({ revoked_at: new Date().toISOString() }).eq("id", linkId).eq("workspace_id", actor.workspaceId);
+  const { data: revoked } = await db().from("view_links").update({ revoked_at: new Date().toISOString() }).eq("id", linkId).eq("workspace_id", actor.workspaceId).is("revoked_at", null).select("id");
+  if (!revoked?.length) return;
+  const { data: obj } = await db().from(table(l.object_type)).select("name").eq("id", l.object_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  await audit(actor, { kind: "view_link.revoked", object: { type: l.object_type, id: l.object_id, name: obj?.name ?? null }, details: { link_id: linkId } });
 }

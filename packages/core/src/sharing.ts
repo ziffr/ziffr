@@ -8,6 +8,7 @@ import { deckMetricIds } from "./visibility";
 import { getMetrics } from "./workspace-data";
 import type { ShareRole } from "./types";
 import { deliverNotice } from "./deliveries";
+import { audit } from "./audit-log";
 
 const TYPES: ObjectType[] = ["metric", "dashboard", "deck"];
 const table = (t: ObjectType) => (t === "metric" ? "metrics" : t === "deck" ? "decks" : "dashboards");
@@ -65,20 +66,29 @@ async function ownedForSharing(actor: Actor, type: ObjectType, id: number, role:
 
 /** Shares something the actor owns with a member as Viewer or Editor; null takes the Share away. */
 export async function share(actor: Actor, type: ObjectType, id: number, personId: string, role: ShareRole | null) {
-  await ownedForSharing(actor, type, id, role);
+  const obj = await ownedForSharing(actor, type, id, role);
   if (personId === actor.personId) throw new Forbidden();
   await assertMembersIn(actor, [personId]);
-  await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId);
+  const { data: was } = await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId).select("role");
   if (role) await db().from("shares").insert({ object_type: type, object_id: id, user_id: personId, role, workspace_id: actor.workspaceId });
+  const { data: p } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();
+  await auditShare(actor, type, obj, (was?.[0]?.role as ShareRole | undefined) ?? null, role, { to_type: "person", to_id: personId, to_name: (p?.name as string | undefined) ?? null });
+}
+
+/** Records a Share given, changed or taken away; nothing when nothing changed. */
+async function auditShare(actor: Actor, type: ObjectType, obj: { id: number; name: string }, was: ShareRole | null, role: ShareRole | null, to: { to_type: string; to_id: string | number; to_name: string | null }) {
+  if (was === role) return;
+  await audit(actor, { kind: role ? "share.granted" : "share.removed", object: { type, id: obj.id, name: obj.name }, details: { ...to, to_id: String(to.to_id), role: role ?? was, from_role: role && was ? was : null } });
 }
 
 /** Shares something the actor owns with a Group: everyone in it, now and later; null takes the Share away. */
 export async function shareWithGroup(actor: Actor, type: ObjectType, id: number, groupId: number, role: ShareRole | null) {
-  await ownedForSharing(actor, type, id, role);
-  const { data: g } = await db().from("groups").select("id").eq("id", groupId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const obj = await ownedForSharing(actor, type, id, role);
+  const { data: g } = await db().from("groups").select("id, name").eq("id", groupId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!g) throw new Forbidden();
-  await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId);
+  const { data: was } = await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId).select("role");
   if (role) await db().from("shares").insert({ object_type: type, object_id: id, group_id: groupId, role, workspace_id: actor.workspaceId });
+  await auditShare(actor, type, obj, (was?.[0]?.role as ShareRole | undefined) ?? null, role, { to_type: "group", to_id: groupId, to_name: g.name as string });
 }
 
 /** Who can see something and why; only for people who see it themselves. The owner also gets open requests. */

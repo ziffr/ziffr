@@ -1,6 +1,7 @@
 // Workspace settings (spec 0006, tickets #96 and #97; GLOSSARY: Workspace, Workspace Role, Workspace Profile): the
 // workspace's name and its Workspace Profile. Owners and Admins change them, never in the demo; every member reads.
 import { Forbidden, type Actor } from "./actor";
+import { audit } from "./audit-log";
 import { db } from "./db";
 import { HIDDEN_CHARACTERS } from "./profile";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -28,8 +29,10 @@ export async function renameWorkspace(actor: Actor, name: unknown): Promise<void
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) throw new Error("Give the workspace a name.");
   if ([...clean].length > MAX_WORKSPACE_NAME) throw new Error(`Keep the name to ${MAX_WORKSPACE_NAME} characters.`);
+  const before = await workspaceName(actor);
   const { error } = await db().from("workspaces").update({ name: clean }).eq("id", actor.workspaceId);
   if (error) throw new Error("The name could not be saved.");
+  if (before !== clean) await audit(actor, { kind: "workspace.renamed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before, to: clean } });
 }
 
 /** What kind of business the actor's workspace belongs to, for any member (a Guest too: it describes the team, not a
@@ -48,7 +51,11 @@ export async function setWorkspaceProfile(actor: Actor, input: unknown): Promise
   const r = checkProfile(input);
   if (!r.ok) throw new Error(`Pick the ${r.field === "employeeBand" ? "number of people" : r.field === "revenueBand" ? "revenue" : r.field} from the list.`);
   const p = r.profile;
+  const before = await workspaceProfile(actor);
   const { error } = await db().from("workspaces").update({ industry: p.industry, segment: p.segment, country: p.country, currency: p.currency, employee_band: p.employeeBand, revenue_band: p.revenueBand }).eq("id", actor.workspaceId);
   if (error) throw new Error("The profile could not be saved.");
+  // Only values from the fixed lists, so the details hold nothing a person typed.
+  const changed = (Object.keys(p) as (keyof WorkspaceProfile)[]).filter((k) => before[k] !== p[k]);
+  if (changed.length) await audit(actor, { kind: "workspace.profile_changed", object: { type: "workspace", id: actor.workspaceId }, details: Object.fromEntries(changed.flatMap((k) => { const key = k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`); return [[`from_${key}`, before[k]], [`to_${key}`, p[k]]]; })) });
   return p;
 }

@@ -11,7 +11,7 @@ import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw,
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
+import { noteDeckExport, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
 import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
@@ -177,6 +177,8 @@ export function DeckEditor({ deck, data, saved, sharing }: Props) {
     try {
       if (kind === "pptx") await exportPptx(editor, data, name, master, theme);
       else await exportPdf(editor, name);
+      // For the Audit Log; a failure to note it never spoils the export the person already has.
+      noteDeckExport(deck.id, kind).catch(() => {});
       toast.success(kind === "pptx" ? "PowerPoint downloaded" : "PDF ready to print", { description: "Values are a snapshot of today. The deck in Ziffr stays live." });
     } catch (e) {
       console.error(e);

@@ -9,6 +9,7 @@ import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { assertSeesMetrics } from "./sharing";
+import { audit } from "./audit-log";
 
 const DAY = 86_400_000;
 const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
@@ -38,7 +39,11 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
       workspace_id: actor.workspaceId, created_by: actor.personId, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key",
       prefix, secret_hash: hash(secret), scopes, expires_on: expires,
     }).select("id").single();
-    if (data) return { id: data.id, secret };
+    if (data) {
+      // The name, scopes and end only: never the secret, its hash or its prefix.
+      await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: data.id, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key" }, details: { scopes, expires_on: expires } });
+      return { id: data.id, secret };
+    }
     if (error?.code !== "23505") break;
   }
   throw new Error("The key could not be created.");
@@ -59,8 +64,9 @@ export async function revokeAccessKey(actor: Actor, id: number) {
   if (actor.key) throw new Forbidden("A key cannot revoke keys.");
   let q = db().from("access_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).is("revoked_at", null);
   if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
-  const { data } = await q.select("id");
+  const { data } = await q.select("id, name, created_by");
   if (!data?.length) throw new Forbidden();
+  await audit(actor, { kind: "access_key.revoked", object: { type: "access_key", id: data[0].id, name: data[0].name }, details: { created_by: data[0].created_by } });
 }
 
 /** The Actor a presented secret acts as, or null when it is unknown, wrong, revoked, ended, or its creator has left. */

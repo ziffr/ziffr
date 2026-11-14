@@ -3,6 +3,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { audit } from "./audit-log";
 
 /** A workspace's time zone and the hour (0–23) its Workflows run. */
 export type WorkspaceClock = { timeZone: string; runHour: number };
@@ -38,6 +39,10 @@ export async function setWorkspaceClock(actor: Actor, clock: WorkspaceClock): Pr
   if (!knownTimeZone(clock?.timeZone)) throw new Error("Pick a time zone from the list.");
   const hour = Number(clock.runHour);
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error("Pick an hour from 0 to 23.");
+  const before = await workspaceClock(actor);
   const { error } = await db().from("workspaces").update({ time_zone: clock.timeZone, run_hour: hour }).eq("id", actor.workspaceId);
   if (error) throw new Error("The time could not be saved.");
+  if (before.timeZone !== clock.timeZone || before.runHour !== hour) {
+    await audit(actor, { kind: "workspace.clock_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from_time_zone: before.timeZone, to_time_zone: clock.timeZone, from_run_hour: before.runHour, to_run_hour: hour } });
+  }
 }

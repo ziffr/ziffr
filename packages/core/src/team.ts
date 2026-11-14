@@ -6,6 +6,7 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { cleanContact } from "./people";
 import { peopleIn } from "./submissions";
 import { assertMembersIn } from "./sharing";
+import { audit } from "./audit-log";
 
 /** The demo workspace (ADR 0005): shared by every visitor, so it keeps no Contacts. */
 export const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
@@ -16,9 +17,10 @@ export const MAX_CONTACTS = 1000;
 const groupName = (name: string) => String(name ?? "").trim().slice(0, 40);
 
 /** A Group of the actor's workspace that people may change by hand (not the built-in Everyone). */
-async function ordinaryGroup(actor: Actor, id: number) {
-  const { data } = await db().from("groups").select("id, everyone").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+async function ordinaryGroup(actor: Actor, id: number): Promise<{ id: number; name: string }> {
+  const { data } = await db().from("groups").select("id, name, everyone").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data || data.everyone) throw new Forbidden();
+  return { id: data.id as number, name: data.name as string };
 }
 
 const nameError = (e: { code?: string; message: string } | null) => {
@@ -29,33 +31,42 @@ const nameError = (e: { code?: string; message: string } | null) => {
 export async function createGroup(actor: Actor, name: string) {
   assertCan(actor, "manage-groups");
   if (!groupName(name)) throw new Error("Give the group a name.");
-  const { error } = await db().from("groups").insert({ name: groupName(name), workspace_id: actor.workspaceId });
+  const { data, error } = await db().from("groups").insert({ name: groupName(name), workspace_id: actor.workspaceId }).select("id").single();
   nameError(error);
+  if (data) await audit(actor, { kind: "group.created", object: { type: "group", id: data.id, name: groupName(name) } });
 }
 
 /** Renames a Group. */
 export async function renameGroup(actor: Actor, id: number, name: string) {
   assertCan(actor, "manage-groups");
   if (!groupName(name)) throw new Error("Give the group a name.");
-  await ordinaryGroup(actor, id);
+  const before = await ordinaryGroup(actor, id);
   const { error } = await db().from("groups").update({ name: groupName(name) }).eq("id", id).eq("workspace_id", actor.workspaceId);
   nameError(error);
+  if (before.name !== groupName(name)) await audit(actor, { kind: "group.renamed", object: { type: "group", id, name: groupName(name) }, details: { from: before.name, to: groupName(name) } });
 }
 
 /** Deletes a Group: what was shared with it stops being shared; threads limited to it become readable by everyone. */
 export async function deleteGroup(actor: Actor, id: number) {
   assertCan(actor, "manage-groups");
-  await ordinaryGroup(actor, id);
+  const group = await ordinaryGroup(actor, id);
   await db().from("groups").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+  await audit(actor, { kind: "group.deleted", object: { type: "group", id, name: group.name } });
 }
 
 /** Puts a member into a Group or takes them out. */
 export async function setGroupMember(actor: Actor, groupId: number, personId: string, member: boolean) {
   assertCan(actor, "manage-groups");
-  await ordinaryGroup(actor, groupId);
+  const group = await ordinaryGroup(actor, groupId);
   await assertMembersIn(actor, [personId]);
+  const { data: was } = await db().from("group_members").select("user_id").eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (member) await db().from("group_members").upsert({ group_id: groupId, user_id: personId, workspace_id: actor.workspaceId });
   else await db().from("group_members").delete().eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId);
+  // Only a real change is an event: ticking a box that was ticked records nothing.
+  if (Boolean(was) !== member) {
+    const { data: p } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();
+    await audit(actor, { kind: member ? "group.member_added" : "group.member_removed", object: { type: "group", id: groupId, name: group.name }, details: { person_id: personId, person_name: (p?.name as string | undefined) ?? null } });
+  }
 }
 
 /** Adds a Contact: a person of their own, recognised in this workspace by the details given here. The person
@@ -76,6 +87,8 @@ export async function addContact(actor: Actor, input: { name: string; email?: st
   if (pe) throw new Error("The contact could not be added.");
   const { error } = await db().from("contacts").insert({ workspace_id: actor.workspaceId, person_id: id, email: c.email, slack_handle: c.slack_handle, phone: c.phone, created_by: actor.personId });
   if (error) throw new Error("The contact could not be added.");
+  // The Contact's name only: their address and handles are contact details, not part of the record.
+  await audit(actor, { kind: "contact.added", object: { type: "person", id, name: c.name } });
   return id;
 }
 
@@ -85,6 +98,8 @@ export async function removeContact(actor: Actor, personId: string) {
   const ws = actor.workspaceId;
   const { data } = await db().from("contacts").delete().eq("workspace_id", ws).eq("person_id", String(personId)).select("person_id");
   if (!data?.length) throw new Forbidden();
+  const { data: p } = await db().from("profiles").select("name").eq("id", String(personId)).maybeSingle();
+  await audit(actor, { kind: "contact.removed", object: { type: "person", id: String(personId), name: (p?.name as string | undefined) ?? null } });
   // Their form links and Slack or mail submissions stop: their Tokens go, and they stand in for nobody any more.
   await db().from("tokens").delete().eq("workspace_id", ws).eq("submitter_id", String(personId));
   await db().from("tokens").update({ stand_in_id: null }).eq("workspace_id", ws).eq("stand_in_id", String(personId));

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import * as decks from "@ziffr/core/decks";
+import { recordDeckExport } from "@ziffr/core/audit-log";
 
 /** Creates a deck and opens it. */
 export async function createDeck(form: FormData) {
@@ -35,4 +36,9 @@ export async function deleteDeck(id: number) {
 export async function setDeckFooter(id: number, footer: string | null) {
   await decks.setDeckFooter(await currentActor(), Number(id), footer);
   revalidatePath(`/decks/${Number(id)}`);
+}
+
+/** Notes in the Audit Log that the person exported the deck; the file itself is made in the browser. */
+export async function noteDeckExport(id: number, format: "pptx" | "pdf") {
+  await recordDeckExport(await currentActor(), Number(id), format === "pdf" ? "pdf" : "pptx");
 }

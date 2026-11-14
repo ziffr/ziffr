@@ -274,6 +274,10 @@ _Avoid_: Revision, snapshot, commit, backup
 An earlier value of an observation or breakdown row, kept when an overwrite or correction replaced it, with the time it was replaced.
 _Avoid_: Old value, previous version, overwritten value
 
+**Audit Log**:
+The record of who changed who may see or do what in a Workspace, and of the decisions taken on numbers: roles, removals, invitations, joining, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, settings, exports and sign-ins. Each event names the person, the kind, the object as it was named then, the time and small details such as the old and new role, never a value or a message. Nothing in it can be changed or removed; it keeps two years. Owners and Admins read and export it. Not the Access Log, which records a program's calls, nor a Version, which keeps what something looked like.
+_Avoid_: Audit trail, activity log, event log, history
+
 ### Collaboration
 
 **Action**:

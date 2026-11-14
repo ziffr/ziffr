@@ -7,6 +7,7 @@ import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./acto
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
 import { headerSafe, isAddress, mailboxKey, mailEnabled, sendMail, type MailTransport } from "./mail";
+import { audit, recordAudit } from "./audit-log";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
 const DAY = 86_400_000;
@@ -112,6 +113,9 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
     created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(),
   }).select("id").single();
   if (error || !made) throw new Error("The invitation could not be made.");
+  // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
+  const name = input.contactPersonId ? await personName(input.contactPersonId) : email;
+  await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: made.id, name }, details: { role: input.role, by: "email", contact: Boolean(input.contactPersonId) } });
   if (mailEnabled()) await emailInvitation(made.id, actor.personId, transport);
   return t;
 }
@@ -134,8 +138,9 @@ export async function createInviteLink(actor: Actor, role: "member" | "guest"): 
   if (role !== "member" && role !== "guest") throw new Forbidden("Links invite Members or Guests.");
   assertMayGrant(actor, role);
   const t = token();
-  const { error } = await db().from("invitations").insert({ workspace_id: actor.workspaceId, token: t, role, created_by: actor.personId, expires_at: new Date(Date.now() + 7 * DAY).toISOString() });
-  if (error) throw new Error("The link could not be made.");
+  const { data: made, error } = await db().from("invitations").insert({ workspace_id: actor.workspaceId, token: t, role, created_by: actor.personId, expires_at: new Date(Date.now() + 7 * DAY).toISOString() }).select("id").single();
+  if (error || !made) throw new Error("The link could not be made.");
+  await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: made.id, name: "Invite link" }, details: { role, by: "link" } });
   return t;
 }
 
@@ -150,8 +155,9 @@ export async function openInvitations(actor: Actor) {
 /** Revokes an invitation of the workspace. */
 export async function revokeInvitation(actor: Actor, id: number) {
   assertCan(actor, "manage-members");
-  const { data } = await db().from("invitations").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).select("id");
+  const { data } = await db().from("invitations").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).select("id, email, role, contact_person_id");
   if (!data?.length) throw new Forbidden();
+  await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: data[0].id, name: await invitationName(data[0]) }, details: { role: data[0].role } });
 }
 
 /** What an invitation offers, for its page: the workspace, the role and whether it still works. Nothing else. */
@@ -188,6 +194,7 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
     const { error } = await db().rpc("merge_contact", { ws: inv.workspace_id, contact: inv.contact_person_id, person: who.personId });
     if (error) throw new Error("Joining worked, but the contact's history could not be moved.");
   }
+  await recordAudit(inv.workspace_id, who.personId, { kind: "invitation.accepted", object: { type: "invitation", id: inv.id, name: await invitationName(inv) }, details: { role: existing ? (existing.role as string) : (inv.role as string), already_member: Boolean(existing) } });
   return inv.workspace_id as string;
 }
 
@@ -205,6 +212,7 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
   const { error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId);
   // The database refuses to leave a workspace without an Owner, also when two changes race.
   if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The role could not be changed.");
+  if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId) }, details: { from: current.role, to: role } });
 }
 
 /** Switches domain joining on for the domain of the Owner's own verified address, or off with null. */
@@ -217,7 +225,11 @@ export async function setJoinDomain(actor: Actor, ownerEmail: string | null, on:
     if (!domain) throw new Error("Your address needs to be verified first.");
     if (PUBLIC_DOMAINS.has(domain)) throw new Error(`${domain} is a public mail provider, not a company domain.`);
   }
+  const { data: before } = await db().from("workspaces").select("join_domain").eq("id", actor.workspaceId).single();
   await db().from("workspaces").update({ join_domain: domain }).eq("id", actor.workspaceId);
+  if ((before?.join_domain ?? null) !== domain) {
+    await audit(actor, { kind: domain ? "domain_joining.on" : "domain_joining.off", object: { type: "workspace", id: actor.workspaceId }, details: { domain: domain ?? before?.join_domain ?? null } });
+  }
 }
 
 /** Workspaces a signed-in person may ask to join by their verified address's domain, and that they are not in. */
@@ -241,6 +253,7 @@ export async function requestToJoin(who: SignedIn, workspaceId: string) {
   const { error } = await db().from("join_requests").insert({ workspace_id: workspaceId, person_id: who.personId });
   // Asked already: one open request per person is enough.
   if (error && error.code !== "23505") throw new Error("The request could not be sent.");
+  if (!error) await recordAudit(workspaceId, who.personId, { kind: "join_request.created", object: { type: "person", id: who.personId, name: await personName(who.personId) } });
 }
 
 /** Open requests to join the workspace, with who asked, for Owners and Admins. */
@@ -258,4 +271,17 @@ export async function decideJoinRequest(actor: Actor, id: number, approve: boole
     .eq("id", id).eq("workspace_id", actor.workspaceId).eq("status", "open").select("person_id");
   if (!r?.length) throw new Forbidden();
   if (approve) await db().from("memberships").upsert({ workspace_id: actor.workspaceId, user_id: r[0].person_id, role: "member" }, { onConflict: "workspace_id,user_id", ignoreDuplicates: true });
+  await audit(actor, { kind: approve ? "join_request.approved" : "join_request.declined", object: { type: "person", id: r[0].person_id, name: await personName(r[0].person_id) }, details: approve ? { role: "member" } : {} });
+}
+
+/** An invitation as the Audit Log names it: the Contact's name, the invited address, or a link. */
+async function invitationName(inv: { email: string | null; contact_person_id: string | null }): Promise<string | null> {
+  if (inv.contact_person_id) return personName(inv.contact_person_id);
+  return inv.email ?? "Invite link";
+}
+
+/** A person's name as the Audit Log keeps it. */
+async function personName(personId: string): Promise<string | null> {
+  const { data } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();
+  return (data?.name as string | undefined) ?? null;
 }
