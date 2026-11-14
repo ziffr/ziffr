@@ -1,6 +1,6 @@
 # 0004 Real email: the first real Connector
 
-**Status:** in progress. **Tracking issue:** #70 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0004`.
+**Status:** done. **Tracking issue:** #70 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0004`.
 
 ## Problem Statement
 

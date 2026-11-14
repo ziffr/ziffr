@@ -11,10 +11,23 @@ import { DEMO_WORKSPACE_ID } from "./team";
 export const MAX_ATTEMPTS = 5;
 
 /** What a send did: sent, failed (and will be retried, or not after MAX_ATTEMPTS), or nothing to do. */
-export type SendResult = "sent" | "failed" | "skipped";
+export type SendResult = "sent" | "failed" | "skipped" | "waiting";
+
+/** Emails one workspace may send in 24 hours; the rest wait in the queue. */
+export const MAIL_PER_WORKSPACE_PER_DAY = 500;
+/** Emails one inbox may get in an hour, from all workspaces together (counted by mailboxKey); the rest wait. */
+export const MAIL_PER_RECIPIENT_PER_HOUR = 20;
+/** Emails one person may cause in 24 hours (as the sender of Prompts, questions, notices), from all their workspaces. */
+export const MAIL_PER_SENDER_PER_DAY = 300;
+
+/** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
+export const FORM_LINK = "[your personal form link]";
+
+/** The kinds of Delivery a person can stop by email with one click: asking for values and reminding. */
+export const OPT_OUT_KINDS = ["prompt", "reminder"];
 
 /** A plain-text email ready to go out; `replyTo` is the Delivery's own reply address, when replies come back. */
-export type OutgoingMail = { to: string; subject: string; text: string; replyTo?: string };
+export type OutgoingMail = { to: string; subject: string; text: string; replyTo?: string; unsubscribe?: string };
 
 /** Sends one email and returns the provider's Message-ID; tests pass their own. */
 export type MailTransport = (mail: OutgoingMail) => Promise<{ messageId: string }>;
@@ -64,8 +77,11 @@ export const smtpTransport: MailTransport = async (mail) => {
   const info = await transporter.t.sendMail({
     from: name ? { name: headerSafe(name), address: fromAddress(process.env) } : fromAddress(process.env),
     to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
-    // Automated mail: no out-of-office replies to it (RFC 3834).
-    headers: { "Auto-Submitted": "auto-generated" },
+    // Automated mail: no out-of-office replies to it (RFC 3834). One-click unsubscribe where it applies (RFC 8058).
+    headers: {
+      "Auto-Submitted": "auto-generated",
+      ...(mail.unsubscribe ? { "List-Unsubscribe": `<${mail.unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
+    },
   });
   return { messageId: String(info.messageId ?? "") };
 };
@@ -107,19 +123,49 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
-  const now = new Date().toISOString();
-  const { data: claimed } = await db().from("deliveries").update({ mail_state: "sending", last_attempt_at: now })
-    .eq("id", id).eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).select("id, workspace_id, recipient_id, subject, body, attempts, reply_token").maybeSingle();
+  const { data: claimed } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id")
+    .eq("id", id).eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!claimed) return "skipped";
-  const attempts = Number(claimed.attempts) + 1;
-  const fail = async (why: string, final = false) => {
-    await db().from("deliveries").update({ mail_state: final || attempts >= MAX_ATTEMPTS ? "failed" : "queued", attempts, last_error: why.slice(0, 200) }).eq("id", id);
+  // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
+  const never = async (why: string) => {
+    await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
     return "failed" as const;
   };
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
-  if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled()) return fail("Email is not set up.", true);
+  if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled()) return never("Email is not set up.");
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
-  if (!to) return fail("No usable email address for this person here.", true);
+  if (!to) return never("No usable email address for this person here.");
+  // Someone who stopped Prompts and reminders by email gets none, also ones queued before they stopped.
+  const stoppable = OPT_OUT_KINDS.includes(claimed.kind);
+  if (stoppable) {
+    const { data: out } = await db().from("email_opt_outs").select("person_id").eq("workspace_id", claimed.workspace_id).eq("person_id", claimed.recipient_id).maybeSingle();
+    if (out) return never("They stopped reminders by email.");
+  }
+  // Claimed in the database within the limits, counted by inbox and by sender across all workspaces, so neither
+  // parallel sends nor many Contacts or workspaces for one inbox pass them; over a limit it waits.
+  const { data: claim, error } = await db().rpc("claim_delivery_send", {
+    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: MAIL_PER_WORKSPACE_PER_DAY, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: MAIL_PER_SENDER_PER_DAY, p_max_attempts: MAX_ATTEMPTS,
+  });
+  if (error) throw new Error("The email could not be claimed for sending.");
+  if (claim === "wait") return "waiting";
+  if (claim !== "ok") return "skipped";
+  const attempts = Number(claimed.attempts) + 1;
+  const fail = async (why: string) => {
+    await db().from("deliveries").update({ mail_state: attempts >= MAX_ATTEMPTS ? "failed" : "queued", attempts, last_error: why.slice(0, 200) }).eq("id", id);
+    return "failed" as const;
+  };
+  let unsubscribe: string | undefined;
+  let text = String(claimed.body);
+  if (text.includes(FORM_LINK)) {
+    const { data: token } = claimed.form_token_id ? await db().from("tokens").select("code").eq("id", claimed.form_token_id).eq("workspace_id", claimed.workspace_id).maybeSingle() : { data: null };
+    text = text.split(FORM_LINK).join(token ? `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/submit/${token.code}` : `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/`);
+  }
+  if (stoppable) {
+    const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
+    if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
+    unsubscribe = `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
+    text += `\n\n--\nTo get no more of these by email: ${unsubscribe}`;
+  }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
   if (inboundEnabled()) {
@@ -128,7 +174,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     replyTo = replyAddress(token);
   }
   try {
-    const { messageId } = await transport({ to, subject: headerSafe(claimed.subject), text: String(claimed.body), replyTo });
+    const { messageId } = await transport({ to, subject: headerSafe(claimed.subject), text, replyTo, unsubscribe });
     await db().from("deliveries").update({ mail_state: "sent", attempts, sent_at: new Date().toISOString(), provider_id: messageId.slice(0, 300) || null, last_error: null }).eq("id", id);
     return "sent";
   } catch (e) {
@@ -142,8 +188,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
 export async function sendWaiting(limit = 50, transport: MailTransport = smtpTransport): Promise<{ sent: number; failed: number }> {
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  const { data } = await db().from("deliveries").select("id, attempts, last_attempt_at").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).order("id").limit(Math.min(Math.max(limit, 1), 500));
-  const due = (data ?? []).filter((d) => !d.last_attempt_at || Date.now() - new Date(d.last_attempt_at).getTime() >= 60_000 * 2 ** Math.max(0, Number(d.attempts) - 1));
+  // Ones waiting out a limit (not_before) are left for later, so they hold up nobody else's.
+  const { data } = await db().from("deliveries").select("id, attempts, last_attempt_at, not_before").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).order("id").limit(2000);
+  const now = Date.now();
+  const due = (data ?? []).filter((d) => (!d.not_before || new Date(d.not_before).getTime() <= now)
+    && (!d.last_attempt_at || now - new Date(d.last_attempt_at).getTime() >= 60_000 * 2 ** Math.max(0, Number(d.attempts) - 1))).slice(0, Math.min(Math.max(limit, 1), 500));
   let sent = 0;
   let failed = 0;
   for (const d of due) {

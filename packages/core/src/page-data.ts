@@ -34,7 +34,9 @@ export async function connectorsView(actor: Actor) {
   const visible = (deliveries ?? []).filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser (in the demo, all of the demo).
   const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
-  return { prefs: prefs ?? [], deliveries: visible, tokens: own, isAdmin: await isAdmin(actor) };
+  // A form link in an older Prompt's text opens its recipient's form: only they (and the demo) see it.
+  const shown = visible.map((d) => (inDemo(actor) || d.recipient_id === actor.personId ? d : { ...d, body: String(d.body).replace(/\S*\/submit\/tk-[A-Za-z0-9_-]+/g, "[their personal form link]") }));
+  return { prefs: prefs ?? [], deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
 }
 
 /** The Sources page: Prompts and the intake log of the workspace, and the form links that are the person's. */

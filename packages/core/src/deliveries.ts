@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { periodLabel, periodStart } from "./format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
-import { inboundEnabled, initialMailState, sendNow } from "./mail";
+import { FORM_LINK, inboundEnabled, initialMailState, sendNow } from "./mail";
 import type { Period, Profile } from "./types";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -102,9 +102,9 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const label = period !== current ? `for ${periodLabel(period, metric.period as Period)}` : metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
-  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: linkTo(`/submit/${token.code}`) });
+  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: FORM_LINK });
   const mail_state = initialMailState(via, metric.workspace_id);
-  const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state }).select("id").single();
+  const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
   await sendNow(d?.id, mail_state);
   return true;
 }

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { askForMissingValues, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
+import { askForMissingValues, emailRemindersAgain, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
 import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -32,13 +32,21 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
   { id: "update", label: "Replies and updates" },
 ];
 
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[] }) {
+/** Connectors, Delivery Preferences and the Outbox. `email` says whether this Ziffr sends real email, and takes
+ * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004). */
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both" }) {
   const [pending, start] = useTransition();
   const name = (id: string | null) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
   const pref = (user: string | null, kind: PreferenceKind) => prefs.find((p) => p.user_id === user && p.kind === kind)?.connector ?? null;
 
   return (
     <div className="space-y-12">
+      {optedOut && (
+        <p role="status" className="stock flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] p-4 text-sm">
+          You stopped requests for numbers and reminders by email in this workspace.
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await emailRemindersAgain(); toast.success("You get them by email again"); })}>Get them by email again</Button>
+        </p>
+      )}
       <section aria-labelledby="c-h">
         <h2 id="c-h" className="mb-3 text-[length:var(--text-lg)]">Connected systems</h2>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -53,7 +61,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                   {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
                 </ul>
                 {c.sourceId && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
-                <p className="mt-3 text-xs text-muted-foreground">Simulated in the prototype.</p>
+                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : "Simulated in the prototype."}</p>
               </li>
             );
           })}
