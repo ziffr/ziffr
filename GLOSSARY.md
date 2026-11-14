@@ -228,6 +228,10 @@ _Avoid_: External user, anonymous submitter
 A secret a person creates so a program can use the API on their behalf, limited to some actions (such as reading metrics or submitting values), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
+**Access Log**:
+The record of every call a program made with an access key: when, what it asked for, and whether it worked. Owners and Admins see it for every key in their workspace, a person for their own keys.
+_Avoid_: Audit trail, request log, API history
+
 **Demo Mode**:
 A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people and resetting it. It sits next to real workspaces and never reaches them, and an installation can switch it off.
 _Avoid_: Sandbox, test mode

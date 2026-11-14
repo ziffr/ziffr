@@ -1,6 +1,6 @@
 # 0001 Hardening: workspaces, sign-in and one core
 
-**Status:** in progress. **Tracking issue:** #1 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0001`.
+**Status:** done. **Tracking issue:** #1 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0001`.
 
 ## Problem Statement
 
