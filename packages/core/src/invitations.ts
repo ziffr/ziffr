@@ -6,10 +6,9 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
-import { mailEnabled, sendMail, type MailTransport } from "./mail";
+import { headerSafe, isAddress, mailboxKey, mailEnabled, sendMail, type MailTransport } from "./mail";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DAY = 86_400_000;
 /** Mail providers anyone can sign up with: their domain says nothing about a company. */
 const PUBLIC_DOMAINS = new Set([
@@ -44,31 +43,53 @@ const RESEND_AFTER = 60_000;
 
 const ROLE_LABEL: Record<WorkspaceRoleName, string> = { owner: "an Owner", admin: "an Admin", member: "a Member", guest: "a Guest" };
 
+/** Invitation emails one workspace may send in 24 hours. With the next, it keeps an invitation from being a way to
+ * mail strangers: anyone who may invite could otherwise send any address mail. */
+export const INVITATION_EMAILS_PER_WORKSPACE = 50;
+/** Invitation emails one address may get in 24 hours, from all workspaces together. */
+export const INVITATION_EMAILS_PER_ADDRESS = 3;
+/** Invitation emails one person may cause in 24 hours (by inviting or resending), from all their workspaces. */
+export const INVITATION_EMAILS_PER_SENDER = 50;
+
 /** Emails an invitation with its link (spec 0004), and notes on it whether that worked. Never throws: the
- * invitation stands either way, and the Team page says whether it went out. */
-async function emailInvitation(id: number, transport?: MailTransport): Promise<boolean> {
-  const { data: inv } = await db().from("invitations").select("id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name)").eq("id", id).maybeSingle();
+ * invitation stands either way, and the Team page says whether it went out. A send is claimed first, in one
+ * database transaction with the limits (claim_invitation_email), so sends at once cannot pass them. */
+async function emailInvitation(id: number, sender: string, transport?: MailTransport): Promise<boolean> {
+  const { data: inv } = await db().from("invitations").select("id, workspace_id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name)").eq("id", id).maybeSingle();
   if (!inv?.email || inv.email_sends >= MAX_SENDS) return false;
-  const workspace = (inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace";
-  const inviter = (inv.profiles as unknown as { name: string } | null)?.name ?? "Someone";
+  // Claimed in the database under locks on the address and the workspace, counting the day's real sends there.
+  const { data: claim, error } = await db().rpc("claim_invitation_email", {
+    p_invitation: inv.id, p_sender: sender, p_address_key: mailboxKey(inv.email),
+    p_per_workspace: INVITATION_EMAILS_PER_WORKSPACE, p_per_address: INVITATION_EMAILS_PER_ADDRESS, p_per_sender: INVITATION_EMAILS_PER_SENDER,
+  });
+  if (error) return false;
+  if (claim === "limit") {
+    await db().from("invitations").update({ email_error: "Too many invitation emails today; send the link yourself." }).eq("id", id);
+    return false;
+  }
+  if (claim !== "ok") return false;
+  // Names people chose go in the body, quoted, never in the subject, so the subject cannot pass for another sender's.
+  // Each on one line, at most 80 characters, without quote marks of its own, and always inside quotes after fixed text.
+  const named = (s: string) => headerSafe(s).replace(/[“”"«»„]/g, "'").slice(0, 80);
+  const workspace = named((inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace");
+  const inviter = named((inv.profiles as unknown as { name: string } | null)?.name ?? "someone");
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
   try {
     await sendMail({
       to: inv.email,
-      subject: `${inviter} invited you to ${workspace} on Ziffr`,
+      subject: "You are invited to a workspace on Ziffr",
       text: [
         "Hi,", "",
-        `${inviter} invited you to join ${workspace} on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}.`, "",
+        `You are invited to join the workspace “${workspace}” on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}, by “${inviter}”.`, "",
         `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
         `The invitation works until ${until}, and only for this address (${inv.email}).`,
-        "If you did not expect it, you can ignore this email.",
+        "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
       ].join("\n"),
     }, transport);
-    await db().from("invitations").update({ email_sent_at: new Date().toISOString(), email_sends: inv.email_sends + 1, email_error: null }).eq("id", id);
     return true;
   } catch (e) {
-    const why = (e as { code?: string }).code ? `The mail server refused it (${(e as { code: string }).code}).` : (e as Error).message;
-    await db().from("invitations").update({ email_sends: inv.email_sends + 1, email_error: why.slice(0, 200) }).eq("id", id);
+    // Only the kind of failure: the server's own words may hold addresses or settings.
+    await db().from("invitations").update({ email_error: `The mail server refused it (${(e as { code?: string }).code ?? "error"}).` }).eq("id", id);
     return false;
   }
 }
@@ -79,7 +100,8 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
   notDemo(actor);
   assertMayGrant(actor, input.role);
   const email = String(input.email ?? "").trim().toLowerCase();
-  if (!EMAIL.test(email)) throw new Error("Enter a valid email address.");
+  // The same check as sending, so an invitation is never made for an address mail cannot go to.
+  if (!isAddress(email)) throw new Error("Enter a valid email address.");
   if (input.contactPersonId) {
     const { data } = await db().from("contacts").select("person_id").eq("workspace_id", actor.workspaceId).eq("person_id", input.contactPersonId).maybeSingle();
     if (!data) throw new Forbidden();
@@ -90,7 +112,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
     created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(),
   }).select("id").single();
   if (error || !made) throw new Error("The invitation could not be made.");
-  if (mailEnabled()) await emailInvitation(made.id, transport);
+  if (mailEnabled()) await emailInvitation(made.id, actor.personId, transport);
   return t;
 }
 
@@ -103,7 +125,7 @@ export async function resendInvitation(actor: Actor, id: number, transport?: Mai
   if (!inv || !inv.email || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
   if (inv.email_sends >= MAX_SENDS) throw new Error("This invitation was emailed three times already; send the link yourself.");
   if (inv.email_sent_at && Date.now() - new Date(inv.email_sent_at).getTime() < RESEND_AFTER) throw new Error("It was emailed a moment ago.");
-  if (!(await emailInvitation(inv.id, transport))) throw new Error("The email could not be sent; try again later.");
+  if (!(await emailInvitation(inv.id, actor.personId, transport))) throw new Error("The email could not be sent; try again later.");
 }
 
 /** A link anyone with it can join by, as Member or Guest, for 7 days. Returns its token. */

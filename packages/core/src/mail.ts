@@ -22,10 +22,23 @@ export type MailTransport = (mail: OutgoingMail) => Promise<{ messageId: string 
 const ADDRESS = /^[^\s@<>,;:"()[\]\\]+@[^\s@<>,;:"()[\]\\]+\.[^\s@<>,;:"()[\]\\]+$/;
 
 /** Whether this is one plain email address, safe to put in a header. */
-export const isAddress = (s: unknown): s is string => typeof s === "string" && s.length <= 254 && ADDRESS.test(s);
+export const isAddress = (s: unknown): s is string => typeof s === "string" && s.length <= 254 && ADDRESS.test(s) && !/\.\.|\.$|@\./.test(s);
 
-/** A header value on one line: line breaks and other control characters become spaces, at most 200 characters. */
-export const headerSafe = (s: string) => String(s).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+/** A header value, or a name people chose put into a message, on one line: line breaks (Unicode ones too) and other
+ * control characters become spaces, at most 200 characters. */
+export const headerSafe = (s: string) => String(s).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+
+/** The mailbox an address reaches, for counting mail to one person: lower case, no "+tag", and for Gmail no dots
+ * (Gmail ignores both), so the same inbox is not counted as many. */
+export function mailboxKey(address: string): string {
+  const [local, raw = ""] = String(address).toLowerCase().trim().split("@");
+  // One spelling per domain: no trailing dot, international names in their ASCII (punycode) form.
+  let domain = raw.replace(/\.+$/, "");
+  try { domain = new URL(`http://${domain}`).hostname; } catch { /* kept as typed; isAddress refuses most such */ }
+  const gmail = domain === "gmail.com" || domain === "googlemail.com";
+  const base = local.split("+")[0];
+  return `${gmail ? base.replace(/\./g, "") : base}@${gmail ? "gmail.com" : domain}`;
+}
 
 /** Whether this Ziffr sends email: the SMTP server, a sender that is one plain address, and ZIFFR_SITE_URL, since an
  * email whose links lead nowhere is worse than none. */
