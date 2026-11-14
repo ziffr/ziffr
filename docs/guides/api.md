@@ -20,6 +20,10 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 - **Every call is logged** in the key's Access Log: when, the method, the route (`/api/v1/metrics/{slug}`, without query or slug), and the status, never what was sent. The key's creator sees it on the Team page, Owners and Admins for every key; entries are kept 90 days.
 - **Nothing is cached** (`Cache-Control: no-store`), and the API sends no CORS headers: call it from a server or a script, never from a web page, which would expose the key.
 
+## From TypeScript
+
+[`@ziffr/sdk`](../../packages/sdk/README.md) wraps every endpoint with types, pages for you, waits out a 429 and sends an idempotency key with each submission.
+
 ## Endpoints
 
 Every endpoint, its parameters, answers and errors are in the [API reference](../reference/api.md), generated from the server's own validation. Programs can read the same description as OpenAPI 3.1 at `/api/v1/openapi.json` (no key needed) and generate a client from it in any language.

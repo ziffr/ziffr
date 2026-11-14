@@ -75,6 +75,17 @@ jobs:
       - run: pnpm --filter @ziffr/core test:db
       - name: The API over HTTP (route handlers against the same database)
         run: pnpm --filter @ziffr/web test:db
+      - name: The app, built and running, for the SDK
+        run: |
+          # The local Supabase's address and keys are fixed development values, not secrets.
+          eval "$(supabase status -o json | node -e 'const s = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const k of ["API_URL", "ANON_KEY", "SERVICE_ROLE_KEY"]) console.log(`export ${k}=${JSON.stringify(s[k])}`)')"
+          export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          pnpm --filter @ziffr/web build
+          (cd apps/web && nohup node ./node_modules/next/dist/bin/next start -p 3000 > "$RUNNER_TEMP/app.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/v1/openapi.json > /dev/null && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/app.log"; exit 1
+      - name: The SDK against the running app
+        run: pnpm --filter @ziffr/sdk test:app
   docs:
     runs-on: ubuntu-latest
     steps:

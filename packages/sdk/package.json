@@ -1,0 +1,43 @@
+{
+  "name": "@ziffr/sdk",
+  "version": "0.1.0",
+  "description": "Call the Ziffr API from TypeScript: read Metrics and their values, submit values.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/ziffr/ziffr.git", "directory": "packages/sdk" },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:app": "vitest run --config vitest.app.config.ts"
+  },
+  "devDependencies": {
+    "@ziffr/core": "workspace:*",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsdoc": "^65.4.5",
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^3.2.4"
+  }
+}
