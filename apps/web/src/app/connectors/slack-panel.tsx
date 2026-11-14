@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 import { connectSlack, disconnectSlack, slackLinkCode, slackRemindersAgain, unlinkSlack } from "@/app/connector-actions";
 import type { SlackConnectionView } from "@ziffr/core/slack-connection";
 
@@ -13,11 +14,13 @@ import type { SlackConnectionView } from "@ziffr/core/slack-connection";
  * Prompts and reminders on Slack; `notice`, what "Add to Slack" did. */
 export function SlackPanel({ connection, link, stopped, notice }: { connection: SlackConnectionView; link: "code" | "email" | null; stopped: boolean; notice?: string }) {
   const [pending, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const [code, setCode] = useState<{ code: string; minutes: number } | null>(null);
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
   const team = connection.team;
   return (
     <section aria-labelledby="slack-h" className="stock mb-12 rounded-[var(--radius-card)] p-4 text-sm">
+      {dialog}
       <h2 id="slack-h" className="flex items-center gap-2 text-[length:var(--text-lg)]"><MessageSquare aria-hidden className="size-4" /> Slack</h2>
       {notice && <p role="status" className="mt-2 font-medium">{notice}</p>}
       {stopped && (
@@ -33,7 +36,7 @@ export function SlackPanel({ connection, link, stopped, notice }: { connection: 
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {connection.canManage && !team && <form action={connectSlack}><Button type="submit" disabled={pending}>Add to Slack</Button></form>}
-        {connection.canManage && team && <Button variant="outline" disabled={pending} onClick={() => { if (confirm("Disconnect Slack? Nobody gets messages there any more until it is connected again.")) run(() => disconnectSlack(), "Slack is disconnected"); }}>Disconnect Slack</Button>}
+        {connection.canManage && team && <Button variant="outline" disabled={pending} onClick={async () => { if (await confirm({ title: "Disconnect Slack?", description: "Nobody gets messages there any more until it is connected again. Who was found on Slack is forgotten.", confirmLabel: "Disconnect Slack" })) run(() => disconnectSlack(), "Slack is disconnected"); }}>Disconnect Slack</Button>}
       </div>
       {team && (
         <div className="mt-4 border-t border-border pt-3">

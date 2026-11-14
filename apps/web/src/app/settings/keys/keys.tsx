@@ -9,6 +9,7 @@ import { createKey, revokeKey } from "@/app/key-actions";
 import type { AccessKeyInfo } from "@ziffr/core/access-keys";
 import type { AccessLogEntry } from "@ziffr/core/access-log";
 import type { Scope } from "@ziffr/core/actor";
+import { formatDate } from "@ziffr/core/format";
 
 const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -36,7 +37,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
             <li key={k.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
               <span className="font-medium">{k.name}</span>
               <span className="text-muted-foreground">{k.scopes.map((s) => SCOPE_LABEL[s as Scope] ?? s).join(", ")}</span>
-              <span className="text-muted-foreground">{k.revoked ? "revoked" : `until ${k.expires_on}`}</span>
+              <span className="text-muted-foreground">{k.revoked ? "revoked" : `until ${formatDate(k.expires_on)}`}</span>
               {k.created_by !== viewer && <span className="text-muted-foreground">by {people[k.created_by] ?? "someone"}</span>}
               {!k.revoked && (isOwner || k.created_by === viewer) && (
                 <button type="button" aria-label={`Revoke ${k.name}`} disabled={pending} onClick={() => run(() => revokeKey(k.id), "Key revoked")} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>

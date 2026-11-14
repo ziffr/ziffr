@@ -106,7 +106,7 @@ async function seenBy(actor: Actor) {
     visibleDashboards(ws, actor.personId),
     visibleDecks(ws, actor.personId),
   ]);
-  return { metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)) };
+  return { reader: actor.personId, metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)) };
 }
 
 /** The first instant of a calendar day in a time zone. */
@@ -144,8 +144,9 @@ async function rows(actor: Actor, f: AuditFilter, timeZone: string, before: numb
 /** A stored row as the reader may see it: names of Metrics, dashboards and decks they do not see are left out. */
 function shown(r: Row, seen: Awaited<ReturnType<typeof seenBy>>): AuditEvent {
   const type = r.object_type as AuditObjectType | null;
-  // Only what the reader may see goes out: Owners and Admins do not see every Metric, dashboard or deck.
-  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && !seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id)));
+  // Only what the reader may see goes out: Owners and Admins do not see every Metric, dashboard or deck. What they did
+  // themselves they saw when they did it, so a Metric they deleted keeps its name for them.
+  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && r.actor_id !== seen.reader && !seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id)));
   return {
     id: r.id, at: r.at, actorId: r.actor_id, actorName: r.actor_name, kind: r.kind as AuditKind, label: AUDIT_KINDS[r.kind as AuditKind] ?? r.kind,
     // Its details too (who it was shared with, periods, key names): the reader learns only that something happened.

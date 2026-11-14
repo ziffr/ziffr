@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { changeRole, createInviteLink, decideJoin, inviteMember, removeMemberWithHandover, resendInvitation, revokeInvitation, setDomainJoining } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { Profile } from "@ziffr/core/types";
+import { formatDate } from "@ziffr/core/format";
 
 const ROLES: { id: WorkspaceRoleName; label: string }[] = [
   { id: "owner", label: "Owner" }, { id: "admin", label: "Admin" }, { id: "member", label: "Member" }, { id: "guest", label: "Guest" },
@@ -88,7 +89,7 @@ export function Members(props: {
             <ul className="text-sm text-muted-foreground">
               {props.invitations.map((i) => (
                 <li key={i.id} className="flex items-center gap-2">
-                  {i.email ?? "Link"} as {ROLES.find((r) => r.id === i.role)?.label}, until {i.expires_at.slice(0, 10)}
+                  {i.email ?? "Link"} as {ROLES.find((r) => r.id === i.role)?.label}, until {formatDate(i.expires_at)}
                   {props.mailOn && i.email && (i.email_error ? <span className="text-destructive">· not emailed: {i.email_error}</span> : i.email_sent_at ? <span>· emailed{i.email_sends > 1 ? ` ${i.email_sends} times` : ""}</span> : null)}
                   {props.mailOn && i.email && i.email_sends < 3 && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => resendInvitation(i.id), "Emailed again")}>Resend</Button>}
                   <button type="button" aria-label={`Revoke invitation ${i.email ?? "link"}`} disabled={pending} onClick={() => run(() => revokeInvitation(i.id), "Revoked")} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>

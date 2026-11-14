@@ -51,9 +51,10 @@ An **Audit Log**: one add-only record per Workspace of the events that change wh
 
 ## Out of Scope
 
-Members seeing their own events; alerts on events; sending the log to another system (a SIEM); events for every edit of a Metric, dashboard or deck (Versions keep those, under Activity); deleting Metrics (Ziffr has no way to delete one yet; the kind is added with it); changing the retention per workspace; signing the log cryptographically.
+Members seeing their own events; alerts on events; sending the log to another system (a SIEM); events for every edit of a Metric, dashboard or deck (Versions keep those, under Activity); changing the retention per workspace; signing the log cryptographically.
 
 ## Further Notes
 
 - The Access Log stays as it is: it records calls, not decisions, and is kept 90 days.
 - A Metric created through the API names the key in the event, as its first Version does.
+- **Deleting a Metric** (added after the first release of the log): only its owner deletes it, by typing its name, never in the demo, and never while a Derived Metric's formula, a widget, a deck or a View Link that still works uses it. Its values, Tokens, Prompts, Actions, targets, Locks and Shares go with it; its Versions stay. `metric.deleted` keeps its name and how many values went. Readers who did not see the Metric get neither, except the person who deleted it, who saw it then.

@@ -7,6 +7,7 @@ import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValue
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { TargetsEditor } from "./series-form";
+import { DeleteMetric } from "./delete-metric";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
@@ -128,6 +129,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
           {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
           <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+          {/* Only the owner deletes a Metric; the demo's Metrics stay for every visitor. */}
+          {isOwner && !demo && <DeleteMetric metricId={metric.id} name={metric.name} />}
         </ObjectToolbar>
       </PageHeader>
 

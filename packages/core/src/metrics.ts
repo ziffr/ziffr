@@ -10,6 +10,11 @@ import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionR
 import { recordVersion } from "./versions";
 import { deliverPrompt } from "./deliveries";
 import { audit } from "./audit-log";
+import { formulaInputs } from "./formula";
+import { widgetMetricIds } from "./widget-metrics";
+import { deckMetricIds } from "./visibility";
+import { DEMO_WORKSPACE_ID } from "./team";
+import { allRows } from "./workspace-data";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -149,6 +154,61 @@ export const metricEffects: MetricEffects = {
 
 /** Reading series lines is pure and lives in series-lines, so the browser can preview with the same rules. */
 export { parseSeriesLine };
+
+/** Deletes a Metric with its values, Tokens, Prompts, Actions, targets and Locks, for its owner only. The owner types
+ * its name to confirm. Refused while anything else uses it (a Derived Metric's formula, a widget, a deck, a View Link
+ * that still works), so nothing people built breaks or silently shows less; in the demo too, which every visitor shares.
+ * The Audit Log keeps who deleted it and its name. Returns how many values went with it. */
+export async function deleteMetric(actor: Actor, metricId: number, confirmName: string): Promise<{ values: number }> {
+  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
+  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's Metrics stay.");
+  const ws = actor.workspaceId;
+  const { data: m } = await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
+  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner deletes it.");
+  if (String(confirmName ?? "").trim() !== m.name) throw new Error("Type the Metric's name to delete it.");
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: derived }, { data: widgets }, { data: decks }, { data: links }] = await Promise.all([
+    db().from("metrics").select("name, formula").eq("workspace_id", ws).not("formula", "is", null),
+    db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
+    db().from("decks").select("document").eq("workspace_id", ws),
+    db().from("view_links").select("metric_ids").eq("workspace_id", ws).is("revoked_at", null).gte("expires_at", today),
+  ]);
+  // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
+  const usedBy = (derived ?? []).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
+  if (usedBy.length) throw new Error(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
+  const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
+  const inDecks = (decks ?? []).filter((d) => deckMetricIds(d.document).includes(metricId)).length;
+  if (inWidgets || inDecks) throw new Error(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
+  if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new Error("A View Link that still works shows it. Revoke the link first.");
+  const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
+  // The intake log keeps what arrived, without the Metric it was for.
+  await db().from("intake_log").update({ metric_id: null }).eq("workspace_id", ws).eq("metric_id", metricId);
+  await db().from("shares").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId);
+  await db().from("access_requests").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId);
+  await removeValuesAndHistory(ws, metricId);
+  const { data: gone, error } = await db().from("metrics").delete().eq("id", metricId).eq("workspace_id", ws).select("id");
+  if (error || !gone?.length) throw new Error("The Metric could not be deleted.");
+  await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, details: { values: count ?? 0 } });
+  return { values: count ?? 0 };
+}
+
+/** Removes a Metric's values, Breakdowns and their history, while the Metric still exists. Deleting the Metric first
+ * would cascade to them, and the history triggers, which find a row's workspace through its Metric, would then file
+ * that history under the default workspace (the demo). Here every row is removed explicitly, in its own workspace. */
+async function removeValuesAndHistory(ws: string, metricId: number): Promise<void> {
+  const live = await allRows<{ id: number }>((from, to) => db().from("observations").select("id").eq("workspace_id", ws).eq("metric_id", metricId).order("id").range(from, to));
+  const replaced = await allRows<{ observation_id: number }>((from, to) => db().from("observation_history").select("observation_id").eq("workspace_id", ws).eq("metric_id", metricId).order("observation_id").range(from, to));
+  const ids = [...new Set([...live.map((o) => o.id), ...replaced.map((o) => o.observation_id)])];
+  const must = (r: { error: unknown }) => { if (r.error) throw new Error("The Metric could not be deleted."); };
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    // Breakdown rows first (their history is written with their value's workspace), then that history.
+    must(await db().from("breakdown_rows").delete().eq("workspace_id", ws).in("observation_id", chunk));
+    must(await db().from("breakdown_history").delete().eq("workspace_id", ws).in("observation_id", chunk));
+  }
+  must(await db().from("observations").delete().eq("workspace_id", ws).eq("metric_id", metricId));
+  must(await db().from("observation_history").delete().eq("workspace_id", ws).eq("metric_id", metricId));
+}
 
 /** The Metric owner uploads a Target Series or Projection, one "period value" line each; lines that cannot be read
  * are skipped and counted. */

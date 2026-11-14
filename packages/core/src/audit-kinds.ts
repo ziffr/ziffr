@@ -27,6 +27,7 @@ export const AUDIT_KINDS = {
   "access_key.created": "created the Access Key",
   "access_key.revoked": "revoked the Access Key",
   "metric.created": "created the Metric",
+  "metric.deleted": "deleted the Metric",
   "metric.workflow_set": "chose the Workflow of",
   "period.locked": "locked a period of",
   "period.unlocked": "unlocked a period of",

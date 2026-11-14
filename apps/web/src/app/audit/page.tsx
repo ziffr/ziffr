@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { auditLog, AUDIT_EXPORT_CAP, AUDIT_RETENTION_DAYS, type AuditEvent } from "@ziffr/core/audit-log";
+import { formatDate } from "@ziffr/core/format";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", viewer: "Viewer", editor: "Editor" };
@@ -41,9 +42,10 @@ function detailText(e: AuditEvent): string {
     case "share.granted": case "share.removed": return `${d.to_type === "group" ? "Group " : ""}${d.to_name ?? "someone"} as ${role(d.role)}${d.from_role ? ` (was ${role(d.from_role)})` : ""}`;
     case "group.renamed": return `from “${d.from}”`;
     case "group.member_added": case "group.member_removed": return String(d.person_name ?? "");
-    case "view_link.created": return `${d.frozen ? "frozen" : "live"}, until ${d.expires_on}`;
-    case "access_key.created": return `${(d.scopes as string[] | undefined)?.join(", ") ?? ""}, until ${d.expires_on}`;
+    case "view_link.created": return `${d.frozen ? "frozen" : "live"}, until ${formatDate(String(d.expires_on))}`;
+    case "access_key.created": return `${(d.scopes as string[] | undefined)?.join(", ") ?? ""}, until ${formatDate(String(d.expires_on))}`;
     case "metric.created": return d.key_name ? `with the key ${d.key_name}` : "";
+    case "metric.deleted": return `${d.values ?? 0} values went with it`;
     case "metric.workflow_set": return d.workflow_name ? `now ${d.workflow_name}` : "no Workflow now";
     case "period.locked": case "period.unlocked": case "approval.given": case "approval.sent_back": case "correction.accepted": case "correction.declined": return String(d.period ?? "");
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;

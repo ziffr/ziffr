@@ -40,7 +40,7 @@ const mix = (a: string, b: string, pct: number) => `color-mix(in oklab, ${a} ${p
 export function themeVars(t: ThemeTokens): Record<string, string | number | undefined> {
   const heading = FONTS[t.fontHeading]?.stack ?? FONTS["general-sans"].stack;
   const body = FONTS[t.fontBody]?.stack ?? FONTS["general-sans"].stack;
-  const figures = FONTS[t.fontFigures]?.stack ?? FONTS["geist-mono"].stack;
+  const figures = FONTS[t.fontFigures]?.stack ?? body;
   const paper2 = mix(t.ink, t.surface, 5);
   const paper3 = mix(t.ink, t.surface, 9);
   const rule2 = mix(t.ink, t.rule, 12);
@@ -79,7 +79,8 @@ export const STARTER_THEME: { name: string; tokens: ThemeTokens; slides: ThemeSl
   tokens: {
     canvas: "#F0EBE7", surface: "#FDFBF8", ink: "#221B19", muted: "#615955", rule: "#D9D3CF", accent: "#BB3D31",
     data: ["#312926", "#8C7B6E", "#C7BFBA", "#5E7C6B"], good: "#21763C", bad: "#BE2323", band: "#E8E1DD",
-    fontHeading: "general-sans", fontBody: "general-sans", fontFigures: "geist-mono", radius: 8, cards: "paper",
+    // Figures in the body font (with tabular digits): monospaced numbers read like code.
+    fontHeading: "general-sans", fontBody: "general-sans", fontFigures: "general-sans", radius: 8, cards: "paper",
   },
   slides: { background_image: null, logo: null, logo_ratio: 3, logo_position: "top-right", logo_width: 140, footer: "", show_slide_number: true, title_size: 56, body_size: 24 },
 };

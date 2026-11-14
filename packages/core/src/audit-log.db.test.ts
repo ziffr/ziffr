@@ -12,7 +12,7 @@ import { share, shareWithGroup } from "./sharing";
 import { createViewLink, revokeViewLink } from "./view-links";
 import { createDashboard } from "./dashboards";
 import { createAccessKey, revokeAccessKey } from "./access-keys";
-import { createMetric } from "./metrics";
+import { createMetric, deleteMetric } from "./metrics";
 import { approveValue, closeWorkflowPeriod, lockPeriod, saveWorkflow, sendValueBack, setMetricWorkflow } from "./workflows";
 import { decideCorrection, submitValue } from "./submissions";
 import { setWorkspaceClock } from "./workspace-clock";
@@ -145,6 +145,37 @@ describe("recording", () => {
     // What an event says, not its ids or times: those can hold the digits 777 by chance.
     const all = JSON.stringify(rows.map((r) => [r.details, r.object_name, r.actor_name]));
     for (const secret of ["777", "888", "secret-comment", "private reason"]) expect(all).not.toContain(secret);
+  });
+
+  it("deletes a Metric only for its owner, never while something uses it, and records it", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ada = await w.person("admin");
+    const m = await createMetric(w.actor(ben, "member"), { name: "Old leads" }, quiet);
+    const obs = await w.value(m.id, month, 7);
+    // A value with a Breakdown, both changed once, so there is history of each.
+    await db().from("breakdown_rows").insert({ observation_id: obs, label: "Shop", value: 3, position: 0, workspace_id: w.id });
+    await db().from("breakdown_rows").update({ value: 4 }).eq("observation_id", obs);
+    await db().from("observations").update({ value: 8 }).eq("id", obs);
+    await expect(deleteMetric(w.actor(sara), m.id, "Old leads")).rejects.toEqual(forbidden);
+    await expect(deleteMetric({ ...w.actor(ben, "member"), workspaceId: (await ws("Other")).id }, m.id, "Old leads")).rejects.toEqual(forbidden);
+    await expect(deleteMetric(w.actor(ben, "member"), m.id, "old leads")).rejects.toThrow(/Type the Metric's name/);
+    const derived = await w.metric(ben, { name: "Twice", formula: `{${m.slug}} * 2` });
+    await expect(deleteMetric(w.actor(ben, "member"), m.id, "Old leads")).rejects.toThrow(/computed from it/);
+    await db().from("metrics").delete().eq("id", derived.id);
+    const d = await createDashboard(w.actor(ben, "member"), "Board");
+    const { data: widget } = await db().from("widgets").insert({ owner_id: ben, dashboard_id: d, template: "number", metric_ids: [m.id], settings: {}, x: 0, y: 0, w: 4, h: 3, workspace_id: w.id }).select("id").single();
+    await expect(deleteMetric(w.actor(ben, "member"), m.id, "Old leads")).rejects.toThrow(/shown in 1 widget/);
+    await db().from("widgets").delete().eq("id", widget!.id);
+    expect(await deleteMetric(w.actor(ben, "member"), m.id, "Old leads")).toEqual({ values: 1 });
+    expect((await db().from("metrics").select("id").eq("id", m.id)).data).toEqual([]);
+    expect((await db().from("observations").select("id").eq("metric_id", m.id)).data).toEqual([]);
+    // Its values and their history went with it, in every workspace: none was filed under the demo (spec review).
+    expect((await db().from("observation_history").select("id").eq("metric_id", m.id)).data).toEqual([]);
+    expect((await db().from("breakdown_history").select("id").eq("observation_id", obs)).data).toEqual([]);
+    expect((await db().from("breakdown_rows").select("id").eq("observation_id", obs)).data).toEqual([]);
+    // Its deleter keeps the name; an Admin who never saw it learns only that a Metric was deleted.
+    await w.setRole(ben, "admin");
+    expect((await auditLog(w.actor(ben, "admin"))).events[0]).toMatchObject({ kind: "metric.deleted", objectName: "Old leads", details: { values: 1 } });
+    expect((await auditLog(w.actor(ada, "admin"))).events[0]).toMatchObject({ kind: "metric.deleted", objectName: null, hidden: true });
   });
 
   it("records a decided Correction without its value", async () => {

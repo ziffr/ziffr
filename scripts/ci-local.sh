@@ -55,7 +55,9 @@ cp apps/web/tsconfig.json /tmp/ziffr-ci-tsconfig.json
 pnpm --filter @ziffr/web exec next build >/dev/null || { cp /tmp/ziffr-ci-tsconfig.json apps/web/tsconfig.json; exit 1; }
 cp /tmp/ziffr-ci-tsconfig.json apps/web/tsconfig.json
 (cd apps/web && node ./node_modules/next/dist/bin/next start -p "$PORT" > /tmp/ziffr-ci-app.log 2>&1 & echo $! > /tmp/ziffr-ci-app.pid)
-trap 'kill "$(cat /tmp/ziffr-ci-app.pid)" 2>/dev/null || true' EXIT
+# `next start` runs the app in a child process (next-server) that outlives its parent: stop whatever listens on the
+# port as well, so no built app is left running after the checks.
+trap 'kill "$(cat /tmp/ziffr-ci-app.pid)" 2>/dev/null || true; lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true' EXIT
 for _ in $(seq 1 60); do curl -sf "http://localhost:$PORT/api/v1/openapi.json" >/dev/null && break; sleep 1; done
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/sdk test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/mcp test:app

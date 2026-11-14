@@ -135,9 +135,9 @@ export function AwayDates({ userId, current, can }: { userId: string; current?: 
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-1.5 text-xs disabled:opacity-60";
   return (
     <span className="flex items-center gap-1 text-xs text-muted-foreground">
-      <input type="date" aria-label="Away from" value={starts} disabled={!can || pending} onChange={(e) => { setStarts(e.target.value); if (ends && e.target.value) save(e.target.value, ends); }} className={field} />
+      <input type="date" lang="en-GB" aria-label="Away from" value={starts} disabled={!can || pending} onChange={(e) => { setStarts(e.target.value); if (ends && e.target.value) save(e.target.value, ends); }} className={field} />
       to
-      <input type="date" aria-label="Away until" value={ends} min={starts || undefined} disabled={!can || pending} onChange={(e) => { setEnds(e.target.value); if (starts && e.target.value) save(starts, e.target.value); }} className={field} />
+      <input type="date" lang="en-GB" aria-label="Away until" value={ends} min={starts || undefined} disabled={!can || pending} onChange={(e) => { setEnds(e.target.value); if (starts && e.target.value) save(starts, e.target.value); }} className={field} />
       {can && (starts || ends) && <button type="button" onClick={() => { setStarts(""); setEnds(""); save("", ""); }} className="underline">Clear</button>}
     </span>
   );
