@@ -46,9 +46,18 @@ export async function assertSubmittersIn(actor: Actor, personIds: string[]) {
   if (!ids.every((id) => known.has(id))) throw new Forbidden("Submitters must be members or Contacts of this workspace.");
 }
 
+/** Thrown when an Access Key created as many Metrics as it may in 24 hours (the database keeps the count). */
+export class TooManyMetrics extends Error {
+  constructor() {
+    super("This key created as many Metrics as it may in 24 hours.");
+    this.name = "TooManyMetrics";
+  }
+}
+
 /** Creates a Metric owned by the actor, with a random Token and a first Prompt for each submitter. Guests create
- * nothing; every field is checked against what Ziffr knows, never passed through. */
-export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects): Promise<{ id: number; slug: string }> {
+ * nothing; every field is checked against what Ziffr knows, never passed through. `accessKeyId` names the key a
+ * program created it with (spec 0003); the database then holds the key to its daily limit. */
+export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string }> {
   assertCan(actor, "create");
   const name = String(input.name ?? "").trim().slice(0, 120);
   if (!name) throw new Error("Give the Metric a name.");
@@ -70,7 +79,9 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
     from_catalog_id: numOrNull(input.fromCatalogId),
+    access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,
   }).select("id, slug, from_catalog_id").single();
+  if (error?.code === "ZF429") throw new TooManyMetrics();
   if (error || !metric) throw new Error("The Metric could not be created.");
   await effects.recordCreated(metric.id, actor.personId, metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   if (submitters.length) {

@@ -4,7 +4,7 @@
 // the secret is stored; the secret is shown once.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
-import { assertScope, Forbidden, SCOPES, type Actor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
+import { assertScope, can, Forbidden, SCOPES, type Actor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -25,6 +25,8 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const scopes = [...new Set(Array.isArray(input.scopes) ? input.scopes : [])];
   if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
+  // A key never does what its creator's role does not allow (spec 0003); the role is checked again on every call.
+  if (scopes.includes("metrics:write") && !can(actor, "create")) throw new Forbidden("Your role cannot create Metrics, so neither can a key of yours.");
   const latest = new Date(Date.now() + 365 * DAY).toISOString().slice(0, 10);
   const expires = String(input.expiresOn ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires <= today() || expires > latest) throw new Error("Pick an end date within a year.");

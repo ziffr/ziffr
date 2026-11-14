@@ -17,7 +17,8 @@ export type Page<T, C = number> = { items: T[]; next: C | null };
 /** A Metric as a program sees it in a list or on its own. */
 export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max"> & { derived: boolean };
 
-const toApi = (m: Metric): ApiMetric => ({
+/** A Metric in the shape programs see it. */
+export const toApi = (m: Metric): ApiMetric => ({
   slug: m.slug, name: m.name, description: m.description, period: m.period, format: m.format, unit: m.unit,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   derived: Boolean(m.formula),

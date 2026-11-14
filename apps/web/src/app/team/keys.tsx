@@ -10,14 +10,14 @@ import type { AccessKeyInfo } from "@ziffr/core/access-keys";
 import type { AccessLogEntry } from "@ziffr/core/access-log";
 import type { Scope } from "@ziffr/core/actor";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 /** The keys the viewer may see with their recent calls (the Access Log), a form to make one, and the new secret once.
  * Admins see every key but may revoke only their own; Owners may revoke any (the core checks this again). */
-export function AccessKeys({ keys, logs, people, viewer, isOwner }: { keys: AccessKeyInfo[]; logs: Record<number, AccessLogEntry[]>; people: Record<string, string>; viewer: string; isOwner: boolean }) {
+export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: { keys: AccessKeyInfo[]; logs: Record<number, AccessLogEntry[]>; people: Record<string, string>; viewer: string; isOwner: boolean; canCreate: boolean }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<Scope[]>(["metrics:read"]);
@@ -28,7 +28,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner }: { keys: Acce
     <section aria-labelledby="keys-heading" className="space-y-3 border-t border-border pt-6">
       <div>
         <h2 id="keys-heading" className="font-medium">Access Keys</h2>
-        <p className="text-sm text-muted-foreground">For programs that read metrics or submit values for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
+        <p className="text-sm text-muted-foreground">For programs that read metrics, submit values or create metrics for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
       </div>
       {keys.length > 0 && (
         <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
@@ -60,7 +60,8 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner }: { keys: Acce
       )}
       <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(await createKey({ name, scopes, expiresOn: expires })); setName(""); }, "Key created"); }}>
         <label className="text-xs text-muted-foreground">Name<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Shop export" className="mt-1 w-48" /></label>
-        {(Object.keys(SCOPE_LABEL) as Scope[]).map((s) => (
+        {/* A key may create Metrics only if its creator may (Guests may not); the core refuses it too. */}
+        {(Object.keys(SCOPE_LABEL) as Scope[]).filter((s) => canCreate || s !== "metrics:write").map((s) => (
           <label key={s} className="flex items-center gap-1.5 text-sm">
             <input type="checkbox" checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="size-4 accent-[var(--color-ink)]" />
             {SCOPE_LABEL[s]}

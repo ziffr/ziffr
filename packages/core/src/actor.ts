@@ -34,11 +34,12 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
   return CAN[actor.role].includes(capability);
 }
 
-/** What an Access Key may be allowed to do. */
-export type Scope = "metrics:read" | "values:submit";
+/** What an Access Key may be allowed to do. "metrics:write" creates Metrics owned by the key's creator (spec 0003),
+ * and only while the creator's role may create. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {
