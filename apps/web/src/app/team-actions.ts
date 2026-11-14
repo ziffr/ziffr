@@ -53,12 +53,18 @@ export async function removeContact(personId: string) {
   done();
 }
 
-/** Invites someone by email with a role (a Contact keeps their history). Returns the link to send them.
- * PROTOTYPE: Ziffr does not send the email itself yet; the inviter sends the link. */
+/** Invites someone by email with a role (a Contact keeps their history). Ziffr emails the link once mail is set up
+ * (spec 0004); the link is returned too, for sending it some other way. */
 export async function inviteMember(input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }) {
   const token = await inv.inviteByEmail(await currentActor(), { email: String(input?.email ?? ""), role: input?.role, contactPersonId: input?.contactPersonId ?? null });
   done();
   return `${SITE_URL}/invite/${token}`;
+}
+
+/** Emails an open invitation again. */
+export async function resendInvitation(id: number) {
+  await inv.resendInvitation(await currentActor(), Number(id));
+  done();
 }
 
 /** A link anyone with it can join by, as Member or Guest, for 7 days. */

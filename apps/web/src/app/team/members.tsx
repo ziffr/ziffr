@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Link2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { changeRole, createInviteLink, decideJoin, inviteMember, removeMemberWithHandover, revokeInvitation, setDomainJoining } from "@/app/team-actions";
+import { changeRole, createInviteLink, decideJoin, inviteMember, removeMemberWithHandover, resendInvitation, revokeInvitation, setDomainJoining } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { Profile } from "@ziffr/core/types";
 
@@ -21,7 +21,9 @@ export function Members(props: {
   members: { id: string; name: string; role: WorkspaceRoleName }[];
   canEdit: boolean;
   isOwner: boolean;
-  invitations: { id: number; email: string | null; role: string; expires_at: string }[];
+  invitations: { id: number; email: string | null; role: string; expires_at: string; email_sent_at: string | null; email_sends: number; email_error: string | null }[];
+  /** Whether this Ziffr sends email (spec 0004): then email invitations say whether they went out, and can be resent. */
+  mailOn: boolean;
   joinRequests: { id: number; person: { id: string; name: string; email: string | null } }[];
   joinDomain: string | null;
   myDomain: string | null;
@@ -70,7 +72,7 @@ export function Members(props: {
       </ul>
       {canEdit && (
         <div className="space-y-3">
-          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { setLink(await inviteMember({ email, role, contactPersonId: contact || null })); setEmail(""); }, "Invitation made"); }}>
+          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { setLink(await inviteMember({ email, role, contactPersonId: contact || null })); setEmail(""); }, props.mailOn ? "Invitation made and emailed" : "Invitation made"); }}>
             <label className="text-xs text-muted-foreground">Invite by email<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1 w-64" /></label>
             <label className="text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} className={`${field} mt-1 block`}>{grantable.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
             {props.contacts.length > 0 && (
@@ -80,13 +82,15 @@ export function Members(props: {
             <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink(await createInviteLink("member")), "Link made")}><Link2 aria-hidden /> Link for Members</Button>
           </form>
           {link && (
-            <p className="text-sm">Send this link: <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
+            <p className="text-sm">{props.mailOn ? "Emailed. You can also send this link yourself:" : "Send this link:"} <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
           )}
           {props.invitations.length > 0 && (
             <ul className="text-sm text-muted-foreground">
               {props.invitations.map((i) => (
                 <li key={i.id} className="flex items-center gap-2">
                   {i.email ?? "Link"} as {ROLES.find((r) => r.id === i.role)?.label}, until {i.expires_at.slice(0, 10)}
+                  {props.mailOn && i.email && (i.email_error ? <span className="text-destructive">· not emailed: {i.email_error}</span> : i.email_sent_at ? <span>· emailed{i.email_sends > 1 ? ` ${i.email_sends} times` : ""}</span> : null)}
+                  {props.mailOn && i.email && i.email_sends < 3 && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => resendInvitation(i.id), "Emailed again")}>Resend</Button>}
                   <button type="button" aria-label={`Revoke invitation ${i.email ?? "link"}`} disabled={pending} onClick={() => run(() => revokeInvitation(i.id), "Revoked")} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
                 </li>
               ))}

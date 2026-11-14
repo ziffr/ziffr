@@ -5,6 +5,8 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { linkTo } from "./deliveries";
+import { mailEnabled, sendMail, type MailTransport } from "./mail";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,9 +38,44 @@ function assertMayGrant(actor: Actor, role: WorkspaceRoleName) {
 const token = () => randomBytes(24).toString("base64url");
 const domainOf = (email: string) => email.split("@")[1]?.toLowerCase() ?? "";
 
-/** Invites someone by email with a role, for 14 days. Inviting a Contact makes them a member who keeps their
- * history. Returns the token for the link the invitee follows. */
-export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }): Promise<string> {
+/** How many times an invitation may be emailed, and how long between two. */
+const MAX_SENDS = 3;
+const RESEND_AFTER = 60_000;
+
+const ROLE_LABEL: Record<WorkspaceRoleName, string> = { owner: "an Owner", admin: "an Admin", member: "a Member", guest: "a Guest" };
+
+/** Emails an invitation with its link (spec 0004), and notes on it whether that worked. Never throws: the
+ * invitation stands either way, and the Team page says whether it went out. */
+async function emailInvitation(id: number, transport?: MailTransport): Promise<boolean> {
+  const { data: inv } = await db().from("invitations").select("id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name)").eq("id", id).maybeSingle();
+  if (!inv?.email || inv.email_sends >= MAX_SENDS) return false;
+  const workspace = (inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace";
+  const inviter = (inv.profiles as unknown as { name: string } | null)?.name ?? "Someone";
+  const until = new Date(inv.expires_at).toISOString().slice(0, 10);
+  try {
+    await sendMail({
+      to: inv.email,
+      subject: `${inviter} invited you to ${workspace} on Ziffr`,
+      text: [
+        "Hi,", "",
+        `${inviter} invited you to join ${workspace} on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}.`, "",
+        `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
+        `The invitation works until ${until}, and only for this address (${inv.email}).`,
+        "If you did not expect it, you can ignore this email.",
+      ].join("\n"),
+    }, transport);
+    await db().from("invitations").update({ email_sent_at: new Date().toISOString(), email_sends: inv.email_sends + 1, email_error: null }).eq("id", id);
+    return true;
+  } catch (e) {
+    const why = (e as { code?: string }).code ? `The mail server refused it (${(e as { code: string }).code}).` : (e as Error).message;
+    await db().from("invitations").update({ email_sends: inv.email_sends + 1, email_error: why.slice(0, 200) }).eq("id", id);
+    return false;
+  }
+}
+
+/** Invites someone by email with a role, for 14 days, and emails them the link once mail is set up. Inviting a
+ * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows. */
+export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<string> {
   notDemo(actor);
   assertMayGrant(actor, input.role);
   const email = String(input.email ?? "").trim().toLowerCase();
@@ -48,12 +85,25 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
     if (!data) throw new Forbidden();
   }
   const t = token();
-  const { error } = await db().from("invitations").insert({
+  const { data: made, error } = await db().from("invitations").insert({
     workspace_id: actor.workspaceId, token: t, email, role: input.role, contact_person_id: input.contactPersonId ?? null,
     created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(),
-  });
-  if (error) throw new Error("The invitation could not be made.");
+  }).select("id").single();
+  if (error || !made) throw new Error("The invitation could not be made.");
+  if (mailEnabled()) await emailInvitation(made.id, transport);
   return t;
+}
+
+/** Emails an open invitation again, for Owners and Admins: at most three sends in all, a minute apart. */
+export async function resendInvitation(actor: Actor, id: number, transport?: MailTransport): Promise<void> {
+  notDemo(actor);
+  assertCan(actor, "manage-members");
+  if (!mailEnabled()) throw new Error("Email is not set up on this Ziffr.");
+  const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!inv || !inv.email || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
+  if (inv.email_sends >= MAX_SENDS) throw new Error("This invitation was emailed three times already; send the link yourself.");
+  if (inv.email_sent_at && Date.now() - new Date(inv.email_sent_at).getTime() < RESEND_AFTER) throw new Error("It was emailed a moment ago.");
+  if (!(await emailInvitation(inv.id, transport))) throw new Error("The email could not be sent; try again later.");
 }
 
 /** A link anyone with it can join by, as Member or Guest, for 7 days. Returns its token. */
@@ -71,7 +121,7 @@ export async function createInviteLink(actor: Actor, role: "member" | "guest"): 
 export async function openInvitations(actor: Actor) {
   assertCan(actor, "manage-members");
   // Never the token: whoever sees the list must not be able to use or pass on an invitation from it.
-  const { data } = await db().from("invitations").select("id, email, role, expires_at, created_at").eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("id", { ascending: false });
+  const { data } = await db().from("invitations").select("id, email, role, expires_at, created_at, email_sent_at, email_sends, email_error").eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("id", { ascending: false });
   return data ?? [];
 }
 

@@ -56,6 +56,14 @@ export const smtpTransport: MailTransport = async (mail) => {
   return { messageId: String(info.messageId ?? "") };
 };
 
+/** Sends one email that is not a Delivery (an invitation, whose invitee is nobody's member yet). The address must
+ * be one plain address and the subject is put on one line; returns the provider's Message-ID. */
+export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
+  if (!mailEnabled()) throw new Error("Email is not set up.");
+  if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
+  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text) })).messageId;
+}
+
 /** The state a new Delivery starts in: queued when it will really be emailed, else it stays in the Outbox. */
 export function initialMailState(connector: string, workspaceId: string): "queued" | "outbox" {
   return connector === "email" && workspaceId !== DEMO_WORKSPACE_ID && mailEnabled() ? "queued" : "outbox";
