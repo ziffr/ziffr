@@ -11,12 +11,13 @@ import { MetricChart } from "./metric-chart";
 import { Sparkline } from "./sparkline";
 import { Gauge } from "./gauge";
 import { ScatterView } from "./scatter";
-import { StoryBody } from "./story";
 import { fillSettings } from "@ziffr/core/placeholders";
 import dynamic from "next/dynamic";
 
 // tldraw is browser-only; free layouts load it on demand.
 const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false });
+// Observable Plot is only needed by stories: their code loads with the first story shown (still rendered on the server).
+const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 import { cn } from "@/lib/utils";
 
 type Props = {

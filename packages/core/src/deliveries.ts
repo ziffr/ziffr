@@ -34,8 +34,9 @@ export async function connectorFor(ws: string, recipientId: string, kind: Delive
   return (own ?? team ?? "email") as ConnectorId;
 }
 
-/** Sends one Delivery about an Action. Nobody gets a message about their own doing. */
-export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null }) {
+/** Sends one Delivery about an Action. Nobody gets a message about their own doing. With `queue`, an email is
+ * only queued, for the deliveries job to send. */
+export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null; queue?: boolean }) {
   if (input.senderId === input.recipientId) return;
   const { data: a } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metrics(name, period)").eq("id", input.actionId).single();
   if (!a) return;
@@ -58,11 +59,13 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id, workspace_id: a.workspace_id,
     subject, body, external_ref: via === "tickets" ? ref : null, mail_state,
   }).select("id").single();
-  await sendNow(d?.id, mail_state);
+  // A queued one waits for the deliveries job (sendWaiting): a run that sends many must not wait on the mail server.
+  if (!input.queue) await sendNow(d?.id, mail_state);
 }
 
-/** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean }) {
+/** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token.
+ * With `queue`, an email is only queued, for the deliveries job to send. */
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }) {
   const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
     db().from("metrics").select("id, name, period, sources, formula, workspace_id").eq("id", input.metricId).single(),
     // A Contact is reached by the details this workspace keeps for them; a member by their own.
@@ -105,7 +108,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: FORM_LINK });
   const mail_state = initialMailState(via, metric.workspace_id);
   const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
-  await sendNow(d?.id, mail_state);
+  if (!input.queue) await sendNow(d?.id, mail_state);
   return true;
 }
 

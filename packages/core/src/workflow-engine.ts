@@ -35,7 +35,9 @@ async function setState(metricId: number, period: string, patch: Partial<PeriodS
 /** Who is asked: the submitter, or their Stand-in while they are Away. */
 async function whoToAsk(metricId: number, day: string) {
   const { data: tokens } = await db().from("tokens").select("submitter_id, stand_in_id").eq("metric_id", metricId).is("stands_in_for", null);
-  const { data: away } = await db().from("away").select("user_id").lte("starts", day).gte("ends", day);
+  if (!tokens?.length) return [];
+  // Only the submitters' own Away entries, not everyone's.
+  const { data: away } = await db().from("away").select("user_id").in("user_id", tokens.map((t) => t.submitter_id)).lte("starts", day).gte("ends", day);
   const out = new Set((away ?? []).map((a) => a.user_id));
   return (tokens ?? []).map((t) => ({ submitter: t.submitter_id as string, standIn: t.stand_in_id as string | null, ask: out.has(t.submitter_id) && t.stand_in_id ? t.stand_in_id : t.submitter_id, away: out.has(t.submitter_id) }));
 }
@@ -47,19 +49,25 @@ async function latestValue(metricId: number, period: string) {
 }
 
 /** Runs the Workflows of one workspace's Metrics as of a day: asks, reminds and escalates for missing values, and
- * checks values that came in. Returns what happened, in words. */
-export async function runWorkflows(workspaceId: string, asOf: string, actorId: string) {
-  const { data: rows } = await db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null);
+ * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
+ */
+export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false }: { queue?: boolean } = {}) {
+  const [{ data: rows }, { data: flows }] = await Promise.all([
+    db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
+    // The workspace's Workflows once, not again for each Metric.
+    db().from("workflows").select("*").eq("workspace_id", workspaceId),
+  ]);
+  const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
   const log: string[] = [];
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
     if (m.formula) continue;
     const period = workingPeriod(asOf, m.period, periodStart);
-    const ctx = await metricCtx(m.id, period);
-    if (!ctx) continue;
+    const wf = workflows.get(row.workflow_id as number);
+    if (!wf) continue;
+    const ctx: Ctx = { m, wf, period };
     const label = `${m.name}, ${periodLabel(period, m.period)}`;
-    const state = await getState(m.id, period);
-    const value = await latestValue(m.id, period);
+    const [state, value] = await Promise.all([getState(m.id, period), latestValue(m.id, period)]);
     if (value) {
       if (!state || state.state === "asked") log.push(...(await onValue(m.id, period, value.submitter_id ?? actorId)).map((x) => `${label}: ${x}`));
       continue;
@@ -68,23 +76,23 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const done = new Set(state?.done_steps ?? []);
     const people = await whoToAsk(m.id, asOf);
     if (!state) {
-      for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, note: p.away ? "You stand in while your colleague is away." : undefined });
+      for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined });
       await setState(m.id, period, { state: "asked", done_steps: [] });
       log.push(`${label}: asked ${people.map((p) => p.ask).join(", ")}, due ${due}`);
     }
     for (const [i, step] of ctx.wf.config.steps.entries()) {
       if (done.has(i)) continue;
       if (step.type === "remind" && asOf >= shiftPeriod(due, "day", -step.daysBefore)) {
-        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, note: `Reminder, due ${due}.` });
+        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.` });
         done.add(i);
         log.push(`${label}: reminded`);
       }
       if (step.type === "escalate" && asOf > shiftPeriod(due, "day", step.daysAfter) ) {
         if (step.to === "stand-in") {
-          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, note: `The value was due ${due} and is still missing; you are the stand-in.` });
+          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.` });
           log.push(`${label}: asked the stand-in`);
         } else {
-          await escalateToOwner(ctx, due, actorId);
+          await escalateToOwner(ctx, due, actorId, queue);
           log.push(`${label}: told the owner`);
         }
         done.add(i);
@@ -96,12 +104,12 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
 }
 
 /** Asks the Metric owner to follow up a missing value. */
-async function escalateToOwner(ctx: Ctx, due: string, actorId: string) {
+async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = false) {
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: ctx.wf.owner_id === ctx.m.owner_id ? actorId : ctx.wf.owner_id, assignee_id: ctx.m.owner_id,
     question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period)} was due ${due} and is still missing. Please follow up.`, kind: "question", purpose: "escalation",
   }).select("id, asker_id").single();
-  if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id });
+  if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
 /** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words. */

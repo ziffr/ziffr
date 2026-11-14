@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertCan, assertSameWorkspace, can, Forbidden, type Actor } from "./actor";
-import { canReadThread, expandGroupShares, objectRole, visibleMetricIdsFrom, withEveryone, type InWorkspace, type MetricFacts } from "./visibility";
+import { canReadThread, expandGroupShares, objectRole, objectRoles, visibleMetricIdsFrom, withEveryone, type InWorkspace, type MetricFacts } from "./visibility";
 import type { Group } from "./types";
 import { metric } from "./test/fixtures";
 
@@ -108,5 +108,27 @@ describe("the Everyone group", () => {
     expect(before.map((s) => s.user_id)).toEqual(["sara", "ben"]);
     const after = expandGroupShares(A, [share], withEveryone(A, groups, [...members, inA({ user_id: "nia", role: "member" })]));
     expect(after.map((s) => s.user_id)).toEqual(["sara", "ben", "nia"]);
+  });
+});
+
+describe("roles on many objects at once", () => {
+  const groups = [inA({ id: 7, name: "Ops", members: ["ben", "anna"] }), inA({ id: 8, name: "Leads", members: ["anna"] }), inB({ id: 9, name: "Board", members: ["ben"] })];
+  const byGroup = (id: number, objectId: number, role: "viewer" | "editor", gid: number) => inA({ id, object_type: "dashboard" as const, object_id: objectId, group_id: gid, user_id: null as unknown as string, role });
+  const raw = [
+    inA({ id: 1, object_type: "dashboard" as const, object_id: 1, user_id: "ben", role: "editor" as const }),
+    byGroup(2, 1, "viewer", 7), byGroup(3, 2, "viewer", 7), byGroup(4, 2, "editor", 8), byGroup(5, 3, "editor", 9),
+  ];
+  const shares = expandGroupShares(A, raw, groups);
+  const dashboards = [inA({ id: 1, owner_id: "sara" }), inA({ id: 2, owner_id: "sara" }), inA({ id: 3, owner_id: "sara" }), inB({ id: 4, owner_id: "ben" })];
+  it("keep a stronger direct role, take the stronger of two Groups, and ignore another workspace's Group", () => {
+    expect(objectRoles(A, "ben", "dashboard", dashboards, shares)).toEqual(new Map([[1, "editor"], [2, "viewer"]]));
+    expect(objectRoles(A, "anna", "dashboard", dashboards, shares)).toEqual(new Map([[1, "viewer"], [2, "editor"]]));
+    expect(objectRoles(A, "sara", "dashboard", dashboards, shares)).toEqual(new Map([[1, "owner"], [2, "owner"], [3, "owner"]]));
+  });
+  it("agree with objectRole for every person and object", () => {
+    for (const person of ["sara", "ben", "anna", "zoe"]) {
+      const many = objectRoles(A, person, "dashboard", dashboards, shares);
+      for (const d of dashboards) expect(many.get(d.id) ?? null).toBe(objectRole(A, person, "dashboard", d, shares));
+    }
   });
 });

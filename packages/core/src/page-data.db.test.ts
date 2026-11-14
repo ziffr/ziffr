@@ -29,7 +29,20 @@ describe("page loaders", () => {
     expect(forAnn.deliveries.filter((d) => d.recipient_id === ben && !d.action_id)).toEqual([]);
     expect(forAnn.deliveries.some((d) => d.recipient_id === ben && d.action_id)).toBe(true);
     expect((await sourcesView(w.actor(ann, "member"))).tokens.map((t) => t.submitter_id)).toEqual([ann]);
+    expect((await sourcesView(w.actor(ann, "member"))).prompts).toEqual([]);
+    expect((await sourcesView(w.actor(ben, "member"))).prompts.map((p) => p.submitter_id)).toEqual([ben]);
     expect((await connectorsView(w.actor(ben, "member"))).deliveries.length).toBeGreaterThan(0);
+  });
+  it("show each person only the incoming messages they sent, with only their own Token codes", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(sara); const benCode = await w.token(m.id, ben); const annCode = await w.token(m.id, ann);
+    const entry = (sender_id: string, token_code: string, raw: string) => ({ workspace_id: w.id, source: "web_form", sender: token_code, sender_id, raw, metric_id: m.id, token_code, outcome: "accepted", detail: "" });
+    expect((await db().from("intake_log").insert([entry(ben, benCode, "Ben's 42"), entry(ann, annCode, "Ann's 7"), entry(ann, benCode, "Ann used Ben's link")])).error).toBeNull();
+    const log = async (who: string, role: "owner" | "member") => (await sourcesView(w.actor(who, role))).log.map((l) => [l.raw, l.token_code]);
+    expect(await log(ben, "member")).toEqual([["Ben's 42", benCode]]);
+    expect(await log(ann, "member")).toEqual([["Ann's 7", annCode], ["Ann used Ben's link", null]]);
+    expect(JSON.stringify(await sourcesView(w.actor(ann, "member")))).not.toContain(benCode);
+    expect(await log(sara, "owner")).toEqual([]);
   });
   it("give a Metric's Token codes only to their submitter, its owner and admins", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");

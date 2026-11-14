@@ -39,15 +39,32 @@ export async function connectorsView(actor: Actor) {
   return { prefs: prefs ?? [], deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
 }
 
-/** The Sources page: Prompts and the intake log of the workspace, and the form links that are the person's. */
+/** How many of the latest Prompts and incoming messages the Sources page shows. */
+export const SOURCES_SHOWN = 300;
+
+/** The Sources page: the latest Prompts and intake log of the workspace, and the form links that are the person's. */
 export async function sourcesView(actor: Actor) {
   const ws = actor.workspaceId;
-  const [{ data: prompts }, { data: log }, { data: tokens }] = await Promise.all([
-    db().from("prompts").select("*").eq("workspace_id", ws).order("sent_at"),
-    db().from("intake_log").select("*").eq("workspace_id", ws).order("at"),
-    db().from("tokens").select("*").eq("workspace_id", ws),
+  // The latest SOURCES_SHOWN of each, oldest first as the page shows them; named columns only.
+  let tokens = db().from("tokens").select("id, code, metric_id, submitter_id").eq("workspace_id", ws);
+  // A Token code opens someone's submission form: only the person's own are read (in the demo, all of the demo).
+  if (!inDemo(actor)) tokens = tokens.eq("submitter_id", actor.personId);
+  const prompts = db().from("prompts").select("id, metric_id, submitter_id, source, text, period_start, sent_at, answered_at").eq("workspace_id", ws);
+  const intake = db().from("intake_log").select("id, at, source, sender, sender_id, raw, metric_id, token_code, outcome, detail").eq("workspace_id", ws);
+  const [{ data: asked }, { data: log }, { data: own }] = await Promise.all([
+    // Who was asked what, with any note, is the person's own outside the demo, as on the Connectors page.
+    (inDemo(actor) ? prompts : prompts.eq("submitter_id", actor.personId)).order("sent_at", { ascending: false }).order("id", { ascending: false }).limit(SOURCES_SHOWN),
+    // Incoming messages hold what a person wrote and the Token code that opens their form: outside the demo, only
+    // the messages the person sent themselves (ticket #119).
+    (inDemo(actor) ? intake : intake.eq("sender_id", actor.personId)).order("at", { ascending: false }).order("id", { ascending: false }).limit(SOURCES_SHOWN),
+    tokens.order("id"),
   ]);
-  return { prompts: prompts ?? [], log: log ?? [], tokens: (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId) };
+  // A message can name a Token that is not the sender's (a link someone forwarded): its code goes only to its owner.
+  // On a form or API entry the sender is that code too, so it goes with it.
+  const mine = new Set((own ?? []).map((t) => t.code));
+  const viaCode = (source: string) => source === "web_form" || source === "api";
+  const shown = (log ?? []).map((l) => (inDemo(actor) || !l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
+  return { prompts: (asked ?? []).reverse(), log: shown.reverse(), tokens: own ?? [] };
 }
 
 /** The Activity page's raw material: versions and replaced values the person may see, and what labels them. */

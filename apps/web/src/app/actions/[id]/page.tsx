@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { getAllSeries, getProfileMap } from "@/lib/data";
+import { getMetrics, getObservation, getProfileMap, getSeriesOf } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { actionThread } from "@ziffr/core/page-data";
 import { formatValue, periodLabel } from "@ziffr/core/format";
@@ -21,14 +21,15 @@ import { ApprovalBar } from "@/components/approval-bar";
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core.
-  const [thread0, { metrics, series, observations }, people, viewer] = await Promise.all([actionThread(await currentActor(), id), getAllSeries(), getProfileMap(), viewerId()]);
+  const [thread0, metrics, people, viewer] = await Promise.all([actionThread(await currentActor(), id), getMetrics(), getProfileMap(), viewerId()]);
   if (!thread0) notFound();
   const { action: a, messages: msgs, deliveries: sent } = thread0;
   const m = metrics.find((x) => x.id === a.metric_id)!;
+  // Only this Metric's series (and its inputs when derived), and only the value the Action is about.
+  const [series, obs] = await Promise.all([getSeriesOf(metrics, [m.id]), getObservation(a.observation_id)]);
   const pts = series[m.slug] ?? [];
   const idx = pts.findIndex((p) => p.period === a.period_start);
   const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));
-  const obs = observations.find((o) => o.id === a.observation_id);
   const isAsker = viewer === a.asker_id;
   const isAssignee = viewer === a.assignee_id;
   const isOwner = viewer === m.owner_id;

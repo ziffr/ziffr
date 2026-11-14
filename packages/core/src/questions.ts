@@ -80,7 +80,8 @@ export async function setPreference(actor: Actor, personId: string | null, kind:
   if (connector) await db().from("delivery_preferences").insert({ user_id: personId, kind, connector, workspace_id: ws });
 }
 
-/** Reminds assignees of open tasks due within two days, now (the scheduled run does this each morning, spec 0005).
+/** Reminds assignees of open tasks due within two days, now (the scheduled run does this each morning, spec 0005); the
+ * emails are queued for the deliveries job.
  * Returns how many. */
 export async function sendDueReminders(actor: Actor): Promise<number> {
   assertCan(actor, "create");
@@ -88,7 +89,7 @@ export async function sendDueReminders(actor: Actor): Promise<number> {
 }
 
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing.
- * Returns how many were asked. */
+ * Their emails are queued for the deliveries job. Returns how many were asked. */
 export async function askForMissingValues(actor: Actor): Promise<number> {
   assertCan(actor, "create");
   const ws = actor.workspaceId;
@@ -96,17 +97,25 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
     db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws).is("stands_in_for", null),
     db().from("metrics").select("id, period, formula").eq("workspace_id", ws),
   ]);
+  const byId = new Map((metrics ?? []).map((m) => [m.id as number, m]));
+  // Whether a Metric has its value for the current period, asked once per Metric rather than once per submitter.
+  const has = new Map<number, Promise<boolean>>();
+  const hasValue = (id: number, period: string) => {
+    if (!has.has(id)) has.set(id, Promise.resolve(db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", id).eq("period_start", period)).then((r) => Boolean(r.count)));
+    return has.get(id)!;
+  };
   let n = 0;
   for (const t of tokens ?? []) {
-    const m = metrics?.find((x) => x.id === t.metric_id);
+    const m = byId.get(t.metric_id);
     if (!m || m.formula) continue;
     const period = periodStart(new Date(), m.period as Period);
-    const [{ count: have }, { count: asked }] = await Promise.all([
-      db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("period_start", period),
+    const [have, { count: asked }] = await Promise.all([
+      hasValue(m.id, period),
       db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", t.submitter_id).eq("period_start", period).is("answered_at", null).gte("sent_at", format(new Date(), "yyyy-MM-dd")),
     ]);
     if (have || asked) continue; // already there, or already asked today
-    if (await deliverPrompt({ metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId })) n++;
+    // Queued: the deliveries job sends them, so asking many people never waits on the mail server.
+    if (await deliverPrompt({ metricId: m.id, submitterId: t.submitter_id, senderId: actor.personId, queue: true })) n++;
   }
   return n;
 }

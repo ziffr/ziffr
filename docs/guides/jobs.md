@@ -9,7 +9,7 @@ ZIFFR_JOB_SECRET=$(openssl rand -hex 32)   # at least 32 characters; without it 
 | Job | Call it | What it does |
 | --- | --- | --- |
 | `POST /api/jobs/workflows` | every hour | Runs each workspace's Workflows once a day, at its run hour in its own time zone: asks for missing values, reminds before the Due Date, escalates after it, and reminds people of tasks due within two days ([spec 0005](../specs/0005-workflows-on-a-clock.md)) |
-| `POST /api/jobs/deliveries` | every few minutes | Sends emails that are waiting: retries after a failure, and ones held back by the sending limits ([email](email.md)) |
+| `POST /api/jobs/deliveries` | every few minutes | Sends emails that are waiting: the day's Prompts, reminders and Escalations from the Workflow run, reminders and requests for missing values sent from the Connectors page, retries after a failure, and ones held back by the sending limits ([email](email.md)) |
 
 ```sh
 # crontab, for example

@@ -42,6 +42,8 @@ In the Supabase dashboard, under Authentication:
 - **SMTP for sign-in links:** set your own SMTP server. Supabase's built-in sender is meant for trying things out and sends only a few emails an hour.
 - **Providers** (optional): Google, Microsoft (azure), GitHub or LinkedIn, each with its client id and secret. List the ones you set up in `ZIFFR_AUTH_PROVIDERS`, comma separated.
 
+Under Project Settings, API, keep **Max Rows** at 1000 or more (1000 is the default). Ziffr reads long lists page by page, 1000 rows at a time; with a lower limit, a list would end early.
+
 ## 3. The app's settings
 
 Set these where the app runs. `.env.example` has them all with a comment each.
@@ -75,7 +77,7 @@ Any host that runs a Node server works: a virtual machine behind a reverse proxy
 
 ## 5. The scheduler
 
-Call `POST /api/jobs/workflows` every hour and `POST /api/jobs/deliveries` every few minutes, each with `Authorization: Bearer $ZIFFR_JOB_SECRET`. [Scheduled jobs](jobs.md) has example cron lines. Without the first, Workflows never ask anyone; without the second, a failed email is never tried again.
+Call `POST /api/jobs/workflows` every hour and `POST /api/jobs/deliveries` every few minutes, each with `Authorization: Bearer $ZIFFR_JOB_SECRET`. [Scheduled jobs](jobs.md) has example cron lines. Without the first, Workflows never ask anyone; without the second, the emails of the daily run and of reminders sent in bulk are never sent, and a failed email is never tried again.
 
 ## 6. The first workspace
 

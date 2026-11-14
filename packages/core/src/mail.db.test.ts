@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
+import { askForMissingValues } from "./questions";
 import { headerSafe, initialMailState, isAddress, MAX_ATTEMPTS, sendDelivery, sendWaiting, type MailTransport } from "./mail";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
@@ -107,5 +108,22 @@ describe("sending email", () => {
     expect(mail.Subject).toBe("Numbers Bcc: victim@example.test");
     expect(mail.Bcc ?? []).toEqual([]);
     expect(mail.headers.Bcc).toBeUndefined();
+  });
+});
+
+describe("queued email", () => {
+  it("waits for the deliveries job when many people are asked at once, and is sent by it", async () => {
+    const w = await ws(); const sara = await w.person("owner", { email: address("sara") });
+    const annAddress = address("ann"); const ann = await w.person("member", { email: annAddress });
+    const m = await w.metric(sara, { name: "Field visits", sources: ["web_form", "mail"] });
+    await w.token(m.id, ann);
+    expect(await askForMissingValues(w.actor(sara))).toBe(1);
+    const queued = await deliveryOf(w.id, ann);
+    expect(queued).toMatchObject({ kind: "prompt", mail_state: "queued", sent_at: null, attempts: 0 });
+    expect(await inbox(annAddress)).toEqual([]);
+    // What the deliveries job does for each waiting one.
+    expect(await sendDelivery(queued.id)).toBe("sent");
+    expect((await deliveryOf(w.id, ann)).mail_state).toBe("sent");
+    expect((await inbox(annAddress)).length).toBe(1);
   });
 });

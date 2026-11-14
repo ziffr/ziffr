@@ -25,23 +25,51 @@ export function withEveryone<G extends Group & InWorkspace>(ws: string, groups: 
 
 /** Shares per person: a share with a Group counts for each of its members (the stronger role wins). */
 export function expandGroupShares(ws: string, raw: readonly (Share & InWorkspace)[], groups: readonly (Group & InWorkspace)[]): (Share & InWorkspace)[] {
-  const out = mine(ws, raw).filter((s) => s.user_id).map((s) => ({ ...s }));
-  const ownGroups = mine(ws, groups);
-  for (const s of mine(ws, raw).filter((x) => x.group_id)) {
-    for (const user of ownGroups.find((g) => g.id === s.group_id)?.members ?? []) {
-      const have = out.find((x) => x.object_type === s.object_type && x.object_id === s.object_id && x.user_id === user);
-      if (!have) out.push({ ...s, user_id: user, via_group: s.group_id! });
-      else if (have.role === "viewer" && s.role === "editor") have.role = "editor";
+  const own = mine(ws, raw);
+  const out = own.filter((s) => s.user_id).map((s) => ({ ...s }));
+  // The first share per person and object, looked up by key instead of searched for: a workspace with many shares
+  // and large Groups would otherwise take shares × members × shares steps.
+  const first = new Map<string, Share & InWorkspace>();
+  for (const s of out) if (!first.has(shareKey(s.object_type, s.object_id, s.user_id))) first.set(shareKey(s.object_type, s.object_id, s.user_id), s);
+  const members = new Map(mine(ws, groups).map((g) => [g.id, g.members] as const));
+  for (const s of own) {
+    if (!s.group_id) continue;
+    for (const user of members.get(s.group_id) ?? []) {
+      const key = shareKey(s.object_type, s.object_id, user);
+      const have = first.get(key);
+      if (!have) {
+        const added = { ...s, user_id: user, via_group: s.group_id };
+        out.push(added);
+        first.set(key, added);
+      } else if (have.role === "viewer" && s.role === "editor") have.role = "editor";
     }
   }
   return out;
 }
+
+/** One key per object and person, for looking shares up. */
+const shareKey = (type: string, id: number, person: string) => `${type}\u0000${id}\u0000${person}`;
 
 /** The person's role on a dashboard or deck: owner, a shared role, or none. */
 export function objectRole(ws: string, person: string, type: "dashboard" | "deck", obj: { id: number; owner_id: string } & InWorkspace, shares: readonly (Share & InWorkspace)[]): ObjectRole | null {
   if (obj.workspace_id !== ws) return null;
   if (obj.owner_id === person) return "owner";
   return shares.find((s) => s.workspace_id === ws && s.object_type === type && s.object_id === obj.id && s.user_id === person)?.role ?? null;
+}
+
+/** The person's role on each of many dashboards or decks, by id (only those they have one on): objectRole for a list,
+ * reading the shares once. */
+export function objectRoles(ws: string, person: string, type: "dashboard" | "deck", objs: readonly ({ id: number; owner_id: string } & InWorkspace)[], shares: readonly (Share & InWorkspace)[]): Map<number, ObjectRole> {
+  const shared = new Map<number, ShareRole>();
+  // The first matching share counts, as in objectRole.
+  for (const s of shares) if (s.workspace_id === ws && s.object_type === type && s.user_id === person && !shared.has(s.object_id)) shared.set(s.object_id, s.role);
+  const out = new Map<number, ObjectRole>();
+  for (const o of objs) {
+    if (o.workspace_id !== ws) continue;
+    const role = o.owner_id === person ? "owner" : shared.get(o.id);
+    if (role) out.set(o.id, role);
+  }
+  return out;
 }
 
 /** Every metric drawn by the widgets on a deck's slides. */
@@ -77,9 +105,10 @@ export function visibleMetricIdsFrom(ws: string, person: string, f: MetricFacts)
   for (const d of mine(ws, f.sharedDeckDocuments)) for (const id of deckMetricIds(d.document)) ids.add(id);
   // PROTOTYPE: owners already see their own metrics above, so this only matters once derived metrics can be
   // shown to people who see all their inputs (decided with the metrics ticket, #12).
+  const bySlug = new Map(metrics.map((m) => [m.slug, m.id] as const).reverse()); // the first Metric with a slug, as find() would
   for (const m of metrics) {
     if (!m.formula || ids.has(m.id) || m.owner_id !== person) continue;
-    const inputs = [...m.formula.matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => metrics.find((y) => y.slug === x[1])?.id);
+    const inputs = [...m.formula.matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => bySlug.get(x[1]));
     if (inputs.length && inputs.every((i) => i !== undefined && ids.has(i))) ids.add(m.id);
   }
   // Only metrics of this workspace, whatever a widget or document claims.

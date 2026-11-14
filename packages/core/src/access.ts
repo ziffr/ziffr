@@ -3,27 +3,33 @@
 import { db } from "./db";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
-import { canReadThread, deckMetricIds, expandGroupShares, objectRole, visibleMetricIdsFrom, withEveryone } from "./visibility";
-import { getActions, getAllSeries, getBreakdowns, getSeriesValues } from "./workspace-data";
+import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
+import { allRows, getActions, getAllSeries, getBreakdowns, getSeriesValues } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 
 /** The Groups of a workspace with their members, Everyone filled in. */
 export async function getGroups(ws: string): Promise<(Group & { workspace_id: string })[]> {
-  const [{ data: groups }, { data: members }, { data: memberships }] = await Promise.all([
+  const [{ data: groups }, members, memberships] = await Promise.all([
     // Everyone in the workspace first: it is the one most often shared with.
     db().from("groups").select("id, name, workspace_id, everyone").eq("workspace_id", ws).order("everyone", { ascending: false }).order("name"),
-    db().from("group_members").select("group_id, user_id").eq("workspace_id", ws),
-    db().from("memberships").select("user_id, role, workspace_id").eq("workspace_id", ws),
+    // Read page by page: a dropped row would leave someone out of a Group, or of Everyone.
+    allRows<{ group_id: number; user_id: string }>((from, to) => db().from("group_members").select("group_id, user_id").eq("workspace_id", ws).order("group_id").order("user_id").range(from, to)),
+    allRows<{ user_id: string; role: string; workspace_id: string }>((from, to) => db().from("memberships").select("user_id, role, workspace_id").eq("workspace_id", ws).order("user_id").range(from, to)),
   ]);
-  const stored = (groups ?? []).map((g) => ({ ...g, members: (members ?? []).filter((m) => m.group_id === g.id).map((m) => m.user_id) }));
-  return withEveryone(ws, stored, memberships ?? []);
+  const byGroup = new Map<number, string[]>();
+  for (const m of members) {
+    const list = byGroup.get(m.group_id);
+    if (list) list.push(m.user_id);
+    else byGroup.set(m.group_id, [m.user_id]);
+  }
+  const stored = (groups ?? []).map((g) => ({ ...g, members: byGroup.get(g.id) ?? [] }));
+  return withEveryone(ws, stored, memberships);
 }
 
 /** Shares as stored: to a person or to a Group. For the Share dialog. */
 export async function getRawShares(ws: string): Promise<(Share & { workspace_id: string })[]> {
-  const { data } = await db().from("shares").select("*").eq("workspace_id", ws);
-  return (data ?? []) as (Share & { workspace_id: string })[];
+  return allRows<Share & { workspace_id: string }>((from, to) => db().from("shares").select("*").eq("workspace_id", ws).order("id").range(from, to));
 }
 
 /** Shares per person: a share with a Group counts for each of its members (the stronger role wins). */
@@ -47,46 +53,48 @@ export function threadReader(viewer: string, groups: (Group & { workspace_id: st
 /** The Actions this viewer may read. */
 export async function readableActions(ws: string, viewer: string, filter?: { metricId?: number }) {
   const [actions, groups, { data: metrics }] = await Promise.all([getActions(ws, filter), getGroups(ws), db().from("metrics").select("id, owner_id").eq("workspace_id", ws)]);
-  const can = threadReader(viewer, groups, (id) => metrics?.find((m) => m.id === id)?.owner_id, ws);
+  const owners = new Map((metrics ?? []).map((m) => [m.id as number, m.owner_id as string]));
+  const can = threadReader(viewer, groups, (id) => owners.get(id), ws);
   return actions.filter((a) => can(a as Action & { workspace_id: string }));
 }
 
 /** A dashboard with the viewer's role on it. */
 export type DashboardAccess = Dashboard & { role: "owner" | ShareRole };
 
-/** Dashboards of the current workspace the viewer owns or that were shared with them. */
-export async function visibleDashboards(ws: string, viewer: string): Promise<DashboardAccess[]> {
-  const [{ data: dashboards }, shares] = await Promise.all([db().from("dashboards").select("*").eq("workspace_id", ws).order("id"), getShares(ws)]);
-  return (dashboards ?? [])
-    .map((d) => {
-      const role = objectRole(ws, viewer, "dashboard", d, shares);
-      return role ? { ...d, role } : null;
-    })
-    .filter((d): d is DashboardAccess => d !== null);
+/** Shares per person (getShares of the same workspace), loaded once by a caller that makes several decisions. */
+export type ExpandedShares = readonly (Share & { workspace_id: string })[];
+
+/** Dashboards of the current workspace the viewer owns or that were shared with them. `shares` saves reading them
+ * again when the caller already has them. */
+export async function visibleDashboards(ws: string, viewer: string, shares?: ExpandedShares): Promise<DashboardAccess[]> {
+  const [{ data: dashboards }, all] = await Promise.all([db().from("dashboards").select("*").eq("workspace_id", ws).order("id"), shares ?? getShares(ws)]);
+  const roles = objectRoles(ws, viewer, "dashboard", dashboards ?? [], all);
+  return (dashboards ?? []).filter((d) => roles.has(d.id)).map((d) => ({ ...d, role: roles.get(d.id)! }));
 }
 
 /** A deck with the viewer's role on it. */
 export type DeckAccess = { id: number; name: string; owner_id: string; updated_at: string; role: "owner" | ShareRole };
 
-/** Decks of the current workspace the viewer owns or that were shared with them (directly or through a Group). */
-export async function visibleDecks(ws: string, viewer: string): Promise<DeckAccess[]> {
-  const [{ data: decks }, shares] = await Promise.all([db().from("decks").select("id, name, owner_id, updated_at, workspace_id").eq("workspace_id", ws).order("updated_at", { ascending: false }), getShares(ws)]);
-  return (decks ?? [])
-    .map((d) => {
-      const role = objectRole(ws, viewer, "deck", d, shares);
-      return role ? { id: d.id, name: d.name, owner_id: d.owner_id, updated_at: d.updated_at, role } : null;
-    })
-    .filter((d): d is DeckAccess => d !== null);
+/** Decks of the current workspace the viewer owns or that were shared with them (directly or through a Group).
+ * `shares` saves reading them again when the caller already has them. */
+export async function visibleDecks(ws: string, viewer: string, shares?: ExpandedShares): Promise<DeckAccess[]> {
+  const [{ data: decks }, all] = await Promise.all([db().from("decks").select("id, name, owner_id, updated_at, workspace_id").eq("workspace_id", ws).order("updated_at", { ascending: false }), shares ?? getShares(ws)]);
+  const roles = objectRoles(ws, viewer, "deck", decks ?? [], all);
+  return (decks ?? []).filter((d) => roles.has(d.id)).map((d) => ({ id: d.id, name: d.name, owner_id: d.owner_id, updated_at: d.updated_at, role: roles.get(d.id)! }));
+}
+
+/** Every Token of a workspace with what decides whether a Stand-in's is still valid. */
+function tokenFacts(ws: string) {
+  return allRows<{ metric_id: number; submitter_id: string; stand_in_id: string | null; stands_in_for: string | null; expires_at: string | null; workspace_id: string }>((from, to) =>
+    db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at, workspace_id").eq("workspace_id", ws).order("id").range(from, to),
+  );
 }
 
 /** The metrics of the current workspace the viewer sees (decided by the core). */
 export async function visibleMetricIds(ws: string, viewer: string, metrics: Metric[]): Promise<Set<number>> {
-  const [{ data: tokens }, shares, dashboards, decks] = await Promise.all([
-    db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at, workspace_id").eq("workspace_id", ws),
-    getShares(ws),
-    visibleDashboards(ws, viewer),
-    visibleDecks(ws, viewer),
-  ]);
+  // Shares are read, and Groups expanded, once for the Metrics, dashboards and decks alike.
+  const [tokens, shares] = await Promise.all([tokenFacts(ws), getShares(ws)]);
+  const [dashboards, decks] = await Promise.all([visibleDashboards(ws, viewer, shares), visibleDecks(ws, viewer, shares)]);
   const sharedDash = dashboards.filter((d) => d.role !== "owner").map((d) => d.id);
   const sharedDecks = decks.filter((d) => d.role !== "owner").map((d) => d.id);
   const [{ data: widgets }, { data: docs }] = await Promise.all([
@@ -95,7 +103,7 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
   ]);
   return visibleMetricIdsFrom(ws, viewer, {
     metrics: metrics.map((m) => ({ ...m, workspace_id: (m as Metric & { workspace_id?: string }).workspace_id ?? "" })),
-    tokens: tokens ?? [],
+    tokens,
     shares,
     sharedDashboardWidgets: widgets ?? [],
     sharedDeckDocuments: docs ?? [],
@@ -104,8 +112,13 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
 
 /** Visible metrics + their series + people: everything a canvas draws from. */
 export async function getCanvasData(ws: string, viewer: string): Promise<CanvasData> {
-  const [{ metrics, series, observations }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }] = await Promise.all([
-    getAllSeries(ws), peopleIn(ws), readableActions(ws, viewer), db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws),
+  const [{ metrics, series }, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }] = await Promise.all([
+    getAllSeries(ws), peopleIn(ws),
+    // Only the Actions still open, with the columns that decide who may read them: the canvas only counts them.
+    allRows<Pick<Action, "id" | "metric_id" | "status" | "asker_id" | "assignee_id" | "read_group_id"> & { workspace_id: string }>((from, to) =>
+      db().from("actions").select("id, metric_id, status, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).neq("status", "closed").order("id").range(from, to),
+    ),
+    db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws),
     db().from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").eq("workspace_id", ws).order("name"),
     db().from("themes").select("id, owner_id, name, tokens, slides, is_default, updated_at").eq("workspace_id", ws).order("id"),
     db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", viewer).maybeSingle(),
@@ -114,9 +127,11 @@ export async function getCanvasData(ws: string, viewer: string): Promise<CanvasD
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
-  const [breakdowns, { targets, projections }] = await Promise.all([getBreakdowns(ws, [...ids], observations), getSeriesValues(ws, [...ids])]);
+  const [breakdowns, { targets, projections }] = await Promise.all([getBreakdowns(ws, [...ids]), getSeriesValues(ws, [...ids])]);
+  const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
+  const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws);
   const openActions: Record<number, number> = {};
-  for (const a of actions) if (a.status !== "closed" && ids.has(a.metric_id)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
+  for (const a of actions) if (ids.has(a.metric_id) && canRead(a)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
   return {
     viewer,
     metrics: visible,
@@ -141,14 +156,18 @@ export async function getCanvasData(ws: string, viewer: string): Promise<CanvasD
  * own them, don't submit to them, and they were not shared with them directly. Keys: person id, or "g<id>". */
 export async function revealedBy(ws: string, metricIds: number[], ownerId: string): Promise<Record<string, string[]>> {
   metricIds = metricIds.filter(Number.isInteger); // a malformed marker names no Metric
-  const [people, groups, shares, { data: tokens }, { data: metrics }] = await Promise.all([
-    peopleIn(ws), getGroups(ws), getShares(ws), db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", ws),
+  const [people, groups, raw, tokens, { data: metrics }] = await Promise.all([
+    peopleIn(ws), getGroups(ws), getRawShares(ws), tokenFacts(ws),
     db().from("metrics").select("id, name, owner_id").eq("workspace_id", ws).in("id", metricIds),
   ]);
-  const own = (person: string, m: { id: number; owner_id: string }) =>
-    m.owner_id === person ||
-    (tokens ?? []).some((t) => t.metric_id === m.id && t.submitter_id === person && tokenValid(t, tokens ?? [])) ||
-    shares.some((s) => s.object_type === "metric" && s.object_id === m.id && s.user_id === person);
+  const shares = expandGroupShares(ws, raw, groups);
+  // Who sees each Metric on their own, collected once and looked up per person and Metric: searching every Token and
+  // share for each pair took people × Metrics × (Tokens + shares) steps.
+  const key = (person: string, metricId: number) => `${metricId}\u0000${person}`;
+  const seen = new Set<string>();
+  for (const t of tokens) if (tokenValid(t, tokens)) seen.add(key(t.submitter_id, t.metric_id));
+  for (const s of shares) if (s.object_type === "metric") seen.add(key(s.user_id, s.object_id));
+  const own = (person: string, m: { id: number; owner_id: string }) => m.owner_id === person || seen.has(key(person, m.id));
   const out: Record<string, string[]> = {};
   for (const p of people) if (p.id !== ownerId) out[p.id] = (metrics ?? []).filter((m) => !own(p.id, m)).map((m) => m.name);
   for (const g of groups) out[`g${g.id}`] = (metrics ?? []).filter((m) => g.members.some((u) => u !== ownerId && !own(u, m))).map((m) => m.name);

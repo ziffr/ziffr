@@ -14,11 +14,13 @@ export type RunCounts = { prompts: number; reminders: number; escalations: numbe
 /** What became of one workspace on one call: ran, already ran today, not yet its hour, or failed. */
 export type RunOutcome = "ran" | "already_ran" | "not_yet" | "failed";
 
-/** Reminds assignees of open tasks due within two days of `day` (GLOSSARY: Due Date). Returns how many. */
+/** Reminds assignees of open tasks due within two days of `day` (GLOSSARY: Due Date); the emails are queued for the
+ * deliveries job. Returns how many. */
 export async function remindDueTasks(workspaceId: string, day: string): Promise<number> {
   const soon = format(addDays(parseISO(day), 2), "yyyy-MM-dd");
   const { data } = await db().from("actions").select("id, asker_id, assignee_id").eq("workspace_id", workspaceId).eq("kind", "task").eq("status", "open").not("due_date", "is", null).lte("due_date", soon);
-  for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id });
+  // Queued: the deliveries job sends them, so many reminders never hold the run up on the mail server.
+  for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id, queue: true });
   return data?.length ?? 0;
 }
 
@@ -36,7 +38,8 @@ export async function runClaimedDay(runId: number, workspaceId: string, day: str
   try {
     const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").order("created_at").limit(1).maybeSingle();
     if (!owner) throw Object.assign(new Error("no owner"), { kind: "no_owner" });
-    const log = await runWorkflows(workspaceId, day, owner.user_id as string);
+    // Its emails are queued for the deliveries job, which sends them within minutes.
+    const log = await runWorkflows(workspaceId, day, owner.user_id as string, { queue: true });
     const counts: RunCounts = {
       prompts: log.filter((l) => /: asked /.test(l)).length,
       reminders: log.filter((l) => /: reminded$/.test(l)).length + (await remindDueTasks(workspaceId, day)),

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { getAllSeries, getBreakdowns, getProfiles, getSeriesValues } from "@/lib/data";
+import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { SeriesForm } from "./series-form";
@@ -34,7 +34,7 @@ const DAILY_WINDOW = 90;
 export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const [{ metrics, observations, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
+  const [{ metrics, series }, people, viewer] = await Promise.all([getAllSeries(), getProfiles(), viewerId()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -75,7 +75,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
-  const bdByPeriod = (await getBreakdowns([metric.id], observations))[metric.id] ?? {};
+  const bdByPeriod = (await getBreakdowns([metric.id]))[metric.id] ?? {};
   const { targets, projections } = await getSeriesValues([metric.id]);
   const tSeries = targets[metric.id] ?? [];
   const pSeries = projections[metric.id] ?? [];
@@ -85,7 +85,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
   const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
   const bdAdds = bdTotal !== null && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
-  const obs = observations.filter((o) => o.metric_id === metric.id).slice(-12).reverse();
+  const obs = (await getLastValues(metric.id, 12)).reverse();
 
   return (
     <>

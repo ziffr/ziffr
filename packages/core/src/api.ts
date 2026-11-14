@@ -5,7 +5,7 @@ import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { peopleIn } from "./submissions";
-import { buildSeries, getBreakdowns, getMetrics, getObservations } from "./workspace-data";
+import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
 import type { BreakdownRow, Metric } from "./types";
 
 /** At most this many items in one page of a list. */
@@ -35,6 +35,9 @@ export async function listMetrics(actor: Actor | KeyActor, page: { after?: numbe
   const items = rest.slice(0, limit);
   return { items: items.map(toApi), next: rest.length > limit ? items[items.length - 1].id : null };
 }
+
+/** A period start as the database reads it: a real day, written YYYY-MM-DD. */
+const isDay = (s: string | null | undefined): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
 
 const clampLimit = (limit: number) => Math.min(Math.max(Math.trunc(limit) || 1, 1), MAX_PAGE);
 
@@ -66,9 +69,13 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   assertScope(actor, "metrics:read");
   const { metric, metrics } = await visibleMetric(actor, String(slug));
   const ws = actor.workspaceId;
-  // A Derived Metric needs its inputs' values to be computed; only its own values leave this function.
-  const ids = metric.formula ? metrics.map((m) => m.id) : [metric.id];
-  const observations = await getObservations(ws, ids);
+  // A Derived Metric needs its inputs' values to be computed; only its own values leave this function. Only the
+  // latest value of each period is read, and only of the periods asked for when they are real days (the comparison
+  // below stays, so a malformed bound filters as before instead of reaching the query).
+  // A cursor (`after`) narrows the read too; it is exclusive, so the comparison below drops that period itself.
+  const lower = [range.from, range.after].filter(isDay).sort().at(-1) ?? null;
+  const window = { from: lower, to: isDay(range.to) ? range.to : null };
+  const observations = await getLatestObservations(ws, { metricIds: withInputs(metrics, [metric.id]), ...window });
   const points = (buildSeries(metrics, observations)[metric.slug] ?? [])
     .filter((p) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after));
   const limit = clampLimit(range.limit);
@@ -76,12 +83,12 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   if (!page.length) return { items: [], next: null };
   const own = observations.filter((o) => o.metric_id === metric.id);
   const [breakdowns, { data: states }] = await Promise.all([
-    metric.formula ? Promise.resolve({} as Record<number, Record<string, BreakdownRow[]>>) : getBreakdowns(ws, [metric.id], own),
+    metric.formula ? Promise.resolve({} as Record<number, Record<string, BreakdownRow[]>>) : getBreakdowns(ws, [metric.id], { from: page[0].period, to: page[page.length - 1].period }),
     db().from("period_states").select("period_start, state").eq("workspace_id", ws).eq("metric_id", metric.id).in("state", ["approval", "locked"]).in("period_start", page.map((p) => p.period)),
   ]);
   const stateOf = new Map((states ?? []).map((r) => [r.period_start as string, r.state === "locked" ? "locked" : "awaiting_approval"] as const));
   const latest = new Map<string, string | null>();
-  for (const o of own) latest.set(o.period_start, o.submitter_id); // oldest first, so the latest stays
+  for (const o of own) latest.set(o.period_start, o.submitter_id); // one value per period: the latest
   return {
     items: page.map((p) => ({ period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: latest.get(p.period) ?? null, breakdown: breakdowns[metric.id]?.[p.period] ?? null })),
     next: points.length > limit ? page[page.length - 1].period : null,

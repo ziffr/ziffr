@@ -11,7 +11,8 @@ import { formatValue, health, PERIOD_LABEL, periodLabel, SOURCE_LABEL, targetTex
 import { cn } from "@/lib/utils";
 
 export default async function MetricsPage() {
-  const [{ metrics: all, series }, people, viewer] = await Promise.all([getAllSeries(), getProfileMap(), viewerId()]);
+  // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
+  const [{ metrics: all, series }, people, viewer] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId()]);
   const visible = await visibleMetricIds(viewer, all);
   const metrics = all.filter((m) => visible.has(m.id));
   return (
