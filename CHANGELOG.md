@@ -2,6 +2,20 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.4.0 (2026-11-14)
+
+### For self-hosters
+
+- `docs/guides/self-hosting.md` takes Ziffr from an empty Supabase project to a team using it (migrations, sign-in settings, the app's settings, build and run, the scheduler, upgrading, backups) and ends with a checklist for production. The README now describes Ziffr as it is.
+
+### New and changed
+
+- The Workflows page shows when Workflows run in your workspace, how the last run went, and lets Owners and Admins run today's steps now, once. Pretending it is another day is left to the demo, and closing a period counts from your workspace's today.
+- Workflows run on their own: a job your scheduler calls every hour runs each workspace's Workflows once a day at its run hour, in its own time zone, asking for missing values, reminding and escalating on the days the Workflow says, and reminding people of tasks due within two days. Self-hosters: run the new migration and call `POST /api/jobs/workflows` hourly with `ZIFFR_JOB_SECRET` (see `docs/guides/jobs.md`).
+- Owners and Admins set the workspace's time zone and the hour its Workflows run each morning, on the Team page (UTC and 08:00 until they do). It decides which day "today" is for the team, ready for Workflows that run on their own. Self-hosters: run the new migration.
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
+
 ## 0.3.0 (2026-11-14)
 
 ### New and changed
