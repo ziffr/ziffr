@@ -1,22 +1,28 @@
 "use server";
 // Signing in and out (ADR 0003): an email link, or one of the providers that are set up.
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { claimSignInLink, networkAddress } from "@ziffr/core/sign-in-limits";
 import { authClient, DEMO_COOKIE, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 
+const TOO_MANY = "Too many links asked for. Wait a minute and try again.";
+
 /** Sends a sign-in link to the address; the same message whether or not an account exists. */
 export async function sendSignInLink(email: string, next?: string) {
   const address = String(email ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("Enter a valid email address.");
+  // Ziffr's own limit first (spec 0009), with the message a Supabase limit gives: the same whether or not the
+  // address has an account.
+  if (!(await claimSignInLink(address, networkAddress(await headers())))) throw new Error(TOO_MANY);
   const { error } = await (await authClient()).auth.signInWithOtp({
     email: address,
     options: { emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
-  if (error) throw new Error(error.status === 429 ? "Too many links asked for. Wait a minute and try again." : "The link could not be sent. Try again.");
+  if (error) throw new Error(error.status === 429 ? TOO_MANY : "The link could not be sent. Try again.");
 }
 
 /** Starts signing in with a provider; only providers that are set up are accepted. */

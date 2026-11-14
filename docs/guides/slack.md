@@ -58,7 +58,9 @@ ZIFFR_SLACK_SIGNING_SECRET=<Signing Secret>
 ZIFFR_SECRETS_KEY=$(openssl rand -base64 32)
 ```
 
-`ZIFFR_SECRETS_KEY` seals the bot tokens Ziffr stores (AES-256-GCM). Keep it with your other secrets and back it up: with another key the stored tokens do not open, and every workspace has to connect Slack again. On GovSlack, also set `ZIFFR_SLACK_API_URL=https://slack-gov.com/api`.
+`ZIFFR_SECRETS_KEY` seals the bot tokens Ziffr stores (AES-256-GCM). Keep it with your other secrets and back it up: with another key alone the stored tokens do not open.
+
+**Changing the key.** Put the old key in `ZIFFR_SECRETS_KEY_PREVIOUS` and a new one in `ZIFFR_SECRETS_KEY`, then restart. Ziffr still opens tokens sealed with the old key, and seals each again with the new one the first time it uses it (sending or receiving a Slack message). Once every connected workspace has done that, remove `ZIFFR_SECRETS_KEY_PREVIOUS`. To check, no row of `slack_installations` should still open only with the old key; in practice, a day with Prompts or reminders on Slack is enough. On GovSlack, also set `ZIFFR_SLACK_API_URL=https://slack-gov.com/api`.
 
 Slack messages that could not go out at once are retried by the same job as email: have a scheduler call `POST /api/jobs/deliveries` every few minutes ([scheduled jobs](jobs.md)).
 

@@ -19,6 +19,17 @@ const DEMO_COOKIE = "ziffr-demo";
 
 const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//];
 
+/** This app's own origins: the one the request reached, and the public one (ZIFFR_SITE_URL) when a proxy is in front. */
+function ownOrigins(req: NextRequest): Set<string> {
+  const own = new Set([req.nextUrl.origin]);
+  try {
+    if (process.env.ZIFFR_SITE_URL) own.add(new URL(process.env.ZIFFR_SITE_URL).origin);
+  } catch {
+    // A malformed setting adds nothing.
+  }
+  return own;
+}
+
 export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete("x-ziffr-view-link");
@@ -32,12 +43,17 @@ export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: { headers } });
   const demoOffered = process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {
-    // Another site may not drop a signed-in person into the shared demo, where they might type real numbers.
+    // A signed-in person enters the shared demo, where they might type real numbers, only by its confirm page's
+    // button (spec 0009): a link opens that page, and the button's POST counts only from this app's own pages. Every
+    // browser sends Origin with a form post, so another site's link or form switches no one.
     const signedIn = req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
-    const fromElsewhere = req.headers.get("sec-fetch-site") === "cross-site";
-    if (path === "/demo" && signedIn && fromElsewhere) return NextResponse.redirect(new URL("/", req.url)); // ignored, nothing changes
+    // Every POST is checked, signed in or not: a browser leaves the session cookie (SameSite=Lax) off a post from
+    // another site, so such a post would look like a visitor's, and the GET after it would carry the session.
+    if (path === "/demo" && req.method === "POST" && !ownOrigins(req).has(req.headers.get("origin") ?? "")) return new NextResponse("Not from this site.", { status: 403 });
+    if (path === "/demo" && signedIn && req.method !== "POST") return NextResponse.redirect(new URL("/demo/confirm", req.url));
     const visit = path === "/demo" && demoOffered;
-    const out = NextResponse.redirect(new URL(visit ? "/" : "/login", req.url));
+    // 303 so a POST is followed by a GET of the page.
+    const out = NextResponse.redirect(new URL(visit ? "/" : "/login", req.url), 303);
     if (visit) out.cookies.set(DEMO_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" });
     else out.cookies.delete(DEMO_COOKIE);
     return out;

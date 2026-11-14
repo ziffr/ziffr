@@ -1,13 +1,14 @@
 // Secrets at rest (spec 0007, ticket #101; GLOSSARY: Connector). A Connector's credential, such as a Slack bot token,
 // is sealed with AES-256-GCM under ZIFFR_SECRETS_KEY before it is stored, with what it belongs to (a workspace id) as
 // additional data: a sealed value copied to another workspace's row does not open. A database dump alone holds no
-// usable token.
+// usable token. The key can be changed (spec 0009): ZIFFR_SECRETS_KEY_PREVIOUS still opens what the old key sealed,
+// and openSecretRotating says when it did, so the caller seals the secret again under the new key.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /** ZIFFR_SECRETS_KEY as its 32 bytes: base64 (as `openssl rand -base64 32` prints it) or 64 hex digits. Null when
  * it is missing or not exactly 32 bytes, so nothing is sealed with a weak key. */
-export function secretsKey(env: Record<string, string | undefined> = process.env): Buffer | null {
-  const raw = (env.ZIFFR_SECRETS_KEY ?? "").trim();
+export function secretsKey(env: Record<string, string | undefined> = process.env, name = "ZIFFR_SECRETS_KEY"): Buffer | null {
+  const raw = (env[name] ?? "").trim();
   if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
   if (/^[A-Za-z0-9+/_-]{43}=?$/.test(raw)) {
     const key = Buffer.from(raw.replace(/-/g, "+").replace(/_/g, "/"), "base64");
@@ -42,4 +43,18 @@ export function openSecret(sealed: string, context: string, key = secretsKey()):
   } catch {
     return null;
   }
+}
+
+/** The key being retired (ZIFFR_SECRETS_KEY_PREVIOUS), read like ZIFFR_SECRETS_KEY; null when unset. */
+export function previousSecretsKey(env: Record<string, string | undefined> = process.env): Buffer | null {
+  return secretsKey(env, "ZIFFR_SECRETS_KEY_PREVIOUS");
+}
+
+/** Opens a sealed secret with the current key, else the previous one. `stale` is true when only the previous key
+ * opened it: the caller should seal it again with sealSecret and store that. */
+export function openSecretRotating(sealed: string, context: string, keys = { current: secretsKey(), previous: previousSecretsKey() }): { plain: string; stale: boolean } | null {
+  const now = openSecret(sealed, context, keys.current ?? undefined);
+  if (now !== null) return { plain: now, stale: false };
+  const before = keys.previous ? openSecret(sealed, context, keys.previous) : null;
+  return before === null ? null : { plain: before, stale: true };
 }

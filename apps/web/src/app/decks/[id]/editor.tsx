@@ -31,6 +31,7 @@ import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type Widget
 import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
+import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
 import { VersionsDialog } from "@/components/versions-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { WhoCanSee } from "@/components/who-can-see";
@@ -74,6 +75,7 @@ function DeckCanvas({ deck, data, saved, sharing }: Props) {
   const onMount = useCallback(
     (ed: Editor) => {
       setEditor(ed);
+      keepContentLocal(ed);
       if (process.env.NODE_ENV === "development") (window as unknown as { __deckEditor?: Editor }).__deckEditor = ed;
       ed.user.updateUserPreferences({ colorScheme: "light", locale: "en" }); // the app is English, whatever the browser says
       // A deck is set in clean type with solid lines, not tldraw's hand-drawn defaults.
@@ -298,7 +300,7 @@ function DeckCanvas({ deck, data, saved, sharing }: Props) {
           }}
         >
           <ThemeScope theme={theme} className="h-full w-full">
-            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} onMount={onMount} />
+            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} overrides={LOCAL_ONLY_OVERRIDES} onMount={onMount} />
           </ThemeScope>
         </div>
       </div>

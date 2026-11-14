@@ -2,6 +2,7 @@
 // "Edit layout…": the deck's slide canvas at the size of one widget. Drag widgets in from the Pool,
 // add text, arrows and shapes; saving stores the document and the data it was drawn against.
 import "tldraw/tldraw.css";
+import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "./keep-local";
 import { useState } from "react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, type Editor, type TLEditorSnapshot } from "tldraw";
 import { Pool } from "@/components/pool";
@@ -49,8 +50,10 @@ export default function LayoutEditor({ widget, data, saved, onSave, onCancel }: 
             <Tldraw
               shapeUtils={shapeUtils}
               snapshot={snapshot}
+              overrides={LOCAL_ONLY_OVERRIDES}
               onMount={(ed) => {
                 setEditor(ed);
+                keepContentLocal(ed);
                 ed.user.updateUserPreferences({ colorScheme: "light", locale: "en" }); // the app is English, whatever the browser says
                 ed.setStyleForNextShapes(DefaultFontStyle, "sans");
                 ed.setStyleForNextShapes(DefaultDashStyle, "solid");

@@ -10,6 +10,7 @@ import { deleteTemplate, renameTemplate, saveTemplate } from "./templates";
 import { listVersions, restoreVersion } from "./version-history";
 import { STARTER_THEME } from "./themes";
 import { workspace } from "./test/db-fixtures";
+import { dashboardWidgets, deckDocuments, deckView } from "./page-data";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -134,5 +135,31 @@ describe("after the review of #14", () => {
     const later2 = JSON.stringify((await openViewLink(token))!.document);
     expect(later2).not.toMatch(/Layoffs/);
     expect(later2).not.toMatch(/page:page/); // added after the link was made, so it stays out too
+  });
+});
+
+describe("content from other sites (spec 0009)", () => {
+  const PNG = "data:image/png;base64,iVBORw0KGgo=";
+  const outside = { store: { "asset:x": { id: "asset:x", typeName: "asset", type: "image", props: { src: "https://tracker.example/p.png" } }, "shape:x": { id: "shape:x", typeName: "shape", type: "image", props: { assetId: "asset:x" } } } };
+  it("refuses it in a deck or a free layout, keeps uploaded images, and leaves it out when shown", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const d = await createDeck(w.actor(sara), "Board");
+    await expect(saveDeck(w.actor(sara), d, outside)).rejects.toThrow(/another site/);
+    await saveDeck(w.actor(sara), d, { store: { "asset:a": { id: "asset:a", typeName: "asset", type: "image", props: { src: PNG } } } });
+
+    // A deck saved before the rule (written directly here) loads nothing from elsewhere.
+    await db().from("decks").update({ document: outside }).eq("id", d);
+    expect((await deckView(w.actor(sara), d))?.deck?.document).toEqual({ store: {} });
+    expect((await deckDocuments(w.actor(sara)))[0].document).toEqual({ store: {} });
+
+    // A free layout on a dashboard: refused on save, left out when shown.
+    const dash = await createDashboard(w.actor(sara), "Main");
+    const m = await w.metric(sara);
+    await placeWidget(w.actor(sara), dash, { type: "metric", id: m.id });
+    const [widget] = await dashboardWidgets(w.actor(sara), dash);
+    await expect(updateWidget(w.actor(sara), widget.id, { settings: { canvas: { document: outside } } as never })).rejects.toThrow(/another site/);
+    await db().from("widgets").update({ settings: { canvas: { document: outside } } }).eq("id", widget.id);
+    const [shown] = await dashboardWidgets(w.actor(sara), dash);
+    expect((shown.settings as { canvas: { document: unknown } }).canvas.document).toEqual({ store: {} });
   });
 });

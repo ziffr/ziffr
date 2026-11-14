@@ -12,6 +12,7 @@ import { tokenValid } from "./tokens";
 import { periodStart } from "./format";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
+import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import type { Action, Metric, Period, Widget } from "./types";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
@@ -141,7 +142,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
 /** The actor's saved widgets (their Pool). */
 export async function savedWidgets(actor: Actor): Promise<Widget[]> {
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).eq("saved", true).order("id");
-  return (data ?? []) as Widget[];
+  return ((data ?? []) as Widget[]).map(widgetWithoutOutside);
 }
 
 /** A deck of the workspace with the actor's role on it; for one not shared with them, only who to ask. */
@@ -153,7 +154,8 @@ export async function deckView(actor: Actor, id: number) {
     const { data: owner } = await db().from("profiles").select("name").eq("id", deck.owner_id).single();
     return { role: null, ownerFirstName: (owner?.name as string | undefined)?.split(" ")[0] ?? "the owner", deck: null };
   }
-  return { role, ownerFirstName: null, deck };
+  // Saved before content from other sites was refused, a deck still loads nothing from them (spec 0009).
+  return { role, ownerFirstName: null, deck: { ...deck, document: stripOutsideContent(deck.document) } };
 }
 
 /** The documents of the decks the actor sees, for the decks list. */
@@ -161,14 +163,14 @@ export async function deckDocuments(actor: Actor) {
   const ids = (await visibleDecks(actor.workspaceId, actor.personId)).map((d) => d.id);
   if (!ids.length) return [];
   const { data } = await db().from("decks").select("id, document").eq("workspace_id", actor.workspaceId).in("id", ids);
-  return data ?? [];
+  return (data ?? []).map((d) => ({ ...d, document: stripOutsideContent(d.document) }));
 }
 
 /** The widgets of a dashboard the actor sees, in reading order; Forbidden otherwise. */
 export async function dashboardWidgets(actor: Actor, dashboardId: number): Promise<Widget[]> {
   if (!(await visibleDashboards(actor.workspaceId, actor.personId)).some((d) => d.id === dashboardId)) throw new Forbidden();
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("dashboard_id", dashboardId).order("y").order("x");
-  return (data ?? []) as Widget[];
+  return ((data ?? []) as Widget[]).map(widgetWithoutOutside);
 }
 
 /** For a dashboard of the workspace that is not shared with the actor: whom to ask. Null when there is none here. */

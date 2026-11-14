@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
 import { periodStart } from "./format";
-import { auditLog, exportAuditLog, recordAudit, recordDeckExport, recordSignIn } from "./audit-log";
+import { AUDIT_EXPORTS_PER_HOUR, AuditExportLimit, auditLog, exportAuditLog, recordAudit, recordDeckExport, recordSignIn } from "./audit-log";
 import { acceptInvitation, createInviteLink, decideJoinRequest, inviteByEmail, revokeInvitation, setJoinDomain, setRole } from "./invitations";
 import { createGroup, deleteGroup, renameGroup, setGroupMember, addContact, removeContact } from "./team";
 import { removeMember } from "./handover";
@@ -286,5 +286,16 @@ describe("keeping", () => {
     expect(await stored(w.id)).toHaveLength(3);
     await db().from("workspaces").delete().eq("id", w.id);
     expect(await stored(w.id)).toEqual([]);
+  });
+});
+
+describe("export limit (spec 0009)", () => {
+  it("refuses the eleventh export of a workspace within an hour", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    for (let i = 0; i < AUDIT_EXPORTS_PER_HOUR; i++) await exportAuditLog(w.actor(sara));
+    await expect(exportAuditLog(w.actor(sara))).rejects.toEqual(expect.any(AuditExportLimit));
+    // Another workspace counts its own.
+    const other = await ws("Other"); const zoe = await other.person("owner");
+    await expect(exportAuditLog(other.actor(zoe))).resolves.toBeTruthy();
   });
 });

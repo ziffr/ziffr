@@ -7,6 +7,7 @@ import { visibleDecks } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { ensureBaseline, recordVersion } from "./versions";
+import { assertNoOutsideContent } from "./deck-content";
 
 /** The largest deck document stored, so a browser cannot fill the database. */
 const MAX_DOCUMENT = 8_000_000;
@@ -36,6 +37,8 @@ export async function createDeck(actor: Actor, name: string): Promise<number> {
 export async function saveDeck(actor: Actor, id: number, document: unknown) {
   await assertCanEditDeck(actor, id);
   if (JSON.stringify(document ?? null).length > MAX_DOCUMENT) throw new Error("This deck is too large to save.");
+  // Showing a deck, also through a View Link, must tell no other site that someone looked (spec 0009).
+  assertNoOutsideContent(document, "deck");
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // A malformed marker (NaN) never counts as "already there": only real ids are.
   const had = new Set(deckMetricIds(before?.document).filter(Number.isFinite));

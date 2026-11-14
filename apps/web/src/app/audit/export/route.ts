@@ -2,7 +2,7 @@
 // Owners and Admins, with the same filter as the page. The core checks who asks, records the export and writes the
 // lines; this only streams them, never cached, as a download.
 import { currentActor } from "@/lib/viewer";
-import { exportAuditLog } from "@ziffr/core/audit-log";
+import { AuditExportLimit, exportAuditLog } from "@ziffr/core/audit-log";
 import { Forbidden } from "@ziffr/core/actor";
 
 /** Streams the filtered Audit Log as CSV; anyone else gets 404, as if there were nothing here. */
@@ -14,6 +14,8 @@ export async function GET(req: Request) {
     file = await exportAuditLog(actor, query);
   } catch (e) {
     if (e instanceof Forbidden) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
+    // Only Owners and Admins get this far, so saying why is safe (spec 0009).
+    if (e instanceof AuditExportLimit) return new Response(e.message, { status: 429, headers: { "cache-control": "no-store", "retry-after": "3600", "content-type": "text/plain; charset=utf-8" } });
     throw e;
   }
   const encoder = new TextEncoder();

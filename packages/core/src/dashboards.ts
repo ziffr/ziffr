@@ -9,6 +9,7 @@ import { fillsComplete, fromTemplate } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { DEFAULT_TEMPLATE, TEMPLATES } from "./widget-templates";
 import { ensureBaseline, recordVersion } from "./versions";
+import { assertNoOutsideContent } from "./deck-content";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -26,6 +27,8 @@ const ids = (v: unknown) => (Array.isArray(v) ? v.map(Number).filter(Number.isIn
 function settings(s: unknown): WidgetSettings {
   const v = (s && typeof s === "object" && !Array.isArray(s) ? s : {}) as WidgetSettings;
   if (JSON.stringify(v).length > MAX_SETTINGS) throw new Error("This widget is too large to save.");
+  // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
+  assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
   return v;
 }
 

@@ -1,6 +1,6 @@
 // Sealing secrets and the Slack settings (spec 0007, ticket #101): pure checks, no database.
 import { describe, expect, it } from "vitest";
-import { openSecret, sealSecret, secretsKey } from "./secrets";
+import { openSecret, openSecretRotating, previousSecretsKey, sealSecret, secretsKey } from "./secrets";
 import { slackApiBase, slackEnabled } from "./slack-api";
 
 const key = Buffer.alloc(32, 9);
@@ -38,5 +38,22 @@ describe("Slack settings", () => {
     expect(slackApiBase({ ZIFFR_SLACK_API_URL: "https://slack-gov.com/api/" })).toBe("https://slack-gov.com/api");
     expect(slackApiBase({ ZIFFR_SLACK_API_URL: "http://evil.example/api" })).toBe("https://slack.com/api");
     expect(slackApiBase({ ZIFFR_SLACK_API_URL: "http://127.0.0.1:4000/api" })).toBe("http://127.0.0.1:4000/api");
+  });
+});
+
+describe("changing the key (spec 0009)", () => {
+  const oldKey = Buffer.alloc(32, 1); const newKey = Buffer.alloc(32, 2);
+  it("opens with the current key, else the previous one, and says when it was the previous", () => {
+    const sealedOld = sealSecret("xoxb-old", "ws-1", oldKey);
+    const sealedNew = sealSecret("xoxb-new", "ws-1", newKey);
+    expect(openSecretRotating(sealedNew, "ws-1", { current: newKey, previous: oldKey })).toEqual({ plain: "xoxb-new", stale: false });
+    expect(openSecretRotating(sealedOld, "ws-1", { current: newKey, previous: oldKey })).toEqual({ plain: "xoxb-old", stale: true });
+    // Without the previous key, or for another owner, nothing opens.
+    expect(openSecretRotating(sealedOld, "ws-1", { current: newKey, previous: null })).toBeNull();
+    expect(openSecretRotating(sealedOld, "ws-2", { current: newKey, previous: oldKey })).toBeNull();
+  });
+  it("reads the previous key from its own setting", () => {
+    expect(previousSecretsKey({ ZIFFR_SECRETS_KEY_PREVIOUS: oldKey.toString("base64") })?.equals(oldKey)).toBe(true);
+    expect(previousSecretsKey({ ZIFFR_SECRETS_KEY: oldKey.toString("base64") })).toBeNull();
   });
 });

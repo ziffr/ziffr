@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
-import { openSecret, sealSecret } from "./secrets";
+import { openSecretRotating, sealSecret } from "./secrets";
 import { callSlack, slackApiBase, slackEnabled, SlackError } from "./slack-api";
 import { DEMO_WORKSPACE_ID } from "./team";
 
@@ -127,7 +127,10 @@ export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
   if (workspaceId === DEMO_WORKSPACE_ID || !slackEnabled()) return null;
   const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
-  const token = openSecret(data.bot_token, sealContext(workspaceId));
+  const opened = openSecretRotating(data.bot_token, sealContext(workspaceId));
+  const token = opened?.plain ?? null;
+  // Sealed under the key being retired: seal it again under the current one, so that key can go (spec 0009).
+  if (opened?.stale) await db().from("slack_installations").update({ bot_token: sealSecret(opened.plain, sealContext(workspaceId)) }).eq("workspace_id", workspaceId).eq("bot_token", data.bot_token);
   return token ? { workspaceId, teamId: data.team_id, appId: data.app_id, botUserId: data.bot_user_id, token } : null;
 }
 

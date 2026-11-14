@@ -165,6 +165,16 @@ export async function auditLog(actor: Actor, filter: Record<string, unknown> = {
   return { events, next: found.length > AUDIT_PAGE_SIZE ? events[events.length - 1].id : null, filter: f, timeZone };
 }
 
+/** How many times a workspace may export its Audit Log in an hour. */
+export const AUDIT_EXPORTS_PER_HOUR = 10;
+
+/** Too many exports of the Audit Log in the last hour. */
+export class AuditExportLimit extends Error {
+  constructor() {
+    super(`The Audit Log was exported ${AUDIT_EXPORTS_PER_HOUR} times in the last hour. Try again later.`);
+  }
+}
+
 /** The columns of the CSV export. */
 export const AUDIT_CSV_COLUMNS = ["time_utc", "person", "person_id", "kind", "what", "object_type", "object_id", "object_name", "details"];
 
@@ -175,6 +185,10 @@ export async function exportAuditLog(actor: Actor, filter: Record<string, unknow
   const f = cleanAuditFilter(filter);
   const { timeZone } = await workspaceClock(actor);
   const seen = await seenBy(actor);
+  // At most AUDIT_EXPORTS_PER_HOUR a workspace, counted from the export events below (spec 0009): a stolen session
+  // cannot pull the log again and again, and the count needs no table of its own.
+  const { count } = await db().from("audit_events").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("kind", "export.audit_log").gte("at", new Date(Date.now() - 3_600_000).toISOString());
+  if ((count ?? 0) >= AUDIT_EXPORTS_PER_HOUR) throw new AuditExportLimit();
   // Exporting the log is itself an event, recorded before the first line goes out.
   await audit(actor, { kind: "export.audit_log", object: { type: "audit_log", id: actor.workspaceId }, details: {
     person: f.person ?? null, kind: f.kind ?? f.category ?? null, object_type: f.objectType ?? null, object_id: f.objectId ?? null, from: f.from ?? null, to: f.to ?? null, format: "csv",

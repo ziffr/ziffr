@@ -87,6 +87,27 @@ describe("connecting Slack", () => {
     await expect(startSlackInstall({ personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" })).rejects.toThrow();
   });
 
+  it("opens a token sealed under the previous key and seals it again under the current one (spec 0009)", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    const oldKey = Buffer.alloc(32, 9);
+    const sealedOld = sealSecret(slack.install.access_token, `slack-bot:${w.id}`, oldKey);
+    await db().from("slack_installations").update({ bot_token: sealedOld }).eq("workspace_id", w.id);
+    expect(await slackBot(w.id)).toBeNull();
+    process.env.ZIFFR_SECRETS_KEY_PREVIOUS = oldKey.toString("base64");
+    try {
+      expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+      const { data } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+      expect(data!.bot_token).not.toBe(sealedOld);
+      expect(openSecret(data!.bot_token, `slack-bot:${w.id}`)).toBe(slack.install.access_token);
+    } finally {
+      delete process.env.ZIFFR_SECRETS_KEY_PREVIOUS;
+    }
+    // Sealed again, it opens without the previous key.
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+  });
+
   it("disconnects in Ziffr, or when Slack says the app is gone", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const sara = await w.person("owner");
