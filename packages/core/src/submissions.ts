@@ -1,5 +1,5 @@
 // Submitting values (GLOSSARY: Observation, Submission Rule, Token, Lock, Correction, Contact). Values arrive by Slack,
-// mail or a personal form link and are recorded under their sender, members and Contacts alike; a Metric owner
+// mail, a personal form link or a program with an Access Key and are recorded under their sender, members and Contacts alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
 import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "./format";
@@ -15,10 +15,16 @@ import type { Metric, Profile, SourceId, Token } from "./types";
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
 export type SubmissionInput = {
   source: SourceId;
-  /** Slack handle, mail address, or (web form) the token code. */
+  /** Slack handle, mail address, or (web form and API) the token code. */
   sender: string;
   text: string;
   promptId?: number;
+  /** A program's value as it sent it, instead of a number found in `text` (source "api" only). */
+  value?: { value: number; breakdown?: { label: string; value: number }[] };
+  /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
+  period?: string;
+  /** The Access Key a program submits with (source "api" only); the value names it. */
+  accessKeyId?: number;
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
@@ -83,7 +89,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
 
   // 1. Who sent it? The Token is implied by the sender's identity on this Source.
   // Everything is looked up inside one workspace only, so a message can never land in another one.
-  if (input.source === "web_form") {
+  const byToken = input.source === "web_form" || input.source === "api";
+  if (byToken) {
     const { data: t } = await db().from("tokens").select("workspace_id").eq("code", input.sender).maybeSingle();
     if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
     workspaceId = t.workspace_id;
@@ -100,7 +107,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const metricById = Object.fromEntries(metrics.map((m) => [m.id, m]));
   let sender: Profile | undefined;
   let candidates: Token[] = [];
-  if (input.source === "web_form") {
+  if (byToken) {
     const t = live.find((t) => t.code === input.sender);
     if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
     sender = profiles.find((p) => p.id === t.submitter_id);
@@ -138,7 +145,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       how = "metric named in the message";
     } else if (candidates.length === 1) {
       token = candidates[0];
-      how = input.source === "web_form" ? "personal form link" : "sender’s only Token";
+      how = input.source === "web_form" ? "personal form link" : input.source === "api" ? "Access Key" : "sender’s only Token";
     } else {
       const names = candidates.map((t) => metricById[t.metric_id]?.name).join(", ");
       return log({ ok: false, senderId, outcome: "rejected_ambiguous", detail: `${sender?.name} has Tokens for ${names}. Reply to a Prompt or name the metric.` });
@@ -148,15 +155,21 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
   if (metric.formula) return log({ ...base, ok: false, outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` });
-  if (!metric.sources.includes(input.source))
+  // A program submits through its creator's own Token, so it is taken where that Token's form link is.
+  if (!metric.sources.includes(input.source === "api" ? "web_form" : input.source))
     return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
 
   // 3. What value, for which period? A breakdown's total (or the sum of its rows) is the value.
-  const breakdown = parseBreakdown(input.text);
+  const sent = input.source === "api" ? input.value : undefined;
+  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
-  const value = breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
+  const value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
   if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
-  const period = prompt?.period_start ?? periodStart(new Date(), metric.period);
+  const named = input.source === "api" && input.period ? input.period : null;
+  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period) !== named)
+    return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
+  if (named && named > periodStart(new Date(), metric.period)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
+  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period);
   const fv = (v: number) => formatValue(metric, v);
   const when = periodLabel(period, metric.period);
 
@@ -178,7 +191,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   // 4. Submission Rule
   const { data: existing } = await db().from("observations").select("*").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false });
   const prev = existing?.[0];
-  const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source };
+  const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
   let result: SubmissionResult & { observationId?: number };
   if (!prev) {
     const { data } = await db().from("observations").insert({ ...row, value }).select("id").single();

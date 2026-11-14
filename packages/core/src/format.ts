@@ -53,7 +53,7 @@ export const POLARITY_LABEL: Record<Polarity, string> = {
 };
 
 /** How each Source is named. */
-export const SOURCE_LABEL: Record<SourceId, string> = { slack: "Slack", mail: "Mail", web_form: "Web form" };
+export const SOURCE_LABEL: Record<SourceId, string> = { slack: "Slack", mail: "Mail", web_form: "Web form", api: "API" };
 
 /** good | bad | neutral for a value, given the metric's target range. */
 export function health(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined) {

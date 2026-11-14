@@ -6,8 +6,9 @@ export type SubmissionRule = "reject" | "overwrite" | "add" | "keep_both";
 export type Polarity = "higher" | "lower" | "target";
 /** How a metric's values are written. */
 export type Format = "number" | "currency" | "percent";
-/** Where values can arrive from (GLOSSARY: Source). */
-export type SourceId = "slack" | "mail" | "web_form";
+/** Where values can arrive from (GLOSSARY: Source). "api" is a program with an Access Key; a Metric takes it where it
+ * takes its personal form link, since both use the Submitter's own Token. */
+export type SourceId = "slack" | "mail" | "web_form" | "api";
 
 /** A person in the workspace, with where Connectors reach them. */
 export type Profile = {
@@ -63,6 +64,8 @@ export type Observation = {
   submitter_id: string | null;
   source: string;
   original_value: number | null;
+  /** The Access Key a program submitted it with, if any. */
+  access_key_id?: number | null;
   created_at: string;
 };
 

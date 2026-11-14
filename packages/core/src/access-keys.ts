@@ -7,8 +7,8 @@ import { db } from "./db";
 import { assertScope, Forbidden, SCOPES, type Actor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
-import { submitValue, type SubmissionResult } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { assertSeesMetrics } from "./sharing";
 
 const DAY = 86_400_000;
 const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
@@ -87,14 +87,13 @@ export async function readMetrics(actor: Actor | KeyActor) {
   return metrics.filter((m) => visible.has(m.id)).map((m) => ({ id: m.id, slug: m.slug, name: m.name, unit: m.unit, period: m.period, series: series[m.slug] ?? [] }));
 }
 
-/** Submits a value for a Metric the actor submits to (scope values:submit for keys), through the Metric's Token,
- * Submission Rule, Lock and Workflow like any other value. PROTOTYPE: recorded as from the web form until the API
- * spec adds an API Source. */
-export async function submitWithKey(actor: Actor | KeyActor, metricId: number, value: number): Promise<SubmissionResult> {
-  assertScope(actor, "values:submit");
-  if (!Number.isInteger(metricId)) throw new Forbidden();
-  if (!Number.isFinite(Number(value))) throw new Error("The value must be a number.");
-  const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", actor.workspaceId).eq("metric_id", metricId).eq("submitter_id", actor.personId).is("stands_in_for", null).order("id").limit(1);
-  if (!tokens?.length) throw new Forbidden("You do not submit values for this metric.");
-  return submitValue({ source: "web_form", sender: tokens[0].code, text: String(Number(value)) });
+/** The names of the Access Keys that submitted values to a Metric, by key id, for someone who sees the Metric: its
+ * history names the program a value came from (spec 0002). Only the name: nothing else of a key leaves here. */
+export async function submittingKeyNames(actor: Actor, metricId: number): Promise<Record<number, string>> {
+  await assertSeesMetrics(actor, [metricId]);
+  const { data: obs } = await db().from("observations").select("access_key_id").eq("workspace_id", actor.workspaceId).eq("metric_id", metricId).not("access_key_id", "is", null);
+  const ids = [...new Set((obs ?? []).map((o) => Number(o.access_key_id)))];
+  if (!ids.length) return {};
+  const { data } = await db().from("access_keys").select("id, name").eq("workspace_id", actor.workspaceId).in("id", ids);
+  return Object.fromEntries((data ?? []).map((k) => [k.id, k.name]));
 }

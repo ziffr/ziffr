@@ -71,7 +71,7 @@ A link between Ziffr and an outside system, such as Slack, email, WhatsApp, a ti
 _Avoid_: Integration, plugin, channel
 
 **Source**:
-A Connector used to receive observations, such as mail, a messenger, Slack or a web form.
+A Connector used to receive observations, such as mail, a messenger, Slack or a web form. A program with an Access Key is the API Source; a metric takes values from it where it takes them from the submitter's personal form link.
 _Avoid_: Input, integration
 
 **Submitter**:

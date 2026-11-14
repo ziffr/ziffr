@@ -42,6 +42,21 @@ export const ApiObservation = z.object({
 /** GET /api/v1/metrics/{slug}/observations answers this. */
 export const ObservationList = pageOf(ApiObservation);
 
+/** POST /api/v1/metrics/{slug}/observations takes this. */
+export const SubmitObservation = z.object({
+  value: z.number().finite().describe("The value. With a breakdown, the total; the rows need not add up to it."),
+  period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
+  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200), value: z.number().finite() })).max(500).optional(),
+}).strict();
+
+/** POST /api/v1/metrics/{slug}/observations answers this when the value was taken. */
+export const SubmissionAnswer = z.object({
+  status: z.enum(["recorded", "awaiting_approval"]).describe("recorded, or waiting for Approval as an Unusual Value."),
+  period: z.string(),
+  value: z.number().describe("The period's value now: the Submission Rule may have added it to an earlier one."),
+  detail: z.string().describe("What happened, in words."),
+});
+
 /** A person or Contact (GLOSSARY: Contact): id and name only, never contact details. */
 export const ApiPerson = z.object({ id: z.string(), name: z.string(), contact: z.boolean().describe("A Contact: known to the workspace, no sign-in, only submits values.") });
 

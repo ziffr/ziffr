@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
-import { actorForKey, createAccessKey, listAccessKeys, readMetrics, revokeAccessKey, submitWithKey } from "./access-keys";
+import { submitObservation } from "./api-submissions";
+import { actorForKey, createAccessKey, listAccessKeys, readMetrics, revokeAccessKey } from "./access-keys";
 import { createMetric } from "./metrics";
 import { share } from "./sharing";
 import { workspace } from "./test/db-fixtures";
@@ -27,15 +28,15 @@ describe("Access Keys", () => {
     expect((await readMetrics(key)).map((m) => m.id)).toEqual([mine.id]);
     await share(w.actor(sara), "metric", hidden.id, ben, "viewer");
     expect((await readMetrics(key)).map((m) => m.id).sort()).toEqual([mine.id, hidden.id].sort());
-    await expect(submitWithKey(key, mine.id, 5)).rejects.toEqual(forbidden);
+    await expect(submitObservation(key, mine.slug, { value: 5 })).rejects.toEqual(forbidden);
   });
   it("submit values only with the scope, and only where the creator has a Token", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); const other = await w.metric(sara); await w.token(m.id, ben);
     const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Feed", scopes: ["values:submit"], expiresOn: inDays(30) });
     const key = (await actorForKey(secret))!;
-    expect((await submitWithKey(key, m.id, 42)).ok).toBe(true);
-    await expect(submitWithKey(key, other.id, 1)).rejects.toEqual(forbidden);
+    expect((await submitObservation(key, m.slug, { value: 42 })).ok).toBe(true);
+    await expect(submitObservation(key, other.slug, { value: 1 })).rejects.toEqual(forbidden);
     await expect(readMetrics(key)).rejects.toEqual(forbidden);
   });
   it("stop when revoked, when they end, or when their creator leaves; a wrong secret is nothing", async () => {

@@ -13,7 +13,7 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 
 ## What every answer has in common
 
-- **Errors** are `{ "error": { "code": "...", "message": "..." } }`. The codes are `invalid_request` (400), `unauthorized` (401: no key, or one that ended, was revoked, or whose creator left), `forbidden` (403: the key lacks the scope), `not_found` (404), `conflict` (409), `unprocessable` (422), `rate_limited` (429) and `internal` (500).
+- **Errors** are `{ "error": { "code": "...", "message": "..." } }`. The codes are `invalid_request` (400), `unauthorized` (401: no key, or one that ended, was revoked, or whose creator left), `forbidden` (403: the key lacks the scope), `not_found` (404), `conflict` (409), `unprocessable` (422: a rule refused it), `locked` (422: the period is locked), `rate_limited` (429) and `internal` (500).
 - **Something you may not see is not found.** A Metric in another workspace, or one not shared with the key's creator, answers 404, the same as one that does not exist.
 - **Lists page with a cursor.** Pass `limit` (1 to 100, default 50) and the `next` value of the previous page as `cursor`. `next` is null on the last page. Treat cursors as opaque.
 - **Each key may make about 60 calls a minute.** Over that, the answer is `rate_limited` (429) with a `Retry-After` header in seconds; wait that long and try again. Refused calls do not count against the limit.
@@ -29,5 +29,22 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 | `GET /api/v1/metrics/{slug}/observations` | read metrics | Its values, oldest first, with state, submitter and Breakdown; `from` and `to` (YYYY-MM-DD, both included) pick the periods |
 | `GET /api/v1/people` | read metrics | The workspace's people and Contacts: id and name, never contact details |
 | `GET /api/v1/groups` | read metrics | The workspace's Groups: id and name |
+| `POST /api/v1/metrics/{slug}/observations` | submit values | Submits a value for the current period, or the one named in `period` |
 
 More endpoints, the OpenAPI document and a reference page follow with spec 0002's tickets.
+
+## Submitting values
+
+```sh
+curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
+  -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: orders-2026-11" \
+  -d '{ "value": 42, "breakdown": [{ "label": "Shop", "value": 30 }, { "label": "Online", "value": 12 }] }'
+```
+
+- The key's creator must submit to the Metric (have a Token for it), and the Metric must take values from its personal form link: a program submits as that person, through the same rules. The value shows in the Metric's history as from the API, with the key's name.
+- `period` is the first day of a period (`2026-11-01` for a monthly Metric, a Monday for a weekly one); without it, the current period. A future period is refused.
+- The answer (201) says `recorded`, or `awaiting_approval` when the value is unusual and waits for Approval. A locked period answers 422 `locked`, and the value goes to the Metric's owner as a proposed Correction. The Submission Rule or a Derived Metric can refuse it with 422 `unprocessable`.
+- **Idempotency-Key** (optional, up to 200 characters): a repeat within 24 hours with the same key and body gets the first answer again, with `Idempotent-Replayed: true`, and records nothing. The same key with another body answers 409.
+- Each key may submit **1,000 values a day** (any 24 hours). Over that, 429 with `Retry-After`.
+

@@ -9,6 +9,7 @@ import { VersionsDialog } from "@/components/versions-dialog";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
+import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { formatValue, health, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
@@ -61,12 +62,15 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </div>
     );
   }
-  const [actions, extras, dashboards, shares, groups] = await Promise.all([
+  const actor = await currentActor();
+  const [actions, extras, dashboards, shares, groups, keyNames] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
-    metricExtras(await currentActor(), metric.id, metric.period),
+    metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
     getRawShares(),
     getGroups(),
+    // Which program sent a value: the names of the Access Keys behind this Metric's values (spec 0002).
+    submittingKeyNames(actor, metric.id),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -293,7 +297,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                         {o.original_value !== null && <span className="ml-2 text-xs font-normal text-muted-foreground line-through">{formatValue(metric, o.original_value)}</span>}
                         {o.original_value !== null && <Badge variant="outline" className="ml-2">Corrected</Badge>}
                       </td>
-                      <td className="py-2 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}</td>
+                      <td className="py-2 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
                       <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
                     </tr>
                   ))}

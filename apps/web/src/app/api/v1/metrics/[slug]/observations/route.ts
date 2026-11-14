@@ -1,8 +1,10 @@
-// GET /api/v1/metrics/{slug}/observations (spec 0002): a Metric's values for a range of periods, with Breakdowns, a
-// page at a time. Scope metrics:read.
+// /api/v1/metrics/{slug}/observations (spec 0002). GET: a Metric's values for a range of periods, with Breakdowns, a
+// page at a time (scope metrics:read). POST: submits a value (scope values:submit) through the same core path as a
+// form or Slack, with an optional Idempotency-Key and at most 1,000 values a day per key.
+import { admitValues, once, submitObservation, VALUES_PER_DAY, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listObservations } from "@ziffr/core/api";
-import { json, keyRoute, observationsQuery, query, slugParam, toCursor } from "@/lib/api";
-import { ObservationList } from "../../../schemas";
+import { ApiError, errorBody, json, jsonBody, keyRoute, observationsQuery, query, slugParam, toCursor } from "@/lib/api";
+import { ObservationList, SubmissionAnswer, SubmitObservation } from "../../../schemas";
 
 type Ctx = { params: Promise<{ slug: string }> };
 
@@ -12,4 +14,36 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
   const { limit, cursor, from, to } = observationsQuery.parse(query(req));
   const page = await listObservations(actor, slug, { from, to, after: cursor, limit });
   return json(ObservationList.parse({ items: page.items, next: toCursor(page.next) }));
+});
+
+/** Submits a value for one Metric. 201 when taken, 422 when locked or refused by a rule, 409 for a reused
+ * Idempotency-Key with another body. */
+export const POST = keyRoute("values:submit", async (actor, req, ctx: Ctx) => {
+  const slug = slugParam.parse((await ctx.params).slug);
+  const idem = req.headers.get("idempotency-key");
+  if (idem !== null && !/^[\x21-\x7e]{1,200}$/.test(idem)) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
+  const input = SubmitObservation.parse(await jsonBody(req));
+  let retryAfter: number | null = null;
+  const answer = async (): Promise<StoredAnswer> => {
+    const admitted = await admitValues(actor);
+    if (!admitted.ok) {
+      retryAfter = admitted.retryAfter;
+      return { ...errorBody("rate_limited", `This key submitted ${VALUES_PER_DAY} values in the last 24 hours; try again in ${admitted.retryAfter} seconds.`), keep: false };
+    }
+    const r = await submitObservation(actor, slug, input);
+    if (r.ok) return { status: 201, body: SubmissionAnswer.parse({ status: r.status, period: r.period, value: r.value, detail: r.detail }) };
+    if (r.reason === "locked") return errorBody("locked", r.detail);
+    if (r.reason === "not_submitter") return errorBody("forbidden", r.detail);
+    return errorBody("unprocessable", r.detail);
+  };
+  const result = idem === null ? await answer() : await once(actor, idem, { slug, ...input }, answer);
+  if ("conflict" in result) {
+    return json(errorBody("conflict", result.conflict === "in_progress" ? "A submission with this Idempotency-Key is still running." : "This Idempotency-Key was used with another body.").body, 409);
+  }
+  const headers: Record<string, string> = {};
+  if (retryAfter !== null) headers["retry-after"] = String(retryAfter);
+  if ("replayed" in result && result.replayed) headers["idempotent-replayed"] = "true";
+  // Counted towards the daily limit only when a value was taken now, not when a stored answer is replayed.
+  else if (result.status === 201) headers["x-ziffr-submitted"] = "1";
+  return json(result.body, result.status, headers);
 });

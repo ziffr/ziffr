@@ -7,9 +7,12 @@ import { admitCall, recordCall } from "@ziffr/core/access-log";
 import { Forbidden, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
-export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "rate_limited" | "internal";
+export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "internal";
 
-const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, rate_limited: 429, internal: 500 };
+const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, locked: 422, rate_limited: 429, internal: 500 };
+
+/** An error answer's body, for answers that are stored before they are sent (idempotency). */
+export const errorBody = (code: ApiErrorCode, message: string) => ({ status: STATUS[code], body: { error: { code, message } } });
 
 // Answers are per key and may hold a team's numbers: never cached anywhere, never readable by another site (no CORS
 // headers are ever sent).
@@ -69,6 +72,17 @@ async function run<C>(actor: KeyActor, req: Request, ctx: C, handler: (actor: Ke
     console.error("API error", e);
     return apiError("internal", "Something went wrong.");
   }
+}
+
+/** Most a request body may be; a value with a long Breakdown fits many times over. */
+const MAX_BODY = 64 * 1024;
+
+/** The JSON body of a request, at most 64 KB, for a zod schema; anything else is an invalid request. */
+export async function jsonBody(req: Request): Promise<unknown> {
+  if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) throw new ApiError("invalid_request", "Send JSON with \"Content-Type: application/json\".");
+  const text = await req.text();
+  if (text.length > MAX_BODY) throw new ApiError("invalid_request", "The body is larger than 64 KB.");
+  try { return JSON.parse(text); } catch { throw new ApiError("invalid_request", "The body is not valid JSON."); }
 }
 
 /** The query string of a request as a plain object, for a zod schema. */
