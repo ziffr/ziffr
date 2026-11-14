@@ -8,6 +8,8 @@ import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { TargetsEditor } from "./series-form";
 import { DeleteMetric } from "./delete-metric";
+import { SourcesEditor } from "./sources-editor";
+import { EditDetails } from "./edit-details";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
@@ -339,7 +341,10 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       {tab === "settings" && (
         <div className="grid gap-6 lg:grid-cols-3">
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
-            <h2 className="mb-3 font-medium">Description</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-medium">Description</h2>
+              {isOwner && <EditDetails metric={metric} hasValues={obs.length > 0} />}
+            </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
@@ -350,7 +355,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (
                 <>
-                  <Row k="Values arrive by">{metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
+                  <Row k="Values arrive by">{isOwner ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
                   <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>
                 </>
               )}

@@ -120,3 +120,9 @@ export const IdempotencyKey = z.string().regex(/^[\x21-\x7e]{1,200}$/, "1 to 200
 
 /** Every error answer. */
 export const ApiErrorBody = z.object({ error: z.object({ code: z.string().describe("Stable; handle errors by it."), message: z.string().describe("For people; may change.") }) });
+
+/** What DELETE /metrics/{slug} needs: the Metric's exact name, so a wrong slug deletes nothing. */
+export const deleteMetricQuery = z.object({ confirm: z.string().min(1).max(200).describe("The Metric's exact name, repeated to confirm.") });
+
+/** What DELETE /metrics/{slug} answers: the slug deleted and how many values went with it. */
+export const DeletedMetric = z.object({ deleted: z.string(), values: z.number().int().nonnegative() });

@@ -5,9 +5,11 @@
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
-import { createMetric, metricEffects, TooManyMetrics, type MetricEffects } from "./metrics";
+import { createMetric, deleteMetric, metricEffects, TooManyMetrics, type MetricEffects } from "./metrics";
 import { normalizeMetric } from "./metric-row";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { getMetrics } from "./workspace-data";
+import { visibleMetricIds } from "./access";
 import type { Metric } from "./types";
 
 /** Metrics one key may create in any 24 hours; the database enforces it (migration 20261116090000). */
@@ -45,8 +47,8 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
     description: input.description, unit: input.unit, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
     targetMin: input.target_min, targetMax: input.target_max,
-    // As in the form: values come through the personal form link, which is also where the API submits.
-    sources: ["web_form"],
+    // As in the form: every way Ziffr knows; the API itself submits through the form link's Source.
+    sources: ["web_form", "mail", "slack"],
     submitters: input.submit ? [actor.personId] : [],
   }, {
     ...effects,
@@ -54,6 +56,19 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
   const { data } = await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   return toApi(normalizeMetric(data) as Metric);
+}
+
+/** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
+ * confirm, and never while anything uses it, exactly as in the app. The Audit Log names the key. */
+export async function deleteMetricWithKey(actor: Actor | KeyActor, slug: string, confirmName: string): Promise<{ values: number }> {
+  assertScope(actor, "metrics:write");
+  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
+  const metrics = await getMetrics(actor.workspaceId);
+  const m = metrics.find((x) => x.slug === String(slug));
+  // A Metric that is missing, of another workspace or hidden from the creator is refused without a reason (404).
+  if (!m || !(await visibleMetricIds(actor.workspaceId, actor.personId, metrics)).has(m.id)) throw new Forbidden();
+  const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
+  return deleteMetric(creator, m.id as number, String(confirmName ?? ""), { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
 }
 
 async function nameOf(actor: KeyActor): Promise<string | null> {

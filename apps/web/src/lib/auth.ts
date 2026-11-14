@@ -2,6 +2,7 @@ import "server-only";
 // Sign-in (ADR 0003, GLOSSARY: Workspace, Demo Mode): the Supabase session in cookies, and the person it belongs to.
 // In Demo Mode a visitor needs no account; the "view as" cookie decides which demo person they are (see viewer.ts).
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
@@ -42,11 +43,12 @@ export async function signedIn(): Promise<SignedIn | null> {
   return { personId: await personFor(user), verifiedEmail: provenEmail(user) };
 }
 
-/** The signed-in account, checked with Supabase (not just read from the cookie), or null. */
-export async function sessionUser() {
+/** The signed-in account, checked with Supabase (not just read from the cookie), or null. Asked once per request:
+ * the layout, the current person and server actions all need it, and each ask is a round trip to Supabase. */
+export const sessionUser = cache(async () => {
   const { data } = await (await authClient()).auth.getUser();
   return data.user ?? null;
-}
+});
 
 /** The demo workspace (see the workspaces migration); its people are made up. */
 const DEMO_WORKSPACE = "d3e00000-0000-4000-8000-000000000001";

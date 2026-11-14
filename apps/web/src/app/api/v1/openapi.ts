@@ -4,7 +4,7 @@ import { z } from "zod";
 import * as S from "./schemas";
 
 type Endpoint = {
-  method: "get" | "post";
+  method: "get" | "post" | "delete";
   path: string;
   summary: string;
   description: string;
@@ -36,6 +36,15 @@ export const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/metrics/{slug}", scope: "metrics:read", ok: { status: 200, name: "Metric", schema: S.MetricDescription },
     summary: "Describe a Metric", description: "One Metric's description: period, format, unit, Polarity and target. A Metric the key's creator may not see is not found.",
+  },
+  {
+    method: "delete", path: "/metrics/{slug}", scope: "metrics:write", query: S.deleteMetricQuery, ok: { status: 200, name: "DeletedMetric", schema: S.DeletedMetric },
+    summary: "Delete a Metric",
+    description: "Deletes a Metric the key's creator owns, with its values, targets, questions and form links, as in the app: refused while another Metric's formula, a widget, a deck or a working View Link uses it. The Audit Log names the key.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but does not own it." },
+      { status: 422, description: "The name does not match, or something still uses the Metric; nothing was deleted." },
+    ],
   },
   {
     method: "get", path: "/metrics/{slug}/observations", scope: "metrics:read", query: S.observationsQuery, ok: { status: 200, name: "ObservationList", schema: S.ObservationList },

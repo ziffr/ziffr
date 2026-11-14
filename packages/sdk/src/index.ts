@@ -139,6 +139,10 @@ export class Ziffr {
       const { body, headers } = await this.request<Metric>("POST", "/metrics", undefined, metric, options.idempotencyKey ?? newIdempotencyKey());
       return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
     },
+    /** Deletes a Metric the key's creator owns (scope metrics:write), repeating its exact name to confirm. Refused
+     * (ZiffrError 422) while another Metric's formula, a widget, a deck or a working View Link uses it. */
+    delete: async (slug: string, confirmName: string): Promise<{ deleted: string; values: number }> =>
+      (await this.request<{ deleted: string; values: number }>("DELETE", `/metrics/${encodeURIComponent(slug)}`, { confirm: confirmName })).body,
   };
 
   /** A Metric's values. */
@@ -185,7 +189,7 @@ export class Ziffr {
     } while (cursor);
   }
 
-  private async request<T>(method: "GET" | "POST", path: string, query?: Record<string, string | number | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
+  private async request<T>(method: "GET" | "POST" | "DELETE", path: string, query?: Record<string, string | number | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
     const url = new URL(this.base + path);
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v));
     const headers: Record<string, string> = { authorization: `Bearer ${this.key}`, accept: "application/json" };

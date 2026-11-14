@@ -70,8 +70,12 @@ export async function middleware(req: NextRequest) {
       },
     },
   });
-  const { data } = await supabase.auth.getUser();
-  if (!data.user && !OPEN.some((r) => r.test(path))) {
+  // Only "is someone signed in?" here, so the token's signature and expiry are checked locally against Supabase's
+  // published keys (cached), and an expired session is refreshed. Pages ask Supabase itself once per request
+  // (sessionUser), which also catches a session ended elsewhere; asking here too cost a round trip on every click.
+  // A token Supabase's library cannot even read (an unsupported algorithm) counts as no session, not as an error.
+  const claims = await supabase.auth.getClaims().then(({ data }) => data?.claims ?? null, () => null);
+  if (!claims && !OPEN.some((r) => r.test(path))) {
     const to = req.nextUrl.clone();
     to.pathname = "/login";
     to.search = path === "/" ? "" : `?next=${encodeURIComponent(path + req.nextUrl.search)}`;

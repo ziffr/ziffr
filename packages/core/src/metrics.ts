@@ -155,17 +155,25 @@ export const metricEffects: MetricEffects = {
 /** Reading series lines is pure and lives in series-lines, so the browser can preview with the same rules. */
 export { parseSeriesLine };
 
+/** Why a Metric is not deleted: its name was not repeated, or something still uses it. Its message is for people. */
+export class MetricKept extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MetricKept";
+  }
+}
+
 /** Deletes a Metric with its values, Tokens, Prompts, Actions, targets and Locks, for its owner only. The owner types
  * its name to confirm. Refused while anything else uses it (a Derived Metric's formula, a widget, a deck, a View Link
  * that still works), so nothing people built breaks or silently shows less; in the demo too, which every visitor shares.
  * The Audit Log keeps who deleted it and its name. Returns how many values went with it. */
-export async function deleteMetric(actor: Actor, metricId: number, confirmName: string): Promise<{ values: number }> {
+export async function deleteMetric(actor: Actor, metricId: number, confirmName: string, origin: { accessKeyId?: number } = {}): Promise<{ values: number }> {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's Metrics stay.");
   const ws = actor.workspaceId;
   const { data: m } = await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner deletes it.");
-  if (String(confirmName ?? "").trim() !== m.name) throw new Error("Type the Metric's name to delete it.");
+  if (String(confirmName ?? "").trim() !== m.name) throw new MetricKept("Type the Metric's name to delete it.");
   const today = new Date().toISOString().slice(0, 10);
   const [{ data: derived }, { data: widgets }, { data: decks }, { data: links }] = await Promise.all([
     db().from("metrics").select("name, formula").eq("workspace_id", ws).not("formula", "is", null),
@@ -175,11 +183,11 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   ]);
   // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
   const usedBy = (derived ?? []).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
-  if (usedBy.length) throw new Error(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
+  if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
   const inDecks = (decks ?? []).filter((d) => deckMetricIds(d.document).includes(metricId)).length;
-  if (inWidgets || inDecks) throw new Error(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
-  if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new Error("A View Link that still works shows it. Revoke the link first.");
+  if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
+  if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
   // The intake log keeps what arrived, without the Metric it was for.
   await db().from("intake_log").update({ metric_id: null }).eq("workspace_id", ws).eq("metric_id", metricId);
@@ -188,7 +196,7 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   await removeValuesAndHistory(ws, metricId);
   const { data: gone, error } = await db().from("metrics").delete().eq("id", metricId).eq("workspace_id", ws).select("id");
   if (error || !gone?.length) throw new Error("The Metric could not be deleted.");
-  await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, details: { values: count ?? 0 } });
+  await audit(actor, { kind: "metric.deleted", object: { type: "metric", id: metricId, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { values: count ?? 0 } });
   return { values: count ?? 0 };
 }
 
@@ -269,4 +277,65 @@ async function upsertSeries(metricId: number, kind: "target" | "projection", row
     if (error) throw new Error("The series could not be saved.");
   }
   return ok.length;
+}
+
+/** The ways values of a Metric may arrive (its Sources), for its owner: any of web form, email and Slack, at least
+ * one. A Derived Metric has none (it is computed). Values arriving another way are refused from then on. */
+export async function setMetricSources(actor: Actor, metricId: number, sources: unknown): Promise<SourceId[]> {
+  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
+  const { data: m } = await db().from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner changes how its values arrive.");
+  if (m.formula) throw new Error("A Derived Metric is computed; values do not arrive for it.");
+  // From a browser: only known Sources count, each once.
+  const chosen = Array.isArray(sources) ? [...new Set(sources.filter((s): s is SourceId => SOURCES.includes(s as SourceId)))] : [];
+  if (!chosen.length) throw new Error("Pick at least one way for values to arrive.");
+  const { error } = await db().from("metrics").update({ sources: chosen }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
+  if (error) throw new Error("The change could not be saved.");
+  await recordVersion("metric", metricId, actor.personId, { message: "Changed how values arrive" });
+  return chosen;
+}
+
+/** The parts of a Metric's description its owner may change later. Each one left out stays as it is. */
+export type MetricDetails = {
+  name?: string; description?: string; unit?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
+  polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
+};
+
+/** Changes a Metric's description, for its owner: name, description, unit, format, decimals, Polarity, Submission
+ * Rule, Aggregation, the target range, and the period while it has no values yet (later its values would sit in the
+ * wrong periods). The slug stays, so links and programs keep finding it. Each change is a Version. */
+export async function updateMetricDetails(actor: Actor, metricId: number, patch: MetricDetails): Promise<void> {
+  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
+  const ws = actor.workspaceId;
+  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
+  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner changes its description.");
+  const p = (patch && typeof patch === "object" ? patch : {}) as MetricDetails;
+  const update: Record<string, unknown> = {};
+  if (p.name !== undefined) {
+    const name = String(p.name ?? "").trim().slice(0, 120);
+    if (!name) throw new Error("Give the Metric a name.");
+    update.name = name;
+  }
+  if (p.description !== undefined) update.description = String(p.description ?? "").slice(0, 2000);
+  if (p.unit !== undefined) update.unit = String(p.unit ?? "").slice(0, 20);
+  if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);
+  if (p.decimals !== undefined) update.decimals = Math.min(6, Math.max(0, Math.round(Number(p.decimals) || 0)));
+  if (p.submissionRule !== undefined) update.submission_rule = pick(p.submissionRule, RULES, m.submission_rule);
+  if (p.polarity !== undefined) update.polarity = pick(p.polarity, POLARITIES, m.polarity);
+  if (p.aggregation !== undefined) update.aggregation = pick(p.aggregation, AGGREGATIONS, m.aggregation);
+  if (p.targetMin !== undefined) update.target_min = numOrNull(p.targetMin);
+  if (p.targetMax !== undefined) update.target_max = numOrNull(p.targetMax);
+  const lo = (update.target_min ?? m.target_min) as number | null;
+  const hi = (update.target_max ?? m.target_max) as number | null;
+  if (lo !== null && hi !== null && Number(lo) > Number(hi)) throw new Error("The lower target is above the upper one.");
+  if (p.period !== undefined && p.period !== m.period) {
+    const period = pick(p.period, PERIODS, m.period);
+    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
+    if (count) throw new Error("The period cannot change once the Metric has values: they would sit in the wrong periods. Duplicate it instead.");
+    update.period = period;
+  }
+  if (!Object.keys(update).length) return;
+  const { error } = await db().from("metrics").update(update).eq("id", metricId).eq("workspace_id", ws);
+  if (error) throw new Error("The change could not be saved.");
+  await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
 }

@@ -141,6 +141,36 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Delete a Metric
+
+`DELETE /metrics/{slug}` · scope `metrics:write`
+
+Deletes a Metric the key's creator owns, with its values, targets, questions and form links, as in the app: refused while another Metric's formula, a widget, a deck or a working View Link uses it. The Audit Log names the key.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+| `confirm` | query | string, at most 200 characters | yes | The Metric's exact name, repeated to confirm. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `deleted` | string | yes |  |
+| `values` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope. Or the key's creator sees the Metric but does not own it.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: The name does not match, or something still uses the Metric; nothing was deleted.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List a Metric's values
 
 `GET /metrics/{slug}/observations` · scope `metrics:read`

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, removeSeriesRows, saveSeriesRows, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, removeSeriesRows, saveSeriesRows, setMetricSources, updateMetricDetails, uploadSeries, type MetricEffects } from "./metrics";
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
@@ -58,6 +58,43 @@ describe("creating Metrics", () => {
     expect(await removeSeriesRows(w.actor(sara), m.id, "target", ["2026-12-01", "2030-01-01"])).toEqual({ removed: 1 });
     const { data: left } = await db().from("series_values").select("period_start").eq("metric_id", m.id);
     expect(left!.map((r) => r.period_start)).toEqual(["2027-01-01"]);
+  });
+});
+
+describe("how values arrive", () => {
+  it("lets only the owner change a Metric's Sources, to known ones, at least one, never on a Derived Metric", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara, { sources: ["web_form"] });
+    await expect(setMetricSources(w.actor(ben, "member"), m.id, ["mail"])).rejects.toEqual(forbidden);
+    await expect(setMetricSources({ ...w.actor(sara), key: { id: 1, scopes: ["metrics:write"] } } as never, m.id, ["mail"])).rejects.toEqual(forbidden);
+    await expect(setMetricSources(w.actor(sara), m.id, [])).rejects.toThrow(/at least one/);
+    await expect(setMetricSources(w.actor(sara), m.id, ["fax"])).rejects.toThrow(/at least one/);
+    expect(await setMetricSources(w.actor(sara), m.id, ["mail", "slack", "mail", "fax"])).toEqual(["mail", "slack"]);
+    expect((await db().from("metrics").select("sources").eq("id", m.id).single()).data!.sources).toEqual(["mail", "slack"]);
+    const d = await w.metric(sara, { formula: `{${m.slug}} * 2` });
+    await expect(setMetricSources(w.actor(sara), d.id, ["mail"])).rejects.toThrow(/Derived/);
+    const other = await ws("Other");
+    await expect(setMetricSources({ personId: sara, workspaceId: other.id, role: "owner" }, m.id, ["mail"])).rejects.toEqual(forbidden);
+  });
+});
+
+describe("changing a Metric's description", () => {
+  it("is for its owner, checks every field, keeps the slug, refuses a new period once values exist, and keeps a Version", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara, { name: "Visits", period: "month" });
+    await expect(updateMetricDetails(w.actor(ben, "member"), m.id, { name: "Mine" })).rejects.toEqual(forbidden);
+    await expect(updateMetricDetails(w.actor(sara), m.id, { name: "  " })).rejects.toThrow(/name/);
+    await expect(updateMetricDetails(w.actor(sara), m.id, { targetMin: 10, targetMax: 5 })).rejects.toThrow(/above/);
+    await updateMetricDetails(w.actor(sara), m.id, { name: "Store visits", unit: "visits", format: "fax", decimals: 99, polarity: "lower", targetMin: 100, targetMax: null, period: "week" });
+    const { data: after } = await db().from("metrics").select("slug, name, unit, format, decimals, polarity, target_min, target_max, period").eq("id", m.id).single();
+    expect(after).toMatchObject({ slug: m.slug, name: "Store visits", unit: "visits", format: "number", decimals: 6, polarity: "lower", target_max: null, period: "week" });
+    expect(Number(after!.target_min)).toBe(100);
+    await w.value(m.id, "2026-10-05", 3);
+    await expect(updateMetricDetails(w.actor(sara), m.id, { period: "month" })).rejects.toThrow(/period cannot change/);
+    const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", m.id);
+    expect(versions!.some((v) => v.message === "Changed its description")).toBe(true);
+    const other = await ws("Other");
+    await expect(updateMetricDetails({ personId: sara, workspaceId: other.id, role: "owner" }, m.id, { name: "X" })).rejects.toEqual(forbidden);
   });
 });
 

@@ -31,9 +31,12 @@ async function connect(scopes: ("metrics:read" | "values:submit" | "metrics:writ
 }
 
 describe("@ziffr/mcp against the app", () => {
-  it("offers four tools and calls each through the API", async () => {
+  it("offers its tools and calls them through the API", async () => {
     const { client, ben, orders, hidden } = await connect();
-    expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual(["create_metric", "get_metric", "list_metrics", "list_people", "submit_value"]);
+    const tools = (await client.listTools()).tools;
+    expect(tools.map((t) => t.name).sort()).toEqual(["create_metric", "delete_metric", "get_metric", "list_metrics", "list_people", "submit_value"]);
+    // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
+    expect(tools.find((t) => t.name === "delete_metric")?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
     const metrics = json(await client.callTool({ name: "list_metrics", arguments: {} })).metrics;
     expect(metrics.map((m: { slug: string }) => m.slug)).toEqual([orders.slug]);
     expect(JSON.stringify(metrics)).not.toContain(hidden.slug);
