@@ -129,5 +129,10 @@ describe("after the review of #14", () => {
     await saveDeck(w.actor(sara), d, { store: { ...deckWith(shown.id).store, "shape:2": { type: "ziffr-widget", props: { metricIds: [later.id], settings: "{}" } } } });
     const view = await openViewLink(token);
     expect(Object.keys((view!.document as { store: object }).store)).toEqual(["shape:1"]);
+    // Nor text added later: the link remembers the deck's shapes.
+    await saveDeck(w.actor(sara), d, { store: { ...deckWith(shown.id).store, "shape:3": { type: "text", props: { text: "Layoffs next month" } }, "page:page": { type: "page" } } });
+    const later2 = JSON.stringify((await openViewLink(token))!.document);
+    expect(later2).not.toMatch(/Layoffs/);
+    expect(later2).not.toMatch(/page:page/); // added after the link was made, so it stays out too
   });
 });

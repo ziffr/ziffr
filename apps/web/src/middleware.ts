@@ -24,6 +24,10 @@ export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: { headers } });
   const demoOffered = process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {
+    // Another site may not drop a signed-in person into the shared demo, where they might type real numbers.
+    const signedIn = req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    const fromElsewhere = req.headers.get("sec-fetch-site") === "cross-site";
+    if (path === "/demo" && signedIn && fromElsewhere) return NextResponse.redirect(new URL("/", req.url)); // ignored, nothing changes
     const visit = path === "/demo" && demoOffered;
     const out = NextResponse.redirect(new URL(visit ? "/" : "/login", req.url));
     if (visit) out.cookies.set(DEMO_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" });

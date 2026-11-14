@@ -37,8 +37,11 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   await assertCanEditDeck(actor, id);
   if (JSON.stringify(document ?? null).length > MAX_DOCUMENT) throw new Error("This deck is too large to save.");
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
-  const had = new Set(deckMetricIds(before?.document));
-  await assertSeesMetrics(actor, deckMetricIds(document).filter((m) => !had.has(m)));
+  // A malformed marker (NaN) never counts as "already there": only real ids are.
+  const had = new Set(deckMetricIds(before?.document).filter(Number.isFinite));
+  const added = deckMetricIds(document).filter((m) => !had.has(m));
+  if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget on this deck names its metrics in a way Ziffr cannot read. Remove or recreate that widget, then save.");
+  await assertSeesMetrics(actor, added);
   await ensureBaseline("deck", id, actor.personId);
   await db().from("decks").update({ document, updated_at: touch() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   await recordVersion("deck", id, actor.personId);

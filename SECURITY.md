@@ -12,6 +12,8 @@ Ziffr holds a team's business numbers, so the boundaries are the product:
 - **Locks and approvals:** changing a locked period or skipping an approver.
 - **API and MCP:** a token or tool call reaching beyond its scope.
 
+What we protect, from whom, and how each threat is met and tested: [docs/security/threat-model.md](docs/security/threat-model.md).
+
 ## Supported versions
 
 Only the latest release gets security fixes.

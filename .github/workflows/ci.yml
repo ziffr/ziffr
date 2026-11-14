@@ -20,6 +20,40 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+  # The security pass (docs/security/threat-model.md): no committed secrets, no known-vulnerable production
+  # dependency, no client component importing core code that reaches the database.
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Secrets (gitleaks, whole history)
+        run: |
+          curl -sSLo gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar xzf gitleaks.tar.gz gitleaks
+          ./gitleaks git --redact --no-banner .
+      - run: pnpm install --frozen-lockfile
+      - name: Known-vulnerable dependencies (production)
+        run: pnpm audit --prod
+      - name: Client components import only pure core modules
+        run: node .github/scripts/client-imports.mjs
+      # The production build fails if the core's database module is bundled for a browser (next.config.ts). It needs
+      # no real settings: placeholders only, nothing is contacted.
+      - name: Production build (no database code in browser bundles)
+        env:
+          SUPABASE_URL: http://127.0.0.1:1
+          SUPABASE_SERVICE_ROLE_KEY: build-only
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:1
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-only
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm --filter @ziffr/web build
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions).
   core-db:
     runs-on: ubuntu-latest
@@ -46,7 +80,7 @@ jobs:
       - name: Prose (Vale)
         run: |
           curl -sSL https://github.com/errata-ai/vale/releases/download/v3.27.0/vale_3.27.0_Linux_64-bit.tar.gz | tar xz vale
-          ./vale --minAlertLevel=error docs/guides docs/specs README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md
+          ./vale --minAlertLevel=error docs/guides docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md
       - name: Public surface changes come with docs
         if: github.event_name == 'pull_request'
         run: .github/scripts/docs-touched.sh

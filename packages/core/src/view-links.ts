@@ -34,7 +34,7 @@ const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dash
 
 /** Everything a View Link page needs, built as its owner sees it inside their workspace and cut down to the one
  * object. For a live link, only the Metrics agreed to when it was made. */
-export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null): Promise<ViewPayload | null> {
+export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null, allowedShapes?: string[] | null): Promise<ViewPayload | null> {
   const { data: obj } = await db().from(table(type)).select("*").eq("id", id).maybeSingle();
   if (!obj) return null;
   const ws = obj.workspace_id as string;
@@ -77,15 +77,16 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     pending: pick(full.pending, ids),
     locked: pick(full.locked, ids),
   };
-  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(obj.document, ids) : undefined, footer: type === "deck" ? obj.footer : undefined, asOf: new Date().toISOString() };
+  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(obj.document, ids, allowedShapes ?? null) : undefined, footer: type === "deck" ? obj.footer : undefined, asOf: new Date().toISOString() };
 }
 
-/** A deck's slides as a View Link may show them: widgets that draw any left-out Metric are taken off. PROTOTYPE:
- * text added to a live-linked deck later still shows; the link should remember its shapes (ticket #19). */
-function deckForLink(document: unknown, shown: Set<number>): unknown {
+/** A deck's slides as a View Link may show them: only the records the deck had when the link was made (for a live
+ * link: shapes, pages, assets, bindings alike), and no widget that draws a left-out Metric. */
+function deckForLink(document: unknown, shown: Set<number>, records: string[] | null): unknown {
   const doc = document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null;
   if (!doc?.store) return document;
-  const keep = Object.entries(doc.store).filter(([, r]) => {
+  const keep = Object.entries(doc.store).filter(([key, r]) => {
+    if (records && !records.includes(key)) return false;
     if (r?.type !== "ziffr-widget") return true;
     const ids = Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : [];
     return deckMetricIds({ store: { x: r } }).concat(ids).every((m) => shown.has(m));
@@ -99,7 +100,7 @@ export async function openViewLink(token: string): Promise<ViewPayload | null> {
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
   if (link.frozen) return link.frozen as ViewPayload;
-  return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null);
+  return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null, link.shape_ids ?? null);
 }
 
 /** Refuses anyone but the owner of the dashboard or deck, in their workspace. */
@@ -132,7 +133,10 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   // Only what its owner may see goes out.
   await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
-  await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null, workspace_id: actor.workspaceId });
+  await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+    // Every record the deck has now, not only shapes: anything added later stays out of a live link.
+    shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
+    workspace_id: actor.workspaceId });
   return token;
 }
 

@@ -112,7 +112,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
   // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
   if (v.object_type === "deck") {
     const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();
-    const had = new Set(deckMetricIds(cur?.document));
+    const had = new Set(deckMetricIds(cur?.document).filter(Number.isFinite));
     const seen = await visible();
     if (deckMetricIds(s.document).some((m) => !had.has(m) && !seen.has(m))) throw new Error(HIDDEN);
   }

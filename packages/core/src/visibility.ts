@@ -46,15 +46,10 @@ export function objectRole(ws: string, person: string, type: "dashboard" | "deck
 
 /** Every metric drawn by the widgets on a deck's slides. */
 export function deckMetricIds(document: unknown): number[] {
-  const store = (document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null)?.store ?? {};
-  const out: number[] = [];
-  for (const r of Object.values(store)) {
-    if (r?.type !== "ziffr-widget") continue;
-    let settings: WidgetSettings | undefined;
-    try { settings = typeof r.props?.settings === "string" ? JSON.parse(r.props.settings) : undefined; } catch { settings = undefined; }
-    out.push(...widgetMetricIds(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as number[]) : [], settings));
-  }
-  return [...new Set(out.map(Number).filter(Number.isFinite))];
+  // A deck's slides are read like a free layout, with the same rule: nested widgets count, and a malformed Metric
+  // list yields an id no visibility check accepts, so such a deck cannot be saved, shared or restored.
+  if (!document || typeof document !== "object") return [];
+  return widgetMetricIds([], { canvas: { document } } as unknown as WidgetSettings);
 }
 
 /** What decides which metrics someone sees, loaded by the caller for one workspace. */

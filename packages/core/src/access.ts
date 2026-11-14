@@ -140,6 +140,7 @@ export async function getCanvasData(ws: string, viewer: string): Promise<CanvasD
 /** What sharing these metrics would show each person or Group that they cannot see on their own: they don't
  * own them, don't submit to them, and they were not shared with them directly. Keys: person id, or "g<id>". */
 export async function revealedBy(ws: string, metricIds: number[], ownerId: string): Promise<Record<string, string[]>> {
+  metricIds = metricIds.filter(Number.isInteger); // a malformed marker names no Metric
   const [people, groups, shares, { data: tokens }, { data: metrics }] = await Promise.all([
     peopleIn(ws), getGroups(ws), getShares(ws), db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", ws),
     db().from("metrics").select("id, name, owner_id").eq("workspace_id", ws).in("id", metricIds),
