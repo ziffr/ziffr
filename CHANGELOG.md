@@ -2,6 +2,23 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.3.0 (2026-11-14)
+
+### New and changed
+
+- Invitations by email are now emailed, with the link to join, once email is set up. The Team page shows whether each went out, and why not if it failed, and you can resend one (at most three times). The link is still shown, for sending it some other way. Self-hosters: run the new migration.
+- Every request for a number and every reminder by email has a one-click link to stop them (also in the mail client's unsubscribe button); the Metric owners are told, and the person can turn them on again on the Connectors page. A workspace sends at most 500 emails a day, one inbox gets at most 20 an hour and one person causes at most 300 a day, from all workspaces together; the rest wait. The Outbox no longer shows the sender of a request other people's form links. The Connectors page says when email is real. Self-hosters: run the new migration, and see `docs/guides/email.md` for setting up sending and replies.
+- Replies by email come back into Ziffr: answering a Prompt with the number records it (a Breakdown too, one row per line), and answering a question or task puts the reply in its Thread, where a "Correction: 1234" line proposes a Correction. Quoted text and signatures are left out, and the person is told what became of their number. Only the person the email went to can answer it. Self-hosters: run the new migration, set `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET` and, so senders are checked, `ZIFFR_INBOUND_AUTHSERV_ID` (without it, Approvals are not taken by email), and have your mail provider forward replies to `POST /api/inbound/email`, signed (the self-hosting guide follows).
+- Ziffr can send real email: Prompts, reminders, questions, tasks and replies by the Email Connector now go out through your SMTP server, with links back into Ziffr. The Outbox shows whether each was emailed, is waiting or failed. Self-hosters: run the new migration, set `ZIFFR_SMTP_URL` and `ZIFFR_MAIL_FROM` (and `ZIFFR_SITE_URL`, for the links) to turn sending on (without them nothing is sent, as before), and have a scheduler call `POST /api/jobs/deliveries` with `ZIFFR_JOB_SECRET` to retry failed sends. The demo never sends.
+
+### Fixed
+
+- Replies by email check the mail provider's verdict on the sender more strictly: text the sender wrote inside the provider's Authentication-Results header can no longer pass as a verdict.
+- The retry job for email now picks the emails that are due in the database, so emails waiting out a limit can never keep others from going out. Self-hosters: run the new migration.
+- Invitation emails are limited: a workspace sends at most 50 a day, a person at most 50 a day from all their workspaces, and one inbox gets at most three a day from all workspaces together. Over that, the Team page asks you to send the link yourself. The subject no longer carries the workspace's name. Self-hosters: run the new migration.
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
+
 ## 0.2.0 (2026-11-14)
 
 ### For self-hosters
