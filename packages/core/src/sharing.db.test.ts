@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, removeSeriesRows, saveSeriesRows, setMetricSources, updateMetricDetails, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, deleteMetric, removeSeriesRows, saveSeriesRows, setMetricSources, updateMetricDetails, uploadSeries, type MetricEffects } from "./metrics";
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
@@ -98,6 +98,27 @@ describe("changing a Metric's description", () => {
   });
 });
 
+describe("Editors of a Metric", () => {
+  it("change its targets, description and Sources; Viewers, Guests and keys do not; deleting and sharing stay the owner's", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member"); const gus = await w.person("guest");
+    const m = await w.metric(sara, { name: "Visits" });
+    await share(w.actor(sara), "metric", m.id, ben, "editor");
+    await share(w.actor(sara), "metric", m.id, ann, "viewer");
+    await share(w.actor(sara), "metric", m.id, gus, "editor");
+    expect(await saveSeriesRows(w.actor(ben, "member"), m.id, "target", [{ period: "2026-12-01", value: 9 }], "")).toEqual({ saved: 1 });
+    await updateMetricDetails(w.actor(ben, "member"), m.id, { description: "Store visits" });
+    expect(await setMetricSources(w.actor(ben, "member"), m.id, ["mail"])).toEqual(["mail"]);
+    for (const who of [w.actor(ann, "member"), w.actor(gus, "guest")]) {
+      await expect(updateMetricDetails(who, m.id, { description: "x" })).rejects.toEqual(forbidden);
+      await expect(saveSeriesRows(who, m.id, "target", [{ period: "2026-12-01", value: 1 }], "")).rejects.toEqual(forbidden);
+    }
+    await expect(updateMetricDetails({ ...w.actor(ben, "member"), key: { id: 1, scopes: ["metrics:write"] } } as never, m.id, { description: "x" })).rejects.toEqual(forbidden);
+    // The owner's alone: sharing it on, and deleting it.
+    await expect(share(w.actor(ben, "member"), "metric", m.id, ann, "editor")).rejects.toEqual(forbidden);
+    await expect(deleteMetric(w.actor(ben, "member"), m.id, "Visits")).rejects.toEqual(forbidden);
+  });
+});
+
 describe("sharing", () => {
   it("lets the owner share a Metric with a member, who then sees it", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
@@ -108,14 +129,13 @@ describe("sharing", () => {
     await share(w.actor(sara), "metric", m.id, ben, null);
     expect(await canSee(w.actor(ben, "member"), "metric", m.id)).toBe(false);
   });
-  it("refuses non-owners, Guests, Editor on a Metric, Contacts and people of other workspaces", async () => {
+  it("refuses non-owners, Guests, Contacts and people of other workspaces", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const gus = await w.person("guest");
     const cleo = await w.contact({ email: "cleo@t.test" }); const m = await w.metric(sara);
     const other = await ws("Other"); const zoe = await other.person("owner");
     await expect(share(w.actor(ben, "member"), "metric", m.id, gus, "viewer")).rejects.toEqual(forbidden);
     await db().from("memberships").update({ role: "guest" }).eq("workspace_id", w.id).eq("user_id", sara);
     await expect(share(w.actor(sara, "guest"), "metric", m.id, ben, "viewer")).rejects.toEqual(forbidden);
-    await expect(share(w.actor(sara), "metric", m.id, ben, "editor")).rejects.toEqual(forbidden);
     await expect(share(w.actor(sara), "metric", m.id, cleo, "viewer")).rejects.toEqual(forbidden);
     await expect(share(w.actor(sara), "metric", m.id, zoe, "viewer")).rejects.toEqual(forbidden);
     await expect(share({ personId: sara, workspaceId: other.id, role: "owner" }, "metric", m.id, zoe, "viewer")).rejects.toEqual(forbidden);

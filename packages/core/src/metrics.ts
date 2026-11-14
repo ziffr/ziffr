@@ -15,6 +15,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { deckMetricIds } from "./visibility";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows } from "./workspace-data";
+import { getShares } from "./access";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -261,8 +262,19 @@ export async function removeSeriesRows(actor: Actor, metricId: number, kind: "ta
 /** The metric, when the actor owns it in their workspace; only its owner sets targets and projections. */
 async function seriesOwnerMetric(actor: Actor, metricId: number, kind: string) {
   if (kind !== "target" && kind !== "projection") throw new Forbidden("Unknown series.");
-  const { data: m } = await db().from("metrics").select("owner_id, period").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the metric owner can upload targets and projections.");
+  return editableMetric(actor, metricId, "targets and projections");
+}
+
+/** The Metric when the actor may change it (its targets, description and Sources): its owner, or a member it is
+ * shared with as Editor, directly or through a Group. Never a Guest or a key. Deleting and sharing stay the owner's. */
+export async function editableMetric(actor: Actor, metricId: number, what = "it") {
+  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
+  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m) throw new Forbidden();
+  if (m.owner_id === actor.personId) return m;
+  const editor = actor.role !== "guest" && (await getShares(actor.workspaceId)).some((s) =>
+    s.workspace_id === actor.workspaceId && s.object_type === "metric" && s.object_id === metricId && s.user_id === actor.personId && s.role === "editor");
+  if (!editor) throw new Forbidden(`Only the Metric's owner and its Editors change ${what}.`);
   return m;
 }
 
@@ -279,12 +291,10 @@ async function upsertSeries(metricId: number, kind: "target" | "projection", row
   return ok.length;
 }
 
-/** The ways values of a Metric may arrive (its Sources), for its owner: any of web form, email and Slack, at least
+/** The ways values of a Metric may arrive (its Sources), for its owner and its Editors: any of web form, email and Slack, at least
  * one. A Derived Metric has none (it is computed). Values arriving another way are refused from then on. */
 export async function setMetricSources(actor: Actor, metricId: number, sources: unknown): Promise<SourceId[]> {
-  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
-  const { data: m } = await db().from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner changes how its values arrive.");
+  const m = await editableMetric(actor, metricId, "how its values arrive");
   if (m.formula) throw new Error("A Derived Metric is computed; values do not arrive for it.");
   // From a browser: only known Sources count, each once.
   const chosen = Array.isArray(sources) ? [...new Set(sources.filter((s): s is SourceId => SOURCES.includes(s as SourceId)))] : [];
@@ -301,14 +311,12 @@ export type MetricDetails = {
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
 };
 
-/** Changes a Metric's description, for its owner: name, description, unit, format, decimals, Polarity, Submission
+/** Changes a Metric's description, for its owner and its Editors: name, description, unit, format, decimals, Polarity, Submission
  * Rule, Aggregation, the target range, and the period while it has no values yet (later its values would sit in the
  * wrong periods). The slug stays, so links and programs keep finding it. Each change is a Version. */
 export async function updateMetricDetails(actor: Actor, metricId: number, patch: MetricDetails): Promise<void> {
-  if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
   const ws = actor.workspaceId;
-  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
-  if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner changes its description.");
+  const m = await editableMetric(actor, metricId, "its description");
   const p = (patch && typeof patch === "object" ? patch : {}) as MetricDetails;
   const update: Record<string, unknown> = {};
   if (p.name !== undefined) {
@@ -338,4 +346,9 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   const { error } = await db().from("metrics").update(update).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
   await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
+}
+
+/** Whether the actor may change the Metric (see editableMetric), for showing the controls; the core checks again. */
+export async function canEditMetric(actor: Actor, metricId: number): Promise<boolean> {
+  return editableMetric(actor, metricId).then(() => true, () => false);
 }

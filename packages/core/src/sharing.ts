@@ -57,7 +57,6 @@ async function ownedForSharing(actor: Actor, type: ObjectType, id: number, role:
   assertType(type);
   assertCan(actor, "share");
   if (role !== null && role !== "viewer" && role !== "editor") throw new Forbidden();
-  if (type === "metric" && role === "editor") throw new Forbidden("Metrics are shared as Viewer only.");
   const { data: obj } = await db().from(table(type)).select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!obj || obj.owner_id !== actor.personId) throw new Forbidden();
   if (type === "deck" && role) await assertSeesMetrics(actor, deckMetricIds(obj.document));

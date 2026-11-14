@@ -8,6 +8,7 @@ import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { TargetsEditor } from "./series-form";
 import { DeleteMetric } from "./delete-metric";
+import { canEditMetric } from "@ziffr/core/metrics";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
 import { countryCode } from "@/lib/countries";
@@ -105,6 +106,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Tables on this page read like the chart: oldest on top, newest at the bottom.
   const obs = (await getLastValues(metric.id, 12)).reverse();
   const isOwner = metric.owner_id === viewer;
+  // Its owner and its Editors change targets, description and Sources; deleting and sharing stay the owner's.
+  const canEdit = isOwner || (await canEditMetric(actor, metric.id));
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
 
@@ -285,9 +288,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             The target range ({targetText(metric).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
           </p>
           {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
-            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={isOwner} />
+            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} />
           )}
-          {!isOwner && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} changes them.</p>}
+          {!canEdit && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} and people it is shared with as Editor change them.</p>}
         </section>
       )}
 
@@ -343,7 +346,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {isOwner && <EditDetails metric={metric} hasValues={obs.length > 0} />}
+              {canEdit && <EditDetails metric={metric} hasValues={obs.length > 0} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
@@ -355,7 +358,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (
                 <>
-                  <Row k="Values arrive by">{isOwner ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
+                  <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
                   <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>
                 </>
               )}

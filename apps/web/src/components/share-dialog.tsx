@@ -52,7 +52,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
               >
                 <option value="">No access</option>
                 <option value="viewer">Viewer</option>
-                {objectType !== "metric" && <option value="editor">Editor</option>}
+                <option value="editor">Editor</option>
               </select>
             </li>
           ))}
@@ -78,7 +78,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
                   >
                     <option value="">No access</option>
                     <option value="viewer">Viewer</option>
-                    {objectType !== "metric" && <option value="editor">Editor</option>}
+                    <option value="editor">Editor</option>
                   </select>
                 </li>
               ))}

@@ -261,7 +261,7 @@ A user a dashboard or metric is shared with who can look at it, inspect history 
 _Avoid_: Reader
 
 **Editor**:
-A user a dashboard is shared with who can also arrange its widgets.
+A user a dashboard, deck or metric is shared with who can also change it: arrange a dashboard's widgets or a deck's slides, or a metric's targets, description and Sources. Deleting it and sharing it stay with its owner.
 _Avoid_: Collaborator, co-owner
 
 ### Governance
