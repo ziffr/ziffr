@@ -1,0 +1,97 @@
+// Access Keys (GLOSSARY: Access Key): created by a person for a program, bound to one Workspace, limited to scopes
+// and ending on a set day. A key acts as its creator, with the creator's current role, and can do no more than its
+// scopes allow; it stops when it ends, when it is revoked, or when its creator is no longer a member. Only a hash of
+// the secret is stored; the secret is shown once.
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { db } from "./db";
+import { assertScope, Forbidden, SCOPES, type Actor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
+import { getAllSeries } from "./workspace-data";
+import { visibleMetricIds } from "./access";
+import { submitValue, type SubmissionResult } from "./submissions";
+import { DEMO_WORKSPACE_ID } from "./team";
+
+const DAY = 86_400_000;
+const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** A key as its owner and the workspace's Owners see it: never the secret. */
+export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: string[]; expires_on: string; revoked: boolean; last_used_at: string | null; created_by: string };
+
+/** Creates a key for the actor (a signed-in person, never another key), working through the end of a day (UTC)
+ * within a year. Returns the secret, which is shown this once. */
+export async function createAccessKey(actor: Actor, input: { name: string; scopes: Scope[]; expiresOn: string }): Promise<{ id: number; secret: string }> {
+  if (actor.key) throw new Forbidden("A key cannot make keys.");
+  // Visitors share the demo: a key there would act as a made-up person for anyone who has it.
+  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
+  const scopes = [...new Set(Array.isArray(input.scopes) ? input.scopes : [])];
+  if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
+  const latest = new Date(Date.now() + 365 * DAY).toISOString().slice(0, 10);
+  const expires = String(input.expiresOn ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires <= today() || expires > latest) throw new Error("Pick an end date within a year.");
+  // A taken prefix is all but impossible (48 random bits); one more try covers it.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const prefix = randomBytes(6).toString("hex");
+    const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
+    const { data, error } = await db().from("access_keys").insert({
+      workspace_id: actor.workspaceId, created_by: actor.personId, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key",
+      prefix, secret_hash: hash(secret), scopes, expires_on: expires,
+    }).select("id").single();
+    if (data) return { id: data.id, secret };
+    if (error?.code !== "23505") break;
+  }
+  throw new Error("The key could not be created.");
+}
+
+/** The keys the actor may see: their own, or every key of the workspace for Owners. */
+export async function listAccessKeys(actor: Actor): Promise<AccessKeyInfo[]> {
+  if (actor.key) throw new Forbidden();
+  let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by").eq("workspace_id", actor.workspaceId).order("id", { ascending: false });
+  if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
+  const { data } = await q;
+  return (data ?? []).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at, created_by: k.created_by }));
+}
+
+/** Revokes a key: its creator may, and the workspace's Owners may revoke any. */
+export async function revokeAccessKey(actor: Actor, id: number) {
+  if (actor.key) throw new Forbidden("A key cannot revoke keys.");
+  let q = db().from("access_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).is("revoked_at", null);
+  if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
+  const { data } = await q.select("id");
+  if (!data?.length) throw new Forbidden();
+}
+
+/** The Actor a presented secret acts as, or null when it is unknown, wrong, revoked, ended, or its creator has left. */
+export async function actorForKey(secret: string): Promise<KeyActor | null> {
+  const m = /^zk_([0-9a-f]{12})_[A-Za-z0-9_-]{43}$/.exec(String(secret ?? ""));
+  if (!m) return null;
+  const { data: k } = await db().from("access_keys").select("id, workspace_id, created_by, secret_hash, scopes, expires_on, revoked_at").eq("prefix", m[1]).maybeSingle();
+  if (!k) return null;
+  const given = Buffer.from(hash(secret), "hex");
+  const stored = Buffer.from(k.secret_hash, "hex");
+  if (given.length !== stored.length || !timingSafeEqual(given, stored)) return null;
+  if (k.revoked_at || k.expires_on < today()) return null;
+  const { data: membership } = await db().from("memberships").select("role").eq("workspace_id", k.workspace_id).eq("user_id", k.created_by).maybeSingle();
+  if (!membership) return null;
+  await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
+  return { personId: k.created_by, workspaceId: k.workspace_id, role: membership.role as WorkspaceRoleName, key: { id: String(k.id), scopes: k.scopes } };
+}
+
+/** The Metrics the actor sees, with their series (scope metrics:read for keys). */
+export async function readMetrics(actor: Actor | KeyActor) {
+  assertScope(actor, "metrics:read");
+  const { metrics, series } = await getAllSeries(actor.workspaceId);
+  const visible = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
+  return metrics.filter((m) => visible.has(m.id)).map((m) => ({ id: m.id, slug: m.slug, name: m.name, unit: m.unit, period: m.period, series: series[m.slug] ?? [] }));
+}
+
+/** Submits a value for a Metric the actor submits to (scope values:submit for keys), through the Metric's Token,
+ * Submission Rule, Lock and Workflow like any other value. PROTOTYPE: recorded as from the web form until the API
+ * spec adds an API Source. */
+export async function submitWithKey(actor: Actor | KeyActor, metricId: number, value: number): Promise<SubmissionResult> {
+  assertScope(actor, "values:submit");
+  if (!Number.isInteger(metricId)) throw new Forbidden();
+  if (!Number.isFinite(Number(value))) throw new Error("The value must be a number.");
+  const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", actor.workspaceId).eq("metric_id", metricId).eq("submitter_id", actor.personId).is("stands_in_for", null).order("id").limit(1);
+  if (!tokens?.length) throw new Forbidden("You do not submit values for this metric.");
+  return submitValue({ source: "web_form", sender: tokens[0].code, text: String(Number(value)) });
+}
