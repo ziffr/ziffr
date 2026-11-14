@@ -128,6 +128,11 @@ describe("replies by email", () => {
     // A pass the sender wrote lower down, under the provider's own fail at the top, counts for nothing.
     const forged = [{ key: "authentication-results", value: "mx.provider.test; dmarc=fail header.from=example.test" }, { key: "authentication-results", value: "mx.provider.test; dmarc=pass header.from=example.test" }];
     expect(senderVerified(forged, "ann@example.test", "mx.provider.test")).toBe(false);
+    // Sender-controlled text inside a quoted string or a comment is no result of its own.
+    expect(senderVerified(ar('mx.provider.test; spf=pass smtp.mailfrom="x;dkim=pass header.d=example.test"@evil.test; dmarc=fail header.from=example.test'), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderVerified(ar("mx.provider.test; dmarc=fail (; dmarc=pass header.from=example.test) header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    // Comments the provider writes itself do not stop a real pass.
+    expect(senderVerified(ar("mx.provider.test; dkim=pass (2048-bit key; unprotected) header.d=example.test header.s=s1; dmarc=pass (p=reject) header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
   });
   it("never takes an Approval by email unless the provider vouched for the sender, and takes nothing unvouched once one is named", async () => {
     const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ben = await w.person("member", { email: address("ben") });

@@ -28,6 +28,25 @@ export type InboundOutcome =
   | "recorded" | "refused" | "form_link" | "replied" | "corrected"
   | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty";
 
+/** An Authentication-Results value (RFC 8601) as its parts: the authserv-id, then one result per method, lower case.
+ * Comments in parentheses and quoted strings are taken out first, so text the sender controls inside them (an
+ * envelope address such as "a;dkim=pass"@x, a comment) can never read as a separator or a result of its own. */
+export function authResults(value: string): string[] {
+  let out = "";
+  let depth = 0;
+  let quoted = false;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (c === "\\" && (quoted || depth > 0)) { i++; continue; }
+    if (quoted) { if (c === '"') quoted = false; continue; }
+    if (depth > 0) { if (c === "(") depth++; else if (c === ")") depth--; continue; }
+    if (c === '"') { quoted = true; out += "q"; continue; }
+    if (c === "(") { depth = 1; out += " "; continue; }
+    out += c;
+  }
+  return out.split(";").map((part) => part.replace(/\s+/g, " ").trim().toLowerCase());
+}
+
 /** Whether the provider that received the message vouched for its From address. A From header is written by whoever
  * sends, so on its own it proves nothing: only the topmost Authentication-Results header counts, and only when it is
  * by the provider named in ZIFFR_INBOUND_AUTHSERV_ID (it adds it above all others), with DMARC passed for the
@@ -39,10 +58,14 @@ export function senderVerified(headers: { key: string; value: string }[], from: 
   // write one that names the provider further down.
   const top = headers.find((h) => h.key.toLowerCase() === "authentication-results");
   if (!top) return false;
-  const [id, ...results] = top.value.split(";").map((part) => part.trim().toLowerCase());
+  const [id, ...results] = authResults(top.value);
   if (id.split(/\s+/)[0] !== authservId.toLowerCase()) return false;
-  return results.some((r) => (/^dmarc=pass\b/.test(r) && /header\.from=([^\s;]+)/.exec(r)?.[1] === fromDomain)
-    || (/^dkim=pass\b/.test(r) && /header\.d=([^\s;]+)/.exec(r)?.[1] === fromDomain));
+  return results.some((r) => {
+    const method = /^(dmarc|dkim)\s*=\s*([a-z]+)/.exec(r);
+    if (!method || method[2] !== "pass") return false;
+    const domain = new RegExp(`(?:^|\\s)${method[1] === "dmarc" ? "header\\.from" : "header\\.d"}\\s*=\\s*([^\\s]+)`).exec(r)?.[1];
+    return domain === fromDomain;
+  });
 }
 
 /** Reads a raw message (RFC 5322). Throws for anything that cannot be parsed. */
