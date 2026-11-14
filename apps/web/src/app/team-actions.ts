@@ -6,6 +6,7 @@ import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import * as team from "@ziffr/core/team";
 import * as inv from "@ziffr/core/invitations";
+import { removeMember } from "@ziffr/core/handover";
 import { signedIn } from "@/lib/auth";
 import { SITE_URL } from "@/lib/sign-in";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
@@ -89,5 +90,11 @@ export async function setDomainJoining(on: boolean) {
 /** Approves or declines a request to join. */
 export async function decideJoin(id: number, approve: boolean) {
   await inv.decideJoinRequest(await currentActor(), Number(id), Boolean(approve));
+  done();
+}
+
+/** Removes a member and hands everything they own to a successor; their Tokens, shares and keys end. */
+export async function removeMemberWithHandover(personId: string, successorId: string) {
+  await removeMember(await currentActor(), String(personId), String(successorId));
   done();
 }

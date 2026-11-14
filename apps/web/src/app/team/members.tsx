@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Link2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { changeRole, createInviteLink, decideJoin, inviteMember, revokeInvitation, setDomainJoining } from "@/app/team-actions";
+import { changeRole, createInviteLink, decideJoin, inviteMember, removeMemberWithHandover, revokeInvitation, setDomainJoining } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { Profile } from "@ziffr/core/types";
 
@@ -17,6 +17,7 @@ const field = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-
 
 /** Members with their roles, invitations, join requests and domain joining. */
 export function Members(props: {
+  viewer: string;
   members: { id: string; name: string; role: WorkspaceRoleName }[];
   canEdit: boolean;
   isOwner: boolean;
@@ -32,6 +33,8 @@ export function Members(props: {
   const [role, setRole] = useState<WorkspaceRoleName>("member");
   const [contact, setContact] = useState("");
   const [link, setLink] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState<string | null>(null);
+  const [successor, setSuccessor] = useState("");
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
   const grantable = ROLES.filter((r) => isOwner || r.id !== "owner");
   return (
@@ -47,6 +50,20 @@ export function Members(props: {
               </select>
             ) : (
               <span className="ml-auto text-muted-foreground">{ROLES.find((r) => r.id === m.role)?.label}</span>
+            )}
+            {canEdit && m.id !== props.viewer && (isOwner || m.role !== "owner") && (
+              leaving === m.id ? (
+                <span className="flex items-center gap-2">
+                  <select aria-label={`Who takes over from ${m.name}`} value={successor} onChange={(e) => setSuccessor(e.target.value)} className={field}>
+                    <option value="">Who takes over?</option>
+                    {members.filter((x) => x.id !== m.id && x.role !== "guest").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                  <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { await removeMemberWithHandover(m.id, successor); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")}>Remove</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setLeaving(null)}>Cancel</Button>
+                </span>
+              ) : (
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => { setLeaving(m.id); setSuccessor(""); }}>Remove…</Button>
+              )
             )}
           </li>
         ))}

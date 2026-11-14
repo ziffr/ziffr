@@ -44,12 +44,13 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
 }
 
 /** Records the object's current state. Edits by the same person within ten minutes merge into one version. */
-export async function recordVersion(type: VersionType, id: number, author: string, opts: { message?: string; name?: string } = {}) {
+export async function recordVersion(type: VersionType, id: number, author: string, opts: { message?: string; name?: string; always?: boolean } = {}) {
   const snapshot = await snapshotOf(type, id);
   if (!snapshot) return;
   const { data: latest } = await db().from("versions").select("*").eq("object_type", type).eq("object_id", id).order("version", { ascending: false }).limit(1);
   const last = latest?.[0];
-  if (last && JSON.stringify(last.snapshot) === JSON.stringify(snapshot) && !opts.name) return; // nothing changed
+  // Nothing changed: no new version, unless it records an event of its own (a name, or a handover with `always`).
+  if (last && JSON.stringify(last.snapshot) === JSON.stringify(snapshot) && !opts.name && !opts.always) return;
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
   const fresh = last && last.author_id === author && !last.name && !last.message && !opts.name && !opts.message && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
   if (fresh) {

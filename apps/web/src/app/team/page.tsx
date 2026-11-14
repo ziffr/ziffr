@@ -36,7 +36,7 @@ export default async function TeamPage() {
   return (
     <>
       <PageHeader title="Team" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included. Everyone in the workspace is a group of its own: all members except guests." />
-      <Members members={members} canEdit={canEdit} isOwner={me?.role === "owner"} invitations={invitations} joinRequests={joinRequests} joinDomain={space?.join_domain ?? null} myDomain={who?.verifiedEmail?.split("@")[1] ?? null} contacts={contacts} />
+      <Members viewer={viewer} members={members} canEdit={canEdit} isOwner={me?.role === "owner"} invitations={invitations} joinRequests={joinRequests} joinDomain={space?.join_domain ?? null} myDomain={who?.verifiedEmail?.split("@")[1] ?? null} contacts={contacts} />
       {keys && <AccessKeys keys={keys} people={Object.fromEntries(people.map((p) => [p.id, p.name]))} viewer={viewer} />}
       <TeamScreen people={people.filter((p) => !p.contact)} contacts={contacts} groups={groups.filter((g) => !g.everyone)} canEdit={canEdit} viewer={viewer} away={away ?? []} />
     </>
