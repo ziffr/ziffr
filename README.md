@@ -17,7 +17,7 @@ pnpm prototype:stop     # stop local Supabase
 
 Copy `.env.example` to `.env.local` and fill in `SUPABASE_SERVICE_ROLE_KEY` from `supabase status -o env`.
 
-To send real email and take replies, see [docs/guides/email.md](docs/guides/email.md); programs and AI assistants use [the API](docs/guides/api.md).
+To send real email and take replies, see [docs/guides/email.md](docs/guides/email.md); for Workflows that run on their own, [the scheduled jobs](docs/guides/jobs.md); programs and AI assistants use [the API](docs/guides/api.md).
 
 You can also reset the demo data from the ↺ button in the app header, between tester sessions.
 

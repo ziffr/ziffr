@@ -1,7 +1,8 @@
 // Questions and tasks (GLOSSARY: Action, Question, Task, Thread, Delivery Preference): asking about a value or assigning
 // work on it, replying in its Thread, closing it, and where each person hears about it. Every function takes the Actor
 // first and works only inside the actor's Workspace.
-import { addDays, format } from "date-fns";
+import { remindDueTasks } from "./scheduled-runs";
+import { format } from "date-fns";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertMembersIn, assertSeesMetrics } from "./sharing";
@@ -79,13 +80,11 @@ export async function setPreference(actor: Actor, personId: string | null, kind:
   if (connector) await db().from("delivery_preferences").insert({ user_id: personId, kind, connector, workspace_id: ws });
 }
 
-/** What a scheduler would do each morning: remind assignees of open tasks due within two days. Returns how many. */
+/** Reminds assignees of open tasks due within two days, now (the scheduled run does this each morning, spec 0005).
+ * Returns how many. */
 export async function sendDueReminders(actor: Actor): Promise<number> {
   assertCan(actor, "create");
-  const soon = format(addDays(new Date(), 2), "yyyy-MM-dd");
-  const { data } = await db().from("actions").select("id, asker_id, assignee_id").eq("kind", "task").eq("status", "open").eq("workspace_id", actor.workspaceId).not("due_date", "is", null).lte("due_date", soon);
-  for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id });
-  return data?.length ?? 0;
+  return remindDueTasks(actor.workspaceId, format(new Date(), "yyyy-MM-dd"));
 }
 
 /** What a scheduler would do each period: ask every submitter whose value for the current period is missing.

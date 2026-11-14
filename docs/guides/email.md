@@ -14,7 +14,7 @@ ZIFFR_MAIL_FROM="Ziffr <ziffr@example.com>"
 
 Any provider with SMTP works. Use an address on a domain whose SPF and DKIM include that provider, or the mail lands in spam. Emails are plain text.
 
-A send that fails is tried again after 1, 2, 4 and 8 minutes, then marked as not sent. Something has to run the retries: have a scheduler call the job every few minutes.
+A send that fails is tried again after 1, 2, 4 and 8 minutes, then marked as not sent. Something has to run the retries: have a scheduler call the job every few minutes ([scheduled jobs](jobs.md)).
 
 ```sh
 ZIFFR_JOB_SECRET=$(openssl rand -hex 32)
