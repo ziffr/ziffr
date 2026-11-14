@@ -34,7 +34,7 @@ const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dash
 
 /** Everything a View Link page needs, built as its owner sees it inside their workspace and cut down to the one
  * object. For a live link, only the Metrics agreed to when it was made. */
-export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[]): Promise<ViewPayload | null> {
+export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null): Promise<ViewPayload | null> {
   const { data: obj } = await db().from(table(type)).select("*").eq("id", id).maybeSingle();
   if (!obj) return null;
   const ws = obj.workspace_id as string;
@@ -49,11 +49,14 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
   const ids = new Set(metricIds.filter((m) => full.metrics.some((x) => x.id === m) && (!allowed || allowed.includes(m))));
   const metrics = full.metrics.filter((m) => ids.has(m.id));
-  // Only what drawing needs, and no widget whose Metrics were all left out (a title alone can say too much).
+  // Only widgets the link was made with, and only those whose every Metric is shown: titles and settings (story
+  // panels, free layouts) can name a Metric, so a widget that draws any left-out Metric stays out whole. Each widget
+  // goes out with the fields drawing needs, nothing else.
   if (widgets) {
     widgets = widgets
-      .filter((w) => { const own = widgetMetricIds(w.metric_ids, w.settings); return own.length === 0 || own.some((m) => ids.has(m)); })
-      .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids.filter((m) => ids.has(m)), settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
+      .filter((w) => !allowedWidgets || allowedWidgets.includes(w.id))
+      .filter((w) => widgetMetricIds(w.metric_ids, w.settings).every((m) => ids.has(m)))
+      .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
@@ -74,7 +77,20 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     pending: pick(full.pending, ids),
     locked: pick(full.locked, ids),
   };
-  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? obj.document : undefined, footer: type === "deck" ? obj.footer : undefined, asOf: new Date().toISOString() };
+  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(obj.document, ids) : undefined, footer: type === "deck" ? obj.footer : undefined, asOf: new Date().toISOString() };
+}
+
+/** A deck's slides as a View Link may show them: widgets that draw any left-out Metric are taken off. PROTOTYPE:
+ * text added to a live-linked deck later still shows; the link should remember its shapes (ticket #19). */
+function deckForLink(document: unknown, shown: Set<number>): unknown {
+  const doc = document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null;
+  if (!doc?.store) return document;
+  const keep = Object.entries(doc.store).filter(([, r]) => {
+    if (r?.type !== "ziffr-widget") return true;
+    const ids = Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : [];
+    return deckMetricIds({ store: { x: r } }).concat(ids).every((m) => shown.has(m));
+  });
+  return { ...doc, store: Object.fromEntries(keep) };
 }
 
 /** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. */
@@ -83,7 +99,7 @@ export async function openViewLink(token: string): Promise<ViewPayload | null> {
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
   if (link.frozen) return link.frozen as ViewPayload;
-  return buildView(link.object_type, link.object_id, link.metric_ids ?? []);
+  return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null);
 }
 
 /** Refuses anyone but the owner of the dashboard or deck, in their workspace. */
@@ -116,7 +132,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   // Only what its owner may see goes out.
   await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
-  await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), workspace_id: actor.workspaceId });
+  await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null, workspace_id: actor.workspaceId });
   return token;
 }
 

@@ -1,0 +1,158 @@
+// Version history (GLOSSARY: Version): seeing, naming and restoring earlier states of what people build. Who may
+// see and restore follows who may see and edit the object; a restore brings back only what the restorer may show.
+// Every function takes the Actor first and works only inside the actor's Workspace.
+import { db } from "./db";
+import { can, Forbidden, type Actor } from "./actor";
+import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
+import { cleanSlides, cleanTokens } from "./theme-tokens";
+import { deckMetricIds } from "./visibility";
+import { widgetMetricIds } from "./widget-metrics";
+import { TEMPLATES } from "./widget-templates";
+import { getMetrics } from "./workspace-data";
+import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
+import type { ThemeSlides, ThemeTokens, WidgetSettings } from "./types";
+
+/** What restoring sets off outside the core. PROTOTYPE: Workflows move into the core with ticket #15. */
+export type RestoreEffects = {
+  /** Saves a Workflow from a restored version, through the same checks as editing it. */
+  restoreWorkflow: (id: number, name: string, config: unknown) => Promise<void>;
+};
+
+/** Whether the actor may see and restore the versions of an object: the same rules as seeing and editing it. */
+export async function versionAccess(actor: Actor, type: VersionType, id: number): Promise<{ view: boolean; edit: boolean }> {
+  // Only the kinds Ziffr keeps versions of; anything else a browser sends is refused.
+  if (!VERSION_TYPES.includes(type)) throw new Forbidden();
+  const ws = actor.workspaceId;
+  const me = actor.personId;
+  if (type === "deck") {
+    const role = (await visibleDecks(ws, me)).find((d) => d.id === id)?.role;
+    return { view: Boolean(role), edit: role === "owner" || role === "editor" };
+  }
+  if (type === "workflow" || type === "template") {
+    const { data } = await db().from(type === "workflow" ? "workflows" : "team_templates").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
+    return { view: Boolean(data), edit: data?.owner_id === me };
+  }
+  if (type === "theme") {
+    const { data } = await db().from("themes").select("id").eq("id", id).eq("workspace_id", ws).maybeSingle();
+    return { view: Boolean(data), edit: Boolean(data) && can(actor, "manage-themes") };
+  }
+  if (type === "metric") {
+    const { data } = await db().from("metrics").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
+    const visible = await visibleMetricIds(ws, me, await getMetrics(ws));
+    return { view: visible.has(id), edit: data?.owner_id === me };
+  }
+  const dashboardId = type === "dashboard" ? id : (await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", ws).maybeSingle()).data?.dashboard_id;
+  if (!dashboardId) {
+    const { data } = await db().from("widgets").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
+    const own = data?.owner_id === me;
+    return { view: own, edit: own };
+  }
+  const role = (await visibleDashboards(ws, me)).find((d) => d.id === dashboardId)?.role;
+  return { view: Boolean(role), edit: role === "owner" || role === "editor" };
+}
+
+/** The versions of an object, newest first, with what changed in each; only for those who see the object. */
+export async function listVersions(actor: Actor, type: VersionType, id: number) {
+  const a = await versionAccess(actor, type, id);
+  if (!a.view) throw new Forbidden();
+  const { data } = await db().from("versions").select("id, version, snapshot, author_id, message, name, created_at, updated_at").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("version", { ascending: false }).limit(60);
+  const rows = data ?? [];
+  return {
+    canRestore: a.edit,
+    versions: rows.map((v, i) => ({
+      id: v.id, version: v.version, author: v.author_id, message: v.message, name: v.name, at: v.updated_at,
+      changes: diffSummary(type, (rows[i + 1]?.snapshot as Record<string, unknown>) ?? null, v.snapshot as Record<string, unknown>),
+    })),
+  };
+}
+
+/** A version of the actor's workspace that the actor may restore, or Forbidden. */
+async function restorable(actor: Actor, versionId: number) {
+  const { data: v } = await db().from("versions").select("*").eq("id", versionId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!v || !(await versionAccess(actor, v.object_type, v.object_id)).edit) throw new Forbidden();
+  return v;
+}
+
+/** Names a version, like a git tag. */
+export async function nameVersion(actor: Actor, versionId: number, name: string) {
+  await restorable(actor, versionId);
+  await db().from("versions").update({ name: String(name ?? "").trim().slice(0, 80) || null }).eq("id", versionId).eq("workspace_id", actor.workspaceId);
+}
+
+/** Names the current state: a named version is never merged into. */
+export async function saveNamedVersion(actor: Actor, type: VersionType, id: number, name: string) {
+  if (!(await versionAccess(actor, type, id)).edit) throw new Forbidden();
+  await recordVersion(type, id, actor.personId, { name: String(name ?? "").trim().slice(0, 80) || "Named version" });
+}
+
+const HIDDEN = "This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the owner.";
+
+/** Writes an old state back and records it as a new version: history only ever grows. A restore places widgets
+ * like a drop does (only known templates, only Metrics the restorer sees, including those named in settings), so an
+ * old version cannot bring back a Metric that was taken off a shared dashboard. */
+export async function restoreVersion(actor: Actor, versionId: number, effects: RestoreEffects) {
+  const v = await restorable(actor, versionId);
+  const s = { ...(v.snapshot as Record<string, unknown>) };
+  const id = v.object_id as number;
+  const ws = actor.workspaceId;
+  const visible = async () => visibleMetricIds(ws, actor.personId, await getMetrics(ws));
+  if (v.object_type === "widget" || v.object_type === "dashboard") {
+    const widgets = (v.object_type === "widget" ? [s] : ((s.widgets as Record<string, unknown>[]) ?? [])) as { template?: string; metric_ids?: number[]; settings?: WidgetSettings }[];
+    if (widgets.some((w) => !w.template || !(w.template in TEMPLATES))) throw new Forbidden();
+    const seen = await visible();
+    if (widgets.flatMap((w) => widgetMetricIds(w.metric_ids ?? [], w.settings)).some((m) => !seen.has(m))) throw new Error(HIDDEN);
+  }
+  if (v.object_type === "template" && !((s.view as string) in TEMPLATES || s.view === "slide")) throw new Forbidden();
+  // A deck restore may only bring back Metrics the restorer sees, as saving a deck does.
+  if (v.object_type === "deck") {
+    const { data: cur } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", ws).single();
+    const had = new Set(deckMetricIds(cur?.document));
+    const seen = await visible();
+    if (deckMetricIds(s.document).some((m) => !had.has(m) && !seen.has(m))) throw new Error(HIDDEN);
+  }
+  // A Theme picked back then may be gone since; the dashboard or deck then follows the default.
+  if ((v.object_type === "dashboard" || v.object_type === "deck") && s.theme_id) {
+    const { data: t } = await db().from("themes").select("id").eq("id", s.theme_id as number).eq("workspace_id", ws).maybeSingle();
+    if (!t) s.theme_id = null;
+  }
+  const at = new Date().toISOString();
+  switch (v.object_type as VersionType) {
+    case "workflow":
+      await effects.restoreWorkflow(id, String(s.name ?? ""), s.config);
+      break;
+    case "theme": {
+      const tokens = cleanTokens(s.tokens as ThemeTokens);
+      if (!tokens) throw new Forbidden();
+      await db().from("themes").update({ name: String(s.name ?? "").slice(0, 60), tokens, ...(s.slides ? { slides: cleanSlides(s.slides as ThemeSlides) } : {}), updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      break;
+    }
+    case "template":
+      await db().from("team_templates").update({ kind: s.kind, name: s.name, description: s.description, view: s.view, slots: s.slots, body: s.body, w: s.w, h: s.h, updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      break;
+    case "widget":
+      await db().from("widgets").update({ template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title }).eq("id", id).eq("workspace_id", ws);
+      break;
+    case "dashboard": {
+      const { data: d } = await db().from("dashboards").select("owner_id").eq("id", id).eq("workspace_id", ws).single();
+      await db().from("dashboards").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}) }).eq("id", id).eq("workspace_id", ws);
+      await db().from("widgets").delete().eq("dashboard_id", id).eq("workspace_id", ws);
+      const widgets = (s.widgets as Record<string, unknown>[]) ?? [];
+      if (widgets.length) {
+        await db().from("widgets").insert(widgets.map((w) => ({
+          template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
+          owner_id: d?.owner_id ?? actor.personId, dashboard_id: id, saved: false, workspace_id: ws,
+        })));
+      }
+      break;
+    }
+    case "deck":
+      await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws);
+      break;
+    case "metric": {
+      const fields = ["name", "description", "unit", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "sources", "aggregation", "formula"];
+      await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in s).map((f) => [f, s[f]]))).eq("id", id).eq("workspace_id", ws);
+      break;
+    }
+  }
+  await recordVersion(v.object_type, id, actor.personId, { message: `Restored version ${v.version}${v.name ? ` (${v.name})` : ""}` });
+}

@@ -1,9 +1,11 @@
-// Checks a theme's tokens before they are stored: colours are hex, fonts are known, sizes are sane.
-import { FONTS, HEX } from "@ziffr/core/themes";
-import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
+// Theme checks (GLOSSARY: Theme): a theme's tokens and slide settings before they are stored. Colours are hex,
+// fonts are known, sizes are sane, images are inline pictures of a limited size.
+import { FONTS, HEX } from "./themes";
+import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
 
+/** A theme's tokens as stored, or null when any colour, font or setting is not valid. */
 export function cleanTokens(t: ThemeTokens): ThemeTokens | null {
   if (!t || typeof t !== "object") return null;
   if (!COLORS.every((k) => typeof t[k] === "string" && HEX.test(t[k]))) return null;

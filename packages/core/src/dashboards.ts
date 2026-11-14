@@ -41,7 +41,7 @@ export async function assertCanEditDashboard(actor: Actor, dashboardId: number) 
 }
 
 /** The widget, if the actor may change it: on a dashboard they edit, or a saved widget of their own. */
-async function editableWidget(actor: Actor, id: number): Promise<Widget> {
+export async function editableWidget(actor: Actor, id: number): Promise<Widget> {
   const { data } = await db().from("widgets").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   const w = data as Widget | null;
   if (!w) throw new Forbidden();

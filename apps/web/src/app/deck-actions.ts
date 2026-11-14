@@ -1,65 +1,38 @@
 "use server";
-
+// Decks (GLOSSARY: Deck, Share): thin calls into the core (@ziffr/core/decks). A deck's owner and its Editors change
+// it; Viewers only present it; only the owner deletes it.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
-import { ensureBaseline, recordVersion } from "@/lib/versions";
-import { deckMetricIds, visibleDecks } from "@/lib/access";
-import { actingWorkspace, assertCanSeeMetrics } from "@/lib/guards";
+import { currentActor } from "@/lib/viewer";
+import * as decks from "@ziffr/core/decks";
 
-// GLOSSARY: Share. A deck's owner and its Editors change it; Viewers only present it; only the owner deletes it.
-
-async function ownDeck(id: number) {
-  const { data } = await db.from("decks").select("id, owner_id").eq("id", id).eq("workspace_id", await actingWorkspace()).maybeSingle();
-  if (!data || data.owner_id !== (await viewerId())) throw new Error("Forbidden");
-}
-
-async function editDeck(id: number) {
-  const viewer = await viewerId();
-  const role = (await visibleDecks(viewer)).find((d) => d.id === id)?.role;
-  if (role !== "owner" && role !== "editor") throw new Error("Forbidden");
-  return viewer;
-}
-
+/** Creates a deck and opens it. */
 export async function createDeck(form: FormData) {
-  const name = String(form.get("name") ?? "").trim() || "Untitled deck";
-  const { data } = await db.from("decks").insert({ name: name.slice(0, 120), owner_id: await viewerId(), workspace_id: await actingWorkspace() }).select("id").single();
+  const id = await decks.createDeck(await currentActor(), String(form.get("name") ?? ""));
   revalidatePath("/decks");
-  redirect(`/decks/${data?.id}`);
+  redirect(`/decks/${id}`);
 }
 
+/** Saves a deck's slides. */
 export async function saveDeck(id: number, document: unknown) {
-  const viewer = await editDeck(id);
-  // A deck shows its metrics to everyone it is shared with: only metrics the saver may see can be added to it.
-  const { data: before } = await db.from("decks").select("document").eq("id", id).single();
-  const had = new Set(deckMetricIds(before?.document));
-  const added = deckMetricIds(document).filter((m) => !had.has(m));
-  if (added.length) await assertCanSeeMetrics(added, viewer);
-  await ensureBaseline("deck", id, viewer);
-  await db.from("decks").update({ document, updated_at: new Date().toISOString() }).eq("id", id);
-  await recordVersion("deck", id, await viewerId());
+  await decks.saveDeck(await currentActor(), Number(id), document);
 }
 
+/** Renames a deck. */
 export async function renameDeck(id: number, name: string) {
-  await editDeck(id);
-  await db.from("decks").update({ name: name.trim() || "Untitled deck", updated_at: new Date().toISOString() }).eq("id", id);
-  await recordVersion("deck", id, await viewerId());
+  await decks.renameDeck(await currentActor(), Number(id), String(name ?? ""));
   revalidatePath("/decks");
 }
 
+/** Deletes a deck. */
 export async function deleteDeck(id: number) {
-  await ownDeck(id);
-  await db.from("decks").delete().eq("id", id);
+  await decks.deleteDeck(await currentActor(), Number(id));
   revalidatePath("/decks");
   redirect("/decks");
 }
 
 /** The deck's own footer; null uses the theme's. */
 export async function setDeckFooter(id: number, footer: string | null) {
-  const viewer = await editDeck(id);
-  await ensureBaseline("deck", id, viewer);
-  await db.from("decks").update({ footer: footer === null ? null : String(footer).slice(0, 120), updated_at: new Date().toISOString() }).eq("id", id);
-  await recordVersion("deck", id, viewer);
-  revalidatePath(`/decks/${id}`);
+  await decks.setDeckFooter(await currentActor(), Number(id), footer);
+  revalidatePath(`/decks/${Number(id)}`);
 }

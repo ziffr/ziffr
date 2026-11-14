@@ -4,6 +4,9 @@ import { db } from "./db";
 
 /** The kinds of objects that keep versions. */
 export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow";
+
+/** Every kind of object that keeps versions; a type sent by a browser must be one of these. */
+export const VERSION_TYPES: VersionType[] = ["widget", "dashboard", "deck", "metric", "template", "theme", "workflow"];
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -35,6 +38,7 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
     const { data } = await db().from("team_templates").select("kind, name, description, view, slots, body, w, h").eq("id", id).single();
     return data;
   }
+  if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
   const { data } = await db().from("metrics").select("name, description, unit, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula").eq("id", id).single();
   return data;
 }

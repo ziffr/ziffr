@@ -128,6 +128,9 @@ describe("after the review of #13", () => {
     const view = await openViewLink(token);
     expect(view!.widgets!.map((x) => x.metric_ids)).toEqual([[shown.id]]);
     expect(JSON.stringify(view!.widgets)).not.toMatch(/owner_id|workspace_id|Payroll/);
+    // Nor a widget added later without any Metric: it was not there when the link was made.
+    await placeWidget(w.actor(sara), d, { type: "spec", template: "story", metricIds: [], title: "Layoffs next month" });
+    expect(JSON.stringify(await openViewLink(token))).not.toMatch(/Layoffs/);
   });
   it("makes no View Links in the demo, whoever asks", async () => {
     await expect(createViewLink({ personId: "sara", workspaceId: "d3e00000-0000-4000-8000-000000000001", role: "owner" }, "dashboard", 1, { label: "", expires: inDays(5), frozen: false })).rejects.toEqual(forbidden);
