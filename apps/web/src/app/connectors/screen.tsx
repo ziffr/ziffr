@@ -1,9 +1,9 @@
 "use client";
 // Connectors, Delivery Preferences and the Outbox (GLOSSARY). Email goes out for real once it is set up (spec 0004);
 // for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering.
+import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -166,7 +166,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
         <Icon aria-hidden className="size-4 text-foreground" />
         <span className="font-medium text-foreground">{c.label}</span>
         <span>to {to}</span>
-        <span>{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
+        <RelativeTime at={d.created_at} />
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
         {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} slack={d.connector === "slack"} />}
         {d.action_id && <Link href={`/actions/${d.action_id}`} className="ml-auto underline">Open thread</Link>}

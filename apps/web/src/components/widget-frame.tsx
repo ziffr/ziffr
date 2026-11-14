@@ -1,11 +1,12 @@
 "use client";
+import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Check, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
@@ -346,7 +347,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
               <li key={x.id} className="flex gap-2">
                 <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, true)}</span>
                 <span className="fig line-through">{formatValue(m, Number(x.value))}</span>
-                <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} {formatDistanceToNow(new Date(x.superseded_at), { addSuffix: true })}</span>
+                <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} <RelativeTime at={x.superseded_at} /></span>
               </li>
             ))}
           </ul>

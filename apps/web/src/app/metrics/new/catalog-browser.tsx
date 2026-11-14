@@ -10,13 +10,24 @@ import { PERIOD_LABEL, POLARITY_LABEL, targetText } from "@ziffr/core/format";
 import type { CatalogMetric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
-/** The catalog as a searchable list of cards, grouped by category. */
-export function CatalogBrowser({ items }: { items: CatalogMetric[] }) {
+/** What the workspace's Workspace Profile says about it, for suggestions: its industry and segment keys and words. */
+export type CatalogFit = { industry: string | null; segment: string | null; label: string };
+
+/** Whether a catalog Metric was written for this kind of business: tagged with its industry, and not for another
+ * segment. Untagged ones suit anyone and are not suggested over the rest. */
+const suits = (c: CatalogMetric, fit: CatalogFit) =>
+  Boolean(fit.industry && c.industries?.includes(fit.industry)) && (!fit.segment || !c.segments || c.segments.includes(fit.segment));
+
+/** The catalog as a searchable list of cards, grouped by category; with a Workspace Profile, a filter for the
+ * Metrics written for its industry. */
+export function CatalogBrowser({ items, fit }: { items: CatalogMetric[]; fit?: CatalogFit | null }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const suited = useMemo(() => (fit ? items.filter((c) => suits(c, fit)) : []), [items, fit]);
+  const [onlySuited, setOnlySuited] = useState(false);
   const categories = useMemo(() => [...new Set(items.map((c) => c.category))], [items]);
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = items.filter((c) => (!category || c.category === category) && words.every((w) => `${c.name} ${c.description} ${c.unit}`.toLowerCase().includes(w)));
+  const shown = items.filter((c) => (!onlySuited || suits(c, fit!)) && (!category || c.category === category) && words.every((w) => `${c.name} ${c.description} ${c.unit}`.toLowerCase().includes(w)));
   const groups = Object.entries(Object.groupBy(shown, (c) => c.category));
   const chip = (active: boolean) => cn("rounded-full border px-3 py-1 text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
 
@@ -28,6 +39,7 @@ export function CatalogBrowser({ items }: { items: CatalogMetric[] }) {
           <Input type="search" aria-label="Search the Metric Catalog" placeholder="Search, e.g. churn, margin, tickets" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-8" />
         </div>
         <div role="group" aria-label="Category" className="flex flex-wrap gap-1.5">
+          {suited.length > 0 && <button type="button" aria-pressed={onlySuited} onClick={() => setOnlySuited(!onlySuited)} className={chip(onlySuited)}>For {fit!.label} ({suited.length})</button>}
           <button type="button" aria-pressed={category === null} onClick={() => setCategory(null)} className={chip(category === null)}>All ({items.length})</button>
           {categories.map((cat) => (
             <button key={cat} type="button" aria-pressed={category === cat} onClick={() => setCategory(category === cat ? null : cat)} className={chip(category === cat)}>

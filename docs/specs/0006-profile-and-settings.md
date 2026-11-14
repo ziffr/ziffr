@@ -1,6 +1,6 @@
 # 0006 Your profile, Workspace settings and the Workspace Profile
 
-**Status:** draft. **Tracking issue:** #93 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0006`.
+**Status:** done. **Tracking issue:** #93 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0006`.
 
 ## Problem Statement
 

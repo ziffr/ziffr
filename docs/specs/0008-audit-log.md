@@ -1,6 +1,6 @@
 # 0008 The Audit Log
 
-**Status:** in progress. **Tracking issue:** #111 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0008`.
+**Status:** done. **Tracking issue:** #111 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0008`.
 
 ## Problem Statement
 

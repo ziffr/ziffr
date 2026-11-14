@@ -17,6 +17,8 @@ import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, Subm
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { CatalogBrowser } from "./catalog-browser";
+import { workspaceProfile } from "@ziffr/core/workspace-settings";
+import { INDUSTRY_LABEL } from "@ziffr/core/workspace-profile";
 
 const RULE_HINT: Record<SubmissionRule, string> = {
   reject: "The first value for a period is final.",
@@ -51,6 +53,9 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   if (sp.copy && !copy) notFound();
 
   if (!picked && !sp.scratch && !copy) {
+    // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
+    const profile = await workspaceProfile(await currentActor());
+    const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
     return (
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
@@ -62,7 +67,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>
-        <CatalogBrowser items={items} />
+        <CatalogBrowser items={items} fit={fit} />
       </>
     );
   }

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClipboardPaste, Plus, X } from "lucide-react";
 import { addDays, addMonths, format as fmt, parseISO } from "date-fns";
-import { saveSeriesRows } from "@/app/series-actions";
+import { removeSeriesRows, saveSeriesRows } from "@/app/series-actions";
+import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatValue, periodLabel, periodStart } from "@ziffr/core/format";
@@ -37,6 +38,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
   const [paste, setPaste] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
   const list = rows[kind];
   const setList = (f: (r: Row[]) => Row[]) => setRows((all) => ({ ...all, [kind]: f(all[kind]) }));
   const month = metric.period === "month";
@@ -67,6 +69,22 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
     }
   });
 
+  // A saved row goes from the database right away, after asking; an unsaved one only leaves the table.
+  const removeSaved = async (r: Row) => {
+    const label = periodLabel(r.period, metric.period);
+    if (!(await confirm({ title: `Remove the ${word} for ${label}?`, description: `The chart and the target box no longer use it. You can add it again later.`, confirmLabel: `Remove ${word}` }))) return;
+    start(async () => {
+      try {
+        await removeSeriesRows(metric.id, kind, [r.period]);
+        setList((all) => all.filter((x) => x.key !== r.key));
+        toast.success(`${label} removed`);
+        router.refresh();
+      } catch (err) {
+        toast.error("Not removed", { description: (err as Error).message });
+      }
+    });
+  };
+
   if (!canEdit) {
     const periods = [...new Set([...targets, ...projections].map((p) => p.period))].sort();
     if (!periods.length) return <p className="text-sm text-muted-foreground">No target series or projections yet.</p>;
@@ -88,6 +106,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
 
   return (
     <div className="space-y-3">
+      {dialog}
       <div role="tablist" aria-label="Series" className="inline-flex rounded-[var(--radius-input)] border border-border p-0.5 text-sm">
         {(["target", "projection"] as const).map((k) => (
           <button key={k} role="tab" type="button" aria-selected={kind === k} onClick={() => { setKind(k); setPaste(null); }} className={cn("rounded-[calc(var(--radius-input)-2px)] px-3 py-1", kind === k ? "stock font-medium" : "text-muted-foreground hover:text-foreground")}>
@@ -128,9 +147,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
                   />
                 </td>
                 <td className="py-1.5 text-right">
-                  {r.saved === undefined && (
-                    <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => setList((all) => all.filter((x) => x.key !== r.key))} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-3.5" /></button>
-                  )}
+                  <button type="button" disabled={pending} aria-label={r.saved === undefined ? "Remove this row" : `Remove the ${word} for ${periodLabel(r.period, metric.period)}`} title="Remove this row" onClick={() => (r.saved === undefined ? setList((all) => all.filter((x) => x.key !== r.key)) : removeSaved(r))} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-3.5" /></button>
                 </td>
               </tr>
             );

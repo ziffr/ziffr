@@ -146,11 +146,21 @@ export async function getSeriesOf(ws: string, metrics: Metric[], ids: number[], 
 
 /** A workspace's Actions, newest first; who may read them is decided in access.ts. */
 export async function getActions(ws: string, filter?: { metricId?: number }): Promise<Action[]> {
-  let q = db().from("actions").select("*").eq("workspace_id", ws).order("updated_at", { ascending: false });
-  if (filter?.metricId) q = q.eq("metric_id", filter.metricId);
-  const { data } = await q;
-  return data ?? [];
+  const base = () => {
+    const q = db().from("actions").select("*").eq("workspace_id", ws);
+    return filter?.metricId ? q.eq("metric_id", filter.metricId) : q;
+  };
+  // Open and answered ones are what people work on: all of them, page by page, so the row limit drops none. Closed
+  // ones are history: the newest CLOSED_ACTIONS_SHOWN, so a long-lived workspace does not read years of them.
+  const [live, { data: closed }] = await Promise.all([
+    allRows<Action>((from, to) => base().neq("status", "closed").order("updated_at", { ascending: false }).order("id", { ascending: false }).range(from, to)),
+    base().eq("status", "closed").order("updated_at", { ascending: false }).order("id", { ascending: false }).limit(CLOSED_ACTIONS_SHOWN),
+  ]);
+  return [...live, ...((closed ?? []) as Action[])].sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id);
 }
+
+/** How many closed Actions a list reads at most: the newest ones. */
+export const CLOSED_ACTIONS_SHOWN = 500;
 
 /** How many Actions wait for the person in this workspace: open ones assigned to them, answered ones they asked. */
 export async function openActionCount(ws: string, viewer: string) {

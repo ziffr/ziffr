@@ -176,6 +176,20 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
   return { saved: await upsertSeries(metricId, kind, read, note) };
 }
 
+/** The Metric owner removes Target Series or Projection values for some periods (period starts). Returns how many
+ * were removed; a period without a value is left alone. */
+export async function removeSeriesRows(actor: Actor, metricId: number, kind: "target" | "projection", periods: unknown) {
+  await seriesOwnerMetric(actor, metricId, kind);
+  // Periods come from a browser: only real days, at most 2,000; never a filter built from a string.
+  if (!Array.isArray(periods) || periods.length > 2000) throw new Error("Send at most 2,000 periods.");
+  const days = periods.map((p) => (typeof p === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p) && !Number.isNaN(Date.parse(`${p}T00:00:00Z`)) ? p : null));
+  if (days.some((d) => d === null)) throw new Error("Every period must be a day.");
+  if (!days.length) return { removed: 0 };
+  const { data, error } = await db().from("series_values").delete().eq("metric_id", metricId).eq("kind", kind).in("period_start", days as string[]).select("id");
+  if (error) throw new Error("The series could not be changed.");
+  return { removed: data?.length ?? 0 };
+}
+
 /** The metric, when the actor owns it in their workspace; only its owner sets targets and projections. */
 async function seriesOwnerMetric(actor: Actor, metricId: number, kind: string) {
   if (kind !== "target" && kind !== "projection") throw new Forbidden("Unknown series.");

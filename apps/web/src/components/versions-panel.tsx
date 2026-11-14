@@ -1,7 +1,7 @@
 "use client";
 // Version history of one object (GLOSSARY: Version): who changed what and when, named versions, restore.
+import { RelativeTime } from "@/components/relative-time";
 import { useEffect, useState, useTransition } from "react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { History, RotateCcw, Tag } from "lucide-react";
 import { listVersions, nameVersion, restoreVersion, saveNamedVersion } from "@/app/version-actions";
@@ -55,7 +55,7 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
               <div className="flex items-baseline gap-2">
                 <span className="fig text-xs text-muted-foreground">v{v.version}</span>
                 <span className="font-medium">{v.name ?? v.message ?? (i === 0 ? "Current" : "Edited")}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{who(v.author)}, {formatDistanceToNow(new Date(v.at), { addSuffix: true })}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{who(v.author)}, <RelativeTime at={v.at} /></span>
               </div>
               {v.changes.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{v.changes.join("; ")}</p>}
               {canRestore && (

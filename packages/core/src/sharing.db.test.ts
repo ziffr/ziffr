@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, saveSeriesRows, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, removeSeriesRows, saveSeriesRows, uploadSeries, type MetricEffects } from "./metrics";
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
@@ -52,6 +52,12 @@ describe("creating Metrics", () => {
     const { data } = await db().from("series_values").select("period_start, value").eq("metric_id", m.id).order("period_start");
     // A day inside a month is that month, and a value with three decimals stays what it was.
     expect(data!.map((r) => [r.period_start, Number(r.value)])).toEqual([["2026-12-01", 0.125], ["2027-01-01", 140000]]);
+    // Removing: the owner only, real days only, and only the periods named.
+    await expect(removeSeriesRows(w.actor(ben, "member"), m.id, "target", ["2026-12-01"])).rejects.toEqual(forbidden);
+    await expect(removeSeriesRows(w.actor(sara), m.id, "target", ["2026-12-01,period_start.neq.x"])).rejects.toThrow();
+    expect(await removeSeriesRows(w.actor(sara), m.id, "target", ["2026-12-01", "2030-01-01"])).toEqual({ removed: 1 });
+    const { data: left } = await db().from("series_values").select("period_start").eq("metric_id", m.id);
+    expect(left!.map((r) => r.period_start)).toEqual(["2027-01-01"]);
   });
 });
 
