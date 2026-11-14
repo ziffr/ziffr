@@ -212,6 +212,14 @@ _Avoid_: Tenant, organisation, account, company
 What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.
 _Avoid_: Permission level, admin rights
 
+**Invitation**:
+An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history.
+_Avoid_: Invite code, access grant
+
+**Domain Joining**:
+A Workspace setting, off by default, that lets people with a verified address at the company's domain ask to join; an Owner or Admin lets each one in.
+_Avoid_: Auto-join, SSO
+
 **Contact**:
 A person known to a Workspace who has no login, such as a field worker or an outside bookkeeper who submits values by Slack, email or the form. A contact can be invited later and then becomes a Member or Guest.
 _Avoid_: External user, anonymous submitter

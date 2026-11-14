@@ -2,7 +2,8 @@
 // Signing in and out (ADR 0003): an email link, or one of the providers that are set up.
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { authClient, DEMO_COOKIE, sessionUser, personFor } from "@/lib/auth";
+import { authClient, DEMO_COOKIE, sessionUser, personFor, signedIn } from "@/lib/auth";
+import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { db } from "@/lib/db";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { STARTER_THEME } from "@ziffr/core/themes";
@@ -65,4 +66,22 @@ export async function switchWorkspace(id: string) {
   jar.set(WORKSPACE_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE);
   redirect("/");
+}
+
+/** The signed-in person accepts an invitation and opens the workspace. */
+export async function acceptInvite(token: string) {
+  const who = await signedIn();
+  if (!who) redirect("/login");
+  const ws = await acceptInvitation(who, String(token ?? ""));
+  const jar = await cookies();
+  jar.set(WORKSPACE_COOKIE, ws, { httpOnly: true, sameSite: "lax", path: "/" });
+  jar.delete(DEMO_COOKIE);
+  redirect("/");
+}
+
+/** Asks to join a workspace of the person's company domain; an Owner or Admin decides. */
+export async function askToJoin(workspaceId: string) {
+  const who = await signedIn();
+  if (!who) redirect("/login");
+  await requestToJoin(who, String(workspaceId ?? ""));
 }

@@ -4,6 +4,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { db } from "./db";
+import type { SignedIn } from "@ziffr/core/invitations";
 
 /** Whether this Ziffr offers the demo (GLOSSARY: Demo Mode). On unless ZIFFR_DEMO=0, so a company installation can
  * switch it off. */
@@ -32,6 +33,14 @@ export async function authClient() {
   });
 }
 
+/** The signed-in person and the address Supabase verified for them, or null when nobody is signed in. */
+export async function signedIn(): Promise<SignedIn | null> {
+  const user = await sessionUser();
+  if (!user) return null;
+  // Only a proven address counts: a provider that lets anyone set any address must not open an email invitation.
+  return { personId: await personFor(user), verifiedEmail: provenEmail(user) };
+}
+
 /** The signed-in account, checked with Supabase (not just read from the cookie), or null. */
 export async function sessionUser() {
   const { data } = await (await authClient()).auth.getUser();
@@ -49,6 +58,13 @@ const COLORS = ["#7C5A3A", "#3A6B7C", "#6B3A7C", "#3A7C52", "#7C3A45", "#5A5A7C"
  * Google only hands out addresses it verified. Others (Microsoft's multi-tenant sign-in above all) may not. */
 const PROVES_EMAIL = new Set(["email", "google"]);
 
+/** The account's address if it is proven: confirmed, and from a way of signing in that proves it. The one rule for
+ * claiming a person, accepting an email Invitation and Domain Joining; null otherwise. */
+export function provenEmail(user: { email?: string | null; email_confirmed_at?: string | null; app_metadata?: Record<string, unknown> }): string | null {
+  const provider = String(user.app_metadata?.provider ?? "");
+  return user.email && user.email_confirmed_at && PROVES_EMAIL.has(provider) ? user.email.toLowerCase() : null;
+}
+
 type SessionAccount = { id: string; email?: string | null; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> };
 
 /** The person an account belongs to. The first time, an existing person with the same proven email is linked;
@@ -58,18 +74,16 @@ export async function personFor(user: SessionAccount): Promise<string> {
   if (linked) return linked.id;
   // Only a verified email is kept, and only a proven one may claim an existing person; otherwise anyone could sign
   // up with someone else's address and take over their place, or keep the real owner out.
-  const verified = user.email && user.email_confirmed_at ? user.email.toLowerCase() : null;
-  const provider = String(user.app_metadata?.provider ?? "");
-  if (verified && PROVES_EMAIL.has(provider)) {
+  const proven = provenEmail(user);
+  if (proven) {
     // Never one of the demo's made-up people: they belong to the demo, which anyone may visit.
     const { data: demoPeople } = await db.from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE);
-    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", verified).is("auth_user_id", null).not("id", "in", `(${[...DEMO_PEOPLE, ...(demoPeople ?? []).map((m) => m.user_id)].map((id) => `"${id}"`).join(",")})`).select("id").maybeSingle();
+    const { data: same } = await db.from("profiles").update({ auth_user_id: user.id }).eq("email", proven).is("auth_user_id", null).not("id", "in", `(${[...DEMO_PEOPLE, ...(demoPeople ?? []).map((m) => m.user_id)].map((id) => `"${id}"`).join(",")})`).select("id").maybeSingle();
     if (same) return same.id;
   }
-  const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? verified?.split("@")[0] ?? "New person").slice(0, 80);
+  const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? proven?.split("@")[0] ?? "New person").slice(0, 80);
   // The address is kept only when the way of signing in proves it, and nobody else holds it yet; otherwise none, so
   // nobody is reached at, or matched by, an address they may not own.
-  const proven = verified && PROVES_EMAIL.has(provider) ? verified : null;
   const { data: taken } = proven ? await db.from("profiles").select("id").eq("email", proven).maybeSingle() : { data: null };
   const { error } = await db.from("profiles").upsert(
     { id: crypto.randomUUID(), auth_user_id: user.id, name, email: taken ? null : proven, role: "", color: COLORS[Math.floor(Math.random() * COLORS.length)] },
