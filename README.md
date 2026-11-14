@@ -1,61 +1,53 @@
-# Ziffr: feedback prototype
+# Ziffr
 
-> **PROTOTYPE, throwaway code.** Built to put the Ziffr idea in front of potential users, not to ship. No tests, minimal error handling, no auth. Lives on the `prototype/ziffr-loop` branch; `main` only keeps the decisions (`GLOSSARY.md`, `docs/adr/`).
+One home for a small team's business numbers. Metrics from any source, values captured where people already work (a form link, email, an API, an AI assistant), dashboards, stories, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
 
-**The question it answers:** do people want *one home for all their numbers*, and is *capturing a number from anywhere* easy enough that they would actually do it?
+Ziffr is in its `0.x` releases: used and tested, not yet at a first public release. See [CHANGELOG.md](CHANGELOG.md) for what each version brought.
 
-## Run it
+## What it does
 
-Needs Docker running.
+- **Metrics and values.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, through the [API](docs/guides/api.md), or from an AI assistant through the [MCP server](packages/mcp/README.md). Contacts without an account submit too.
+- **Workflows.** Ask Submitters when a period closes, remind before the Due Date, escalate after it, have Unusual Values approved, and lock the period. They run on their own each morning in the workspace's time zone ([scheduled jobs](docs/guides/jobs.md)).
+- **Asking without leaving.** Questions and tasks on a value, answered in a Thread or by replying to the email, with Corrections the Metric owner accepts.
+- **Seeing the numbers.** Drag-and-drop dashboards, Widgets and stories, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
+- **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
+- **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK and a local MCP server.
+
+## Try it
+
+**The demo.** "Try the demo" on the login page opens a made-up 15-person online shop, without an account. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
+
+**Locally.** Needs Docker and pnpm.
 
 ```sh
 pnpm install
-pnpm prototype          # starts local Supabase (ports 554xx) + Next.js on http://localhost:3000
-pnpm prototype:reset    # wipe and re-seed the demo data
-pnpm prototype:stop     # stop local Supabase
+cp .env.example .env.local   # then fill in SUPABASE_SERVICE_ROLE_KEY from `supabase status -o env`
+pnpm prototype               # local Supabase (ports 554xx) and the app on http://localhost:3000
+pnpm prototype:reset         # wipe the local database and re-seed the demo
+pnpm prototype:stop          # stop local Supabase
 ```
 
-Copy `.env.example` to `.env.local` and fill in `SUPABASE_SERVICE_ROLE_KEY` from `supabase status -o env`.
+Local Supabase also runs Mailpit at http://127.0.0.1:55424, where every email Ziffr sends lands when `ZIFFR_SMTP_URL=smtp://127.0.0.1:55425`.
 
-To send real email and take replies, see [docs/guides/email.md](docs/guides/email.md); for Workflows that run on their own, [the scheduled jobs](docs/guides/jobs.md); programs and AI assistants use [the API](docs/guides/api.md).
+**On your own servers.** [Running Ziffr yourself](docs/guides/self-hosting.md) goes from an empty Supabase project to a team using it, with a checklist for production.
 
-You can also reset the demo data from the ↺ button in the app header, between tester sessions.
+## Not there yet
 
-## The loop testers walk through
+- Slack, WhatsApp and ticket systems are simulated Connectors: the Connectors and Sources pages let you play the other side. Email is real.
+- Analyses, Views and Sources are built in; the seams for plugging in others are marked in `apps/web/src/analyses`, `views` and `sources`.
+- Clustering and impact analysis are shown as "coming soon".
+- The slide editor uses tldraw, which needs a licence from tldraw for production use.
+- `@ziffr/sdk` and `@ziffr/mcp` are ready to publish to npm but not published yet.
 
-The **Guided tour** (bottom right) leads through it:
+## Working on Ziffr
 
-1. **Define a metric**: pick *Customer satisfaction* from the Metric Catalog, adjust, choose Submitters.
-2. **Capture a value**: answer Anna's Slack Prompt on *Sources*; send a second value and watch the Submission Rule add them up.
-3. **Build your dashboard**: drag Metrics or saved Widgets from the **Pool** onto the snap grid; drag/resize Widgets. Right-click a Widget → *Change visualization* (5 built-in Widget Templates) → *Save as Widget*.
-4. **Ask without leaving**: right-click a point on the Cost chart → *Ask a question* / *Assign a task*. It opens inline next to the Widget. Switch *View as → Ben*, answer with a Correction, switch back and accept. *History* is in the same menu.
-5. **Analyze**: drop Metrics on the Analysis Canvas (1 → forecast, 2 → correlation, more → drivers / matrix) or run a Recipe such as *What drives Cost?*. Right-click a result → *Add to dashboard* or *Save as Widget*.
-6. **Make a deck**: on *Decks*, lay out 16:9 slides (tldraw) with widgets from the Pool, text, arrows and shapes, using slide layouts. *Export PowerPoint* writes a `.pptx` (PptxGenJS): text, shapes and arrows native; line and bar widgets as native, editable charts; gauges and analyses as images; every slide stamped "Data as of …". *PDF* prints the same slides. **Masters** (*Decks → Masters*) hold a background, logo, footer, slide number and type sizes; a deck picks one, every slide shows it, a slide can hide it, and the export writes it as a native PowerPoint slide master.
-7. **Share**: share a dashboard (Viewer / Editor) or a Metric, then *View as* that person.
+[CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) are the standards; [GLOSSARY.md](GLOSSARY.md) is the vocabulary. Bigger changes start as a spec in [docs/specs](docs/specs/README.md); hard-to-reverse decisions are in [docs/adr](docs/adr). How Ziffr is secured: [docs/security/threat-model.md](docs/security/threat-model.md).
 
-Starting visibility: Sara owns most Metrics and shares *Monthly overview* with Ben (Editor); Ben shares Support tickets and Return rate with Sara; Anna sees only her *Deals closed* until something is shared with her.
-
-## What's real and what's faked
-
-| Real | Simulated / left out |
-| --- | --- |
-| Token check, Submission Rules, Prompts, intake log | Slack and Mail are simulators feeding the same intake |
-| Web form Source (`/submit/<token>`) | Real Slack app and inbound mail |
-| Forecast (Holt's linear trend), correlation (Pearson) | Clustering, impact analysis (shown as "coming soon") |
-| Derived Metrics (formula over other metrics) | Plugin APIs: Sources, Views and Analyses are hardcoded in `apps/web/src/sources`, `apps/web/src/views`, `apps/web/src/analyses` |
-| Actions (Questions and Tasks), Threads, Corrections | Real users and login: "View as…" is a cookie |
-| Pool, drag-and-drop dashboards, Widgets, sharing | User-made Widget Templates (built-in only; Views become pluggable later) |
-| Analysis Canvas + 3 Recipes | Saved analyses (later) |
-| Breakdowns (labelled rows per observation: paste, CSV, chat lines) and four Story Widgets (ranked bars, part of the whole, 7 in 10, annotated line) | Multi-period uploads; native PowerPoint for stories other than ranked bars |
-| Comparisons (vs previous, DoD, WoW, MoM, QoQ, HoH, YoY), attainment, target series and projections | Per-user aggregation overrides |
-| Stories as frame + panels: period bars, bridges, small multiples (Observable Plot) | Native PowerPoint for composed stories (exported as images) |
-| Versions of widgets, stories, dashboards, decks, masters and metric descriptions (restore, named versions), append-only numbers, Activity feed | Sync to GitHub |
-| Decks: slides, layouts, .pptx and PDF export | Deck sharing; Google Slides export; tldraw needs a paid licence for production (watermark in development) |
-
-The fictional company is a 15-person online shop. All data is generated by `prototype_reset()` in `supabase/migrations/` *relative to today*, so "last month's cost spike" stays last month whenever you demo it.
-
-Vocabulary: see `GLOSSARY.md`. Why values are matched via Tokens: `docs/adr/0001-token-based-submission.md`.
+```sh
+pnpm typecheck && pnpm lint && pnpm test   # what CI runs on every pull request
+pnpm --filter @ziffr/core test:db          # the core against the local database
+```
 
 ## License
 
-Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted service is reserved. Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the connector kit and client libraries will be MIT. Why: [ADR 0002](docs/adr/0002-source-available-license.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
+Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted service is reserved. Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the SDK and the MCP server are MIT, and the connector kit will be. Why: [ADR 0002](docs/adr/0002-source-available-license.md).

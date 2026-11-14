@@ -1,5 +1,6 @@
-// PROTOTYPE: Sources are hardcoded. Slack and Mail are simulated; the web form is real.
-// All three feed the core's submitValue (@ziffr/core/submissions), so Tokens and Submission Rules behave for real.
+// The Sources a Metric can take values from, built in for now (a plugin seam would go here). The web form is real,
+// and so is mail once replies by email are set up (spec 0004); the Sources page simulates Slack and mail messages.
+// All feed the core's submitValue (@ziffr/core/submissions), so Tokens and Submission Rules behave for real.
 import type { SourceId } from "@ziffr/core/types";
 
 export const SOURCES: { id: SourceId; label: string; simulated: boolean; identity: string }[] = [

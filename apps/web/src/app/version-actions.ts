@@ -20,7 +20,7 @@ export async function nameVersion(versionId: number, name: string) {
 /** Restoring writes the old state back and records it as a new version: history only ever grows. */
 export async function restoreVersion(versionId: number) {
   await history.restoreVersion(await currentActor(), Number(versionId), {
-    // PROTOTYPE until #15: Workflows are saved by the app, through the same checks as editing them.
+    // A Workflow is restored through the same save as editing it, so its checks apply (the core's saveWorkflow, as the restorer).
     restoreWorkflow: async (id, name, config) => {
       const { saveWorkflow } = await import("./workflow-actions");
       await saveWorkflow(id, name, config as WorkflowConfig);

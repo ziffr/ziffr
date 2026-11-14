@@ -1,6 +1,6 @@
 "use client";
-// Connectors, Delivery Preferences and the Outbox (GLOSSARY). PROTOTYPE: deliveries are simulated;
-// the buttons under each one play the recipient answering on the other side.
+// Connectors, Delivery Preferences and the Outbox (GLOSSARY). Email goes out for real once it is set up (spec 0004);
+// for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering.
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatDistanceToNow } from "date-fns";
