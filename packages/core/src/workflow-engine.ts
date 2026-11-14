@@ -1,6 +1,6 @@
 // The Workflow engine (GLOSSARY: Workflow, Due Date, Stand-in, Away, Escalation, Unusual Value, Approval, Lock).
-// Entry points that take an id from outside look it up in one Workspace only. PROTOTYPE: time-based steps run when
-// someone presses "Run workflows" (with a date to pretend it is), not on a clock.
+// Entry points that take an id from outside look it up in one Workspace only. Time-based steps run once a day by the
+// clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
 import { format } from "date-fns";
 import { db } from "./db";
 import { periodLabel, periodStart, formatValue } from "./format";

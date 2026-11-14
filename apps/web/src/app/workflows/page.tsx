@@ -2,6 +2,8 @@ import { format } from "date-fns";
 import { currentActor } from "@/lib/viewer";
 import { getProfiles } from "@/lib/data";
 import { workflowsView } from "@ziffr/core/page-data";
+import { workflowSchedule } from "@ziffr/core/workflows";
+import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
@@ -11,7 +13,9 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const actor = await currentActor();
   const viewer = actor.personId;
   // Only Metrics this viewer may see, decided in the core, and only what the page shows of them.
-  const [people, { workflows, states, tokens, metrics: seen, assigned }] = await Promise.all([getProfiles(), workflowsView(actor)]);
+  const [people, { workflows, states, tokens, metrics: seen, assigned }, demo] = await Promise.all([getProfiles(), workflowsView(actor), isDemo()]);
+  // A real workspace runs on the clock; the demo pretends a day instead.
+  const schedule = demo ? null : await workflowSchedule(actor);
   const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
   const list = workflows as Workflow[];
   const current = list.find((w) => w.id === Number(sp.id)) ?? list[0] ?? null;
@@ -28,7 +32,9 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         current={current}
         states={states as PeriodState[]}
         tokens={tokens}
-        asOf={asOf}
+        asOf={schedule ? schedule.today : asOf}
+        schedule={schedule}
+        canRun={actor.role === "owner" || actor.role === "admin"}
       />
     </>
   );

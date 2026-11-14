@@ -26,11 +26,18 @@ export async function setMetricWorkflow(metricId: number, workflowId: number | n
   done();
 }
 
-/** PROTOTYPE: what a scheduler would run each morning, here as of any day you pick. */
+/** The demo: runs its Workflows as of a day you pick, to try what the clock does. */
 export async function runWorkflowsNow(asOf: string) {
   const log = await wf.runWorkflowsAsOf(await currentActor(), String(asOf));
   done();
   return log;
+}
+
+/** A real workspace: runs today's steps now, once (spec 0005). Null when today ran already. */
+export async function runTodayNow() {
+  const counts = await wf.runTodayNow(await currentActor());
+  done();
+  return counts;
 }
 
 /** The approver approves a value. */

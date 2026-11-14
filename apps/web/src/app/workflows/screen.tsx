@@ -9,7 +9,8 @@ import { ArrowDown, ArrowUp, BellRing, CheckCheck, CircleUserRound, Lock, Plus, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { closeWorkflowPeriod, deleteWorkflow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
+import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
+import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
 import { periodLabel, periodStart } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
@@ -28,7 +29,10 @@ const BLANK: WorkflowConfig = { dueWorkingDays: 3, steps: [NEW_STEP.remind, NEW_
 
 type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null };
 
-export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf }: { viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+/** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
+type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
+
+export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf, schedule, canRun }: { schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -129,12 +133,18 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
               </ul>
             </div>
             <div className="space-y-2 border-t border-border pt-4">
-              <label className="block text-xs">
-                <span className="mb-1 block font-medium">Pretend today is</span>
-                <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); router.replace(`/workflows?id=${current.id}&asOf=${e.target.value}`); }} />
-              </label>
-              <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = await runWorkflowsNow(day); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
-              <p className="text-xs text-muted-foreground">In the product this runs by itself every morning.</p>
+              {schedule ? (
+                <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = await runTodayNow(); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
+              ) : (
+                <>
+                  <label className="block text-xs">
+                    <span className="mb-1 block font-medium">Pretend today is</span>
+                    <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); router.replace(`/workflows?id=${current.id}&asOf=${e.target.value}`); }} />
+                  </label>
+                  <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = await runWorkflowsNow(day); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
+                  <p className="text-xs text-muted-foreground">In a real workspace this runs by itself every morning.</p>
+                </>
+              )}
               {log && log.length > 0 && <ul className="space-y-0.5 rounded-[var(--radius-input)] bg-muted p-2 text-xs">{log.map((l, i) => <li key={i}>{l}</li>)}</ul>}
               {current.owner_id === viewer && onIt.length > 0 && (
                 <Button variant="outline" className="w-full" disabled={pending} onClick={() => { if (confirm(`Lock the last period for every metric on ${current.name} that has a value?`)) run(async () => { const n = await closeWorkflowPeriod(current.id, day); toast.success(`${n} metric${n === 1 ? "" : "s"} locked`); router.refresh(); }); }}><Lock aria-hidden /> Close the period</Button>
@@ -203,3 +213,26 @@ function StepFields({ s, people, onChange }: { s: WorkflowStep; people: Profile[
     </div>
   );
 }
+
+/** A real workspace's clock: when Workflows run, the last run, and running today's steps now. */
+function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; canRun: boolean; pending: boolean; onRun: () => void }) {
+  const hh = `${String(schedule.runHour).padStart(2, "0")}:00`;
+  const last = schedule.lastRun;
+  return (
+    <div className="space-y-2 text-xs">
+      <p><span className="font-medium">Runs every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners change this on the Team page.</p>
+      {last ? (
+        <p className={last.state === "failed" ? "text-destructive" : "text-muted-foreground"}>
+          Last run {last.day === schedule.today ? "today" : `on ${last.day}`}{last.trigger === "manual" ? ", started by hand" : ""}: {last.state === "failed" ? "it failed" : last.state === "running" ? "still running" : `${last.counts.prompts} asked, ${last.counts.reminders} reminded, ${last.counts.escalations} escalated`}.
+        </p>
+      ) : (
+        <p className="text-muted-foreground">No run yet.</p>
+      )}
+      {!schedule.scheduled && <p className="text-muted-foreground">Nothing has run by the clock here yet: whoever runs Ziffr calls the Workflows job every hour (docs/guides/jobs.md).</p>}
+      {canRun && (
+        <Button variant="outline" className="w-full" disabled={pending || schedule.todayRan} onClick={onRun}><Play aria-hidden /> {schedule.todayRan ? "Today's steps ran" : "Run today's steps now"}</Button>
+      )}
+    </div>
+  );
+}
+

@@ -1,6 +1,6 @@
 # 0005 Workflows on a clock
 
-**Status:** in progress. **Tracking issue:** #83 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0005`.
+**Status:** done. **Tracking issue:** #83 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0005`.
 
 ## Problem Statement
 

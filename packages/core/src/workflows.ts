@@ -6,6 +6,9 @@ import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { assertMembersIn } from "./sharing";
 import { assertSubmittersIn } from "./metrics";
 import { approve, closePeriod, runWorkflows, sendBack, setLock } from "./workflow-engine";
+import { claimDay, runClaimedDay, type RunCounts } from "./scheduled-runs";
+import { DEMO_WORKSPACE_ID } from "./team";
+import { localTime, workspaceClock } from "./workspace-clock";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 
@@ -70,10 +73,41 @@ export async function setMetricWorkflow(actor: Actor, metricId: number, workflow
   await db().from("metrics").update({ workflow_id: workflowId }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
 }
 
-/** PROTOTYPE: what a scheduler would run each morning, here as of any day. Guests run nothing. */
+/** Runs the demo's Workflows as of any day, to try what the clock does in a real workspace (spec 0005). Only the
+ * demo may pretend: elsewhere a day runs once, by the clock or by runTodayNow. Guests run nothing. */
 export async function runWorkflowsAsOf(actor: Actor, asOf: string): Promise<string[]> {
   assertCan(actor, "create");
+  if (actor.workspaceId !== DEMO_WORKSPACE_ID) throw new Forbidden("Only the demo can pretend it is another day.");
   return runWorkflows(actor.workspaceId, day(asOf), actor.personId);
+}
+
+/** A day's run as the Workflows page shows it. */
+export type RunInfo = { day: string; trigger: "schedule" | "manual"; state: "running" | "done" | "failed"; startedAt: string; counts: RunCounts };
+
+/** When Workflows run in the actor's workspace, the last run, and whether today has run (spec 0005). */
+export async function workflowSchedule(actor: Actor): Promise<{ timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean }> {
+  const clock = await workspaceClock(actor);
+  const { day: today } = localTime(new Date(), clock.timeZone);
+  const [{ data: last }, { count: scheduled }] = await Promise.all([
+    db().from("workflow_runs").select("day, trigger, state, started_at, prompts, reminders, escalations").eq("workspace_id", actor.workspaceId).order("day", { ascending: false }).limit(1).maybeSingle(),
+    db().from("workflow_runs").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("trigger", "schedule"),
+  ]);
+  return {
+    // A day at or after today was claimed (also before a change of time zone): today will not run again.
+    ...clock, today, todayRan: Boolean(last && last.day >= today), scheduled: (scheduled ?? 0) > 0,
+    lastRun: last ? { day: last.day, trigger: last.trigger, state: last.state, startedAt: last.started_at, counts: { prompts: last.prompts, reminders: last.reminders, escalations: last.escalations } } : null,
+  };
+}
+
+/** Runs today's steps now, for Owners and Admins of a real workspace: the same claim as the clock's run, so it does
+ * nothing once today ran, and the clock then leaves today alone. Returns the counts, or null when today ran already. */
+export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
+  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins run today's steps.");
+  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("In the demo, pick the day to pretend instead.");
+  const { day: today } = localTime(new Date(), (await workspaceClock(actor)).timeZone);
+  const runId = await claimDay(actor.workspaceId, today, "manual");
+  if (runId === null) return null;
+  return runClaimedDay(runId, actor.workspaceId, today);
 }
 
 /** The approver approves a value waiting for them. */
@@ -93,7 +127,9 @@ export async function lockPeriod(actor: Actor, metricId: number, period: string,
 
 /** The Workflow's owner closes a period: every Metric of it with a value locks. Returns how many. */
 export async function closeWorkflowPeriod(actor: Actor, workflowId: number, asOf: string): Promise<number> {
-  return closePeriod(actor.workspaceId, Number(workflowId), day(asOf), actor.personId);
+  // Only the demo pretends; elsewhere the period is the one that has ended as of the workspace's today.
+  const asOfDay = actor.workspaceId === DEMO_WORKSPACE_ID ? day(asOf) : localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
+  return closePeriod(actor.workspaceId, Number(workflowId), asOfDay, actor.personId);
 }
 
 /** The Metric owner chooses who stands in for a submitter: a member or a Contact of the workspace. */

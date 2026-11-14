@@ -22,12 +22,12 @@ export async function remindDueTasks(workspaceId: string, day: string): Promise<
   return data?.length ?? 0;
 }
 
-/** Claims a workspace's day: the run's id for the one call that may run it, null for every other. */
+/** Claims a workspace's day: the run's id for the one call that may run it, null for every other. Only a day later
+ * than every day the workspace has claimed: a changed time zone cannot run yesterday or tomorrow, or a day twice. */
 export async function claimDay(workspaceId: string, day: string, trigger: "schedule" | "manual"): Promise<number | null> {
-  const { data, error } = await db().from("workflow_runs").insert({ workspace_id: workspaceId, day, trigger }).select("id").single();
-  if (error?.code === "23505") return null;
-  if (error || !data) throw new Error("The run could not be claimed.");
-  return data.id as number;
+  const { data, error } = await db().rpc("claim_workflow_day", { p_workspace: workspaceId, p_day: day, p_trigger: trigger });
+  if (error) throw new Error("The run could not be claimed.");
+  return (data as number | null) ?? null;
 }
 
 /** Runs a claimed day: the Workflows as of that day, as one of the workspace's Owners (the one who asks when an
