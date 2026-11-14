@@ -6,6 +6,7 @@ import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import * as team from "@ziffr/core/team";
 import * as inv from "@ziffr/core/invitations";
+import * as clock from "@ziffr/core/workspace-clock";
 import { removeMember } from "@ziffr/core/handover";
 import { signedIn } from "@/lib/auth";
 import { SITE_URL } from "@/lib/sign-in";
@@ -59,6 +60,12 @@ export async function inviteMember(input: { email: string; role: WorkspaceRoleNa
   const token = await inv.inviteByEmail(await currentActor(), { email: String(input?.email ?? ""), role: input?.role, contactPersonId: input?.contactPersonId ?? null });
   done();
   return `${SITE_URL}/invite/${token}`;
+}
+
+/** Sets the workspace's time zone and the hour its Workflows run (spec 0005). */
+export async function setWorkspaceClock(input: { timeZone: string; runHour: number }) {
+  await clock.setWorkspaceClock(await currentActor(), { timeZone: String(input?.timeZone ?? ""), runHour: Number(input?.runHour) });
+  done();
 }
 
 /** Emails an open invitation again. */
