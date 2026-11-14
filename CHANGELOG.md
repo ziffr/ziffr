@@ -2,6 +2,14 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.5.1 (2026-11-14)
+
+### Fixed
+
+- Dashboards, decks, Analyze and presenting load faster: a page now sends only the numbers of what it shows, and a Metric you place or pick is fetched when you need it (hovering it in the Pool starts that early).
+
+This version becomes available under AGPL-3.0 on 2029-11-14.
+
 ## 0.5.0 (2026-11-14)
 
 ### For self-hosters
