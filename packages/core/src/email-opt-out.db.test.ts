@@ -100,12 +100,17 @@ describe("sending limits", () => {
   });
   it("leaves emails that wait out a limit for later, so the job sends everyone else's", async () => {
     const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ann = await w.person("member", { email: address("ann") });
-    const held = await queued(w.id, ann, sara);
-    await db().from("deliveries").update({ not_before: new Date(Date.now() + 600_000).toISOString() }).eq("id", held);
+    // More held back than one run takes, all older than the one that is due.
+    const held: number[] = [];
+    for (let i = 0; i < 8; i++) held.push(await queued(w.id, ann, sara));
+    await db().from("deliveries").update({ not_before: new Date(Date.now() + 600_000).toISOString() }).in("id", held);
+    // And one whose failed attempt's wait is not over.
+    const retrying = await queued(w.id, ann, sara);
+    await db().from("deliveries").update({ attempts: 2, last_attempt_at: new Date().toISOString() }).eq("id", retrying);
     const free = await queued(w.id, ann, sara);
-    await sendWaiting(1);
-    const { data } = await db().from("deliveries").select("id, mail_state").in("id", [held, free]).order("id");
-    expect(data).toEqual([{ id: held, mail_state: "queued" }, { id: free, mail_state: "sent" }]);
+    await sendWaiting(3);
+    const { data } = await db().from("deliveries").select("id, mail_state").in("id", [...held, retrying, free]);
+    expect(data!.filter((d) => d.mail_state === "sent").map((d) => d.id)).toEqual([free]);
   });
 });
 

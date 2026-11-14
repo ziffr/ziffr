@@ -188,11 +188,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
 export async function sendWaiting(limit = 50, transport: MailTransport = smtpTransport): Promise<{ sent: number; failed: number }> {
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  // Ones waiting out a limit (not_before) are left for later, so they hold up nobody else's.
-  const { data } = await db().from("deliveries").select("id, attempts, last_attempt_at, not_before").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).order("id").limit(2000);
-  const now = Date.now();
-  const due = (data ?? []).filter((d) => (!d.not_before || new Date(d.not_before).getTime() <= now)
-    && (!d.last_attempt_at || now - new Date(d.last_attempt_at).getTime() >= 60_000 * 2 ** Math.max(0, Number(d.attempts) - 1))).slice(0, Math.min(Math.max(limit, 1), 500));
+  // Chosen in the database: ones waiting out a limit (not_before) or a failed attempt's wait are left out before the
+  // run's limit, so however many must wait, they hold up nobody else's.
+  const { data: ids, error } = await db().rpc("due_deliveries", { p_limit: limit, p_max_attempts: MAX_ATTEMPTS });
+  if (error) throw new Error("The waiting emails could not be read.");
+  const due = ((ids ?? []) as (number | { due_deliveries: number })[]).map((r) => ({ id: typeof r === "number" ? r : r.due_deliveries }));
   let sent = 0;
   let failed = 0;
   for (const d of due) {
