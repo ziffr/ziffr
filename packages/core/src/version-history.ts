@@ -10,13 +10,19 @@ import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
-import type { ThemeSlides, ThemeTokens, WidgetSettings } from "./types";
+import type { ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
+import { saveWorkflow } from "./workflows";
 
-/** What restoring sets off outside the core. PROTOTYPE: Workflows move into the core with ticket #15. */
+/** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
-  /** Saves a Workflow from a restored version, through the same checks as editing it. */
-  restoreWorkflow: (id: number, name: string, config: unknown) => Promise<void>;
+  /** Saves a Workflow from a restored version, through the same checks as editing it, as the restorer. */
+  restoreWorkflow: (id: number, name: string, config: unknown, message: string) => Promise<void>;
 };
+
+/** The core's own: the Workflow is saved by the actor, with the restore as its version message. */
+const restoreEffectsFor = (actor: Actor): RestoreEffects => ({
+  restoreWorkflow: async (id, name, config, message) => { await saveWorkflow(actor, id, name, config as WorkflowConfig, { message }); },
+});
 
 /** Whether the actor may see and restore the versions of an object: the same rules as seeing and editing it. */
 export async function versionAccess(actor: Actor, type: VersionType, id: number): Promise<{ view: boolean; edit: boolean }> {
@@ -90,7 +96,7 @@ const HIDDEN = "This version shows metrics that are not shared with you, so it c
 /** Writes an old state back and records it as a new version: history only ever grows. A restore places widgets
  * like a drop does (only known templates, only Metrics the restorer sees, including those named in settings), so an
  * old version cannot bring back a Metric that was taken off a shared dashboard. */
-export async function restoreVersion(actor: Actor, versionId: number, effects: RestoreEffects) {
+export async function restoreVersion(actor: Actor, versionId: number, effects: RestoreEffects = restoreEffectsFor(actor)) {
   const v = await restorable(actor, versionId);
   const s = { ...(v.snapshot as Record<string, unknown>) };
   const id = v.object_id as number;
@@ -118,7 +124,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
   const at = new Date().toISOString();
   switch (v.object_type as VersionType) {
     case "workflow":
-      await effects.restoreWorkflow(id, String(s.name ?? ""), s.config);
+      await effects.restoreWorkflow(id, String(s.name ?? ""), s.config, `Restored version ${v.version}${v.name ? ` (${v.name})` : ""}`);
       break;
     case "theme": {
       const tokens = cleanTokens(s.tokens as ThemeTokens);

@@ -8,6 +8,8 @@ import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
 import { Forbidden, type Actor } from "./actor";
+import { deliver } from "./deliveries";
+import { onValue } from "./workflow-engine";
 import type { Metric, Profile, SourceId, Token } from "./types";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
@@ -25,8 +27,8 @@ export type SubmissionInput = {
 /** What became of a submission, in words for the sender. */
 export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string };
 
-/** What a submission sets off outside the core. PROTOTYPE: Deliveries and Workflows move into the core with
- * ticket #15; until then the app passes them in. */
+/** What a submission sets off: the owner hears about a late value, a new value goes to its Workflow. Tests pass
+ * their own; everyone else gets the core's. */
 export type SubmissionEffects = {
   /** Tells the Metric owner about a late value proposed as a Correction. */
   notifyCorrection: (e: { actionId: number; senderId: string; ownerId: string; value: number }) => Promise<void>;
@@ -60,7 +62,7 @@ async function writeRows(observationId: number, rows: { label: string; value: nu
  * There is no signed-in Actor: the sender is known by their Token or their identity on the Source, which may be a
  * Contact without a login. Everything is looked up in one workspace only: the Token's, or the one given for Slack
  * and mail. */
-export async function submitValue(input: SubmissionInput, effects: SubmissionEffects): Promise<SubmissionResult> {
+export async function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
   const log = async (r: SubmissionResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
     // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
@@ -232,7 +234,7 @@ export async function isLocked(metricId: number, period: string): Promise<boolea
   return data?.state === "locked";
 }
 
-/** What deciding a Correction sets off outside the core (PROTOTYPE until ticket #15, like SubmissionEffects). */
+/** What deciding a Correction sets off: the proposer hears the decision, an accepted value goes to the Workflow. */
 export type CorrectionEffects = {
   /** Tells whoever proposed it what the owner decided. */
   notifyDecision: (e: { actionId: number; ownerId: string; authorId: string; accepted: boolean }) => Promise<void>;
@@ -243,7 +245,7 @@ export type CorrectionEffects = {
 /** The Metric owner accepts or declines a proposed Correction (GLOSSARY: Correction). An accepted one replaces the
  * value (the first value is kept as the original) and goes through the Workflow again, so a locked period unlocks
  * for re-approval. Refuses anyone but the owner, and anything outside the actor's workspace. */
-export async function decideCorrection(actor: Actor, messageId: number, accept: boolean, effects: CorrectionEffects): Promise<void> {
+export async function decideCorrection(actor: Actor, messageId: number, accept: boolean, effects: CorrectionEffects = correctionEffects): Promise<void> {
   const { data: msg } = await db().from("thread_messages").select("*, actions(*, metrics(owner_id))").eq("id", messageId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!msg || msg.actions?.metrics?.owner_id !== actor.personId) throw new Forbidden();
   // Decided once only: the status changes first and only if it was still proposed, so a second click does nothing.
@@ -266,3 +268,19 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   }
   await effects.notifyDecision({ actionId: msg.action_id, ownerId: actor.personId, authorId: msg.author_id, accepted: accept });
 }
+
+/** The core's own effects of a submission. */
+export const submissionEffects: SubmissionEffects = {
+  /** Tells the owner through their Connector. */
+  notifyCorrection: ({ actionId, senderId, ownerId, value }) =>
+    deliver({ kind: "correction", actionId, senderId, recipientId: ownerId, correction: value, text: "Late value for a locked period." }),
+  afterValue: onValue,
+};
+
+/** The core's own effects of a decided Correction. */
+export const correctionEffects: CorrectionEffects = {
+  /** Tells the proposer through their Connector. */
+  notifyDecision: ({ actionId, ownerId, authorId, accepted }) =>
+    deliver({ kind: "decision", actionId, senderId: ownerId, recipientId: authorId, text: accepted ? "accepted" : "declined" }),
+  afterValue: onValue,
+};

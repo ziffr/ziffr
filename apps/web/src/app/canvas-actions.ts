@@ -1,15 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
-import { currentActor, viewerId } from "@/lib/viewer";
+import { currentActor } from "@/lib/viewer";
 import { share as coreShare, shareWithGroup as coreShareWithGroup } from "@ziffr/core/sharing";
 import * as dash from "@ziffr/core/dashboards";
+import * as questions from "@ziffr/core/questions";
 import type { DropSource } from "@ziffr/core/dashboards";
-import { actingWorkspace, assertCanSeeMetrics, assertMembers, forbidden } from "@/lib/guards";
-import { deliver } from "@/lib/deliveries";
-import { finishTask } from "@/lib/threads";
-import type { ConnectorId } from "@/connectors";
+import type { ConnectorId } from "@ziffr/core/connectors/index";
 import type { ActionKind, ShareRole, TemplateId, WidgetSettings } from "@ziffr/core/types";
 
 // Every lookup by an id from the browser is limited to the acting person's workspace, and every record created
@@ -105,40 +102,13 @@ export async function getHistory(metricId: number) {
 
 /** Ask a Question or assign a Task right where the viewer is. */
 export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null; via?: ConnectorId | null; readGroupId?: number | null }) {
-  const viewer = await viewerId();
-  await assertCanSeeMetrics([input.metricId], viewer);
-  if (input.kind !== "question" && input.kind !== "task") forbidden();
-  await assertMembers([input.assigneeId]);
-  const { data: obs } = await db
-    .from("observations")
-    .select("id")
-    .eq("metric_id", input.metricId)
-    .eq("period_start", input.period)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const { data } = await db
-    .from("actions")
-    .insert({
-      metric_id: input.metricId,
-      period_start: input.period,
-      observation_id: obs?.[0]?.id ?? null,
-      asker_id: viewer,
-      assignee_id: input.assigneeId,
-      question: input.text,
-      kind: input.kind,
-      due_date: input.due || null,
-      breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
-      read_group_id: input.readGroupId && (await db.from("groups").select("id").eq("id", input.readGroupId).eq("workspace_id", await actingWorkspace()).maybeSingle()).data ? input.readGroupId : null,
-    })
-    .select("id")
-    .single();
-  // Tell the assignee where they want to hear it, or where the asker chose for this one message.
-  if (data) await deliver({ kind: input.kind, actionId: data.id, senderId: viewer, recipientId: input.assigneeId, via: input.via });
+  const id = await questions.ask(await currentActor(), input);
   done();
-  return data?.id as number;
+  return id;
 }
 
+/** The assignee marks their task done. */
 export async function markTaskDone(actionId: number) {
-  await finishTask(actionId, await viewerId());
+  await questions.markTaskDone(await currentActor(), Number(actionId));
   done();
 }

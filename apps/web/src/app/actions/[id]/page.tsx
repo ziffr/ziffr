@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Action, ThreadMessage } from "@ziffr/core/types";
-import { CONNECTORS, type ConnectorId } from "@/connectors";
+import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { getGroups, threadReader } from "@/lib/access";
 import { currentWorkspaceId } from "@/lib/viewer";
 import { ApprovalBar } from "@/components/approval-bar";

@@ -9,7 +9,7 @@ import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Ticke
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askForMissingValues, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
-import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@/connectors";
+import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 

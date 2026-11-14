@@ -228,3 +228,9 @@ export async function metricHistory(actor: Actor, metricId: number) {
   ]);
   return { observations: obs ?? [], actions, superseded: superseded ?? [] };
 }
+
+/** The Metrics on the actor's Analysis Canvas in this workspace, in order. */
+export async function canvasMetricIds(actor: Actor): Promise<number[]> {
+  const { data } = await db().from("analysis_canvas").select("metric_id").eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).order("position");
+  return (data ?? []).map((r) => r.metric_id as number);
+}

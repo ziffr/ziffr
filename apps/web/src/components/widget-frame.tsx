@@ -28,7 +28,7 @@ import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, W
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
-import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@/connectors";
+import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
 
 export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };

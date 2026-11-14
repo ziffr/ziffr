@@ -7,17 +7,22 @@ import { audience, visibleDashboards, visibleDecks, visibleMetricIds, type Objec
 import { deckMetricIds } from "./visibility";
 import { getMetrics } from "./workspace-data";
 import type { ShareRole } from "./types";
+import { deliverNotice } from "./deliveries";
 
 const TYPES: ObjectType[] = ["metric", "dashboard", "deck"];
 const table = (t: ObjectType) => (t === "metric" ? "metrics" : t === "deck" ? "decks" : "dashboards");
 const path = (t: ObjectType, id: number, slug?: string) => (t === "metric" ? `/metrics/${slug}` : `/${t}s/${id}`);
 
-/** What sharing sets off outside the core. PROTOTYPE: Deliveries move into the core with ticket #15. */
+/** What asking for access sets off: a notice through the recipient's Connector. */
 export type NoticeEffects = {
   /** Sends a person a short notice through their Connector. */
   notify: (n: { recipientId: string; senderId: string; subject: string; text: string; link: string }) => Promise<void>;
 };
 
+/** The core's own notices, in the actor's workspace. */
+export const noticeEffectsFor = (actor: Actor): NoticeEffects => ({ notify: (n) => deliverNotice(actor.workspaceId, n) });
+
+/** Refuses anything but Metrics, dashboards and decks. */
 function assertType(type: ObjectType) {
   if (!TYPES.includes(type)) throw new Forbidden();
 }
@@ -90,7 +95,7 @@ export async function whoCanSee(actor: Actor, type: ObjectType, id: number) {
 }
 
 /** Asks the owner for access to something in the actor's workspace; the owner hears about it. Returns what happened. */
-export async function requestAccess(actor: Actor, type: ObjectType, id: number, effects: NoticeEffects): Promise<string> {
+export async function requestAccess(actor: Actor, type: ObjectType, id: number, effects: NoticeEffects = noticeEffectsFor(actor)): Promise<string> {
   assertType(type);
   const { data: obj } = await db().from(table(type)).select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!obj) throw new Forbidden();
@@ -105,7 +110,7 @@ export async function requestAccess(actor: Actor, type: ObjectType, id: number, 
 }
 
 /** The owner grants Viewer access or declines; the requester is told either way. Granting is sharing. */
-export async function decideAccess(actor: Actor, requestId: number, grant: boolean, effects: NoticeEffects) {
+export async function decideAccess(actor: Actor, requestId: number, grant: boolean, effects: NoticeEffects = noticeEffectsFor(actor)) {
   const { data: r } = await db().from("access_requests").select("*").eq("id", requestId).eq("status", "open").eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!r) throw new Forbidden();
   const { data: obj } = await db().from(table(r.object_type)).select("*").eq("id", r.object_id).eq("workspace_id", actor.workspaceId).maybeSingle();

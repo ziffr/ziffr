@@ -5,6 +5,8 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { periodStart } from "./format";
 import type { Format, Period, Polarity, SourceId, SubmissionRule } from "./types";
+import { recordVersion } from "./versions";
+import { deliverPrompt } from "./deliveries";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -20,7 +22,7 @@ export type MetricInput = {
   fromCatalogId?: number | null;
 };
 
-/** What creating a Metric sets off outside the core. PROTOTYPE: Versions and Deliveries move into the core later. */
+/** What creating a Metric sets off: its first version, and a first Prompt to each submitter. */
 export type MetricEffects = {
   /** Records the first version of the Metric's description. */
   recordCreated: (metricId: number, by: string, message: string) => Promise<void>;
@@ -46,7 +48,7 @@ export async function assertSubmittersIn(actor: Actor, personIds: string[]) {
 
 /** Creates a Metric owned by the actor, with a random Token and a first Prompt for each submitter. Guests create
  * nothing; every field is checked against what Ziffr knows, never passed through. */
-export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects): Promise<{ id: number; slug: string }> {
+export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects): Promise<{ id: number; slug: string }> {
   assertCan(actor, "create");
   const name = String(input.name ?? "").trim().slice(0, 120);
   if (!name) throw new Error("Give the Metric a name.");
@@ -79,6 +81,14 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   }
   return { id: metric.id, slug: metric.slug };
 }
+
+/** The core's own effects of a new Metric. */
+export const metricEffects: MetricEffects = {
+  /** Records the description as the first version. */
+  recordCreated: async (metricId, by, message) => { await recordVersion("metric", metricId, by, { message }); },
+  /** Sends the first Prompt. */
+  promptSubmitter: async (metricId, submitterId, by) => { await deliverPrompt({ metricId, submitterId, senderId: by }); },
+};
 
 /** "2026-12 140000", "2026-12-01;140.000", "12/2026 140000" → period start and value. */
 export function parseSeriesLine(line: string, period: Period): { period: string; value: number } | null {

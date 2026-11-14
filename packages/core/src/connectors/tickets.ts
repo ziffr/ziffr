@@ -1,13 +1,17 @@
+// The ticket-system Connector (GLOSSARY: Connector): a task becomes a ticket, replies become comments, closing the
+// ticket marks the task done. PROTOTYPE: simulated, a generic ticket system.
 import { headline, type Connector } from "./types";
 
-// A generic ticket system: a task becomes a ticket, replies become comments, closing the ticket marks the task done.
+/** How Ziffr turns tasks into tickets and follows them. */
 export const tickets: Connector = {
   id: "tickets",
   label: "Ticket system",
   blurb: "Tasks become tickets; comments come back, closing a ticket marks the task done.",
   capabilities: ["actions", "replies", "status"],
+  /** Their email address, as ticket systems know people. */
   address: (p) => p.email,
   replyHint: "Comment on the ticket, or close it to mark the task done.",
+  /** A question or task opens a ticket; anything later is a comment on it. */
   render: (e) => {
     const opening = e.kind === "question" || e.kind === "task";
     return {

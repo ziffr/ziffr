@@ -12,7 +12,7 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 ## Rules
 
 1. **Words:** use `GLOSSARY.md` terms in code, UI text and docs, never its _Avoid_ words. New or changed concept: update the glossary in the same change.
-2. **One core:** reading data that depends on who is asking, and every change to data, go through core functions that take the acting person and check permissions. UI, API and MCP never query the database directly. In the prototype the checks live in `apps/web/src/lib/guards.ts` and `apps/web/src/lib/access.ts` until they move into `packages/core`; use them, don't write new ones inline.
+2. **One core:** reading data that depends on who is asking, and every change to data, go through `packages/core` functions that take the acting person (an `Actor`) first and check the Workspace and permissions. UI, API and MCP never query the database directly; server actions only call the core. New operations get a test against the database (`*.db.test.ts`).
 3. **Visibility is the product:** whatever you return must be something the person may see (Shares, Groups, Tokens, Stand-ins, View Links). Anything sent to a browser, a Connector or a View Link carries only what is needed. Say so in a comment where it matters.
 4. **Data from browsers, Connectors and links is untrusted:** validate shapes, sizes and ids on the server; never build query filters from strings.
 5. **Migrations are add-only.** New file, never edit one that exists.
@@ -26,4 +26,4 @@ Ziffr is a workspace where a small team keeps its business numbers: Metrics from
 
 ## Where things are
 
-`packages/core` the core (new; logic moves in ticket by ticket) · `apps/web/src/app` pages and server actions · `apps/web/src/lib` domain logic, access and guards · `apps/web/src/views` widget and story views · `apps/web/src/components` UI · `apps/web/src/connectors` Connectors · `apps/web/src/decks`, `apps/web/src/canvas` slides and free layouts · `apps/web/src/sources` intake · `supabase/migrations` schema and demo seed functions. More apps and packages (MCP server, connector kit) follow; see `docs/specs/0001-hardening.md`.
+`packages/core` the core: operations (Actor first), loaders, pure rules, Connectors · `apps/web/src/app` pages and server actions · `apps/web/src/lib` the current person and workspace, sign-in, thin wrappers over the core · `apps/web/src/views` widget and story views · `apps/web/src/components` UI · `apps/web/src/decks`, `apps/web/src/canvas` slides and free layouts · `apps/web/src/sources` intake · `supabase/migrations` schema and demo seed functions. More apps and packages (MCP server, connector kit) follow; see `docs/specs/0001-hardening.md`.

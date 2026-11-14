@@ -1,12 +1,15 @@
 // Connectors (GLOSSARY: Connector): the plug-in point between Ziffr and outside systems, both ways.
 // A connector says what it can do and how a Delivery looks there. Adding Teams, Jira or SMS means
 // adding one module like these and registering it in ./index.ts. Pure: no server or React code.
-import type { Profile } from "@ziffr/core/types";
+import type { Profile } from "../types";
 
+/** The Connectors Ziffr knows. */
 export type ConnectorId = "slack" | "email" | "whatsapp" | "tickets";
 /** values: receives observations (a Source); reminders, actions: sends them; replies: answers come back; status: a task's state stays in step. */
 export type Capability = "values" | "reminders" | "actions" | "replies" | "status";
+/** What a Delivery is about. */
 export type DeliveryKind = "question" | "task" | "reminder" | "reply" | "correction" | "decision" | "closed" | "done" | "prompt";
+/** The kinds of message a Delivery Preference is set for. */
 export type PreferenceKind = "question" | "task" | "reminder" | "update";
 
 /** Everything a connector needs to word one Delivery. */
@@ -22,11 +25,13 @@ export type DeliveryEvent = {
   ref: string;
 };
 
+/** A message as one Connector words it. */
 export type Rendered = { subject: string; body: string };
 
 /** A Prompt (GLOSSARY: Prompt): asking a submitter for a value. answerHere: a reply records the value. */
 export type PromptEvent = { recipient: Profile; metric: string; question: string; period: string; answerHere: boolean; formLink: string };
 
+/** A Connector: what it can do, and how a Delivery and a Prompt read there. */
 export type Connector = {
   id: ConnectorId;
   label: string;
@@ -43,6 +48,7 @@ export type Connector = {
   sourceId?: "slack" | "mail" | "web_form";
 };
 
+/** Each capability in words for the Connectors page. */
 export const CAPABILITY_LABEL: Record<Capability, string> = {
   values: "Receives values",
   reminders: "Sends reminders",
@@ -51,6 +57,7 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
   status: "Keeps task status in step",
 };
 
+/** Which Delivery Preference decides where each kind of Delivery goes. */
 export const PREFERENCE_KIND: Record<DeliveryKind, PreferenceKind> = {
   question: "question", task: "task", reminder: "reminder",
   reply: "update", correction: "update", decision: "update", closed: "update", done: "update", prompt: "reminder",

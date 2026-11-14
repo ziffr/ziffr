@@ -1,117 +1,49 @@
 "use server";
-// Connectors (GLOSSARY: Connector, Delivery, Delivery Preference). PROTOTYPE: the outside side is simulated
-// here: in Demo Mode anyone can play the recipient answering in Slack, email or WhatsApp, or closing a ticket, the
-// way the Sources page lets anyone play a submitter. Outside the demo the simulations refuse, and in it they only
-// reach the demo workspace: real answers come in through the Connectors themselves.
+// Connectors (GLOSSARY: Connector, Delivery, Delivery Preference): thin calls into the core. In the demo anyone may
+// play the recipient on Slack, email, WhatsApp or a ticket system (@ziffr/core/demo-channels); elsewhere those refuse.
 import { revalidatePath } from "next/cache";
-import { addDays, format } from "date-fns";
-import { db } from "@/lib/db";
-import { viewerId } from "@/lib/viewer";
-import { actingWorkspace, assertWorkspaceOwner, forbidden } from "@/lib/guards";
-import { DEMO_WORKSPACE_ID } from "@/lib/viewer";
-import { isDemo } from "@/lib/auth";
-import { deliver, deliverPrompt } from "@/lib/deliveries";
-import { periodStart } from "@ziffr/core/format";
-import { peopleIn, submitValue } from "@ziffr/core/submissions";
-import { submissionEffects } from "@/lib/core-effects";
-import type { Period } from "@ziffr/core/types";
-import { finishTask, postReply } from "@/lib/threads";
-import { CONNECTORS, CONNECTOR_IDS, parseReply, type ConnectorId, type PreferenceKind } from "@/connectors";
+import { currentActor } from "@/lib/viewer";
+import * as questions from "@ziffr/core/questions";
+import * as demo from "@ziffr/core/demo-channels";
+import type { ConnectorId, PreferenceKind } from "@ziffr/core/connectors/index";
 
-const KINDS: PreferenceKind[] = ["question", "task", "reminder", "update"];
 const done = () => revalidatePath("/", "layout");
-/** Playing someone else on an outside channel is only for the demo. */
-const demoOnly = async () => {
-  if (!(await isDemo())) forbidden();
-};
 
-/** A person sets their own; the team default (userId null) is the workspace owner's. null connector: follow the team. */
+/** A person sets their own preference; the team default (userId null) is set by owners and admins. */
 export async function setPreference(userId: string | null, kind: PreferenceKind, connector: ConnectorId | null) {
-  const viewer = await viewerId();
-  if (!KINDS.includes(kind) || (connector !== null && !CONNECTOR_IDS.includes(connector))) forbidden();
-  if (userId === null) {
-    await assertWorkspaceOwner(viewer);
-    if (!connector) forbidden();
-  } else if (userId !== viewer) forbidden();
-  const ws = await actingWorkspace();
-  if (userId === null) await db.from("delivery_preferences").delete().is("user_id", null).eq("kind", kind).eq("workspace_id", ws);
-  else await db.from("delivery_preferences").delete().eq("user_id", userId).eq("kind", kind).eq("workspace_id", ws);
-  if (connector) await db.from("delivery_preferences").insert({ user_id: userId, kind, connector, workspace_id: ws });
+  await questions.setPreference(await currentActor(), userId === null ? null : String(userId), kind, connector);
   done();
 }
 
-async function deliveryById(id: number) {
-  const { data } = await db.from("deliveries").select("*").eq("id", id).eq("workspace_id", DEMO_WORKSPACE_ID).maybeSingle();
-  if (!data || !data.action_id) forbidden();
-  return data!;
-}
-
-/** The recipient answers where the Delivery reached them; the answer lands in the Thread. */
+/** The recipient answers where the Delivery reached them (demo only). */
 export async function simulateReply(deliveryId: number, text: string) {
-  await demoOnly();
-  const d = await deliveryById(deliveryId);
-  if (!CONNECTORS[d.connector as ConnectorId]?.capabilities.includes("replies")) forbidden();
-  const { body, correction } = parseReply(String(text ?? "").slice(0, 2000));
-  if (!body && correction === null) throw new Error("Write an answer first.");
-  await postReply(d.action_id, d.recipient_id, body, correction);
-  await db.from("deliveries").update({ status: "answered" }).eq("id", deliveryId);
+  await demo.simulateReply(await currentActor(), Number(deliveryId), String(text ?? ""));
   done();
 }
 
-/** Closing the ticket marks the task done in Ziffr. */
+/** Closing the ticket marks the task done (demo only). */
 export async function simulateTicketClose(deliveryId: number) {
-  await demoOnly();
-  const d = await deliveryById(deliveryId);
-  if (d.connector !== "tickets") forbidden();
-  const ok = await finishTask(d.action_id, d.recipient_id);
-  if (!ok) throw new Error("That task is not open any more.");
-  await db.from("deliveries").update({ status: "closed" }).eq("action_id", d.action_id).eq("connector", "tickets");
+  await demo.simulateTicketClose(await currentActor(), Number(deliveryId));
   done();
 }
 
 /** What a scheduler would do each morning: remind assignees of open tasks due within two days. */
 export async function sendDueReminders() {
-  await viewerId();
-  const ws = await actingWorkspace();
-  const soon = format(addDays(new Date(), 2), "yyyy-MM-dd");
-  const { data } = await db.from("actions").select("id, asker_id, assignee_id").eq("kind", "task").eq("status", "open").eq("workspace_id", ws).not("due_date", "is", null).lte("due_date", soon);
-  for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id });
-  done();
-  return data?.length ?? 0;
-}
-
-/** What a scheduler would do each period: ask every submitter whose value for the current period is missing. */
-export async function askForMissingValues() {
-  const viewer = await viewerId();
-  const ws = await actingWorkspace();
-  const [{ data: tokens }, { data: metrics }] = await Promise.all([db.from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws).is("stands_in_for", null), db.from("metrics").select("id, period, formula").eq("workspace_id", ws)]);
-  let n = 0;
-  for (const t of tokens ?? []) {
-    const m = metrics?.find((x) => x.id === t.metric_id);
-    if (!m || m.formula) continue;
-    const period = periodStart(new Date(), m.period as Period);
-    const [{ count: have }, { count: asked }] = await Promise.all([
-      db.from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("period_start", period),
-      db.from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", t.submitter_id).eq("period_start", period).is("answered_at", null).gte("sent_at", format(new Date(), "yyyy-MM-dd")),
-    ]);
-    if (have || asked) continue; // already there, or already asked today
-    if (await deliverPrompt({ metricId: m.id, submitterId: t.submitter_id, senderId: viewer })) n++;
-  }
+  const n = await questions.sendDueReminders(await currentActor());
   done();
   return n;
 }
 
-/** The submitter answers a Prompt where it reached them; the answer goes through intake and its Submission Rule. */
+/** What a scheduler would do each period: ask every submitter whose value is missing. */
+export async function askForMissingValues() {
+  const n = await questions.askForMissingValues(await currentActor());
+  done();
+  return n;
+}
+
+/** The submitter answers a Prompt where it reached them (demo only). */
 export async function simulatePromptAnswer(deliveryId: number, text: string) {
-  await demoOnly();
-  const { data: d } = await db.from("deliveries").select("*, prompts(id, source)").eq("id", deliveryId).eq("workspace_id", DEMO_WORKSPACE_ID).maybeSingle();
-  const p = d?.prompts as { id: number; source: string } | null;
-  if (!d || d.kind !== "prompt" || !p || (p.source !== "slack" && p.source !== "mail")) forbidden();
-  // The recipient's handle or address as this workspace knows them (a Contact's are kept per workspace).
-  const person = (await peopleIn(DEMO_WORKSPACE_ID, { contactDetails: true })).find((x) => x.id === d!.recipient_id);
-  if (!person) forbidden();
-  const r = await submitValue({ source: p!.source as "slack" | "mail", sender: p!.source === "slack" ? person!.slack_handle : person!.email, text: String(text ?? "").slice(0, 2000), promptId: p!.id, workspaceId: DEMO_WORKSPACE_ID }, submissionEffects);
-  if (r.ok) await db.from("deliveries").update({ status: "answered" }).eq("id", deliveryId);
+  const r = await demo.simulatePromptAnswer(await currentActor(), Number(deliveryId), String(text ?? ""));
   done();
   return r;
 }
