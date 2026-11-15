@@ -13,15 +13,19 @@ import { createFromDashboardTemplate } from "@/app/dashboard-template-actions";
 import { fillsComplete } from "@ziffr/core/team-templates";
 import type { DashboardTemplateSummary } from "@ziffr/core/dashboard-templates";
 import { cn } from "@/lib/utils";
+import { DashboardTemplatePreview } from "./preview";
+import { WhenVisible } from "./template-browser";
 
 type Choice = { id: number; name: string };
 
 /** The dialog for a new dashboard: a name, and either nothing or a template with its Slots filled. */
-export function NewDashboardDialog({ open, onOpenChange, templates, metrics }: {
+export function NewDashboardDialog({ open, onOpenChange, templates, metrics, viewer = "" }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templates: DashboardTemplateSummary[];
   metrics: Choice[];
+  /** Who looks: Sample Data needs a viewer, though it draws nobody's numbers. */
+  viewer?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -45,26 +49,35 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics }: {
       toast.error("Not done", { description: (e as Error).message });
     }
   });
-  const option = (id: DashboardTemplateSummary["id"] | null, title: string, sub: string) => (
-    <li key={String(id)}>
-      <label className={cn("flex cursor-pointer items-start gap-2 rounded-[var(--radius-input)] border p-2 text-sm hover:bg-muted", picked === id ? "border-[var(--color-ink)]" : "border-input")}>
-        <input type="radio" name="template" checked={picked === id} onChange={() => pick(id)} className="mt-1 accent-[var(--color-ink)]" />
-        <span><span className="font-medium">{title}</span><span className="block text-xs text-muted-foreground">{sub}</span></span>
-      </label>
-    </li>
-  );
+  // Each choice is a card with a Preview drawn from Sample Data (#191), drawn once it scrolls into view.
+  const option = (x: DashboardTemplateSummary | null, title: string, sub: string) => {
+    const id = x?.id ?? null;
+    return (
+      <li key={String(id)}>
+        <label className={cn("flex h-full cursor-pointer flex-col gap-2 rounded-[var(--radius-stock)] border p-2.5 text-sm hover:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring", picked === id ? "border-[var(--color-ink)] bg-muted" : "border-input")}>
+          <WhenVisible className="flex h-32 items-start justify-center overflow-hidden rounded-[var(--radius-input)] bg-[var(--color-paper-2)] p-1.5">
+            {() => (x ? <DashboardTemplatePreview template={x} viewer={viewer} width={212} /> : <span className="m-auto text-xs text-muted-foreground">Nothing yet</span>)}
+          </WhenVisible>
+          <span className="flex items-start gap-2">
+            <input type="radio" name="template" checked={picked === id} onChange={() => pick(id)} className="mt-0.5 accent-[var(--color-ink)]" />
+            <span><span className="font-medium">{title}</span><span className="block text-xs text-muted-foreground">{sub}</span></span>
+          </span>
+        </label>
+      </li>
+    );
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="flex max-h-[min(52rem,calc(100vh-2rem))] flex-col sm:max-w-3xl">
         <DialogTitle className="flex items-center gap-2"><LayoutDashboard aria-hidden className="size-4" /> New dashboard</DialogTitle>
-        <DialogDescription>Start empty, or from a template: pick a Metric for each of its places once, even when several widgets show it.</DialogDescription>
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (ready) make(); }}>
+        <DialogDescription>Start empty, or from a template: pick a Metric for each of its places once, even when several widgets show it. Templates are drawn with sample data.</DialogDescription>
+        <form className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 pb-1" onSubmit={(e) => { e.preventDefault(); if (ready) make(); }}>
           <label className="block text-sm font-medium">Name<Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} placeholder={t?.name ?? "My dashboard"} className="mt-1" autoFocus /></label>
           <fieldset className="space-y-1.5">
             <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium"><LayoutTemplate aria-hidden className="size-4" /> Start from</legend>
-            <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+            <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {option(null, "Empty dashboard", "Add widgets from the Pool yourself.")}
-              {templates.map((x) => option(x.id, x.name, `${x.description ? `${x.description} ` : ""}${x.widgets} widget${x.widgets === 1 ? "" : "s"}${x.owner_id ? "" : ", from Ziffr"}.`))}
+              {templates.map((x) => option(x, x.name, `${x.description ? `${x.description} ` : ""}${x.widgets} widget${x.widgets === 1 ? "" : "s"}${x.owner_id ? "" : ", from Ziffr"}.`))}
             </ul>
           </fieldset>
           {t && (

@@ -4,8 +4,8 @@
 // and keyboard. A template's Preview draws Sample Data only, never the metrics it was made with: that is why a
 // Preview needs no Share check and sends nothing to the browser that the page did not have (spec 0011).
 import { useMemo } from "react";
-import { sampleCanvasData, sampleTeamWidget, sampleWidget, type SampleWidget } from "@ziffr/core/sample-data";
-import type { CanvasData, TemplateId, WidgetTemplate } from "@ziffr/core/types";
+import { sampleCanvasData, sampleDashboard, sampleTeamWidget, sampleWidget, type SampleWidget } from "@ziffr/core/sample-data";
+import type { CanvasData, DashboardTemplate, TemplateId, WidgetTemplate } from "@ziffr/core/types";
 import { TEMPLATES } from "@/views/templates";
 import { cn } from "@/lib/utils";
 import { ReadOnlyFrame, type FrameWidget } from "./read-only-frame";
@@ -65,6 +65,36 @@ export function TemplatePreview({ template, viewer, width, className }: { templa
     return { widget: sampleTeamWidget(template), size: { w: template.w, h: template.h } };
   }, [template]);
   return <Preview widget={widget} data={data} size={size} width={width} sample className={className} />;
+}
+
+/** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
+ * Sample Data and scaled to `width`. Like a template's Preview, it shows none of the workspace's numbers. */
+export function DashboardTemplatePreview({ template, viewer, width = 520, className }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; width?: number; className?: string }) {
+  const data = useMemo(() => sampleCanvasData(viewer), [viewer]);
+  const widgets = useMemo(() => sampleDashboard(template), [template]);
+  const natural = { width: cellsToPixels({ w: 12, h: 1 }).width, height: Math.max(1, ...widgets.map((w) => w.y + w.h)) * (ROW + GAP) - GAP };
+  const scale = Math.min(1, width / natural.width);
+  return (
+    <div
+      aria-hidden
+      inert
+      data-preview="dashboard"
+      className={cn("relative shrink-0 overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-paper-2)] select-none", className)}
+      style={{ width: natural.width * scale, height: natural.height * scale }}
+    >
+      <div className="pointer-events-none relative origin-top-left" style={{ width: natural.width, height: natural.height, transform: `scale(${scale})` }}>
+        {widgets.map((w, i) => {
+          const size = cellsToPixels(w);
+          return (
+            <div key={i} className="absolute" style={{ left: w.x * (COL + GAP), top: w.y * (ROW + GAP), width: size.width, height: size.height }}>
+              {TEMPLATES[w.template]?.kind === "layout" ? <LayoutSketch /> : <ReadOnlyFrame widget={w} data={data} />}
+            </div>
+          );
+        })}
+      </div>
+      <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
+    </div>
+  );
 }
 
 function LayoutSketch() {

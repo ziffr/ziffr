@@ -2,9 +2,9 @@
 // metrics of its own. Never a workspace's data: built here from a fixed seed, so every viewer, every test and every
 // render sees the same numbers, and a Preview needs no Share check and fetches nothing (spec 0011).
 import { addDays, addMonths, addWeeks, formatISO } from "date-fns";
-import { fromTemplate } from "./team-templates";
+import { fromDashboardTemplate, fromTemplate } from "./team-templates";
 import { TEMPLATES } from "./widget-templates";
-import type { BreakdownRow, CanvasData, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
+import type { BreakdownRow, CanvasData, DashboardTemplateBody, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
 
 /** Who owns the sample Metrics: no person has this id. */
 export const SAMPLE_OWNER = "sample";
@@ -149,6 +149,12 @@ export function sampleWidget(id: TemplateId, period: Period = "month"): SampleWi
   const t = TEMPLATES[id];
   const fills = sampleFills(t.slots, period);
   return { template: id, metric_ids: fills.flat(), settings: { ...t.settings, ...sampleSettings(id, fills, period) }, title: null };
+}
+
+/** A Dashboard Template's widgets filled with Sample Data, where they sit (spec 0014). Never with the Metrics it was
+ * made with, for the same reason as a team template's. */
+export function sampleDashboard(t: { slots: Pick<Slot, "multiple">[]; body: DashboardTemplateBody }, period: Period = "month"): (SampleWidget & { x: number; y: number; w: number; h: number })[] {
+  return fromDashboardTemplate(t.body, sampleFills(t.slots, period));
 }
 
 /** A team template filled with Sample Data. Never with the metrics it was made with (its Slots' exampleIds): the

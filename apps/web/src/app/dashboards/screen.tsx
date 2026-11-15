@@ -119,7 +119,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   return (
     <div className={cn("grid gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
-      {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={data.metrics.map((m) => ({ id: m.id, name: m.name }))} />}
+      {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={data.metrics.map((m) => ({ id: m.id, name: m.name }))} viewer={data.viewer} />}
       {savingTemplate && current && <SaveDashboardTemplateDialog dashboardId={current.id} dashboardName={current.name} metricName={(id) => data.metrics.find((m) => m.id === id)?.name} onClose={() => setSavingTemplate(false)} />}
       {changing && (
         <div className="order-2 lg:order-1">

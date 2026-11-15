@@ -13,8 +13,9 @@ import { widgetMetricIds } from "./widget-metrics";
 import { getMetrics } from "./workspace-data";
 import type { DashboardTemplate } from "./types";
 
-/** A Dashboard Template as a person picks one: without its widgets, which only matter once it is used. */
-export type DashboardTemplateSummary = Pick<DashboardTemplate, "id" | "owner_id" | "name" | "description" | "slots"> & { widgets: number };
+/** A Dashboard Template as a person picks one. Its body holds Slot numbers, never Metrics, so its Preview can be
+ * drawn in the browser with Sample Data (spec 0014, #191). */
+export type DashboardTemplateSummary = Pick<DashboardTemplate, "id" | "owner_id" | "name" | "description" | "slots" | "body"> & { widgets: number };
 
 /** A template by id: a built-in one by its text id, a team one by number, only of the actor's workspace. */
 export async function dashboardTemplate(actor: Pick<Actor, "workspaceId">, id: number | string): Promise<DashboardTemplate | null> {
@@ -34,7 +35,7 @@ export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | 
   return [...BUILT_IN_DASHBOARD_TEMPLATES, ...((data ?? []) as DashboardTemplate[])].map((t) => ({
     id: t.id, owner_id: t.owner_id, name: t.name, description: t.description,
     slots: t.slots.map((s) => ({ label: s.label, multiple: s.multiple, exampleIds: (s.exampleIds ?? []).filter((id) => seen.has(id)) })),
-    widgets: t.body.widgets.length,
+    body: t.body, widgets: t.body.widgets.length,
   }));
 }
 

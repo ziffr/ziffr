@@ -70,7 +70,7 @@ export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: Canva
 }
 
 /** Draws its child once it has scrolled into view, and keeps it drawn: a grid of charts costs little this way. */
-function WhenVisible({ children, className }: { children: () => React.ReactNode; className?: string }) {
+export function WhenVisible({ children, className }: { children: () => React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {

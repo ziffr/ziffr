@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE_PERIODS, sampleCanvasData, sampleData, sampleFills, samplePeriods, sampleTeamWidget, sampleWidget } from "./sample-data";
+import { BUILT_IN_DASHBOARD_TEMPLATES } from "./built-in-dashboard-templates";
+import { SAMPLE_PERIODS, sampleCanvasData, sampleDashboard, sampleData, sampleFills, samplePeriods, sampleTeamWidget, sampleWidget } from "./sample-data";
 import { fillsComplete } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
-import type { Period, Point, TemplateId } from "./types";
+import type { DashboardTemplate, Period, Point, TemplateId } from "./types";
 
 // Pearson's r over two series of the same periods (the app's own lives in apps/web, which the core does not import).
 const corr = (a: Point[], b: Point[]) => {
@@ -100,5 +101,21 @@ describe("Sample widgets for Previews", () => {
     expect(JSON.stringify(w)).not.toMatch(/\b4[123]\b/);
     expect(w.settings.headline).toBe("{metric} grew");
     expect(w.title).toBe("Board");
+  });
+});
+
+describe("a Dashboard Template's Preview (#191)", () => {
+  it("fills every built-in template with Sample Data only, each widget where it sits", () => {
+    const sample = new Set(sampleData().metrics.map((m) => m.id));
+    for (const t of BUILT_IN_DASHBOARD_TEMPLATES) {
+      const widgets = sampleDashboard(t);
+      expect(widgets.map(({ x, y, w, h }) => ({ x, y, w, h })), t.name).toEqual(t.body.widgets.map(({ x, y, w, h }) => ({ x, y, w, h })));
+      expect(widgets.every((w) => widgetMetricIds(w.metric_ids, w.settings).every((id) => sample.has(id))), t.name).toBe(true);
+    }
+  });
+  it("never draws the Metrics a team template was made with", () => {
+    const team: Pick<DashboardTemplate, "slots" | "body"> = { slots: [{ label: "Revenue", multiple: false, exampleIds: [41] }], body: { widgets: [{ view: "number", metricSlots: [0], settings: {}, title: null, x: 0, y: 0, w: 3, h: 4 }] } };
+    const widgets = sampleDashboard(team);
+    expect(widgets[0].metric_ids).not.toContain(41);
   });
 });
