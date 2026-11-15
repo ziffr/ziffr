@@ -111,3 +111,8 @@ jobs:
       - name: The MCP server against the running app
         if: steps.changes.outputs.code == 'true'
         run: pnpm --filter @ziffr/mcp test:app
+      - name: The feed kit and the SQL Feed against the running app
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          pnpm --filter @ziffr/feed-kit test:app
+          pnpm --filter @ziffr/feed-sql test:app

@@ -12,7 +12,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL } from "@ziffr/core/format";
+import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
@@ -39,7 +39,7 @@ const BLANK: MetricDescription = {
   polarity: "higher",
   target_min: null,
   target_max: null,
-  sources: ["web_form", "mail", "slack"],
+  sources: ["web_form", "mail", "slack", "api"],
 };
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
@@ -134,7 +134,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                   {SOURCES.map((s) => (
                     <label key={s.id} className="flex items-center gap-2 text-sm">
                       <input type="checkbox" name="sources" value={s.id} defaultChecked={(d.sources as SourceId[]).includes(s.id)} className="size-4 accent-primary" />
-                      {SOURCE_LABEL[s.id]} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
+                      {s.label} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
                     </label>
                   ))}
                 </div>

@@ -8,7 +8,7 @@ type Endpoint = {
   path: string;
   summary: string;
   description: string;
-  scope: "metrics:read" | "values:submit" | "metrics:write";
+  scope: "metrics:read" | "values:submit" | "metrics:write" | "feed:submit";
   query?: z.ZodObject;
   body?: z.ZodType;
   idempotent?: boolean;
@@ -62,6 +62,21 @@ export const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/feed", scope: "feed:submit", query: S.pageQuery, ok: { status: 200, name: "FeedOverview", schema: S.FeedOverview },
+    summary: "Describe the Feed",
+    description: "For a Feed Key only (spec 0012): the Feed's name and the Metrics it submits to that take API values, with the periods that already have a value, so a Feed knows what to fetch and what is missing. Never a value.",
+    errors: [{ status: 403, description: "Or the key is a person's Access Key, not a Feed Key." }],
+  },
+  {
+    method: "post", path: "/feed/observations", scope: "feed:submit", body: S.FeedBatch, idempotent: true, ok: { status: 200, name: "FeedBatchAnswer", schema: S.FeedBatchAnswer },
+    summary: "Submit a Feed's values",
+    description: "For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule, Locks and Approvals, with one result per item in order, so one refused item does not stop the rest. A value for a past period that has none yet is an Import: it is recorded without the Unusual Value check and marked as imported. The body may be 1 MB. Each Feed may record 10,000 values in any 24 hours over all its keys; a batch that would cross that is refused whole.",
+    errors: [
+      { status: 403, description: "Or the key is a person's Access Key, not a Feed Key." },
+      { status: 409, description: "The Idempotency-Key was used with another body, or its first batch is still running." },
+    ],
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },
@@ -75,7 +90,7 @@ export const ENDPOINTS: Endpoint[] = [
 const COMMON_ERRORS = [
   { status: 400, description: "`invalid_request`: the query, path or body does not match." },
   { status: 401, description: "`unauthorized`: no key, or one that ended, was revoked, or whose creator left." },
-  { status: 403, description: "`forbidden`: the key lacks the scope." },
+  { status: 403, description: "`forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys." },
   { status: 404, description: "`not_found`: nothing here the key's creator may see." },
   { status: 429, description: "`rate_limited`: too many calls; wait for `Retry-After` seconds." },
   { status: 500, description: "`internal`: something went wrong on the server." },
@@ -125,12 +140,12 @@ export function openApiDocument() {
     openapi: "3.1.0",
     info: {
       title: "Ziffr API", version: "1",
-      description: "Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. Version 1 does not change in ways that break a client.",
+      description: "Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
       license: { name: "BUSL-1.1", identifier: "BUSL-1.1" },
     },
     servers: [{ url: "/api/v1" }],
     paths,
-    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made on the Team page." } } },
+    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made in Settings, or a Feed Key, made for a Feed on the Team page." } } },
   };
 }
 

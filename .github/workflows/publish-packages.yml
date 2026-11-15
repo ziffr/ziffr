@@ -1,9 +1,9 @@
-# A pushed package tag (sdk-vX.Y.Z or mcp-vX.Y.Z) publishes that MIT package to npm with provenance (ADR 0004: the
+# A pushed package tag (sdk-vX.Y.Z, mcp-vX.Y.Z, feed-kit-vX.Y.Z or feed-sql-vX.Y.Z) publishes that MIT package to npm with provenance (ADR 0004: the
 # packages others build on have versions of their own). A person pushes the tag; nothing here runs on its own.
 name: Publish a package
 on:
   push:
-    tags: ["sdk-v*.*.*", "mcp-v*.*.*"]
+    tags: ["sdk-v*.*.*", "mcp-v*.*.*", "feed-kit-v*.*.*", "feed-sql-v*.*.*"]
 permissions:
   contents: read
   id-token: write # npm provenance and trusted publishing

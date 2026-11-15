@@ -13,6 +13,8 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     { href: "/workflows", label: "Workflows" },
     { href: "/sources", label: "Sources" },
     { href: "/settings/keys", label: "Access Keys" },
+    // Feeds write into the workspace without a person, so only Owners and Admins set them up (spec 0012).
+    ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }] : []),
     { href: "/activity", label: "Activity" },
     ...(admin ? [{ href: "/audit", label: "Audit log" }] : []),
   ];

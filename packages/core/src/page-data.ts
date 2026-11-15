@@ -1,5 +1,6 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
+import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { readableActions, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
@@ -135,7 +136,10 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   // A Token code opens someone's submission form, so a code goes to the browser only for the person's own Tokens, or
   // to the Metric's owner and admins, who hand the links out (in the demo, all of them). Everyone else sees who submits.
   const allCodes = inDemo(actor) || row?.owner_id === actor.personId || (await isAdmin(actor));
-  const shown = (tokens ?? []).map((t) => ({ ...t, code: allCodes || t.submitter_id === actor.personId ? t.code : null }));
+  // A Feed's Token is never handed out: a Feed presents its key, and its Token opens no form (spec 0012).
+  const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", ws).in("person_id", (tokens ?? []).map((t) => t.submitter_id));
+  const feedIds = new Set((feeds ?? []).map((f) => f.person_id as string));
+  const shown = (tokens ?? []).map((t) => ({ ...t, feed: feedIds.has(t.submitter_id), code: !feedIds.has(t.submitter_id) && (allCodes || t.submitter_id === actor.personId) ? t.code : null }));
   return { tokens: shown, workflows: workflows ?? [], workflowId: (row?.workflow_id as number | null) ?? null, state, period: current };
 }
 
@@ -214,6 +218,8 @@ export async function submissionForm(code: string) {
   if (!/^[A-Za-z0-9_-]{4,80}$/.test(String(code))) return null;
   const { data: token } = await db().from("tokens").select("*, metrics(*), profiles!tokens_submitter_id_fkey(id, name)").eq("code", code).maybeSingle();
   if (!token) return null;
+  // A Feed's Token opens no form: a Feed presents its key, and its form would show the period's value (spec 0012).
+  if ((await feedIdsAmong([token.submitter_id as string])).size) return null;
   if (token.stands_in_for) {
     const { data: theirs } = await db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", token.metric_id);
     if (!tokenValid(token, theirs ?? [])) return null;

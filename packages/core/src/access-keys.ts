@@ -4,7 +4,7 @@
 // the secret is stored; the secret is shown once.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
-import { assertScope, can, Forbidden, SCOPES, type Actor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
+import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -12,7 +12,8 @@ import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
 const DAY = 86_400_000;
-const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
+/** The stored form of a secret: its SHA-256, never the secret. */
+export const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
@@ -53,7 +54,8 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
  * Access Log, but only Owners may revoke another person's key). */
 export async function listAccessKeys(actor: Actor): Promise<AccessKeyInfo[]> {
   if (actor.key) throw new Forbidden();
-  let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by").eq("workspace_id", actor.workspaceId).order("id", { ascending: false });
+  // A Feed's keys are the Feed's, listed with it (feeds.ts), not as anyone's own.
+  let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by").eq("workspace_id", actor.workspaceId).is("feed_id", null).order("id", { ascending: false });
   if (actor.role !== "owner" && actor.role !== "admin") q = q.eq("created_by", actor.personId);
   const { data } = await q;
   return (data ?? []).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at, created_by: k.created_by }));
@@ -62,18 +64,27 @@ export async function listAccessKeys(actor: Actor): Promise<AccessKeyInfo[]> {
 /** Revokes a key: its creator may, and the workspace's Owners may revoke any. */
 export async function revokeAccessKey(actor: Actor, id: number) {
   if (actor.key) throw new Forbidden("A key cannot revoke keys.");
-  let q = db().from("access_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).is("revoked_at", null);
+  let q = db().from("access_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("feed_id", null);
   if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
   const { data } = await q.select("id, name, created_by");
   if (!data?.length) throw new Forbidden();
   await audit(actor, { kind: "access_key.revoked", object: { type: "access_key", id: data[0].id, name: data[0].name }, details: { created_by: data[0].created_by } });
 }
 
-/** The Actor a presented secret acts as, or null when it is unknown, wrong, revoked, ended, or its creator has left. */
+/** The Actor a presented secret acts as, or null when it is unknown, wrong, revoked, ended, or its creator has left.
+ * A Feed Key gives null here: it acts for no person (see actorForSecret). */
 export async function actorForKey(secret: string): Promise<KeyActor | null> {
+  const a = await actorForSecret(secret);
+  return a && !("feed" in a) ? a : null;
+}
+
+/** The Actor a presented secret acts as: a person's key acts for its creator while they are a member; a Feed Key
+ * acts for its Feed while the Feed exists, whoever made the key (a Feed outlives its creator, spec 0012). Null when
+ * the secret is unknown, wrong, revoked or ended, or in the demo. */
+export async function actorForSecret(secret: string): Promise<KeyActor | FeedActor | null> {
   const m = /^zk_([0-9a-f]{12})_[A-Za-z0-9_-]{43}$/.exec(String(secret ?? ""));
   if (!m) return null;
-  const { data: k } = await db().from("access_keys").select("id, workspace_id, created_by, secret_hash, scopes, expires_on, revoked_at").eq("prefix", m[1]).maybeSingle();
+  const { data: k } = await db().from("access_keys").select("id, workspace_id, created_by, secret_hash, scopes, expires_on, revoked_at, feed_id").eq("prefix", m[1]).maybeSingle();
   if (!k) return null;
   const given = Buffer.from(hash(secret), "hex");
   const stored = Buffer.from(k.secret_hash, "hex");
@@ -81,6 +92,13 @@ export async function actorForKey(secret: string): Promise<KeyActor | null> {
   if (k.revoked_at || k.expires_on < today()) return null;
   // The demo has no Access Keys (its made-up people are anyone's); one that got there anyway does nothing.
   if (k.workspace_id === DEMO_WORKSPACE_ID) return null;
+  if (k.feed_id) {
+    const { data: feed } = await db().from("feeds").select("person_id").eq("person_id", k.feed_id).eq("workspace_id", k.workspace_id).is("deleted_at", null).maybeSingle();
+    // Exactly the one scope, whatever the row says: a Feed Key never reads.
+    if (!feed || k.scopes.length !== 1 || k.scopes[0] !== FEED_SCOPE) return null;
+    await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
+    return { feedId: feed.person_id, workspaceId: k.workspace_id, feed: true, key: { id: String(k.id), scopes: [FEED_SCOPE] } };
+  }
   const { data: membership } = await db().from("memberships").select("role").eq("workspace_id", k.workspace_id).eq("user_id", k.created_by).maybeSingle();
   if (!membership) return null;
   await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);

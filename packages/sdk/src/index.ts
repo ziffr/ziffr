@@ -65,6 +65,30 @@ export type SubmitValue = { value: number; period?: string; breakdown?: Breakdow
 /** What became of a value that was taken. */
 export type Submission = { status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string; replayed: boolean };
 
+/** A Metric as its Feed sees it (spec 0012): what to fetch and which periods already have a value, never a value. */
+export type FeedMetric = {
+  slug: string; name: string; period: "day" | "week" | "month"; unit: string; format: "number" | "currency" | "percent"; decimals: number;
+  /** The current period's first day as Ziffr counts it. */
+  current: string;
+  /** Working days after a period ends by which its value is due, if its Workflow sets one. */
+  due_working_days: number | null;
+  /** First days of the periods that already have a value, oldest first. */
+  filled: string[];
+};
+
+/** The Feed a Feed Key acts for, and its Metrics. */
+export type FeedOverview = { name: string; metrics: Page<FeedMetric> };
+
+/** One value in a Feed's batch; `period` is the period's first day, the current period if left out. */
+export type FeedItem = { metric: string; period?: string; value: number; breakdown?: BreakdownRow[] };
+
+/** What became of one item of a batch. `imported` marks an Import: a past period that had no value, recorded
+ * without the Unusual Value check. `code` says why an item was refused. */
+export type FeedItemResult = { metric: string; period: string | null; status: "recorded" | "awaiting_approval" | "locked" | "refused"; imported?: boolean; code?: string; detail: string };
+
+/** At most this many items in one batch. */
+export const FEED_BATCH_MAX = 500;
+
 /** Paging options of every list. */
 export type PageOptions = { limit?: number; cursor?: string };
 
@@ -75,7 +99,7 @@ export type ObservationOptions = PageOptions & { from?: string; to?: string };
 export type ZiffrOptions = {
   /** Where Ziffr runs, such as https://ziffr.example.com (the API is under /api/v1). */
   url: string;
-  /** An Access Key, made on the Team page. */
+  /** An Access Key, made in Settings, or a Feed Key, made for a Feed (then use `feed` only). */
   accessKey: string;
   /** How often to retry a 429 before giving up (default 3). */
   maxRetries?: number;
@@ -174,6 +198,21 @@ export class Ziffr {
     list: (options: PageOptions = {}) => this.get<Page<Group>>("/groups", options),
     /** Every Group, page by page. */
     all: () => this.every<Group>((cursor) => this.groups.list({ cursor, limit: 100 })),
+  };
+
+  /** For a Feed Key (spec 0012): the Feed's Metrics, and recording values for them in batches. */
+  readonly feed = {
+    /** The Feed's name and one page of its Metrics. */
+    get: (options: PageOptions = {}) => this.get<FeedOverview>("/feed", options),
+    /** Every Metric of the Feed, page by page. */
+    metrics: () => this.every<FeedMetric>(async (cursor) => (await this.feed.get({ cursor, limit: 100 })).metrics),
+    /** Records up to FEED_BATCH_MAX values, with one result per item in order. A fresh idempotency key is sent unless
+     * one is given; pass your own (made from the values) to make a repeated run record nothing twice. */
+    submit: async (items: FeedItem[], options: { idempotencyKey?: string } = {}): Promise<{ results: FeedItemResult[]; replayed: boolean }> => {
+      if (!items.length || items.length > FEED_BATCH_MAX) throw new Error(`A batch holds 1 to ${FEED_BATCH_MAX} items.`);
+      const { body, headers } = await this.request<{ results: FeedItemResult[] }>("POST", "/feed/observations", undefined, { items }, options.idempotencyKey ?? newIdempotencyKey());
+      return { results: body.results, replayed: headers.get("idempotent-replayed") === "true" };
+    },
   };
 
   private async get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {

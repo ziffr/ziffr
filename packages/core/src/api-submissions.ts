@@ -2,18 +2,18 @@
 // submits through its creator's own Token and the same submitValue as a form or Slack, so a program meets every rule a
 // person meets; the value names the key. Idempotency keys and the daily limit on values live here too, in Postgres.
 import { createHash } from "node:crypto";
-import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
+import { assertScope, Forbidden, type Actor, type KeyActor, type FeedActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { periodStart } from "./format";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
 
-// Refusals in words that hold nothing but the rule, for keys that may not read values.
-const REFUSED: Record<string, string> = {
+/** Refusals in words that hold nothing but the rule, for keys that may not read values (and Feeds, which never do). */
+export const REFUSED: Record<string, string> = {
   rejected_duplicate: "This period already has a value, and the Metric's rule rejects a second one.",
   rejected_derived: "This is a Derived Metric: it is computed, never submitted.",
-  rejected_source: "This Metric does not take values from its personal form link, so not from the API either.",
+  rejected_source: "This Metric does not take values from the API.",
   rejected_period: "That is not the first day of one of this Metric's periods, or it is in the future.",
   rejected_no_value: "The value is not a number.",
 };
@@ -90,7 +90,7 @@ export type StoredAnswer = { status: number; body: unknown; keep?: boolean };
 
 /** Runs `answer` once per idempotency key of this key: a repeat with the same body within 24 hours gets the first
  * answer back (`replayed`), a repeat with another body, or while the first is still running, is a conflict. */
-export async function once(actor: KeyActor, idempotencyKey: string, body: unknown, answer: () => Promise<StoredAnswer>): Promise<StoredAnswer & { replayed?: boolean } | { conflict: "different_body" | "in_progress" }> {
+export async function once(actor: KeyActor | FeedActor, idempotencyKey: string, body: unknown, answer: () => Promise<StoredAnswer>): Promise<StoredAnswer & { replayed?: boolean } | { conflict: "different_body" | "in_progress" }> {
   const keyId = Number(actor.key.id);
   const idem = String(idempotencyKey).slice(0, 200);
   const hash = createHash("sha256").update(canonical(body)).digest("hex");

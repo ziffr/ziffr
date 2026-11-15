@@ -47,8 +47,8 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
     description: input.description, unit: input.unit, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
     targetMin: input.target_min, targetMax: input.target_max,
-    // As in the form: every way Ziffr knows; the API itself submits through the form link's Source.
-    sources: ["web_form", "mail", "slack"],
+    // As in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
+    sources: ["web_form", "mail", "slack", "api"],
     submitters: input.submit ? [actor.personId] : [],
   }, {
     ...effects,

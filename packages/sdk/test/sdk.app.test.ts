@@ -2,6 +2,7 @@
 // idempotency keys, errors, and waiting out a 429.
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
+import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
 import { db } from "@ziffr/core/db";
 import { periodStart } from "@ziffr/core/format";
 import { workspace } from "@ziffr/core/test/db-fixtures";
@@ -69,5 +70,22 @@ describe("@ziffr/sdk against the app", () => {
     const started = Date.now();
     expect((await ziffr.metrics.list()).items).toHaveLength(2);
     expect(Date.now() - started).toBeGreaterThan(900);
+  });
+  it("reads a Feed's Metrics and records a batch with a Feed Key (spec 0012)", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    const m = await w.metric(sara, { name: "Pipeline" });
+    const { id: feedId } = await createFeed(w.actor(sara), "CRM");
+    await addFeedToMetric(w.actor(sara), m.id, feedId);
+    const { secret } = await createFeedKey(w.actor(sara), feedId, { name: "SDK", expiresOn: inDays(30) });
+    const ziffr = new Ziffr({ url: URL, accessKey: secret });
+    expect((await ziffr.feed.get()).name).toBe("CRM");
+    expect((await collect(ziffr.feed.metrics())).map((x) => [x.slug, x.filled])).toEqual([[m.slug, []]]);
+    const first = await ziffr.feed.submit([{ metric: m.slug, value: 3, period: "2026-01-01" }, { metric: m.slug, value: 4 }], { idempotencyKey: "crm-1" });
+    expect(first.results.map((r) => [r.status, r.imported])).toEqual([["recorded", true], ["recorded", false]]);
+    expect((await ziffr.feed.submit([{ metric: m.slug, value: 3, period: "2026-01-01" }, { metric: m.slug, value: 4 }], { idempotencyKey: "crm-1" })).replayed).toBe(true);
+    expect((await collect(ziffr.feed.metrics()))[0].filled).toEqual(["2026-01-01", periodStart(new Date(), "month")]);
+    // A Feed Key reads nothing else.
+    await expect(ziffr.metrics.list()).rejects.toMatchObject({ status: 403, code: "forbidden" });
   });
 });

@@ -6,7 +6,7 @@ Ziffr is in its `0.x` releases: used and tested, not yet at a first public relea
 
 ## What it does
 
-- **Metrics and values.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, through the [API](docs/guides/api.md), or from an AI assistant through the [MCP server](packages/mcp/README.md). Contacts without an account submit too.
+- **Metrics and values.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, through the [API](docs/guides/api.md), from another system such as a CRM or a data warehouse through a [Feed](docs/guides/feeds.md), or from an AI assistant through the [MCP server](packages/mcp/README.md). Contacts without an account submit too.
 - **Workflows.** Ask Submitters when a period closes, remind before the Due Date, escalate after it, have Unusual Values approved, and lock the period. They run on their own each morning in the workspace's time zone ([scheduled jobs](docs/guides/jobs.md)).
 - **Asking without leaving.** Questions and tasks on a value, answered in a Thread or by replying to the email, with Corrections the Metric owner accepts.
 - **Seeing the numbers.** Drag-and-drop dashboards, Widgets and stories, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
@@ -37,7 +37,7 @@ Local Supabase also runs Mailpit at http://127.0.0.1:55424, where every email Zi
 - Analyses, Views and Sources are built in; the seams for plugging in others are marked in `apps/web/src/analyses`, `views` and `sources`.
 - Clustering and impact analysis are shown as "coming soon".
 - The slide editor uses tldraw, which needs a licence from tldraw for production use.
-- `@ziffr/sdk` and `@ziffr/mcp` are ready to publish to npm but not published yet.
+- `@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` are ready to publish to npm but not published yet.
 
 ## Working on Ziffr
 
@@ -50,4 +50,4 @@ pnpm --filter @ziffr/core test:db          # the core against the local database
 
 ## License
 
-Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted service is reserved. Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the SDK and the MCP server are MIT, and the connector kit will be. Why: [ADR 0002](docs/adr/0002-source-available-license.md).
+Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted service is reserved. Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the SDK, the MCP server, the feed kit and the SQL Feed are MIT, and the connector kit will be. Why: [ADR 0002](docs/adr/0002-source-available-license.md).

@@ -73,6 +73,8 @@ export type Observation = {
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */
   access_key_id?: number | null;
+  /** An Import (GLOSSARY: Import): a Feed's value for a past period, recorded without the Unusual Value check. */
+  imported?: boolean;
   created_at: string;
 };
 

@@ -71,12 +71,20 @@ A link between Ziffr and an outside system, such as Slack, email, WhatsApp, a ti
 _Avoid_: Integration, plugin, channel
 
 **Source**:
-A Connector used to receive observations, such as mail, a messenger, Slack or a web form. A program with an Access Key is the API Source; a metric takes values from it where it takes them from the submitter's personal form link.
+A Connector used to receive observations, such as mail, a messenger, Slack or a web form. Programs with an Access Key and Feeds use the API Source, which a metric turns on separately from the personal form link.
 _Avoid_: Input, integration
 
 **Submitter**:
-A person allowed to record observations for a given metric: a Member, a Guest, or a Contact without a login.
+A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed.
 _Avoid_: Reporter, contributor
+
+**Feed**:
+A program outside Ziffr that brings in values for some metrics from another system, such as a CRM or a data warehouse. It belongs to the Workspace, not to a person, and only Owners and Admins create one. It is a Submitter of its own, uses a Feed Key, is never sent Prompts, and keeps working when the person who created it leaves. Ziffr never runs its code or holds its credentials for the other system. An n8n or Zapier flow that sends values is an automation, never a Workflow.
+_Avoid_: Integration, sync, pipeline, connector, workflow
+
+**Import**:
+Values a Feed records for past periods that had none yet, such as two years of history when it is first connected. They skip the Unusual Value check and are marked as imported in the metric's history.
+_Avoid_: Backfill, migration, sync
 
 **Token**:
 The standing permission that links one submitter to one metric. Every incoming value is checked against a token, which is usually invisible and implied by who sent the value and where.
@@ -111,7 +119,7 @@ A Workflow step that, when a value is still missing, asks the Stand-in or tells 
 _Avoid_: Alert, warning
 
 **Unusual Value**:
-A value that changes more than a set share against the period before, or falls outside the target. Only unusual values need Approval.
+A value that changes more than a set share against the period before, or falls outside the target. Only unusual values need Approval. An Import is not checked.
 _Avoid_: Outlier, anomaly
 
 **Approval**:
@@ -243,6 +251,10 @@ _Avoid_: External user, anonymous submitter
 **Access Key**:
 A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
+
+**Feed Key**:
+An Access Key that acts for a Feed instead of a person. It can only record values for the metrics that Feed submits to, and see their descriptions and which periods already have a value, never the values themselves or the workspace's people. Owners and Admins create and revoke it.
+_Avoid_: Service account, bot token, connector key
 
 **MCP Server**:
 The program that lets an AI assistant read a workspace's metrics and submit values through the API, with an access key. It runs on the person's own computer and sees no more than the key does.

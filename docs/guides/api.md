@@ -28,6 +28,10 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 
 [`@ziffr/mcp`](../../packages/mcp/README.md) is a local MCP server for Claude Desktop, Claude Code and other assistants: it reads Metrics and submits values with an Access Key, and sees no more than the key does.
 
+## From another system
+
+A program that keeps a CRM's or a warehouse's numbers in step with Ziffr should be a [Feed](feeds.md), not a person's key. A Feed belongs to the workspace and keeps working when its creator leaves, and its values show under its own name. Its Feed Key can only record values, and a batch endpoint takes up to 500 at a time.
+
 ## Endpoints
 
 Every endpoint, its parameters, answers and errors are in the [API reference](../reference/api.md), generated from the server's own validation. Programs can read the same description as OpenAPI 3.1 at `/api/v1/openapi.json` (no key needed) and generate a client from it in any language.

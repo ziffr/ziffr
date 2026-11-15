@@ -47,7 +47,7 @@ export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" NEX
 pnpm --filter @ziffr/core test:db
 pnpm --filter @ziffr/web test:db
 
-step "The app, built and running, for the SDK and the MCP server"
+step "The app, built and running, for the SDK, the MCP server and the feed kits"
 # A separate build folder and port, so a running `pnpm dev` is left alone.
 # `next build` adds the build folder's types to tsconfig.json; the file is put back as it was.
 export NEXT_DIST_DIR=.next-ci PORT=3999
@@ -61,5 +61,7 @@ trap 'kill "$(cat /tmp/ziffr-ci-app.pid)" 2>/dev/null || true; lsof -tiTCP:"$POR
 for _ in $(seq 1 60); do curl -sf "http://localhost:$PORT/api/v1/openapi.json" >/dev/null && break; sleep 1; done
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/sdk test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/mcp test:app
+ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-kit test:app
+ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-sql test:app
 
 echo; echo "Everything CI checks passed locally."

@@ -126,3 +126,48 @@ export const deleteMetricQuery = z.object({ confirm: z.string().min(1).max(200).
 
 /** What DELETE /metrics/{slug} answers: the slug deleted and how many values went with it. */
 export const DeletedMetric = z.object({ deleted: z.string(), values: z.number().int().nonnegative() });
+
+// Feeds (spec 0012, GLOSSARY: Feed, Feed Key, Import): what a Feed Key reads and sends.
+
+/** A Metric as its Feed sees it: what to fetch and which periods already have a value, never a value. */
+export const FeedMetric = z.object({
+  slug: z.string().describe("Name it in a batch item's `metric`."),
+  name: z.string(),
+  period: z.enum(["day", "week", "month"]).describe("How often it has a value."),
+  unit: z.string(),
+  format: z.enum(["number", "currency", "percent"]),
+  decimals: z.number().int().min(0).max(6),
+  current: z.string().describe("The current period's first day as Ziffr counts it; earlier periods are one period apart from it."),
+  due_working_days: z.number().int().nullable().describe("Working days after a period ends by which its value is due, if its Workflow sets one."),
+  filled: z.array(z.string()).describe("First days of the periods that already have a value, oldest first: at most the latest 1,000."),
+});
+
+/** GET /api/v1/feed answers this. */
+export const FeedOverview = z.object({
+  name: z.string().describe("The Feed's name, as values from it show in Ziffr."),
+  metrics: pageOf(FeedMetric).describe("The Metrics it submits to and that take API values."),
+});
+
+/** A batch item: one value for one Metric and period. */
+export const FeedItem = z.object({
+  metric: slugParam.describe("The Metric's slug, as GET /feed lists it."),
+  period: periodDate.optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
+  value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
+  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200), value: z.number() })).max(500).optional().describe("The value's parts, such as per region."),
+}).strict();
+
+/** POST /api/v1/feed/observations takes this. */
+export const FeedBatch = z.object({ items: z.array(FeedItem).min(1).max(500).describe("1 to 500 values; each is taken or refused on its own.") }).strict();
+
+/** What became of one item, in the order sent. Its words never hold an earlier value: a Feed may not read values. */
+export const FeedItemResult = z.object({
+  metric: z.string(),
+  period: z.string().nullable().describe("The period it was meant for, YYYY-MM-DD; null when the Metric was not found."),
+  status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval as an Unusual Value; locked (it went to the Metric's owner as a proposed Correction); or refused."),
+  imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check."),
+  code: z.string().optional().describe("Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token."),
+  detail: z.string(),
+});
+
+/** POST /api/v1/feed/observations answers this. */
+export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).describe("One per item, in the order sent.") });

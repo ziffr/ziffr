@@ -2,7 +2,7 @@
 
 # Ziffr API, version 1
 
-Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. Version 1 does not change in ways that break a client.
+Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
 
 Every path is under `/api/v1`. The machine-readable description is at `/api/v1/openapi.json`. To make a first call, see [the API guide](../guides/api.md).
 
@@ -42,7 +42,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
@@ -97,7 +97,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope. Or the key's creator's role may not create Metrics (Guests).
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests).
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first creation is still running.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
@@ -136,7 +136,7 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
@@ -165,7 +165,7 @@ Deletes a Metric the key's creator owns, with its values, targets, questions and
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope. Or the key's creator sees the Metric but does not own it.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but does not own it.
 - 404: `not_found`: nothing here the key's creator may see.
 - 422: The name does not match, or something still uses the Metric; nothing was deleted.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
@@ -205,7 +205,7 @@ The Metric's values for the periods from `from` to `to` (first days, both includ
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
@@ -246,10 +246,96 @@ Records a value for the current period, or the one named, through the Metric's S
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope. Or the key's creator does not submit values for this Metric.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator does not submit values for this Metric.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first submission is still running.
 - 422: `locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric or the period refused it.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Describe the Feed
+
+`GET /feed` · scope `feed:submit`
+
+For a Feed Key only (spec 0012): the Feed's name and the Metrics it submits to that take API values, with the periods that already have a value, so a Feed knows what to fetch and what is missing. Never a value.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `limit` | query | integer, 1 to 100, default 50 | no | Items per page, 1 to 100. |
+| `cursor` | query | string, at most 128 characters | no | The `next` of the page before. Opaque. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string | yes | The Feed's name, as values from it show in Ziffr. |
+| `metrics` | object | yes | The Metrics it submits to and that take API values. |
+| `metrics.items` | array of object | yes | This page, at most `limit` long. |
+| `metrics.items[].slug` | string | yes | Name it in a batch item's `metric`. |
+| `metrics.items[].name` | string | yes |  |
+| `metrics.items[].period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `metrics.items[].unit` | string | yes |  |
+| `metrics.items[].format` | `"number"`, `"currency"`, `"percent"` | yes |  |
+| `metrics.items[].decimals` | integer, 0 to 6 | yes |  |
+| `metrics.items[].current` | string | yes | The current period's first day as Ziffr counts it; earlier periods are one period apart from it. |
+| `metrics.items[].due_working_days` | integer or null | yes | Working days after a period ends by which its value is due, if its Workflow sets one. |
+| `metrics.items[].filled` | array of string | yes | First days of the periods that already have a value, oldest first: at most the latest 1,000. |
+| `metrics.next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key is a person's Access Key, not a Feed Key.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Submit a Feed's values
+
+`POST /feed/observations` · scope `feed:submit`
+
+For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule, Locks and Approvals, with one result per item in order, so one refused item does not stop the rest. A value for a past period that has none yet is an Import: it is recorded without the Unusual Value check and marked as imported. The body may be 1 MB. Each Feed may record 10,000 values in any 24 hours over all its keys; a batch that would cross that is refused whole.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | string | no | A repeat with the same key and body within 24 hours gets the first answer, with `Idempotent-Replayed: true`. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object (at most 500) | yes | 1 to 500 values; each is taken or refused on its own. |
+| `items[].metric` | string | yes | The Metric's slug, as GET /feed lists it. |
+| `items[].period` | string | no | The period's first day, YYYY-MM-DD; the current period if left out. |
+| `items[].value` | number | yes | The value. With a breakdown, the total; the rows need not add up to it. |
+| `items[].breakdown` | array of object (at most 500) | no | The value's parts, such as per region. |
+| `items[].breakdown[].label` | string, at most 200 characters | yes |  |
+| `items[].breakdown[].value` | number | yes |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `results` | array of object | yes | One per item, in the order sent. |
+| `results[].metric` | string | yes |  |
+| `results[].period` | string or null | yes | The period it was meant for, YYYY-MM-DD; null when the Metric was not found. |
+| `results[].status` | `"recorded"`, `"awaiting_approval"`, `"locked"`, `"refused"` | yes | recorded; waiting for Approval as an Unusual Value; locked (it went to the Metric's owner as a proposed Correction); or refused. |
+| `results[].imported` | boolean | no | An Import: a past period that had no value, recorded without the Unusual Value check. |
+| `results[].code` | string | no | Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token. |
+| `results[].detail` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key is a person's Access Key, not a Feed Key.
+- 404: `not_found`: nothing here the key's creator may see.
+- 409: The Idempotency-Key was used with another body, or its first batch is still running.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -280,7 +366,7 @@ The workspace's people and Contacts: id and name only, never contact details.
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
@@ -312,7 +398,7 @@ The workspace's Groups: id and name.
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.

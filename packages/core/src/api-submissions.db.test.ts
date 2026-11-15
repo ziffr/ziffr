@@ -45,6 +45,16 @@ describe("submitObservation", () => {
     const d = await w.metric(ben, { formula: `{${m.slug}} * 2` }); await w.token(d.id, ben);
     expect(await submitObservation(key, d.slug, { value: 1 }, quiet())).toMatchObject({ ok: false, reason: "refused" });
   });
+  it("takes API values only where the Metric's API Source is on, apart from its form link (spec 0012)", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const formOnly = await w.metric(ben, { sources: ["web_form"] }); await w.token(formOnly.id, ben);
+    const apiOnly = await w.metric(ben, { sources: ["api"] }); await w.token(apiOnly.id, ben);
+    const slackOnly = await w.metric(ben, { sources: ["slack"] }); await w.token(slackOnly.id, ben);
+    const { key } = await keyFor(w, ben, ["metrics:read", "values:submit"]);
+    expect(await submitObservation(key, formOnly.slug, { value: 1 }, quiet())).toMatchObject({ ok: false, reason: "refused" });
+    expect(await submitObservation(key, slackOnly.slug, { value: 1 }, quiet())).toMatchObject({ ok: false, reason: "refused" });
+    expect(await submitObservation(key, apiOnly.slug, { value: 1 }, quiet())).toMatchObject({ ok: true, status: "recorded" });
+  });
   it("turns a value for a locked period into a proposed Correction and says locked", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); await w.token(m.id, ben);

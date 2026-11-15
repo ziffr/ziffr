@@ -1,0 +1,54 @@
+{
+  "name": "@ziffr/feed-kit",
+  "version": "0.1.0",
+  "description": "Write a Ziffr Feed: bring values from a CRM, a data warehouse or any other system into Ziffr Metrics, on a schedule.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziffr/ziffr.git",
+    "directory": "packages/feed-kit"
+  },
+  "type": "module",
+  "bin": {
+    "ziffr-feed": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:app": "vitest run --config vitest.app.config.ts"
+  },
+  "dependencies": {
+    "@ziffr/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@ziffr/core": "workspace:*",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsdoc": "^65.4.5",
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^3.2.4"
+  }
+}

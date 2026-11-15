@@ -56,10 +56,10 @@ Ziffr has one version for the product (app, core and database together), `0.x` u
 
 ### The MIT packages
 
-`@ziffr/sdk` and `@ziffr/mcp` have versions of their own and are published to npm, each on its own (ADR 0004). A maintainer:
+`@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` have versions of their own and are published to npm, each on its own (ADR 0004). A maintainer:
 
-1. Sets the package's `version` in `packages/sdk/package.json` or `packages/mcp/package.json` in a pull request, and merges it.
-2. Tags that commit `sdk-vX.Y.Z` or `mcp-vX.Y.Z` and pushes the tag. The "Publish a package" workflow checks the tag against the version, checks that the `@ziffr` packages it depends on are published (the MCP server needs its SDK version), runs every check and the package's tests against the running app, and publishes with npm provenance.
+1. Sets the package's `version` in its `packages/<name>/package.json` in a pull request, and merges it.
+2. Tags that commit `<name>-vX.Y.Z` (such as `sdk-v0.2.0` or `feed-kit-v0.1.0`) and pushes the tag. The "Publish a package" workflow checks the tag against the version, checks that the `@ziffr` packages it depends on are published (the MCP server and the feed kit need their SDK version, the SQL Feed its feed kit), runs every check and the package's tests against the running app, and publishes with npm provenance.
 
 Before the first publish: create the npm organisation `ziffr` and add an npm automation token as the repository secret `NPM_TOKEN`. After the first publish of each package, set up trusted publishing for it on npmjs.com (repository `ziffr/ziffr`, workflow `publish-packages.yml`) and remove the secret.
 

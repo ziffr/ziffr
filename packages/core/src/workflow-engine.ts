@@ -1,4 +1,4 @@
-// The Workflow engine (GLOSSARY: Workflow, Due Date, Stand-in, Away, Escalation, Unusual Value, Approval, Lock).
+// The Workflow engine (GLOSSARY: Workflow, Due Date, Stand-in, Away, Escalation, Unusual Value, Approval, Lock, Feed).
 // Entry points that take an id from outside look it up in one Workspace only. Time-based steps run once a day by the
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
 import { format } from "date-fns";
@@ -33,10 +33,19 @@ async function setState(metricId: number, period: string, patch: Partial<PeriodS
   await db().from("period_states").upsert({ metric_id: metricId, period_start: period, state: "asked", ...patch, updated_at: new Date().toISOString() }, { onConflict: "metric_id,period_start", ignoreDuplicates: false });
 }
 
-/** Who is asked: the submitter, or their Stand-in while they are Away. */
+/** The Feeds among some submitters (GLOSSARY: Feed): they are never asked, and their missing values go to the owner. */
+async function feedsAmong(ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  const { data } = await db().from("feeds").select("person_id, name").in("person_id", ids);
+  return new Map((data ?? []).map((f) => [f.person_id as string, f.name as string]));
+}
+
+/** Who is asked: the submitter, or their Stand-in while they are Away. A Feed is a program and is never asked. */
 async function whoToAsk(metricId: number, day: string) {
-  const { data: tokens } = await db().from("tokens").select("submitter_id, stand_in_id").eq("metric_id", metricId).is("stands_in_for", null);
-  if (!tokens?.length) return [];
+  const { data: all } = await db().from("tokens").select("submitter_id, stand_in_id").eq("metric_id", metricId).is("stands_in_for", null);
+  const feeds = await feedsAmong((all ?? []).map((t) => t.submitter_id as string));
+  const tokens = (all ?? []).filter((t) => !feeds.has(t.submitter_id));
+  if (!tokens.length) return [];
   // Only the submitters' own Away entries, not everyone's.
   const { data: away } = await db().from("away").select("user_id").in("user_id", tokens.map((t) => t.submitter_id)).lte("starts", day).gte("ends", day);
   const out = new Set((away ?? []).map((a) => a.user_id));
@@ -76,6 +85,8 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const due = dueDate(period, m.period, ctx.wf.config);
     const done = new Set(state?.done_steps ?? []);
     const people = await whoToAsk(m.id, asOf);
+    const { data: feedTokens } = await db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null);
+    const feeds = [...(await feedsAmong((feedTokens ?? []).map((t) => t.submitter_id as string))).values()];
     if (!state) {
       for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined });
       await setState(m.id, period, { state: "asked", done_steps: [] });
@@ -92,8 +103,13 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
         if (step.to === "stand-in") {
           for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.` });
           log.push(`${label}: asked the stand-in`);
+          // A Feed has no Stand-in: when it is what is missing, the owner hears of it instead (spec 0012).
+          if (feeds.length) {
+            await escalateToOwner(ctx, due, actorId, queue, feeds);
+            log.push(`${label}: told the owner`);
+          }
         } else {
-          await escalateToOwner(ctx, due, actorId, queue);
+          await escalateToOwner(ctx, due, actorId, queue, feeds);
           log.push(`${label}: told the owner`);
         }
         done.add(i);
@@ -104,17 +120,19 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   return log;
 }
 
-/** Asks the Metric owner to follow up a missing value. */
-async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = false) {
+/** Asks the Metric owner to follow up a missing value, naming the Feeds that should have sent it. */
+async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = false, feeds: string[] = []) {
+  const from = feeds.length ? ` It should come from the Feed ${feeds.join(", ")}: check that it still runs.` : "";
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: ctx.wf.owner_id === ctx.m.owner_id ? actorId : ctx.wf.owner_id, assignee_id: ctx.m.owner_id,
-    question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period)} was due ${due} and is still missing. Please follow up.`, kind: "question", purpose: "escalation",
+    question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period)} was due ${due} and is still missing.${from} Please follow up.`, kind: "question", purpose: "escalation",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
-/** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words. */
-export async function onValue(metricId: number, period: string, submitterId: string): Promise<string[]> {
+/** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words.
+ * An Import (GLOSSARY: Import) is not checked: a Feed's history should not raise an Approval per period. */
+export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean } = {}): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
   const value = await latestValue(metricId, period);
@@ -123,7 +141,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
   const check = steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check");
   const approve = steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
   let reasons: string[] = [];
-  if (check) {
+  if (check && !opts.imported) {
     const before = shiftPeriod(period, ctx.m.period, -1);
     const prev = await latestValue(metricId, before);
     const { data: targets } = await db().from("series_values").select("period_start, value").eq("metric_id", metricId).eq("kind", "target");

@@ -2,6 +2,7 @@
 // says. Every Delivery belongs to the Workspace of what it is about, and is recorded in the Outbox. Email ones are
 // also sent once mail is set up (spec 0004, mail.ts), Slack ones once the workspace connects Slack (spec 0007,
 // slack-send.ts); WhatsApp and tickets are still simulated.
+import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { periodLabel, periodStart } from "./format";
@@ -69,6 +70,8 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token.
  * With `queue`, an email is only queued, for the deliveries job to send. */
 export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }) {
+  // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
+  if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
     db().from("metrics").select("id, name, period, sources, formula, workspace_id").eq("id", input.metricId).single(),
     // A Contact is reached by the details this workspace keeps for them; a member by their own.

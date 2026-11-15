@@ -1,5 +1,6 @@
-// Submitting values (GLOSSARY: Observation, Submission Rule, Token, Lock, Correction, Contact). Values arrive by Slack,
-// mail, a personal form link or a program with an Access Key and are recorded under their sender, members and Contacts alike; a Metric owner
+// Submitting values (GLOSSARY: Observation, Submission Rule, Token, Lock, Correction, Contact, Feed, Import). Values arrive
+// by Slack, mail, a personal form link, a program with an Access Key or a Feed, and are recorded under their sender,
+// members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
 import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "./format";
@@ -26,21 +27,24 @@ export type SubmissionInput = {
   period?: string;
   /** The Access Key a program submits with (source "api" only); the value names it. */
   accessKeyId?: number;
+  /** Set only by a Feed's batch (feeds.ts), never from what a program sends: a value for a past period that has none
+   * yet is then an Import and skips the Unusual Value check (spec 0012). Ignored unless the sender is a Feed. */
+  import?: boolean;
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
 };
 
 /** What became of a submission, in words for the sender. */
-export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string };
+export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean };
 
 /** What a submission sets off: the owner hears about a late value, a new value goes to its Workflow. Tests pass
  * their own; everyone else gets the core's. */
 export type SubmissionEffects = {
   /** Tells the Metric owner about a late value proposed as a Correction. */
   notifyCorrection: (e: { actionId: number; senderId: string; ownerId: string; value: number }) => Promise<void>;
-  /** Hands a new value to the Metric's Workflow; returns what it did, in words. */
-  afterValue: (metricId: number, period: string, submitterId: string) => Promise<string[]>;
+  /** Hands a new value to the Metric's Workflow; returns what it did, in words. An Import skips the check. */
+  afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean }) => Promise<string[]>;
 };
 
 /** Pulls the first number out of a message: "we closed 3 today" → 3, "126,657 €" → 126657. */
@@ -86,7 +90,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       detail: r.detail,
       observation_id: r.observationId ?? null,
     });
-    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug };
+    return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}) };
   };
 
   // 1. Who sent it? The Token is implied by the sender's identity on this Source.
@@ -108,11 +112,17 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const live = (tokens ?? []).filter((t) => tokenValid(t, tokens ?? []));
   const metricById = Object.fromEntries(metrics.map((m) => [m.id, m]));
   let sender: Profile | undefined;
+  let feed: Profile | null = null;
   let candidates: Token[] = [];
   if (byToken) {
     const t = live.find((t) => t.code === input.sender);
     if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
     sender = profiles.find((p) => p.id === t.submitter_id);
+    // A Feed is nobody's colleague, so it is not among the people above; only a program reaches it, by its key.
+    if (!sender && input.source === "api") {
+      feed = await liveFeed(workspaceId, t.submitter_id);
+      sender = feed ?? undefined;
+    }
     // A link of someone who is no longer a member or Contact here records nothing.
     if (!sender) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link is no longer in use." });
     candidates = [t];
@@ -147,7 +157,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       how = "metric named in the message";
     } else if (candidates.length === 1) {
       token = candidates[0];
-      how = input.source === "web_form" ? "personal form link" : input.source === "api" ? "Access Key" : "sender’s only Token";
+      how = input.source === "web_form" ? "personal form link" : input.source === "api" ? (feed ? "Feed" : "Access Key") : "sender’s only Token";
     } else {
       const names = candidates.map((t) => metricById[t.metric_id]?.name).join(", ");
       return log({ ok: false, senderId, outcome: "rejected_ambiguous", detail: `${sender?.name} has Tokens for ${names}. Reply to a Prompt or name the metric.` });
@@ -157,8 +167,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
   if (metric.formula) return log({ ...base, ok: false, outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` });
-  // A program submits through its creator's own Token, so it is taken where that Token's form link is.
-  if (!metric.sources.includes(input.source === "api" ? "web_form" : input.source))
+  // The API is a Source of its own (spec 0012): a Metric takes programs' and Feeds' values only where it says so.
+  if (!metric.sources.includes(input.source))
     return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
 
   // 3. What value, for which period? A breakdown's total (or the sum of its rows) is the value.
@@ -194,10 +204,14 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const { data: existing } = await db().from("observations").select("*").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false });
   const prev = existing?.[0];
   const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
+  // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period:
+  // the current period and anything that replaces a value are checked as anyone's.
+  const current = periodStart(new Date(), metric.period);
+  const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
   let result: SubmissionResult & { observationId?: number };
   if (!prev) {
-    const { data } = await db().from("observations").insert({ ...row, value }).select("id").single();
-    result = { ok: true, outcome: "recorded", detail: `${fv(value)} recorded for ${metric.name}, ${when} (via ${how}).`, observationId: data?.id };
+    const { data } = await db().from("observations").insert({ ...row, value, imported }).select("id").single();
+    result = { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, observationId: data?.id, imported };
   } else if (metric.submission_rule === "reject") {
     result = { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(Number(prev.value))} for ${when}, and its rule rejects a second value.` };
   } else if (metric.submission_rule === "overwrite") {
@@ -219,7 +233,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   if (prompt && result.ok) await db().from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", prompt.id);
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && senderId) {
-    const next = await effects.afterValue(metric.id, period, senderId);
+    const next = await effects.afterValue(metric.id, period, senderId, { imported });
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   return log({ ...base, ...result });
@@ -241,6 +255,23 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
   const profiles = (data ?? []) as Profile[];
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
+}
+
+/** The oldest period an Import may fill: 1,000 periods back (about 33 months of days, 19 years of weeks, 83 years of
+ * months), what a Feed is told about. Further back, a Feed's value is checked like anyone's. */
+function importFloor(current: string, period: Metric["period"]): string {
+  const d = new Date(`${current}T00:00:00Z`);
+  if (period === "month") d.setUTCMonth(d.getUTCMonth() - 1000);
+  else d.setUTCDate(d.getUTCDate() - 1000 * (period === "week" ? 7 : 1));
+  return d.toISOString().slice(0, 10);
+}
+
+/** A Feed of this workspace that is not deleted, as the person it is (GLOSSARY: Feed), or null. */
+async function liveFeed(ws: string, personId: string): Promise<Profile | null> {
+  const { data: f } = await db().from("feeds").select("person_id").eq("workspace_id", ws).eq("person_id", personId).is("deleted_at", null).maybeSingle();
+  if (!f) return null;
+  const { data: p } = await db().from("profiles").select("*").eq("id", f.person_id).maybeSingle();
+  return (p as Profile | null) ?? null;
 }
 
 /** Whether a Metric's period is locked and takes no more values (GLOSSARY: Lock). */

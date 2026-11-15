@@ -21,7 +21,7 @@ describe("values that arrive", () => {
     const r = await submitValue({ source: "web_form", sender: code, text: "12" }, fx);
     expect(r).toMatchObject({ ok: true, outcome: "recorded" });
     expect(await valuesOf(m.id)).toMatchObject([{ value: 12, submitter_id: sara, source: "web_form" }]);
-    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month"), sara);
+    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month"), sara, { imported: false });
   });
 
   it("recognises a Contact by Slack handle and by email, and records under them", async () => {

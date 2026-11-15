@@ -27,7 +27,7 @@ export async function workspace(name = "Test") {
     const slug = `m-${randomUUID().slice(0, 8)}`;
     const { data } = await must(db().from("metrics").insert({
       slug, name: String(over.name ?? "Field visits"), owner_id: owner, workspace_id: id, unit: "", format: "number", decimals: 0, period: "month",
-      submission_rule: "overwrite", polarity: "higher", sources: ["web_form", "slack", "mail"], ...over,
+      submission_rule: "overwrite", polarity: "higher", sources: ["web_form", "slack", "mail", "api"], ...over,
     }).select("*").single());
     return data as { id: number; slug: string; owner_id: string };
   };
@@ -44,8 +44,12 @@ export async function workspace(name = "Test") {
   const setRole = async (personId: string, role: Actor["role"]) => { await must(db().from("memberships").update({ role }).eq("workspace_id", id).eq("user_id", personId)); };
   const actor = (personId: string, role: Actor["role"] = "owner"): Actor => ({ personId, workspaceId: id, role });
   const cleanup = async () => {
+    // A Feed is a person row of its own (spec 0012); it goes with its workspace.
+    const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", id);
+    people.push(...(feeds ?? []).map((f) => f.person_id as string));
     await db().from("breakdown_rows").delete().eq("workspace_id", id);
     await db().from("observations").delete().eq("workspace_id", id);
+    await db().from("intake_log").delete().eq("workspace_id", id);
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
@@ -61,6 +65,11 @@ export async function accessLogOf(keyId: number) {
 /** Calls made with a key, written straight into its Access Log (to reach a limit without making them). */
 export async function logCalls(keyId: number, n: number, call: { status?: number; at?: string; submitted?: number } = {}) {
   await must(db().from("access_log").insert(Array.from({ length: n }, () => ({ key_id: keyId, method: "GET", route: "/api/v1/metrics", status: call.status ?? 200, submitted: call.submitted ?? 0, ...(call.at ? { at: call.at } : {}) }))));
+}
+
+/** A Feed's batch as claim_feed_batch stores it (to reach the day's limit, or hold the Feed, without running one). */
+export async function feedBatch(feedId: string, items: number, over: { taken?: number | null; finished?: boolean } = {}) {
+  await must(db().from("feed_batches").insert({ feed_id: feedId, items, taken: over.taken === undefined ? items : over.taken, finished_at: over.finished === false ? null : new Date().toISOString() }));
 }
 
 /** The values recorded for a Metric, oldest first. */

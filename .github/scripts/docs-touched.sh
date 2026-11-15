@@ -6,7 +6,7 @@ base="origin/${GITHUB_BASE_REF:-next}"
 changed=$(git diff --name-only "$base"...HEAD)
 labels=$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
 grep -qx "no-docs-needed" <<<"$labels" && { echo "Label no-docs-needed set."; exit 0; }
-surface=$(grep -E '^(packages/core/src/[^/]+\.ts|supabase/migrations/|apps/web/src/app/api/|packages/mcp/|packages/sdk/|packages/connector-sdk/)' <<<"$changed" | grep -vE '\.test\.ts$' || true)
+surface=$(grep -E '^(packages/core/src/[^/]+\.ts|supabase/migrations/|apps/web/src/app/api/|packages/mcp/|packages/sdk/|packages/feed-kit/|packages/feed-sql/|packages/connector-sdk/)' <<<"$changed" | grep -vE '\.test\.ts$' || true)
 [ -z "$surface" ] && { echo "No public surface changed."; exit 0; }
 docs=$(grep -E '^(docs/|\.changeset/.+\.md$|GLOSSARY\.md$|CHANGELOG\.md$|README\.md$)' <<<"$changed" || true)
 if [ -z "$docs" ]; then

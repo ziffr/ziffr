@@ -16,6 +16,8 @@ import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
+import { feedChoices, feedNames } from "@ziffr/core/feeds";
+import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatValue, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
@@ -81,7 +83,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     );
   }
   const actor = await currentActor();
-  const [actions, extras, dashboards, shares, groups, keyNames] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups, keyNames, choices] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
@@ -89,6 +91,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     getGroups(),
     // Which program sent a value: the names of the Access Keys behind this Metric's values (spec 0002).
     submittingKeyNames(actor, metric.id),
+    feedChoices(actor),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -105,6 +108,10 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const bdAdds = bdTotal !== null && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
   // Tables on this page read like the chart: oldest on top, newest at the bottom.
   const obs = (await getLastValues(metric.id, 12)).reverse();
+  // Feeds are Submitters but nobody's colleague: the names of only those this page shows, as its Submitters or as
+  // the senders of its values, so both say where a value came from.
+  const feeds = await feedNames(actor, [...tokens.map((t) => t.submitter_id), ...obs.map((o) => o.submitter_id ?? "")]);
+  for (const [id, name] of Object.entries(feeds)) peopleById[id] ??= { id, name, role: "Feed", color: "#64748b", email: "", slack_handle: "" };
   const isOwner = metric.owner_id === viewer;
   // Its owner and its Editors change targets, description and Sources; deleting and sharing stay the owner's.
   const canEdit = isOwner || (await canEditMetric(actor, metric.id));
@@ -311,6 +318,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value)}</span> corrected</span>}
+                          {o.imported && <span className="block text-xs text-muted-foreground" title="A Feed's value for a past period, recorded without the Unusual Value check">imported</span>}
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
                         <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
@@ -365,7 +373,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && (
-            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
+            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
           )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
@@ -375,13 +383,16 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 {tokens.map((t) => (
                   <li key={t.id} className="flex items-center justify-between gap-2">
                     <Person p={peopleById[t.submitter_id]} />
-                    {!t.code ? null : metric.sources.includes("web_form") ? (
+                    {t.feed ? (
+                      <span className="flex items-center gap-2 text-xs text-muted-foreground">Feed{canEdit && <RemoveFeed metricId={metric.id} feedId={t.submitter_id} name={peopleById[t.submitter_id]?.name ?? "this Feed"} />}</span>
+                    ) : !t.code ? null : metric.sources.includes("web_form") ? (
                       <Link href={`/submit/${t.code}`} className="text-xs underline">Open form link</Link>
                     ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
                   </li>
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
+              {canEdit && <FeedPicker metricId={metric.id} choices={choices.filter((c) => !tokens.some((t) => t.submitter_id === c.id))} />}
             </section>
           )}
         </div>

@@ -2,9 +2,9 @@
 // one JSON shape. Endpoints hold no permission code; the core decides what the key's creator sees. Everything a
 // program sends is untrusted (AGENTS.md rule 4): query and body go through the endpoint's zod schema first.
 import { z } from "zod";
-import { actorForKey } from "@ziffr/core/access-keys";
+import { actorForSecret } from "@ziffr/core/access-keys";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
-import { Forbidden, type KeyActor, type Scope } from "@ziffr/core/actor";
+import { Forbidden, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
 export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "internal";
@@ -45,16 +45,33 @@ function bearer(req: Request): string | null {
  * that records values says how many in the `x-ziffr-submitted` header, which is logged and then removed. A null scope
  * is for answers any valid key may get (an unknown endpoint), so they are limited and logged too. */
 export function keyRoute<C>(scope: Scope | null, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>) {
+  return guarded<C>(async (actor, req, ctx) => {
+    // A Feed Key acts for no person, so it may use none of the endpoints written for people's keys (spec 0012).
+    if ("feed" in actor) return scope ? apiError("forbidden", "A Feed Key works only with /api/v1/feed.") : apiError("not_found", "Not found.");
+    if (scope && !actor.key.scopes.includes(scope)) return apiError("forbidden", `This key may not ${scope.replace(":", " ")}.`);
+    return run(actor, req, ctx, handler);
+  });
+}
+
+/** Wraps a Feed endpoint (spec 0012): it runs only for a Feed Key, within its Feed's limit (all its keys together),
+ * and is logged like every call. A person's key gets 403: a Feed's endpoints are not theirs. */
+export function feedRoute<C>(handler: (feed: FeedActor, req: Request, ctx: C) => Promise<Response>) {
+  return guarded<C>(async (actor, req, ctx) => {
+    if (!("feed" in actor)) return apiError("forbidden", "Only a Feed Key may use /api/v1/feed. Make one for a Feed on the Team page.");
+    return run(actor, req, ctx, handler);
+  });
+}
+
+/** The part every endpoint shares: a valid key, the limit, and the Access Log entry. */
+function guarded<C>(inner: (actor: KeyActor | FeedActor, req: Request, ctx: C) => Promise<Response>) {
   return async (req: Request, ctx: C): Promise<Response> => {
     const secret = bearer(req);
-    const actor = secret ? await actorForKey(secret) : null;
+    const actor = secret ? await actorForSecret(secret) : null;
     if (!actor) return apiError("unauthorized", "Send a valid Access Key as \"Authorization: Bearer <key>\".", { "www-authenticate": "Bearer" });
     const admitted = await admitCall(actor);
     const res = !admitted.ok
       ? apiError("rate_limited", `Too many calls with this key; try again in ${admitted.retryAfter} seconds.`, { "retry-after": String(admitted.retryAfter) })
-      : scope && !actor.key.scopes.includes(scope)
-        ? apiError("forbidden", `This key may not ${scope.replace(":", " ")}.`)
-        : await run(actor, req, ctx, handler);
+      : await inner(actor, req, ctx);
     const submitted = Number(res.headers.get("x-ziffr-submitted") ?? 0);
     res.headers.delete("x-ziffr-submitted");
     await recordCall(actor, { method: req.method, path: new URL(req.url).pathname, status: res.status, submitted });
@@ -62,7 +79,7 @@ export function keyRoute<C>(scope: Scope | null, handler: (actor: KeyActor, req:
   };
 }
 
-async function run<C>(actor: KeyActor, req: Request, ctx: C, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>): Promise<Response> {
+async function run<A, C>(actor: A, req: Request, ctx: C, handler: (actor: A, req: Request, ctx: C) => Promise<Response>): Promise<Response> {
   try {
     return await handler(actor, req, ctx);
   } catch (e) {
@@ -74,14 +91,15 @@ async function run<C>(actor: KeyActor, req: Request, ctx: C, handler: (actor: Ke
   }
 }
 
-/** Most a request body may be; a value with a long Breakdown fits many times over. */
+/** Most a request body may be; a value with a long Breakdown fits many times over. A Feed's batch may be larger. */
 const MAX_BODY = 64 * 1024;
 
-/** The JSON body of a request, at most 64 KB, for a zod schema; anything else is an invalid request. */
-export async function jsonBody(req: Request): Promise<unknown> {
+/** The JSON body of a request, at most `max` bytes (64 KB unless an endpoint says more), for a zod schema; anything
+ * else is an invalid request. */
+export async function jsonBody(req: Request, max = MAX_BODY): Promise<unknown> {
   if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) throw new ApiError("invalid_request", "Send JSON with \"Content-Type: application/json\".");
   const text = await req.text();
-  if (text.length > MAX_BODY) throw new ApiError("invalid_request", "The body is larger than 64 KB.");
+  if (text.length > max) throw new ApiError("invalid_request", `The body is larger than ${Math.round(max / 1024) >= 1024 ? `${max / 1024 / 1024} MB` : `${Math.round(max / 1024)} KB`}.`);
   try { return JSON.parse(text); } catch { throw new ApiError("invalid_request", "The body is not valid JSON."); }
 }
 

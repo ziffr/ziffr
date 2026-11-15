@@ -17,6 +17,13 @@ export type Actor = {
  * that take `Actor | KeyActor` accept it, and those check its scopes. */
 export type KeyActor = Omit<Actor, "key"> & { key: { id: string; scopes: string[] } };
 
+/** A Feed Key acting for its Feed (GLOSSARY: Feed, Feed Key; spec 0012). It is nobody: it has no person and no role,
+ * so no function written for people or their keys accepts it (they need `personId`). Only the Feed functions take it. */
+export type FeedActor = { feedId: string; workspaceId: string; feed: true; key: { id: string; scopes: string[] } };
+
+/** The only thing a Feed Key may do: record values for its Feed's Metrics. Never given to a person's key. */
+export const FEED_SCOPE = "feed:submit";
+
 /** What a Workspace Role may do in its workspace as a whole. */
 export type Capability = "create" | "share" | "manage-members" | "manage-themes" | "manage-groups" | "billing";
 

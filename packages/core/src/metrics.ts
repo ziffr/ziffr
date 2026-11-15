@@ -16,13 +16,14 @@ import { deckMetricIds } from "./visibility";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
+import { feedIdsAmong } from "./feed-people";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
 const RULES: SubmissionRule[] = ["reject", "overwrite", "add", "keep_both"];
 const POLARITIES: Polarity[] = ["higher", "lower", "target"];
 const AGGREGATIONS = ["sum", "average", "last", "none"];
-const SOURCES: SourceId[] = ["slack", "mail", "web_form"];
+const SOURCES: SourceId[] = ["slack", "mail", "web_form", "api"];
 
 /** A new Metric as described in the form, before it is checked. */
 export type MetricInput = {
@@ -136,12 +137,14 @@ export async function metricDraftFrom(actor: Actor, metricId: number): Promise<M
     db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null),
     m.workflow_id ? db().from("workflows").select("id, name").eq("id", m.workflow_id).eq("workspace_id", actor.workspaceId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  // A Feed is not copied as a Submitter: it is the workspace's, chosen per Metric by its owner (spec 0012).
+  const feeds = await feedIdsAmong((tokens ?? []).map((t) => t.submitter_id as string));
   return {
     original: m.name,
     name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, format: m.format, decimals: m.decimals, period: m.period,
     submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
     target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
-    sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))], duplicateOf: m.id,
+    sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))].filter((s) => !feeds.has(s)), duplicateOf: m.id,
   };
 }
 
@@ -291,7 +294,7 @@ async function upsertSeries(metricId: number, kind: "target" | "projection", row
   return ok.length;
 }
 
-/** The ways values of a Metric may arrive (its Sources), for its owner and its Editors: any of web form, email and Slack, at least
+/** The ways values of a Metric may arrive (its Sources), for its owner and its Editors: any of web form, email, Slack and the API (programs and Feeds), at least
  * one. A Derived Metric has none (it is computed). Values arriving another way are refused from then on. */
 export async function setMetricSources(actor: Actor, metricId: number, sources: unknown): Promise<SourceId[]> {
   const m = await editableMetric(actor, metricId, "how its values arrive");
