@@ -7,6 +7,7 @@ import { deliver } from "./deliveries";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { localTime } from "./workspace-clock";
 import { runWorkflows } from "./workflow-engine";
+import { takeDueSnapshots } from "./auto-snapshots";
 
 /** How a day's run went, counted per Metric: asked for its value, reminded, escalated. */
 export type RunCounts = { prompts: number; reminders: number; escalations: number };
@@ -45,6 +46,8 @@ export async function runClaimedDay(runId: number, workspaceId: string, day: str
       reminders: log.filter((l) => /: reminded$/.test(l)).length + (await remindDueTasks(workspaceId, day)),
       escalations: log.filter((l) => /: (asked the stand-in|told the owner)$/.test(l)).length,
     };
+    // Automatic Snapshots (spec 0013) of the day: a failing one never fails the Workflows' run.
+    try { await takeDueSnapshots(workspaceId, day); } catch { console.error("Automatic Snapshots failed for a workspace"); }
     await db().from("workflow_runs").update({ ...counts, state: "done", finished_at: new Date().toISOString() }).eq("id", runId);
     return counts;
   } catch (e) {

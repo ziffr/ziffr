@@ -219,7 +219,7 @@ A named look for everything that shows numbers: colours for text, surfaces, data
 _Avoid_: Master, skin, style, brand kit, palette
 
 **Snapshot**:
-What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month or quarter: its layout and the values of every Metric period complete by the period's last day. Its numbers never change; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month or quarter: its layout and the values of every Metric period complete by the period's last day. Its numbers never change; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month or quarter by itself, once every Metric on it is Locked for the period or a set number of days after it ends. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
 _Avoid_: Copy, freeze, archive, export data
 
 ### Sharing

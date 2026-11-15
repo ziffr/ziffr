@@ -58,6 +58,22 @@ export function inSnapshot(period: Period, start: string, end: string): boolean 
   return metricPeriodEnd(period, start) <= end;
 }
 
+/** The starts of a Metric's periods that lie wholly inside a Snapshot period: those that must be Locked before an
+ * automatic Snapshot is taken early. A week that starts before the Snapshot period or ends after it is not one. */
+export function metricPeriodsIn(period: Period, p: SnapshotPeriod): string[] {
+  const out: string[] = [];
+  // From the start of the Metric period the Snapshot period begins in.
+  const first = parseISO(p.start);
+  let d = period === "week" ? startOfISOWeek(first) : period === "month" ? startOfMonth(first) : first;
+  for (let guard = 0; guard < 400; guard++) {
+    const start = day(d);
+    if (start > p.end) break;
+    if (start >= p.start && metricPeriodEnd(period, start) <= p.end) out.push(start);
+    d = period === "month" ? addMonths(d, 1) : period === "week" ? addWeeks(d, 1) : addDays(d, 1);
+  }
+  return out;
+}
+
 /** A Metric's points kept by a Snapshot that ends on `end`. */
 export function cutPoints(points: readonly Point[], period: Period, end: string): Point[] {
   return points.filter((p) => inSnapshot(period, p.period, end));

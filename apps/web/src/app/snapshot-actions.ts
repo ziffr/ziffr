@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import * as snapshots from "@ziffr/core/snapshots";
+import * as autoSnapshots from "@ziffr/core/auto-snapshots";
 
 const done = () => revalidatePath("/", "layout");
 
@@ -13,6 +14,12 @@ export async function takeSnapshot(dashboardId: number, kind: string, start: str
   const id = await snapshots.takeSnapshot(await currentActor(), Number(dashboardId), { kind: String(kind), start: String(start) });
   done();
   redirect(`/dashboards/${Number(dashboardId)}/snapshots/${id}`);
+}
+
+/** Sets whether a dashboard takes a Snapshot of every week, month or quarter by itself; only its owner may. */
+export async function setAutoSnapshots(dashboardId: number, every: string | null, waitDays: number) {
+  await autoSnapshots.setAutoSnapshots(await currentActor(), Number(dashboardId), { every: every || null, waitDays: Number(waitDays) });
+  done();
 }
 
 /** Saves what is written about a Snapshot: its introduction and its widgets' words. */

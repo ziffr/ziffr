@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, inSnapshot, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, inSnapshot, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 
 describe("Snapshot periods", () => {
   it("names weeks, months and quarters and knows their last day", () => {
@@ -24,6 +24,16 @@ describe("Snapshot periods", () => {
     expect(completePeriods("quarter", "2026-11-15", 2).map((p) => p.label)).toEqual(["Q3 2026", "Q2 2026"]);
     expect(completePeriods("week", "2026-11-15", 1)[0].start).toBe("2026-11-02");
     expect(periodContaining("quarter", "2026-11-15").start).toBe("2026-10-01");
+  });
+
+  it("lists the Metric periods wholly inside a Snapshot period", () => {
+    const q3 = snapshotPeriod("quarter", "2026-07-01")!;
+    expect(metricPeriodsIn("month", q3)).toEqual(["2026-07-01", "2026-08-01", "2026-09-01"]);
+    // Weeks of Q3: the first starts on Mon 6 Jul (29 Jun starts in June), the last on 21 Sep (28 Sep ends in October).
+    const weeks = metricPeriodsIn("week", q3);
+    expect([weeks[0], weeks.at(-1), weeks.length]).toEqual(["2026-07-06", "2026-09-21", 12]);
+    expect(metricPeriodsIn("day", snapshotPeriod("month", "2026-02-01")!)).toHaveLength(28);
+    expect(metricPeriodsIn("month", snapshotPeriod("week", "2026-10-26")!)).toEqual([]);
   });
 
   it("keeps a Metric's periods that are complete by the Snapshot's last day", () => {

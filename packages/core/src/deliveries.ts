@@ -118,9 +118,10 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   return true;
 }
 
-/** A plain notice through someone's Connector, not about a question or task (e.g. an access request). */
-export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string; subject: string; text: string; link: string }) {
-  if (input.recipientId === input.senderId) return;
+/** A plain notice through someone's Connector, not about a question or task (e.g. an access request). A null sender
+ * is Ziffr itself, such as when an automatic Snapshot is ready to write up. */
+export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string }) {
+  if (input.senderId !== null && input.recipientId === input.senderId) return;
   const via = await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws);
   const { data: d } = await db().from("deliveries").insert({

@@ -195,7 +195,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
                   <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
                 </div>
-                <SnapshotMenu dashboardId={current.id} snapshots={snapshots} canTake={editable && canCreate} />
+                <SnapshotMenu dashboardId={current.id} snapshots={snapshots} canTake={editable && canCreate} auto={current.role === "owner" ? { every: current.snapshot_every ?? null, waitDays: current.snapshot_wait_days ?? 5 } : null} />
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
                 {editable && !reading && (
                   <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)} aria-pressed={editing}>

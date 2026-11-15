@@ -38,6 +38,8 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   }
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
+  // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
+  if (owned.dashboard.length) await db().from("dashboards").update({ snapshot_every: null }).eq("workspace_id", ws).in("id", owned.dashboard);
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }

@@ -148,7 +148,13 @@ export type ThreadMessage = {
 
 /** A dashboard and the Theme it uses (null: the team default). */
 /** A dashboard, or a story kept as one (kind "story", spec 0010): its widgets are then its Findings, read in order. */
-export type Dashboard = { id: number; name: string; owner_id: string; theme_id: number | null; intro: string };
+export type Dashboard = {
+  id: number; name: string; owner_id: string; theme_id: number | null; intro: string;
+  /** Takes a Snapshot of every week, month or quarter by itself (spec 0013); null for only by hand. */
+  snapshot_every?: "week" | "month" | "quarter" | null;
+  /** Days after a period ends that an automatic Snapshot waits for its Locks at most. */
+  snapshot_wait_days?: number;
+};
 
 /** The built-in Widget Templates. */
 export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
