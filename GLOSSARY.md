@@ -176,6 +176,10 @@ _Avoid_: Token, variable, merge field
 One metric drawn with a view and its settings, such as time window, target band or visible history. A saved widget can be reused; placing it on a dashboard places an independent copy.
 _Avoid_: Tile, card, panel, chart
 
+**Free Layout**:
+A widget that holds an artboard of its own, laid out like a slide: widgets from the Pool, text, arrows, shapes and drawings placed freely. On a dashboard it shows read-only with live numbers; its owner or Editors change it with *Edit layout…*. What is drawn stays where it was placed, so it says when its Metrics have newer periods than when it was drawn.
+_Avoid_: Canvas, drawing, board, freeform widget
+
 **Pool**:
 The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
 _Avoid_: Library, palette, sidebar
