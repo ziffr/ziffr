@@ -1,5 +1,5 @@
 "use client";
-// Edits a Story Widget's words and emphasis (GLOSSARY: Story Widget). Shared by dashboards and decks.
+// Edits a Finding's words and emphasis (GLOSSARY: Finding). Shared by dashboards, stories and decks.
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
         onSave(s);
       }}
     >
-      <div className="font-semibold">Story</div>
+      <div className="font-semibold">Finding</div>
       {composed && (
         <Labelled label="Kicker" hint="A short line above the headline, such as the topic and the period.">
           <Input value={s.kicker ?? ""} onChange={(e) => set("kicker", e.target.value)} />

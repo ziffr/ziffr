@@ -25,12 +25,12 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   correlation: { id: "correlation", label: "Correlation", blurb: "Do two metrics move together?", kind: "analysis", size: { w: 6, h: 7 }, settings: {} },
   matrix: { id: "matrix", label: "Correlation matrix", blurb: "Every pair at once.", kind: "analysis", size: { w: 6, h: 7 }, settings: {} },
   drivers: { id: "drivers", label: "Drivers", blurb: "Which metrics move most with this one.", kind: "analysis", size: { w: 6, h: 8 }, settings: {} },
-  ranked: { id: "ranked", label: "Story: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, size: { w: 6, h: 9 }, settings: {} },
-  share: { id: "share", label: "Story: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, size: { w: 6, h: 7 }, settings: {} },
-  pictogram: { id: "pictogram", label: "Story: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, size: { w: 4, h: 8 }, settings: {} },
-  story: { id: "story", label: "Story: composed", blurb: "A frame around one or more panels: period bars, bridges, small multiples.", kind: "story", size: { w: 8, h: 10 }, settings: { panels: [] } },
+  ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, size: { w: 6, h: 9 }, settings: {} },
+  share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, size: { w: 6, h: 7 }, settings: {} },
+  pictogram: { id: "pictogram", label: "Finding: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, size: { w: 4, h: 8 }, settings: {} },
+  story: { id: "story", label: "Finding: composed", blurb: "A frame around one or more panels: period bars, bridges, small multiples.", kind: "story", size: { w: 8, h: 10 }, settings: { panels: [] } },
   canvas: { id: "canvas", label: "Free layout", blurb: "Place widgets, text, arrows and shapes freely, like on a slide.", kind: "layout", size: { w: 8, h: 10 }, settings: {} },
-  "story-line": { id: "story-line", label: "Story: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
+  "story-line": { id: "story-line", label: "Finding: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
 };
 
 /** The template a Metric dropped on a dashboard gets. */

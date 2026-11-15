@@ -184,7 +184,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
-      {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit story…</K.Item>}
+      {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
       <K.Item

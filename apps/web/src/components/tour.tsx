@@ -7,11 +7,11 @@ import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lu
 const STEPS = [
   { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog, adjust it, and choose who reports it." },
   { href: "/sources", title: "Capture a value", body: "Answer Anna’s Slack Prompt with a number. Send a second one and watch the Submission Rule." },
-  { href: "/dashboards", title: "Build your dashboard", body: "Drag metrics from the Pool onto the canvas. Right-click a widget → Change visualization, then Save as Widget." },
-  { href: "/dashboards", title: "Ask without leaving", body: "Right-click the Cost widget → Ask a question to Ben. Switch “View as” to Ben, answer with a correction, switch back and accept." },
+  { href: "/", title: "Build your dashboard", body: "Drag metrics from the Pool onto the canvas. Right-click a widget → Change visualization, then Save as Widget." },
+  { href: "/", title: "Ask without leaving", body: "Right-click the Cost widget → Ask a question to Ben. Switch “View as” to Ben, answer with a correction, switch back and accept." },
   { href: "/analyze", title: "Analyze", body: "Run “What drives Cost?” or drop metrics yourself. Right-click a result → Add to dashboard." },
   { href: "/decks", title: "Make a deck", body: "Open the board update, drag Cost onto a slide, add a text and an arrow, then Export PowerPoint." },
-  { href: "/dashboards", title: "Share", body: "Share your dashboard with Anna, then “View as” Anna to see what she gets." },
+  { href: "/", title: "Share", body: "Share your dashboard with Anna, then “View as” Anna to see what she gets." },
 ];
 
 const KEY = "ziffr-tour-v3";

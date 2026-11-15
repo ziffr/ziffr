@@ -22,7 +22,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Analyze" sub="Drop metrics on the canvas, then pick an analysis or a ready-made recipe. Save any result as a widget." />
-      <AnalyzeScreen data={data} demo={demo}onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
+      <AnalyzeScreen data={data} demo={demo}onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer" && d.kind !== "story").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );
 }

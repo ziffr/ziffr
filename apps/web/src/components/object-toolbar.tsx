@@ -26,10 +26,12 @@ export type ObjectToolbarProps = {
   share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
+  /** This page's own entries at the top of the ⋯ menu, such as Make a story or Make a deck. */
+  menu?: { label: string; icon: React.ReactNode; onSelect: () => void }[];
 };
 
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
-export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme }: ObjectToolbarProps) {
+export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme, menu }: ObjectToolbarProps) {
   const [open, setOpen] = useState<Open>(null);
   const close = () => setOpen(null);
   // Opened from a menu item: wait until the menu has closed and returned focus.
@@ -55,6 +57,7 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
+          {menu?.map((m) => <DropdownMenuItem key={m.label} onClick={m.onSelect}>{m.icon} {m.label}</DropdownMenuItem>)}
           <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
           {viewLinks && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
           {theme && <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>}

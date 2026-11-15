@@ -27,8 +27,8 @@ export function orderedSlides(editor: Editor) {
   return slides(editor);
 }
 
-/** Adds a slide below the last one and returns its id. */
-export function addSlide(editor: Editor, layout: LayoutId, master?: SlideDesign | null): TLShapeId {
+/** Adds a slide below the last one and returns its id. `words` replace the placeholder title and subtitle. */
+export function addSlide(editor: Editor, layout: LayoutId, master?: SlideDesign | null, words: { title?: string; subtitle?: string } = {}): TLShapeId {
   // Type sizes come from the master: tldraw text sizes are xl = 44px and m = 24px at scale 1.
   const title = (master?.title_size ?? 44) / 44;
   const body = (master?.body_size ?? 24) / 24;
@@ -42,10 +42,10 @@ export function addSlide(editor: Editor, layout: LayoutId, master?: SlideDesign 
     const text = (t: string, px: number, py: number, w: number, size: "s" | "m" | "l" | "xl", scale = 1) =>
       editor.createShape({ type: "text", parentId: id, x: px, y: py, props: { richText: toRichText(t), size, w, autoSize: false, scale, color: "black", font: "sans" } });
     if (layout === "title") {
-      text("Title", MARGIN, 250, SLIDE_W - MARGIN * 2, "xl", title * 1.4);
-      text("Subtitle, date or presenter", MARGIN, 380, SLIDE_W - MARGIN * 2, "m", body);
+      text(words.title || "Title", MARGIN, 250, SLIDE_W - MARGIN * 2, "xl", title * 1.4);
+      text(words.subtitle || "Subtitle, date or presenter", MARGIN, 380, SLIDE_W - MARGIN * 2, "m", body);
     } else if (layout === "title-content" || layout === "two-up") {
-      text("Slide title", MARGIN, 56, SLIDE_W - MARGIN * 2 - 200, "xl", title);
+      text(words.title || "Slide title", MARGIN, 56, SLIDE_W - MARGIN * 2 - 200, "xl", title);
     } else if (layout === "section") {
       text("Section", MARGIN, 300, SLIDE_W - MARGIN * 2, "xl", title * 1.6);
     }
@@ -56,4 +56,20 @@ export function addSlide(editor: Editor, layout: LayoutId, master?: SlideDesign 
 /** Content areas for a layout, in frame coordinates, used to place a dropped widget sensibly. */
 export function contentAreas(): { x: number; y: number; w: number; h: number }[] {
   return [{ x: MARGIN, y: 150, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - 150 - MARGIN }];
+}
+
+/** What a deck made from a dashboard or a story starts with (spec 0010): its name, a story's introduction, and its
+ * widgets in reading order. */
+export type DeckSeed = { name: string; intro: string; kind: "dashboard" | "story"; widgets: { template: string; metric_ids: number[]; settings: unknown; title: string | null }[] };
+
+/** Lays out a new deck from a seed: a title slide, then one "title and content" slide per widget, the widget filling
+ * the content area. `titleOf` names a widget's slide (its own title, else its Metric). */
+export function seedSlides(editor: Editor, master: SlideDesign | null, seed: DeckSeed, widgetType: "ziffr-widget", titleOf: (w: DeckSeed["widgets"][number]) => string): TLShapeId {
+  const first = addSlide(editor, "title", master, { title: seed.name, subtitle: seed.intro || (seed.kind === "dashboard" ? "Made from the dashboard of the same name" : "") });
+  const [area] = contentAreas();
+  for (const w of seed.widgets) {
+    const slide = addSlide(editor, "title-content", master, { title: titleOf(w) });
+    editor.createShape({ type: widgetType, parentId: slide, x: area.x, y: area.y, props: { w: area.w, h: area.h, template: w.template, metricIds: w.metric_ids, settings: JSON.stringify(w.settings ?? {}), title: "" } });
+  }
+  return first;
 }

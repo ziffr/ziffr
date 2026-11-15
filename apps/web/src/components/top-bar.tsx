@@ -15,10 +15,12 @@ type NavItem = { href: string; label: string };
 
 /** Where most people spend their day. */
 const MAIN: NavItem[] = [
+  // Watch, explain, present (spec 0010), then the numbers themselves.
   { href: "/dashboards", label: "Dashboards" },
+  { href: "/stories", label: "Stories" },
+  { href: "/decks", label: "Decks" },
   { href: "/metrics", label: "Metrics" },
   { href: "/analyze", label: "Analyze" },
-  { href: "/decks", label: "Decks" },
 ];
 
 /** The person's own settings. */

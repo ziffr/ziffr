@@ -28,7 +28,7 @@ import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
-import { addSlide, LAYOUTS, MARGIN, orderedSlides, SLIDE_H, SLIDE_W, type LayoutId } from "@/decks/layouts";
+import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, orderedSlides, seedSlides } from "@/decks/layouts";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
@@ -41,7 +41,7 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null };
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null };
 
 /** The deck editor. The page sends the series of the deck's widgets; a widget placed since fetches its own
  * (ticket #125). */
@@ -50,7 +50,7 @@ export function DeckEditor(props: Props) {
   return <SeriesProvider ensure={ensure}><DeckCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DeckCanvas({ deck, data, saved, sharing }: Props) {
+function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
   const ensure = useEnsure();
   // The newest data, for an export that first fetched what it lacked.
   const latest = useRef(data);
@@ -82,7 +82,10 @@ function DeckCanvas({ deck, data, saved, sharing }: Props) {
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
       if (!orderedSlides(ed).length) {
-        const id = addSlide(ed, "title", masterRef.current);
+        // A new deck made from a dashboard or a story gets its slides laid out; any other starts with a title slide.
+        const id = seed
+          ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || data.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
+          : addSlide(ed, "title", masterRef.current);
         ed.zoomToBounds(ed.getShapePageBounds(id)!, { inset: 48 });
       } else {
         ed.zoomToBounds(ed.getShapePageBounds(orderedSlides(ed)[0].id)!, { inset: 48 });
@@ -391,7 +394,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
       >
         {templatesFor(hasBreakdown).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
       </select>
-      <p className="mt-1.5 text-xs text-muted-foreground">Line, bars and story ranked bars export as native, editable charts.</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">Line, bars and ranked-bar Findings export as native, editable charts.</p>
       {kind === "story" && metric && (
         <div className="-mx-3 mt-3 border-t border-border">
           <StoryEditor

@@ -133,7 +133,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
           {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
           {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
-          <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
+          <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer" && d.kind !== "story")} />
           {/* Only the owner deletes a Metric; the demo's Metrics stay for every visitor. */}
           {isOwner && !demo && <DeleteMetric metricId={metric.id} name={metric.name} />}
         </ObjectToolbar>

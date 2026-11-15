@@ -145,7 +145,8 @@ export type ThreadMessage = {
 };
 
 /** A dashboard and the Theme it uses (null: the team default). */
-export type Dashboard = { id: number; name: string; owner_id: string; theme_id: number | null };
+/** A dashboard, or a story kept as one (kind "story", spec 0010): its widgets are then its Findings, read in order. */
+export type Dashboard = { id: number; name: string; owner_id: string; theme_id: number | null; kind: "dashboard" | "story"; intro: string };
 
 /** The built-in Widget Templates. */
 export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
@@ -195,7 +196,7 @@ export type WidgetSettings = {
   showTarget?: boolean;
   showForecast?: boolean;
   rows?: number;
-  /** Story Widgets (GLOSSARY: Story Widget). Empty fields fall back to text drawn from the data. */
+  /** Findings (GLOSSARY: Finding). Empty fields fall back to text drawn from the data. */
   kicker?: string;
   footnote?: string;
   panels?: Panel[];

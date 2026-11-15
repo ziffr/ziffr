@@ -237,7 +237,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
     );
   } else if (widget.template === "ranked") {
-    // Story: ranked bars as a native bar chart, its words as editable text.
+    // A ranked-bars Finding as a native bar chart, its words as editable text.
     const d = storyDefaults(widget, data, m);
     const b = storyBreakdown(widget, data, m);
     const s = fillSettings(widget, data);

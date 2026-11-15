@@ -1,5 +1,5 @@
 "use client";
-// Story Widgets (GLOSSARY: Story Widget): an editorial graphic, one finding per widget.
+// Findings (GLOSSARY: Finding): an editorial graphic, one finding per widget.
 // Ranked bars, part-to-whole and pictogram read one period's Breakdown; the annotated line reads the series.
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
@@ -242,7 +242,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
   return <div ref={box} className="h-full w-full" role="img" aria-label={`${m.name} over time${callouts.length ? `, ${callouts.map((c) => c.text).join("; ")}` : ""}`} />;
 }
 
-/** A composed story: kicker, headline, subline, the panels, footnotes and source (GLOSSARY: Story Widget, Panel). */
+/** A composed story: kicker, headline, subline, the panels, footnotes and source (GLOSSARY: Finding, Panel). */
 function ComposedStory({ widget, data, headline, subline, source }: { widget: W; data: CanvasData; headline: string; subline: string; source: string }) {
   const s = widget.settings;
   const panels = s.panels ?? [];

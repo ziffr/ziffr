@@ -128,12 +128,12 @@ _Avoid_: Freeze, finalize, close
 A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table.
 _Avoid_: Chart type, visualization plugin
 
-**Story Widget**:
-A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels.
-_Avoid_: Infographic, chart card, editorial chart
+**Finding**:
+A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels. A story is made of Findings; they also sit on dashboards and slides.
+_Avoid_: Story widget, infographic, chart card, editorial chart
 
 **Panel**:
-One chart inside a story, such as ranked bars, period bars, a bridge or an annotated line, showing one measure of one or more metrics. Several metrics in one panel are drawn side by side as small multiples.
+One chart inside a Finding, such as ranked bars, period bars, a bridge or an annotated line, showing one measure of one or more metrics. Several metrics in one panel are drawn side by side as small multiples.
 _Avoid_: Chart, subplot, facet
 
 **Measure**:
@@ -169,8 +169,12 @@ The side panel that holds everything a user can drag onto a canvas: the metrics 
 _Avoid_: Library, palette, sidebar
 
 **Dashboard**:
-A canvas of widgets that a user arranges and can share.
+A canvas of widgets that a user arranges and can share, to watch numbers as they come in. Ziffr opens on a person's Home dashboard, which they choose.
 _Avoid_: Board, report, page
+
+**Story**:
+A title, an introduction and Findings in order, read top to bottom, to explain what happened and why. Shared, versioned and shown through View Links like a dashboard; the third of dashboard (watch), story (explain) and deck (present).
+_Avoid_: Report, narrative, board story
 
 **Analysis Canvas**:
 A workspace where a user drops one or more metrics and runs analyses on them.

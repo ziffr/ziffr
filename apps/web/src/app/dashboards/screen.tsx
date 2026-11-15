@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { Eye, LayoutDashboard, MonitorPlay, MoreHorizontal, Pencil, Plus, Users } from "lucide-react";
+import { BookOpenText, Check, Eye, Home, LayoutDashboard, MonitorPlay, MoreHorizontal, Pencil, Presentation, Users } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
@@ -23,6 +23,10 @@ import { ThemeScope } from "@/components/theme-scope";
 import { setDashboardTheme } from "@/app/theme-actions";
 import { themeFor } from "@ziffr/core/themes";
 import { FirstRun } from "@/components/first-run";
+import { DashboardSwitcher } from "@/components/dashboard-switcher";
+import { setHome } from "@/app/home-actions";
+import { makeDeck, makeStory } from "@/app/convert-actions";
+import { toast } from "sonner";
 
 type Props = {
   data: CanvasData;
@@ -34,6 +38,10 @@ type Props = {
   reveals?: Record<string, string[]>;
   /** A dashboard the viewer opened by link but may not see. */
   closed?: { id: number; owner: string } | null;
+  /** The dashboard Home opens for this person (their choice, or the default), for the switcher's mark. */
+  homeId: number | null;
+  /** May start new dashboards (not a Guest). */
+  canCreate: boolean;
   /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
   firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
 };
@@ -59,11 +67,16 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
   const editable = current?.role === "owner" || current?.role === "editor";
+  // A dashboard opens to look at; its owner and Editors switch into editing on purpose. An empty one they may change
+  // opens in edit mode, since there is nothing to look at yet. The core checks every change either way.
+  const [editing, setEditing] = useState(editable && widgets.length === 0);
+  useEffect(() => setEditing(editable && widgets.length === 0), [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changing = editable && editing;
   const toLayout = (ws: Widget[]): Layout => ws.map((w) => ({ i: String(w.id), x: w.x, y: w.y, w: w.w, h: w.h, minW: 2, minH: 3 }));
   const [layout, setLayout] = useState<Layout>(toLayout(widgets));
   useEffect(() => setLayout(toLayout(widgets)), [widgets]);
@@ -83,7 +96,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const persist = (l: Layout) => {
     const items = l.filter((it) => it.i !== "__dropping-elem__").map(({ i, x, y, w, h }) => ({ i, x, y, w, h }));
     setLayout(items);
-    if (current && editable) start(() => saveLayout(current.id, items));
+    if (current && changing) start(() => saveLayout(current.id, items));
   };
   const slotFill = useSlotFill(data);
   /** Templates ask for their slots first, then land like any other drop. */
@@ -100,21 +113,14 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className={cn("grid gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
-      <div className="order-2 lg:order-1">
-        <Pool data={data} saved={saved} onAdd={editable ? add : undefined} hint={editable ? "Drag onto the dashboard, or click +." : current ? "This dashboard is view-only for you." : "What you can place on a dashboard once you have one."} />
-      </div>
-      <div className="order-1 min-w-0 lg:order-2">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {dashboards.map((d) => (
-            <Link key={d.id} href={`/dashboards/${d.id}`} aria-current={d.id === current?.id ? "page" : undefined} className={cn("flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] px-3 text-sm transition-colors", d.id === current?.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              {d.name}
-              {d.role !== "owner" && <span className="text-xs text-muted-foreground">from {people[d.owner_id]?.name.split(" ")[0]}</span>}
-            </Link>
-          ))}
-          <button onClick={newDashboard} className="flex min-h-9 items-center gap-1 rounded-[var(--radius-stock)] px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Plus aria-hidden className="size-3.5" /> New dashboard</button>
+      {changing && (
+        <div className="order-2 lg:order-1">
+          <Pool data={data} saved={saved} onAdd={add} hint="Drag onto the dashboard, or click +." />
         </div>
+      )}
+      <div className="order-1 min-w-0 lg:order-2">
 
         {closed ? (
           <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
@@ -140,7 +146,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
           <>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0">
-                <h1 className="text-[length:var(--text-2xl)] leading-tight">{current.name}</h1>
+                <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeId} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
                   <span className="flex items-center gap-1.5"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
@@ -153,14 +159,33 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals } : null}
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
+                menu={canCreate ? [
+                  { label: "Make a story", icon: <BookOpenText aria-hidden />, onSelect: () => start(() => makeStory(current.id)) },
+                  { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => start(() => makeDeck(current.id)) },
+                ] : undefined}
               >
+                <button
+                  type="button"
+                  aria-pressed={current.id === homeId}
+                  title={current.id === homeId ? "Ziffr opens on this dashboard" : "Open Ziffr on this dashboard"}
+                  onClick={() => start(async () => { await setHome(current.id); toast.success(`${current.name} is your home`); router.refresh(); })}
+                  disabled={current.id === homeId}
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
+                </button>
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
+                {editable && (
+                  <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)} aria-pressed={editing}>
+                    {editing ? <><Check aria-hidden /> Done</> : <><Pencil aria-hidden /> Edit</>}
+                  </Button>
+                )}
               </ObjectToolbar>
             </div>
             <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                  {editable ? "Drag metrics or saved widgets from the Pool and drop them here." : "This dashboard is empty."}
+                  {changing ? "Drag metrics or saved widgets from the Pool and drop them here." : editable ? "This dashboard is empty. Press Edit to add widgets." : "This dashboard is empty."}
                 </div>
               )}
               {mounted && (
@@ -168,10 +193,10 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   layout={narrow ? stacked : layout}
                   width={width}
                   gridConfig={{ cols: narrow ? 1 : 12, rowHeight: 36, margin: [16, 16], containerPadding: [16, 16] }}
-                  dragConfig={{ enabled: editable && !narrow, handle: ".widget-drag" }}
-                  resizeConfig={{ enabled: editable && !narrow }}
+                  dragConfig={{ enabled: changing && !narrow, handle: ".widget-drag" }}
+                  resizeConfig={{ enabled: changing && !narrow }}
                   dropConfig={{
-                    enabled: editable && !narrow,
+                    enabled: changing && !narrow,
                     defaultItem: TEMPLATES[DEFAULT_TEMPLATE].size,
                     onDragOver: () => sizeOf(getDrag(), saved, data.templates),
                   }}
@@ -188,7 +213,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   {widgets.map((w) => (
                     <div key={String(w.id)}>
-                      <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={editable} dragHandle={editable} saved={saved} />
+                      <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={changing} dragHandle={changing} saved={saved} />
                     </div>
                   ))}
                 </ReactGridLayout>
