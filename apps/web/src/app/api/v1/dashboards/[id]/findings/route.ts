@@ -1,5 +1,6 @@
-// POST /api/v1/stories/{id}/findings (spec 0014): adds a Finding about one Metric at the end of a story, with its
-// words (scope dashboards:write). What a program writes is a draft for the story's owner to finish.
+// POST /api/v1/dashboards/{id}/findings (spec 0014; spec 0013): adds a Finding about one Metric below everything on a
+// dashboard, full width, with its words (scope dashboards:write). What a program writes is a draft for the dashboard's
+// owner to finish.
 import { addFindingWithKey } from "@ziffr/core/api-dashboards";
 import { jsonBody, keyRoute } from "@/lib/api";
 import { build } from "@/lib/api-build";

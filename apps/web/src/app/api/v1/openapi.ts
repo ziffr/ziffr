@@ -87,12 +87,12 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     method: "get", path: "/dashboards", scope: "dashboards:read", query: S.dashboardsQuery, ok: { status: 200, name: "DashboardList", schema: S.DashboardList },
-    summary: "List dashboards and stories", description: "The dashboards and stories the key's creator sees, by id, with their role on each and the link to open it.",
+    summary: "List dashboards", description: "The dashboards the key's creator sees, by id, with their role on each and the link to open it.",
   },
   {
     method: "post", path: "/dashboards", scope: "dashboards:write", body: S.CreateDashboard, idempotent: true, ok: { status: 201, name: "Dashboard", schema: S.ApiDashboard },
-    summary: "Create a dashboard or story",
-    description: "Creates an empty dashboard or story owned by the key's creator. The Audit Log names the key. Each key may create 50 dashboards and stories in any 24 hours.",
+    summary: "Create a dashboard",
+    description: "Creates an empty dashboard owned by the key's creator, with an introduction if given. The Audit Log names the key. Each key may create 50 dashboards in any 24 hours.",
     errors: [
       { status: 403, description: "Or the key's creator's role may not create (Guests)." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
@@ -110,14 +110,18 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     method: "get", path: "/dashboards/{id}", scope: "dashboards:read", ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
-    summary: "Describe a dashboard or story",
-    description: "One dashboard or story with its widgets (a story's Findings, with their words) in reading order. Metrics are named by slug; values are read per Metric.",
+    summary: "Describe a dashboard",
+    description: "One dashboard with its introduction and its widgets (Findings with their words) in reading order. Metrics are named by slug; values are read per Metric.",
+  },
+  {
+    method: "patch", path: "/dashboards/{id}", scope: "dashboards:write", body: S.UpdateDashboard, ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
+    summary: "Change a dashboard's name or introduction", description: "Changes the words above a dashboard: its name, and the introduction shown above it and first in its Read view.",
   },
   {
     method: "post", path: "/dashboards/{id}/widgets", scope: "dashboards:write", body: S.AddWidget, ok: { status: 201, name: "Widget", schema: S.ApiWidget },
     summary: "Add a widget",
     description: "Adds a widget to a dashboard the key's creator may change, in the first free place in reading order: a built-in view with Metrics, or a team Widget Template with its Slots filled. The dashboard's history names the key. Each key may make 500 changes in any 24 hours.",
-    errors: [{ status: 422, description: "A view a key may not place, a story (add Findings instead), or a Metric the key's creator does not see." }],
+    errors: [{ status: 422, description: "A view a key may not place (add a Finding with POST /dashboards/{id}/findings), or a Metric the key's creator does not see." }],
   },
   {
     method: "patch", path: "/dashboards/{id}/widgets/{widgetId}", scope: "dashboards:write", body: S.UpdateWidget, ok: { status: 200, name: "Widget", schema: S.ApiWidget },
@@ -127,21 +131,18 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     method: "delete", path: "/dashboards/{id}/widgets/{widgetId}", scope: "dashboards:write", ok: { status: 200, name: "RemovedWidget", schema: S.RemovedWidget },
-    summary: "Remove a widget or Finding", description: "Removes a widget from a dashboard, or a Finding from a story. The history keeps it, so it can be restored.",
+    summary: "Remove a widget or Finding", description: "Removes a widget or a Finding from a dashboard. The history keeps it, so it can be restored.",
   },
   {
-    method: "patch", path: "/stories/{id}", scope: "dashboards:write", body: S.UpdateStory, ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
-    summary: "Change a story's title or introduction", description: "Changes the words around a story's Findings.",
-  },
-  {
-    method: "post", path: "/stories/{id}/findings", scope: "dashboards:write", body: S.AddFinding, ok: { status: 201, name: "Widget", schema: S.ApiWidget },
+    method: "post", path: "/dashboards/{id}/findings", scope: "dashboards:write", body: S.AddFinding, ok: { status: 201, name: "Widget", schema: S.ApiWidget },
     summary: "Add a Finding",
-    description: "Adds a Finding about one Metric at the end of a story, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.",
+    description: "Adds a Finding about one Metric below everything on a dashboard, full width, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.",
     errors: [{ status: 422, description: "A Metric the key's creator does not see." }],
   },
   {
-    method: "patch", path: "/stories/{id}/findings/{findingId}", scope: "dashboards:write", body: S.UpdateFinding, ok: { status: 200, name: "Widget", schema: S.ApiWidget },
+    method: "patch", path: "/dashboards/{id}/findings/{findingId}", scope: "dashboards:write", body: S.UpdateFinding, ok: { status: 200, name: "Widget", schema: S.ApiWidget },
     summary: "Change a Finding's words", description: "Changes a Finding's kicker, headline, subline, footnote or source. An empty text falls back to words drawn from the data.",
+    errors: [{ status: 422, description: "A widget that is not a Finding: only a Finding has words." }],
   },
   {
     method: "get", path: "/templates", scope: "dashboards:read", query: S.templatesQuery, ok: { status: 200, name: "TemplateList", schema: S.TemplateList },
@@ -153,7 +154,7 @@ export const ENDPOINTS: Endpoint[] = [
 /** Path parameters by name. */
 const PATH_PARAMS: Record<string, { description: string; schema: z.ZodType }> = {
   slug: { description: "The Metric's slug.", schema: S.slugParam },
-  id: { description: "The dashboard's or story's id.", schema: S.idParam },
+  id: { description: "The dashboard's id.", schema: S.idParam },
   widgetId: { description: "The widget's or Finding's id.", schema: S.idParam },
   findingId: { description: "The Finding's id.", schema: S.idParam },
 };
@@ -212,7 +213,7 @@ export function openApiDocument() {
     openapi: "3.1.0",
     info: {
       title: "Ziffr API", version: "1",
-      description: "Read the Metrics an Access Key's creator sees and submit values, and build dashboards and stories as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
+      description: "Read the Metrics an Access Key's creator sees and submit values, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
       license: { name: "BUSL-1.1", identifier: "BUSL-1.1" },
     },
     servers: [{ url: "/api/v1" }],

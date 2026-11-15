@@ -172,7 +172,7 @@ export const FeedItemResult = z.object({
 /** POST /api/v1/feed/observations answers this. */
 export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).describe("One per item, in the order sent.") });
 
-// Dashboards, stories and templates (spec 0014). Metrics are named by slug, dashboards, widgets and team templates by
+// Dashboards and templates (spec 0014; stories folded into dashboards by spec 0013). Metrics are named by slug, dashboards, widgets and team templates by
 // number; nothing a program sends is used before it matches these.
 
 /** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
@@ -197,36 +197,35 @@ export const FindingWords = z.object({
   source: z.string().max(200).optional(),
 });
 
-/** A dashboard or story in a list. */
+/** A dashboard in a list. */
 export const ApiDashboardSummary = z.object({
   id: z.number().int().describe("Stable id."),
-  kind: z.enum(["dashboard", "story"]).describe("A dashboard watches numbers; a story explains them."),
   name: z.string(),
   role: z.enum(["owner", "editor", "viewer"]).describe("The key's creator's role on it; only an owner or editor can change it."),
   url: z.string().describe("Where to open it in Ziffr."),
 });
 
-/** One widget, or one Finding of a story. */
+/** One widget; a Finding has its words too. */
 export const ApiWidget = z.object({
   id: z.number().int(),
   view: z.string().describe("Its built-in view."),
   title: z.string().nullable(),
   metrics: z.array(z.string()).describe("Slugs of the Metrics it draws."),
   x: z.number().int(), y: z.number().int(), w: z.number().int(), h: z.number().int(),
-  words: FindingWords.optional().describe("A story's Finding only: its words."),
+  words: FindingWords.optional().describe("A Finding only: its words."),
 });
 
-/** A dashboard or story with its widgets in reading order. */
+/** A dashboard with its introduction and its widgets in reading order. */
 export const ApiDashboard = ApiDashboardSummary.extend({
-  intro: z.string().nullable().describe("A story's introduction; null for a dashboard."),
+  intro: z.string().describe("Its introduction, shown above it and first in its Read view; empty when it has none."),
   widgets: z.array(ApiWidget),
 });
 
 /** GET /dashboards answers this. */
 export const DashboardList = pageOf(ApiDashboardSummary);
 
-/** Paging of GET /dashboards, and which kind. */
-export const dashboardsQuery = pageQuery.extend({ kind: z.enum(["dashboard", "story"]).optional() });
+/** Paging of GET /dashboards. */
+export const dashboardsQuery = pageQuery;
 
 /** A dashboard's, widget's or Finding's id in the path. */
 export const idParam = z.coerce.number().int().positive().max(2 ** 31 - 1);
@@ -234,7 +233,7 @@ export const idParam = z.coerce.number().int().positive().max(2 ** 31 - 1);
 /** POST /dashboards takes this. */
 export const CreateDashboard = z.object({
   name: z.string().trim().min(1).max(120),
-  kind: z.enum(["dashboard", "story"]).optional().describe("Default dashboard."),
+  intro: z.string().max(4000).optional().describe("An introduction: what it tells, in a sentence or two."),
 }).strict();
 
 /** POST /dashboards/from-template takes this. */
@@ -262,16 +261,16 @@ export const UpdateWidget = z.object({
   settings: KeySettings.optional(),
 }).strict();
 
-/** PATCH /stories/{id} takes this. */
-export const UpdateStory = z.object({
+/** PATCH /dashboards/{id} takes this. */
+export const UpdateDashboard = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   intro: z.string().max(4000).optional(),
 }).strict();
 
-/** POST /stories/{id}/findings takes this. */
+/** POST /dashboards/{id}/findings takes this. */
 export const AddFinding = FindingWords.extend({ metric: z.string().min(1).max(100).describe("The slug of the Metric it is about.") }).strict();
 
-/** PATCH /stories/{id}/findings/{findingId} takes this. */
+/** PATCH /dashboards/{id}/findings/{findingId} takes this. */
 export const UpdateFinding = FindingWords.strict();
 
 /** What DELETE /dashboards/{id}/widgets/{widgetId} answers. */

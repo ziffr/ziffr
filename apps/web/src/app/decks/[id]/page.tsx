@@ -26,7 +26,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
     );
   }
   if (role === "viewer") redirect(`/decks/${id}/present`);
-  // A new, empty deck made from a dashboard or story (spec 0010) gets that one's widgets as its first slides; the
+  // A new, empty deck made from a dashboard (spec 0010) gets that one's widgets as its first slides; the
   // core checks the person may open it. Any other deck, or one that has slides, starts as it is.
   const empty = !Object.values((deck.document as { store?: Record<string, { type?: string }> } | null)?.store ?? {}).some((r) => r.type === "frame");
   const seed = empty && Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;

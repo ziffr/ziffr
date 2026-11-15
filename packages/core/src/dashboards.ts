@@ -99,6 +99,27 @@ export async function createDashboard(actor: Actor, name: string): Promise<numbe
   return data.id;
 }
 
+/** The longest introduction a dashboard keeps. */
+export const MAX_INTRO = 4000;
+
+/** Changes a dashboard's name and introduction (spec 0013): its owner and Editors only, each change a Version. */
+export async function saveDashboardText(actor: Actor, dashboardId: number, text: { name?: unknown; intro?: unknown }) {
+  if (!Number.isInteger(dashboardId)) throw new Forbidden();
+  await assertCanEditDashboard(actor, dashboardId);
+  const update: Record<string, string> = {};
+  if (text?.name !== undefined) {
+    const name = String(text.name ?? "").trim().slice(0, 120);
+    if (!name) throw new Error("Give the dashboard a name.");
+    update.name = name;
+  }
+  if (text?.intro !== undefined) update.intro = String(text.intro ?? "").slice(0, MAX_INTRO);
+  if (!Object.keys(update).length) return;
+  await ensureBaseline("dashboard", dashboardId, actor.personId);
+  const { error } = await db().from("dashboards").update(update).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);
+  if (error) throw new Error("The dashboard could not be saved.");
+  await recordVersion("dashboard", dashboardId, actor.personId);
+}
+
 /** Drops something onto a dashboard: always an independent copy (GLOSSARY: Widget). Without a position it lands in
  * the first free place in reading order. Returns the new widget's id. */
 export async function placeWidget(actor: Actor, dashboardId: number, source: DropSource, pos?: { x: number; y: number }): Promise<number> {

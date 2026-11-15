@@ -1,5 +1,5 @@
-// Dashboards and stories built by programs (spec 0014; GLOSSARY: Dashboard, Story, Finding, Widget Template, Dashboard
-// Template, Access Key). A key with dashboards:read reads what its creator sees; one with dashboards:write builds as its
+// Dashboards built by programs (spec 0014, with stories folded into dashboards by spec 0013; GLOSSARY: Dashboard,
+// Finding, Widget Template, Dashboard Template, Access Key). A key with dashboards:read reads what its creator sees; one with dashboards:write builds as its
 // creator, through the very functions the web app uses, so it may change only what the creator may change, and only
 // while the creator's role may create. A key never shares, deletes, publishes a View Link, picks a theme, moves widgets
 // to exact places, edits a Free Layout or saves a template: who sees what stays a decision people make. Every change
@@ -8,9 +8,8 @@ import { assertCan, assertScope, Forbidden, type Actor, type KeyActor } from "./
 import { visibleDashboards, visibleMetricIds } from "./access";
 import { audit } from "./audit-log";
 import { createDashboardFromTemplate, listDashboardTemplates } from "./dashboard-templates";
-import { createDashboard, placeWidget, removeWidget, updateWidget } from "./dashboards";
+import { createDashboard, MAX_INTRO, placeWidget, removeWidget, saveDashboardText, updateWidget } from "./dashboards";
 import { db } from "./db";
-import { addFinding, createStory, MAX_INTRO, saveStoryText } from "./stories";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { withVersionNote } from "./versions";
 import { widgetMetricIds } from "./widget-metrics";
@@ -18,7 +17,7 @@ import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import type { Metric, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
-/** Dashboards and stories one key may create in any 24 hours. */
+/** Dashboards one key may create in any 24 hours. */
 export const DASHBOARDS_PER_DAY = 50;
 /** Widget and Finding changes one key may make in any 24 hours. */
 export const CHANGES_PER_DAY = 500;
@@ -30,7 +29,7 @@ export class Unusable extends Error {
 }
 
 /** Built-in views a key may place: not a Free Layout (a drawing), not a composed Finding (its panels need the
- * editor); a story's Findings are added with addFindingWithKey instead. */
+ * editor); Findings are added with addFindingWithKey instead. */
 export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => TEMPLATES[id].kind !== "layout" && id !== "story");
 
 /** The few settings a key may set; anything else a widget can hold stays with the editor. */
@@ -42,15 +41,15 @@ export type FindingWords = { kicker?: string; headline?: string; subline?: strin
 
 const WORD_LIMITS: Record<keyof FindingWords, number> = { kicker: 200, headline: 200, subline: 200, footnote: 500, source: 200 };
 
-/** A dashboard or story as a program sees it in a list. */
-export type ApiDashboardSummary = { id: number; kind: "dashboard" | "story"; name: string; role: "owner" | "editor" | "viewer"; path: string };
+/** A dashboard as a program sees it in a list. */
+export type ApiDashboardSummary = { id: number; name: string; role: "owner" | "editor" | "viewer"; path: string };
 
 /** One widget as a program sees it: what it shows, never its settings (which can hold a Free Layout's drawing and
  * are not needed to decide what to change) and never values (read those per Metric). */
 export type ApiWidget = { id: number; view: TemplateId; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords };
 
-/** A dashboard or story with its widgets, in reading order. */
-export type ApiDashboard = ApiDashboardSummary & { intro: string | null; widgets: ApiWidget[] };
+/** A dashboard with its introduction and its widgets, in reading order. */
+export type ApiDashboard = ApiDashboardSummary & { intro: string; widgets: ApiWidget[] };
 
 /** A template as a program sees it: a built-in view, a team Widget Template or a Dashboard Template, with its Slots
  * and the Metrics suggested for each (only those the creator sees). */
@@ -58,7 +57,10 @@ export type ApiTemplate = { id: string | number; kind: "view" | "widget" | "dash
 
 const creatorOf = (actor: KeyActor): Actor => ({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
 
-const pathOf = (d: { id: number; kind: string }) => `/${d.kind === "story" ? "stories" : "dashboards"}/${d.id}`;
+const pathOf = (d: { id: number }) => `/dashboards/${d.id}`;
+
+/** Whether a widget is a Finding, which carries words a key may write. */
+const isFinding = (w: Pick<Widget, "template">) => TEMPLATES[w.template]?.kind === "story";
 
 /** Runs a change as the key's creator, with every Version it records naming the key. */
 async function asKey<T>(actor: KeyActor, fn: (creator: Actor) => Promise<T>): Promise<T> {
@@ -90,7 +92,7 @@ function idsFor(bySlug: Map<string, Metric>, slugs: unknown): number[] {
   });
 }
 
-/** The dashboard or story with the creator's role on it, or Forbidden (404) when they do not see it. */
+/** The dashboard with the creator's role on it, or Forbidden (404) when they do not see it. */
 async function visible(actor: Pick<Actor, "workspaceId" | "personId">, id: number) {
   if (!Number.isInteger(id)) throw new Forbidden();
   const d = (await visibleDashboards(actor.workspaceId, actor.personId)).find((x) => x.id === id);
@@ -106,8 +108,8 @@ async function widgetOn(actor: Pick<Actor, "workspaceId">, dashboardId: number, 
   return data as Widget;
 }
 
-const summary = (d: { id: number; kind: "dashboard" | "story"; name: string; role: string }): ApiDashboardSummary => ({
-  id: d.id, kind: d.kind === "story" ? "story" : "dashboard", name: d.name, role: d.role === "owner" || d.role === "editor" ? d.role : "viewer", path: pathOf(d),
+const summary = (d: { id: number; name: string; role: string }): ApiDashboardSummary => ({
+  id: d.id, name: d.name, role: d.role === "owner" || d.role === "editor" ? d.role : "viewer", path: pathOf(d),
 });
 
 function wordsOf(s: WidgetSettings): FindingWords {
@@ -136,19 +138,18 @@ function cleanWords(words: FindingWords): WidgetSettings {
   return out as WidgetSettings;
 }
 
-/** The dashboards and stories the key's creator sees, by id, a page at a time (scope dashboards:read). */
-export async function listDashboardsWithKey(actor: KeyActor, opts: { kind?: "dashboard" | "story"; after?: number | null; limit?: number } = {}) {
+/** The dashboards the key's creator sees, by id, a page at a time (scope dashboards:read). */
+export async function listDashboardsWithKey(actor: KeyActor, opts: { after?: number | null; limit?: number } = {}) {
   assertScope(actor, "dashboards:read");
   const limit = Math.min(Math.max(Math.trunc(opts.limit ?? 50) || 50, 1), 100);
   const all = (await visibleDashboards(actor.workspaceId, actor.personId))
-    .filter((d) => !opts.kind || (d.kind ?? "dashboard") === opts.kind)
     .filter((d) => opts.after == null || d.id > opts.after)
     .sort((a, b) => a.id - b.id);
   const items = all.slice(0, limit).map(summary);
   return { items, next: all.length > limit ? items[items.length - 1].id : null };
 }
 
-/** One dashboard or story with its widgets in reading order (scope dashboards:read). A widget's Metrics are named by
+/** One dashboard with its introduction and its widgets in reading order (scope dashboards:read). A widget's Metrics are named by
  * slug, and only those the creator sees; a dashboard shared with them makes its Metrics visible to them anyway. */
 export async function getDashboardWithKey(actor: KeyActor, id: number): Promise<ApiDashboard> {
   assertScope(actor, "dashboards:read");
@@ -166,16 +167,18 @@ async function asSeen(actor: Pick<Actor, "workspaceId" | "personId">, id: number
   const widgets = ((data ?? []) as Widget[]).map((w): ApiWidget => ({
     id: w.id, view: w.template, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
     metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => byId.get(m)?.slug).filter((s): s is string => Boolean(s)),
-    ...(d.kind === "story" ? { words: wordsOf(w.settings ?? {}) } : {}),
+    ...(isFinding(w) ? { words: wordsOf(w.settings ?? {}) } : {}),
   }));
-  return { ...summary(d), intro: d.kind === "story" ? d.intro ?? "" : null, widgets };
+  return { ...summary(d), intro: d.intro ?? "", widgets };
 }
 
-/** Creates an empty dashboard or story owned by the key's creator (scope dashboards:write). The Audit Log names the key. */
-export async function createDashboardWithKey(actor: KeyActor, input: { name: string; kind?: "dashboard" | "story" }): Promise<ApiDashboard> {
+/** Creates an empty dashboard owned by the key's creator, with an introduction if given (scope dashboards:write).
+ * The Audit Log names the key. */
+export async function createDashboardWithKey(actor: KeyActor, input: { name: string; intro?: string }): Promise<ApiDashboard> {
   const id = await asKey(actor, async (creator) => {
-    const made = input.kind === "story" ? await createStory(creator, input.name) : await createDashboard(creator, input.name);
-    await audit(creator, { kind: "dashboard.created", object: { type: "dashboard", id: made, name: String(input.name ?? "").slice(0, 120) }, accessKeyId: Number(actor.key.id), details: { via: "api", kind: input.kind === "story" ? "story" : "dashboard" } });
+    const made = await createDashboard(creator, input.name);
+    if (input.intro) await saveDashboardText(creator, made, { intro: String(input.intro).slice(0, MAX_INTRO) });
+    await audit(creator, { kind: "dashboard.created", object: { type: "dashboard", id: made, name: String(input.name ?? "").slice(0, 120) }, accessKeyId: Number(actor.key.id), details: { via: "api" } });
     return made;
   });
   return asSeen(actor, id);
@@ -203,12 +206,11 @@ export async function createDashboardFromTemplateWithKey(actor: KeyActor, input:
 /** What a key adds to a dashboard: a built-in view with Metrics, or a team Widget Template with its Slots filled. */
 export type KeyWidgetInput = { view?: TemplateId; template?: number; metrics?: string[]; fills?: string[][]; title?: string | null; settings?: KeySettings };
 
-/** Adds a widget to a dashboard the creator may change, in the first free place (scope dashboards:write). Not to a
- * story: a story takes Findings. Answers the widget as programs see it. */
+/** Adds a widget to a dashboard the creator may change, in the first free place (scope dashboards:write). Answers
+ * the widget as programs see it. */
 export async function addWidgetWithKey(actor: KeyActor, dashboardId: number, input: KeyWidgetInput): Promise<ApiWidget> {
   const widgetId = await asKey(actor, async (creator) => {
     const d = await visible(creator, Number(dashboardId));
-    if (d.kind === "story") throw new Unusable("A story takes Findings: POST /stories/{id}/findings.");
     const { bySlug } = await seenMetrics(creator);
     if (input.template !== undefined) {
       const { data } = await db().from("team_templates").select("id, kind, slots").eq("id", Number(input.template)).eq("workspace_id", creator.workspaceId).maybeSingle();
@@ -227,14 +229,13 @@ export async function addWidgetWithKey(actor: KeyActor, dashboardId: number, inp
   return (await asSeen(actor, Number(dashboardId))).widgets.find((w) => w.id === widgetId)!;
 }
 
-/** Changes a widget's view, Metrics, title or allowed settings (scope dashboards:write). A Free Layout and a story's
- * Findings are refused: the first is a drawing, the second is changed with updateFindingWithKey. */
+/** Changes a widget's view, Metrics, title or allowed settings (scope dashboards:write). A Free Layout and a composed
+ * Finding are refused: the first is a drawing, the second's words are changed with updateFindingWithKey. */
 export async function updateWidgetWithKey(actor: KeyActor, dashboardId: number, widgetId: number, input: Omit<KeyWidgetInput, "template" | "fills">): Promise<ApiWidget> {
   await asKey(actor, async (creator) => {
     const d = await visible(creator, Number(dashboardId));
-    if (d.kind === "story") throw new Unusable("Change a story's Findings with PATCH /stories/{id}/findings/{findingId}.");
     const cur = await widgetOn(creator, d.id, Number(widgetId));
-    if (!KEY_VIEWS.includes(cur.template)) throw new Unusable("This widget can only be changed in Ziffr.");
+    if (!KEY_VIEWS.includes(cur.template)) throw new Unusable(isFinding(cur) ? "Change a Finding's words with PATCH /dashboards/{id}/findings/{findingId}." : "This widget can only be changed in Ziffr.");
     if (input.view !== undefined && !KEY_VIEWS.includes(input.view)) throw new Unusable(`A key may use these views: ${KEY_VIEWS.join(", ")}.`);
     const { bySlug } = await seenMetrics(creator);
     const metricIds = input.metrics !== undefined ? idsFor(bySlug, input.metrics) : undefined;
@@ -251,57 +252,55 @@ export async function updateWidgetWithKey(actor: KeyActor, dashboardId: number, 
   return (await asSeen(actor, Number(dashboardId))).widgets.find((w) => w.id === Number(widgetId))!;
 }
 
-/** Removes a widget from a dashboard the creator may change, or a Finding from a story (scope dashboards:write). The
- * dashboard's Version keeps it, so it can be restored. */
+/** Removes a widget or a Finding from a dashboard the creator may change (scope dashboards:write). The dashboard's
+ * Version keeps it, so it can be restored. */
 export async function removeWidgetWithKey(actor: KeyActor, dashboardId: number, widgetId: number): Promise<void> {
   await asKey(actor, async (creator) => {
     const d = await visible(creator, Number(dashboardId));
     const cur = await widgetOn(creator, d.id, Number(widgetId));
-    // A Free Layout is a drawing only Ziffr changes, removing it included; a story's Findings may go.
-    if (!KEY_VIEWS.includes(cur.template) && d.kind !== "story") throw new Unusable("This widget can only be changed in Ziffr.");
+    // A Free Layout is a drawing only Ziffr changes, removing it included; a Finding may go.
+    if (!KEY_VIEWS.includes(cur.template) && !isFinding(cur)) throw new Unusable("This widget can only be changed in Ziffr.");
     await removeWidget(creator, cur.id);
   });
 }
 
-/** Changes a story's title or introduction (scope dashboards:write). */
-export async function updateStoryWithKey(actor: KeyActor, storyId: number, input: { name?: string; intro?: string }): Promise<ApiDashboard> {
+/** Changes a dashboard's name or introduction (scope dashboards:write). */
+export async function updateDashboardWithKey(actor: KeyActor, dashboardId: number, input: { name?: string; intro?: string }): Promise<ApiDashboard> {
   await asKey(actor, async (creator) => {
-    const d = await visible(creator, Number(storyId));
-    if (d.kind !== "story") throw new Forbidden();
-    await saveStoryText(creator, d.id, { name: input.name, intro: input.intro === undefined ? undefined : String(input.intro).slice(0, MAX_INTRO) });
+    const d = await visible(creator, Number(dashboardId));
+    await saveDashboardText(creator, d.id, { name: input.name, intro: input.intro === undefined ? undefined : String(input.intro).slice(0, MAX_INTRO) });
   });
-  return asSeen(actor, Number(storyId));
+  return asSeen(actor, Number(dashboardId));
 }
 
-/** Adds a Finding about one Metric at the end of a story, with its words (scope dashboards:write). Words a program
- * writes are a draft: the story's owner finishes it in Ziffr. */
-export async function addFindingWithKey(actor: KeyActor, storyId: number, input: FindingWords & { metric: string }): Promise<ApiWidget> {
+/** Adds a Finding about one Metric below everything on a dashboard, full width, with its words (scope
+ * dashboards:write). Words a program writes are a draft: the dashboard's owner finishes them in Ziffr. */
+export async function addFindingWithKey(actor: KeyActor, dashboardId: number, input: FindingWords & { metric: string }): Promise<ApiWidget> {
   const widgetId = await asKey(actor, async (creator) => {
-    const d = await visible(creator, Number(storyId));
-    if (d.kind !== "story") throw new Forbidden();
+    const d = await visible(creator, Number(dashboardId));
     const { bySlug } = await seenMetrics(creator);
     const [metricId] = idsFor(bySlug, [input.metric]);
-    const id = await addFinding(creator, d.id, metricId);
-    const words = cleanWords(input);
-    if (Object.keys(words).length) {
-      const cur = await widgetOn(creator, d.id, id);
-      await updateWidget(creator, id, { settings: { ...cur.settings, ...words } });
-    }
+    // Last in reading order, so a dashboard read top to bottom tells it in the order it was written.
+    const { data: placed } = await db().from("widgets").select("y, h").eq("dashboard_id", d.id).eq("workspace_id", creator.workspaceId);
+    const y = Math.max(0, ...(placed ?? []).map((w) => Number(w.y) + Number(w.h)));
+    // placeWidget checks the creator may change the dashboard and sees the Metric, and keeps a Version.
+    const id = await placeWidget(creator, d.id, { type: "spec", template: "story", metricIds: [metricId], settings: { ...TEMPLATES.story.settings, ...cleanWords(input) } }, { x: 0, y });
+    await db().from("widgets").update({ w: 12 }).eq("id", id).eq("workspace_id", creator.workspaceId);
     return id;
   });
-  return (await asSeen(actor, Number(storyId))).widgets.find((w) => w.id === widgetId)!;
+  return (await asSeen(actor, Number(dashboardId))).widgets.find((w) => w.id === widgetId)!;
 }
 
-/** Changes a Finding's words (scope dashboards:write). */
-export async function updateFindingWithKey(actor: KeyActor, storyId: number, findingId: number, input: FindingWords): Promise<ApiWidget> {
+/** Changes a Finding's words (scope dashboards:write). Only a Finding: other widgets have no words. */
+export async function updateFindingWithKey(actor: KeyActor, dashboardId: number, findingId: number, input: FindingWords): Promise<ApiWidget> {
   await asKey(actor, async (creator) => {
-    const d = await visible(creator, Number(storyId));
-    if (d.kind !== "story") throw new Forbidden();
+    const d = await visible(creator, Number(dashboardId));
     const cur = await widgetOn(creator, d.id, Number(findingId));
+    if (!isFinding(cur)) throw new Unusable("Only a Finding has words; change a widget's title with PATCH /dashboards/{id}/widgets/{widgetId}.");
     const words = cleanWords(input);
     if (Object.keys(words).length) await updateWidget(creator, cur.id, { settings: { ...cur.settings, ...words } });
   });
-  return (await asSeen(actor, Number(storyId))).widgets.find((w) => w.id === Number(findingId))!;
+  return (await asSeen(actor, Number(dashboardId))).widgets.find((w) => w.id === Number(findingId))!;
 }
 
 /** The templates a key can build with: the built-in views, the team's Widget Templates and the Dashboard Templates
@@ -328,7 +327,7 @@ export async function listTemplatesWithKey(actor: KeyActor, kind?: ApiTemplate["
   return out;
 }
 
-/** Whether the key may create another dashboard or story ("create"), or make another change ("change"), now; if not,
+/** Whether the key may create another dashboard ("create"), or make another change ("change"), now; if not,
  * the seconds until it may. Counted in Postgres from the Access Log's successful calls of the last 24 hours. Counting
  * and recording are not one transaction, so a burst can pass a few over; the minute's limit keeps that small. */
 export async function admitBuild(actor: KeyActor, what: "create" | "change"): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
@@ -336,7 +335,8 @@ export async function admitBuild(actor: KeyActor, what: "create" | "change"): Pr
   let q = db().from("access_log").select("at", { count: "exact" }).eq("key_id", Number(actor.key.id)).gt("at", since).gte("status", 200).lt("status", 300);
   q = what === "create"
     ? q.eq("method", "POST").in("route", ["/api/v1/dashboards", "/api/v1/dashboards/from-template"])
-    : q.in("method", ["POST", "PATCH", "DELETE"]).or("route.like./api/v1/dashboards/%/widgets%,route.like./api/v1/stories/%");
+    // Widgets and Findings changed, and a dashboard's name or introduction (PATCH /dashboards/{id}).
+    : q.in("method", ["POST", "PATCH", "DELETE"]).or("route.like./api/v1/dashboards/%/widgets%,route.like./api/v1/dashboards/%/findings%,and(method.eq.PATCH,route.like./api/v1/dashboards/%)");
   const { data, count } = await q.order("at", { ascending: true }).limit(1);
   const max = what === "create" ? DASHBOARDS_PER_DAY : CHANGES_PER_DAY;
   if ((count ?? 0) < max) return { ok: true };

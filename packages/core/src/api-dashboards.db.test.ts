@@ -1,11 +1,11 @@
-// Dashboards and stories built by programs, against the real database (spec 0014): the scopes, the creator's role and
+// Dashboards built by programs, against the real database (spec 0014; spec 0013): the scopes, the creator's role and
 // rights, what a key may see and send, Versions that name the key, and the daily limits.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor, type Scope } from "./actor";
 import { actorForKey, createAccessKey } from "./access-keys";
 import {
   addFindingWithKey, addWidgetWithKey, admitBuild, CHANGES_PER_DAY, createDashboardFromTemplateWithKey, createDashboardWithKey, DASHBOARDS_PER_DAY,
-  getDashboardWithKey, listDashboardsWithKey, listTemplatesWithKey, removeWidgetWithKey, Unusable, updateFindingWithKey, updateStoryWithKey, updateWidgetWithKey,
+  getDashboardWithKey, listDashboardsWithKey, listTemplatesWithKey, removeWidgetWithKey, Unusable, updateDashboardWithKey, updateFindingWithKey, updateWidgetWithKey,
 } from "./api-dashboards";
 import { db } from "./db";
 import { createDashboard, placeWidget } from "./dashboards";
@@ -61,7 +61,7 @@ describe("building a dashboard", () => {
     const w = await ws(); const ben = await w.person("member"); const rev = await w.metric(ben); const orders = await w.metric(ben);
     const { id: keyId, key } = await keyFor(w, ben);
     const d = await createDashboardFromTemplateWithKey(key, { template: "side-by-side", name: "Money and orders", fills: [[rev.slug], [orders.slug]] });
-    expect(d).toMatchObject({ kind: "dashboard", name: "Money and orders", role: "owner", path: `/dashboards/${d.id}` });
+    expect(d).toMatchObject({ name: "Money and orders", role: "owner", path: `/dashboards/${d.id}` });
     expect(d.widgets).toHaveLength(5);
     expect(d.widgets.at(-1)!.metrics).toEqual([rev.slug, orders.slug]);
     const { data: versions } = await db().from("versions").select("message, author_id").eq("object_type", "dashboard").eq("object_id", d.id);
@@ -126,20 +126,28 @@ describe("building a dashboard", () => {
   });
 });
 
-describe("drafting a story", () => {
-  it("writes the title, introduction and Findings with their words", async () => {
+describe("writing a dashboard up (spec 0013)", () => {
+  it("writes the name, introduction and Findings with their words, Findings last in reading order", async () => {
     const w = await ws(); const ben = await w.person("member"); const churn = await w.metric(ben, { name: "Churn" });
     const { key } = await keyFor(w, ben);
-    const s = await createDashboardWithKey(key, { name: "Draft", kind: "story" });
-    expect(s).toMatchObject({ kind: "story", path: `/stories/${s.id}`, intro: "" });
-    await updateStoryWithKey(key, s.id, { name: "Why churn went up", intro: "A first draft." });
+    const s = await createDashboardWithKey(key, { name: "Draft", intro: "First words." });
+    expect(s).toMatchObject({ path: `/dashboards/${s.id}`, intro: "First words." });
+    expect("kind" in s).toBe(false);
+    await updateDashboardWithKey(key, s.id, { name: "Why churn went up", intro: "A first draft." });
+    // A dashboard takes widgets and Findings alike; a Finding goes below everything, full width.
+    const n = await addWidgetWithKey(key, s.id, { view: "number", metrics: [churn.slug] });
     const f = await addFindingWithKey(key, s.id, { metric: churn.slug, headline: "{metric} doubled after the price change", source: "" });
-    expect(f).toMatchObject({ view: "story", metrics: [churn.slug], words: { headline: "{metric} doubled after the price change", source: "" } });
+    expect(f).toMatchObject({ view: "story", metrics: [churn.slug], x: 0, w: 12, words: { headline: "{metric} doubled after the price change", source: "" } });
+    expect(f.y).toBeGreaterThanOrEqual(n.y + n.h);
     const g = await updateFindingWithKey(key, s.id, f.id, { kicker: "October", headline: "" });
     expect(g.words).toMatchObject({ kicker: "October", headline: "" });
-    const story = await getDashboardWithKey(key, s.id);
-    expect(story).toMatchObject({ name: "Why churn went up", intro: "A first draft." });
-    await expect(addWidgetWithKey(key, s.id, { view: "number", metrics: [churn.slug] })).rejects.toEqual(unusable);
+    const d = await getDashboardWithKey(key, s.id);
+    expect(d).toMatchObject({ name: "Why churn went up", intro: "A first draft." });
+    expect(d.widgets.find((x) => x.id === n.id)?.words).toBeUndefined();
+    // Only a Finding has words; a composed Finding's view is changed in Ziffr.
+    await expect(updateFindingWithKey(key, s.id, n.id, { headline: "x" })).rejects.toEqual(unusable);
+    await expect(updateWidgetWithKey(key, s.id, f.id, { title: "x" })).rejects.toEqual(unusable);
+    await removeWidgetWithKey(key, s.id, f.id);
   });
 });
 
@@ -159,7 +167,7 @@ describe("templates and limits", () => {
     await logCalls(id, DASHBOARDS_PER_DAY, { method: "POST", route: "/api/v1/dashboards", status: 201 });
     expect(await admitBuild(key, "create")).toMatchObject({ ok: false });
     expect(await admitBuild(key, "change")).toEqual({ ok: true });
-    await logCalls(id, CHANGES_PER_DAY - 1, { method: "PATCH", route: "/api/v1/stories/1/findings/2", status: 200 });
+    await logCalls(id, CHANGES_PER_DAY - 1, { method: "PATCH", route: "/api/v1/dashboards/1/findings/2", status: 200 });
     await logCalls(id, 5, { method: "POST", route: "/api/v1/dashboards/1/widgets", status: 422 });
     expect(await admitBuild(key, "change")).toEqual({ ok: true });
     await logCalls(id, 1, { method: "DELETE", route: "/api/v1/dashboards/1/widgets/2", status: 200 });

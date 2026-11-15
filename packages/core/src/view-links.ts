@@ -28,7 +28,9 @@ export type ViewPayload = {
   widgets?: Widget[];
   document?: unknown;
   footer?: string | null;
-  /** Set when the dashboard is a story (spec 0010): its introduction, shown above its Findings. */
+  /** A dashboard's introduction (spec 0013), shown above its widgets; empty when it has none. */
+  intro?: string;
+  /** Frozen links made while stories were their own thing (spec 0010) keep the introduction here. */
   story?: { intro: string };
   asOf: string;
 };
@@ -83,7 +85,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
     pending: pick(full.pending, ids),
     locked: pick(full.locked, ids),
   };
-  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined, footer: type === "deck" ? obj.footer : undefined, story: type === "dashboard" && obj.kind === "story" ? { intro: String(obj.intro ?? "") } : undefined, asOf: new Date().toISOString() };
+  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
 }
 
 /** A deck's slides as a View Link may show them: only the records the deck had when the link was made (for a live

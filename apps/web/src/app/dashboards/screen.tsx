@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { BookOpenText, Check, Eye, Home, LayoutDashboard, LayoutTemplate, MonitorPlay, MoreHorizontal, Pencil, Presentation, Users } from "lucide-react";
+import { BookOpen, Check, Eye, Home, LayoutDashboard, LayoutGrid, LayoutTemplate, MonitorPlay, MoreHorizontal, Pencil, Presentation, Users } from "lucide-react";
 import { NewDashboardDialog } from "@/components/new-dashboard-dialog";
 import { SaveDashboardTemplateDialog } from "@/components/save-dashboard-template-dialog";
 import type { DashboardTemplateSummary } from "@ziffr/core/dashboard-templates";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
-import { placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
+import { placeWidget, saveDashboardText, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@ziffr/core/types";
@@ -28,7 +28,10 @@ import { themeFor } from "@ziffr/core/themes";
 import { FirstRun } from "@/components/first-run";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
 import { setHome } from "@/app/home-actions";
-import { makeDeck, makeStory } from "@/app/convert-actions";
+import { makeDeck } from "@/app/convert-actions";
+import { DashboardReader } from "@/components/dashboard-reader";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 type Props = {
@@ -49,6 +52,8 @@ type Props = {
   canCreate: boolean;
   /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
   firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
+  /** Shows the Read view (spec 0013): the introduction, then the widgets top to bottom. Else the grid. */
+  reading?: boolean;
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -72,7 +77,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -81,7 +86,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // opens in edit mode, since there is nothing to look at yet. The core checks every change either way.
   const [editing, setEditing] = useState(editable && widgets.length === 0);
   useEffect(() => setEditing(editable && widgets.length === 0), [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const changing = editable && editing;
+  // The Read view only reads; changes are made in the grid.
+  const changing = editable && editing && !reading;
   const toLayout = (ws: Widget[]): Layout => ws.map((w) => ({ i: String(w.id), x: w.x, y: w.y, w: w.w, h: w.h, minW: 2, minH: 3 }));
   const [layout, setLayout] = useState<Layout>(toLayout(widgets));
   useEffect(() => setLayout(toLayout(widgets)), [widgets]);
@@ -157,6 +163,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
                   <span className="flex items-center gap-1.5"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
                 </p>
+                {changing ? <DashboardText key={current.id} id={current.id} name={current.name} intro={current.intro ?? ""} /> : !reading && current.intro && <p className="mt-3 max-w-3xl whitespace-pre-line text-muted-foreground">{current.intro}</p>}
               </div>
               <ObjectToolbar
                 type="dashboard"
@@ -166,7 +173,6 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
                 menu={canCreate ? [
-                  { label: "Make a story", icon: <BookOpenText aria-hidden />, onSelect: () => start(() => makeStory(current.id)) },
                   { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => start(() => makeDeck(current.id)) },
                   ...(editable && widgets.length ? [{ label: "Save as template", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true) }] : []),
                 ] : undefined}
@@ -181,14 +187,19 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
                 </button>
+                <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
+                  <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
+                  <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
+                </div>
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
-                {editable && (
+                {editable && !reading && (
                   <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)} aria-pressed={editing}>
                     {editing ? <><Check aria-hidden /> Done</> : <><Pencil aria-hidden /> Edit</>}
                   </Button>
                 )}
               </ObjectToolbar>
             </div>
+            {reading ? <DashboardReader dashboard={{ id: current.id, name: current.name, intro: current.intro ?? "", theme_id: current.theme_id }} widgets={widgets} data={data} header={false} /> : (
             <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
@@ -226,9 +237,29 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 </ReactGridLayout>
               )}
             </ThemeScope>
+            )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The dashboard's name and introduction, changed in edit mode (spec 0013); the core lets only its owner and Editors. */
+function DashboardText({ id, name: savedName, intro: savedIntro }: { id: number; name: string; intro: string }) {
+  const router = useRouter();
+  const [name, setName] = useState(savedName);
+  const [intro, setIntro] = useState(savedIntro);
+  const [pending, start] = useTransition();
+  const changed = name !== savedName || intro !== savedIntro;
+  const save = () => start(async () => {
+    try { await saveDashboardText(id, { name, intro }); toast.success("Saved"); router.refresh(); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+  });
+  return (
+    <div className="mt-3 max-w-3xl space-y-2">
+      <Input aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+      <Textarea aria-label="Introduction" value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={4000} rows={2} placeholder="An introduction: what this dashboard tells, in a sentence or two. Shown above it, and first in its Read view." />
+      {changed && <Button size="sm" disabled={pending || !name.trim()} onClick={save}>Save name and introduction</Button>}
     </div>
   );
 }

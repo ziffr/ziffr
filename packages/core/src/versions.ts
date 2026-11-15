@@ -29,10 +29,10 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
   }
   if (type === "dashboard") {
     const [{ data: d }, { data: ws }] = await Promise.all([
-      db().from("dashboards").select("name, theme_id").eq("id", id).single(),
+      db().from("dashboards").select("name, theme_id, intro").eq("id", id).single(),
       db().from("widgets").select("template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", id).order("y").order("x"),
     ]);
-    return d ? { name: d.name, theme_id: d.theme_id, widgets: ws ?? [] } : null;
+    return d ? { name: d.name, theme_id: d.theme_id, intro: d.intro ?? "", widgets: ws ?? [] } : null;
   }
   if (type === "deck") {
     const { data } = await db().from("decks").select("name, theme_id, footer, document").eq("id", id).single();

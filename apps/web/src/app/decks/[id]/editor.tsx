@@ -82,7 +82,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
       if (!orderedSlides(ed).length) {
-        // A new deck made from a dashboard or a story gets its slides laid out; any other starts with a title slide.
+        // A new deck made from a dashboard gets its slides laid out; any other starts with a title slide.
         const id = seed
           ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || data.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
           : addSlide(ed, "title", masterRef.current);

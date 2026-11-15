@@ -100,7 +100,7 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
           )}
           <label className="block">
             <span className="mb-1 block text-xs font-medium">Name</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder={kind === "slide" ? "e.g. Monthly KPI slide" : "e.g. Year-on-year story"} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder={kind === "slide" ? "e.g. Monthly KPI slide" : "e.g. Year-on-year Finding"} />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium">What it is for</span>

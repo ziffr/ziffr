@@ -140,7 +140,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       break;
     case "dashboard": {
       const { data: d } = await db().from("dashboards").select("owner_id").eq("id", id).eq("workspace_id", ws).single();
-      await db().from("dashboards").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}) }).eq("id", id).eq("workspace_id", ws);
+      // Versions from before introductions were kept have none: the introduction then stays as it is.
+      await db().from("dashboards").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) }).eq("id", id).eq("workspace_id", ws);
       await db().from("widgets").delete().eq("dashboard_id", id).eq("workspace_id", ws);
       const widgets = (s.widgets as Record<string, unknown>[]) ?? [];
       if (widgets.length) {

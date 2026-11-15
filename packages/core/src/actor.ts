@@ -42,7 +42,7 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
 }
 
 /** What an Access Key may be allowed to do. "metrics:write" creates Metrics owned by the key's creator (spec 0003),
- * and only while the creator's role may create. "dashboards:read" reads the dashboards and stories the creator sees,
+ * and only while the creator's role may create. "dashboards:read" reads the dashboards the creator sees,
  * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change. */
 export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "dashboards:read" | "dashboards:write";
 

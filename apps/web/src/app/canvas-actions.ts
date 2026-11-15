@@ -22,6 +22,12 @@ export async function placeWidget(dashboardId: number, source: DropSource, pos?:
   done();
 }
 
+/** Changes a dashboard's name and introduction; the core lets only its owner and Editors. */
+export async function saveDashboardText(dashboardId: number, text: { name?: string; intro?: string }) {
+  await dash.saveDashboardText(await currentActor(), Number(dashboardId), { name: text?.name, intro: text?.intro });
+  done();
+}
+
 /** Saves where the widgets of a dashboard sit and how large they are. */
 export async function saveLayout(dashboardId: number, items: { i: string; x: number; y: number; w: number; h: number }[]) {
   await dash.saveLayout(await currentActor(), Number(dashboardId), items);

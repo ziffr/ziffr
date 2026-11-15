@@ -6,8 +6,7 @@ import { db } from "./db";
 
 /** The dashboards the person may open, theirs first (by name), then those shared with them (by name). */
 export async function switchableDashboards(actor: Actor): Promise<DashboardAccess[]> {
-  // Stories are kept as dashboards too (spec 0010); they have their own list.
-  const all = (await visibleDashboards(actor.workspaceId, actor.personId)).filter((d) => d.kind !== "story");
+  const all = await visibleDashboards(actor.workspaceId, actor.personId);
   const byName = (a: DashboardAccess, b: DashboardAccess) => a.name.localeCompare(b.name);
   return [...all.filter((d) => d.role === "owner").sort(byName), ...all.filter((d) => d.role !== "owner").sort(byName)];
 }
@@ -34,7 +33,7 @@ export async function setHomeDashboard(actor: Actor, dashboardId: number | null)
   if (actor.key) throw new Forbidden();
   if (dashboardId !== null) {
     if (!Number.isInteger(dashboardId)) throw new Forbidden();
-    // A dashboard they may open; a story is not a Home.
+    // Only a dashboard they may open.
     if (!(await switchableDashboards(actor)).some((d) => d.id === dashboardId)) throw new Forbidden();
   }
   const { error } = await db().from("memberships").update({ home_dashboard_id: dashboardId }).eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId);

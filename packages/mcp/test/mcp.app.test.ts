@@ -37,7 +37,7 @@ describe("@ziffr/mcp against the app", () => {
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric",
-      "list_dashboards", "list_metrics", "list_people", "list_templates", "remove_widget", "submit_value", "update_finding", "update_story", "update_widget",
+      "list_dashboards", "list_metrics", "list_people", "list_templates", "remove_widget", "submit_value", "update_dashboard", "update_finding", "update_widget",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
     expect(tools.find((t) => t.name === "delete_metric")?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
@@ -59,16 +59,18 @@ describe("@ziffr/mcp against the app", () => {
     const refused = await (await connect()).client.callTool({ name: "create_metric", arguments: { name: "X" } });
     expect(refused.isError).toBe(true);
   });
-  it("makes a dashboard from a template and drafts a story (spec 0014)", async () => {
+  it("makes a dashboard from a template and writes one up with Findings (spec 0014, spec 0013)", async () => {
     const { client, orders } = await connect(["metrics:read", "dashboards:read", "dashboards:write"]);
     const templates = json(await client.callTool({ name: "list_templates", arguments: { kind: "dashboard" } })).templates;
     expect(templates.map((t: { id: string }) => t.id)).toContain("deep-dive");
     const made = json(await client.callTool({ name: "create_dashboard_from_template", arguments: { template: "deep-dive", name: "Orders in depth", fills: [[orders.slug]] } })).dashboard;
     expect(made).toMatchObject({ name: "Orders in depth", role: "owner", url: expect.stringContaining(`/dashboards/${made.id}`) });
     expect(made.widgets.every((w: { metrics: string[] }) => w.metrics[0] === orders.slug)).toBe(true);
-    const story = json(await client.callTool({ name: "create_dashboard", arguments: { name: "Why orders grew", kind: "story" } })).dashboard;
-    const finding = json(await client.callTool({ name: "add_finding", arguments: { story_id: story.id, metric: orders.slug, headline: "{metric} grew" } })).finding;
+    const written = json(await client.callTool({ name: "create_dashboard", arguments: { name: "Why orders grew", intro: "A first draft." } })).dashboard;
+    expect(written).toMatchObject({ intro: "A first draft.", url: expect.stringContaining(`/dashboards/${written.id}`) });
+    const finding = json(await client.callTool({ name: "add_finding", arguments: { dashboard_id: written.id, metric: orders.slug, headline: "{metric} grew" } })).finding;
     expect(finding.words.headline).toBe("{metric} grew");
+    expect(json(await client.callTool({ name: "update_dashboard", arguments: { dashboard_id: written.id, intro: "Orders grew in March." } })).dashboard.intro).toBe("Orders grew in March.");
     // A key without dashboards:write is refused as a tool error.
     const refused = await (await connect(["metrics:read", "dashboards:read"])).client.callTool({ name: "create_dashboard", arguments: { name: "X" } });
     expect(refused.isError).toBe(true);

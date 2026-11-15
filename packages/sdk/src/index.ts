@@ -89,17 +89,17 @@ export type FeedItemResult = { metric: string; period: string | null; status: "r
 /** At most this many items in one batch. */
 export const FEED_BATCH_MAX = 500;
 
-/** A dashboard or story in a list (spec 0014): the key's creator's role on it and where to open it. */
-export type DashboardSummary = { id: number; kind: "dashboard" | "story"; name: string; role: "owner" | "editor" | "viewer"; url: string };
+/** A dashboard in a list (spec 0014): the key's creator's role on it and where to open it. */
+export type DashboardSummary = { id: number; name: string; role: "owner" | "editor" | "viewer"; url: string };
 
 /** A Finding's words; Placeholders such as {metric} or {change yoy} are filled in when it is drawn. */
 export type FindingWords = { kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string };
 
-/** One widget, or one of a story's Findings: its view, the slugs of the Metrics it draws and where it sits. */
+/** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too. */
 export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords };
 
-/** A dashboard or story with its widgets in reading order. */
-export type Dashboard = DashboardSummary & { intro: string | null; widgets: Widget[] };
+/** A dashboard with its introduction and its widgets in reading order. */
+export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
 
 /** The built-in views a key may place. */
 export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
@@ -241,17 +241,17 @@ export class Ziffr {
     },
   };
 
-  /** The dashboards and stories the key's creator sees (scope dashboards:read), and building them as the creator
-   * (scope dashboards:write). A key changes only what its creator may change, and never shares or deletes. */
+  /** The dashboards the key's creator sees (scope dashboards:read), and building them as the creator (scope
+   * dashboards:write). A key changes only what its creator may change, and never shares or deletes. */
   readonly dashboards = {
-    /** One page of dashboards and stories. */
-    list: (options: PageOptions & { kind?: "dashboard" | "story" } = {}) => this.get<Page<DashboardSummary>>("/dashboards", options),
-    /** Every dashboard and story, page by page. */
-    all: (options: { kind?: "dashboard" | "story" } = {}) => this.every<DashboardSummary>((cursor) => this.dashboards.list({ ...options, cursor, limit: 100 })),
-    /** One dashboard or story with its widgets. */
+    /** One page of dashboards. */
+    list: (options: PageOptions = {}) => this.get<Page<DashboardSummary>>("/dashboards", options),
+    /** Every dashboard, page by page. */
+    all: () => this.every<DashboardSummary>((cursor) => this.dashboards.list({ cursor, limit: 100 })),
+    /** One dashboard with its introduction and widgets. */
     get: (id: number) => this.get<Dashboard>(`/dashboards/${id}`),
-    /** Creates an empty dashboard or story. A fresh idempotency key is sent unless one is given. */
-    create: async (input: { name: string; kind?: "dashboard" | "story" }, options: { idempotencyKey?: string } = {}): Promise<Dashboard & { replayed: boolean }> => {
+    /** Creates an empty dashboard, with an introduction if given. A fresh idempotency key is sent unless one is given. */
+    create: async (input: { name: string; intro?: string }, options: { idempotencyKey?: string } = {}): Promise<Dashboard & { replayed: boolean }> => {
       const { body, headers } = await this.request<Dashboard>("POST", "/dashboards", undefined, input, options.idempotencyKey ?? newIdempotencyKey());
       return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
     },
@@ -265,18 +265,14 @@ export class Ziffr {
     /** Changes a widget's view, Metrics, title or settings. */
     updateWidget: async (dashboardId: number, widgetId: number, patch: { view?: View; metrics?: string[]; title?: string | null; settings?: WidgetSettings }): Promise<Widget> =>
       (await this.request<Widget>("PATCH", `/dashboards/${dashboardId}/widgets/${widgetId}`, undefined, patch)).body,
-    /** Removes a widget, or a story's Finding. */
+    /** Removes a widget or a Finding. */
     removeWidget: async (dashboardId: number, widgetId: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/dashboards/${dashboardId}/widgets/${widgetId}`)).body,
-  };
-
-  /** A story's words and Findings (scope dashboards:write); read a story with `dashboards.get`. */
-  readonly stories = {
-    /** Changes a story's title or introduction. */
-    update: async (storyId: number, patch: { name?: string; intro?: string }): Promise<Dashboard> => (await this.request<Dashboard>("PATCH", `/stories/${storyId}`, undefined, patch)).body,
-    /** Adds a Finding about one Metric at the end of the story. */
-    addFinding: async (storyId: number, finding: FindingWords & { metric: string }): Promise<Widget> => (await this.request<Widget>("POST", `/stories/${storyId}/findings`, undefined, finding)).body,
+    /** Changes a dashboard's name or introduction. */
+    update: async (dashboardId: number, patch: { name?: string; intro?: string }): Promise<Dashboard> => (await this.request<Dashboard>("PATCH", `/dashboards/${dashboardId}`, undefined, patch)).body,
+    /** Adds a Finding about one Metric below everything on the dashboard, full width. */
+    addFinding: async (dashboardId: number, finding: FindingWords & { metric: string }): Promise<Widget> => (await this.request<Widget>("POST", `/dashboards/${dashboardId}/findings`, undefined, finding)).body,
     /** Changes a Finding's words. */
-    updateFinding: async (storyId: number, findingId: number, words: FindingWords): Promise<Widget> => (await this.request<Widget>("PATCH", `/stories/${storyId}/findings/${findingId}`, undefined, words)).body,
+    updateFinding: async (dashboardId: number, findingId: number, words: FindingWords): Promise<Widget> => (await this.request<Widget>("PATCH", `/dashboards/${dashboardId}/findings/${findingId}`, undefined, words)).body,
   };
 
   /** What a key can build with (scope dashboards:read). */

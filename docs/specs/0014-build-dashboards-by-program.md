@@ -2,6 +2,8 @@
 
 **Status:** done. **Tracking issue:** #184 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0014`.
 
+> **Changed course:** stories were folded into dashboards before this was released (ADR 0007, spec 0013, #174). The API has no `kind` and no `/stories` endpoints: a dashboard's name and introduction change with `PATCH /dashboards/{id}`, and Findings are added and written with `POST /dashboards/{id}/findings` and `PATCH /dashboards/{id}/findings/{findingId}`, on any dashboard. The SDK's `stories.*` became `dashboards.update`, `addFinding` and `updateFinding`; the MCP tool `update_story` became `update_dashboard`.
+
 ## Problem Statement
 
 A program can read Metrics, submit values and create Metrics (specs 0002, 0003), but it cannot touch anything people look at. An assistant connected through the MCP server can answer "what was revenue in March" but not "put revenue, signups and churn on a dashboard for the Monday meeting", and not "write up why churn went up". The person has to leave the conversation, open Ziffr, make the dashboard, drag in each Metric and pick its view by hand. Spec 0002 left dashboards out on purpose.

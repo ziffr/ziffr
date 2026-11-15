@@ -2,8 +2,6 @@ import { currentActor, viewerId } from "@/lib/viewer";
 import { closedDashboardOwner, dashboardWidgets, hasVisibleValue, savedWidgets } from "@ziffr/core/page-data";
 import { getCanvasData, getRawShares, revealedBy } from "@/lib/access";
 import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
-import { visibleStories } from "@ziffr/core/stories";
-import { redirect } from "next/navigation";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { DashboardScreen } from "@/app/dashboards/screen";
 import { can } from "@ziffr/core/actor";
@@ -11,15 +9,14 @@ import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
 
-/** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs. */
-export async function DashboardView({ id }: { id?: number }) {
+/** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs; `view` is "read" for
+ * its Read view (spec 0013), else the grid. */
+export async function DashboardView({ id, view }: { id?: number; view?: string }) {
   const viewer = await viewerId();
   const actor = await currentActor();
   const [dashboards, shares, saved] = await Promise.all([switchableDashboards(actor), getRawShares(), savedWidgets(actor)]);
   const home = await homeDashboard(actor, dashboards);
   const current = id ? dashboards.find((d) => d.id === id) ?? null : home;
-  // A story opened by a dashboard's address reads as a story (spec 0010).
-  if (id && !current && (await visibleStories(actor)).some((s) => s.id === id)) redirect(`/stories/${id}`);
   const ws = current ? await dashboardWidgets(actor, current.id) : [];
   // Only the series this dashboard draws go to the browser; a widget placed or a Metric picked later fetches its own.
   const data = await getCanvasData(viewer, [...new Set(ws.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))]);
@@ -40,5 +37,5 @@ export async function DashboardView({ id }: { id?: number }) {
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} />;
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} reading={view === "read"} />;
 }

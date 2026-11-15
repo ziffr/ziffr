@@ -1,6 +1,6 @@
 # Ziffr
 
-One home for a small team's business numbers. Metrics from any source, values captured where people already work (a form link, email, an API, an AI assistant), dashboards, stories, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
+One home for a small team's business numbers. Metrics from any source, values captured where people already work (a form link, email, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
 
 Ziffr is in its `0.x` releases: used and tested, not yet at a first public release. See [CHANGELOG.md](CHANGELOG.md) for what each version brought.
 
@@ -9,7 +9,7 @@ Ziffr is in its `0.x` releases: used and tested, not yet at a first public relea
 - **Metrics and values.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, through the [API](docs/guides/api.md), from another system such as a CRM or a data warehouse through a [Feed](docs/guides/feeds.md), or from an AI assistant through the [MCP server](packages/mcp/README.md). Contacts without an account submit too.
 - **Workflows.** Ask Submitters when a period closes, remind before the Due Date, escalate after it, have Unusual Values approved, and lock the period. They run on their own each morning in the workspace's time zone ([scheduled jobs](docs/guides/jobs.md)).
 - **Asking without leaving.** Questions and tasks on a value, answered in a Thread or by replying to the email, with Corrections the Metric owner accepts.
-- **Seeing the numbers.** Drag-and-drop dashboards, Widgets and stories, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
+- **Seeing the numbers.** Drag-and-drop dashboards of Widgets and Findings, read as a grid or top to bottom, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
 - **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
 - **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK and a local MCP server.
 

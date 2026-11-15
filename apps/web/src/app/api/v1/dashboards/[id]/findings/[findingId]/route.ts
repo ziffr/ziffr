@@ -1,5 +1,5 @@
-// PATCH /api/v1/stories/{id}/findings/{findingId} (spec 0014): changes a Finding's words (scope dashboards:write). A
-// Finding is removed like a widget, with DELETE /dashboards/{id}/widgets/{findingId}.
+// PATCH /api/v1/dashboards/{id}/findings/{findingId} (spec 0014; spec 0013): changes a Finding's words (scope
+// dashboards:write). A Finding is removed like a widget, with DELETE /dashboards/{id}/widgets/{findingId}.
 import { updateFindingWithKey } from "@ziffr/core/api-dashboards";
 import { jsonBody, keyRoute } from "@/lib/api";
 import { build } from "@/lib/api-build";

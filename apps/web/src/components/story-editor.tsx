@@ -117,7 +117,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
         <ul className="mt-1.5 space-y-0.5">
           {PLACEHOLDERS.map((p) => <li key={p.key}><code className="fig text-foreground">{`{${p.key}}`}</code> {p.hint}</li>)}
         </ul>
-        <p className="mt-1.5">Add a number for another metric of the story, such as {"{metric 2}"}.</p>
+        <p className="mt-1.5">Add a number for another metric of the Finding, such as {"{metric 2}"}.</p>
       </details>
       <Button type="submit" className="w-full">{saveLabel}</Button>
     </form>

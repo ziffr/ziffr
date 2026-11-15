@@ -11,7 +11,7 @@ import type { AccessLogEntry } from "@ziffr/core/access-log";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "dashboards:read": "Read dashboards and stories", "dashboards:write": "Build dashboards and stories" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -29,7 +29,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
     <section aria-labelledby="keys-heading" className="space-y-3 border-t border-border pt-6">
       <div>
         <h2 id="keys-heading" className="font-medium">Access Keys</h2>
-        <p className="text-sm text-muted-foreground">For programs and assistants that read metrics, submit values, create metrics or build dashboards and stories for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
+        <p className="text-sm text-muted-foreground">For programs and assistants that read metrics, submit values, create metrics or build dashboards for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
       </div>
       {keys.length > 0 && (
         <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">

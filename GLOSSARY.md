@@ -137,7 +137,7 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **Finding**:
-A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels. A story is made of Findings; they also sit on dashboards and slides.
+A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels. Findings sit on dashboards, where they read like the sections of an article in the Read view, and on slides.
 _Avoid_: Story widget, infographic, chart card, editorial chart
 
 **Panel**:
@@ -157,7 +157,7 @@ A panel that walks from a start value through signed steps to an end value, eith
 _Avoid_: Waterfall, walk, cascade
 
 **Widget Template**:
-A starting point for a new widget or story: a view, its settings and, when the team saved it, its words and annotations, with the metrics left open as Slots. Ziffr ships built-in templates; anyone can save a widget as a team template, which only its creator edits. If none is chosen, the default template is used.
+A starting point for a new widget or Finding: a view, its settings and, when the team saved it, its words and annotations, with the metrics left open as Slots. Ziffr ships built-in templates; anyone can save a widget as a team template, which only its creator edits. If none is chosen, the default template is used.
 _Avoid_: Preset, widget type, blueprint
 
 **Dashboard Template**:
@@ -189,12 +189,8 @@ Made-up metrics and values that a template's Preview draws, because a template h
 _Avoid_: Dummy data, fake data, demo data
 
 **Dashboard**:
-A canvas of widgets that a user arranges and can share, to watch numbers as they come in. Ziffr opens on a person's Home dashboard, which they choose.
-_Avoid_: Board, report, page
-
-**Story**:
-A title, an introduction and Findings in order, read top to bottom, to explain what happened and why. Shared, versioned and shown through View Links like a dashboard; the third of dashboard (watch), story (explain) and deck (present).
-_Avoid_: Report, narrative, board story
+A canvas of widgets that a user arranges and can share, to watch numbers as they come in. It has a name and may have an introduction, and reads two ways: *Grid*, as arranged, and *Read*, the introduction and then its widgets one below the other in reading order, for a phone or to explain what happened. Ziffr opens on a person's Home dashboard, which they choose.
+_Avoid_: Board, report, page, story
 
 **Analysis Canvas**:
 A workspace where a user drops one or more metrics and runs analyses on them.
@@ -253,7 +249,7 @@ A person known to a Workspace who has no login, such as a field worker or an out
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
-A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, reading dashboards and stories, building dashboards and stories as that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
+A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, reading dashboards, building dashboards as that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
 **Feed Key**:
@@ -295,7 +291,7 @@ _Avoid_: Collaborator, co-owner
 ### Governance
 
 **Version**:
-A saved state of something people build (a widget, story, dashboard, deck, master or metric description) with its author, time and an optional message or name. Edits by one person within ten minutes form one version; restoring a version creates a new one.
+A saved state of something people build (a widget, dashboard, deck, master or metric description) with its author, time and an optional message or name. Edits by one person within ten minutes form one version; restoring a version creates a new one.
 _Avoid_: Revision, snapshot, commit, backup
 
 **Superseded Value**:

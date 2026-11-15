@@ -1,10 +1,10 @@
 # @ziffr/mcp
 
-A local [MCP](https://modelcontextprotocol.io) server that lets an AI assistant, such as Claude Desktop or Claude Code, read your [Ziffr](https://github.com/ziffr/ziffr) Metrics, submit values and build dashboards and stories. It acts with an Access Key, so the assistant sees exactly what the key's creator sees and nothing more. MIT licensed.
+A local [MCP](https://modelcontextprotocol.io) server that lets an AI assistant, such as Claude Desktop or Claude Code, read your [Ziffr](https://github.com/ziffr/ziffr) Metrics, submit values and build dashboards. It acts with an Access Key, so the assistant sees exactly what the key's creator sees and nothing more. MIT licensed.
 
 ## Setting it up
 
-1. In Ziffr, open the Team page and create an Access Key. Give it "Read metrics", "Submit values" only if the assistant should record values, "Create metrics" only if it should start new Metrics, and "Read dashboards and stories" and "Build dashboards and stories" only if it should build them. Copy the key: it is shown once.
+1. In Ziffr, open the Team page and create an Access Key. Give it "Read metrics", "Submit values" only if the assistant should record values, "Create metrics" only if it should start new Metrics, and "Read dashboards" and "Build dashboards" only if it should build them. Copy the key: it is shown once.
 2. Add the server to your assistant with two settings: `ZIFFR_URL`, where your Ziffr runs, and `ZIFFR_ACCESS_KEY`, the key.
 
 **Claude Code:**
@@ -38,11 +38,11 @@ Restart the assistant, then ask it, for example, "What was revenue in March?", "
 | `submit_value` | Records a value for the current or a named period, through the Metric's rules (Approvals, Locks) |
 | `create_metric` | Creates a Metric owned by the key's creator, when you ask for one (needs "Create metrics") |
 | `list_people` | The workspace's people and Contacts by id and name, to say who submitted a value |
-| `list_dashboards`, `get_dashboard` | The dashboards and stories the key's creator sees, with their widgets and the Metrics they draw (needs "Read dashboards and stories") |
+| `list_dashboards`, `get_dashboard` | The dashboards the key's creator sees, with their widgets and the Metrics they draw (needs "Read dashboards") |
 | `list_templates` | Built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots |
-| `create_dashboard_from_template` | A whole dashboard from a Dashboard Template in one call, one Metric per Slot (needs "Build dashboards and stories") |
-| `create_dashboard`, `add_widget`, `update_widget`, `remove_widget` | An empty dashboard or story, and its widgets, placed in the first free spot |
-| `update_story`, `add_finding`, `update_finding` | A story's title and introduction, and its Findings with their words, as a draft for you to finish |
+| `create_dashboard_from_template` | A whole dashboard from a Dashboard Template in one call, one Metric per Slot (needs "Build dashboards") |
+| `create_dashboard`, `add_widget`, `update_widget`, `remove_widget` | An empty dashboard with an introduction if given, and its widgets, placed in the first free spot |
+| `update_dashboard`, `add_finding`, `update_finding` | A dashboard's name and introduction, and Findings with their words below everything on it, as a draft for you to finish |
 
 Each Metric is also a read-only resource, `ziffr://metrics/{slug}`, that you can attach to a conversation so the assistant has its values in context.
 

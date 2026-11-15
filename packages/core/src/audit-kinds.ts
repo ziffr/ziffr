@@ -31,7 +31,7 @@ export const AUDIT_KINDS = {
   "feed.deleted": "deleted the Feed",
   "feed.key_created": "created a Feed Key for",
   "feed.key_revoked": "revoked a Feed Key of",
-  "dashboard.created": "created the dashboard or story",
+  "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
   "metric.workflow_set": "chose the Workflow of",

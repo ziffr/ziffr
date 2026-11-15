@@ -1,4 +1,4 @@
-// The dashboard and story endpoints over HTTP (spec 0014): status codes, answer and error shapes, links, paging,
+// The dashboard endpoints over HTTP (spec 0014; spec 0013): status codes, answer and error shapes, links, paging,
 // Idempotency-Key and the daily limit. Who may change what is proven in the core's api-dashboards.db.test.ts.
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
@@ -6,10 +6,11 @@ import type { Scope } from "@ziffr/core/actor";
 import { accessLogOf, logCalls, workspace } from "@ziffr/core/test/db-fixtures";
 import { GET as list, POST as create } from "./route";
 import { POST as fromTemplate } from "./from-template/route";
-import { GET as getOne } from "./[id]/route";
+import { GET as getOne, PATCH as patchOne } from "./[id]/route";
 import { POST as addWidget } from "./[id]/widgets/route";
 import { DELETE as removeWidget, PATCH as patchWidget } from "./[id]/widgets/[widgetId]/route";
-import { POST as addFinding } from "../stories/[id]/findings/route";
+import { POST as addFinding } from "./[id]/findings/route";
+import { PATCH as patchFinding } from "./[id]/findings/[findingId]/route";
 import { GET as templates } from "../templates/route";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -35,12 +36,12 @@ describe("dashboards over HTTP", () => {
     const res = await create(req("POST", "/dashboards", { name: "Monday" }, { "idempotency-key": "monday-1" }), undefined);
     expect(res.status).toBe(201);
     const d = await res.json();
-    expect(d).toEqual({ id: d.id, kind: "dashboard", name: "Monday", role: "owner", url: `http://ziffr.test/dashboards/${d.id}`, intro: null, widgets: [] });
+    expect(d).toEqual({ id: d.id, name: "Monday", role: "owner", url: `http://ziffr.test/dashboards/${d.id}`, intro: "", widgets: [] });
     const again = await create(req("POST", "/dashboards", { name: "Monday" }, { "idempotency-key": "monday-1" }), undefined);
     expect(again.headers.get("idempotent-replayed")).toBe("true");
     expect((await create(req("POST", "/dashboards", { name: "Tuesday" }, { "idempotency-key": "monday-1" }), undefined)).status).toBe(409);
     const page = await (await list(req("GET", "/dashboards?limit=10"), undefined)).json();
-    expect(page).toEqual({ items: [{ id: d.id, kind: "dashboard", name: "Monday", role: "owner", url: `http://ziffr.test/dashboards/${d.id}` }], next: null });
+    expect(page).toEqual({ items: [{ id: d.id, name: "Monday", role: "owner", url: `http://ziffr.test/dashboards/${d.id}` }], next: null });
     expect((await accessLogOf(id)).map((c) => [c.method, c.route, c.status])).toEqual([
       ["POST", "/api/v1/dashboards", 201], ["POST", "/api/v1/dashboards", 201], ["POST", "/api/v1/dashboards", 409], ["GET", "/api/v1/dashboards", 200],
     ]);
@@ -74,15 +75,23 @@ describe("dashboards over HTTP", () => {
     expect(await removed.json()).toEqual({ removed: w.id });
     expect((await (await getOne(req("GET", `/dashboards/${d.id}`), params({ id: String(d.id) }))).json()).widgets).toEqual([]);
   });
-  it("writes a Finding on a story, and refuses a widget there with a reason", async () => {
+  it("writes a dashboard up: introduction, Findings and their words; a story is no kind of its own (spec 0013)", async () => {
     const { m, req, params } = await setup();
-    const s = await (await create(req("POST", "/dashboards", { name: "Draft", kind: "story" }), undefined)).json();
-    expect(s.url).toBe(`http://ziffr.test/stories/${s.id}`);
-    const f = await addFinding(req("POST", `/stories/${s.id}/findings`, { metric: m.slug, headline: "{metric} grew" }), params({ id: String(s.id) }));
+    // `kind` went with stories: the schema refuses it, as any field it does not know.
+    expect((await create(req("POST", "/dashboards", { name: "Draft", kind: "story" }), undefined)).status).toBe(400);
+    const s = await (await create(req("POST", "/dashboards", { name: "Draft", intro: "Why revenue grew." }), undefined)).json();
+    expect(s).toMatchObject({ url: `http://ziffr.test/dashboards/${s.id}`, intro: "Why revenue grew." });
+    const p = await patchOne(req("PATCH", `/dashboards/${s.id}`, { name: "October", intro: "Revenue grew." }), params({ id: String(s.id) }));
+    expect(await p.json()).toMatchObject({ name: "October", intro: "Revenue grew." });
+    const f = await addFinding(req("POST", `/dashboards/${s.id}/findings`, { metric: m.slug, headline: "{metric} grew" }), params({ id: String(s.id) }));
     expect(f.status).toBe(201);
-    expect((await f.json()).words.headline).toBe("{metric} grew");
-    const w = await addWidget(req("POST", `/dashboards/${s.id}/widgets`, { view: "number", metrics: [m.slug] }), params({ id: String(s.id) }));
-    expect(w.status).toBe(422);
+    const finding = await f.json();
+    expect(finding).toMatchObject({ view: "story", x: 0, w: 12, words: { headline: "{metric} grew" } });
+    const g = await patchFinding(req("PATCH", `/dashboards/${s.id}/findings/${finding.id}`, { kicker: "October" }), params({ id: String(s.id), findingId: String(finding.id) }));
+    expect((await g.json()).words.kicker).toBe("October");
+    // A dashboard takes widgets as well; only a Finding has words.
+    const w = await (await addWidget(req("POST", `/dashboards/${s.id}/widgets`, { view: "number", metrics: [m.slug] }), params({ id: String(s.id) }))).json();
+    expect((await patchFinding(req("PATCH", `/dashboards/${s.id}/findings/${w.id}`, { kicker: "x" }), params({ id: String(s.id), findingId: String(w.id) }))).status).toBe(422);
   });
   it("answers 403 without the scope and 429 with Retry-After at the daily limit", async () => {
     const reader = await setup(["dashboards:read"]);

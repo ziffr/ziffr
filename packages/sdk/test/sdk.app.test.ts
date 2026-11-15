@@ -54,7 +54,7 @@ describe("@ziffr/sdk against the app", () => {
     expect(await ziffr.observations.submit(created.slug, { value: 12 })).toMatchObject({ status: "recorded", value: 12 });
     await expect((await setup()).ziffr.metrics.create({ name: "X" })).rejects.toMatchObject({ status: 403, code: "forbidden" });
   });
-  it("builds a dashboard and a story, and lists templates (spec 0014)", async () => {
+  it("builds dashboards, writes one up with Findings, and lists templates (spec 0014, spec 0013)", async () => {
     const { orders, extra, ziffr } = await setup(["metrics:read", "dashboards:read", "dashboards:write"]);
     expect((await ziffr.templates.all({ kind: "dashboard" })).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side"]);
     const d = await ziffr.dashboards.fromTemplate({ template: "side-by-side", fills: [[orders.slug], [extra.slug]] }, { idempotencyKey: "pair-1" });
@@ -64,10 +64,11 @@ describe("@ziffr/sdk against the app", () => {
     expect(await ziffr.dashboards.updateWidget(d.id, w.id, { title: "Visits" })).toMatchObject({ id: w.id, title: "Visits" });
     expect(await ziffr.dashboards.removeWidget(d.id, w.id)).toEqual({ removed: w.id });
     expect((await collect(ziffr.dashboards.all())).map((x) => x.id)).toEqual([d.id]);
-    const s = await ziffr.dashboards.create({ name: "Draft", kind: "story" });
-    const f = await ziffr.stories.addFinding(s.id, { metric: orders.slug, headline: "{metric} grew" });
-    expect((await ziffr.stories.updateFinding(s.id, f.id, { kicker: "March" })).words).toMatchObject({ kicker: "March", headline: "{metric} grew" });
-    expect(await ziffr.stories.update(s.id, { intro: "First draft." })).toMatchObject({ intro: "First draft." });
+    const s = await ziffr.dashboards.create({ name: "Draft", intro: "Words first." });
+    expect(s.intro).toBe("Words first.");
+    const f = await ziffr.dashboards.addFinding(s.id, { metric: orders.slug, headline: "{metric} grew" });
+    expect((await ziffr.dashboards.updateFinding(s.id, f.id, { kicker: "March" })).words).toMatchObject({ kicker: "March", headline: "{metric} grew" });
+    expect(await ziffr.dashboards.update(s.id, { intro: "First draft." })).toMatchObject({ intro: "First draft." });
   });
   it("throws a ZiffrError with the API's code", async () => {
     const { extra, ziffr } = await setup(["metrics:read"]);

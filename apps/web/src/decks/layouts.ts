@@ -58,14 +58,14 @@ export function contentAreas(): { x: number; y: number; w: number; h: number }[]
   return [{ x: MARGIN, y: 150, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - 150 - MARGIN }];
 }
 
-/** What a deck made from a dashboard or a story starts with (spec 0010): its name, a story's introduction, and its
- * widgets in reading order. */
-export type DeckSeed = { name: string; intro: string; kind: "dashboard" | "story"; widgets: { template: string; metric_ids: number[]; settings: unknown; title: string | null }[] };
+/** What a deck made from a dashboard starts with (spec 0010, spec 0013): its name, its introduction, and its widgets
+ * in reading order. */
+export type DeckSeed = { name: string; intro: string; widgets: { template: string; metric_ids: number[]; settings: unknown; title: string | null }[] };
 
 /** Lays out a new deck from a seed: a title slide, then one "title and content" slide per widget, the widget filling
  * the content area. `titleOf` names a widget's slide (its own title, else its Metric). */
 export function seedSlides(editor: Editor, master: SlideDesign | null, seed: DeckSeed, widgetType: "ziffr-widget", titleOf: (w: DeckSeed["widgets"][number]) => string): TLShapeId {
-  const first = addSlide(editor, "title", master, { title: seed.name, subtitle: seed.intro || (seed.kind === "dashboard" ? "Made from the dashboard of the same name" : "") });
+  const first = addSlide(editor, "title", master, { title: seed.name, subtitle: seed.intro || "Made from the dashboard of the same name" });
   const [area] = contentAreas();
   for (const w of seed.widgets) {
     const slide = addSlide(editor, "title-content", master, { title: titleOf(w) });

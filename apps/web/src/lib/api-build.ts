@@ -1,4 +1,4 @@
-// What the dashboard and story endpoints share (spec 0014): the daily limits, idempotent creation, the error words, and
+// What the dashboard endpoints share (spec 0014): the daily limits, idempotent creation, the error words, and
 // links that open the result in Ziffr. The core decides who may do what; this only turns its answers into HTTP.
 import { Forbidden, type KeyActor } from "@ziffr/core/actor";
 import { admitBuild, CHANGES_PER_DAY, DASHBOARDS_PER_DAY, Unusable, type ApiDashboard, type ApiDashboardSummary } from "@ziffr/core/api-dashboards";
@@ -6,7 +6,7 @@ import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { ApiError, errorBody, json } from "@/lib/api";
 import { IdempotencyKey } from "@/app/api/v1/schemas";
 
-/** A dashboard or story with its link made absolute for this server, instead of its path. */
+/** A dashboard with its link made absolute for this server, instead of its path. */
 export function withUrl<T extends ApiDashboardSummary | ApiDashboard>(req: Request, d: T): Omit<T, "path"> & { url: string } {
   const { path, ...rest } = d;
   return { ...rest, url: new URL(path, req.url).toString() };
@@ -30,7 +30,7 @@ export async function build(actor: KeyActor, req: Request, what: "create" | "cha
     const admitted = await admitBuild(actor, what);
     if (!admitted.ok) {
       retryAfter = admitted.retryAfter;
-      const max = what === "create" ? `${DASHBOARDS_PER_DAY} dashboards and stories` : `${CHANGES_PER_DAY} changes`;
+      const max = what === "create" ? `${DASHBOARDS_PER_DAY} dashboards` : `${CHANGES_PER_DAY} changes`;
       return { ...errorBody("rate_limited", `This key made ${max} in the last 24 hours; try again in ${admitted.retryAfter} seconds.`), keep: false };
     }
     try {

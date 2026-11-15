@@ -26,7 +26,7 @@ export type ObjectToolbarProps = {
   share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
-  /** This page's own entries at the top of the ⋯ menu, such as Make a story or Make a deck. */
+  /** This page's own entries at the top of the ⋯ menu, such as Make a deck. */
   menu?: { label: string; icon: React.ReactNode; onSelect: () => void }[];
 };
 

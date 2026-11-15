@@ -2,7 +2,7 @@
 
 # Ziffr API, version 1
 
-Read the Metrics an Access Key's creator sees and submit values, and build dashboards and stories as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
+Read the Metrics an Access Key's creator sees and submit values, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
 
 Every path is under `/api/v1`. The machine-readable description is at `/api/v1/openapi.json`. To make a first call, see [the API guide](../guides/api.md).
 
@@ -403,11 +403,11 @@ The workspace's Groups: id and name.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## List dashboards and stories
+## List dashboards
 
 `GET /dashboards` · scope `dashboards:read`
 
-The dashboards and stories the key's creator sees, by id, with their role on each and the link to open it.
+The dashboards the key's creator sees, by id, with their role on each and the link to open it.
 
 **Parameters**
 
@@ -415,7 +415,6 @@ The dashboards and stories the key's creator sees, by id, with their role on eac
 | --- | --- | --- | --- | --- |
 | `limit` | query | integer, 1 to 100, default 50 | no | Items per page, 1 to 100. |
 | `cursor` | query | string, at most 128 characters | no | The `next` of the page before. Opaque. |
-| `kind` | query | `"dashboard"`, `"story"` | no |  |
 
 **Answer** (200)
 
@@ -423,7 +422,6 @@ The dashboards and stories the key's creator sees, by id, with their role on eac
 | --- | --- | --- | --- |
 | `items` | array of object | yes | This page, at most `limit` long. |
 | `items[].id` | integer | yes | Stable id. |
-| `items[].kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
 | `items[].name` | string | yes |  |
 | `items[].role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
 | `items[].url` | string | yes | Where to open it in Ziffr. |
@@ -438,11 +436,11 @@ The dashboards and stories the key's creator sees, by id, with their role on eac
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## Create a dashboard or story
+## Create a dashboard
 
 `POST /dashboards` · scope `dashboards:write`
 
-Creates an empty dashboard or story owned by the key's creator. The Audit Log names the key. Each key may create 50 dashboards and stories in any 24 hours.
+Creates an empty dashboard owned by the key's creator, with an introduction if given. The Audit Log names the key. Each key may create 50 dashboards in any 24 hours.
 
 **Parameters**
 
@@ -455,18 +453,17 @@ Creates an empty dashboard or story owned by the key's creator. The Audit Log na
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `name` | string, at most 120 characters | yes |  |
-| `kind` | `"dashboard"`, `"story"` | no | Default dashboard. |
+| `intro` | string, at most 4000 characters | no | An introduction: what it tells, in a sentence or two. |
 
 **Answer** (201)
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `id` | integer | yes | Stable id. |
-| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
 | `name` | string | yes |  |
 | `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
 | `url` | string | yes | Where to open it in Ziffr. |
-| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `intro` | string | yes | Its introduction, shown above it and first in its Read view; empty when it has none. |
 | `widgets` | array of object | yes |  |
 | `widgets[].id` | integer | yes |  |
 | `widgets[].view` | string | yes | Its built-in view. |
@@ -476,7 +473,7 @@ Creates an empty dashboard or story owned by the key's creator. The Audit Log na
 | `widgets[].y` | integer | yes |  |
 | `widgets[].w` | integer | yes |  |
 | `widgets[].h` | integer | yes |  |
-| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words` | object | no | A Finding only: its words. |
 | `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
@@ -518,11 +515,10 @@ Makes a whole dashboard owned by the key's creator from a Dashboard Template, wi
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `id` | integer | yes | Stable id. |
-| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
 | `name` | string | yes |  |
 | `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
 | `url` | string | yes | Where to open it in Ziffr. |
-| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `intro` | string | yes | Its introduction, shown above it and first in its Read view; empty when it has none. |
 | `widgets` | array of object | yes |  |
 | `widgets[].id` | integer | yes |  |
 | `widgets[].view` | string | yes | Its built-in view. |
@@ -532,7 +528,7 @@ Makes a whole dashboard owned by the key's creator from a Dashboard Template, wi
 | `widgets[].y` | integer | yes |  |
 | `widgets[].w` | integer | yes |  |
 | `widgets[].h` | integer | yes |  |
-| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words` | object | no | A Finding only: its words. |
 | `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
@@ -550,28 +546,27 @@ Makes a whole dashboard owned by the key's creator from a Dashboard Template, wi
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## Describe a dashboard or story
+## Describe a dashboard
 
 `GET /dashboards/{id}` · scope `dashboards:read`
 
-One dashboard or story with its widgets (a story's Findings, with their words) in reading order. Metrics are named by slug; values are read per Metric.
+One dashboard with its introduction and its widgets (Findings with their words) in reading order. Metrics are named by slug; values are read per Metric.
 
 **Parameters**
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 
 **Answer** (200)
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `id` | integer | yes | Stable id. |
-| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
 | `name` | string | yes |  |
 | `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
 | `url` | string | yes | Where to open it in Ziffr. |
-| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `intro` | string | yes | Its introduction, shown above it and first in its Read view; empty when it has none. |
 | `widgets` | array of object | yes |  |
 | `widgets[].id` | integer | yes |  |
 | `widgets[].view` | string | yes | Its built-in view. |
@@ -581,7 +576,60 @@ One dashboard or story with its widgets (a story's Findings, with their words) i
 | `widgets[].y` | integer | yes |  |
 | `widgets[].w` | integer | yes |  |
 | `widgets[].h` | integer | yes |  |
-| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words` | object | no | A Finding only: its words. |
+| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `widgets[].words.subline` | string, at most 200 characters | no |  |
+| `widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `widgets[].words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a dashboard's name or introduction
+
+`PATCH /dashboards/{id}` · scope `dashboards:write`
+
+Changes the words above a dashboard: its name, and the introduction shown above it and first in its Read view.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 120 characters | no |  |
+| `intro` | string, at most 4000 characters | no |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes | Stable id. |
+| `name` | string | yes |  |
+| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `intro` | string | yes | Its introduction, shown above it and first in its Read view; empty when it has none. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes | Its built-in view. |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].x` | integer | yes |  |
+| `widgets[].y` | integer | yes |  |
+| `widgets[].w` | integer | yes |  |
+| `widgets[].h` | integer | yes |  |
+| `widgets[].words` | object | no | A Finding only: its words. |
 | `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
@@ -607,7 +655,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 
 **Body** (JSON)
 
@@ -636,7 +684,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 | `y` | integer | yes |  |
 | `w` | integer | yes |  |
 | `h` | integer | yes |  |
-| `words` | object | no | A story's Finding only: its words. |
+| `words` | object | no | A Finding only: its words. |
 | `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `words.subline` | string, at most 200 characters | no |  |
@@ -649,7 +697,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
-- 422: A view a key may not place, a story (add Findings instead), or a Metric the key's creator does not see.
+- 422: A view a key may not place (add a Finding with POST /dashboards/{id}/findings), or a Metric the key's creator does not see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -663,7 +711,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 | `widgetId` | path | integer | yes | The widget's or Finding's id. |
 
 **Body** (JSON)
@@ -691,7 +739,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 | `y` | integer | yes |  |
 | `w` | integer | yes |  |
 | `h` | integer | yes |  |
-| `words` | object | no | A story's Finding only: its words. |
+| `words` | object | no | A Finding only: its words. |
 | `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `words.subline` | string, at most 200 characters | no |  |
@@ -712,13 +760,13 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 
 `DELETE /dashboards/{id}/widgets/{widgetId}` · scope `dashboards:write`
 
-Removes a widget from a dashboard, or a Finding from a story. The history keeps it, so it can be restored.
+Removes a widget or a Finding from a dashboard. The history keeps it, so it can be restored.
 
 **Parameters**
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 | `widgetId` | path | integer | yes | The widget's or Finding's id. |
 
 **Answer** (200)
@@ -736,71 +784,17 @@ Removes a widget from a dashboard, or a Finding from a story. The history keeps 
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## Change a story's title or introduction
-
-`PATCH /stories/{id}` · scope `dashboards:write`
-
-Changes the words around a story's Findings.
-
-**Parameters**
-
-| Name | In | Type | Required | What it is |
-| --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
-
-**Body** (JSON)
-
-| Field | Type | Required | What it is |
-| --- | --- | --- | --- |
-| `name` | string, at most 120 characters | no |  |
-| `intro` | string, at most 4000 characters | no |  |
-
-**Answer** (200)
-
-| Field | Type | Required | What it is |
-| --- | --- | --- | --- |
-| `id` | integer | yes | Stable id. |
-| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
-| `name` | string | yes |  |
-| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
-| `url` | string | yes | Where to open it in Ziffr. |
-| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
-| `widgets` | array of object | yes |  |
-| `widgets[].id` | integer | yes |  |
-| `widgets[].view` | string | yes | Its built-in view. |
-| `widgets[].title` | string or null | yes |  |
-| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
-| `widgets[].x` | integer | yes |  |
-| `widgets[].y` | integer | yes |  |
-| `widgets[].w` | integer | yes |  |
-| `widgets[].h` | integer | yes |  |
-| `widgets[].words` | object | no | A story's Finding only: its words. |
-| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
-| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
-| `widgets[].words.subline` | string, at most 200 characters | no |  |
-| `widgets[].words.footnote` | string, at most 500 characters | no |  |
-| `widgets[].words.source` | string, at most 200 characters | no |  |
-
-**Errors**
-
-- 400: `invalid_request`: the query, path or body does not match.
-- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
-- 404: `not_found`: nothing here the key's creator may see.
-- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
-- 500: `internal`: something went wrong on the server.
-
 ## Add a Finding
 
-`POST /stories/{id}/findings` · scope `dashboards:write`
+`POST /dashboards/{id}/findings` · scope `dashboards:write`
 
-Adds a Finding about one Metric at the end of a story, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.
+Adds a Finding about one Metric below everything on a dashboard, full width, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.
 
 **Parameters**
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 
 **Body** (JSON)
 
@@ -825,7 +819,7 @@ Adds a Finding about one Metric at the end of a story, with its words. Words may
 | `y` | integer | yes |  |
 | `w` | integer | yes |  |
 | `h` | integer | yes |  |
-| `words` | object | no | A story's Finding only: its words. |
+| `words` | object | no | A Finding only: its words. |
 | `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `words.subline` | string, at most 200 characters | no |  |
@@ -844,7 +838,7 @@ Adds a Finding about one Metric at the end of a story, with its words. Words may
 
 ## Change a Finding's words
 
-`PATCH /stories/{id}/findings/{findingId}` · scope `dashboards:write`
+`PATCH /dashboards/{id}/findings/{findingId}` · scope `dashboards:write`
 
 Changes a Finding's kicker, headline, subline, footnote or source. An empty text falls back to words drawn from the data.
 
@@ -852,7 +846,7 @@ Changes a Finding's kicker, headline, subline, footnote or source. An empty text
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's or story's id. |
+| `id` | path | integer | yes | The dashboard's id. |
 | `findingId` | path | integer | yes | The Finding's id. |
 
 **Body** (JSON)
@@ -877,7 +871,7 @@ Changes a Finding's kicker, headline, subline, footnote or source. An empty text
 | `y` | integer | yes |  |
 | `w` | integer | yes |  |
 | `h` | integer | yes |  |
-| `words` | object | no | A story's Finding only: its words. |
+| `words` | object | no | A Finding only: its words. |
 | `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
 | `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
 | `words.subline` | string, at most 200 characters | no |  |
@@ -890,6 +884,7 @@ Changes a Finding's kicker, headline, subline, footnote or source. An empty text
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
 - 404: `not_found`: nothing here the key's creator may see.
+- 422: A widget that is not a Finding: only a Finding has words.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
