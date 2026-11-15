@@ -1,0 +1,301 @@
+<!-- part: Screen by screen -->
+<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
+# The Metrics screens
+
+Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the top bar.
+
+Not everyone sees the same Metrics. You see a Metric when you own it, when it is shared with you or with one of your **Groups**, when it is on a dashboard or deck shared with you, or when you send in its values. Being an Owner or Admin of the Workspace does not show you every Metric by itself.
+
+## How colours and arrows work
+
+The same rule holds on every Metric screen, and on dashboards too:
+
+- **Green and red only say whether a value is on target.** A small label next to a value reads "On target" (green), "Below target" or "Above target" (red). When a Metric has no target, there is no label.
+- **Arrows and signs show which way a value changed**, such as ↗ +4.2 %. They are never coloured, because a rise is good for revenue and bad for cost.
+
+The Metrics list repeats this in one line above the table. Under a widget on a dashboard, the same comparisons appear as a short line: the **Attainment** ("92% of target"), then for example "vs prev. ↗ +4.2%" and "YoY ↘ −1.0%", or "n/a" when a comparison cannot be made. Point at an entry to see both values it compares.
+
+## The Metrics list
+
+The list shows every Metric you may see, one row each.
+
+| Column | What it shows |
+| --- | --- |
+| **Metric** | Its name, how often it is counted (Daily, Weekly or Monthly) and how its values arrive, such as "via Web form or Mail". A **Derived Metric** says "derived from other metrics" instead. |
+| **Latest** | The most recent value, its period and its on-target label. "No values yet" when nothing has arrived. |
+| **Change** | The change against the period before, as an arrow and a percentage. |
+| **Trend** | A small line of the last 30 periods, on wider screens. |
+| **Target** | Its **Target Range**, such as "≥ 80,000 €", "≤ 5 %", "40 – 60" or "No target". |
+| **Owner** | The **Metric Owner**, on wide screens. |
+
+Click a row to open the Metric's page. **New metric** (top right) starts a new one. With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
+
+## New metric
+
+**New metric** opens a page with two ways to begin. You can change everything afterwards.
+
+- **Start from scratch**: an empty form, for a number nobody has described before.
+- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog.
+
+Owners, Admins and Members create Metrics. Guests create nothing.
+
+### Finding a Metric in the catalog
+
+| Option | What it does |
+| --- | --- |
+| **Search** | Finds catalog Metrics by words in their name, description or unit, such as "churn", "margin" or "tickets". |
+| **For** your industry | Shows only the Metrics written for your kind of business. It appears once your Workspace has a **Workspace Profile** with an industry (see [Workspace settings](16-workspace-settings.md)). |
+| **All** | Shows the whole catalog. |
+| A category, such as Finance | Shows only that category. Click it again to show all. |
+
+Each card shows the Metric's name, what it counts, its period, which way is good and its target. Click a card to open the form, already filled in. If nothing matches, try another word or start from scratch.
+
+### The form
+
+The form has three parts. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
+
+**What is it?**
+
+| Field | What it does |
+| --- | --- |
+| **Name** | What everyone will call it, such as "Customer satisfaction". Required. |
+| **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
+| **Format** | **Number**, **Currency (€)** or **Percent**. Sets how values are written. |
+| **Unit** | A word written after a number, such as "kg" or "deals". It shows only with the Number format. |
+| **Decimals** | How many digits after the decimal point, from 0 to 4. |
+
+**How do values arrive?**
+
+| Field | What it does |
+| --- | --- |
+| **Period** | **Daily**, **Weekly** or **Monthly**: one value per period. It cannot change once the Metric has values. |
+| **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
+| **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY: **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
+| **Sources** | The ways values may arrive: **Slack**, **Mail**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
+| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. |
+
+The four Submission Rules:
+
+| Rule | What happens to a second value | Good for |
+| --- | --- | --- |
+| **Reject a second value** | It is refused; the first value is final. | Numbers that must not change once given. |
+| **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Snapshots, where the latest report wins. |
+| **Add up all values** | It is added to the first. | Counts reported in pieces: "3 deals", then "2 more". |
+| **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
+
+**Target**
+
+| Field | What it does |
+| --- | --- |
+| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
+| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
+| **Target to** | The upper end. Leave it empty for no upper end. |
+
+After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Everyone who submits it has already been sent a form link and a first request for the value.
+
+## A Metric's page
+
+The top of the page shows the Metric's name, a **Derived** badge if it is calculated from other Metrics, and its description. Below are three boxes:
+
+- **Latest**: the most recent value with its period and on-target label.
+- **Change vs. previous period**: an arrow and a percentage.
+- **Target**: which way is good, and the target that counts for the latest period. If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range.
+
+Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Settings**.
+
+If a Metric is not shared with you, its page says "… isn't shared with you", names its owner, and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
+
+### The buttons at the top
+
+| Button | What it does | Who sees it |
+| --- | --- | --- |
+| **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
+| **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
+| **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
+| **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
+| **Share** | Gives people or Groups access (see below). | The Metric Owner |
+| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. | Everyone who sees the Metric |
+| **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
+
+## The Overview tab
+
+### The chart
+
+The chart draws the Metric's values over time. A daily Metric shows its last 90 days. The shaded band is the Target Range, a dashed line is Ziffr's forecast, and a ringed point marks a period that has a question or task.
+
+**Click a point to ask someone about it.** A small box opens, "New Action about" that period, with the value:
+
+| Option | What it does |
+| --- | --- |
+| **Assign to** | The colleague who should answer. Contacts are not listed. |
+| The question | Filled in for you, such as "Why is cost so high in March?" when the value is off target. Change it as you like. |
+| **Assign Action** | Sends the **Question** and opens its page, where the **Thread** continues. |
+
+See [Actions](15-actions.md) for what happens next. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
+
+### Comparisons
+
+The **Comparisons** box sets the latest value against earlier spans.
+
+At the top it shows the **Value** of the latest period, its **Target** ("(series)" when it comes from the Target Series) and its **Attainment**: how far the value reaches its target, as a percentage where higher is always better. Attainment is green from 100 % up, red below.
+
+Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW). Each row shows the two spans with their values, the change, and the change in percent. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
+
+Two buttons choose how spans longer than the Metric's period are compared:
+
+| Option | What it does |
+| --- | --- |
+| **To date** | The current span so far against the same span before. A monthly Metric in mid-quarter compares this quarter's months so far with the same months of last quarter. |
+| **Full periods** | The last complete span against the one before. |
+
+### Breakdown
+
+A **Breakdown** splits one value into labelled rows, such as revenue by country. The box shows the rows of the latest period that has one, largest first. Buttons above it switch between the last six periods with a Breakdown.
+
+When the rows add up to the total, a **Share** column shows each row's part. When they do not, a note says so: the total stays the Metric's value. Rates, for example, never add up. With no Breakdown yet, the box explains how to send one: add rows on the form, or send one line per row, such as "Germany 61,200".
+
+## The Analysis tab
+
+The tab lists the analyses Ziffr offers. In the demo, analyses still to come are shown with a lock and "coming soon"; they do nothing yet.
+
+- **Forecast**: the trend per period and the value expected a few periods ahead, with a likely range. The forecast is drawn dashed on the Overview chart. It needs at least 4 values.
+- **Correlation**: the other Metric with the same period that moves most like this one, how strongly, and over how many periods. Up to five candidates are offered as buttons; pick one to compare with it. A scatter chart shows one dot per period. Only Metrics you may see are compared.
+
+For more analyses, use **Analyze** at the top (see [Analyze](13-analyze.md)).
+
+## The Targets tab
+
+The Target Range applies to every period. On this tab you give single periods a target of their own, such as a monthly budget: the Metric's **Target Series**. You also enter **Projections**, values expected for future periods. Projections are always shown as projections and never count as real values.
+
+The Metric Owner and the Metric's **Editors** change this tab. Everyone else sees a plain table of periods, targets and projections. A Derived Metric has no Target Series of its own: it takes its targets from the Metrics in its formula.
+
+| Option | What it does |
+| --- | --- |
+| **Targets** / **Projections** | Switches between the two lists. |
+| **Add row** | Adds a row for the next period. Choose the month or the day, then type the value. |
+| **Paste from a spreadsheet** | Opens a box for two columns copied from a spreadsheet: period and value. Ziffr shows how many rows it read and which lines it skipped. **Add … to the table** puts them in the table; a row for a period already there replaces it. |
+| **✕** on a row | Removes the row. A saved one is removed after you confirm. |
+| **Note, for everyone who reads it** | A short note saved with the changed rows, such as "Budget 2027". |
+| **Save … changes** | Saves the changed rows. Rows without a period or a number are pointed out and not saved. |
+
+## The History tab
+
+**Latest values** lists the last 12 values, oldest on top:
+
+| Column | What it shows |
+| --- | --- |
+| **Period** | The period the value is for. |
+| **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "imported" is an **Import**: a **Feed**'s value for a past period, recorded without the Unusual Value check. |
+| **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
+| **Submitted by** | The person, Contact or Feed who sent it. |
+
+A Derived Metric has no values of its own, so it has no such list.
+
+**Questions and tasks** lists every **Action** on this Metric that you may read, with its status (**Open**, **Answered**, **Done** for a finished task, or **Closed**), its period and its **Assignee**. Click one to open its Thread. With none yet, the tab reminds you to click a point on the chart.
+
+## The Settings tab
+
+The Settings tab has three boxes: the description, the Workflow, and who submits. A Derived Metric shows only its description.
+
+### Description
+
+The box lists the **Metric Description**: owner, period, format and decimals, which way is good, target and, for a Derived Metric, its **Formula**, written with the names of the Metrics it uses. For other Metrics it also shows how values arrive and what happens to a second value.
+
+**Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused.
+
+**Edit details…** opens the description as a form, for the Metric Owner and Editors:
+
+| Field | Notes |
+| --- | --- |
+| **Name**, **Description** | As on the new metric form. Links to the Metric keep working when its name changes. |
+| **Format**, **Unit**, **Decimals** | Decimals here go up to 6. |
+| **Period** | Fixed once the Metric has values: "duplicate the Metric for another period". |
+| **Which way is good** | The Polarity. |
+| **Aggregation** | Sum, Average, Last value or Does not combine. |
+| **Target from**, **Target up to** | The Target Range, for every period without its own target. The lower end may not be above the upper one. |
+| **A second value for a period** | The Submission Rule. Not shown for a Derived Metric. |
+
+**Save** keeps the change as a new **Version**.
+
+Ziffr has no screen yet for creating a Derived Metric or changing its formula. A Derived Metric's formula is shown here, but not edited.
+
+### Workflow
+
+A **Workflow** is the path the Metric's value takes each period: who is asked, when they are reminded, who steps in, which values need **Approval**, and when the period locks. This box is described in detail in [Workflows and approvals](11-workflows.md#a-metrics-workflow-box). In short:
+
+- The **Workflow** menu chooses one of the Workspace's Workflows, or **None: values publish as they come**. Only the Metric Owner changes it.
+- With a Workflow, the box shows the last period that has ended, its **Due Date**, and where its value is, such as "asked, waiting for the value" or "published and locked", with a link to open the Workflow.
+- **Lock** or **Unlock** the last period, for the Metric Owner.
+- **Stand-ins**: for each Submitter, who is asked instead when they are **Away** or have not answered. Only the Metric Owner chooses.
+
+### Who submits
+
+The **Submitters** of this Metric: who may send values for it. Ziffr recognises them by their Slack name or mail address, or by their personal form link. Each row shows the person and either **Open form link** (when the Web form is one of the Sources) or the link's code. A Stand-in who has been asked to step in is listed too, with a form link of their own.
+
+A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
+
+**Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
+
+People are chosen as Submitters when the Metric is created or duplicated. This box has no way yet to add or remove a person later.
+
+## Sharing a Metric
+
+**Share** belongs to the Metric Owner. For each person, and for each Group ("including whoever joins later"), choose **No access**, **Viewer** or **Editor**.
+
+| Role | What they can do |
+| --- | --- |
+| **Viewer** | See the Metric, its history and comparisons, use it on their own dashboards and analyses, and assign questions and tasks about it. |
+| **Editor** | Everything a Viewer can, and change its description, its Sources, its Target Series and Projections, and which Feeds submit to it. A Guest is never an Editor of a Metric. |
+
+Deleting the Metric, sharing it, choosing its Workflow and Stand-ins, locking periods, accepting **Corrections** and restoring Versions stay with the Metric Owner. Sharing a dashboard also lets everyone on that Share see the Metrics on it (see [The Dashboard screens](12-dashboards.md)).
+
+## Versions
+
+**⋯** → **Versions** lists the Metric's description as it was after each change, newest first: who changed it, when, and what changed, such as "Changed its description" or "Takes values from the Feed …". Changes by one person within ten minutes form one Version.
+
+The Metric Owner can:
+
+- **Restore** an earlier Version. Restoring adds a new Version, so nothing is lost.
+- **Name** a Version, or name the current state, such as "Board pack Q3, final", to find it again later.
+
+Versions keep the description only. Values are never changed by restoring; replaced values live on as Superseded Values.
+
+## Duplicating a Metric
+
+**Duplicate** opens the new metric form, filled in from this Metric, titled "Duplicate …". The name gets "(copy)" added. The duplicate is a new Metric of yours with the same description, Sources and people who submit, and, if the original has one, a ticked **Workflow** box to keep the same Workflow. Values, Shares, Target Series and history stay with the original. Feeds are not copied: choose them again on the new Metric. Confirm with **Create duplicate**.
+
+Duplicating is also the way to count a number in a different period, since a Metric's period is fixed once it has values.
+
+## Deleting a Metric
+
+**Delete…** is for the Metric Owner. To confirm, type the Metric's name and choose **Delete the Metric**. Its values, targets, questions, tasks and form links go with it, and this cannot be undone. The **Audit Log** keeps that you deleted it.
+
+Ziffr refuses to delete a Metric while something still uses it, and says what:
+
+- another Metric is calculated from it (change that formula first),
+- it is shown in a widget or a deck (take it out first),
+- a **View Link** that still works shows it (revoke the link first).
+
+The demo's Metrics cannot be deleted, since every visitor shares them.
+
+## Locks and corrections on a Metric
+
+A **Lock**ed period takes no more values. When someone sends a value for it anyway, it is not recorded. Instead the Metric Owner gets a question, "… is locked. … sent … late: accept it as a correction?", with **Accept** and **Decline**. The sender sees that their value went to the Metric Owner as a proposed Correction.
+
+Anyone answering a question or task about a value can also propose a Correction in its Thread. It takes effect only when the Metric Owner accepts it. The earlier value is then kept and shown struck through, and the corrected value goes through the Metric's Workflow again, so a locked period is checked and approved anew. See [Workflows and approvals](11-workflows.md#locks).
+
+## The personal form link
+
+Every Submitter who is a person or a Contact has a personal form link for each Metric they submit. It arrives with the first request and with every **Prompt**, and it opens without signing in: the link itself says who is sending. Keep it to yourself.
+
+The form shows:
+
+- "Hi …, please report", then the Metric's name and description.
+- **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
+- **Total**: the value. Type it as you would write it.
+- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read. If you leave the total empty, it becomes the sum of the rows. If you fill in both and they differ, the total counts.
+- **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval.
+
+At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.
+
+A Stand-in's form link works only while they stand in. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.

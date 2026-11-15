@@ -29,6 +29,8 @@ pnpm prototype:stop          # stop local Supabase
 
 Local Supabase also runs Mailpit at http://127.0.0.1:55424, where every email Ziffr sends lands when `ZIFFR_SMTP_URL=smtp://127.0.0.1:55425`.
 
+**The user guide.** [docs/user-guide](docs/user-guide/01-what-ziffr-is.md) explains Ziffr without technical words: what it is, its ideas, how it is built and connected, templates, getting started, and a glossary taken from GLOSSARY.md. The app shows it at `/guide`.
+
 **On your own servers.** [Running Ziffr yourself](docs/guides/self-hosting.md) goes from an empty Supabase project to a team using it, with a checklist for production.
 
 ## Not there yet

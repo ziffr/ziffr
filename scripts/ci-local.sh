@@ -22,10 +22,11 @@ node .github/scripts/client-imports.mjs
 node .github/scripts/app-db-access.mjs
 
 step "Prose"
-if command -v vale >/dev/null; then vale --minAlertLevel=error docs/guides docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md; else echo "vale not installed: skipped (brew install vale)"; fi
+if command -v vale >/dev/null; then vale --minAlertLevel=error docs/guides docs/user-guide docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md; else echo "vale not installed: skipped (brew install vale)"; fi
 
-step "Docs and release note (against origin/next)"
+step "Docs, user guide and release note (against origin/next)"
 .github/scripts/docs-touched.sh
+node .github/scripts/guide-touched.mjs
 .github/scripts/release-note-present.sh
 
 $quick && { echo; echo "Quick checks passed."; exit 0; }

@@ -6,7 +6,8 @@ import { getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { workspaceLinks } from "@/lib/settings-links";
-import { TopBar } from "@/components/top-bar";
+import { GuideLink, TopBar } from "@/components/top-bar";
+import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
 import { ResetButton } from "@/components/reset-button";
@@ -47,7 +48,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
         </head>
         <body className="min-h-screen bg-background font-sans antialiased">
-          <header className="mx-auto flex max-w-7xl px-4 py-3 sm:px-6"><span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span></header>
+          <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+            <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
+            <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
+          </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <Toaster />
         </body>
@@ -69,6 +73,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <TopBar
           workspace={workspaceLinks(role)}
           open={open}
+          guide={guideHref()}
           account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId }}
           demo={demo ? (
             <>

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { ChevronDown, Inbox, LogOut, Menu, Plus, X } from "lucide-react";
+import { ChevronDown, CircleHelp, Inbox, LogOut, Menu, Plus, X } from "lucide-react";
 import { NavLink } from "@/components/nav-link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, switchWorkspace } from "@/app/auth-actions";
@@ -33,9 +33,17 @@ const iconButton = "flex size-9 shrink-0 items-center justify-center rounded-[va
 /** The signed-in person; null in the demo, where `demo` holds its controls instead. */
 export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string };
 
+/** The link to the user guide: Ziffr's own /guide, or a team's own page in a new tab (ZIFFR_USER_GUIDE_URL). */
+export function GuideLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
+  const own = href.startsWith("/");
+  return own
+    ? <Link href={href} className={className} title="User guide">{children}</Link>
+    : <a href={href} target="_blank" rel="noopener noreferrer" className={className} title="User guide">{children}</a>;
+}
+
 /** The whole top bar. `workspace` lists the workspace's pages for this person's role; `open` counts the Actions
- * waiting for them; `demo` is the demo's controls, kept in view on every width. */
-export function TopBar({ workspace, open, account, demo }: { workspace: NavItem[]; open: number; account: Account | null; demo?: React.ReactNode }) {
+ * waiting for them; `guide` is where the user guide is; `demo` is the demo's controls, kept in view on every width. */
+export function TopBar({ workspace, open, account, guide, demo }: { workspace: NavItem[]; open: number; account: Account | null; guide: string; demo?: React.ReactNode }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   // A page change closes the phone menu.
@@ -67,6 +75,9 @@ export function TopBar({ workspace, open, account, demo }: { workspace: NavItem[
             <Inbox aria-hidden className="size-4" />
             {open > 0 && <span className="fig text-xs">{open}</span>}
           </Link>
+          <GuideLink href={guide} className={cn(iconButton, "hidden md:flex", path.startsWith("/guide") && "bg-muted text-foreground")}>
+            <CircleHelp aria-hidden className="size-4" /><span className="sr-only">User guide</span>
+          </GuideLink>
           {account && <div className="hidden md:block"><AccountMenu account={account} /></div>}
           <button type="button" className={cn(iconButton, "md:hidden")} aria-expanded={menu} aria-controls="phone-menu" aria-label={menu ? "Close the menu" : "Open the menu"} onClick={() => setMenu(!menu)}>
             {menu ? <X aria-hidden className="size-5" /> : <Menu aria-hidden className="size-5" />}
@@ -75,13 +86,13 @@ export function TopBar({ workspace, open, account, demo }: { workspace: NavItem[
       </div>
       {/* The demo's controls stay in view on narrower screens, in a row of their own. */}
       {demo && <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 pb-2 sm:px-6 lg:hidden">{demo}</div>}
-      {menu && <PhoneMenu workspace={workspace} account={account} />}
+      {menu && <PhoneMenu workspace={workspace} account={account} guide={guide} />}
     </header>
   );
 }
 
 /** Everything in the bar, as one list, for screens too narrow for the bar. */
-function PhoneMenu({ workspace, account }: { workspace: NavItem[]; account: Account | null }) {
+function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; account: Account | null; guide: string }) {
   const [pending, start] = useTransition();
   const group = (label: string, items: NavItem[]) => (
     <div>
@@ -96,6 +107,7 @@ function PhoneMenu({ workspace, account }: { workspace: NavItem[]; account: Acco
         {group("Workspace", workspace)}
         {account && group(account.name, YOU)}
       </div>
+      <GuideLink href={guide} className="mt-3 inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 text-sm hover:bg-muted"><CircleHelp aria-hidden className="size-4" /> User guide</GuideLink>
       {account && (
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-sm">
           {account.workspaces.length > 1 && (

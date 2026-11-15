@@ -10,6 +10,7 @@ One standard for everyone who contributes, people and coding agents alike. Most 
 | Why we decided something hard to reverse | `docs/adr/NNNN-slug.md` | Only when the decision is hard to reverse, surprising without context and a real trade-off. A paragraph is enough. |
 | How to do something | `docs/guides/` | Self-hosting, writing a connector, using the API, using the MCP server, this page. |
 | What exactly exists | `docs/reference/` | **Generated, never written by hand**: the REST API from its OpenAPI spec, MCP tools from their schemas, connectors from their manifests, the database from its migrations. |
+| How to use Ziffr, for the people who use it | `docs/user-guide/` | Plain words, no code. Shown in the app at `/guide`. Each screen chapter names the files of its screens; a pull request that changes a screen changes its chapter (README in that folder). |
 | What changed for users | `.changeset/`, then `CHANGELOG.md` | A release note with every user-visible change, written in the same pull request (`.changeset/README.md`). `pnpm release` turns the notes into a `CHANGELOG.md` section; the GitHub release shows the same text (ADR 0004). Never edit released sections. |
 | Why this code is the way it is | Comments in the code | See below. |
 
@@ -39,6 +40,7 @@ Generated reference cannot drift from the code: the schemas that validate input 
 | Vale with a Ziffr style | Commit, CI | Prose: _Avoid_ words from the glossary, passive voice, long sentences, in docs and UI strings |
 | Reference generation | CI | Fails when generated reference is out of date with the code |
 | Docs-touched check (Danger) | CI on pull requests | A change to the public surface (core exports, API routes, MCP tools, connector interface, migrations) without a matching change in docs, glossary or a release note |
+| User guide checks (`scripts/guide-screens.test.mjs`, `.github/scripts/guide-touched.mjs`) | Tests, CI on pull requests | A page no chapter describes, a chapter naming files that are gone, a changed screen whose chapter did not change (the label `no-guide-change` waives it) |
 | Release-note check | CI on pull requests | A change to anything people use or run (not only docs, CI or agent settings) without a new file in `.changeset/`; the label `no-release-note` lets a maintainer waive it |
 | Pull request template | Every pull request | The author confirms docs, glossary and ADR were considered |
 | Claude review on pull requests | CI on pull requests | Comments that state the obvious, missing why-comments, wrong domain words |

@@ -11,6 +11,7 @@
 - [ ] Uses glossary terms; `GLOSSARY.md` updated if a concept is new or changed
 - [ ] ADR added if the decision is hard to reverse, surprising and a real trade-off
 - [ ] Exported code has doc comments; modules have a header comment; comments say why
+- [ ] The user guide's chapter updated for every screen changed (`docs/user-guide`; the label `no-guide-change` only when people see no difference)
 - [ ] Guides updated, and a release note in `.changeset/` (`pnpm changeset`) for anything users or self-hosters notice
 - [ ] Tests added or changed; typecheck and lint pass
 - [ ] Migrations are new files only; nothing merged was edited

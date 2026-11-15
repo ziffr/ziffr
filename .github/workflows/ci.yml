@@ -47,10 +47,13 @@ jobs:
       - name: Prose (Vale)
         run: |
           curl -sSL https://github.com/errata-ai/vale/releases/download/v3.27.0/vale_3.27.0_Linux_64-bit.tar.gz | tar xz vale
-          ./vale --minAlertLevel=error docs/guides docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md
+          ./vale --minAlertLevel=error docs/guides docs/user-guide docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md
       - name: Public surface changes come with docs
         if: github.event_name == 'pull_request'
         run: .github/scripts/docs-touched.sh
+      - name: Changed screens come with their user guide chapter
+        if: github.event_name == 'pull_request'
+        run: node .github/scripts/guide-touched.mjs
       - name: Changes people use or run come with a release note
         if: github.event_name == 'pull_request'
         run: .github/scripts/release-note-present.sh

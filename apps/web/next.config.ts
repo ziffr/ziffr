@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@ziffr/core"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).
   images: { unoptimized: true },
+  // The user guide's chapters and the glossary are read from the checkout when a page is asked for; a traced build takes them along.
+  outputFileTracingIncludes: { "/guide/**": ["../../docs/user-guide/*.md", "../../GLOSSARY.md"] },
   // No framing (clickjacking), no type sniffing, and no full URLs to other sites (View Link tokens are in paths).
   async headers() {
     return [{

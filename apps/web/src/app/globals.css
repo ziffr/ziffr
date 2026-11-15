@@ -137,3 +137,25 @@
 .react-grid-item.cssTransforms { transition-property: transform; }
 .react-grid-item.react-grid-placeholder { background: var(--color-ink-2); opacity: 0.08; border-radius: var(--radius-card); transition: transform var(--dur-micro) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .react-grid-item { transition: none; } }
+
+/* The user guide's chapters (docs/user-guide): plain Markdown, set for reading. */
+.guide-prose { max-width: 68ch; line-height: 1.65; }
+.guide-prose > * + * { margin-top: var(--space-md); }
+.guide-prose h1 { font-size: var(--text-3xl); line-height: 1.15; letter-spacing: var(--tracking-display); font-weight: var(--display-weight); }
+.guide-prose h2 { margin-top: var(--space-xl); font-size: var(--text-xl); line-height: 1.25; font-weight: 600; scroll-margin-top: 5rem; }
+.guide-prose h3 { margin-top: var(--space-lg); font-size: var(--text-lg); font-weight: 600; scroll-margin-top: 5rem; }
+.guide-prose a { text-decoration: underline; text-underline-offset: 3px; }
+.guide-prose ul { list-style: disc; padding-left: 1.4em; }
+.guide-prose ol { list-style: decimal; padding-left: 1.4em; }
+.guide-prose li + li { margin-top: var(--space-2xs); }
+.guide-prose strong { font-weight: 600; }
+.guide-prose blockquote { border-left: 2px solid var(--color-rule-2); padding-left: var(--space-md); color: var(--muted-foreground); }
+.guide-prose code { font-family: var(--font-outlier); font-size: 0.9em; }
+.guide-prose pre { overflow-x: auto; border-radius: var(--radius-card); background: var(--muted); padding: var(--space-md); font-size: var(--text-xs); line-height: 1.5; }
+.guide-prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: var(--text-sm); line-height: 1.45; }
+.guide-prose th, .guide-prose td { border-bottom: 1px solid var(--border); padding: var(--space-xs) var(--space-sm) var(--space-xs) 0; text-align: left; vertical-align: top; }
+.guide-prose th { font-weight: 600; }
+/* A bold term that leads to its glossary entry: no underline, so a page full of terms stays calm. */
+.guide-prose a.guide-term { text-decoration: none; border-bottom: 1px dotted var(--color-rule-2); }
+.guide-prose a.guide-term:hover { border-bottom-color: currentColor; }
+.guide-prose h3 + p { margin-top: var(--space-xs); }

@@ -1,0 +1,144 @@
+<!-- part: Screen by screen -->
+<!-- screens: apps/web/src/app/workflows/**, apps/web/src/components/approval-bar.tsx, apps/web/src/components/metric-workflow.tsx -->
+# Workflows and approvals
+
+A **Workflow** is the path a Metric's value takes each period: who is asked, when they are reminded, who steps in, which values need **Approval**, and when the period locks. Several Metrics can share one, such as "Monthly finance close". This chapter covers the Workflows page, the Workflow box on a Metric's page, and the controls for approving, sending back, correcting and locking values.
+
+Open the Workflows page from the top bar: **Workspace → Workflows**. Everyone in the Workspace can look at the Workflows. Owners, Admins and Members create them; Guests create nothing. Only the person who created a Workflow, its owner, changes it.
+
+## The Workflows page
+
+The page has three parts: the list of Workflows on the left, the steps of the chosen Workflow in the middle, and on the right the Metrics that use it and when it runs.
+
+### The list
+
+Each Workflow shows its name, who owns it and how many Metrics use it (counting the Metrics you may see). Click one to open it.
+
+**New workflow** creates one straight away, named "New workflow", with a sensible start that you then adjust:
+
+- due on the 3rd working day after the period,
+- remind 2 days before the Due Date,
+- on the Due Date, if the value is still missing, ask the Stand-in,
+- unusual if the value changes more than 30 % or falls outside the target,
+- an Approval step with nobody chosen yet,
+- publish and lock the period.
+
+### Name and Due Date
+
+| Option | What it does |
+| --- | --- |
+| **Name** | What people see in menus, such as "Monthly numbers". |
+| **Due, working days after the period** | The **Due Date**: on which working day after the period ends the value must be in, from 0 to 30. With 3, a monthly value for October is due on the 3rd working day of November. Working days are Monday to Friday; public holidays are not skipped. |
+
+### The steps
+
+The steps are drawn as a timeline, from top to bottom. Each step shows in words what it does, with its settings underneath. The owner moves a step with the arrows **Earlier** and **Later**, and takes it out with **Remove step**.
+
+**Ask** always comes first and cannot be changed: "When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." Ziffr sends each Submitter a **Prompt**, by email, on Slack or wherever that person gets their messages (see [Your settings](17-your-settings.md)). A **Feed** is a program and is never asked.
+
+**Add step** offers the other kinds:
+
+| Step | Settings | What it does |
+| --- | --- | --- |
+| **Remind** | **… days before the due date** | Sends the Prompt again, while the value is still missing, that many days before the Due Date. These are calendar days. You can add several Remind steps, for example 5 days and 1 day before. |
+| **Escalate** | **… days after the due date**, and **ask the stand-in** or **tell the metric owner** | If the value is still missing once the Due Date has passed (or that many days later), an **Escalation**: either the Submitter's **Stand-in** is asked for the value, or the **Metric Owner** gets a question asking them to follow up. When the missing value should come from a Feed, the Metric Owner is told in any case and asked to check that the Feed still runs. You can add several Escalate steps. |
+| **Check** | **changes more than … %**, and **or outside the target** | Decides what counts as an **Unusual Value**: a value that changes more than this share against the period before, or, when ticked, falls outside its target (the Target Series value for that period if there is one, otherwise the Target Range). One Check step per Workflow. |
+| **Approve** | One to three **Approvers**, in order | Who confirms an Unusual Value: the first, **then** the next. **Add approver** adds one, the bin removes one. Approvers are members of the Workspace, not Contacts. "Nobody approves their own value; the next one does." One Approve step per Workflow. |
+
+**Publish** always comes last and cannot be moved or removed. Its one setting is **lock the period once published**. When ticked, the step reads "Publish and lock the period": the value is published and the period is **Lock**ed straight away. When not, the period is published and stays open for later values.
+
+Changes take effect with **Save workflow**.
+
+**Delete** removes the Workflow for everyone. It is offered only while no Metric uses it.
+
+If you do not own the Workflow, you see its steps without their settings, and a line saying who owns it and that only they change it.
+
+### What happens to a value
+
+Once a value is in, the Workflow does this:
+
+1. **Check.** If the Workflow has a Check step, the value is compared with the period before and with its target. Values a Feed records for past periods that had none yet (an **Import**) are not checked.
+2. **Approval.** If the value is unusual and the Approve step names someone other than the Submitter, the first Approver gets an Approval task. Until it is approved, the value shows, marked as not approved yet.
+3. **Publish.** A value that is not unusual, or that every Approver has approved, is published, and locked if the Publish step says so.
+
+If the Workflow has no Check step, or the Approve step names nobody, nothing waits for Approval: values are published as they arrive.
+
+### Metrics on it
+
+The right side lists every Metric that uses this Workflow and that you may see. For each it shows:
+
+- the period being worked on (the last one that has ended) and its Due Date,
+- where the value is: **Not started**, **Asked, waiting**, **In, not approved yet**, **Waiting for approval**, **Published**, or **Published and locked**,
+- a note when there is one, such as why a value is unusual, who sent it back, or who unlocked the period and why,
+- who submits it and, where chosen, their Stand-in.
+
+You do not add Metrics here. "A metric's owner picks its workflow on the metric's page." See [A Metric's Workflow box](#a-metrics-workflow-box).
+
+### When Workflows run
+
+In a real Workspace, Workflows run by themselves once a day. The panel says when, such as "Runs every day at 07:00 (Europe/Berlin)". Owners and Admins set the time zone and the hour under **Workspace → General**, in **Workspace time** (see [Workspace settings](16-workspace-settings.md)). Each run sends the day's Prompts, Remind steps and Escalations.
+
+The panel also shows the last run: when it was, whether it was started by hand, and how many people were asked, reminded and escalated, or that it failed.
+
+| Option | What it does | Who sees it |
+| --- | --- | --- |
+| **Run today's steps now** | Runs today's steps at once, instead of waiting for the hour. Each day runs only once: afterwards the button reads "Today's steps ran", and the clock leaves today alone. | Owners and Admins |
+
+If the panel says that nothing has run by the clock yet, whoever runs Ziffr for your team still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
+
+**In the demo**, nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is**, then choose **Run workflows**. A list shows what happened on that day, such as who was asked or reminded.
+
+### Close the period
+
+**Close the period** locks the last ended period for every Metric on this Workflow that has a value for it, all at once. Metrics still missing their value are left open. Ziffr asks you to confirm first: late values and corrections then need Approval, and only a Metric's owner can unlock it. A message says how many Metrics were locked.
+
+Only the Workflow's owner sees this button, and only while Metrics use the Workflow.
+
+## A Metric's Workflow box
+
+Each Metric's page has a **Workflow** box on its **Settings** tab (see [The Metrics screens](10-metrics.md#workflow)). A Derived Metric has none: it is calculated, never sent in.
+
+| Option | What it does | Who may change it |
+| --- | --- | --- |
+| **Workflow** | Chooses which Workflow the Metric's values take, or **None: values publish as they come**. | The Metric Owner |
+| The status line | The last ended period, its Due Date and where its value is, such as "asked, waiting for the value", "in, not approved yet", "waiting for approval", "published" or "published and locked". With a note when there is one. | Nobody: it follows the Workflow |
+| **Open …** | Opens the Workflow on the Workflows page. | Everyone |
+| **Lock …** / **Unlock …** | Locks or unlocks the last ended period by hand (see [Locks](#locks)). | The Metric Owner |
+| **Stand-ins** | For each Submitter, the person asked instead while they are **Away**, or when an Escalate step asks the Stand-in. Choose a member or a Contact, or **Nobody**. | The Metric Owner |
+
+Choosing a different Stand-in takes effect at once: the person who stood in before can no longer send values for that Submitter. People enter their own Away dates under **Your Deliveries** (see [Your settings](17-your-settings.md)); while someone is Away, their Prompts go to their Stand-in.
+
+Feeds have no Stand-in. When a Feed's value is missing, the Metric Owner hears of it.
+
+## Approving a value
+
+When a value needs Approval, the Approver gets an Approval task. It appears among their **Actions** (the inbox icon in the top bar) and is sent to them like any task, by email or on Slack: "Approve Revenue for October 2026: 84,000 €, up 42.0 % on September 2026. Reply "approve", or "send back:" with what to check."
+
+On the task's page, the Approver sees a box, **You approve this value**:
+
+| Option | What it does |
+| --- | --- |
+| **Approve** | Confirms the value. If there is a next Approver, they are asked now; otherwise the value is published, and locked if the Workflow says so. |
+| **Send back** | Opens a box, **What should they check?**. Write what looks wrong and choose **Send back** (or **Cancel**). The value stays, marked as not approved yet, and the Submitter gets your comment. They can reply with a corrected value. |
+
+The same works without opening Ziffr: reply "approve", or "send back:" followed by what to check, to the message on Slack or by email.
+
+**To correct the value yourself**, propose a Correction in the task's Thread: type the right value in **Propose a correction** and reply. A Correction takes effect once the Metric Owner accepts it, and then goes through Approval again.
+
+A new value for the same period, such as one sent after a send back, starts Approval over: earlier Approval tasks for that period are closed and no longer decide anything.
+
+Every Approval and every send back is recorded in the **Audit Log**, without the comment.
+
+## Locks
+
+A **Lock**ed period takes no more values. A period is locked in one of three ways:
+
+- by the Publish step, when **lock the period once published** is ticked,
+- by the Metric Owner, with **Lock …** in the Metric's Workflow box,
+- by the Workflow's owner, with **Close the period**.
+
+When a value arrives for a locked period, it is not recorded. It becomes a proposed **Correction**: the Metric Owner gets a question ("… is locked. … sent … late: accept it as a correction?") with **Accept** and **Decline**. The same holds for a Correction proposed in any Thread. An accepted Correction replaces the value, keeps the earlier one as a **Superseded Value**, and goes through the Metric's Workflow again: it is checked, may need Approval, and is published anew.
+
+**Unlocking** is for the Metric Owner only, and needs a reason. **Unlock …** asks "Why unlock …? It shows in the history." The reason is shown with the period's status, as "Unlocked by … on …". Locking, unlocking and closing a period are all recorded in the Audit Log.
+
+A dashboard can take its **Snapshot** by itself once every Metric on it is Locked for the period (see [The Dashboard screens](12-dashboards.md)).

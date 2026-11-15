@@ -10,14 +10,15 @@
 //   its own token, and Slack's events and button presses (/api/slack/events, /api/slack/interactions), which
 //   Slack signs. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
 // - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
-//   View Links and the personal submission form (used by Contacts, who have no login) stay open.
+//   View Links, the personal submission form (used by Contacts, who have no login) and the user guide stay open.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
 const DEMO_COOKIE = "ziffr-demo";
 
-const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//];
+// The user guide holds only its own text, so it can be read before signing in.
+const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//, /^\/guide(\/|$)/];
 
 /** This app's own origins: the one the request reached, and the public one (ZIFFR_SITE_URL) when a proxy is in front. */
 function ownOrigins(req: NextRequest): Set<string> {
