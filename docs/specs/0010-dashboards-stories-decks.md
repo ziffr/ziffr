@@ -2,6 +2,8 @@
 
 **Status:** done. **Tracking issue:** #145 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0010`.
 
+> **Changed course:** stories as their own thing are folded back into dashboards, and a dashboard's Snapshots take over their job (ADR 0007, spec 0013, draft; tracking issue #173).
+
 ## Problem Statement
 
 People do three different things with their numbers: watch them, explain them, and present them. Ziffr has a dashboard and a deck, but the line between them is blurred and the middle job has no home.
