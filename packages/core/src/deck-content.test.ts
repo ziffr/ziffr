@@ -70,4 +70,13 @@ describe("content from other sites", () => {
     const layout = { id: 2, settings: { canvas: { document: doc({ "shape:e": shape("shape:e", "embed"), "shape:g": shape("shape:g", "geo") }) } } };
     expect(Object.keys((widgetWithoutOutside(layout).settings.canvas.document as { store: object }).store)).toEqual(["shape:g"]);
   });
+
+  it("drops arrow bindings to a removed shape and keeps those to widgets (ticket #153)", () => {
+    const bind = (id: string, fromId: string, toId: string, terminal: string) => ({ id, typeName: "binding", type: "arrow", fromId, toId, props: { terminal } });
+    const d = doc({
+      "shape:w": shape("shape:w", "ziffr-widget", { metricIds: [1] }), "shape:e": shape("shape:e", "embed", { url: "https://example.com" }),
+      "shape:a": shape("shape:a", "arrow"), "binding:start": bind("binding:start", "shape:a", "shape:e", "start"), "binding:end": bind("binding:end", "shape:a", "shape:w", "end"),
+    });
+    expect(Object.keys(stripOutsideContent(d).store).sort()).toEqual(["binding:end", "shape:a", "shape:w"]);
+  });
 });

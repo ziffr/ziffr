@@ -6,7 +6,7 @@
 /** An uploaded image: stored in the document, loaded from nowhere. */
 const UPLOADED = /^data:image\/(png|jpeg|gif|webp|svg\+xml|avif);base64,/i;
 
-type Rec = { id?: unknown; typeName?: unknown; type?: unknown; props?: Record<string, unknown> | null };
+type Rec = { id?: unknown; typeName?: unknown; type?: unknown; props?: Record<string, unknown> | null; fromId?: unknown; toId?: unknown };
 
 /** Why one record would reach another site, or null when it would not. */
 function outside(r: Rec): string | null {
@@ -93,6 +93,11 @@ export function stripOutsideContent<T>(document: T, depth = 0): T {
   for (const [key, r] of entries) {
     const asset = r.props?.assetId;
     if (r.typeName === "shape" && typeof asset === "string" && removed.has(asset)) removed.add(key);
+  }
+  // Arrows are bound to the shapes they point at (ticket #153), so a binding to a removed shape would leave the arrow
+  // pointing at nothing: the binding goes, and the arrow stays where it was last drawn.
+  for (const [key, r] of entries) {
+    if (r.typeName === "binding" && (removed.has(String(r.fromId)) || removed.has(String(r.toId)))) removed.add(key);
   }
   const store = Object.fromEntries(entries.filter(([key]) => !removed.has(key)));
   return { ...(document as object), store } as T;
