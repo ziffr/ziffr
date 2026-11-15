@@ -6,6 +6,16 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { deckSeed } from "@ziffr/core/conversions";
 import { createDeck } from "@ziffr/core/decks";
+import { snapshotDeckSeed } from "@ziffr/core/snapshots";
+
+/** Starts a deck from a Snapshot (spec 0013) and opens it: its slides draw the values of the Snapshot's period. */
+export async function makeDeckFromSnapshot(snapshotId: number) {
+  const actor = await currentActor();
+  const seed = await snapshotDeckSeed(actor, Number(snapshotId));
+  const id = await createDeck(actor, seed.name);
+  revalidatePath("/", "layout");
+  redirect(`/decks/${id}?snapshot=${Number(snapshotId)}`);
+}
 
 /** Starts a deck named after this dashboard and opens it; the deck editor lays out its slides. */
 export async function makeDeck(sourceId: number) {

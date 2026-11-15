@@ -273,7 +273,7 @@ Giving another user or a Group access to a metric or a dashboard. Sharing a dash
 _Avoid_: Invite, publish
 
 **View Link**:
-A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers, or numbers frozen when it was made.
+A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers; for a deck, numbers frozen when it was made; for a dashboard, one of its Snapshots once shown, which ends the link when it is deleted.
 _Avoid_: Public link, guest access, embed
 
 **Group**:

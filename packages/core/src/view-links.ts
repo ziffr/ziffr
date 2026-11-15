@@ -13,6 +13,8 @@ import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
+import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
+import { dataAsOfEach } from "./snapshot-periods";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days. */
@@ -32,6 +34,8 @@ export type ViewPayload = {
   intro?: string;
   /** Frozen links made while stories were their own thing (spec 0010) keep the introduction here. */
   story?: { intro: string };
+  /** Set when the link shows a Snapshot (spec 0013): which period, and when it was taken. */
+  snapshot?: { label: string; takenAt: string };
   asOf: string;
 };
 
@@ -90,8 +94,12 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
       .filter((w) => widgetMetricIds(w.metric_ids, w.settings).every((m) => ids.has(m)))
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
-  const data = shownData(full, ids, obj.theme_id ?? null);
-  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
+  // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
+  const document = type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined;
+  // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
+  // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
+  const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);
+  return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
 }
 
 /** A deck's slides as a View Link may show them: only the records the deck had when the link was made (for a live
@@ -108,12 +116,43 @@ function deckForLink(document: unknown, shown: Set<number>, records: string[] | 
   return { ...doc, store: Object.fromEntries(keep) };
 }
 
+/** For each Metric of a deck that every widget drawing it draws as of a day (`asOf`), the latest such day. A Metric
+ * drawn anywhere without one, or inside a free layout, is left out: it is sent whole, as before. */
+export function deckAsOf(document: unknown): Map<number, string> {
+  const store = (document as { store?: Record<string, { type?: string; props?: { metricIds?: unknown; settings?: unknown } }> } | null)?.store ?? {};
+  const ends = new Map<number, string>();
+  const whole = new Set<number>();
+  for (const r of Object.values(store)) {
+    if (r?.type !== "ziffr-widget") continue;
+    let settings: Record<string, unknown> = {};
+    try { settings = (typeof r.props?.settings === "string" ? JSON.parse(r.props.settings) : r.props?.settings ?? {}) as Record<string, unknown>; } catch { settings = {}; }
+    const ids = widgetMetricIds(Array.isArray(r.props?.metricIds) ? (r.props!.metricIds as unknown[]).map(Number) : [], settings);
+    const asOf = typeof settings.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(settings.asOf) && !(settings.canvas as { document?: unknown } | null)?.document ? settings.asOf : null;
+    for (const id of ids) {
+      if (!asOf) whole.add(id);
+      else if (!ends.has(id) || ends.get(id)! < asOf) ends.set(id, asOf);
+    }
+  }
+  for (const id of whole) ends.delete(id);
+  return ends;
+}
+
 /** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. */
 export async function openViewLink(token: string): Promise<ViewPayload | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
   if (link.frozen) return link.frozen as ViewPayload;
+  // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
+  if (link.snapshot_id) {
+    const s = await snapshotForLink(Number(link.snapshot_id), Number(link.object_id), link.snapshot_words as SnapshotWords | null);
+    const { data: dash } = await db().from("dashboards").select("owner_id, workspace_id").eq("id", link.object_id).maybeSingle();
+    if (!s || !dash) return null;
+    // As any View Link: only what the dashboard's owner may see now, and only the Metrics agreed when it was made
+    // (visibility carries all the way through, #193). A widget drawing any other Metric stays out whole.
+    const seen = await forReader({ personId: dash.owner_id as string, workspaceId: dash.workspace_id as string }, s.widgets, s.data, s.themeId, link.metric_ids ?? []);
+    return { type: "dashboard", id: link.object_id, name: s.name, themeId: s.themeId, data: seen.data, widgets: seen.widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget), intro: s.intro, snapshot: { label: s.label, takenAt: s.takenAt }, asOf: s.takenAt };
+  }
   return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null, link.shape_ids ?? null);
 }
 
@@ -127,13 +166,19 @@ async function assertOwner(actor: Actor, type: "dashboard" | "deck", id: number)
 /** The View Links of a dashboard or deck, for its owner. */
 export async function listViewLinks(actor: Actor, type: "dashboard" | "deck", id: number) {
   await assertOwner(actor, type, id);
-  const { data } = await db().from("view_links").select("id, token, label, expires_at, revoked_at, created_at, frozen").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("id", { ascending: false });
-  return (data ?? []).map((l) => ({ id: l.id, token: l.token, label: l.label, expires_at: l.expires_at, revoked: Boolean(l.revoked_at), created_at: l.created_at, frozen: Boolean(l.frozen) }));
+  const { data } = await db().from("view_links").select("id, token, label, expires_at, revoked_at, created_at, frozen, snapshot_id, dashboard_snapshots(label, deleted_at)").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("id", { ascending: false });
+  return (data ?? []).map((l) => {
+    const s = l.dashboard_snapshots as unknown as { label: string; deleted_at: string | null } | null;
+    // A link to a deleted Snapshot no longer works: it reads as revoked.
+    return { id: l.id, token: l.token, label: l.label, expires_at: l.expires_at, revoked: Boolean(l.revoked_at) || Boolean(s?.deleted_at), created_at: l.created_at, frozen: Boolean(l.frozen), snapshotId: (l.snapshot_id as number | null) ?? null, snapshotLabel: s?.label ?? null };
+  });
 }
 
-/** Makes a View Link to the actor's dashboard or deck, live or frozen, ending on a day within MAX_DAYS. A View Link
- * is sharing, so Guests make none. Returns the token. */
-export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean }): Promise<string> {
+/** Makes a View Link to the actor's dashboard or deck, live or frozen, ending on a day within MAX_DAYS; for a
+ * dashboard, `snapshotId` makes it show one of its shown Snapshots (spec 0013). A View Link is sharing, so Guests
+ * make none. Returns the token. */
+export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }): Promise<string> {
+  if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input);
   // Visitors share the demo: a View Link from it would let anyone publish their own text under this site.
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("View Links cannot be made in the demo.");
   await assertOwner(actor, type, id);
@@ -153,6 +198,35 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
     workspace_id: actor.workspaceId }).select("id").single();
   // Never the token: whoever reads the record must not be able to open the link from it.
   await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), expires_on: expires, metrics: view.data.metrics.length } });
+  return token;
+}
+
+/** The end date of a new View Link, checked: from today to MAX_DAYS ahead. */
+function endDate(expires: unknown): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
+  const e = String(expires ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e) || e < today || e > latest) throw new Error(`Pick an end date within ${MAX_DAYS} days.`);
+  return e;
+}
+
+/** A View Link to one of the actor's dashboard's Snapshots, once it is shown: what it kept and its words, read when
+ * the link is opened. Like any View Link, only its dashboard's owner makes one, and only of Metrics they see. */
+async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string }): Promise<string> {
+  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("View Links cannot be made in the demo.");
+  if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
+  await assertOwner(actor, "dashboard", dashboardId);
+  assertCan(actor, "share");
+  const expires = endDate(input?.expires);
+  const s = await snapshotForLink(snapshotId, dashboardId);
+  // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
+  if (!s) throw new Error("Show the Snapshot to everyone with access first, then make a link to it.");
+  await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
+  const token = randomBytes(24).toString("base64url");
+  const { data: made } = await db().from("view_links").insert({ token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, snapshot_id: snapshotId,
+    // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later.
+    snapshot_words: s.words, metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
+  await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, details: { link_id: made?.id ?? null, frozen: true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
 }
 

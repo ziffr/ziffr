@@ -13,6 +13,7 @@ import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { fillSettings } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
+import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
@@ -183,8 +184,10 @@ export async function exportPptx(editor: Editor, data: CanvasData, deckName: str
 type Slide = ReturnType<InstanceType<typeof import("pptxgenjs").default>["addSlide"]>;
 type Pptx = InstanceType<typeof import("pptxgenjs").default>;
 
-async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: number; y: number; w: number; h: number }, data: CanvasData, editor: Editor) {
+async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: number; y: number; w: number; h: number }, live: CanvasData, editor: Editor) {
   const widget = widgetFromShape(shape);
+  // A widget of a deck made from a Snapshot exports the values of that period only, as it draws them (spec 0013).
+  const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
   if (!m) return;

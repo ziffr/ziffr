@@ -15,7 +15,7 @@ import { audit } from "./audit-log";
 import { db } from "./db";
 import { widgetWithoutOutside } from "./deck-content";
 import { assertSeesMetrics } from "./sharing";
-import { cutPoints, inSnapshot, snapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
+import { dataAsOf, snapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
 import { ensureBaseline, recordVersion } from "./versions";
 import { shownData } from "./view-links";
 import { widgetMetricIds } from "./widget-metrics";
@@ -90,21 +90,6 @@ function wordsOf(w: Widget): WidgetWords {
   return out;
 }
 
-/** The data a Snapshot keeps: values (and their Breakdowns, Approvals waiting and Locks) of the Metric periods
- * complete by the period's last day. Targets and Projections stay as they were when it was taken. */
-function cutData(data: CanvasData, end: string): CanvasData {
-  const periodOf = new Map(data.metrics.map((m) => [m.slug, m.period]));
-  const periodById = new Map(data.metrics.map((m) => [m.id, m.period]));
-  const keepPeriods = (byId: Record<number, string[]>) => Object.fromEntries(Object.entries(byId).map(([id, ps]) => [id, ps.filter((p) => inSnapshot(periodById.get(Number(id)) ?? "day", p, end))]));
-  return {
-    ...data,
-    series: Object.fromEntries(Object.entries(data.series).map(([slug, pts]) => [slug, cutPoints(pts, periodOf.get(slug) ?? "day", end)])),
-    breakdowns: Object.fromEntries(Object.entries(data.breakdowns).map(([id, byPeriod]) => [id, Object.fromEntries(Object.entries(byPeriod).filter(([p]) => inSnapshot(periodById.get(Number(id)) ?? "day", p, end)))])),
-    pending: keepPeriods(data.pending),
-    locked: keepPeriods(data.locked),
-  };
-}
-
 /** Takes a Snapshot of a dashboard for a week, month or quarter (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
@@ -130,7 +115,8 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // Whoever takes it vouches for what it shows: every Metric on it must be one they see.
   await assertSeesMetrics(actor, metricIds);
   const full = await getCanvasData(ws, actor.personId, { seriesOf: metricIds });
-  const data = cutData(shownData(full, new Set(metricIds), dash.theme_id ?? null), p.end);
+  // The values of the Metric periods complete by the period's last day; Targets and Projections as they are now.
+  const data = dataAsOf(shownData(full, new Set(metricIds), dash.theme_id ?? null), p.end);
   // Each widget keeps what drawing needs, nothing else.
   const kept = widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   const frozen: Frozen = { name: dash.name, themeId: dash.theme_id ?? null, widgets: kept, data };
@@ -194,18 +180,22 @@ async function assertSeesKept(actor: Actor, snapshotId: number) {
   await assertSeesMetrics(actor, kept);
 }
 
+/** A Snapshot's widgets carrying the words written about them; `extra` settings are added to each (such as asOf). */
+function withWords(widgets: Widget[], words: SnapshotWords, extra: WidgetSettings = {}): Widget[] {
+  return widgets.map((w) => {
+    const own = words.widgets?.[String(w.id)] ?? {};
+    const settings: WidgetSettings = { ...(w.settings ?? {}), ...extra };
+    for (const k of WORD_KEYS) if (k !== "title") (settings as Record<string, unknown>)[k] = own[k] || undefined;
+    return { ...w, title: own.title || null, settings };
+  });
+}
+
 /** Opens a Snapshot to read: its widgets carry the words written about them, drawn from the data it kept. */
 export async function openSnapshot(actor: Actor, snapshotId: number): Promise<OpenSnapshot> {
   const { row, role, writer } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
   const frozen = row.frozen as Frozen;
   const words = row.words ?? {};
-  const all = frozen.widgets.map((w) => {
-    const own = words.widgets?.[String(w.id)] ?? {};
-    const settings: WidgetSettings = { ...(w.settings ?? {}) };
-    for (const k of WORD_KEYS) if (k !== "title") (settings as Record<string, unknown>)[k] = own[k] || undefined;
-    return { ...w, title: own.title || null, settings };
-  });
-  const seen = await forReader(actor, all, frozen.data, frozen.themeId);
+  const seen = await forReader(actor, withWords(frozen.widgets, words), frozen.data, frozen.themeId);
   const corrections = await correctionsFor(actor, seen.data);
   return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
 }
@@ -213,11 +203,43 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
 /** What of a Snapshot one reader gets (spec 0013, decided on #193): visibility carries all the way through, so only
  * the Metrics they may see now, as on the live dashboard. A widget that draws any other Metric stays out whole: its
  * title and settings can name it. `hidden` counts the widgets left out. */
-export async function forReader(actor: Actor, widgets: Widget[], data: CanvasData, themeId: number | null): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
-  const visible = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
+export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
+  // A View Link also keeps to the Metrics agreed when it was made.
+  const visible = allowed ? new Set([...seen].filter((m) => allowed.includes(m))) : seen;
   const shown = widgets.filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).every((m) => visible.has(m)));
   const ids = new Set(data.metrics.map((m) => m.id).filter((m) => visible.has(m)));
   return { widgets: shown, data: shownData(data, ids, themeId), hidden: widgets.length - shown.length };
+}
+
+/** What a View Link to a Snapshot shows (#178), read from the Snapshot each time it is opened: what it kept and the
+ * words written about it, nothing else. Null when it is a draft, deleted or of another dashboard. No Actor: the
+ * link's owner chose to show it, as with any View Link (view-links.ts checks the link first). */
+export async function snapshotForLink(snapshotId: number, dashboardId: number, keptWords?: SnapshotWords | null): Promise<{ name: string; themeId: number | null; intro: string; widgets: Widget[]; data: CanvasData; label: string; takenAt: string; words: SnapshotWords } | null> {
+  const { data } = await db().from("dashboard_snapshots").select(`${SUMMARY}, frozen, words`).eq("id", snapshotId).eq("dashboard_id", dashboardId).is("deleted_at", null).not("shown_at", "is", null).maybeSingle();
+  const row = data as unknown as Row | null;
+  if (!row?.frozen) return null;
+  // A link shows the words as they were when its owner made it, if it kept them; changed since, they stay in Ziffr.
+  const words = keptWords ?? row.words ?? {};
+  const widgets = withWords(row.frozen.widgets, words);
+  return { name: row.frozen.name, themeId: row.frozen.themeId, intro: String(words.intro ?? ""), widgets, data: row.frozen.data, label: row.label, takenAt: row.taken_at, words };
+}
+
+/** What a new deck made from a Snapshot starts with (#178): the dashboard's name and the period, the Snapshot's
+ * introduction, and its widgets in reading order with the words written about them, each drawing only the Metric
+ * periods complete by the period's last day. Only the widgets the person may see now (decided on #193); placing the
+ * slides checks again that they see every Metric. */
+export async function snapshotDeckSeed(actor: Actor, snapshotId: number): Promise<{ name: string; intro: string; widgets: Pick<Widget, "template" | "metric_ids" | "settings" | "title">[] }> {
+  const { row } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
+  const frozen = row.frozen as Frozen;
+  const words = row.words ?? {};
+  const ordered = [...frozen.widgets].sort((a, b) => a.y - b.y || a.x - b.x || a.id - b.id);
+  const seen = await forReader(actor, withWords(ordered, words, { asOf: row.period_end }), frozen.data, frozen.themeId);
+  return {
+    name: `${frozen.name}, ${row.label}`.slice(0, 120),
+    intro: String(words.intro ?? ""),
+    widgets: seen.widgets.map((w) => ({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title })),
+  };
 }
 
 /** The values a Snapshot kept that were corrected or removed since, of the data the reader gets from it: only

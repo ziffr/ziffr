@@ -28,6 +28,8 @@ const ids = (v: unknown) => (Array.isArray(v) ? v.map(Number).filter(Number.isIn
 function settings(s: unknown): WidgetSettings {
   const v = (s && typeof s === "object" && !Array.isArray(s) ? s : {}) as WidgetSettings;
   if (JSON.stringify(v).length > MAX_SETTINGS) throw new Error("This widget is too large to save.");
+  // A widget drawn as of a day (spec 0013) names that day and nothing else.
+  if (v.asOf !== undefined && v.asOf !== null && !(typeof v.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.asOf))) throw new Error("This widget's day is not one.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
   return v;

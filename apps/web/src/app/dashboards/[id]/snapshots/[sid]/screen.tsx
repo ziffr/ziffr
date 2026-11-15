@@ -8,8 +8,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Camera, Check, Eye, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, Camera, Check, Eye, Link2, Pencil, Presentation, Trash2 } from "lucide-react";
 import { deleteSnapshot, editSnapshotWords, showSnapshot } from "@/app/snapshot-actions";
+import { makeDeckFromSnapshot } from "@/app/convert-actions";
+import { ViewLinksDialog } from "@/components/view-links";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { useConfirm } from "@/components/confirm-dialog";
 import { VersionsDialog } from "@/components/versions-dialog";
@@ -35,10 +37,12 @@ function wordsOf(w: Widget): WidgetWords {
   return out;
 }
 
-/** The Snapshot page. `takenBy` is the name of whoever took it. */
-export function SnapshotScreen({ snapshot: s, takenBy }: { snapshot: OpenSnapshot; takenBy: string }) {
+/** The Snapshot page. `takenBy` is the name of whoever took it; `canCreate` may make a deck of it (#178);
+ * `viewLinks` for the dashboard's owner, who may make View Links to it once it is shown. */
+export function SnapshotScreen({ snapshot: s, takenBy, canCreate = false, viewLinks = false }: { snapshot: OpenSnapshot; takenBy: string; canCreate?: boolean; viewLinks?: boolean }) {
   const router = useRouter();
   const [writing, setWriting] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => {
@@ -71,6 +75,9 @@ export function SnapshotScreen({ snapshot: s, takenBy }: { snapshot: OpenSnapsho
         {s.canWrite && !s.shownAt && (
           <Button disabled={pending} onClick={() => run(() => showSnapshot(s.id), `${s.label} is shown to everyone who may open the dashboard`)}><Eye aria-hidden /> Show to everyone with access</Button>
         )}
+        {canCreate && <Button variant="outline" disabled={pending} onClick={() => run(() => makeDeckFromSnapshot(s.id))}><Presentation aria-hidden /> Make a deck</Button>}
+        {viewLinks && <Button variant="outline" onClick={() => setLinking(true)}><Link2 aria-hidden /> View link</Button>}
+        {linking && <ViewLinksDialog type="dashboard" id={s.dashboardId} snapshot={{ id: s.id, label: s.label }} onClose={() => setLinking(false)} />}
         <VersionsDialog type="snapshot" id={s.id} people={s.data.people} />
         {s.canDelete && (
           <Button variant="outline" disabled={pending} onClick={async () => {

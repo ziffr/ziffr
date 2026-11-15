@@ -221,6 +221,8 @@ export type WidgetSettings = {
   fullPeriods?: boolean;
   /** Free layout: a tldraw document with its artboard, and the latest period per metric when it was drawn. */
   canvas?: { document: unknown; stamp: Record<string, string> } | null;
+  /** Draws only the Metric periods complete by this day (yyyy-mm-dd): a deck made from a Snapshot (spec 0013). */
+  asOf?: string | null;
   /** The widget this free layout started from, placed on the artboard the first time it opens. */
   canvasSeed?: { template: TemplateId; metric_ids: number[]; settings: WidgetSettings } | null;
 };

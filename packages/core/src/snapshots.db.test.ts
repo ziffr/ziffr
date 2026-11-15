@@ -209,7 +209,7 @@ describe("corrections since a Snapshot (#177)", () => {
     await showSnapshot(ben, id);
     await db().from("observations").update({ value: 55 }).eq("metric_id", payroll.id).eq("period_start", "2026-10-01");
     await db().from("observations").update({ value: 101 }).eq("metric_id", rev.id).eq("period_start", "2026-10-01");
-    // Sara reads both kept values, but learns only of the correction to the Metric she sees.
+    // Sara does not get Payroll at all (#193), so she learns only of the correction to the Metric she sees.
     expect((await openSnapshot(owner, id)).corrections.map((c) => c.metricId)).toEqual([rev.id]);
     expect((await openSnapshot(ben, id)).corrections.map((c) => c.metricId).sort()).toEqual([rev.id, payroll.id].sort());
   });

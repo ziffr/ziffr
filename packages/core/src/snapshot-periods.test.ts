@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, inSnapshot, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, dataAsOf, inSnapshot, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 
 describe("Snapshot periods", () => {
   it("names weeks, months and quarters and knows their last day", () => {
@@ -34,6 +34,18 @@ describe("Snapshot periods", () => {
     expect([weeks[0], weeks.at(-1), weeks.length]).toEqual(["2026-07-06", "2026-09-21", 12]);
     expect(metricPeriodsIn("day", snapshotPeriod("month", "2026-02-01")!)).toHaveLength(28);
     expect(metricPeriodsIn("month", snapshotPeriod("week", "2026-10-26")!)).toEqual([]);
+  });
+
+  it("cuts a page's data at a day, for a widget drawn as of then (#178)", () => {
+    const m = { id: 1, slug: "rev", period: "month" } as never;
+    const data = { metrics: [m], series: { rev: [{ period: "2026-09-01", value: 1 }, { period: "2026-10-01", value: 2 }] }, breakdowns: { 1: { "2026-09-01": [], "2026-10-01": [] } }, pending: { 1: ["2026-10-01"] }, locked: { 1: ["2026-09-01", "2026-10-01"] }, targets: { 1: [{ period: "2026-12-01", value: 9 }] } } as never;
+    const cut = dataAsOf(data, "2026-09-30");
+    expect(cut.series.rev).toEqual([{ period: "2026-09-01", value: 1 }]);
+    expect(Object.keys(cut.breakdowns[1])).toEqual(["2026-09-01"]);
+    expect(cut.pending[1]).toEqual([]);
+    expect(cut.locked[1]).toEqual(["2026-09-01"]);
+    // Targets stay: they say what was planned, not what was recorded.
+    expect(cut.targets[1]).toHaveLength(1);
   });
 
   it("keeps a Metric's periods that are complete by the Snapshot's last day", () => {

@@ -3,7 +3,7 @@
 // the periods that end on or before the Snapshot period's last day: for a quarter, a monthly Metric's three months
 // and those before; a weekly one's weeks that end in it; a daily one's days.
 import { addDays, addMonths, addWeeks, endOfMonth, format, isValid, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
-import type { Period, Point } from "./types";
+import type { CanvasData, Period, Point } from "./types";
 
 /** How long a Snapshot period is. */
 export type SnapshotPeriodKind = "week" | "month" | "quarter";
@@ -77,4 +77,36 @@ export function metricPeriodsIn(period: Period, p: SnapshotPeriod): string[] {
 /** A Metric's points kept by a Snapshot that ends on `end`. */
 export function cutPoints(points: readonly Point[], period: Period, end: string): Point[] {
   return points.filter((p) => inSnapshot(period, p.period, end));
+}
+
+/** The data with some Metrics cut, each at its own day (`ends` by Metric id); the others stay whole. For a deck
+ * whose widgets of a Metric all draw it as of a day: only that is sent (spec 0013). */
+export function dataAsOfEach(data: CanvasData, ends: ReadonlyMap<number, string>): CanvasData {
+  if (!ends.size) return data;
+  const out = { ...data, series: { ...data.series }, breakdowns: { ...data.breakdowns }, pending: { ...data.pending }, locked: { ...data.locked } };
+  for (const m of data.metrics) {
+    const end = ends.get(m.id);
+    if (!end) continue;
+    const one = dataAsOf({ ...data, metrics: [m], series: { [m.slug]: data.series[m.slug] ?? [] }, breakdowns: { [m.id]: data.breakdowns?.[m.id] ?? {} }, pending: { [m.id]: data.pending?.[m.id] ?? [] }, locked: { [m.id]: data.locked?.[m.id] ?? [] } }, end);
+    out.series[m.slug] = one.series[m.slug];
+    out.breakdowns[m.id] = one.breakdowns[m.id];
+    out.pending[m.id] = one.pending[m.id];
+    out.locked[m.id] = one.locked[m.id];
+  }
+  return out;
+}
+
+/** The data as of a day: values (and their Breakdowns, Approvals waiting and Locks) of the Metric periods complete
+ * by `end`. Targets and Projections stay. A Snapshot keeps this; a widget with `asOf` draws it (spec 0013). */
+export function dataAsOf(data: CanvasData, end: string): CanvasData {
+  const periodOf = new Map(data.metrics.map((m) => [m.slug, m.period]));
+  const periodById = new Map(data.metrics.map((m) => [m.id, m.period]));
+  const keepPeriods = (byId: Record<number, string[]>) => Object.fromEntries(Object.entries(byId ?? {}).map(([id, ps]) => [id, ps.filter((p) => inSnapshot(periodById.get(Number(id)) ?? "day", p, end))]));
+  return {
+    ...data,
+    series: Object.fromEntries(Object.entries(data.series).map(([slug, pts]) => [slug, cutPoints(pts, periodOf.get(slug) ?? "day", end)])),
+    breakdowns: Object.fromEntries(Object.entries(data.breakdowns ?? {}).map(([id, byPeriod]) => [id, Object.fromEntries(Object.entries(byPeriod).filter(([p]) => inSnapshot(periodById.get(Number(id)) ?? "day", p, end)))])),
+    pending: keepPeriods(data.pending),
+    locked: keepPeriods(data.locked),
+  };
 }

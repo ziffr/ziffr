@@ -21,6 +21,7 @@ const StoryBody = dynamic(() => import("./story").then((m) => m.StoryBody));
 import { cn } from "@/lib/utils";
 import { useSeriesReady } from "@/canvas/series-store";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
+import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
 
 type Props = {
@@ -35,7 +36,9 @@ export function widgetMetrics(widget: Pick<Widget, "metric_ids">, data: CanvasDa
   return widget.metric_ids.map((id) => data.metrics.find((m) => m.id === id)).filter((m): m is Metric => !!m);
 }
 
-export function WidgetBody({ widget, data, onPointContext, onRowContext }: Props) {
+export function WidgetBody({ widget, data: live, onPointContext, onRowContext }: Props) {
+  // A widget of a deck made from a Snapshot draws the values of that period only (spec 0013).
+  const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
   const ms = widgetMetrics(widget, data);
   // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
   const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);

@@ -6,11 +6,14 @@ import { deckView, savedWidgets } from "@ziffr/core/page-data";
 import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
 import { deckSeed } from "@ziffr/core/conversions";
+import { snapshotDeckSeed } from "@ziffr/core/snapshots";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 
-export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string }> }) {
+export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string }> }) {
   const id = Number((await params).id);
-  const from = Number((await searchParams).from);
+  const sp = await searchParams;
+  const from = Number(sp.from);
+  const fromSnapshot = Number(sp.snapshot);
   const viewer = await viewerId();
   const actor = await currentActor();
   // Only decks of this workspace exist here; another workspace's deck ids and owners stay unknown.
@@ -29,7 +32,10 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   // A new, empty deck made from a dashboard (spec 0010) gets that one's widgets as its first slides; the
   // core checks the person may open it. Any other deck, or one that has slides, starts as it is.
   const empty = !Object.values((deck.document as { store?: Record<string, { type?: string }> } | null)?.store ?? {}).some((r) => r.type === "frame");
-  const seed = empty && Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
+  // Made from a Snapshot (spec 0013): its widgets with its words, drawing the values of its period only.
+  const seed = !empty ? null
+    : Number.isInteger(fromSnapshot) && fromSnapshot > 0 ? await snapshotDeckSeed(actor, fromSnapshot).catch(() => null)
+    : Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
   const [data, saved, shares, groups] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
     getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? [])]),

@@ -2,7 +2,7 @@
 
 **Status:** done. **Tracking issue:** #145 (labels `tracking`, `ready-for-agent`); tickets carry `spec:0010`.
 
-> **Changed course:** stories as their own thing are folded back into dashboards, and a dashboard's Snapshots take over their job (ADR 0007, spec 0013, draft; tracking issue #173).
+> **Changed course:** stories as their own thing are folded back into dashboards, and a dashboard's Snapshots take over their job (ADR 0007, spec 0013; tracking issue #173).
 
 ## Problem Statement
 

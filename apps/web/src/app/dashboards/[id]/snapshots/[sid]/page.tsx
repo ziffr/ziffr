@@ -2,7 +2,7 @@
 // read top to bottom, with the values it kept. The core decides who may open it: whoever may open the dashboard once
 // it is shown, its owner and Editors while it is a draft. Everything it shows comes from what it kept.
 import { notFound, redirect } from "next/navigation";
-import { Forbidden } from "@ziffr/core/actor";
+import { can, Forbidden } from "@ziffr/core/actor";
 import { openSnapshot, type OpenSnapshot } from "@ziffr/core/snapshots";
 import { currentActor } from "@/lib/viewer";
 import { getProfileMap } from "@/lib/data";
@@ -22,6 +22,9 @@ export default async function SnapshotPage({ params }: { params: Promise<{ id: s
     throw err;
   }
   if (snapshot.dashboardId !== dashboardId) redirect(`/dashboards/${snapshot.dashboardId}/snapshots/${snapshot.id}`);
+  const actor = await currentActor();
   const people = await getProfileMap();
-  return <SnapshotScreen snapshot={snapshot} takenBy={people[snapshot.takenBy]?.name ?? "someone"} />;
+  // View Links are the dashboard owner's, of a Snapshot that is shown (#178).
+  const owner = snapshot.canDelete && Boolean(snapshot.shownAt);
+  return <SnapshotScreen snapshot={snapshot} takenBy={people[snapshot.takenBy]?.name ?? "someone"} canCreate={can(actor, "create")} viewLinks={owner && can(actor, "share")} />;
 }

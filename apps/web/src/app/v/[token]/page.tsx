@@ -19,11 +19,12 @@ export default async function ViewLinkPage({ params }: { params: Promise<{ token
       </div>
     );
   }
-  const note = view.asOf ? `Numbers as of ${formatDate(view.asOf)}` : "";
-  // A dashboard with an introduction was written to be read: it opens in its Read view, top to bottom, with only its
-  // cards and their numbers (spec 0013). Frozen links from when stories were their own thing keep theirs.
+  // A Snapshot says which period it keeps (spec 0013); anything else when its numbers are from.
+  const note = view.snapshot ? `Snapshot of ${view.snapshot.label}, taken ${formatDate(view.snapshot.takenAt)}` : view.asOf ? `Numbers as of ${formatDate(view.asOf)}` : "";
+  // A dashboard with an introduction was written to be read, and so is a Snapshot: they open in the Read view, top to
+  // bottom, with only the cards and their numbers (spec 0013). Frozen links from when stories were their own thing keep theirs.
   const intro = view.intro || view.story?.intro || "";
-  if (view.type === "dashboard" && intro) return <div className="px-4 py-10"><DashboardReader dashboard={{ id: view.id, name: view.name, intro, theme_id: view.themeId }} widgets={view.widgets ?? []} data={view.data} readOnly />{note && <p className="mx-auto mt-10 max-w-3xl text-xs text-muted-foreground">{note}</p>}</div>;
+  if (view.type === "dashboard" && (intro || view.snapshot)) return <div className="px-4 py-10"><DashboardReader dashboard={{ id: view.id, name: view.name, intro, theme_id: view.themeId }} widgets={view.widgets ?? []} data={view.data} readOnly />{note && <p className="mx-auto mt-10 max-w-3xl text-xs text-muted-foreground">{note}</p>}</div>;
   if (view.type === "deck") return <PublicSlideshow deck={{ id: view.id, name: view.name, document: view.document, theme_id: view.themeId, footer: view.footer ?? null }} data={view.data} note={note} />;
   return (
     <PresentDashboard
