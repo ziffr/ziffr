@@ -288,6 +288,29 @@ describe("who sees a Snapshot", () => {
     for (const reader of [ann, ben]) expect((await openSnapshot(reader, id)).hiddenParts).toBe(0);
   });
 
+  it("keeps the words of a widget hidden from a writer, in Activity, when writing and when restoring (review after merge)", async () => {
+    const { w, owner, ben, dash } = await setup();
+    const payroll = await w.metric(ben.personId, { name: "Payroll" });
+    await w.value(payroll.id, "2026-10-01", 50);
+    await placeWidget(ben, dash, { type: "metric", id: payroll.id });
+    const id = await takeSnapshot(ben, dash, october);
+    const hidden = (await openSnapshot(ben, id)).widgets.find((x) => x.metric_ids.includes(payroll.id))!;
+    await editSnapshotWords(ben, id, { intro: "Ben's draft.", widgets: { [hidden.id]: { title: "Payroll held" } } });
+    // A draft Sara may not open stays out of her Activity too, although she owns the dashboard.
+    const snapshotRows = async (a: typeof owner) => (await activityView(a)).versions.filter((v) => v.object_type === "snapshot");
+    expect(await snapshotRows(owner)).toEqual([]);
+    expect((await snapshotRows(ben)).length).toBeGreaterThan(0);
+    await showSnapshot(ben, id);
+    // Shown, Sara writes it, but never the words of the part she does not get.
+    await expect(editSnapshotWords(owner, id, { widgets: { [hidden.id]: { title: "Changed by Sara" } } })).rejects.toThrow(/cannot be saved/);
+    await editSnapshotWords(owner, id, { intro: "Sara's words." });
+    // Restoring the oldest Version brings back the old introduction, but leaves Payroll's words as they are.
+    const { versions } = await listVersions(owner, "snapshot", id);
+    await restoreVersion(owner, versions.at(-1)!.id);
+    const after = await openSnapshot(ben, id);
+    expect(after.widgets.find((x) => x.id === hidden.id)?.title).toBe("Payroll held");
+  });
+
   it("shows each reader only the Metrics they may see now, and goes with the dashboard's Share (decided on #193)", async () => {
     const { w, owner, ann, rev, dash } = await setup();
     const id = await takeSnapshot(owner, dash, october);

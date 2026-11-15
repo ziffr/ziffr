@@ -12,7 +12,7 @@ import { getMetrics } from "./workspace-data";
 import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
 import type { ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { saveWorkflow } from "./workflows";
-import { snapshotAccess } from "./snapshots";
+import { restorableWords, snapshotAccess } from "./snapshots";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -168,7 +168,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     case "snapshot": {
       // Only the words come back; the numbers never changed. Once shown, it says its words changed since.
       const { data: cur } = await db().from("dashboard_snapshots").select("shown_at").eq("id", id).eq("workspace_id", ws).is("deleted_at", null).single();
-      const words = s.words && typeof s.words === "object" && !Array.isArray(s.words) ? s.words : {};
+      // A widget drawing a Metric the restorer does not see keeps its words as they are now (#193).
+      const words = await restorableWords(actor, id, s.words);
       await db().from("dashboard_snapshots").update({ words, ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null);
       break;
     }

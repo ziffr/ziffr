@@ -290,12 +290,32 @@ export async function editSnapshotWords(actor: Actor, snapshotId: number, words:
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, shown_at, frozen, words");
   if (!writer) throw new Forbidden();
   const frozen = row.frozen as Frozen;
-  const next = cleanWords(words, new Set(frozen.widgets.map((w) => String(w.id))), row.words ?? {});
+  // Only the widgets this writer gets in the Snapshot (#193): a widget drawing a Metric they do not see keeps its words.
+  const seen = await forReader(actor, frozen.widgets, frozen.data, frozen.themeId);
+  const next = cleanWords(words, new Set(seen.widgets.map((w) => String(w.id))), row.words ?? {});
   if (JSON.stringify(next) === JSON.stringify(row.words ?? {})) return;
   await ensureBaseline("snapshot", snapshotId, actor.personId);
   const { error } = await db().from("dashboard_snapshots").update({ words: next, ...(row.shown_at ? { words_changed_at: new Date().toISOString() } : {}) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The words could not be saved.");
   await recordVersion("snapshot", snapshotId, actor.personId);
+}
+
+/** The words a restored Version brings back for this actor: the old introduction and the old words of the widgets
+ * they get in the Snapshot; a widget drawing a Metric they do not see keeps its words as they are now (#193). */
+export async function restorableWords(actor: Actor, snapshotId: number, old: unknown): Promise<SnapshotWords> {
+  const { data } = await db().from("dashboard_snapshots").select("frozen, words").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
+  const row = data as { frozen: Frozen | null; words: SnapshotWords | null } | null;
+  if (!row?.frozen) throw new Forbidden();
+  const seen = new Set((await forReader(actor, row.frozen.widgets, row.frozen.data, row.frozen.themeId)).widgets.map((w) => String(w.id)));
+  const before = (old && typeof old === "object" && !Array.isArray(old) ? old : {}) as SnapshotWords;
+  const now = row.words ?? {};
+  const widgets: Record<string, WidgetWords> = {};
+  for (const w of row.frozen.widgets) {
+    const id = String(w.id);
+    const pick = seen.has(id) ? before.widgets?.[id] : now.widgets?.[id];
+    if (pick && typeof pick === "object") widgets[id] = pick;
+  }
+  return { intro: typeof before.intro === "string" ? before.intro : String(now.intro ?? ""), widgets };
 }
 
 /** Ends a Snapshot's draft: everyone who may open the dashboard sees it from now on. Its owner and Editors. */

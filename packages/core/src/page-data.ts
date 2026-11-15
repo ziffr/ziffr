@@ -14,6 +14,7 @@ import { periodStart } from "./format";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
+import { snapshotAccess } from "./snapshots";
 import type { Action, Metric, Period, Widget } from "./types";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
@@ -88,12 +89,14 @@ export async function activityView(actor: Actor) {
   // Editors, and only the Versions since it was shown for anyone else, as versionAccess and listVersions decide.
   const snapshotIds = [...new Set((versions ?? []).filter((v) => v.object_type === "snapshot").map((v) => v.object_id as number))];
   const { data: snaps } = snapshotIds.length ? await db().from("dashboard_snapshots").select("id, dashboard_id, shown_at").eq("workspace_id", ws).is("deleted_at", null).in("id", snapshotIds) : { data: [] };
-  const role = new Map(dashboards.map((d) => [d.id, d.role]));
+  // The same rule as opening a Snapshot and listing its Versions (snapshotAccess): a draft only for owners and Editors
+  // who see every Metric it kept; anyone else only the Versions since it was shown.
+  const access = new Map(await Promise.all((snaps ?? []).map(async (s) => [s.id, await snapshotAccess(actor, s.id)] as const)));
   const seenSnapshot = (v: { object_id: number; updated_at: string }) => {
     const s = (snaps ?? []).find((x) => x.id === v.object_id);
-    const r = s ? role.get(s.dashboard_id) : undefined;
-    if (!s || !r) return false;
-    if (r === "owner" || r === "editor") return true;
+    const a = access.get(v.object_id);
+    if (!s || !a?.view) return false;
+    if (a.edit) return true;
     return Boolean(s.shown_at) && v.updated_at >= s.shown_at;
   };
   // Only kinds that are listed here: anything new stays out until it says who may see it.
