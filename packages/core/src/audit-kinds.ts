@@ -48,6 +48,9 @@ export const AUDIT_KINDS = {
   "workspace.profile_changed": "changed the Workspace Profile",
   "slack.connected": "connected a Slack workspace",
   "slack.disconnected": "disconnected Slack",
+  "snapshot.taken": "took a Snapshot of",
+  "snapshot.shown": "showed a Snapshot of",
+  "snapshot.deleted": "deleted a Snapshot of",
   "export.audit_log": "exported the Audit Log",
   "export.deck": "exported the deck",
   "person.signed_in": "signed in",
@@ -60,7 +63,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
   share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", feed: "Feeds", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
-  workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", export: "Exports", person: "Sign-ins",
+  workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */

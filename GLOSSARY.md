@@ -219,8 +219,8 @@ A named look for everything that shows numbers: colours for text, surfaces, data
 _Avoid_: Master, skin, style, brand kit, palette
 
 **Snapshot**:
-The values a widget shows at the moment a deck is exported, stamped with that date. An exported deck never changes when observations do.
-_Avoid_: Copy, freeze, export data
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month or quarter: its layout and the values of every Metric period complete by the period's last day. Its numbers never change; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+_Avoid_: Copy, freeze, archive, export data
 
 ### Sharing
 
@@ -291,7 +291,7 @@ _Avoid_: Collaborator, co-owner
 ### Governance
 
 **Version**:
-A saved state of something people build (a widget, dashboard, deck, master or metric description) with its author, time and an optional message or name. Edits by one person within ten minutes form one version; restoring a version creates a new one.
+A saved state of something people build (a widget, dashboard, deck, master, metric description or a Snapshot's words) with its author, time and an optional message or name. Edits by one person within ten minutes form one version; restoring a version creates a new one. A Version keeps how something was built; a Snapshot keeps what a dashboard showed.
 _Avoid_: Revision, snapshot, commit, backup
 
 **Superseded Value**:
@@ -299,7 +299,7 @@ An earlier value of an observation or breakdown row, kept when an overwrite or c
 _Avoid_: Old value, previous version, overwritten value
 
 **Audit Log**:
-The record of who changed who may see or do what in a Workspace, and of the decisions taken on numbers: roles, removals, invitations, joining, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, settings, exports and sign-ins. Each event names the person, the kind, the object as it was named then, the time and small details such as the old and new role, never a value or a message. Nothing in it can be changed or removed; it keeps two years. Owners and Admins read and export it. Not the Access Log, which records a program's calls, nor a Version, which keeps what something looked like.
+The record of who changed who may see or do what in a Workspace, and of the decisions taken on numbers: roles, removals, invitations, joining, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, Snapshots taken, shown and deleted, settings, exports and sign-ins. Each event names the person, the kind, the object as it was named then, the time and small details such as the old and new role, never a value or a message. Nothing in it can be changed or removed; it keeps two years. Owners and Admins read and export it. Not the Access Log, which records a program's calls, nor a Version, which keeps what something looked like.
 _Avoid_: Audit trail, activity log, event log, history
 
 ### Collaboration

@@ -7,7 +7,7 @@ import { VersionsPanel } from "./versions-panel";
 import type { Profile } from "@ziffr/core/types";
 
 /** A "Versions" button that opens the history of one object. */
-export function VersionsDialog({ type, id, people, reload }: { type: "dashboard" | "deck" | "metric"; id: number; people: Profile[]; reload?: "refresh" | "page" }) {
+export function VersionsDialog({ type, id, people, reload }: { type: "dashboard" | "deck" | "metric" | "snapshot"; id: number; people: Profile[]; reload?: "refresh" | "page" }) {
   const router = useRouter();
   return (
     <Dialog>

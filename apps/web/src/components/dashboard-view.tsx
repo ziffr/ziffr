@@ -8,6 +8,7 @@ import { can } from "@ziffr/core/actor";
 import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
+import { listSnapshots } from "@ziffr/core/snapshots";
 
 /** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs; `view` is "read" for
  * its Read view (spec 0013), else the grid. */
@@ -17,7 +18,7 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const [dashboards, shares, saved] = await Promise.all([switchableDashboards(actor), getRawShares(), savedWidgets(actor)]);
   const home = await homeDashboard(actor, dashboards);
   const current = id ? dashboards.find((d) => d.id === id) ?? null : home;
-  const ws = current ? await dashboardWidgets(actor, current.id) : [];
+  const [ws, snapshots] = current ? await Promise.all([dashboardWidgets(actor, current.id), listSnapshots(actor, current.id)]) : [[], []];
   // Only the series this dashboard draws go to the browser; a widget placed or a Metric picked later fetches its own.
   const data = await getCanvasData(viewer, [...new Set(ws.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))]);
   // Only the owner shares, so only they need to know what a share would also show.
@@ -37,5 +38,5 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} reading={view === "read"} />;
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
 }

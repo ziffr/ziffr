@@ -30,6 +30,8 @@ import { DashboardSwitcher } from "@/components/dashboard-switcher";
 import { setHome } from "@/app/home-actions";
 import { makeDeck } from "@/app/convert-actions";
 import { DashboardReader } from "@/components/dashboard-reader";
+import { SnapshotMenu } from "@/components/snapshot-menu";
+import type { SnapshotSummary } from "@ziffr/core/snapshots";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -54,6 +56,8 @@ type Props = {
   firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
   /** Shows the Read view (spec 0013): the introduction, then the widgets top to bottom. Else the grid. */
   reading?: boolean;
+  /** The current dashboard's Snapshots the viewer may open (spec 0013). */
+  snapshots?: SnapshotSummary[];
 };
 
 const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["templates"]) => {
@@ -77,7 +81,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -191,6 +195,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
                   <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
                 </div>
+                <SnapshotMenu dashboardId={current.id} snapshots={snapshots} canTake={editable && canCreate} />
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
                 {editable && !reading && (
                   <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)} aria-pressed={editing}>

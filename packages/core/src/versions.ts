@@ -15,10 +15,10 @@ export function withVersionNote<T>(text: string, fn: () => Promise<T>): Promise<
 }
 
 /** The kinds of objects that keep versions. */
-export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow";
+export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow" | "snapshot";
 
 /** Every kind of object that keeps versions; a type sent by a browser must be one of these. */
-export const VERSION_TYPES: VersionType[] = ["widget", "dashboard", "deck", "metric", "template", "theme", "workflow"];
+export const VERSION_TYPES: VersionType[] = ["widget", "dashboard", "deck", "metric", "template", "theme", "workflow", "snapshot"];
 const COALESCE_MS = 10 * 60 * 1000;
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
@@ -41,6 +41,11 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
   if (type === "workflow") {
     const { data } = await db().from("workflows").select("name, config").eq("id", id).single();
     return data;
+  }
+  if (type === "snapshot") {
+    // Only a Snapshot's words keep Versions: its numbers never change (spec 0013).
+    const { data } = await db().from("dashboard_snapshots").select("words").eq("id", id).is("deleted_at", null).maybeSingle();
+    return data ? { words: data.words } : null;
   }
   if (type === "theme") {
     const { data } = await db().from("themes").select("name, tokens, slides").eq("id", id).single();

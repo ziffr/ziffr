@@ -84,12 +84,26 @@ export async function activityView(actor: Actor) {
   const dash = new Set(dashboards.map((d) => d.id));
   const myDecks = new Set((decks ?? []).map((d) => d.id));
   const seenWidget = (id: number) => { const w = widgets?.find((x) => x.id === id); return w ? (w.dashboard_id ? dash.has(w.dashboard_id) : w.owner_id === me) : false; };
-  const keep = (v: { object_type: string; object_id: number }) =>
+  // A Snapshot's words (spec 0013) follow its dashboard: shown ones for whoever may open it, drafts for its owner and
+  // Editors, and only the Versions since it was shown for anyone else, as versionAccess and listVersions decide.
+  const snapshotIds = [...new Set((versions ?? []).filter((v) => v.object_type === "snapshot").map((v) => v.object_id as number))];
+  const { data: snaps } = snapshotIds.length ? await db().from("dashboard_snapshots").select("id, dashboard_id, shown_at").eq("workspace_id", ws).is("deleted_at", null).in("id", snapshotIds) : { data: [] };
+  const role = new Map(dashboards.map((d) => [d.id, d.role]));
+  const seenSnapshot = (v: { object_id: number; updated_at: string }) => {
+    const s = (snaps ?? []).find((x) => x.id === v.object_id);
+    const r = s ? role.get(s.dashboard_id) : undefined;
+    if (!s || !r) return false;
+    if (r === "owner" || r === "editor") return true;
+    return Boolean(s.shown_at) && v.updated_at >= s.shown_at;
+  };
+  // Only kinds that are listed here: anything new stays out until it says who may see it.
+  const keep = (v: { object_type: string; object_id: number; updated_at: string }) =>
     v.object_type === "metric" ? visible.has(v.object_id)
     : v.object_type === "dashboard" ? dash.has(v.object_id)
     : v.object_type === "deck" ? myDecks.has(v.object_id)
     : v.object_type === "widget" ? seenWidget(v.object_id)
-    : true;
+    : v.object_type === "snapshot" ? seenSnapshot(v)
+    : ["template", "theme", "workflow", "master"].includes(v.object_type);
   const shown = (versions ?? []).filter(keep);
   const widgetIds = new Set(shown.filter((v) => v.object_type === "widget").map((v) => v.object_id));
   return {

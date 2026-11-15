@@ -14,6 +14,6 @@ A dashboard gets an introduction and a second way to read it (*Grid* to watch, *
 
 - There are three things again, each with one job: a dashboard watches (live), a Snapshot records and explains one period (fixed), and a deck presents (slides).
 - Stories made under spec 0010 become dashboards. Nothing was released with them, so nobody outside the demo loses one.
-- A Snapshot carries values the way a frozen View Link already does. Whoever may open the dashboard may open its Snapshots, and that rule needs the same care as View Links.
+- A Snapshot carries values the way a frozen View Link already does. Whoever may open the dashboard may open its Snapshots, but sees in them only the Metrics they may see now: the visibility carries all the way through, so a Snapshot never shows anyone more than the live dashboard would.
 - Snapshots are stored, so a dashboard grows with every period. Their size is bounded like a View Link's payload.
 - The `kind` column and its constraint from migration `20261128100000_stories.sql` stay, because migrations are add-only; every row becomes `dashboard`.

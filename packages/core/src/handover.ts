@@ -13,7 +13,8 @@ export async function ownedBy(actor: Actor, personId: string) {
   const ws = actor.workspaceId;
   const count = async (table: string) => (await db().from(table).select("id").eq("workspace_id", ws).eq("owner_id", personId)).data?.map((r) => r.id as number) ?? [];
   const [metric, dashboard, deck, template, theme, workflow] = await Promise.all(["metrics", "dashboards", "decks", "team_templates", "themes", "workflows"].map(count));
-  return { metric, dashboard, deck, template, theme, workflow } satisfies Record<Exclude<VersionType, "widget">, number[]>;
+  // A Snapshot has no owner of its own: it goes with its dashboard.
+  return { metric, dashboard, deck, template, theme, workflow } satisfies Record<Exclude<VersionType, "widget" | "snapshot">, number[]>;
 }
 
 /** Removes a member and hands everything they own to a successor, in one step. Owners and Admins may; only Owners

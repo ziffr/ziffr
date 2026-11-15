@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Profile } from "@ziffr/core/types";
 
-type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow";
+type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow" | "snapshot";
 type Row = Awaited<ReturnType<typeof listVersions>>["versions"][number];
 
 export function VersionsPanel({ type, id, people, onRestored }: { type: VersionType; id: number; people: Profile[]; onRestored?: () => void }) {

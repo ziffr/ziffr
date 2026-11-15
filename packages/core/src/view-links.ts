@@ -38,6 +38,31 @@ export type ViewPayload = {
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
 const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dashboards");
 
+/** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
+ * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
+export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
+  const metrics = full.metrics.filter((m) => ids.has(m.id));
+  // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
+  const slugs = new Set(metrics.map((m) => m.slug));
+  return {
+    viewer: "",
+    metrics,
+    series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
+    people: full.people.map((p) => ({ id: p.id, name: p.name, role: p.role, color: p.color, slack_handle: "", email: "", phone: null })),
+    openActions: {},
+    submitters: {},
+    targets: pick(full.targets, ids),
+    projections: pick(full.projections, ids),
+    breakdowns: pick(full.breakdowns, ids),
+    templates: [],
+    themes: full.themes.filter((t) => t.id === themeId || t.is_default),
+    canEditThemes: false,
+    groups: [],
+    pending: pick(full.pending, ids),
+    locked: pick(full.locked, ids),
+  };
+}
+
 /** Everything a View Link page needs, built as its owner sees it inside their workspace and cut down to the one
  * object. For a live link, only the Metrics agreed to when it was made. */
 export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null, allowedShapes?: string[] | null): Promise<ViewPayload | null> {
@@ -56,7 +81,6 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   const full = await getCanvasData(ws, obj.owner_id, { seriesOf: metricIds });
   // Only Metrics the owner sees and, for a live link, agreed to when making it; added ones stay out.
   const ids = new Set(metricIds.filter((m) => full.metrics.some((x) => x.id === m) && (!allowed || allowed.includes(m))));
-  const metrics = full.metrics.filter((m) => ids.has(m.id));
   // Only widgets the link was made with, and only those whose every Metric is shown: titles and settings (story
   // panels, free layouts) can name a Metric, so a widget that draws any left-out Metric stays out whole. Each widget
   // goes out with the fields drawing needs, nothing else.
@@ -66,25 +90,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
       .filter((w) => widgetMetricIds(w.metric_ids, w.settings).every((m) => ids.has(m)))
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
-  // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
-  const slugs = new Set(metrics.map((m) => m.slug));
-  const data: CanvasData = {
-    viewer: "",
-    metrics,
-    series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
-    people: full.people.map((p) => ({ id: p.id, name: p.name, role: p.role, color: p.color, slack_handle: "", email: "", phone: null })),
-    openActions: {},
-    submitters: {},
-    targets: pick(full.targets, ids),
-    projections: pick(full.projections, ids),
-    breakdowns: pick(full.breakdowns, ids),
-    templates: [],
-    themes: full.themes.filter((t) => t.id === obj.theme_id || t.is_default),
-    canEditThemes: false,
-    groups: [],
-    pending: pick(full.pending, ids),
-    locked: pick(full.locked, ids),
-  };
+  const data = shownData(full, ids, obj.theme_id ?? null);
   return { type, id, name: obj.name, themeId: obj.theme_id ?? null, data, widgets, document: type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined, footer: type === "deck" ? obj.footer : undefined, intro: type === "dashboard" ? String(obj.intro ?? "") : undefined, asOf: new Date().toISOString() };
 }
 

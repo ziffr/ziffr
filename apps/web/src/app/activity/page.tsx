@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 
 // Governance: who changed what, and when, across everything the viewer may see.
-const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard", deck: "deck", metric: "metric description", template: "template", theme: "theme" };
+const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard", deck: "deck", metric: "metric description", template: "template", theme: "theme", workflow: "Workflow", master: "slide master", snapshot: "words of a Snapshot" };
 
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;

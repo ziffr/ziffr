@@ -12,6 +12,7 @@ import { getMetrics } from "./workspace-data";
 import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
 import type { ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { saveWorkflow } from "./workflows";
+import { snapshotAccess } from "./snapshots";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -34,6 +35,9 @@ export async function versionAccess(actor: Actor, type: VersionType, id: number)
     const role = (await visibleDecks(ws, me)).find((d) => d.id === id)?.role;
     return { view: Boolean(role), edit: role === "owner" || role === "editor" };
   }
+  // A Snapshot's words follow the rules for opening it (spec 0013): shown ones for whoever may open its dashboard,
+  // drafts for its owner and Editors who see every Metric it kept.
+  if (type === "snapshot") return snapshotAccess(actor, id);
   if (type === "workflow" || type === "template") {
     const { data } = await db().from(type === "workflow" ? "workflows" : "team_templates").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
     return { view: Boolean(data), edit: data?.owner_id === me };
@@ -61,7 +65,13 @@ export async function versionAccess(actor: Actor, type: VersionType, id: number)
 export async function listVersions(actor: Actor, type: VersionType, id: number) {
   const a = await versionAccess(actor, type, id);
   if (!a.view) throw new Forbidden();
-  const { data } = await db().from("versions").select("id, version, snapshot, author_id, message, name, created_at, updated_at").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("version", { ascending: false }).limit(60);
+  let q = db().from("versions").select("id, version, snapshot, author_id, message, name, created_at, updated_at").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id);
+  // A Snapshot's draft is its owner's and Editors' (spec 0013): anyone else sees only the Versions since it was shown.
+  if (type === "snapshot" && !a.edit) {
+    const { data: s } = await db().from("dashboard_snapshots").select("shown_at").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+    q = q.gte("updated_at", s?.shown_at ?? "9999-12-31");
+  }
+  const { data } = await q.order("version", { ascending: false }).limit(60);
   const rows = data ?? [];
   return {
     canRestore: a.edit,
@@ -155,6 +165,13 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     case "deck":
       await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws);
       break;
+    case "snapshot": {
+      // Only the words come back; the numbers never changed. Once shown, it says its words changed since.
+      const { data: cur } = await db().from("dashboard_snapshots").select("shown_at").eq("id", id).eq("workspace_id", ws).is("deleted_at", null).single();
+      const words = s.words && typeof s.words === "object" && !Array.isArray(s.words) ? s.words : {};
+      await db().from("dashboard_snapshots").update({ words, ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null);
+      break;
+    }
     case "metric": {
       const fields = ["name", "description", "unit", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "sources", "aggregation", "formula"];
       await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in s).map((f) => [f, s[f]]))).eq("id", id).eq("workspace_id", ws);
