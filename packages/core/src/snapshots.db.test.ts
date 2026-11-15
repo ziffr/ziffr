@@ -181,6 +181,40 @@ describe("a Snapshot's words", () => {
   });
 });
 
+describe("corrections since a Snapshot (#177)", () => {
+  it("are marked with the current value while the Snapshot keeps its own; removed values too; none when nothing changed", async () => {
+    const { w, owner, ann, rev, dash } = await setup();
+    const id = await takeSnapshot(owner, dash, october);
+    await showSnapshot(owner, id);
+    expect((await openSnapshot(owner, id)).corrections).toEqual([]);
+    await db().from("observations").update({ value: 105 }).eq("metric_id", rev.id).eq("period_start", "2026-10-01");
+    await db().from("observations").delete().eq("metric_id", rev.id).eq("period_start", "2026-08-01");
+    // A late value for a period after the Snapshot is no correction of it.
+    await w.value(rev.id, "2026-12-01", 120);
+    const s = await openSnapshot(ann, id);
+    expect(s.corrections).toEqual([
+      { metricId: rev.id, slug: rev.slug, period: "2026-08-01", was: 80, now: null },
+      { metricId: rev.id, slug: rev.slug, period: "2026-10-01", was: 100, now: 105 },
+    ]);
+    expect(s.data.series[rev.slug].at(-1)).toEqual({ period: "2026-10-01", value: 100 });
+  });
+
+  it("say nothing about a Metric the reader does not see now", async () => {
+    const { w, owner, ben, rev, dash } = await setup();
+    // Ben's own Metric on the dashboard, which Sara cannot see: only Ben may take this Snapshot.
+    const payroll = await w.metric(ben.personId, { name: "Payroll" });
+    await w.value(payroll.id, "2026-10-01", 50);
+    await placeWidget(ben, dash, { type: "metric", id: payroll.id });
+    const id = await takeSnapshot(ben, dash, october);
+    await showSnapshot(ben, id);
+    await db().from("observations").update({ value: 55 }).eq("metric_id", payroll.id).eq("period_start", "2026-10-01");
+    await db().from("observations").update({ value: 101 }).eq("metric_id", rev.id).eq("period_start", "2026-10-01");
+    // Sara reads both kept values, but learns only of the correction to the Metric she sees.
+    expect((await openSnapshot(owner, id)).corrections.map((c) => c.metricId)).toEqual([rev.id]);
+    expect((await openSnapshot(ben, id)).corrections.map((c) => c.metricId).sort()).toEqual([rev.id, payroll.id].sort());
+  });
+});
+
 describe("the demo's Snapshots", () => {
   it("are taken and shown for the last two complete months of October in short", async () => {
     const DEMO = "d3e00000-0000-4000-8000-000000000001";

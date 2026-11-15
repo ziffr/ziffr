@@ -60,7 +60,12 @@ export type SnapshotSummary = {
  * with their words, drawn from the data it kept. `canWrite` for the dashboard's owner and Editors. */
 export type OpenSnapshot = SnapshotSummary & { name: string; themeId: number | null; intro: string; widgets: Widget[]; data: CanvasData; canWrite: boolean; canDelete: boolean;
   /** How many of its widgets the reader does not get, because they draw Metrics the reader may not see now. */
-  hiddenParts: number };
+  hiddenParts: number;
+  corrections: Correction[] };
+
+/** A value the Snapshot kept that differs from the one recorded now (#177): the Snapshot keeps `was`; `now` is the
+ * current value, null when it was removed. Only for Metrics the reader sees now. */
+export type Correction = { metricId: number; slug: string; period: string; was: number; now: number | null };
 
 const SUMMARY = "id, dashboard_id, period_kind, period_start, period_end, label, taken_by, taken_at, automatic, shown_at, words_changed_at";
 
@@ -201,7 +206,8 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
     return { ...w, title: own.title || null, settings };
   });
   const seen = await forReader(actor, all, frozen.data, frozen.themeId);
-  return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner" };
+  const corrections = await correctionsFor(actor, seen.data);
+  return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
 }
 
 /** What of a Snapshot one reader gets (spec 0013, decided on #193): visibility carries all the way through, so only
@@ -212,6 +218,26 @@ export async function forReader(actor: Actor, widgets: Widget[], data: CanvasDat
   const shown = widgets.filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).every((m) => visible.has(m)));
   const ids = new Set(data.metrics.map((m) => m.id).filter((m) => visible.has(m)));
   return { widgets: shown, data: shownData(data, ids, themeId), hidden: widgets.length - shown.length };
+}
+
+/** The values a Snapshot kept that were corrected or removed since, of the data the reader gets from it: only
+ * Metrics they see now, and checked again against what they see today. */
+async function correctionsFor(actor: Actor, kept: CanvasData): Promise<Correction[]> {
+  const ids = kept.metrics.map((m) => m.id);
+  if (!ids.length) return [];
+  // Only the series of Metrics the reader sees come back: getCanvasData leaves the others out.
+  const now = await getCanvasData(actor.workspaceId, actor.personId, { seriesOf: ids });
+  const out: Correction[] = [];
+  for (const m of kept.metrics) {
+    const current = now.series[m.slug];
+    if (!current || !now.metrics.some((x) => x.id === m.id)) continue;
+    const byPeriod = new Map(current.map((p) => [p.period, p.value]));
+    for (const p of kept.series[m.slug] ?? []) {
+      const value = byPeriod.has(p.period) ? byPeriod.get(p.period)! : null;
+      if (value !== p.value) out.push({ metricId: m.id, slug: m.slug, period: p.period, was: p.value, now: value });
+    }
+  }
+  return out;
 }
 
 /** Only the words a Snapshot keeps editable, each a string within size, for widgets it has. */

@@ -16,7 +16,7 @@ import { VersionsDialog } from "@/components/versions-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate } from "@ziffr/core/format";
+import { formatDate, formatValue, periodLabel } from "@ziffr/core/format";
 import { TEMPLATES } from "@ziffr/core/widget-templates";
 import type { OpenSnapshot, SnapshotWords, WidgetWords, WordKey } from "@ziffr/core/snapshots";
 import type { Widget } from "@ziffr/core/types";
@@ -59,6 +59,7 @@ export function SnapshotScreen({ snapshot: s, takenBy }: { snapshot: OpenSnapsho
         {s.shownAt && s.wordsChangedAt && <span className="text-xs text-muted-foreground">Words changed after it was shown, last on {formatDate(s.wordsChangedAt)}</span>}
         <Link href={`/dashboards/${s.dashboardId}`} className="ml-auto flex items-center gap-1">See it live <ArrowRight aria-hidden className="size-3.5" /></Link>
         {s.hiddenParts > 0 && <p className="w-full text-xs text-muted-foreground">{s.hiddenParts === 1 ? "One part is" : `${s.hiddenParts} parts are`} not shown: {s.hiddenParts === 1 ? "it draws" : "they draw"} Metrics you may not see.</p>}
+        {s.corrections.length > 0 && <Corrections snapshot={s} />}
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -86,6 +87,29 @@ export function SnapshotScreen({ snapshot: s, takenBy }: { snapshot: OpenSnapsho
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Values the Snapshot kept that were corrected or removed since (#177): the Snapshot keeps its own, and says what
+ * the value is now, in words and on hover. The core lists only Metrics the reader sees now. */
+function Corrections({ snapshot: s }: { snapshot: OpenSnapshot }) {
+  const metric = (id: number) => s.data.metrics.find((m) => m.id === id);
+  return (
+    <div className="w-full border-t border-[var(--color-rule-2)] pt-2">
+      <p className="text-xs font-medium">Corrected since this Snapshot was taken; it keeps the values it had:</p>
+      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+        {s.corrections.map((c) => {
+          const m = metric(c.metricId);
+          if (!m) return null;
+          const now = c.now === null ? "removed since" : `now ${formatValue(m, c.now)}`;
+          return (
+            <li key={`${c.metricId}:${c.period}`} title={`${m.name}, ${periodLabel(c.period, m.period)}: ${formatValue(m, c.was)} here, ${now}`}>
+              {m.name}, {periodLabel(c.period, m.period)}: <span className="font-medium text-foreground">{formatValue(m, c.was)}</span> ({now})
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
