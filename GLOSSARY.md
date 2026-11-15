@@ -165,8 +165,16 @@ One metric drawn with a view and its settings, such as time window, target band 
 _Avoid_: Tile, card, panel, chart
 
 **Pool**:
-The side panel that holds everything a user can drag onto a canvas: the metrics they can see and their saved widgets.
+The side panel that holds everything a user can drag onto a canvas: the metrics they can see, their saved widgets and the Widget Templates.
 _Avoid_: Library, palette, sidebar
+
+**Preview**:
+A Widget Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's or a metric's draws the viewer's own data.
+_Avoid_: Thumbnail, mock-up
+
+**Sample Data**:
+Made-up metrics and values that a template's Preview draws, because a template has no metrics of its own. The same for everyone and never a workspace's data.
+_Avoid_: Dummy data, fake data, demo data
 
 **Dashboard**:
 A canvas of widgets that a user arranges and can share, to watch numbers as they come in. Ziffr opens on a person's Home dashboard, which they choose.

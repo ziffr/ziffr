@@ -33,7 +33,7 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
   done();
 }
 
-/** Change visualization to a team template: the widget becomes the template, filled with these metrics. */
+/** Change view to a team template: the widget becomes the template, filled with these metrics. */
 export async function applyTemplate(id: number, templateId: number, fills: number[][]) {
   await dash.applyTemplate(await currentActor(), Number(id), Number(templateId), fills);
   done();

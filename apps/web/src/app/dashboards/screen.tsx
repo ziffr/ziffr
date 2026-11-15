@@ -117,7 +117,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
       {slotFill.dialog}
       {changing && (
         <div className="order-2 lg:order-1">
-          <Pool data={data} saved={saved} onAdd={add} hint="Drag onto the dashboard, or click +." />
+          <Pool data={data} saved={saved} onAdd={add} layouts hint="Drag onto the dashboard, or click +." />
         </div>
       )}
       <div className="order-1 min-w-0 lg:order-2">

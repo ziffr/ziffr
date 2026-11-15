@@ -32,6 +32,15 @@ describe("dashboards and widgets", () => {
     await placeWidget(w.actor(ben, "member"), d, { type: "metric", id: secret.id });
     expect((await widgetsOf(d)).length).toBe(2);
   });
+  it("refuses Sample Data's negative Metric ids, also next to a real one (spec 0011)", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara);
+    const d = await createDashboard(w.actor(sara), "Board");
+    await expect(placeWidget(w.actor(sara), d, { type: "spec", template: "correlation", metricIds: [m.id, -2] })).rejects.toEqual(forbidden);
+    await expect(placeWidget(w.actor(sara), d, { type: "spec", template: "line", metricIds: [-1] })).rejects.toEqual(forbidden);
+    await expect(placeWidget(w.actor(sara), d, { type: "metric", id: -1 })).rejects.toEqual(forbidden);
+    expect(await widgetsOf(d)).toEqual([]);
+  });
   it("refuses dashboards and widgets of another workspace", async () => {
     const a = await ws("A"); const b = await ws("B"); const ann = await a.person("owner"); const zoe = await b.person("owner");
     const mb = await b.metric(zoe); const db_ = await createDashboard(b.actor(zoe), "Theirs");

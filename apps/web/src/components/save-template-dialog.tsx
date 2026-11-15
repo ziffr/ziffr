@@ -81,7 +81,7 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
             start(async () => {
               try {
                 await submit({ name, description, labels, choices, replaceId });
-                toast.success(replaceId ? `${noun[0].toUpperCase()}${noun.slice(1)} replaced` : `${noun[0].toUpperCase()}${noun.slice(1)} saved`, { description: kind === "slide" ? "Find it under + Slide in any deck." : "Find it under Templates in the Pool, or in Change visualization." });
+                toast.success(replaceId ? `${noun[0].toUpperCase()}${noun.slice(1)} replaced` : `${noun[0].toUpperCase()}${noun.slice(1)} saved`, { description: kind === "slide" ? "Find it under + Slide in any deck." : "Find it under Templates in the Pool, or in Change view." });
                 onClose();
               } catch (err) {
                 toast.error(`${noun[0].toUpperCase()}${noun.slice(1)} not saved`, { description: (err as Error).message });

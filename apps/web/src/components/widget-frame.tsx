@@ -31,8 +31,10 @@ import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
+import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
+import { Preview, TemplatePreview } from "./preview";
 
-export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };
+export type { FrameWidget } from "./read-only-frame";
 
 type Props = {
   widget: FrameWidget;
@@ -56,27 +58,11 @@ type Panel = "history" | "ask" | "story" | "versions" | null;
 const LayoutEditor = dynamic(() => import("@/canvas/layout-editor"), { ssr: false });
 
 export function WidgetFrame(props: Props) {
-  if (props.readOnly) return <ReadOnlyFrame {...props} />;
+  if (props.readOnly) return <ReadOnlyFrame widget={props.widget} data={props.data} className={props.className} />;
   return <InteractiveFrame {...props} />;
 }
 
 /** A widget seen through a View Link (GLOSSARY: View Link): what it shows, nothing it can do. */
-function ReadOnlyFrame({ widget, data, className }: Props) {
-  const ms = widgetMetrics(widget, data);
-  const m = ms[0];
-  const kind = TEMPLATES[widget.template].kind;
-  const title = widget.title ?? (kind === "story" || kind === "layout" ? "" : m?.name ?? "");
-  return (
-    <div className={cn("stock flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", className)}>
-      <div className="px-4 pt-3 pb-1"><span className="truncate text-sm font-semibold">{title}</span></div>
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
-        <div className="@container min-h-0 flex-1"><WidgetBody widget={widget} data={data} /></div>
-        {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
-      </div>
-    </div>
-  );
-}
-
 function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
@@ -93,15 +79,9 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const isStory = TEMPLATES[widget.template].kind === "story";
   const hasBreakdown = !!m && Object.keys(data.breakdowns[m.id] ?? {}).length > 0;
   const [row, setRow] = useState<string | null>(null);
-  const analysisTitle: Record<string, () => string> = {
-    forecast: () => `Forecast: ${m?.name}`,
-    correlation: () => `${ms[0]?.name} vs. ${ms[1]?.name}`,
-    drivers: () => `Drivers of ${m?.name}`,
-    matrix: () => `Correlation matrix (${ms.length} metrics)`,
-  };
   // A story carries its own headline, so its frame header stays quiet.
   const isLayout = TEMPLATES[widget.template].kind === "layout";
-  const title = widget.title ?? (isStory || isLayout ? "" : isMetricWidget ? m?.name : analysisTitle[widget.template]?.());
+  const title = frameTitle(widget, ms);
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
@@ -123,6 +103,8 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       }
     });
   };
+  // The option under the pointer or focus in Change view, drawn beside the menu (spec 0011).
+  const [look, setLook] = useState<{ kind: "builtin"; id: TemplateId } | { kind: "team"; t: WidgetTemplate } | null>(null);
   const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
   const setCompare = (keys: CompareKey[]) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, compare: keys } }));
   const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
@@ -136,30 +118,42 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       <K.Separator />
       {isMetricWidget && editable && (
         <K.Sub>
-          <K.SubTrigger><Palette /> Change visualization</K.SubTrigger>
-          <K.SubContent>
-            {/* Plain items: Base UI's radio group did not fire inside this nested context submenu. */}
-            {templatesFor(hasBreakdown).map((t) => (
-              <K.Item key={t.id} onClick={() => restyle(t.id)} aria-current={widget.template === t.id ? "true" : undefined}>
-                <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
-              </K.Item>
-            ))}
-            {widget.id && widgetTemplates.length > 0 && (
-              <>
-                <K.Separator />
-                {widgetTemplates.map((t) => (
-                  <K.Item key={`t${t.id}`} onClick={() => setTimeout(() => applyTeamTemplate(t), 0)} title={t.description}>
-                    <LayoutTemplate aria-hidden /> {t.name}…
-                  </K.Item>
-                ))}
-              </>
-            )}
-            {(widget.template === "line" || widget.template === "bars") && (
-              <>
-                <K.Separator />
-                <K.CheckboxItem checked={widget.settings.showTarget !== false} onCheckedChange={() => toggle("showTarget")}>Show target band</K.CheckboxItem>
-                {widget.template === "line" && <K.CheckboxItem checked={!!widget.settings.showForecast} onCheckedChange={() => toggle("showForecast")}>Show forecast</K.CheckboxItem>}
-              </>
+          <K.SubTrigger><Palette /> Change view</K.SubTrigger>
+          <K.SubContent className="flex items-stretch p-0" onPointerLeave={() => setLook(null)}>
+            <div className="min-w-52 p-1">
+              {/* Plain items: Base UI's radio group did not fire inside this nested context submenu. */}
+              {templatesFor(hasBreakdown).map((t) => (
+                <K.Item key={t.id} onClick={() => restyle(t.id)} onPointerEnter={() => setLook({ kind: "builtin", id: t.id })} onFocus={() => setLook({ kind: "builtin", id: t.id })} aria-current={widget.template === t.id ? "true" : undefined}>
+                  <Check aria-hidden className={widget.template === t.id ? "" : "invisible"} /> {t.label}
+                </K.Item>
+              ))}
+              {widget.id && widgetTemplates.length > 0 && (
+                <>
+                  <K.Separator />
+                  {widgetTemplates.map((t) => (
+                    <K.Item key={`t${t.id}`} onClick={() => setTimeout(() => applyTeamTemplate(t), 0)} onPointerEnter={() => setLook({ kind: "team", t })} onFocus={() => setLook({ kind: "team", t })} title={t.description}>
+                      <LayoutTemplate aria-hidden /> {t.name}…
+                    </K.Item>
+                  ))}
+                </>
+              )}
+              {(widget.template === "line" || widget.template === "bars") && (
+                <>
+                  <K.Separator />
+                  <K.CheckboxItem onPointerEnter={() => setLook(null)} checked={widget.settings.showTarget !== false} onCheckedChange={() => toggle("showTarget")}>Show target band</K.CheckboxItem>
+                  {widget.template === "line" && <K.CheckboxItem onPointerEnter={() => setLook(null)} checked={!!widget.settings.showForecast} onCheckedChange={() => toggle("showForecast")}>Show forecast</K.CheckboxItem>}
+                </>
+              )}
+            </div>
+            {/* The widget as it would look: a built-in redraws this card's own metrics and settings, which the
+                viewer sees already; a team template draws Sample Data, since its words come from another widget. */}
+            {look && (
+              <div aria-hidden className="hidden w-[18rem] flex-col justify-center gap-2 border-l border-border p-3 md:flex">
+                {look.kind === "builtin"
+                  ? <Preview widget={{ ...widget, template: look.id }} data={data} size={TEMPLATES[look.id].size} width={256} />
+                  : <TemplatePreview template={look.t} viewer={data.viewer} width={256} />}
+                <p className="text-xs text-muted-foreground">{look.kind === "builtin" ? TEMPLATES[look.id].blurb : look.t.description || "Drawn with sample data."}</p>
+              </div>
             )}
           </K.SubContent>
         </K.Sub>
