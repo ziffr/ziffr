@@ -42,11 +42,15 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
 }
 
 /** What an Access Key may be allowed to do. "metrics:write" creates Metrics owned by the key's creator (spec 0003),
- * and only while the creator's role may create. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write";
+ * and only while the creator's role may create. "dashboards:read" reads the dashboards and stories the creator sees,
+ * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "dashboards:read" | "dashboards:write";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "dashboards:read", "dashboards:write"];
+
+/** Scopes only a creator whose role may create can give a key. */
+export const CREATING_SCOPES: Scope[] = ["metrics:write", "dashboards:write"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {

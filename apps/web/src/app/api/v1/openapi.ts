@@ -1,14 +1,15 @@
 // The API's description (spec 0002, ticket #50): an OpenAPI 3.1 document built from the same zod schemas the server
 // validates with, so the two cannot drift apart. Served at /api/v1/openapi.json and rendered into docs/reference/api.md.
 import { z } from "zod";
+import type { FEED_SCOPE, Scope } from "@ziffr/core/actor";
 import * as S from "./schemas";
 
 type Endpoint = {
-  method: "get" | "post" | "delete";
+  method: "get" | "post" | "patch" | "delete";
   path: string;
   summary: string;
   description: string;
-  scope: "metrics:read" | "values:submit" | "metrics:write" | "feed:submit";
+  scope: Scope | typeof FEED_SCOPE;
   query?: z.ZodObject;
   body?: z.ZodType;
   idempotent?: boolean;
@@ -84,7 +85,78 @@ export const ENDPOINTS: Endpoint[] = [
     method: "get", path: "/groups", scope: "metrics:read", query: S.pageQuery, ok: { status: 200, name: "GroupList", schema: S.GroupList },
     summary: "List Groups", description: "The workspace's Groups: id and name.",
   },
+  {
+    method: "get", path: "/dashboards", scope: "dashboards:read", query: S.dashboardsQuery, ok: { status: 200, name: "DashboardList", schema: S.DashboardList },
+    summary: "List dashboards and stories", description: "The dashboards and stories the key's creator sees, by id, with their role on each and the link to open it.",
+  },
+  {
+    method: "post", path: "/dashboards", scope: "dashboards:write", body: S.CreateDashboard, idempotent: true, ok: { status: 201, name: "Dashboard", schema: S.ApiDashboard },
+    summary: "Create a dashboard or story",
+    description: "Creates an empty dashboard or story owned by the key's creator. The Audit Log names the key. Each key may create 50 dashboards and stories in any 24 hours.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not create (Guests)." },
+      { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
+    ],
+  },
+  {
+    method: "post", path: "/dashboards/from-template", scope: "dashboards:write", body: S.CreateFromTemplate, idempotent: true, ok: { status: 201, name: "Dashboard", schema: S.ApiDashboard },
+    summary: "Make a dashboard from a Dashboard Template",
+    description: "Makes a whole dashboard owned by the key's creator from a Dashboard Template, with Metrics for each Slot. It is an independent copy. Counts towards the 50 new dashboards a day.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not create (Guests)." },
+      { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
+      { status: 422, description: "No such template, a Slot not filled, or a Metric the key's creator does not see." },
+    ],
+  },
+  {
+    method: "get", path: "/dashboards/{id}", scope: "dashboards:read", ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
+    summary: "Describe a dashboard or story",
+    description: "One dashboard or story with its widgets (a story's Findings, with their words) in reading order. Metrics are named by slug; values are read per Metric.",
+  },
+  {
+    method: "post", path: "/dashboards/{id}/widgets", scope: "dashboards:write", body: S.AddWidget, ok: { status: 201, name: "Widget", schema: S.ApiWidget },
+    summary: "Add a widget",
+    description: "Adds a widget to a dashboard the key's creator may change, in the first free place in reading order: a built-in view with Metrics, or a team Widget Template with its Slots filled. The dashboard's history names the key. Each key may make 500 changes in any 24 hours.",
+    errors: [{ status: 422, description: "A view a key may not place, a story (add Findings instead), or a Metric the key's creator does not see." }],
+  },
+  {
+    method: "patch", path: "/dashboards/{id}/widgets/{widgetId}", scope: "dashboards:write", body: S.UpdateWidget, ok: { status: 200, name: "Widget", schema: S.ApiWidget },
+    summary: "Change a widget",
+    description: "Changes a widget's view, Metrics, title or settings. A Free Layout is changed only in Ziffr.",
+    errors: [{ status: 422, description: "A view a key may not use, a widget only Ziffr changes, or a Metric the key's creator does not see." }],
+  },
+  {
+    method: "delete", path: "/dashboards/{id}/widgets/{widgetId}", scope: "dashboards:write", ok: { status: 200, name: "RemovedWidget", schema: S.RemovedWidget },
+    summary: "Remove a widget or Finding", description: "Removes a widget from a dashboard, or a Finding from a story. The history keeps it, so it can be restored.",
+  },
+  {
+    method: "patch", path: "/stories/{id}", scope: "dashboards:write", body: S.UpdateStory, ok: { status: 200, name: "Dashboard", schema: S.ApiDashboard },
+    summary: "Change a story's title or introduction", description: "Changes the words around a story's Findings.",
+  },
+  {
+    method: "post", path: "/stories/{id}/findings", scope: "dashboards:write", body: S.AddFinding, ok: { status: 201, name: "Widget", schema: S.ApiWidget },
+    summary: "Add a Finding",
+    description: "Adds a Finding about one Metric at the end of a story, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.",
+    errors: [{ status: 422, description: "A Metric the key's creator does not see." }],
+  },
+  {
+    method: "patch", path: "/stories/{id}/findings/{findingId}", scope: "dashboards:write", body: S.UpdateFinding, ok: { status: 200, name: "Widget", schema: S.ApiWidget },
+    summary: "Change a Finding's words", description: "Changes a Finding's kicker, headline, subline, footnote or source. An empty text falls back to words drawn from the data.",
+  },
+  {
+    method: "get", path: "/templates", scope: "dashboards:read", query: S.templatesQuery, ok: { status: 200, name: "TemplateList", schema: S.TemplateList },
+    summary: "List templates",
+    description: "What a key can build with: the built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots and the Metrics suggested for each that the key's creator sees.",
+  },
 ];
+
+/** Path parameters by name. */
+const PATH_PARAMS: Record<string, { description: string; schema: z.ZodType }> = {
+  slug: { description: "The Metric's slug.", schema: S.slugParam },
+  id: { description: "The dashboard's or story's id.", schema: S.idParam },
+  widgetId: { description: "The widget's or Finding's id.", schema: S.idParam },
+  findingId: { description: "The Finding's id.", schema: S.idParam },
+};
 
 /** Answers every endpoint may give. */
 const COMMON_ERRORS = [
@@ -109,7 +181,7 @@ export function openApiDocument() {
   for (const e of ENDPOINTS) {
     schemas[e.ok.name] = json(e.ok.schema);
     const parameters: unknown[] = [];
-    if (e.path.includes("{slug}")) parameters.push({ name: "slug", in: "path", required: true, description: "The Metric's slug.", schema: json(S.slugParam, "input") });
+    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
     if (e.query) {
       const q = json(e.query, "input") as { properties?: Record<string, Record<string, unknown>>; required?: string[] };
       for (const [name, schema] of Object.entries(q.properties ?? {})) {
@@ -140,7 +212,7 @@ export function openApiDocument() {
     openapi: "3.1.0",
     info: {
       title: "Ziffr API", version: "1",
-      description: "Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
+      description: "Read the Metrics an Access Key's creator sees and submit values, and build dashboards and stories as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
       license: { name: "BUSL-1.1", identifier: "BUSL-1.1" },
     },
     servers: [{ url: "/api/v1" }],

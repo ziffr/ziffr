@@ -68,12 +68,15 @@ async function layOut(ws: string, ordered: Widget[]) {
 }
 
 /** Adds a Finding about a Metric the actor sees at the end of the story, as an editorial widget to fill in. */
-export async function addFinding(actor: Actor, storyId: number, metricId: number) {
+export async function addFinding(actor: Actor, storyId: number, metricId: number): Promise<number> {
   await editableStory(actor, storyId);
   if (!Number.isInteger(metricId)) throw new Forbidden();
-  // placeWidget checks the actor sees the Metric, keeps a Version and places it below what is there.
-  await placeWidget(actor, storyId, { type: "spec", template: "story", metricIds: [metricId] });
-  await layOut(actor.workspaceId, await findings(actor.workspaceId, storyId));
+  // placeWidget checks the actor sees the Metric and keeps a Version; the story then puts it last, one per row.
+  const id = await placeWidget(actor, storyId, { type: "spec", template: "story", metricIds: [metricId] });
+  // The free place may be beside a narrow Finding; the new one still goes last.
+  const all = await findings(actor.workspaceId, storyId);
+  await layOut(actor.workspaceId, [...all.filter((w) => w.id !== id), ...all.filter((w) => w.id === id)]);
+  return id;
 }
 
 /** Moves a Finding one place up (-1) or down (1). */

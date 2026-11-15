@@ -157,7 +157,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
       db().from("actions").select("id, metric_id, status, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).neq("status", "closed").order("id").range(from, to),
     ),
     db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws),
-    db().from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").eq("workspace_id", ws).order("name"),
+    // Dashboard Templates stay out: a canvas never uses them, and their widgets can be large.
+    db().from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").eq("workspace_id", ws).in("kind", ["widget", "slide"]).order("name"),
     db().from("themes").select("id, owner_id, name, tokens, slides, is_default, updated_at").eq("workspace_id", ws).order("id"),
     db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", viewer).maybeSingle(),
     getGroups(ws),

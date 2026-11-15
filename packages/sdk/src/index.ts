@@ -89,6 +89,32 @@ export type FeedItemResult = { metric: string; period: string | null; status: "r
 /** At most this many items in one batch. */
 export const FEED_BATCH_MAX = 500;
 
+/** A dashboard or story in a list (spec 0014): the key's creator's role on it and where to open it. */
+export type DashboardSummary = { id: number; kind: "dashboard" | "story"; name: string; role: "owner" | "editor" | "viewer"; url: string };
+
+/** A Finding's words; Placeholders such as {metric} or {change yoy} are filled in when it is drawn. */
+export type FindingWords = { kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string };
+
+/** One widget, or one of a story's Findings: its view, the slugs of the Metrics it draws and where it sits. */
+export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords };
+
+/** A dashboard or story with its widgets in reading order. */
+export type Dashboard = DashboardSummary & { intro: string | null; widgets: Widget[] };
+
+/** The built-in views a key may place. */
+export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
+
+/** The few widget settings a key may set. */
+export type WidgetSettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number };
+
+/** What adding a widget sends: a view with Metrics, or a team Widget Template with Metric slugs per Slot. */
+export type NewWidget =
+  | { view?: View; metrics: string[]; title?: string; settings?: WidgetSettings }
+  | { template: number; fills: string[][]; title?: string };
+
+/** A template to build with: a built-in view, a team Widget Template or a Dashboard Template, with its Slots. */
+export type Template = { id: string | number; kind: "view" | "widget" | "dashboard"; name: string; description: string; slots: { label: string; multiple: boolean; suggested: string[] }[] };
+
 /** Paging options of every list. */
 export type PageOptions = { limit?: number; cursor?: string };
 
@@ -215,6 +241,50 @@ export class Ziffr {
     },
   };
 
+  /** The dashboards and stories the key's creator sees (scope dashboards:read), and building them as the creator
+   * (scope dashboards:write). A key changes only what its creator may change, and never shares or deletes. */
+  readonly dashboards = {
+    /** One page of dashboards and stories. */
+    list: (options: PageOptions & { kind?: "dashboard" | "story" } = {}) => this.get<Page<DashboardSummary>>("/dashboards", options),
+    /** Every dashboard and story, page by page. */
+    all: (options: { kind?: "dashboard" | "story" } = {}) => this.every<DashboardSummary>((cursor) => this.dashboards.list({ ...options, cursor, limit: 100 })),
+    /** One dashboard or story with its widgets. */
+    get: (id: number) => this.get<Dashboard>(`/dashboards/${id}`),
+    /** Creates an empty dashboard or story. A fresh idempotency key is sent unless one is given. */
+    create: async (input: { name: string; kind?: "dashboard" | "story" }, options: { idempotencyKey?: string } = {}): Promise<Dashboard & { replayed: boolean }> => {
+      const { body, headers } = await this.request<Dashboard>("POST", "/dashboards", undefined, input, options.idempotencyKey ?? newIdempotencyKey());
+      return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
+    },
+    /** Makes a dashboard from a Dashboard Template, with Metric slugs for each Slot in order. */
+    fromTemplate: async (input: { template: string | number; name?: string; fills: string[][] }, options: { idempotencyKey?: string } = {}): Promise<Dashboard & { replayed: boolean }> => {
+      const { body, headers } = await this.request<Dashboard>("POST", "/dashboards/from-template", undefined, input, options.idempotencyKey ?? newIdempotencyKey());
+      return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
+    },
+    /** Adds a widget in the first free place. */
+    addWidget: async (dashboardId: number, widget: NewWidget): Promise<Widget> => (await this.request<Widget>("POST", `/dashboards/${dashboardId}/widgets`, undefined, widget)).body,
+    /** Changes a widget's view, Metrics, title or settings. */
+    updateWidget: async (dashboardId: number, widgetId: number, patch: { view?: View; metrics?: string[]; title?: string | null; settings?: WidgetSettings }): Promise<Widget> =>
+      (await this.request<Widget>("PATCH", `/dashboards/${dashboardId}/widgets/${widgetId}`, undefined, patch)).body,
+    /** Removes a widget, or a story's Finding. */
+    removeWidget: async (dashboardId: number, widgetId: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/dashboards/${dashboardId}/widgets/${widgetId}`)).body,
+  };
+
+  /** A story's words and Findings (scope dashboards:write); read a story with `dashboards.get`. */
+  readonly stories = {
+    /** Changes a story's title or introduction. */
+    update: async (storyId: number, patch: { name?: string; intro?: string }): Promise<Dashboard> => (await this.request<Dashboard>("PATCH", `/stories/${storyId}`, undefined, patch)).body,
+    /** Adds a Finding about one Metric at the end of the story. */
+    addFinding: async (storyId: number, finding: FindingWords & { metric: string }): Promise<Widget> => (await this.request<Widget>("POST", `/stories/${storyId}/findings`, undefined, finding)).body,
+    /** Changes a Finding's words. */
+    updateFinding: async (storyId: number, findingId: number, words: FindingWords): Promise<Widget> => (await this.request<Widget>("PATCH", `/stories/${storyId}/findings/${findingId}`, undefined, words)).body,
+  };
+
+  /** What a key can build with (scope dashboards:read). */
+  readonly templates = {
+    /** The built-in views, the team's Widget Templates and the Dashboard Templates, or one kind of them. */
+    all: async (options: { kind?: Template["kind"] } = {}): Promise<Template[]> => (await this.get<{ items: Template[] }>("/templates", options)).items,
+  };
+
   private async get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
     return (await this.request<T>("GET", path, query)).body;
   }
@@ -228,7 +298,7 @@ export class Ziffr {
     } while (cursor);
   }
 
-  private async request<T>(method: "GET" | "POST" | "DELETE", path: string, query?: Record<string, string | number | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
+  private async request<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, query?: Record<string, string | number | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
     const url = new URL(this.base + path);
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v));
     const headers: Record<string, string> = { authorization: `Bearer ${this.key}`, accept: "application/json" };

@@ -9,6 +9,7 @@ import { DashboardScreen } from "@/app/dashboards/screen";
 import { can } from "@ziffr/core/actor";
 import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { isDemo } from "@/lib/auth";
+import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
 
 /** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs. */
 export async function DashboardView({ id }: { id?: number }) {
@@ -37,5 +38,7 @@ export async function DashboardView({ id }: { id?: number }) {
     : null;
   // Only the owner's Share dialog uses Shares, and only this dashboard's: nobody else gets the workspace's list.
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} />;
+  // Only someone who may create starts a dashboard, so only they get the templates.
+  const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} />;
 }

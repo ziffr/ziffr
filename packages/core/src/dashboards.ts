@@ -10,6 +10,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { DEFAULT_TEMPLATE, TEMPLATES } from "./widget-templates";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
+import { firstFreePlace } from "./free-place";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -98,8 +99,9 @@ export async function createDashboard(actor: Actor, name: string): Promise<numbe
   return data.id;
 }
 
-/** Drops something onto a dashboard: always an independent copy (GLOSSARY: Widget). */
-export async function placeWidget(actor: Actor, dashboardId: number, source: DropSource, pos?: { x: number; y: number }) {
+/** Drops something onto a dashboard: always an independent copy (GLOSSARY: Widget). Without a position it lands in
+ * the first free place in reading order. Returns the new widget's id. */
+export async function placeWidget(actor: Actor, dashboardId: number, source: DropSource, pos?: { x: number; y: number }): Promise<number> {
   await assertCanEditDashboard(actor, dashboardId);
   await ensureBaseline("dashboard", dashboardId, actor.personId);
   const spec = await specFrom(actor, source);
@@ -109,12 +111,13 @@ export async function placeWidget(actor: Actor, dashboardId: number, source: Dro
     x = Math.max(0, Math.min(11, Math.round(Number(pos.x) || 0)));
     y = Math.max(0, Math.min(10_000, Math.round(Number(pos.y) || 0)));
   } else {
-    const { data: existing } = await db().from("widgets").select("y,h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
-    y = Math.max(0, ...(existing ?? []).map((e) => e.y + e.h));
+    const { data: existing } = await db().from("widgets").select("x,y,w,h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
+    ({ x, y } = firstFreePlace(existing ?? [], spec.w, spec.h));
   }
-  const { error } = await db().from("widgets").insert({ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y, workspace_id: actor.workspaceId });
-  if (error) throw new Error("The widget could not be placed.");
+  const { data, error } = await db().from("widgets").insert({ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y, workspace_id: actor.workspaceId }).select("id").single();
+  if (error || !data) throw new Error("The widget could not be placed.");
   await recordVersion("dashboard", dashboardId, actor.personId);
+  return data.id as number;
 }
 
 /** Saves where the widgets of a dashboard sit and how large they are; only widgets of that dashboard move. */

@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
+import type { Scope } from "@ziffr/core/actor";
 import { db } from "@ziffr/core/db";
 import { periodStart } from "@ziffr/core/format";
 import { workspace } from "@ziffr/core/test/db-fixtures";
@@ -14,7 +15,7 @@ afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const collect = async <T>(it: AsyncIterable<T>) => { const out: T[] = []; for await (const x of it) out.push(x); return out; };
 
-async function setup(scopes: ("metrics:read" | "values:submit" | "metrics:write")[] = ["metrics:read", "values:submit"]) {
+async function setup(scopes: Scope[] = ["metrics:read", "values:submit"]) {
   const w = await workspace(); cleanups.push(w.cleanup);
   const ben = await w.person("member");
   const orders = await w.metric(ben, { name: "Orders", submission_rule: "add" }); await w.token(orders.id, ben);
@@ -52,6 +53,21 @@ describe("@ziffr/sdk against the app", () => {
     expect(await ziffr.metrics.create({ name: "Weekly signups", period: "week", unit: "signups", submit: true }, { idempotencyKey: "setup-1" })).toMatchObject({ slug: "weekly-signups", replayed: true });
     expect(await ziffr.observations.submit(created.slug, { value: 12 })).toMatchObject({ status: "recorded", value: 12 });
     await expect((await setup()).ziffr.metrics.create({ name: "X" })).rejects.toMatchObject({ status: 403, code: "forbidden" });
+  });
+  it("builds a dashboard and a story, and lists templates (spec 0014)", async () => {
+    const { orders, extra, ziffr } = await setup(["metrics:read", "dashboards:read", "dashboards:write"]);
+    expect((await ziffr.templates.all({ kind: "dashboard" })).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side"]);
+    const d = await ziffr.dashboards.fromTemplate({ template: "side-by-side", fills: [[orders.slug], [extra.slug]] }, { idempotencyKey: "pair-1" });
+    expect(d).toMatchObject({ name: "Two metrics side by side", replayed: false });
+    expect(await ziffr.dashboards.fromTemplate({ template: "side-by-side", fills: [[orders.slug], [extra.slug]] }, { idempotencyKey: "pair-1" })).toMatchObject({ id: d.id, replayed: true });
+    const w = await ziffr.dashboards.addWidget(d.id, { view: "table", metrics: [extra.slug] });
+    expect(await ziffr.dashboards.updateWidget(d.id, w.id, { title: "Visits" })).toMatchObject({ id: w.id, title: "Visits" });
+    expect(await ziffr.dashboards.removeWidget(d.id, w.id)).toEqual({ removed: w.id });
+    expect((await collect(ziffr.dashboards.all())).map((x) => x.id)).toEqual([d.id]);
+    const s = await ziffr.dashboards.create({ name: "Draft", kind: "story" });
+    const f = await ziffr.stories.addFinding(s.id, { metric: orders.slug, headline: "{metric} grew" });
+    expect((await ziffr.stories.updateFinding(s.id, f.id, { kicker: "March" })).words).toMatchObject({ kicker: "March", headline: "{metric} grew" });
+    expect(await ziffr.stories.update(s.id, { intro: "First draft." })).toMatchObject({ intro: "First draft." });
   });
   it("throws a ZiffrError with the API's code", async () => {
     const { extra, ziffr } = await setup(["metrics:read"]);

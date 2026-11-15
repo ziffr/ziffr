@@ -63,8 +63,8 @@ export async function accessLogOf(keyId: number) {
 }
 
 /** Calls made with a key, written straight into its Access Log (to reach a limit without making them). */
-export async function logCalls(keyId: number, n: number, call: { status?: number; at?: string; submitted?: number } = {}) {
-  await must(db().from("access_log").insert(Array.from({ length: n }, () => ({ key_id: keyId, method: "GET", route: "/api/v1/metrics", status: call.status ?? 200, submitted: call.submitted ?? 0, ...(call.at ? { at: call.at } : {}) }))));
+export async function logCalls(keyId: number, n: number, call: { status?: number; at?: string; submitted?: number; method?: string; route?: string } = {}) {
+  await must(db().from("access_log").insert(Array.from({ length: n }, () => ({ key_id: keyId, method: call.method ?? "GET", route: call.route ?? "/api/v1/metrics", status: call.status ?? 200, submitted: call.submitted ?? 0, ...(call.at ? { at: call.at } : {}) }))));
 }
 
 /** A Feed's batch as claim_feed_batch stores it (to reach the day's limit, or hold the Feed, without running one). */

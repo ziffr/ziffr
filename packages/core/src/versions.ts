@@ -1,6 +1,18 @@
 // Versions (GLOSSARY: Version): what people build keeps its history, git-like but inside Ziffr. Callers check who
 // acts before recording; these only read and write the history.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "./db";
+
+// Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
+// record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
+// withVersionNote, and every Version recorded during it names the key. Changes with one note within ten minutes
+// still merge into one Version, so an assistant's twenty small changes are one thing to restore.
+const note = new AsyncLocalStorage<string>();
+
+/** Runs fn so that every Version it records carries this note, such as "Changed through the API (key «x»)". */
+export function withVersionNote<T>(text: string, fn: () => Promise<T>): Promise<T> {
+  return note.run(text.slice(0, 200), fn);
+}
 
 /** The kinds of objects that keep versions. */
 export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow";
@@ -44,7 +56,9 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
 }
 
 /** Records the object's current state. Edits by the same person within ten minutes merge into one version. */
-export async function recordVersion(type: VersionType, id: number, author: string, opts: { message?: string; name?: string; always?: boolean } = {}) {
+export async function recordVersion(type: VersionType, id: number, author: string, given: { message?: string; name?: string; always?: boolean } = {}) {
+  const noted = note.getStore();
+  const opts = noted ? { ...given, message: given.message ? `${given.message}; ${noted.charAt(0).toLowerCase()}${noted.slice(1)}` : noted } : given;
   const snapshot = await snapshotOf(type, id);
   if (!snapshot) return;
   const { data: latest } = await db().from("versions").select("*").eq("object_type", type).eq("object_id", id).order("version", { ascending: false }).limit(1);
@@ -52,7 +66,9 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   // Nothing changed: no new version, unless it records an event of its own (a name, or a handover with `always`).
   if (last && JSON.stringify(last.snapshot) === JSON.stringify(snapshot) && !opts.name && !opts.always) return;
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
-  const fresh = last && last.author_id === author && !last.name && !last.message && !opts.name && !opts.message && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
+  // A key's note merges into a version with the same note, so a program's burst of changes is one version too.
+  const sameNote = Boolean(noted && !given.message && last?.message === noted);
+  const fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
   if (fresh) {
     await db().from("versions").update({ snapshot, updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;

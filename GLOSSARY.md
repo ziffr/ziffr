@@ -160,8 +160,12 @@ _Avoid_: Waterfall, walk, cascade
 A starting point for a new widget or story: a view, its settings and, when the team saved it, its words and annotations, with the metrics left open as Slots. Ziffr ships built-in templates; anyone can save a widget as a team template, which only its creator edits. If none is chosen, the default template is used.
 _Avoid_: Preset, widget type, blueprint
 
+**Dashboard Template**:
+A starting point for a new dashboard: its widgets with their views, settings, words and layout, with the metrics left open as Slots. One Slot can fill several widgets. Ziffr ships built-in ones; anyone who may change a dashboard and sees every metric on it can save it as a team template, which only its creator changes. A dashboard made from one is an independent copy. "Template" alone is never used in UI text without "Widget" or "Dashboard".
+_Avoid_: Preset, blueprint, starter dashboard
+
 **Slot**:
-A place in a Widget Template that is filled with a metric when the template is used. A slot takes exactly one metric, or one or more for small multiples.
+A place in a Widget Template or Dashboard Template that is filled with a metric when the template is used. A slot takes exactly one metric, or one or more for small multiples.
 _Avoid_: Variable, parameter, input
 
 **Placeholder**:
@@ -249,7 +253,7 @@ A person known to a Workspace who has no login, such as a field worker or an out
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
-A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
+A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, reading dashboards and stories, building dashboards and stories as that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
 **Feed Key**:

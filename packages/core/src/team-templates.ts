@@ -1,7 +1,8 @@
-// Team Widget Templates (GLOSSARY: Widget Template, Slot, Placeholder): turning a widget into a template
-// with its metrics left open, and filling a template's slots to make a widget again. Pure.
+// Team Widget Templates and Dashboard Templates (GLOSSARY: Widget Template, Dashboard Template, Slot, Placeholder):
+// turning a widget, slide or dashboard into a template with its metrics left open, and filling a template's slots to
+// make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
-import type { AnchorRule, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, DashboardTemplateBody, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -202,6 +203,35 @@ export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: 
   for (const sh of out) if (sh.props.richText) mapRich(sh.props.richText, (t) => (texts.push(t), t));
   if (texts.some((t) => /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
   return { slots: nameSlots(ctx, labels), body: { shapes: out } as SlideBody, notices: [...new Set(notices)] };
+}
+
+// Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
+// Metric drawn by three widgets is picked once; each widget keeps its own words, with its own {metric}.
+
+/** Views a Dashboard Template cannot hold: a Free Layout keeps a drawing whose Metrics cannot be left open yet. */
+export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas"];
+
+/** The Dashboard Template a dashboard makes: shared slots, each widget with slot numbers instead of Metrics, where
+ * it sits, the widgets left out (by title or view) and what changed on the way. Every note tied to one period or row
+ * is dropped, as a widget template does by default. */
+export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" | "h">)[], metrics: Metric[], labels: string[] = []) {
+  const ctx = newCtx();
+  const notices: string[] = [];
+  const leftOut: string[] = [];
+  const out: DashboardTemplateWidget[] = [];
+  const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
+  ordered.forEach((w, i) => {
+    if (NOT_IN_DASHBOARD_TEMPLATES.includes(w.template)) { leftOut.push(w.title || "A free layout"); return; }
+    const { notices: n, ...body } = templatize(w, metrics, {}, ctx, `w${i}:`);
+    notices.push(...n);
+    out.push({ view: w.template, ...body, x: w.x, y: w.y, w: w.w, h: w.h });
+  });
+  return { slots: nameSlots(ctx, labels), body: { widgets: out } as DashboardTemplateBody, leftOut, notices: [...new Set(notices)] };
+}
+
+/** The widgets of a new dashboard from a Dashboard Template, once each slot has its Metrics. */
+export function fromDashboardTemplate(body: DashboardTemplateBody, fills: number[][]) {
+  return body.widgets.map((tw) => ({ ...fromTemplate({ view: tw.view, body: tw }, fills), x: tw.x, y: tw.y, w: tw.w, h: tw.h }));
 }
 
 /** The shapes of a new slide from a layout, with slots filled and its words filled in from today's data. */

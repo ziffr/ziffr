@@ -2,7 +2,7 @@
 
 # Ziffr API, version 1
 
-Read the Metrics an Access Key's creator sees and submit values, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
+Read the Metrics an Access Key's creator sees and submit values, and build dashboards and stories as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
 
 Every path is under `/api/v1`. The machine-readable description is at `/api/v1/openapi.json`. To make a first call, see [the API guide](../guides/api.md).
 
@@ -393,6 +393,531 @@ The workspace's Groups: id and name.
 | `items[].name` | string | yes |  |
 | `items[].everyone` | boolean | yes | The Group of everyone in the workspace except Guests. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List dashboards and stories
+
+`GET /dashboards` · scope `dashboards:read`
+
+The dashboards and stories the key's creator sees, by id, with their role on each and the link to open it.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `limit` | query | integer, 1 to 100, default 50 | no | Items per page, 1 to 100. |
+| `cursor` | query | string, at most 128 characters | no | The `next` of the page before. Opaque. |
+| `kind` | query | `"dashboard"`, `"story"` | no |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes | This page, at most `limit` long. |
+| `items[].id` | integer | yes | Stable id. |
+| `items[].kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
+| `items[].name` | string | yes |  |
+| `items[].role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `items[].url` | string | yes | Where to open it in Ziffr. |
+| `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Create a dashboard or story
+
+`POST /dashboards` · scope `dashboards:write`
+
+Creates an empty dashboard or story owned by the key's creator. The Audit Log names the key. Each key may create 50 dashboards and stories in any 24 hours.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | string | no | A repeat with the same key and body within 24 hours gets the first answer, with `Idempotent-Replayed: true`. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 120 characters | yes |  |
+| `kind` | `"dashboard"`, `"story"` | no | Default dashboard. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes | Stable id. |
+| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
+| `name` | string | yes |  |
+| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes | Its built-in view. |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].x` | integer | yes |  |
+| `widgets[].y` | integer | yes |  |
+| `widgets[].w` | integer | yes |  |
+| `widgets[].h` | integer | yes |  |
+| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `widgets[].words.subline` | string, at most 200 characters | no |  |
+| `widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `widgets[].words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 409: The Idempotency-Key was used with another body, or its first creation is still running.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Make a dashboard from a Dashboard Template
+
+`POST /dashboards/from-template` · scope `dashboards:write`
+
+Makes a whole dashboard owned by the key's creator from a Dashboard Template, with Metrics for each Slot. It is an independent copy. Counts towards the 50 new dashboards a day.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | string | no | A repeat with the same key and body within 24 hours gets the first answer, with `Idempotent-Replayed: true`. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `template` | string or integer | yes | A Dashboard Template's id from GET /templates?kind=dashboard. |
+| `name` | string, at most 120 characters | no | Default: the template's name. |
+| `fills` | array of array of string, at most 100 characters (at most 50) (at most 50) | yes | Metric slugs for each Slot, in the template's order: one each, or one or more for a Slot that takes several. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes | Stable id. |
+| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
+| `name` | string | yes |  |
+| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes | Its built-in view. |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].x` | integer | yes |  |
+| `widgets[].y` | integer | yes |  |
+| `widgets[].w` | integer | yes |  |
+| `widgets[].h` | integer | yes |  |
+| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `widgets[].words.subline` | string, at most 200 characters | no |  |
+| `widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `widgets[].words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 409: The Idempotency-Key was used with another body, or its first creation is still running.
+- 422: No such template, a Slot not filled, or a Metric the key's creator does not see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Describe a dashboard or story
+
+`GET /dashboards/{id}` · scope `dashboards:read`
+
+One dashboard or story with its widgets (a story's Findings, with their words) in reading order. Metrics are named by slug; values are read per Metric.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes | Stable id. |
+| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
+| `name` | string | yes |  |
+| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes | Its built-in view. |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].x` | integer | yes |  |
+| `widgets[].y` | integer | yes |  |
+| `widgets[].w` | integer | yes |  |
+| `widgets[].h` | integer | yes |  |
+| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `widgets[].words.subline` | string, at most 200 characters | no |  |
+| `widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `widgets[].words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Add a widget
+
+`POST /dashboards/{id}/widgets` · scope `dashboards:write`
+
+Adds a widget to a dashboard the key's creator may change, in the first free place in reading order: a built-in view with Metrics, or a team Widget Template with its Slots filled. The dashboard's history names the key. Each key may make 500 changes in any 24 hours.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | Default number. Leave out when using `template`. |
+| `template` | integer | no | A team Widget Template's id from GET /templates?kind=widget. |
+| `metrics` | array of string, at most 100 characters (at most 50) | no | With `view`: the Metrics it draws. |
+| `fills` | array of array of string, at most 100 characters (at most 50) (at most 50) | no | With `template`: Metric slugs for each Slot, in order. |
+| `title` | string, at most 200 characters | no |  |
+| `settings` | object | no |  |
+| `settings.window` | integer, 1 to 120 | no | Periods shown. |
+| `settings.showTarget` | boolean | no | Draw the target band. |
+| `settings.showForecast` | boolean | no | Draw a forecast (line). |
+| `settings.rows` | integer, 1 to 50 | no | Rows shown (history table). |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `view` | string | yes | Its built-in view. |
+| `title` | string or null | yes |  |
+| `metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `x` | integer | yes |  |
+| `y` | integer | yes |  |
+| `w` | integer | yes |  |
+| `h` | integer | yes |  |
+| `words` | object | no | A story's Finding only: its words. |
+| `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `words.subline` | string, at most 200 characters | no |  |
+| `words.footnote` | string, at most 500 characters | no |  |
+| `words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A view a key may not place, a story (add Findings instead), or a Metric the key's creator does not see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a widget
+
+`PATCH /dashboards/{id}/widgets/{widgetId}` · scope `dashboards:write`
+
+Changes a widget's view, Metrics, title or settings. A Free Layout is changed only in Ziffr.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+| `widgetId` | path | integer | yes | The widget's or Finding's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | A built-in view; GET /templates?kind=view lists them with what each is for. |
+| `metrics` | array of string, at most 100 characters (at most 50) | no |  |
+| `title` | string, at most 200 characters or null | no | null shows the Metric's name. |
+| `settings` | object | no |  |
+| `settings.window` | integer, 1 to 120 | no | Periods shown. |
+| `settings.showTarget` | boolean | no | Draw the target band. |
+| `settings.showForecast` | boolean | no | Draw a forecast (line). |
+| `settings.rows` | integer, 1 to 50 | no | Rows shown (history table). |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `view` | string | yes | Its built-in view. |
+| `title` | string or null | yes |  |
+| `metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `x` | integer | yes |  |
+| `y` | integer | yes |  |
+| `w` | integer | yes |  |
+| `h` | integer | yes |  |
+| `words` | object | no | A story's Finding only: its words. |
+| `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `words.subline` | string, at most 200 characters | no |  |
+| `words.footnote` | string, at most 500 characters | no |  |
+| `words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A view a key may not use, a widget only Ziffr changes, or a Metric the key's creator does not see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Remove a widget or Finding
+
+`DELETE /dashboards/{id}/widgets/{widgetId}` · scope `dashboards:write`
+
+Removes a widget from a dashboard, or a Finding from a story. The history keeps it, so it can be restored.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+| `widgetId` | path | integer | yes | The widget's or Finding's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `removed` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a story's title or introduction
+
+`PATCH /stories/{id}` · scope `dashboards:write`
+
+Changes the words around a story's Findings.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 120 characters | no |  |
+| `intro` | string, at most 4000 characters | no |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes | Stable id. |
+| `kind` | `"dashboard"`, `"story"` | yes | A dashboard watches numbers; a story explains them. |
+| `name` | string | yes |  |
+| `role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `intro` | string or null | yes | A story's introduction; null for a dashboard. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes | Its built-in view. |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].x` | integer | yes |  |
+| `widgets[].y` | integer | yes |  |
+| `widgets[].w` | integer | yes |  |
+| `widgets[].h` | integer | yes |  |
+| `widgets[].words` | object | no | A story's Finding only: its words. |
+| `widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `widgets[].words.subline` | string, at most 200 characters | no |  |
+| `widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `widgets[].words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Add a Finding
+
+`POST /stories/{id}/findings` · scope `dashboards:write`
+
+Adds a Finding about one Metric at the end of a story, with its words. Words may hold Placeholders such as {metric} or {change yoy}; empty ones fall back to words drawn from the data.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `subline` | string, at most 200 characters | no |  |
+| `footnote` | string, at most 500 characters | no |  |
+| `source` | string, at most 200 characters | no |  |
+| `metric` | string, at most 100 characters | yes | The slug of the Metric it is about. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `view` | string | yes | Its built-in view. |
+| `title` | string or null | yes |  |
+| `metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `x` | integer | yes |  |
+| `y` | integer | yes |  |
+| `w` | integer | yes |  |
+| `h` | integer | yes |  |
+| `words` | object | no | A story's Finding only: its words. |
+| `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `words.subline` | string, at most 200 characters | no |  |
+| `words.footnote` | string, at most 500 characters | no |  |
+| `words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A Metric the key's creator does not see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a Finding's words
+
+`PATCH /stories/{id}/findings/{findingId}` · scope `dashboards:write`
+
+Changes a Finding's kicker, headline, subline, footnote or source. An empty text falls back to words drawn from the data.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's or story's id. |
+| `findingId` | path | integer | yes | The Finding's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `subline` | string, at most 200 characters | no |  |
+| `footnote` | string, at most 500 characters | no |  |
+| `source` | string, at most 200 characters | no |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `view` | string | yes | Its built-in view. |
+| `title` | string or null | yes |  |
+| `metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `x` | integer | yes |  |
+| `y` | integer | yes |  |
+| `w` | integer | yes |  |
+| `h` | integer | yes |  |
+| `words` | object | no | A story's Finding only: its words. |
+| `words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `words.subline` | string, at most 200 characters | no |  |
+| `words.footnote` | string, at most 500 characters | no |  |
+| `words.source` | string, at most 200 characters | no |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List templates
+
+`GET /templates` · scope `dashboards:read`
+
+What a key can build with: the built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots and the Metrics suggested for each that the key's creator sees.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `kind` | query | `"view"`, `"widget"`, `"dashboard"` | no |  |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].id` | string or integer | yes | A view's or built-in Dashboard Template's text id, or a team template's number. |
+| `items[].kind` | `"view"`, `"widget"`, `"dashboard"` | yes | A built-in view, a team Widget Template, or a Dashboard Template. |
+| `items[].name` | string | yes |  |
+| `items[].description` | string | yes |  |
+| `items[].slots` | array of object | yes | Empty for a view, which takes any Metrics. |
+| `items[].slots[].label` | string | yes | What to fill it with. |
+| `items[].slots[].multiple` | boolean | yes | Takes one or more Metrics instead of one. |
+| `items[].slots[].suggested` | array of string | yes | Slugs it was made with that the key's creator sees. |
 
 **Errors**
 

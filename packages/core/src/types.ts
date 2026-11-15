@@ -293,6 +293,20 @@ export type SlideTemplate = TemplateBase & { kind: "slide"; view: "slide"; body:
 /** A team's Widget Template: for one widget, or a whole slide. */
 export type TeamTemplate = WidgetTemplate | SlideTemplate;
 
+/** One widget of a Dashboard Template: its view, its part of the template (slot numbers instead of Metrics) and where
+ * it sits on the 12-column grid. */
+export type DashboardTemplateWidget = { view: TemplateId; metricSlots: number[]; settings: WidgetSettings; title: string | null; x: number; y: number; w: number; h: number };
+/** The widgets a Dashboard Template keeps. */
+export type DashboardTemplateBody = { widgets: DashboardTemplateWidget[] };
+/** A whole dashboard saved with its Metrics left open (GLOSSARY: Dashboard Template). Built-in ones have a text id,
+ * team ones a number and an owner. Kept apart from TeamTemplate: canvases never load them. */
+export type DashboardTemplate = Omit<TemplateBase, "id" | "owner_id" | "w" | "h" | "updated_at"> & {
+  id: number | string;
+  owner_id: string | null;
+  kind: "dashboard";
+  body: DashboardTemplateBody;
+};
+
 /** One row of a Breakdown. */
 export type BreakdownRow = { label: string; value: number };
 

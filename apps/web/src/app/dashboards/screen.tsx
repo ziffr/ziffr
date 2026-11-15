@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import ReactGridLayout, { useContainerWidth, type Layout } from "react-grid-layout";
-import { BookOpenText, Check, Eye, Home, LayoutDashboard, MonitorPlay, MoreHorizontal, Pencil, Presentation, Users } from "lucide-react";
+import { BookOpenText, Check, Eye, Home, LayoutDashboard, LayoutTemplate, MonitorPlay, MoreHorizontal, Pencil, Presentation, Users } from "lucide-react";
+import { NewDashboardDialog } from "@/components/new-dashboard-dialog";
+import { SaveDashboardTemplateDialog } from "@/components/save-dashboard-template-dialog";
+import type { DashboardTemplateSummary } from "@ziffr/core/dashboard-templates";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
-import { createDashboardNamed, placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
+import { placeWidget, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@ziffr/core/types";
@@ -40,6 +43,8 @@ type Props = {
   closed?: { id: number; owner: string } | null;
   /** The dashboard Home opens for this person (their choice, or the default), for the switcher's mark. */
   homeId: number | null;
+  /** The Dashboard Templates a new dashboard can start from (empty for a Guest). */
+  dashboardTemplates: DashboardTemplateSummary[];
   /** May start new dashboards (not a Guest). */
   canCreate: boolean;
   /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
@@ -67,7 +72,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -107,14 +112,15 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   };
   const add = (s: DropSource) => place(s);
 
-  const newDashboard = () => {
-    const name = window.prompt("Name of the new dashboard:", "My dashboard");
-    if (name) start(async () => router.push(`/dashboards/${await createDashboardNamed(name)}`));
-  };
+  const [newOpen, setNewOpen] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const newDashboard = () => setNewOpen(true);
 
   return (
     <div className={cn("grid gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
+      {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={data.metrics.map((m) => ({ id: m.id, name: m.name }))} />}
+      {savingTemplate && current && <SaveDashboardTemplateDialog dashboardId={current.id} dashboardName={current.name} metricName={(id) => data.metrics.find((m) => m.id === id)?.name} onClose={() => setSavingTemplate(false)} />}
       {changing && (
         <div className="order-2 lg:order-1">
           <Pool data={data} saved={saved} onAdd={add} layouts hint="Drag onto the dashboard, or click +." />
@@ -162,6 +168,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 menu={canCreate ? [
                   { label: "Make a story", icon: <BookOpenText aria-hidden />, onSelect: () => start(() => makeStory(current.id)) },
                   { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => start(() => makeDeck(current.id)) },
+                  ...(editable && widgets.length ? [{ label: "Save as template", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true) }] : []),
                 ] : undefined}
               >
                 <button

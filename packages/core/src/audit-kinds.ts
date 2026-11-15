@@ -31,6 +31,7 @@ export const AUDIT_KINDS = {
   "feed.deleted": "deleted the Feed",
   "feed.key_created": "created a Feed Key for",
   "feed.key_revoked": "revoked a Feed Key of",
+  "dashboard.created": "created the dashboard or story",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
   "metric.workflow_set": "chose the Workflow of",
@@ -58,7 +59,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", feed: "Feeds", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", feed: "Feeds", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
   workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", export: "Exports", person: "Sign-ins",
 } as const;
 

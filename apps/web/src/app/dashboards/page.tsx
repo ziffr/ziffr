@@ -11,10 +11,12 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DashboardAccess } from "@/lib/access";
+import { dashboardTemplateChoices } from "@ziffr/core/dashboard-templates";
+import { NewDashboardButton } from "@/components/new-dashboard-dialog";
 
 export default async function DashboardsPage() {
   const actor = await currentActor();
-  const [dashboards, people] = await Promise.all([switchableDashboards(actor), getProfileMap()]);
+  const [dashboards, people, choices] = await Promise.all([switchableDashboards(actor), getProfileMap(), dashboardTemplateChoices(actor)]);
   const home = await homeDashboard(actor, dashboards);
   const mine = dashboards.filter((d) => d.role === "owner");
   const shared = dashboards.filter((d) => d.role !== "owner");
@@ -37,6 +39,9 @@ export default async function DashboardsPage() {
             <Input name="name" required maxLength={120} placeholder="Name of the new dashboard" aria-label="Name of the new dashboard" className="w-60" />
             <Button type="submit">New dashboard</Button>
           </form>
+        )}
+        {can(actor, "create") && (
+          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} label="From a template…" variant="outline" />
         )}
       </PageHeader>
       {!dashboards.length ? (

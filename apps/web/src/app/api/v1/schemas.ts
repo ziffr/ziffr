@@ -171,3 +171,127 @@ export const FeedItemResult = z.object({
 
 /** POST /api/v1/feed/observations answers this. */
 export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).describe("One per item, in the order sent.") });
+
+// Dashboards, stories and templates (spec 0014). Metrics are named by slug, dashboards, widgets and team templates by
+// number; nothing a program sends is used before it matches these.
+
+/** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
+export const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
+
+/** The few settings a key may set on a widget. */
+export const KeySettings = z.object({
+  window: z.number().int().min(1).max(120).optional().describe("Periods shown."),
+  showTarget: z.boolean().optional().describe("Draw the target band."),
+  showForecast: z.boolean().optional().describe("Draw a forecast (line)."),
+  rows: z.number().int().min(1).max(50).optional().describe("Rows shown (history table)."),
+}).strict();
+
+const slugList = z.array(z.string().min(1).max(100)).max(50);
+
+/** A Finding's words (GLOSSARY: Finding, Placeholder): plain text, with Placeholders such as {metric} or {change yoy}. */
+export const FindingWords = z.object({
+  kicker: z.string().max(200).optional().describe("The small line above the headline."),
+  headline: z.string().max(200).optional().describe("States the finding, such as \"Churn doubled after the price change\"."),
+  subline: z.string().max(200).optional(),
+  footnote: z.string().max(500).optional(),
+  source: z.string().max(200).optional(),
+});
+
+/** A dashboard or story in a list. */
+export const ApiDashboardSummary = z.object({
+  id: z.number().int().describe("Stable id."),
+  kind: z.enum(["dashboard", "story"]).describe("A dashboard watches numbers; a story explains them."),
+  name: z.string(),
+  role: z.enum(["owner", "editor", "viewer"]).describe("The key's creator's role on it; only an owner or editor can change it."),
+  url: z.string().describe("Where to open it in Ziffr."),
+});
+
+/** One widget, or one Finding of a story. */
+export const ApiWidget = z.object({
+  id: z.number().int(),
+  view: z.string().describe("Its built-in view."),
+  title: z.string().nullable(),
+  metrics: z.array(z.string()).describe("Slugs of the Metrics it draws."),
+  x: z.number().int(), y: z.number().int(), w: z.number().int(), h: z.number().int(),
+  words: FindingWords.optional().describe("A story's Finding only: its words."),
+});
+
+/** A dashboard or story with its widgets in reading order. */
+export const ApiDashboard = ApiDashboardSummary.extend({
+  intro: z.string().nullable().describe("A story's introduction; null for a dashboard."),
+  widgets: z.array(ApiWidget),
+});
+
+/** GET /dashboards answers this. */
+export const DashboardList = pageOf(ApiDashboardSummary);
+
+/** Paging of GET /dashboards, and which kind. */
+export const dashboardsQuery = pageQuery.extend({ kind: z.enum(["dashboard", "story"]).optional() });
+
+/** A dashboard's, widget's or Finding's id in the path. */
+export const idParam = z.coerce.number().int().positive().max(2 ** 31 - 1);
+
+/** POST /dashboards takes this. */
+export const CreateDashboard = z.object({
+  name: z.string().trim().min(1).max(120),
+  kind: z.enum(["dashboard", "story"]).optional().describe("Default dashboard."),
+}).strict();
+
+/** POST /dashboards/from-template takes this. */
+export const CreateFromTemplate = z.object({
+  template: z.union([z.string().regex(/^[a-z0-9-]{1,40}$/), z.number().int().positive()]).describe("A Dashboard Template's id from GET /templates?kind=dashboard."),
+  name: z.string().trim().max(120).optional().describe("Default: the template's name."),
+  fills: z.array(slugList.min(1)).max(50).describe("Metric slugs for each Slot, in the template's order: one each, or one or more for a Slot that takes several."),
+}).strict();
+
+/** POST /dashboards/{id}/widgets takes this: a built-in view with Metrics, or a team Widget Template with its Slots. */
+export const AddWidget = z.object({
+  view: KeyView.optional().describe("Default number. Leave out when using `template`."),
+  template: z.number().int().positive().optional().describe("A team Widget Template's id from GET /templates?kind=widget."),
+  metrics: slugList.optional().describe("With `view`: the Metrics it draws."),
+  fills: z.array(slugList.min(1)).max(50).optional().describe("With `template`: Metric slugs for each Slot, in order."),
+  title: z.string().max(200).optional(),
+  settings: KeySettings.optional(),
+}).strict().refine((b) => (b.template === undefined) !== (b.metrics === undefined), { message: "Send `view` and `metrics`, or `template` and `fills`." });
+
+/** PATCH /dashboards/{id}/widgets/{widgetId} takes this. */
+export const UpdateWidget = z.object({
+  view: KeyView.optional(),
+  metrics: slugList.optional(),
+  title: z.string().max(200).nullable().optional().describe("null shows the Metric's name."),
+  settings: KeySettings.optional(),
+}).strict();
+
+/** PATCH /stories/{id} takes this. */
+export const UpdateStory = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  intro: z.string().max(4000).optional(),
+}).strict();
+
+/** POST /stories/{id}/findings takes this. */
+export const AddFinding = FindingWords.extend({ metric: z.string().min(1).max(100).describe("The slug of the Metric it is about.") }).strict();
+
+/** PATCH /stories/{id}/findings/{findingId} takes this. */
+export const UpdateFinding = FindingWords.strict();
+
+/** What DELETE /dashboards/{id}/widgets/{widgetId} answers. */
+export const RemovedWidget = z.object({ removed: z.number().int() });
+
+/** A template a key can build with. */
+export const ApiTemplate = z.object({
+  id: z.union([z.string(), z.number().int()]).describe("A view's or built-in Dashboard Template's text id, or a team template's number."),
+  kind: z.enum(["view", "widget", "dashboard"]).describe("A built-in view, a team Widget Template, or a Dashboard Template."),
+  name: z.string(),
+  description: z.string(),
+  slots: z.array(z.object({
+    label: z.string().describe("What to fill it with."),
+    multiple: z.boolean().describe("Takes one or more Metrics instead of one."),
+    suggested: z.array(z.string()).describe("Slugs it was made with that the key's creator sees."),
+  })).describe("Empty for a view, which takes any Metrics."),
+});
+
+/** GET /templates answers this. */
+export const TemplateList = z.object({ items: z.array(ApiTemplate) });
+
+/** Which templates GET /templates lists. */
+export const templatesQuery = z.object({ kind: z.enum(["view", "widget", "dashboard"]).optional() });
