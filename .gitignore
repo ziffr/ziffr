@@ -46,3 +46,6 @@ next-env.d.ts
 
 # packages built for publishing
 packages/*/dist/
+
+# design tool workspace
+.hallmark/

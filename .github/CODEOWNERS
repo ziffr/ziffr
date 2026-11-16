@@ -1,5 +1,6 @@
-# Changes here need the maintainer's review. Replace the placeholder with the maintainer's GitHub handle before publishing.
-# /packages/core/     MAINTAINER
-# /supabase/          MAINTAINER
-# /ee/                MAINTAINER
-# LICENSE NOTICE CLA.md  MAINTAINER
+# Changes here need the maintainer's review.
+/packages/core/  @ziffr
+/supabase/       @ziffr
+/LICENSE         @ziffr
+/NOTICE          @ziffr
+/CLA.md          @ziffr

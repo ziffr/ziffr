@@ -1,6 +1,6 @@
 # Security
 
-Please do not open a public issue for a vulnerability. Report it privately through GitHub's "Report a vulnerability" (Security tab) [TODO before publishing: or the security contact address]. We confirm within three working days and agree on a fix and disclosure date with you.
+Please do not open a public issue for a vulnerability. Report it privately through GitHub's "Report a vulnerability" (Security tab). We confirm within three working days and agree on a fix and disclosure date with you.
 
 ## What we care most about
 

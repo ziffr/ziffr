@@ -20,7 +20,7 @@ Ziffr is a metric tracker: anyone, one person, a team or a business, defines the
 6. **Never read or write `.env*`** (except `.env.example`), never commit secrets; push only when the person asks for it.
 7. **Documentation:** module header comment naming the glossary term; a one-line doc comment on every export; comments say why. Generated reference is never edited by hand. Details: `docs/guides/documentation.md`.
 8. **ADR** only for decisions that are hard to reverse, surprising and a real trade-off (`docs/adr/`).
-9. **Paid features** go in `ee/` and only add; the rest must work without them.
+9. **Paid features**, once there are any, go in `ee/` under a license of their own and only add; the rest must work without them.
 10. **Specs and tickets:** work from a ticket (a GitHub issue); bigger work has a spec in `docs/specs/` (see its README). Each pull request closes its ticket with `Closes #…`.
 11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, the user guide chapter that describes a changed screen is updated (`docs/user-guide`, checked in CI), the commit message says why, and anything people notice has a release note in `.changeset/` (format in `.changeset/README.md`; write the file, `pnpm changeset` is interactive).
 12. **Releases** are made by a person with `pnpm release` (ADR 0004); never edit a released section of `CHANGELOG.md` or a version number by hand.

@@ -4,10 +4,9 @@ Parameters
 
 Licensor:             Stefan Sonntag
 Licensed Work:        Ziffr. The Licensed Work is (c) 2026 Stefan Sonntag.
-                      Excluded from the Licensed Work: the ee/ directory (see
-                      ee/LICENSE) and any directory that contains its own
-                      LICENSE file (for example the MIT-licensed connector kit
-                      and client libraries).
+                      Excluded from the Licensed Work: any directory that
+                      contains its own LICENSE file (for example the
+                      MIT-licensed connector kit and client libraries).
 Additional Use Grant: You may make production use of the Licensed Work,
                       including for commercial purposes, (a) within your own
                       organisation and its affiliates, and (b) to install,
@@ -25,8 +24,8 @@ Change Date:          Three years from the date a version of the Licensed Work
 Change License:       GNU Affero General Public License v3.0 or later
 
 For information about alternative licensing arrangements for the Licensed Work,
-including the Ziffr Business License, please contact the Licensor.
-[TODO before publishing: add a licensing contact address.]
+such as a commercial license for a hosted or managed offering, please contact
+the Licensor by opening an issue at https://github.com/ziffr/ziffr/issues.
 
 Notice
 
