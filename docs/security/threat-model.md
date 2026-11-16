@@ -4,7 +4,7 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 
 ## What we protect
 
-- **A team's numbers.** Metrics, their values, Breakdowns, targets and projections. For a small company these are the business: revenue, cash, headcount.
+- **A workspace's numbers.** Metrics, their values, Breakdowns, targets and projections. For a business these can be revenue, cash and headcount; for a person, their finances or health.
 - **Who said what.** Questions, tasks, Threads and Corrections, and who submitted which value.
 - **People's details.** Names, email addresses, Slack handles and phone numbers of members and Contacts.
 - **The right to act.** Sessions, Access Keys, Tokens (form links), Invitations and View Links.

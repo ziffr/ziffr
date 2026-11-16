@@ -11,12 +11,15 @@ Licensed Work:        Ziffr. The Licensed Work is (c) 2026 Stefan Sonntag.
 Additional Use Grant: You may make production use of the Licensed Work,
                       including for commercial purposes, (a) within your own
                       organisation and its affiliates, and (b) to install,
-                      configure and operate the Licensed Work for a client on
-                      infrastructure that client controls. You may not offer
-                      the Licensed Work, or a product or service substantially
-                      derived from it, to third parties on a hosted or managed
-                      basis (such as software as a service) in which those
-                      third parties gain access to its features.
+                      configure and support the Licensed Work for a client who
+                      then uses it for the client's own internal business.
+                      You may not offer the Licensed Work, or a product or
+                      service substantially derived from it, to third parties
+                      on a hosted or managed basis (such as software as a
+                      service) in which those third parties gain access to its
+                      features. Operating or managing the Licensed Work for a
+                      third party on an ongoing basis is such a managed
+                      offering, whether on your infrastructure or theirs.
 Change Date:          Three years from the date a version of the Licensed Work
                       is first published.
 Change License:       GNU Affero General Public License v3.0 or later

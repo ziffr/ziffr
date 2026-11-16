@@ -37,7 +37,7 @@ General, Access Keys and Feeds open inside the settings area. It has a side list
 
 After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**.
 
-- Type the **Name of your team or company** and choose **Create workspace**. You become its Owner, and Ziffr opens it.
+- Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
 
 You can start another Workspace at any time from the menu under your name in the top bar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.

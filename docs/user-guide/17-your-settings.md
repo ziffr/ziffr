@@ -6,7 +6,7 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 ## Signing in
 
-The page **Sign in to Ziffr** opens whenever you are not signed in.
+The page **Sign in to Ziffr** opens whenever you are not signed in. Under its heading it says what Ziffr is: a metric tracker for anyone.
 
 | Option | What it does |
 | --- | --- |

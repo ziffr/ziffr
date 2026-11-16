@@ -12,8 +12,8 @@ export function WelcomeForm() {
   return (
     <form className="mt-8 space-y-3" onSubmit={(e) => { e.preventDefault(); start(async () => { try { await createWorkspace(name); } catch (err) { setError((err as Error).message); } }); }}>
       <label className="block text-sm">
-        <span className="mb-1 block font-medium">Name of your team or company</span>
-        <Input required value={name} onChange={(e) => setName(e.target.value)} />
+        <span className="mb-1 block font-medium">Name of the workspace</span>
+        <Input required placeholder="Your name, your team or your company" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <Button type="submit" className="w-full" disabled={pending}>Create workspace</Button>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

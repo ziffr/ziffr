@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Ziffr",
-  description: "One home for your team's business numbers.",
+  description: "A metric tracker for anyone: define any number you care about, collect its values from people and systems, and see, share and discuss them over time.",
 };
 
 export const dynamic = "force-dynamic";

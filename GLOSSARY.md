@@ -1,6 +1,6 @@
 # Ziffr
 
-An app that collects numbers from anywhere, keeps them over time, and lets people visualize, analyze, discuss and act on them.
+A metric tracker. Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Then see, share and discuss them over time. For one person, a team or a business.
 
 ## Language
 

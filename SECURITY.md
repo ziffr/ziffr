@@ -4,7 +4,7 @@ Please do not open a public issue for a vulnerability. Report it privately throu
 
 ## What we care most about
 
-Ziffr holds a team's business numbers, so the boundaries are the product:
+Ziffr holds the numbers people track, often sensitive ones, so the boundaries are the product:
 
 - **Visibility:** someone sees a metric, dashboard, deck, thread or delivery they were not given (Shares, Groups, Tokens, Stand-ins, View Links).
 - **Acting as someone else:** submitting, approving, replying or changing on behalf of another person, or through a Connector reply that is not theirs.

@@ -84,7 +84,7 @@ The panel also shows the last run: when it was, whether it was started by hand, 
 | --- | --- | --- |
 | **Run today's steps now** | Runs today's steps at once, instead of waiting for the hour. Each day runs only once: afterwards the button reads "Today's steps ran", and the clock leaves today alone. | Owners and Admins |
 
-If the panel says that nothing has run by the clock yet, whoever runs Ziffr for your team still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
+If the panel says that nothing has run by the clock yet, whoever runs Ziffr for this workspace still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
 
 **In the demo**, nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is**, then choose **Run workflows**. A list shows what happened on that day, such as who was asked or reminded.
 

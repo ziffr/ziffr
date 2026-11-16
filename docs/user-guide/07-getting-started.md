@@ -15,7 +15,7 @@ Nothing you do in the demo reaches a real Workspace. When you are done, choose *
 
 ## 1. Start your Workspace
 
-Sign in with your work email: Ziffr sends you a sign-in link. Then give your Workspace the name of your team or company and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
+Sign in with your work email: Ziffr sends you a sign-in link. Then give your Workspace a name, such as your name, your team or your company, and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
 
 Under **Workspace → General**, tell Ziffr about your business (your industry, who you sell to, your size). It uses the answers to suggest Metrics that fit.
 

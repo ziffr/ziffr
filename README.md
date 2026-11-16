@@ -1,6 +1,8 @@
 # Ziffr
 
-One home for a small team's business numbers. Metrics from any source, values captured where people already work (a form link, email, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
+**Ziffr is a metric tracker.** Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Then see, share and discuss them over time. For one person, a team or a business.
+
+What that includes: values captured where people already work (a form link, email, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
 
 Ziffr is in its `0.x` releases: used and tested, not yet at a first public release. See [CHANGELOG.md](CHANGELOG.md) for what each version brought.
 
@@ -59,4 +61,4 @@ pnpm --filter @ziffr/core test:db          # the core against the local database
 
 ## License
 
-Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted service is reserved. Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the SDK, the MCP server, the feed kit and the SQL Feed are MIT, and the connector kit will be. Why: [ADR 0002](docs/adr/0002-source-available-license.md).
+Ziffr is **source-available** under the [Business Source License 1.1](LICENSE): use it, change it and run it yourself, also commercially inside your organisation; offering it to others as a hosted or managed service is reserved. Consultants may set it up and support it for a client, but not run it for them ([ADR 0009](docs/adr/0009-no-managed-service-by-others.md)). Each version becomes AGPL-3.0 three years after release. The `ee/` folder is under the paid [Ziffr Business License](ee/LICENSE); the SDK, the MCP server, the feed kit and the SQL Feed are MIT, and the connector kit will be. Why: [ADR 0002](docs/adr/0002-source-available-license.md).

@@ -1,6 +1,6 @@
 # Working on Ziffr (for coding agents)
 
-Ziffr is a workspace where a small team keeps its business numbers: Metrics from any source, dashboards, stories, decks, comparisons, Workflows and Connectors. Read `GLOSSARY.md` before naming anything; `CONTRIBUTING.md` and `docs/guides/documentation.md` are the standards, this file is the short version.
+Ziffr is a metric tracker: anyone, one person, a team or a business, defines the numbers they care about, Ziffr asks people for the values or people and systems send them in, and everyone sees, shares and discusses them over time. It has Metrics from any source, dashboards, stories, decks, comparisons, Workflows and Connectors. Read `GLOSSARY.md` before naming anything; `CONTRIBUTING.md` and `docs/guides/documentation.md` are the standards, this file is the short version.
 
 ## Commands
 

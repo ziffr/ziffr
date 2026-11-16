@@ -233,7 +233,7 @@ function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; ca
       ) : (
         <p className="text-muted-foreground">No run yet.</p>
       )}
-      {!schedule.scheduled && <p className="text-muted-foreground">Nothing has run by the clock here yet. Whoever runs Ziffr for your team still has to turn on the hourly schedule; until then, run today’s steps by hand.</p>}
+      {!schedule.scheduled && <p className="text-muted-foreground">Nothing has run by the clock here yet. Whoever runs Ziffr for this workspace still has to turn on the hourly schedule; until then, run today’s steps by hand.</p>}
       {canRun && (
         <Button variant="outline" className="w-full" disabled={pending || schedule.todayRan} onClick={onRun}><Play aria-hidden /> {schedule.todayRan ? "Today's steps ran" : "Run today's steps now"}</Button>
       )}
