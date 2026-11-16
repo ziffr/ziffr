@@ -33,11 +33,12 @@
     "test:app": "vitest run --config vitest.app.config.ts"
   },
   "devDependencies": {
+    "@types/node": "^20",
     "@ziffr/core": "workspace:*",
     "eslint": "^9.39.5",
     "eslint-plugin-jsdoc": "^65.4.5",
     "typescript": "^5",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.12"
   }
 }

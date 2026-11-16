@@ -15,12 +15,13 @@
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "devDependencies": {
+    "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
     "eslint": "^9.39.5",
     "eslint-plugin-jsdoc": "^65.4.5",
     "typescript": "^5",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
