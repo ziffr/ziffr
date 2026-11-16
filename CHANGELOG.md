@@ -2,6 +2,41 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.7.0 (2026-11-16)
+
+### New and changed
+
+- The API is now a Source of its own ("API and Feeds") in a Metric's Settings, apart from the web form. Every Metric that took values from the web form keeps taking them from the API, so existing Access Keys work as before.
+- A dashboard's owner can have it take a Snapshot of every week, month or quarter by itself (Snapshots ▸ Take one by itself). The daily Workflow run takes it as soon as every Metric on the dashboard is Locked for the period, or a set number of days after the period ends, and tells the owner it is ready to write up. A period is taken once, and not again after its Snapshot is deleted.
+- A dashboard can have an introduction, written in Edit next to its name, and a Read view: the introduction, then its widgets one below the other, to read on a phone or to explain what happened. A View Link of a dashboard with an introduction opens in Read. The demo's "October in short" is such a dashboard.
+- Snapshots: fix a dashboard to a week, month or quarter with Snapshots ▸ Take a Snapshot. It keeps the layout and the values up to the end of the period, and they never change; you write its introduction and headlines afterwards. It is a draft for the dashboard's owner and Editors until you show it to everyone who may open the dashboard. Text changed after showing is kept as Versions and marked on the Snapshot. The demo's "October in short" has Snapshots for the last two months after a reset.
+- Dashboard Templates: start a new dashboard from a template, such as "One metric in depth", and pick each Metric once, even when several widgets show it. Save any dashboard you may change as a template for your team with "Save as template" in its ⋯ menu. Developers: two new Access Key scopes, "Read dashboards" and "Build dashboards", let programs and the MCP server list and read dashboards, make one from a Dashboard Template, add and change widgets, and write a dashboard's introduction and Findings, as the key's creator. A key never shares, deletes or publishes, and every change it makes is in the history under its name. See `/api/v1/dashboards` and `/api/v1/templates` in the API reference.
+- A Metric's owner can change its name, description, unit, format, decimals, which way is good, target range, aggregation and what a second value does under Settings, Edit details; the period too, until the Metric has values. Each change is kept in its history.
+- Feeds bring values in from another system, such as a CRM or a data warehouse. An Owner or Admin creates a Feed and its Feed Key in Settings, Feeds. A Metric's owner or Editors then choose the Feed under "Who submits". A Feed belongs to the workspace, keeps working when its creator leaves, and its values for empty past periods are imported without asking for Approval.
+- Ziffr opens on your Home dashboard: choose it with Make this my home on any dashboard. The dashboard's name opens a switcher of all your dashboards and those shared with you, with search, and Dashboards in the top bar lists them. Dashboards open to look at, full width; owners and Editors press Edit to add and arrange widgets from the Pool, and Done when finished.
+- A dashboard's ⋯ menu has Make a deck: you get your own copy, laid out one slide per widget, with live numbers.
+- A Metric can be shared as Editor: Editors change its targets, its description (name, unit, format, target range, what a second value does and the like) and how its values arrive, while deleting and sharing it stay with its owner.
+- A Metric's owner can change how its values arrive (web form, email, Slack) on its Settings tab, and new Metrics take values every way to begin with, so each person can send theirs however suits them.
+- Adding a template asks for its metrics and shows the widget with them before it lands. "Change visualization" is now "Change view", and shows each option drawn with the widget's own numbers before you switch.
+- A Snapshot has Make a deck: a title slide with its introduction, then one slide per widget with its words, drawing the values of its period only. Its dashboard's owner can make a View Link to a shown Snapshot; a dashboard's View Link now shows live numbers or one of its Snapshots, and stops working when that Snapshot is deleted.
+- The Pool now lists the built-in templates (views, analyses, Findings, free layout) next to the team's. Pointing at a template or saved widget shows a Preview before you place it, and every row, metrics included, has an ⓘ button for one. Templates are drawn with sample data; "Browse…" shows them all side by side.
+- A user guide explains Ziffr in plain words: what it is and how it differs from business intelligence tools and data warehouses, its ideas, how it is built and connected, templates, everything you work with, getting started, and every word Ziffr uses, with links from each term to its meaning. Eight more chapters go through every screen and its options. Open it with the question mark in the top bar, or at /guide, also before signing in. Self-hosters: the guide's chapters are Markdown files in `docs/user-guide`, read when a page is opened, so editing them changes no code. Set `ZIFFR_USER_GUIDE_URL` to send the link to a guide you keep elsewhere. Developers: each screen chapter names the files of its screens. `pnpm test` fails when a page has no chapter, and a pull request that changes a screen must change its chapter (label `no-guide-change` when people see no difference).
+
+### Fixed
+
+- An arrow drawn onto a widget on a slide or in a free layout stays attached when the widget moves. If the link preview or embedded page an arrow pointed at is removed, the arrow now stays where it was last drawn instead of pointing at nothing.
+- When you start a dashboard from a template, each Dashboard Template now shows as a small preview of the whole dashboard, drawn with sample data.
+- Pages and actions answer faster when signed in: Ziffr checks the session with Supabase once per click instead of three times. Developers: `pnpm prototype:fast` runs the production app locally, much faster to click through than `pnpm prototype`.
+- The editorial widget with a headline, its charts and a source is now called a Finding.
+- A Snapshot says which of its values were corrected or removed since it was taken, and what they are now, while it keeps the values it had. Only for Metrics you see.
+
+### For developers
+
+- `DELETE /api/v1/metrics/{slug}?confirm=<name>` (scope `metrics:write`), the SDK's `metrics.delete` and the MCP tool `delete_metric` delete a Metric the key's creator owns, with the same refusals as the app; the Audit Log names the key.
+- A Feed Key reads `GET /api/v1/feed` and records up to 500 values per call with `POST /api/v1/feed/observations`, with one result per item. The SDK has `feed.get`, `feed.metrics` and `feed.submit`. The new MIT packages `@ziffr/feed-kit` (`defineFeed` and `ziffr-feed run`) and `@ziffr/feed-sql` (one Postgres query per Metric) write and run Feeds. See docs/guides/feeds.md.
+
+This version becomes available under AGPL-3.0 on 2029-11-16.
+
 ## 0.6.0 (2026-11-14)
 
 ### For self-hosters
