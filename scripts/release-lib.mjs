@@ -67,3 +67,11 @@ export function sectionOf(changelog, version) {
   if (end === -1) end = lines.length;
   return lines.slice(start + 1, end).join("\n").trim() + "\n";
 }
+
+/** The Docker files (spec 0015) with the new version: the image docker/compose.yml starts, and the release
+ * docker/install.sh downloads compose.yml from. Nothing else in them changes. */
+export function setDockerVersion(text, version) {
+  return text
+    .replace(/(ghcr\.io\/ziffr\/ziffr:)\d+\.\d+\.\d+/g, `$1${version}`)
+    .replace(/^(ZIFFR_VERSION=)\d+\.\d+\.\d+$/m, `$1${version}`);
+}

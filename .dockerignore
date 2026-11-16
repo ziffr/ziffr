@@ -1,0 +1,15 @@
+# What `docker build -f docker/Dockerfile .` leaves out (spec 0015): dependencies and builds made on this machine,
+# local settings and secrets, and Git's history.
+**/node_modules
+**/.next
+**/.next-*
+**/.turbo
+**/coverage
+.git
+.github
+**/.env*
+!.env.example
+**/*.pem
+supabase/.temp
+supabase/.branches
+*.png

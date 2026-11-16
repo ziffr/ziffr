@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { claimSignInLink, networkAddress } from "@ziffr/core/sign-in-limits";
+import { forBrowser } from "@/lib/auth-settings";
 import { authClient, DEMO_COOKIE, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
@@ -33,7 +34,7 @@ export async function signInWith(provider: Provider, next?: string) {
     options: { redirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
   if (error || !data.url) throw new Error("Could not start signing in. Try again.");
-  redirect(data.url);
+  redirect(forBrowser(data.url));
 }
 
 export async function signOut() {

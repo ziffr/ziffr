@@ -4,6 +4,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
+import { authSettings } from "./auth-settings";
 import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
 import { PERSON_COLORS } from "@ziffr/core/profile";
@@ -24,7 +25,8 @@ export async function isDemo(): Promise<boolean> {
 /** A Supabase client acting with the signed-in person's session, read from and written to cookies. */
 export async function authClient() {
   const store = await cookies();
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const { url, anonKey } = authSettings();
+  return createServerClient(url, anonKey, {
     cookies: {
       getAll: () => store.getAll(),
       setAll: (list) => {

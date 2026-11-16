@@ -1,7 +1,7 @@
 // Tests for the release rules (ADR 0004). Run with `pnpm test`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { changeDate, insertSection, nextVersion, parseChangeset, renderSection, sectionOf } from "./release-lib.mjs";
+import { changeDate, insertSection, nextVersion, parseChangeset, renderSection, sectionOf, setDockerVersion } from "./release-lib.mjs";
 
 test("a Changeset gives its largest bump and its note on one line", () => {
   assert.deepEqual(parseChangeset('---\n"@ziffr/web": patch\n"@ziffr/core": minor\n---\n\nPeople can\nsign in.\n'), { bump: "minor", note: "People can sign in." });
@@ -44,4 +44,11 @@ test("the release notes are exactly the changelog section of that version", () =
   assert.equal(sectionOf(log, "0.2.0"), section.split("\n").slice(1).join("\n").trim() + "\n");
   assert.equal(sectionOf(log, "0.1.0"), "- First.\n");
   assert.equal(sectionOf(log, "9.9.9"), null);
+});
+
+test("a release names its version in the Docker files, and nothing else changes", () => {
+  const compose = "  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.6.0}\n  db: public.ecr.aws/supabase/postgres:17.6.1.165\n";
+  assert.equal(setDockerVersion(compose, "0.7.0"), "  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.7.0}\n  db: public.ecr.aws/supabase/postgres:17.6.1.165\n");
+  const install = "set -eu\n\nZIFFR_VERSION=0.6.0\nCOMPOSE_URL=\"…/v${ZIFFR_VERSION}/docker/compose.yml\"\n";
+  assert.equal(setDockerVersion(install, "0.7.0"), "set -eu\n\nZIFFR_VERSION=0.7.0\nCOMPOSE_URL=\"…/v${ZIFFR_VERSION}/docker/compose.yml\"\n");
 });

@@ -1,0 +1,222 @@
+# Ziffr with Docker Compose (spec 0015, docker/README.md). One file, nothing else to download:
+#
+#   curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/compose.yml -o compose.yml
+#   docker compose up -d                                   # http://localhost
+#   ZIFFR_DOMAIN=ziffr.example.com docker compose up -d    # https://ziffr.example.com, certificate from Let's Encrypt
+#
+# Settings go in a .env file next to this one (all optional; docker/README.md lists them). The keys are made on the
+# first start and kept in the `keys` volume: back it up with the `db` volume. Needs Docker Compose 2.24 or newer.
+#
+# Only `proxy` is reachable from outside (ports 80 and 443), and Mailpit's inbox on this machine only (127.0.0.1:8025).
+# The database, Auth, PostgREST and the app sit on the project's own network. With a domain, the demo is off unless
+# ZIFFR_DEMO=1, and a mail server should be set before anyone else signs in.
+
+name: ziffr
+
+x-ziffr: &ziffr
+  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.7.0}
+  volumes: ["keys:/keys:ro"]
+  restart: unless-stopped
+  # The image's health check asks the web server; only `app` runs one.
+  healthcheck: { disable: true }
+
+# Each service runs as its own user and reads only its own settings file, which docker/init.mjs writes for that user
+# alone: a service that is broken into finds no other service's secrets. Whenever init runs again with changed
+# settings, the services that read its files start again with them (depends_on … restart: true).
+
+services:
+  # Makes the keys the first time and writes every service's settings, on every start (docker/init.mjs). Runs as
+  # root to hand each file to its service's user.
+  init:
+    <<: *ziffr
+    user: "0:0"
+    # Not through the entrypoint: it would read the settings of the start before as if they were given.
+    entrypoint: [node, docker/init.mjs]
+    command: []
+    env_file: [{ path: .env, required: false }]
+    volumes: ["keys:/keys"]
+    # Also when given on the command line rather than in .env. Put them in .env to keep them for the next start.
+    environment:
+      ZIFFR_DOMAIN: ${ZIFFR_DOMAIN:-}
+      ZIFFR_HTTP_PORT: ${ZIFFR_HTTP_PORT:-80}
+      ZIFFR_HTTPS_PORT: ${ZIFFR_HTTPS_PORT:-443}
+    restart: "no"
+
+  db:
+    image: public.ecr.aws/supabase/postgres:17.6.1.165
+    depends_on: { init: { condition: service_completed_successfully, restart: true } }
+    # The image's entrypoint starts as root, reads the password, and runs Postgres as its own user.
+    entrypoint: [/bin/sh, -c, ". /keys/db.env && exec docker-entrypoint.sh postgres -D /etc/postgresql"]
+    configs: [{ source: roles, target: /etc/postgresql.schema.sql }]
+    volumes: ["db:/var/lib/postgresql/data", "keys:/keys:ro"]
+    healthcheck: { test: [CMD, pg_isready, -U, postgres, -h, localhost], interval: 5s, timeout: 5s, retries: 20 }
+    restart: unless-stopped
+
+  auth:
+    image: public.ecr.aws/supabase/gotrue:v2.196.0
+    user: "1002:1002"
+    depends_on:
+      init: { condition: service_completed_successfully, restart: true }
+      db: { condition: service_healthy }
+    entrypoint: [/bin/sh, -c, ". /keys/auth.env && exec auth"]
+    volumes: ["keys:/keys:ro"]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      GOTRUE_DB_DRIVER: postgres
+      # Sign-in links make the account (ADR 0003); an address counts only once a link proved it.
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_MAILER_OTP_EXP: "3600"
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      # Ziffr limits sign-in links per address and network itself (spec 0009); Auth's own limit is for the whole
+      # Installation, so a team signing in on a Monday morning is not stopped.
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
+    healthcheck: { test: [CMD, wget, -qO-, "http://localhost:9999/health"], interval: 5s, timeout: 5s, retries: 30 }
+    restart: unless-stopped
+
+  rest:
+    image: public.ecr.aws/supabase/postgrest:v16.1
+    user: "1003:1003"
+    depends_on:
+      init: { condition: service_completed_successfully, restart: true }
+      db: { condition: service_healthy }
+    # PostgREST's image has no shell: it reads the file docker/init.mjs wrote for it.
+    command: [/bin/postgrest, /keys/postgrest.conf]
+    volumes: ["keys:/keys:ro"]
+    restart: unless-stopped
+
+  # Applies new migrations and, the first time, fills in the demo (docker/migrate.mjs); the app waits for it. The
+  # only service with the database's own password.
+  migrate:
+    <<: *ziffr
+    user: "1001:1001"
+    command: [node, docker/migrate.mjs]
+    volumes: ["keys:/keys"]
+    environment:
+      ZIFFR_SETTINGS_FILE: /keys/migrate.env
+    depends_on:
+      init: { condition: service_completed_successfully, restart: true }
+      auth: { condition: service_healthy }
+      rest: { condition: service_started }
+      proxy: { condition: service_started }
+    restart: "no"
+
+  app:
+    <<: *ziffr
+    # Its settings from .env reach it through its file too, chosen by init: not Auth's secrets or the stack's.
+    environment:
+      ZIFFR_SETTINGS_FILE: /keys/app.env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      init: { condition: service_completed_successfully, restart: true }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+
+  # Calls the two jobs: Workflows every hour, deliveries every five minutes (docker/clock.mjs). Knows only the job
+  # secret.
+  clock:
+    <<: *ziffr
+    user: "1004:1004"
+    command: [node, docker/clock.mjs]
+    environment:
+      ZIFFR_SETTINGS_FILE: /keys/clock.env
+    depends_on:
+      init: { condition: service_completed_successfully, restart: true }
+      app: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, node, -e, "process.exit(Date.now() - require('fs').statSync('/tmp/ziffr-clock-alive').mtimeMs < 120000 ? 0 : 1)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+
+  # Reachable from outside, and knows no keys: only the address to serve. A domain gets HTTPS from Let's Encrypt;
+  # without one, plain HTTP for any host name.
+  proxy:
+    image: caddy:2.10.2-alpine
+    depends_on: { init: { condition: service_completed_successfully } }
+    environment:
+      ZIFFR_SITE_ADDRESS: ${ZIFFR_DOMAIN:-:80}
+    ports:
+      - ${ZIFFR_HTTP_PORT:-80}:80
+      - ${ZIFFR_HTTPS_PORT:-443}:443
+      - ${ZIFFR_HTTPS_PORT:-443}:443/udp
+    configs: [{ source: caddyfile, target: /etc/caddy/Caddyfile }]
+    volumes: ["caddy-data:/data", "caddy-config:/config"]
+    restart: unless-stopped
+
+  # Catches every email while no mail server is set (ZIFFR_SMTP_URL), so the first sign-in link can be read at
+  # http://localhost:8025. Only this machine reaches it, but anyone with a shell on it can read the links there: on a
+  # server, set a mail server before anyone else signs in (init warns until then).
+  mail:
+    image: public.ecr.aws/supabase/mailpit:v1.30.2
+    ports: ["127.0.0.1:${ZIFFR_MAIL_PORT:-8025}:8025"]
+    restart: unless-stopped
+
+configs:
+  # Gives the superuser and the roles Auth and PostgREST sign in as their passwords, when the database is first made.
+  roles:
+    content: |
+      \set pgpass `echo "$$PGPASSWORD"`
+      \set authpass `echo "$$ZIFFR_AUTH_DB_PASSWORD"`
+      \set restpass `echo "$$ZIFFR_REST_DB_PASSWORD"`
+      ALTER USER postgres WITH PASSWORD :'pgpass';
+      ALTER USER authenticator WITH PASSWORD :'restpass';
+      ALTER USER supabase_auth_admin WITH PASSWORD :'authpass';
+
+  caddyfile:
+    content: |
+      {
+      	admin off
+      }
+
+      # What people reach: the domain with HTTPS, or plain HTTP on any host name without one.
+      {$$ZIFFR_SITE_ADDRESS} {
+      	encode zstd gzip
+      	# Of Auth, only what a browser must reach: the link in a sign-in email, and a provider's way in and back, and
+      	# only as a browser reaches them (GET), so codes cannot be tried by POST. Everything else of Auth, and
+      	# PostgREST, answer only the app, on the address below.
+      	@auth {
+      		path /auth/v1/verify /auth/v1/authorize /auth/v1/callback
+      		method GET HEAD
+      	}
+      	handle @auth {
+      		uri strip_prefix /auth/v1
+      		reverse_proxy auth:9999
+      	}
+      	handle /auth/v1/* {
+      		respond 404
+      	}
+      	handle /rest/v1/* {
+      		respond 404
+      	}
+      	handle {
+      		reverse_proxy app:3000
+      	}
+      }
+
+      # The app's way to Auth and PostgREST, as Supabase's own gateway would offer them. No port is published.
+      :8000 {
+      	handle_path /auth/v1/* {
+      		reverse_proxy auth:9999
+      	}
+      	handle_path /rest/v1/* {
+      		reverse_proxy rest:3000
+      	}
+      }
+
+volumes:
+  db:
+  keys:
+  caddy-data:
+  caddy-config:

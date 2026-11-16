@@ -5,10 +5,12 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { insertSection, nextVersion, parseChangeset, renderSection } from "./release-lib.mjs";
+import { insertSection, nextVersion, parseChangeset, renderSection, setDockerVersion } from "./release-lib.mjs";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const PACKAGES = ["package.json", "apps/web/package.json", "packages/core/package.json"];
+// The image docker/compose.yml starts and the release docker/install.sh downloads from (spec 0015).
+const DOCKER = ["docker/compose.yml", "docker/install.sh"];
 
 if (git("status", "--porcelain")) throw new Error("Commit or set aside your changes first: a release starts from a clean tree.");
 
@@ -29,9 +31,10 @@ for (const p of PACKAGES) {
   const pkg = readFileSync(p, "utf8");
   writeFileSync(p, pkg.replace(/("version":\s*")[^"]+(")/, `$1${version}$2`));
 }
+for (const p of DOCKER) writeFileSync(p, setDockerVersion(readFileSync(p, "utf8"), version));
 for (const f of files) rmSync(join(".changeset", f));
 
-git("add", "-A", "CHANGELOG.md", ".changeset", ...PACKAGES);
+git("add", "-A", "CHANGELOG.md", ".changeset", ...PACKAGES, ...DOCKER);
 git("commit", "-q", "-m", `Release ${version}`);
 git("tag", "-a", `v${version}`, "-m", `Ziffr ${version}`);
 console.log(`Released ${version} with ${notes.length} notes. Push it with: git push --follow-tags`);

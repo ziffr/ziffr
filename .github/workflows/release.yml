@@ -1,4 +1,5 @@
-# A pushed version tag becomes a GitHub release whose notes are exactly that version's CHANGELOG.md section (ADR 0004).
+# A pushed version tag becomes a GitHub release whose notes are exactly that version's CHANGELOG.md section (ADR 0004),
+# then the Docker image on GHCR, with the compose file and the installer attached to the release (spec 0015).
 name: Release
 on:
   push:
@@ -19,3 +20,59 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "Ziffr ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+
+  # The Docker image and the files to run it (spec 0015): built for Intel and ARM, started once with
+  # docker/compose.yml and checked from outside (docker/smoke-test.sh) before it is pushed. Only on a release, never
+  # on pull requests: Actions minutes are counted.
+  image:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: The image for this runner, to try
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ziffr:candidate
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start it with the compose file and check it from outside
+        working-directory: docker
+        env:
+          ZIFFR_IMAGE: ziffr:candidate
+        run: |
+          docker compose up -d --wait || { docker compose logs; exit 1; }
+          sh smoke-test.sh http://localhost || { docker compose logs; exit 1; }
+          docker compose down -v
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Version tags
+        id: tags
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          echo "list=ghcr.io/ziffr/ziffr:$v,ghcr.io/ziffr/ziffr:${v%.*},ghcr.io/ziffr/ziffr:latest" >> "$GITHUB_OUTPUT"
+      - name: Push for Intel and ARM
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          cache-from: type=gha
+      - name: The compose file and installer of this version, on the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" docker/compose.yml docker/install.sh --clobber

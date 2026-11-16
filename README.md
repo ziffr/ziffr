@@ -31,7 +31,14 @@ Local Supabase also runs Mailpit at http://127.0.0.1:55424, where every email Zi
 
 **The user guide.** [docs/user-guide](docs/user-guide/01-what-ziffr-is.md) explains Ziffr without technical words: what it is, its ideas, how it is built and connected, templates, getting started, and a glossary taken from GLOSSARY.md. The app shows it at `/guide`.
 
-**On your own servers.** [Running Ziffr yourself](docs/guides/self-hosting.md) goes from an empty Supabase project to a team using it, with a checklist for production.
+**On your own servers.** Ziffr is source-available, and you can run it yourself with Docker:
+
+```sh
+curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/compose.yml -o compose.yml
+docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN in .env for https on your domain
+```
+
+[docker/README.md](docker/README.md) has the settings, upgrades and backups. [Running Ziffr yourself](docs/guides/self-hosting.md) also covers running it against your own Supabase project, with a checklist for production.
 
 ## Not there yet
 

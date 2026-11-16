@@ -7,12 +7,13 @@
 //   demo cookie, so nothing here applies to it; the route handlers check the key. The same for the jobs a scheduler
 //   calls (/api/jobs/, spec 0004), which check ZIFFR_JOB_SECRET themselves, and the inbound mail webhook
 //   (/api/inbound/), which checks its signature, and the one-click unsubscribe link (/api/unsubscribe/), which is
-//   its own token, and Slack's events and button presses (/api/slack/events, /api/slack/interactions), which
-//   Slack signs. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
+//   its own token, and the health check (/api/health), which says only "ok", and Slack's events and button
+//   presses (/api/slack/events, /api/slack/interactions), which Slack signs. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
 // - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
 //   View Links, the personal submission form (used by Contacts, who have no login) and the user guide stay open.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { authSettings } from "@/lib/auth-settings";
 
 // The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
 const DEMO_COOKIE = "ziffr-demo";
@@ -40,7 +41,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/slack/events" || path === "/api/slack/interactions") return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions") return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
   const demoOffered = process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {
@@ -61,7 +62,8 @@ export async function middleware(req: NextRequest) {
   }
   if (demoOffered && req.cookies.get(DEMO_COOKIE)?.value === "1") return res;
 
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const { url, anonKey } = authSettings();
+  const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll: () => req.cookies.getAll(),
       setAll: (list) => {

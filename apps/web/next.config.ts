@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 // Local settings stay at the repository root, shared by every app; package.json's scripts hand them to Node.
@@ -5,6 +6,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // `pnpm ci:local` builds into its own folder, so a running `pnpm dev` keeps its own.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // The Docker image (spec 0015, docker/Dockerfile) runs a server traced with only the files it needs. Elsewhere
+  // `next start` runs from the checkout, which standalone output does not support.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const, outputFileTracingRoot: path.join(__dirname, "../..") } : {}),
   // The core ships as TypeScript source inside the monorepo.
   transpilePackages: ["@ziffr/core"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).

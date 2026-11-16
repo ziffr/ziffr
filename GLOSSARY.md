@@ -232,6 +232,10 @@ _Avoid_: Copy, freeze, archive, export data
 One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces.
 _Avoid_: Tenant, organisation, account, company
 
+**Installation**:
+One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo.
+_Avoid_: Instance, deployment, server, tenant
+
 **Workspace Profile**:
 What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it.
 _Avoid_: Classification, company profile, firmographics, tenant settings
