@@ -1,7 +1,7 @@
 // Tests for the release rules (ADR 0004). Run with `pnpm test`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { changeDate, insertSection, nextVersion, parseChangeset, renderSection, sectionOf, setDockerVersion } from "./release-lib.mjs";
+import { changeDate, insertSection, nextVersion, parseChangeset, renderPreview, renderSection, sectionOf, setDockerVersion } from "./release-lib.mjs";
 
 test("a Changeset gives its largest bump and its note on one line", () => {
   assert.deepEqual(parseChangeset('---\n"@ziffr/web": patch\n"@ziffr/core": minor\n---\n\nPeople can\nsign in.\n'), { bump: "minor", note: "People can sign in." });
@@ -51,4 +51,25 @@ test("a release names its version in the Docker files, and nothing else changes"
   assert.equal(setDockerVersion(compose, "0.7.0"), "  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.7.0}\n  db: public.ecr.aws/supabase/postgres:17.6.1.165\n");
   const install = "set -eu\n\nZIFFR_VERSION=0.6.0\nCOMPOSE_URL=\"…/v${ZIFFR_VERSION}/docker/compose.yml\"\n";
   assert.equal(setDockerVersion(install, "0.7.0"), "set -eu\n\nZIFFR_VERSION=0.7.0\nCOMPOSE_URL=\"…/v${ZIFFR_VERSION}/docker/compose.yml\"\n");
+});
+
+test("the Preview groups the waiting notes like a release and lists every commit since the last one", () => {
+  const text = renderPreview({
+    notes: [{ bump: "minor", note: "Dashboards can be printed." }, { bump: "patch", note: "Self-hosters: the clock logs less." }],
+    next: "0.9.0",
+    since: "v0.8.0",
+    commits: [{ sha: "a".repeat(40), subject: "Print dashboards" }],
+    repo: "ziffr/ziffr",
+    day: "2026-11-20",
+  });
+  assert.match(text, /^What `main` holds on 2026-11-20, beyond v0\.8\.0: not a release/);
+  assert.match(text, /## Coming in 0\.9\.0\n\n### For self-hosters\n\n- The clock logs less\.\n\n### New and changed\n\n- Dashboards can be printed\./);
+  assert.match(text, /## Every change since v0\.8\.0\n\n- Print dashboards \(\[aaaaaaa\]\(https:\/\/github\.com\/ziffr\/ziffr\/commit\/a{40}\)\)/);
+  assert.doesNotMatch(text, /AGPL/);
+});
+
+test("an empty Preview says so instead of showing empty lists", () => {
+  const text = renderPreview({ notes: [], next: "0.8.1", since: "v0.8.0", commits: [], repo: "ziffr/ziffr", day: "2026-11-20" });
+  assert.match(text, /Nothing people use or run has changed yet\./);
+  assert.match(text, /None yet\./);
 });

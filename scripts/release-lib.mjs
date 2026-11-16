@@ -29,8 +29,9 @@ export function changeDate(day) {
   return `${y + 3}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-/** The changelog section for a release: self-hoster notes first, then what is new, fixes, and notes for developers. */
-export function renderSection(version, day, notes) {
+/** Notes grouped as the changelog shows them: self-hoster notes first, then what is new, fixes, and notes for
+ * developers, each under a `### ` heading; lines ending in a blank line. */
+function renderGroups(notes) {
   const audience = (n, who) => new RegExp(`^${who}:\\s*`, "i").test(n.note);
   const plain = (n, who) => {
     const note = n.note.replace(new RegExp(`^${who}:\\s*`, "i"), "");
@@ -41,15 +42,40 @@ export function renderSection(version, day, notes) {
   const people = notes.filter((n) => !audience(n, "Self-hosters") && !audience(n, "Developers"));
   const group = (title, list) => (list.length ? [`### ${title}`, "", ...list.map((n) => `- ${n.note}`), ""] : []);
   return [
-    `## ${version} (${day})`,
-    "",
     ...group("For self-hosters", selfHost),
     ...group("New and changed", people.filter((n) => n.bump !== "patch")),
     ...group("Fixed", people.filter((n) => n.bump === "patch")),
     ...group("For developers", devs),
+  ];
+}
+
+/** The changelog section for a release: self-hoster notes first, then what is new, fixes, and notes for developers. */
+export function renderSection(version, day, notes) {
+  return [
+    `## ${version} (${day})`,
+    "",
+    ...renderGroups(notes),
     `This version becomes available under AGPL-3.0 on ${changeDate(day)}.`,
     "",
   ].join("\n");
+}
+
+/** The text of the rolling Preview pre-release: what main holds beyond the last release. The waiting notes, grouped
+ * like a changelog section under the version they would make, then every commit since that release, newest first.
+ * `commits` are `{ sha, subject }`; `repo` is `owner/name`. */
+export function renderPreview({ notes, next, since, commits, repo, day }) {
+  const lines = [
+    `What \`main\` holds on ${day}, beyond ${since}: not a release, and replaced with every merge. To run Ziffr, use the [latest release](https://github.com/${repo}/releases/latest).`,
+    "",
+    `## Coming in ${next}`,
+    "",
+    ...(notes.length ? renderGroups(notes) : ["Nothing people use or run has changed yet.", ""]),
+    `## Every change since ${since}`,
+    "",
+    ...(commits.length ? commits.map((c) => `- ${c.subject} ([${c.sha.slice(0, 7)}](https://github.com/${repo}/commit/${c.sha}))`) : ["None yet."]),
+    "",
+  ];
+  return lines.join("\n");
 }
 
 /** Puts a new section on top of the released ones, below the changelog's introduction. */
