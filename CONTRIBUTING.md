@@ -63,7 +63,7 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 
 ## Versions and releases
 
-Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0, once a maintainer approves the run: release jobs wait in the GitHub environment `release`. Only maintainers may create `v*` and `*-v*` tags.
+Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0, once a maintainer approves the run: release jobs wait in the GitHub environment `release`. Only maintainers may create `v*` and `*-v*` tags. Between releases, the pre-release **Preview** on the releases page shows what `main` holds beyond the last release: the waiting notes and every commit since, replaced after every push to `main` (`.github/workflows/preview.yml`).
 
 ### The MIT packages
 

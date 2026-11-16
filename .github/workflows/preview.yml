@@ -1,0 +1,35 @@
+# After every push to main, the pre-release "Preview" says what main holds beyond the last release: the release notes
+# waiting in .changeset/ and every commit since (scripts/preview-notes.mjs). One release, replaced each time, marked
+# as a pre-release so it is never "Latest" and the install link (releases/latest) never points to it. It publishes
+# text only: no image, no package, so it needs no approval.
+name: Preview
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Notes
+        run: node scripts/preview-notes.mjs "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/preview.md"
+      - name: Replace the Preview pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete preview --yes --cleanup-tag 2>/dev/null || true
+          gh release create preview --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "Preview: main after $(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*')" \
+            --notes-file "$RUNNER_TEMP/preview.md"
