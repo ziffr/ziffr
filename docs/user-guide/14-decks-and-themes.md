@@ -59,7 +59,7 @@ The order of the slides is their position on the canvas: left to right, then top
 
 ### Adding Widgets
 
-The **Pool** on the left holds the Metrics you can see, your saved Widgets and the Widget Templates. Drag one onto a slide, or choose **+** next to it to add it to the slide you are looking at.
+The **Pool** on the left holds the Metrics you can see, your saved Widgets and the Widget Templates. Drag one onto a slide, or choose **+** next to it to add it to the slide you are looking at. It lands in the first free space on that slide, next to what is already there; if the slide is full, it is made smaller to fit.
 
 - A Metric dropped on a slide becomes a line chart. You can change that afterwards.
 - A Widget Template asks for its Metrics first.
