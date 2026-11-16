@@ -1,6 +1,6 @@
 # Threat model
 
-What Ziffr protects, from whom, and how. Written in the security pass of spec 0001 (ticket #19); the API and the MCP server added with spec 0002. Keep it current: a change to who can see or do what updates this page in the same pull request.
+What Ziffr protects, from whom, and how. Written in the security pass of spec 0001 (ticket #19); the API and the MCP server added with spec 0002. Keep it current: a change to who can see or do what updates this page in the same pull request. Issue numbers on this page (such as #19 or #42) refer to the earlier, private repository Ziffr was built in.
 
 ## What we protect
 

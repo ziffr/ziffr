@@ -2,9 +2,15 @@
 
 Thank you for helping. This page says how we work; `CLAUDE.md` says the same for coding agents, and both point to the same standards.
 
+## Where to start
+
+- **Try it first:** the demo ("Try the demo" on the login page) shows every part of Ziffr with made-up data. The README says how to run it locally.
+- **Pick an issue:** issues labelled [`good first issue`](https://github.com/ziffr/ziffr/labels/good%20first%20issue) are small and self-contained, and say how to check they are done. Comment on one before you start, so two people don't do the same work.
+- **Ask:** questions and half-formed ideas go to [Discussions](https://github.com/ziffr/ziffr/discussions); bugs and concrete proposals go to issues.
+
 ## Before you start
 
-- **License:** Ziffr is source-available under the BSL 1.1, with MIT for the connector kit and client libraries (`docs/adr/0002-source-available-license.md`). Your first pull request asks you to accept the [CLA](CLA.md).
+- **License:** Ziffr is source-available under the BSL 1.1, with MIT for the connector kit and client libraries (`docs/adr/0002-source-available-license.md`). On your first pull request, CLA Assistant asks you to accept the [CLA](CLA.md) with one click.
 - **Bigger changes:** open an issue first. A new concept or a change to an existing one starts with the words: see "Domain language" below.
 
 ## Domain language

@@ -11,5 +11,5 @@ This replaces one part of ADR 0002. ADR 0002 let anyone "install, configure and 
 ## Consequences
 
 - Consultants and IT providers may still install, configure, upgrade and support Ziffr for a client. Whoever runs it from day to day is the client.
-- Managed service providers need a commercial licence from the licensor.
+- Managed service providers need a commercial license from the licensor.
 - Where "ongoing" ends and "support" begins is a judgement call. The lawyer who reviews the license texts before the first public release (ADR 0002) checks this wording too.

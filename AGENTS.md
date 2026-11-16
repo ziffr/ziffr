@@ -1,6 +1,6 @@
 # Working on Ziffr (for coding agents)
 
-Ziffr is a metric tracker: anyone, one person, a team or a business, defines the numbers they care about, Ziffr asks people for the values or people and systems send them in, and everyone sees, shares and discusses them over time. It has Metrics from any source, dashboards, stories, decks, comparisons, Workflows and Connectors. Read `GLOSSARY.md` before naming anything; `CONTRIBUTING.md` and `docs/guides/documentation.md` are the standards, this file is the short version.
+Ziffr is a metric tracker: anyone, one person, a team or a business, defines the numbers they care about, Ziffr asks people for the values or people and systems send them in, and everyone sees, shares and discusses them over time. It has Metrics from any source, dashboards and their Snapshots, decks, comparisons, Workflows and Connectors. Read `GLOSSARY.md` before naming anything; `CONTRIBUTING.md` and `docs/guides/documentation.md` are the standards, this file is the short version.
 
 ## Commands
 
@@ -8,7 +8,7 @@ Ziffr is a metric tracker: anyone, one person, a team or a business, defines the
 - `pnpm exec tsc --noEmit` and `pnpm lint`: must pass before you finish.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`: run across all packages, as CI does.
 - `pnpm --filter @ziffr/core test:db`: the core's operations against the local database (needs `supabase start`); CI runs it too.
-- `pnpm ci:local`: everything CI runs, on this machine. GitHub Actions minutes are counted: run it before pushing, push a branch when it is ready rather than every fix-up, and don't re-run CI to see if a flaky step passes.
+- `pnpm ci:local`: everything CI runs, on this machine. Run it before pushing, and push a branch when it is ready rather than every fix-up.
 
 ## Rules
 
@@ -27,4 +27,4 @@ Ziffr is a metric tracker: anyone, one person, a team or a business, defines the
 
 ## Where things are
 
-`packages/core` the core: operations (Actor first), loaders, pure rules, Connectors · `apps/web/src/app` pages and server actions · `apps/web/src/lib` the current person and workspace, sign-in, thin wrappers over the core · `apps/web/src/views` widget and story views · `apps/web/src/components` UI · `apps/web/src/decks`, `apps/web/src/canvas` slides and free layouts · `apps/web/src/sources` intake · `supabase/migrations` schema and demo seed functions. More apps and packages (MCP server, connector kit) follow; see `docs/specs/0001-hardening.md`.
+`packages/core` the core: operations (Actor first), loaders, pure rules, Connectors · `apps/web/src/app` pages and server actions · `apps/web/src/lib` the current person and workspace, sign-in, thin wrappers over the core · `apps/web/src/views` widget and story views · `apps/web/src/components` UI · `apps/web/src/decks`, `apps/web/src/canvas` slides and free layouts · `apps/web/src/sources` intake · `supabase/migrations` schema and demo seed functions · `packages/sdk`, `packages/mcp`, `packages/feed-kit`, `packages/feed-sql` the MIT packages for programs (API client, MCP server, Feeds) · `docker/` the image and compose file for self-hosting. A connector kit of its own is still to come; see `docs/specs/0001-hardening.md`.

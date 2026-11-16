@@ -91,7 +91,7 @@ Try a restore once before you rely on it. The dump can also move to a Supabase p
 - [ ] Backups of `ziffr_db` and `ziffr_keys`, and one restore tried
 - [ ] The demo off (the default on a domain), unless you set `ZIFFR_DEMO=1` to offer it
 - [ ] The workspace's time zone and run hour set on the Team page; after the run hour, the Workflows page shows a run "by the clock"
-- [ ] Decks: the slide editor uses tldraw, which needs a licence from tldraw for production use
+- [ ] Decks: the slide editor uses tldraw, which needs a license from tldraw for production use
 
 ## Building the image yourself
 

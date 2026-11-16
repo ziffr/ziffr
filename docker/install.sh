@@ -98,5 +98,5 @@ say "Sign in with your email address; the first workspace you create is yours."
 if ! grep -q '^ZIFFR_SMTP_URL=.' .env; then
   say "No mail server is set: sign-in links land in Mailpit, at http://localhost:8025 on this machine."
 fi
-say "Decks use tldraw, which needs a licence from tldraw for production use (https://tldraw.dev)."
+say "Decks use tldraw, which needs a license from tldraw for production use (https://tldraw.dev)."
 say "Settings: $(pwd)/.env. Upgrades and backups: https://github.com/ziffr/ziffr/blob/v${ZIFFR_VERSION}/docker/README.md"

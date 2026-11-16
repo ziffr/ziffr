@@ -9,3 +9,5 @@ A spec says what we are building, why, and how we will know it is done. Every pi
 - **Ticking off:** every pull request says `Closes #<ticket>`; merging closes the ticket and moves the progress bar. A pull request without a ticket is not merged.
 - **Finishing:** the pull request that closes the last ticket also sets the spec's status to `done`.
 - **Changing course:** a spec is changed by pull request like code, so its history stays visible. Decisions that are hard to reverse go into an ADR, not the spec.
+
+Specs 0001 to 0015 were written in an earlier, private repository. The issue and pull request numbers in them (such as "tracking issue #201") refer to that repository, not to the issues here.

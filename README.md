@@ -19,7 +19,7 @@ Ziffr is in its `0.x` releases: used and tested, not yet at a first public relea
 
 **The demo.** "Try the demo" on the login page opens a made-up 15-person online shop, without an account. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
 
-**Locally.** Needs Docker and pnpm.
+**Locally.** Needs Node 22, pnpm 10 (`corepack enable` sets up the version this repository names), Docker, and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) (`brew install supabase/tap/supabase` on macOS; CI uses 2.116).
 
 ```sh
 pnpm install
@@ -47,7 +47,7 @@ docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN 
 - WhatsApp and ticket systems are simulated Connectors: the Connectors and Sources pages let you play the other side. Email and Slack are real.
 - Analyses, Views and Sources are built in; the seams for plugging in others are marked in `apps/web/src/analyses`, `views` and `sources`.
 - Clustering and impact analysis are shown as "coming soon".
-- The slide editor uses tldraw, which needs a licence from tldraw for production use.
+- The slide editor uses tldraw, which needs a license from tldraw for production use.
 - `@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` are ready to publish to npm but not published yet.
 
 ## Working on Ziffr
