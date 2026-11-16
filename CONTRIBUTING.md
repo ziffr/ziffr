@@ -63,7 +63,7 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 
 ## Versions and releases
 
-Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0.
+Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0, once a maintainer approves the run: release jobs wait in the GitHub environment `release`. Only maintainers may create `v*` and `*-v*` tags.
 
 ### The MIT packages
 
@@ -72,7 +72,7 @@ Ziffr has one version for the product (app, core and database together), `0.x` u
 1. Sets the package's `version` in its `packages/<name>/package.json` in a pull request, and merges it.
 2. Tags that commit `<name>-vX.Y.Z` (such as `sdk-v0.2.0` or `feed-kit-v0.1.0`) and pushes the tag. The "Publish a package" workflow checks the tag against the version, checks that the `@ziffr` packages it depends on are published (the MCP server and the feed kit need their SDK version, the SQL Feed its feed kit), runs every check and the package's tests against the running app, and publishes with npm provenance.
 
-Before the first publish: create the npm organisation `ziffr` and add an npm automation token as the repository secret `NPM_TOKEN`. After the first publish of each package, set up trusted publishing for it on npmjs.com (repository `ziffr/ziffr`, workflow `publish-packages.yml`) and remove the secret.
+Before the first publish: create the npm organisation `ziffr` and add an npm automation token as the repository secret `NPM_TOKEN`. After the first publish of each package, set up trusted publishing for it on npmjs.com (repository `ziffr/ziffr`, workflow `publish-packages.yml`, environment `release`) and remove the secret.
 
 ## Running it
 

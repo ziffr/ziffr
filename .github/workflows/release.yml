@@ -9,6 +9,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # The environment "release" waits for a maintainer's approval, and only runs for v* and *-v* tags; the image
+    # job below needs this one, so it waits too.
+    environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
