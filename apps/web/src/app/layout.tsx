@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
 import { getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
@@ -79,7 +78,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <>
               <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
               <ResetButton />
-              <Link href="/demo/leave" prefetch={false} className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</Link>
+              {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
+              <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
             </>
           ) : undefined}
         />
