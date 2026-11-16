@@ -1,6 +1,6 @@
 # 0016 Telegram: a Connector anyone can set up in minutes
 
-**Status:** draft. **Tracking issue:** opened when the spec is agreed (label `tracking`); tickets carry `spec:0016`.
+**Status:** in progress. **Tracking issue:** #23 (label `tracking`); tickets #24 to #29 carry `spec:0016`.
 
 ## Problem Statement
 
@@ -49,12 +49,12 @@ A Telegram Connector that sends real messages and takes real answers, built like
 
 ## Tickets
 
-1. The bot: settings, `getMe`, turning Telegram on and off per workspace, `setWebhook`, the fake Bot API, the Connectors page.
-2. Linking: one-time codes, **Connect Telegram** on the profile and form pages, `/start`, unlinking, blocked bots.
-3. Sending: the shared queue and its limits, HTML escaping, form links, `429`.
-4. Receiving: the webhook route, `update_id` dedupe, reply routing; polling for local development.
-5. Buttons: Approve and Stop, `callback_query` dedupe.
-6. Docs and review: `docs/guides/telegram.md`, settings, threat model, user guide chapters, release note, and a security review of the whole spec.
+1. #24 The bot: settings, `getMe`, turning Telegram on and off per workspace, `setWebhook`, the fake Bot API, the Connectors page.
+2. #25 Linking: one-time codes, **Connect Telegram** on the profile and form pages, `/start`, unlinking, blocked bots.
+3. #26 Sending: the shared queue and its limits, HTML escaping, form links, `429`.
+4. #27 Receiving: the webhook route, `update_id` dedupe, reply routing; polling for local development.
+5. #28 Buttons: Approve and Stop, `callback_query` dedupe.
+6. #29 Docs and review: `docs/guides/telegram.md`, settings, threat model, user guide chapters, release note, and a security review of the whole spec.
 
 ## Out of Scope
 
