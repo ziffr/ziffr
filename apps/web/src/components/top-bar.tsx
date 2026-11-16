@@ -54,7 +54,6 @@ export function TopBar({ workspace, open, account, guide, demo }: { workspace: N
       <div className="mx-auto flex max-w-7xl items-center gap-x-4 px-4 py-2 sm:px-6">
         <Link href="/" className="flex items-baseline gap-2 py-1">
           <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
-          {demo && <span className="text-xs text-muted-foreground">demo</span>}
         </Link>
         <nav aria-label="Main" className="hidden items-center gap-x-1 md:flex">
           {MAIN.map((l) => <NavLink key={l.href} href={l.href}>{l.label}</NavLink>)}

@@ -29,7 +29,7 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: what you type there is seen by others and reset now and then, so keep your real numbers in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
 
-While you are in the demo, the top bar shows "demo" next to the Ziffr name and three controls. On a narrow screen they sit in a row of their own below the bar.
+While you are in the demo, the top bar shows three controls. On a narrow screen they sit in a row of their own below the bar.
 
 | Control | What it does |
 | --- | --- |
