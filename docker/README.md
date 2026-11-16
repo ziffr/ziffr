@@ -61,20 +61,19 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 
 ## Behind a reverse proxy you already run
 
-When another proxy already holds ports 80 and 443 (Nginx Proxy Manager, Traefik, a load balancer), let it handle HTTPS and send requests on to Ziffr's `proxy` over plain HTTP. Leave `ZIFFR_DOMAIN` empty, so Caddy asks for no certificate, and set `ZIFFR_SITE_URL=https://ziffr.example.com` and `ZIFFR_PROXY_HOPS=2`. Your proxy must pass the `Host` header on. Then, in a `compose.override.yml` next to `compose.yml`, take Caddy's ports away and put it on your proxy's Docker network (`proxynet` here):
+When another proxy already holds ports 80 and 443 (Nginx Proxy Manager, Traefik, a load balancer), let it handle HTTPS and send requests on to Ziffr's `proxy` over plain HTTP. Leave `ZIFFR_DOMAIN` empty, so Caddy asks for no certificate, and set `ZIFFR_SITE_URL=https://ziffr.example.com` and `ZIFFR_PROXY_HOPS=2`. Your proxy must pass the `Host` header on. Then, in a `compose.override.yml` next to `compose.yml`, publish Caddy's port only where your proxy reaches it, and nowhere on the internet:
 
 ```yaml
 services:
   proxy:
-    ports: !reset []
-    networks:
-      default: {}
-      proxynet: { aliases: [ziffr-proxy] }
-networks:
-  proxynet: { external: true }
+    # A proxy running on this machine itself:
+    ports: !override ["127.0.0.1:8930:80"]
+    # A proxy in a Docker container: the gateway address of its network instead, here 172.19.0.1
+    # (docker network inspect <its network> shows it).
+    # ports: !override ["172.19.0.1:8930:80"]
 ```
 
-Your proxy then forwards to `http://ziffr-proxy:80`.
+Your proxy then forwards to `http://127.0.0.1:8930` (or `http://172.19.0.1:8930`). Do not put Caddy on your proxy's Docker network instead: Caddy finds the app, Auth and PostgREST by their short names (`app`, `auth`, `rest`), and a container of the same name on that network (Nginx Proxy Manager's is called `app`) would receive Ziffr's requests.
 
 ## Upgrading
 

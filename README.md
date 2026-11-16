@@ -32,7 +32,7 @@ The screenshots show the demo's made-up online shop.
 
 ## Try it
 
-**The demo.** "Try the demo" on the login page opens a made-up 15-person online shop, without an account. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
+**The demo.** Try it at **[ziffr-demo.stefansonntag.com](https://ziffr-demo.stefansonntag.com)**, nothing to install; everyone shares it, and it starts fresh every night. "Try the demo" opens a made-up 15-person online shop, without an account. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
 
 **Locally.** Needs Node 22, pnpm 10 (`corepack enable` sets up the version this repository names), Docker, and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) (`brew install supabase/tap/supabase` on macOS; CI uses 2.116).
 
