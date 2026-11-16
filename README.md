@@ -1,10 +1,16 @@
 # Ziffr
 
+[![Latest release](https://img.shields.io/github/v/release/ziffr/ziffr?label=release)](https://github.com/ziffr/ziffr/releases/latest)
+[![License: BSL 1.1](https://img.shields.io/badge/license-BSL%201.1-blue)](LICENSE)
+[![Good first issues](https://img.shields.io/github/issues/ziffr/ziffr/good%20first%20issue?label=good%20first%20issues)](https://github.com/ziffr/ziffr/labels/good%20first%20issue)
+
 **Ziffr is a metric tracker.** Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Then see, share and discuss them over time. For one person, a team or a business.
 
 What that includes: values captured where people already work (a form link, email, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
 
-Ziffr is in its `0.x` releases: used and tested, not yet at a first public release. See [CHANGELOG.md](CHANGELOG.md) for what each version brought.
+Ziffr is in its `0.x` releases: used and tested, but names and settings may still change between versions. See [CHANGELOG.md](CHANGELOG.md) for what each version brought.
+
+![A dashboard in Ziffr: revenue, margin, support tickets and cost for October, each against its target, with a cost trend and forecast](docs/images/dashboard.webp)
 
 ## What it does
 
@@ -14,6 +20,15 @@ Ziffr is in its `0.x` releases: used and tested, not yet at a first public relea
 - **Seeing the numbers.** Drag-and-drop dashboards of Widgets and Findings, read as a grid or top to bottom, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
 - **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
 - **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK and a local MCP server.
+
+| | |
+| --- | --- |
+| ![A Metric's page: revenue over 18 months against its target range, with a forecast](docs/images/metric.webp) | ![A Workflow: ask, remind, escalate, check unusual values, approve, and close the period](docs/images/workflow.webp) |
+| **A Metric** with its target range, history and forecast | **A Workflow** that asks for each value, reminds, checks and has it approved |
+| ![A dashboard in its Read view: an introduction, then a chart of revenue, orders and cost against the previous year](docs/images/snapshot-read.webp) | ![The Analysis Canvas: the drivers of cost ranked by correlation, with a scatter plot](docs/images/analyze.webp) |
+| **The Read view** of a dashboard, to explain what happened | **The Analysis Canvas**: forecast, correlation and drivers |
+
+The screenshots show the demo's made-up online shop.
 
 ## Try it
 
