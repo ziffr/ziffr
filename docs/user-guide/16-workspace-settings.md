@@ -205,6 +205,17 @@ Once Slack is connected, the box says how Slack knows you: by your email address
 
 A Slack workspace can be connected to one Ziffr Workspace only.
 
+### Telegram
+
+The Telegram box appears when this Ziffr has a Telegram bot (never in the demo). It names the bot, such as @acme_ziffr_bot, and says whether Telegram is on in this Workspace. It is off until an Owner or Admin turns it on.
+
+| Option | Who sees it | What it does |
+| --- | --- | --- |
+| **Turn on** | Owners and Admins | Lets Ziffr send messages by Telegram in this Workspace, to everyone who connects their own Telegram. |
+| **Turn off** | Owners and Admins | After asking, stops messages there. Who connected their Telegram stays connected, so turning it on again needs nothing from them. |
+
+Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
+
 ### Connected systems
 
 One card per **Connector**, each with what it can do (receives values, sends reminders, sends questions and tasks, brings replies back, keeps task status in step) and its state:

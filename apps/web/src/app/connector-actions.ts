@@ -4,6 +4,7 @@
 import * as optOut from "@ziffr/core/email-opt-out";
 import * as slackConnection from "@ziffr/core/slack-connection";
 import * as slackPeople from "@ziffr/core/slack-people";
+import * as telegramConnection from "@ziffr/core/telegram-connection";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
@@ -12,6 +13,12 @@ import * as demo from "@ziffr/core/demo-channels";
 import type { ConnectorId, PreferenceKind } from "@ziffr/core/connectors/index";
 
 const done = () => revalidatePath("/", "layout");
+
+/** Turns Telegram on or off for the workspace (spec 0016; Owners and Admins, the core checks). */
+export async function setTelegram(on: boolean) {
+  await telegramConnection.setTelegramEnabled(await currentActor(), on);
+  done();
+}
 
 /** A person sets their own preference; the team default (userId null) is set by owners and admins. */
 /** The person gets Prompts and reminders by email again in this workspace, after stopping them (spec 0004). */
