@@ -2,6 +2,25 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.8.0 (2026-11-16)
+
+### For self-hosters
+
+- `ZIFFR_DEMO_ONLY=1` turns an Installation into a public demo: the login page offers only the demo, nobody can sign in or make an account, and with Docker Compose the demo starts fresh every night. Behind a reverse proxy of your own, set `ZIFFR_SITE_URL` and `ZIFFR_PROXY_HOPS` (docker/README.md). Developers: a new job, `POST /api/jobs/demo-reset`, resets the demo.
+- Ziffr now runs with Docker in two commands, `curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/compose.yml -o compose.yml` and `docker compose up -d`, or with the installer `docker/install.sh`. The stack makes its own keys, applies migrations and calls the jobs itself, and gets HTTPS from Let's Encrypt when `ZIFFR_DOMAIN` is set; on a domain the demo is off unless `ZIFFR_DEMO=1` (docker/README.md). Each release publishes the image as `ghcr.io/ziffr/ziffr`. Installations with their own Supabase project can set `SUPABASE_ANON_KEY` instead of `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, which still work.
+
+### Fixed
+
+- Ziffr now calls itself a metric tracker for anyone, one person, a team or a business, instead of a home for teams' business numbers. The sign-in and new-workspace pages say so.
+- In the demo, the top bar no longer shows "demo" next to the Ziffr name; its controls (View as, reset, tour) still mark it.
+- Security updates: the image library sharp (used by Next.js) is at 0.35.5, with fixes in libvips, libheif and librsvg. Developers: the tests run on Vitest 4.
+
+### For developers
+
+- The repository now says it needs Node 22 (`engines` in `package.json`), and the README lists everything a local setup needs, the Supabase CLI included.
+
+This version becomes available under AGPL-3.0 on 2029-11-16.
+
 ## 0.7.0 (2026-11-16)
 
 ### New and changed
