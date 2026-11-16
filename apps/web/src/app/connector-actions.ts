@@ -5,6 +5,7 @@ import * as optOut from "@ziffr/core/email-opt-out";
 import * as slackConnection from "@ziffr/core/slack-connection";
 import * as slackPeople from "@ziffr/core/slack-people";
 import * as telegramConnection from "@ziffr/core/telegram-connection";
+import * as telegramPeople from "@ziffr/core/telegram-people";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
@@ -17,6 +18,28 @@ const done = () => revalidatePath("/", "layout");
 /** Turns Telegram on or off for the workspace (spec 0016; Owners and Admins, the core checks). */
 export async function setTelegram(on: boolean) {
   await telegramConnection.setTelegramEnabled(await currentActor(), on);
+  done();
+}
+
+/** "Connect Telegram" (spec 0016): a one-time link that opens the bot; only the link goes back. */
+export async function telegramLinkStart() {
+  return telegramPeople.startTelegramLink(await currentActor());
+}
+
+/** "Connect Telegram" on a personal form page: for the person whose form it is; the form code is the credential. */
+export async function telegramFormLinkStart(formCode: string) {
+  return telegramPeople.startTelegramLinkByForm(String(formCode));
+}
+
+/** Disconnects the Telegram of the person whose form it is. */
+export async function telegramFormUnlink(formCode: string) {
+  await telegramPeople.unlinkTelegramByForm(String(formCode));
+  revalidatePath(`/submit/${encodeURIComponent(String(formCode))}`);
+}
+
+/** The person forgets their Telegram link in this workspace. */
+export async function telegramUnlink() {
+  await telegramPeople.unlinkTelegram(await currentActor());
   done();
 }
 

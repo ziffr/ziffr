@@ -213,6 +213,10 @@ The Telegram box appears when this Ziffr has a Telegram bot (never in the demo).
 | --- | --- | --- |
 | **Turn on** | Owners and Admins | Lets Ziffr send messages by Telegram in this Workspace, to everyone who connects their own Telegram. |
 | **Turn off** | Owners and Admins | After asking, stops messages there. Who connected their Telegram stays connected, so turning it on again needs nothing from them. |
+| **Connect Telegram** | Everyone, while Telegram is on | Gives you a link that opens Ziffr's bot in Telegram, valid for ten minutes. Tap **Start** there to connect your Telegram account to this Workspace. |
+| **Disconnect** | Everyone who is connected | Ziffr no longer reaches you on Telegram in this Workspace. |
+
+A bot cannot find anyone by email or phone number, so everyone connects their own Telegram, once per Workspace. Contacts without a login connect it on their personal form. To stop everything from Ziffr in Telegram, send the bot `/stop`, or block it.
 
 Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
 
