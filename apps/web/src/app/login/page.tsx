@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { demoEnabled, demoOnly, sessionUser } from "@/lib/auth";
 import { enabledProviders, PROVIDER_LABEL } from "@/lib/sign-in";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,8 +14,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1 className="text-[length:var(--text-2xl)] leading-tight">Try Ziffr</h1>
         <p className="mt-2 text-sm text-muted-foreground">A metric tracker for anyone.</p>
         <p className="mt-6 text-sm">Look around a made-up online shop: its metrics, dashboards, Workflows and decks. No account needed. Everyone who visits shares it, and it starts fresh every night, so keep real numbers out.</p>
-        {/* A plain link: /demo sets the cookie in the middleware, no JavaScript needed. */}
-        <Link href="/demo" prefetch={false} className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Try the demo</Link>
+        {/* A plain link, so a full page load: /demo sets the cookie in the middleware, and the root layout's header must be drawn again for it (#14). */}
+        <a href="/demo" className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Try the demo</a>
         <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">
           To use Ziffr with your own numbers, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline underline-offset-2 hover:text-foreground">github.com/ziffr/ziffr</a>.
         </p>
@@ -33,8 +32,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {demoEnabled() && (
         <div className="mt-8 border-t border-border pt-6">
           <p className="text-sm text-muted-foreground">No account? Look around a made-up online shop first. Nothing you do there reaches real data.</p>
-          {/* A plain link: /demo sets the cookie in the middleware, no JavaScript needed. */}
-          <Link href="/demo" prefetch={false} className="mt-3 inline-flex h-9 items-center rounded-[var(--radius-input)] border border-input px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">Try the demo</Link>
+          {/* A plain link, so a full page load: /demo sets the cookie in the middleware, and the root layout's header must be drawn again for it (#14). */}
+          <a href="/demo" className="mt-3 inline-flex h-9 items-center rounded-[var(--radius-input)] border border-input px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">Try the demo</a>
         </div>
       )}
     </div>

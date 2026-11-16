@@ -1,6 +1,5 @@
 "use client";
 // Your name and colour, your email and signing out (spec 0006, ticket #94). The core checks the name and colour again.
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, LogOut } from "lucide-react";
@@ -63,7 +62,7 @@ export function ProfileForm({ name, color, colors, email, demo }: { name: string
       <section aria-labelledby="out-heading" className="space-y-2 border-t border-border pt-6">
         <h2 id="out-heading" className="font-medium">{demo ? "Leave the demo" : "Sign out"}</h2>
         {demo ? (
-          <Link href="/demo/leave" prefetch={false} className="inline-flex min-h-9 items-center text-sm underline">Leave the demo</Link>
+          <a href="/demo/leave" className="inline-flex min-h-9 items-center text-sm underline">Leave the demo</a>
         ) : (
           <Button type="button" variant="outline" disabled={pending} onClick={() => start(() => signOut())}><LogOut aria-hidden /> Sign out</Button>
         )}
