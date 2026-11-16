@@ -64,8 +64,8 @@ services:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: "9999"
       GOTRUE_DB_DRIVER: postgres
-      # Sign-in links make the account (ADR 0003); an address counts only once a link proved it.
-      GOTRUE_DISABLE_SIGNUP: "false"
+      # Sign-in links make the account (ADR 0003); an address counts only once a link proved it. Whether accounts are
+      # made at all (GOTRUE_DISABLE_SIGNUP) comes from docker/init.mjs: not in a demo-only Ziffr.
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "false"
       GOTRUE_EXTERNAL_PHONE_ENABLED: "false"

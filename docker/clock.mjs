@@ -1,4 +1,4 @@
-// The scheduler of a Docker Compose Installation (spec 0015; the jobs: docs/guides/jobs.md). Calls the app's two jobs
+// The scheduler of a Docker Compose Installation (spec 0015; the jobs: docs/guides/jobs.md). Calls the app's jobs
 // with the job secret: Workflows at the start of every hour (each workspace runs at its own hour), deliveries every
 // five minutes. A failed call is logged and tried at the next turn; the jobs themselves catch up on what was missed.
 import { writeFileSync } from "node:fs";
@@ -25,6 +25,10 @@ async function call(job) {
   }
 }
 
+// A public demo (ZIFFR_DEMO_ONLY=1, set by docker/init.mjs): the demo starts clean every night, at 03:30 UTC, away
+// from the hour when Workflows run.
+const DEMO_RESET = process.env.ZIFFR_DEMO_RESET === "1";
+
 // One turn a minute: deliveries on every fifth minute, Workflows on the hour.
 let last = -1;
 setInterval(() => {
@@ -35,6 +39,7 @@ setInterval(() => {
   last = minute;
   if (now.getUTCMinutes() % 5 === 0) void call("deliveries");
   if (now.getUTCMinutes() === 0) void call("workflows");
+  if (DEMO_RESET && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's reset nightly at 03:30 UTC" : ""}).`);

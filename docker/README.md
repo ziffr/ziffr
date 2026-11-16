@@ -52,10 +52,29 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Your mail server, as `'smtps://user:password@smtp.example.com:465'`, and the sender, as `'Ziffr <ziffr@example.com>'`. Used for sign-in links too. Put them in single quotes. Without them, emails go to Mailpit ([email](../docs/guides/email.md)) |
 | `ZIFFR_AUTH_PROVIDERS` and `SUPABASE_AUTH_EXTERNAL_*` | Sign-in with Google, Microsoft, GitHub or LinkedIn, as in `.env.example`. The provider's redirect address is `https://<your domain>/auth/v1/callback` |
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
+| `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC |
+| `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
 | `ZIFFR_HTTP_PORT`, `ZIFFR_HTTPS_PORT`, `ZIFFR_MAIL_PORT` | Other ports on this machine, when 80, 443 or 8025 are taken |
 | `ZIFFR_IMAGE` | Another image than the version `compose.yml` names, such as `ghcr.io/ziffr/ziffr:X.Y.Z` or one you built |
 | Slack, replies by email, `ZIFFR_USER_GUIDE_URL` | As in [`.env.example`](../.env.example) and their guides |
 | `ZIFFR_JWT_SECRET`, `ZIFFR_DB_PASSWORD`, `ZIFFR_JOB_SECRET`, `ZIFFR_SECRETS_KEY` | Only if you keep keys in a secret store instead: a value set here wins over the one made on the first start. Set them before the first start; the database password cannot change afterwards this way |
+
+## Behind a reverse proxy you already run
+
+When another proxy already holds ports 80 and 443 (Nginx Proxy Manager, Traefik, a load balancer), let it handle HTTPS and send requests on to Ziffr's `proxy` over plain HTTP. Leave `ZIFFR_DOMAIN` empty, so Caddy asks for no certificate, and set `ZIFFR_SITE_URL=https://ziffr.example.com` and `ZIFFR_PROXY_HOPS=2`. Your proxy must pass the `Host` header on. Then, in a `compose.override.yml` next to `compose.yml`, take Caddy's ports away and put it on your proxy's Docker network (`proxynet` here):
+
+```yaml
+services:
+  proxy:
+    ports: !reset []
+    networks:
+      default: {}
+      proxynet: { aliases: [ziffr-proxy] }
+networks:
+  proxynet: { external: true }
+```
+
+Your proxy then forwards to `http://ziffr-proxy:80`.
 
 ## Upgrading
 

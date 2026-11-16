@@ -1,11 +1,28 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { demoEnabled, sessionUser } from "@/lib/auth";
+import { demoEnabled, demoOnly, sessionUser } from "@/lib/auth";
 import { enabledProviders, PROVIDER_LABEL } from "@/lib/sign-in";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LoginForm } from "./form";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; failed?: string }> }) {
   if (await sessionUser()) redirect("/");
+  // A public demo (ZIFFR_DEMO_ONLY=1): no sign-in, only the way in to the demo and to Ziffr itself.
+  if (demoOnly()) {
+    return (
+      <div className="mx-auto mt-16 max-w-sm">
+        <h1 className="text-[length:var(--text-2xl)] leading-tight">Try Ziffr</h1>
+        <p className="mt-2 text-sm text-muted-foreground">A metric tracker for anyone.</p>
+        <p className="mt-6 text-sm">Look around a made-up online shop: its metrics, dashboards, Workflows and decks. No account needed. Everyone who visits shares it, and it starts fresh every night, so keep real numbers out.</p>
+        {/* A plain link: /demo sets the cookie in the middleware, no JavaScript needed. */}
+        <Link href="/demo" prefetch={false} className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Try the demo</Link>
+        <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">
+          To use Ziffr with your own numbers, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline underline-offset-2 hover:text-foreground">github.com/ziffr/ziffr</a>.
+        </p>
+      </div>
+    );
+  }
   const sp = await searchParams;
   return (
     <div className="mx-auto mt-16 max-w-sm">

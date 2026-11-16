@@ -9,9 +9,8 @@ import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
 import { PERSON_COLORS } from "@ziffr/core/profile";
 
-/** Whether this Ziffr offers the demo (GLOSSARY: Demo Mode). On unless ZIFFR_DEMO=0, so a company installation can
- * switch it off. */
-export const demoEnabled = () => process.env.ZIFFR_DEMO !== "0";
+import { demoEnabled } from "./demo-mode";
+export { demoEnabled, demoOnly } from "./demo-mode";
 
 /** Set by "Try the demo" (/demo), removed by "Leave the demo" (/demo/leave). */
 export const DEMO_COOKIE = "ziffr-demo";

@@ -11,7 +11,7 @@ import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionR
 import * as questions from "@ziffr/core/questions";
 import { simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
 import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
-import { seedDemoSnapshots } from "@ziffr/core/demo-snapshots";
+import { resetDemoWorkspace } from "@ziffr/core/demo-reset";
 import type { SourceId } from "@ziffr/core/types";
 
 // Thin calls into the core, which checks who acts and in which Workspace. Demo Mode's "view as" and reset live here.
@@ -28,12 +28,8 @@ export async function setViewer(id: string) {
 export async function resetDemo() {
   // Resetting empties the demo workspace and seeds it again (ADR 0005); real workspaces are never touched.
   if (!(await isDemo())) throw new Error("Not available.");
-  // One locked step in the database, at most once a minute: visitors share the demo and the database.
-  const { data: done, error } = await db.rpc("demo_reset");
-  if (error) throw new Error("The demo could not be reset. Try again in a minute.");
-  if (!done) throw new Error("The demo was reset a moment ago.");
-  // Snapshots keep values the database cannot compute in SQL, so the core takes them after the reset (spec 0013).
-  await seedDemoSnapshots();
+  // At most once a minute: visitors share the demo and the database.
+  if (!(await resetDemoWorkspace())) throw new Error("The demo was reset a moment ago.");
   revalidatePath("/", "layout");
   redirect("/");
 }
