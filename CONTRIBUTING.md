@@ -56,6 +56,11 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 - Commit messages: an imperative subject of at most 72 characters, then a body that says why. Agent-written commits keep their `Co-Authored-By` line.
 - Anything people who use or run Ziffr will notice gets a release note: `pnpm changeset`, or a file in `.changeset/` as its README shows. Say in one or two plain sentences what changes for them; start notes for self-hosters with "Self-hosters:" and for developers with "Developers:". CI asks for it.
 
+## Reviewing pull requests (maintainers)
+
+- **Read agent and CI files before you run anything.** A pull request can change `.claude/` (hooks are shell scripts Claude Code runs on your machine), `CLAUDE.md`, `AGENTS.md`, `.github/` or `scripts/`. Before you start a coding agent or run scripts on someone else's branch, read the diff of those paths yourself. CODEOWNERS asks for your review of them for the same reason.
+- **Approve workflow runs from forks only after a look at the diff.** Checks of a first-time contributor's pull request wait for "Approve and run".
+
 ## Versions and releases
 
 Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A maintainer releases with `pnpm release`: it turns the waiting notes into a `CHANGELOG.md` section, sets the version, commits and tags `vX.Y.Z`. Pushing the tag (`git push --follow-tags`) creates the GitHub release from that same section, including the day the version becomes AGPL-3.0.

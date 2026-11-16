@@ -46,7 +46,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|Read|Bash",
+        "matcher": "Edit|Write|MultiEdit|Read|Bash|Grep|Glob",
         "hooks": [
           {
             "type": "command",

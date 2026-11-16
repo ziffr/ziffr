@@ -56,6 +56,9 @@ jobs:
       - name: Changes people use or run come with a release note
         if: github.event_name == 'pull_request'
         run: .github/scripts/release-note-present.sh
+      - name: Migrations are only added, never changed
+        if: github.event_name == 'pull_request'
+        run: .github/scripts/migrations-add-only.sh
 
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions).
   # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).

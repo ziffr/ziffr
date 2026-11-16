@@ -1,6 +1,14 @@
-# Changes here need the maintainer's review.
+# Changes here need the maintainer's review: the core and the database, the license texts, and everything that
+# runs with someone's rights. Agent instructions and hooks run on a maintainer's machine when they work on a branch;
+# workflows, check and release scripts run with the repository's.
 /packages/core/  @ziffr
 /supabase/       @ziffr
 /LICENSE         @ziffr
 /NOTICE          @ziffr
 /CLA.md          @ziffr
+/.claude/        @ziffr
+/.github/        @ziffr
+/AGENTS.md       @ziffr
+/CLAUDE.md       @ziffr
+/scripts/        @ziffr
+/docker/         @ziffr
