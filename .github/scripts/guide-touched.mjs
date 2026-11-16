@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { chaptersToUpdate, readChapters } from "../../scripts/guide-screens.mjs";
 
-const base = `origin/${process.env.GITHUB_BASE_REF || "next"}`;
+const base = `origin/${process.env.GITHUB_BASE_REF || "main"}`;
 let labels = [];
 try {
   labels = (JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8")).pull_request?.labels ?? []).map((l) => l.name);

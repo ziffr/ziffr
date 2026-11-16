@@ -1,7 +1,6 @@
-# Typecheck, lint and test every pull request, and every push to main (CONTRIBUTING.md). Merges into next run nothing
-# here: their pull request passed these same checks on a branch rebased onto next just before. GitHub Actions minutes
-# are counted, so a newer push cancels the older run of the same branch, the quick checks share one install, and a
-# change to docs alone skips the database job.
+# Typecheck, lint and test every pull request, and every push to main (CONTRIBUTING.md): main is the one branch, and
+# releases are its tags (ADR 0004). A newer push cancels the older run of the same branch, the quick checks share one
+# install, and a change to docs alone skips the database job.
 name: CI
 on:
   pull_request:

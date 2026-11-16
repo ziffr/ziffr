@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
-  "baseBranch": "next",
+  "baseBranch": "main",
   "fixed": [["@ziffr/web", "@ziffr/core"]],
   "privatePackages": { "version": true, "tag": false },
   "changelog": false,

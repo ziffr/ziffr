@@ -3,7 +3,7 @@
 # Changes only to docs, CI, agent settings or the changelog's own files need none. The label "no-release-note" lets
 # a maintainer say a change really needs none.
 set -euo pipefail
-base="origin/${GITHUB_BASE_REF:-next}"
+base="origin/${GITHUB_BASE_REF:-main}"
 changed=$(git diff --name-only --diff-filter=ACMRD "$base"...HEAD)
 labels=$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
 grep -qx "no-release-note" <<<"$labels" && { echo "Label no-release-note set."; exit 0; }

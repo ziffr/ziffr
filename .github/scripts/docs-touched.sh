@@ -2,7 +2,7 @@
 # A pull request that changes Ziffr's public surface must also change its docs, the glossary or add a release note
 # (docs/guides/documentation.md). The label "no-docs-needed" lets a maintainer say it really needs none.
 set -euo pipefail
-base="origin/${GITHUB_BASE_REF:-next}"
+base="origin/${GITHUB_BASE_REF:-main}"
 changed=$(git diff --name-only "$base"...HEAD)
 labels=$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
 grep -qx "no-docs-needed" <<<"$labels" && { echo "Label no-docs-needed set."; exit 0; }
