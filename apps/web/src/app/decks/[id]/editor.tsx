@@ -28,7 +28,8 @@ import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
-import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, orderedSlides, seedSlides } from "@/decks/layouts";
+import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, seedSlides } from "@/decks/layouts";
+import { freeSpot } from "@/decks/placement";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
@@ -155,10 +156,20 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
     editor.run(() => {
       if (target) {
         const fb = editor.getShapePageBounds(target)!;
-        const local = page ? { x: page.x - fb.x - props.w / 2, y: page.y - fb.y - props.h / 2 } : { x: MARGIN, y: 150 };
-        const x = Math.min(Math.max(local.x, 0), SLIDE_W - props.w);
-        const y = Math.min(Math.max(local.y, 0), SLIDE_H - props.h);
-        editor.createShape<WidgetShape>({ id, type: WIDGET_SHAPE, parentId: target.id, x, y, props });
+        if (page) {
+          // Dropped: where the pointer is, kept on the slide.
+          const x = Math.min(Math.max(page.x - fb.x - props.w / 2, 0), SLIDE_W - props.w);
+          const y = Math.min(Math.max(page.y - fb.y - props.h / 2, 0), SLIDE_H - props.h);
+          editor.createShape<WidgetShape>({ id, type: WIDGET_SHAPE, parentId: target.id, x, y, props });
+        } else {
+          // Added with "+": the first free spot in the content area, beside what is on the slide, never on top (#13).
+          const taken = editor.getSortedChildIdsForParent(target.id).map((child) => {
+            const b = editor.getShapePageBounds(child)!;
+            return { x: b.x - fb.x, y: b.y - fb.y, w: b.w, h: b.h };
+          });
+          const spot = freeSpot(contentAreas()[0], taken, { w: props.w, h: props.h }, { w: SLIDE_W, h: SLIDE_H });
+          editor.createShape<WidgetShape>({ id, type: WIDGET_SHAPE, parentId: target.id, x: spot.x, y: spot.y, props: { ...props, w: spot.w, h: spot.h } });
+        }
       } else {
         editor.createShape<WidgetShape>({ id, type: WIDGET_SHAPE, x: page?.x ?? 0, y: page?.y ?? 0, props });
       }
