@@ -8,6 +8,8 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 The page **Sign in to Ziffr** opens whenever you are not signed in. Under its heading it says what Ziffr is: a metric tracker for anyone.
 
+On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and it starts fresh every night.
+
 | Option | What it does |
 | --- | --- |
 | **Work email** | The address you sign in with |

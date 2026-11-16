@@ -100,7 +100,10 @@ const UID = { db: 0, app: 1000, migrate: 1001, auth: 1002, rest: 1003, clock: 10
 const jobSecret = set(env.ZIFFR_JOB_SECRET) ? env.ZIFFR_JOB_SECRET : kept.jobSecret;
 // The demo is offered on a laptop; on a domain only when asked for (ZIFFR_DEMO=1), as an Installation for a team
 // should not let strangers in without signing in.
-const demo = set(env.ZIFFR_DEMO) ? env.ZIFFR_DEMO : domain ? "0" : "1";
+// A public demo and nothing else (ZIFFR_DEMO_ONLY=1): the demo is on, Auth makes no accounts, and the clock resets the
+// demo every night.
+const demoOnly = env.ZIFFR_DEMO_ONLY === "1";
+const demo = demoOnly ? "1" : set(env.ZIFFR_DEMO) ? env.ZIFFR_DEMO : domain ? "0" : "1";
 
 // The app's own settings from .env (Slack, replies by email, providers offered, the user guide…): every ZIFFR_*
 // setting except those that belong to the stack, never Auth's provider secrets or the keys made here.
@@ -119,7 +122,8 @@ const files = {
     ZIFFR_MAIL_FROM: mailFrom,
     ZIFFR_JOB_SECRET: jobSecret,
     ZIFFR_SECRETS_KEY: set(env.ZIFFR_SECRETS_KEY) ? env.ZIFFR_SECRETS_KEY : kept.secretsKey,
-    ZIFFR_PROXY_HOPS: "1",
+    // Caddy adds one hop; another proxy in front of it (ZIFFR_SITE_URL without ZIFFR_DOMAIN) adds its own.
+    ZIFFR_PROXY_HOPS: set(env.ZIFFR_PROXY_HOPS) ? env.ZIFFR_PROXY_HOPS : "1",
     ZIFFR_DEMO: demo,
   },
   migrate: {
@@ -129,11 +133,13 @@ const files = {
     SUPABASE_SERVICE_ROLE_KEY: kept.serviceRoleKey,
     ZIFFR_DEMO: demo,
   },
-  clock: { ZIFFR_JOB_SECRET: jobSecret },
+  clock: { ZIFFR_JOB_SECRET: jobSecret, ZIFFR_DEMO_RESET: demoOnly ? "1" : "0" },
   // supabase/postgres: the superuser's password, which compose.yml's roles script also gives the roles Auth and
   // PostgREST sign in as. Read by the image's entrypoint, which starts as root.
   db: { POSTGRES_PASSWORD: dbPassword, PGPASSWORD: dbPassword, ZIFFR_AUTH_DB_PASSWORD: authPassword, ZIFFR_REST_DB_PASSWORD: restPassword },
   auth: {
+    // Sign-in links make the account (ADR 0003), except in a public demo, where nobody gets one.
+    GOTRUE_DISABLE_SIGNUP: demoOnly ? "true" : "false",
     API_EXTERNAL_URL: `${siteUrl}/auth/v1`,
     GOTRUE_DB_DATABASE_URL: `postgresql://supabase_auth_admin:${encodeURIComponent(authPassword)}@db:5432/postgres`,
     GOTRUE_SITE_URL: siteUrl,
@@ -182,13 +188,13 @@ chmodSync(DIR, 0o711);
 // The settings of before spec 0015's review: one file every service could read.
 rmSync(`${DIR}/env`, { force: true });
 
-if (domain && !set(env.ZIFFR_SMTP_URL)) {
+if (domain && !demoOnly && !set(env.ZIFFR_SMTP_URL)) {
   console.warn(
     "Ziffr: WARNING: a domain is set but no mail server (ZIFFR_SMTP_URL). Sign-in links land in Mailpit, which " +
       "anyone with a shell on this machine can read: set a mail server before anyone else signs in.",
   );
 }
-console.log(`Ziffr: keys ready; reached at ${siteUrl}; mail through ${smtp.hostname}; demo ${demo === "0" ? "off" : "on"}.`);
+console.log(`Ziffr: keys ready; reached at ${siteUrl}; mail through ${smtp.hostname}; demo ${demoOnly ? "only" : demo === "0" ? "off" : "on"}.`);
 
 /** Writes a file only `uid` can read, in one step, so no service ever reads half of it. */
 function writeOwn(file, text, uid) {

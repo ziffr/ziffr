@@ -43,7 +43,8 @@ export async function middleware(req: NextRequest) {
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
   if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions") return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
-  const demoOffered = process.env.ZIFFR_DEMO !== "0";
+  // As demoEnabled() in lib/auth.ts.
+  const demoOffered = process.env.ZIFFR_DEMO_ONLY === "1" || process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {
     // A signed-in person enters the shared demo, where they might type real numbers, only by its confirm page's
     // button (spec 0009): a link opens that page, and the button's POST counts only from this app's own pages. Every

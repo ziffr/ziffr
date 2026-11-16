@@ -9,6 +9,7 @@ ZIFFR_JOB_SECRET=$(openssl rand -hex 32)   # at least 32 characters; without it 
 | Job | Call it | What it does |
 | --- | --- | --- |
 | `POST /api/jobs/workflows` | every hour | Runs each workspace's Workflows once a day, at its run hour in its own time zone: asks for missing values, reminds before the Due Date, escalates after it, reminds people of tasks due within two days ([spec 0005](../specs/0005-workflows-on-a-clock.md)), and takes the Snapshots of dashboards set to take them by themselves once their period's Metrics are Locked or their wait is over ([spec 0013](../specs/0013-dashboard-snapshots.md)) |
+| `POST /api/jobs/demo-reset` | once a night, only for a public demo | Resets the demo workspace, as its reset button does, so a demo anyone may try starts each day clean. Answers `{ "reset": false }` when a visitor reset it less than a minute before, and 404 where the demo is off. Docker Compose calls it at 03:30 UTC when `ZIFFR_DEMO_ONLY=1` |
 | `POST /api/jobs/deliveries` | every few minutes | Sends emails and Slack messages that are waiting: the day's Prompts, reminders and Escalations from the Workflow run, reminders and requests for missing values sent from the Connectors page, retries after a failure, and ones held back by the sending limits ([email](email.md), [Slack](slack.md)) |
 
 ```sh

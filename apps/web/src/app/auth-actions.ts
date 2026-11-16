@@ -4,16 +4,20 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { claimSignInLink, networkAddress } from "@ziffr/core/sign-in-limits";
 import { forBrowser } from "@/lib/auth-settings";
-import { authClient, DEMO_COOKIE, sessionUser, personFor, signedIn } from "@/lib/auth";
+import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 
 const TOO_MANY = "Too many links asked for. Wait a minute and try again.";
+const DEMO_ONLY = "Signing in is off here: this Ziffr is a public demo.";
 
 /** Sends a sign-in link to the address; the same message whether or not an account exists. */
 export async function sendSignInLink(email: string, next?: string) {
+  // The login page shows no form in a demo-only Ziffr; this holds for a call made without it. Auth refuses new
+  // accounts there too (GOTRUE_DISABLE_SIGNUP, docker/init.mjs).
+  if (demoOnly()) throw new Error(DEMO_ONLY);
   const address = String(email ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("Enter a valid email address.");
   // Ziffr's own limit first (spec 0009), with the message a Supabase limit gives: the same whether or not the
@@ -28,6 +32,7 @@ export async function sendSignInLink(email: string, next?: string) {
 
 /** Starts signing in with a provider; only providers that are set up are accepted. */
 export async function signInWith(provider: Provider, next?: string) {
+  if (demoOnly()) throw new Error(DEMO_ONLY);
   if (!enabledProviders().includes(provider)) throw new Error("This way of signing in is not set up.");
   const { data, error } = await (await authClient()).auth.signInWithOAuth({
     provider,
