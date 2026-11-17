@@ -23,7 +23,7 @@ const PERIODS: Period[] = ["day", "week", "month"];
 const RULES: SubmissionRule[] = ["reject", "overwrite", "add", "keep_both"];
 const POLARITIES: Polarity[] = ["higher", "lower", "target"];
 const AGGREGATIONS = ["sum", "average", "last", "none"];
-const SOURCES: SourceId[] = ["slack", "mail", "web_form", "api"];
+const SOURCES: SourceId[] = ["slack", "mail", "web_form", "api", "telegram"];
 
 /** A new Metric as described in the form, before it is checked. */
 export type MetricInput = {

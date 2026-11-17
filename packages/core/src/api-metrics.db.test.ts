@@ -30,7 +30,7 @@ describe("createMetricWithKey", () => {
     const m = await createMetricWithKey(key, { name: "Weekly signups", unit: "signups", period: "week", submission_rule: "add", polarity: "higher", target_min: 50 }, fx());
     expect(m).toEqual(expect.objectContaining({ slug: "weekly-signups", name: "Weekly signups", unit: "signups", period: "week", target_min: 50, derived: false }));
     const { data: row } = await db().from("metrics").select("id, owner_id, workspace_id, submission_rule, sources").eq("slug", m.slug).eq("workspace_id", w.id).single();
-    expect(row).toMatchObject({ owner_id: ben, workspace_id: w.id, submission_rule: "add", sources: ["web_form", "mail", "slack", "api"] });
+    expect(row).toMatchObject({ owner_id: ben, workspace_id: w.id, submission_rule: "add", sources: ["web_form", "mail", "slack", "telegram", "api"] });
     const { data: version } = await db().from("versions").select("message, author_id").eq("object_type", "metric").eq("object_id", row!.id).single();
     expect(version).toEqual({ message: "Created through the API (key “Setup script”)", author_id: ben });
   });

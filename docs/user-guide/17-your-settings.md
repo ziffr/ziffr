@@ -119,7 +119,7 @@ Your **Delivery Preference** for each kind of message:
 | **Reminders** | Prompts asking you for a value, and reminders of tasks that are due |
 | **Replies and updates** | Replies in a Thread, proposed Corrections, decisions and tasks that were closed |
 
-For each, pick **Email**, **Slack**, **WhatsApp** or **Ticket system**, or leave it at **Team default** (which shows what the team default is). Owners and Admins set the team default on the Connectors page. A change is saved at once.
+For each, pick **Email**, **Slack**, **Telegram**, **WhatsApp** or **Ticket system**, or leave it at **Team default** (which shows what the team default is). Owners and Admins set the team default on the Connectors page. A change is saved at once.
 
 Whoever asks you a question can still pick another way for that one message. WhatsApp and ticket systems are not live yet: Ziffr only records what it would send there, in the Outbox. See [Connecting Ziffr](04-connecting.md) for what each Connector does.
 

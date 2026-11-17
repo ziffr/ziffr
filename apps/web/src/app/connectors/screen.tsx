@@ -5,7 +5,7 @@ import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Ticket } from "lucide-react";
+import { BellRing, CheckCircle2, Hash, Mail, MessageCircle, MessageSquare, Send, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askForMissingValues, emailRemindersAgain, sendDueReminders, setPreference, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
@@ -25,7 +25,7 @@ export type DeliveryRow = {
 };
 type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
-const ICON: Record<ConnectorId, typeof Mail> = { slack: MessageSquare, email: Mail, whatsapp: MessageCircle, tickets: Ticket };
+const ICON: Record<ConnectorId, typeof Mail> = { slack: MessageSquare, email: Mail, telegram: Send, whatsapp: MessageCircle, tickets: Ticket };
 const KINDS: { id: PreferenceKind; label: string }[] = [
   { id: "question", label: "Questions" },
   { id: "task", label: "Tasks" },
@@ -36,7 +36,7 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 /** Connectors, Delivery Preferences and the Outbox. `email` says whether this Ziffr sends real email, and takes
  * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004); `slack`, whether a
  * Slack workspace is connected (spec 0007). */
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off" }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected" }) {
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off", telegram = "off" }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected"; telegram?: "off" | "on" }) {
   const [pending, start] = useTransition();
   // Asking and reminding by hand is what the schedule does each morning: in the demo anyone plays it; elsewhere
   // owners and admins get it as a fallback, explained, and members do not see it.
@@ -75,7 +75,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                   {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
                 </ul>
                 {c.sourceId && demo && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
-                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : id === "telegram" && telegram === "on" ? "Sends real messages to everyone who connected their Telegram; replies come back." : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
               </li>
             );
           })}
@@ -154,7 +154,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
   const c = CONNECTORS[d.connector];
   const Icon = ICON[d.connector];
   const isPrompt = d.kind === "prompt" && d.prompts;
-  const answerHere = isPrompt && (d.prompts!.source === "slack" || d.prompts!.source === "mail") && !d.prompts!.answered_at;
+  const answerHere = isPrompt && (d.prompts!.source === "slack" || d.prompts!.source === "mail" || d.prompts!.source === "telegram") && !d.prompts!.answered_at;
   // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
   const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
   const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
@@ -168,7 +168,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
         <span>to {to}</span>
         <RelativeTime at={d.created_at} />
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
-        {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} slack={d.connector === "slack"} />}
+        {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} connector={d.connector} />}
         {d.action_id && <Link href={`/actions/${d.action_id}`} className="ml-auto underline">Open thread</Link>}
       </div>
       <div className={cn("mt-2 rounded-[var(--radius-input)] p-3", d.connector === "slack" && "border-l-4 border-[var(--color-rule-2)] bg-[var(--muted)]", d.connector === "whatsapp" && "max-w-md rounded-2xl rounded-tl-sm bg-[color-mix(in_oklab,var(--color-success)_10%,var(--card))]", d.connector === "email" && "border border-border", d.connector === "tickets" && "border border-border bg-[var(--muted)]")}>
@@ -211,11 +211,11 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
 
 const MAIL_STATE: Record<Exclude<DeliveryRow["mail_state"], "outbox">, string> = { queued: "Waiting to send", sending: "Sending", sent: "Emailed", failed: "Not sent" };
 
-/** Whether an email or Slack Delivery really went out, and why not when it failed. */
-function MailState({ state, error, slack }: { state: Exclude<DeliveryRow["mail_state"], "outbox">; error: string | null; slack: boolean }) {
+/** Whether an email, Slack or Telegram Delivery really went out, and why not when it failed. */
+function MailState({ state, error, connector }: { state: Exclude<DeliveryRow["mail_state"], "outbox">; error: string | null; connector: string }) {
   return (
     <span title={state === "failed" && error ? error : undefined} className={cn("rounded-[var(--radius-input)] border px-1.5", state === "failed" ? "border-destructive text-destructive" : "border-border")}>
-      {state === "sent" && slack ? "Sent on Slack" : MAIL_STATE[state]}{state === "failed" && error ? `: ${error}` : ""}
+      {state === "sent" && connector === "slack" ? "Sent on Slack" : state === "sent" && connector === "telegram" ? "Sent on Telegram" : MAIL_STATE[state]}{state === "failed" && error ? `: ${error}` : ""}
     </span>
   );
 }

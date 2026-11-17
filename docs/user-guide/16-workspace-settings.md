@@ -228,6 +228,7 @@ One card per **Connector**, each with what it can do (receives values, sends rem
 | --- | --- |
 | **Email** | Plain emails; replying to one answers in Ziffr. When this Ziffr sends email, the card says "Sends real email". Otherwise nothing goes out and Ziffr keeps what it would send in the Outbox. |
 | **Slack** | Direct messages from the Ziffr app; answers in the thread come back. Real once Slack is connected. |
+| **Telegram** | Messages from Ziffr's bot in Telegram; replying to one answers in Ziffr. Real once the Workspace turned Telegram on, for everyone who connected their own Telegram. |
 | **WhatsApp** | Short messages from the Ziffr business number. Not live yet: Ziffr only records what it would send. |
 | **Ticket system** | Tasks become tickets; comments come back, and closing a ticket marks the task done. Not live yet: Ziffr only records what it would send. |
 
@@ -245,7 +246,7 @@ A table of **Delivery Preferences**: one row per person and one column each for 
 
 The **Outbox** lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
 
-For email and Slack, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack** or **Not sent** with the reason. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
+For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
 
 You see Deliveries about Threads you may read, and Prompts and notices you sent or received. The personal form link in someone else's Prompt is hidden.
 
