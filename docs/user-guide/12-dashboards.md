@@ -208,7 +208,7 @@ A Widget shows a Metric in its own period: a monthly Metric as months. **Show by
 - **How many.** The Widget shows as many Display Periods as it showed periods before, such as the last 12 quarters.
 - **Targets.** Where every month of a quarter has a value in the Metric's **Target Series**, the quarter's target is those values combined the same way, drawn as a thin grey line. Otherwise the Metric's target range applies if its values are averaged or a last value; a summed Metric has no target by quarter, as a monthly range says nothing exact about three months. A line under the chart says which applies.
 - **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one.
-- **Rates.** A Metric whose Aggregation is **none**, such as a rate, cannot be combined. **Show by** then says so; change the Aggregation under **Edit details** on the Metric's page if its values can be combined.
+- **Rates.** A Metric whose Aggregation is **Does not combine**, such as a rate, cannot be shown by a longer period. **Show by** then greys out the longer periods and says why. If its values can in fact be added up, averaged or taken last, change the Aggregation under **Edit details…** on the Metric's page.
 
 Quarters, half-years and years start from the Workspace's fiscal year. **Change view** to another of these views keeps the setting.
 

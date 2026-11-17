@@ -17,7 +17,7 @@ One value of a Metric for one period is an **Observation**: "Revenue, October: 8
 
 When a second value arrives for the same period, the Metric's **Submission Rule** decides what happens: the new value replaces the old one, the two are added up, both are kept, or the second one is refused.
 
-When a longer period is shown, the **Aggregation** decides how values combine: revenue is added up, a satisfaction score is averaged, a bank balance takes the last value.
+When a longer period is shown, the **Aggregation** decides how values combine: revenue is added up, a satisfaction score is averaged, a bank balance takes the last value. A Widget can show a monthly Metric by quarter, half-year or year this way; that longer period is its **Display Period**, and the one still running is marked "to date".
 
 ## Someone gives each value
 
