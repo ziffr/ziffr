@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, dataAsOf, inSnapshot, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, dataAsOf, inSnapshot, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 import { JANUARY } from "./periods";
 
 describe("Snapshot periods", () => {
@@ -17,7 +17,9 @@ describe("Snapshot periods", () => {
     expect(snapshotPeriod("week", "2026-10-27", JANUARY)).toBeNull();
     expect(snapshotPeriod("month", "2026-13-01", JANUARY)).toBeNull();
     expect(snapshotPeriod("month", "October", JANUARY)).toBeNull();
-    expect(snapshotPeriod("year" as never, "2026-01-01", JANUARY)).toBeNull();
+    expect(snapshotPeriod("day" as never, "2026-01-01", JANUARY)).toBeNull();
+    expect(snapshotPeriod("half", "2026-04-01", JANUARY)).toBeNull();
+    expect(snapshotPeriod("year", "2026-07-01", JANUARY)).toBeNull();
   });
 
   it("offers the complete periods before today, the last complete one first", () => {
@@ -25,6 +27,48 @@ describe("Snapshot periods", () => {
     expect(completePeriods("quarter", "2026-11-15", 2, JANUARY).map((p) => p.label)).toEqual(["Q3 2026", "Q2 2026"]);
     expect(completePeriods("week", "2026-11-15", 1, JANUARY)[0].start).toBe("2026-11-02");
     expect(periodContaining("quarter", "2026-11-15", JANUARY).start).toBe("2026-10-01");
+  });
+
+  it("names half-years and years and knows their last day (spec 0020)", () => {
+    expect(snapshotPeriod("half", "2026-01-01", JANUARY)).toEqual({ kind: "half", start: "2026-01-01", end: "2026-06-30", label: "H1 2026" });
+    expect(snapshotPeriod("half", "2026-07-01", JANUARY)).toEqual({ kind: "half", start: "2026-07-01", end: "2026-12-31", label: "H2 2026" });
+    expect(snapshotPeriod("year", "2026-01-01", JANUARY)).toEqual({ kind: "year", start: "2026-01-01", end: "2026-12-31", label: "2026" });
+    expect(snapshotPeriod("year", "2028-01-01", JANUARY)?.end).toBe("2028-12-31");
+    // With the year starting in April, halves start in April and October and the year is named by both years.
+    expect(snapshotPeriod("half", "2026-10-01", 4)).toEqual({ kind: "half", start: "2026-10-01", end: "2027-03-31", label: "H2 FY 2026/27" });
+    expect(snapshotPeriod("year", "2026-04-01", 4)).toEqual({ kind: "year", start: "2026-04-01", end: "2027-03-31", label: "FY 2026/27" });
+    expect(snapshotPeriod("half", "2026-07-01", 4)).toBeNull();
+    expect(snapshotPeriod("year", "2026-01-01", 4)).toBeNull();
+    expect(snapshotPeriod("quarter", "2026-04-01", 4)?.label).toBe("Q1 FY 2026/27");
+  });
+
+  it("offers complete half-years and years across year ends", () => {
+    expect(completePeriods("half", "2026-11-15", 3, JANUARY).map((p) => p.label)).toEqual(["H1 2026", "H2 2025", "H1 2025"]);
+    expect(completePeriods("half", "2027-01-01", 1, JANUARY)[0]).toMatchObject({ start: "2026-07-01", end: "2026-12-31" });
+    expect(completePeriods("year", "2026-11-15", 2, JANUARY).map((p) => p.label)).toEqual(["2025", "2024"]);
+    expect(completePeriods("year", "2027-01-01", 1, JANUARY)[0]).toMatchObject({ start: "2026-01-01", end: "2026-12-31", label: "2026" });
+    expect(completePeriods("year", "2026-12-31", 1, JANUARY)[0].label).toBe("2025");
+    expect(completePeriods("year", "2027-03-31", 1, 4)[0].label).toBe("FY 2025/26");
+    expect(completePeriods("year", "2027-04-01", 1, 4)[0].label).toBe("FY 2026/27");
+    expect(completePeriods("half", "2027-04-01", 2, 4).map((p) => p.label)).toEqual(["H2 FY 2026/27", "H1 FY 2026/27"]);
+    expect(periodContaining("year", "2026-11-15", JANUARY).start).toBe("2026-01-01");
+    expect(periodContaining("half", "2026-03-15", 4)).toMatchObject({ start: "2025-10-01", end: "2026-03-31" });
+  });
+
+  it("lists every Metric period of a year, a leap year's 366 days included", () => {
+    const y = snapshotPeriod("year", "2026-01-01", JANUARY)!;
+    expect(metricPeriodsIn("month", y, JANUARY)).toHaveLength(12);
+    expect(metricPeriodsIn("day", y, JANUARY)).toHaveLength(365);
+    const leap = metricPeriodsIn("day", snapshotPeriod("year", "2028-01-01", JANUARY)!, JANUARY);
+    expect([leap.length, leap[0], leap.at(-1)]).toEqual([366, "2028-01-01", "2028-12-31"]);
+    // The most a Snapshot period may hold leaves room for it.
+    expect(MAX_METRIC_PERIODS).toBeGreaterThanOrEqual(366);
+    // A year starting in April that holds 29 February 2028.
+    expect(metricPeriodsIn("day", snapshotPeriod("year", "2027-04-01", 4)!, 4)).toHaveLength(366);
+    // Weeks wholly inside 2026: from Mon 5 Jan (29 Dec starts in 2025) to 21 Dec (28 Dec ends in 2027).
+    const weeks = metricPeriodsIn("week", y, JANUARY);
+    expect([weeks[0], weeks.at(-1), weeks.length]).toEqual(["2026-01-05", "2026-12-21", 51]);
+    expect(metricPeriodsIn("month", snapshotPeriod("half", "2026-07-01", JANUARY)!, JANUARY)).toHaveLength(6);
   });
 
   it("lists the Metric periods wholly inside a Snapshot period", () => {
@@ -50,6 +94,9 @@ describe("Snapshot periods", () => {
   });
 
   it("keeps a Metric's periods that are complete by the Snapshot's last day", () => {
+    // A year ending 31 Dec keeps December's month, not the week of 28 Dec 2026 that ends in January.
+    expect(inSnapshot("month", "2026-12-01", "2026-12-31")).toBe(true);
+    expect(inSnapshot("week", "2026-12-28", "2026-12-31")).toBe(false);
     // A quarter ending 30 Sep: September's month is in, October's is not; the week of 28 Sep ends in October.
     expect(inSnapshot("month", "2026-09-01", "2026-09-30")).toBe(true);
     expect(inSnapshot("month", "2026-10-01", "2026-09-30")).toBe(false);

@@ -153,7 +153,7 @@ export type ThreadMessage = {
 export type Dashboard = {
   id: number; name: string; owner_id: string; theme_id: number | null; intro: string;
   /** Takes a Snapshot of every week, month or quarter by itself (spec 0013); null for only by hand. */
-  snapshot_every?: "week" | "month" | "quarter" | null;
+  snapshot_every?: "week" | "month" | "quarter" | "half" | "year" | null;
   /** Days after a period ends that an automatic Snapshot waits for its Locks at most. */
   snapshot_wait_days?: number;
 };

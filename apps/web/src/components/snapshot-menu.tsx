@@ -1,5 +1,5 @@
 "use client";
-// A dashboard's Snapshots (spec 0013, ticket #175; GLOSSARY: Snapshot): the list by its title, newest period first,
+// A dashboard's Snapshots (spec 0013, ticket #175; spec 0020; GLOSSARY: Snapshot): the list by its title, newest period first,
 // drafts marked, and Take a Snapshot… for its owner and Editors. The core decides which Snapshots are listed.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,10 @@ import { completePeriods, type SnapshotPeriodKind } from "@ziffr/core/snapshot-p
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
 import { type YearStart } from "@ziffr/core/periods";
 
-const KINDS: { id: SnapshotPeriodKind; label: string }[] = [{ id: "month", label: "Month" }, { id: "quarter", label: "Quarter" }, { id: "week", label: "Week" }];
+const KINDS: { id: SnapshotPeriodKind; label: string }[] = [{ id: "month", label: "Month" }, { id: "quarter", label: "Quarter" }, { id: "half", label: "Half-year" }, { id: "year", label: "Year" }, { id: "week", label: "Week" }];
+
+/** The lengths a dashboard may take by itself; half-years and years by hand only for now. */
+const AUTO_KINDS = KINDS.filter((k) => k.id === "month" || k.id === "quarter" || k.id === "week");
 
 /** Today as yyyy-mm-dd in the browser's own calendar. */
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -116,7 +119,7 @@ function AutoDialog({ dashboardId, auto, onClose }: { dashboardId: number; auto:
           <label className="space-y-1 text-sm"><span className="text-muted-foreground">Take one</span>
             <select aria-label="Take one" value={every} onChange={(e) => setEvery(e.target.value)} className={select}>
               <option value="">Only by hand</option>
-              {KINDS.map((k) => <option key={k.id} value={k.id}>Every {k.label.toLowerCase()}</option>)}
+              {AUTO_KINDS.map((k) => <option key={k.id} value={k.id}>Every {k.label.toLowerCase()}</option>)}
             </select>
           </label>
           <label className="space-y-1 text-sm"><span className="text-muted-foreground">Wait at most (days)</span>

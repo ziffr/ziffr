@@ -6,7 +6,7 @@ import { db } from "./db";
 import { createDashboard, placeWidget, removeWidget, saveDashboardText } from "./dashboards";
 import { dashboardWidgets } from "./page-data";
 import { share } from "./sharing";
-import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
+import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
 import { listVersions, restoreVersion, saveNamedVersion } from "./version-history";
 import { activityView } from "./page-data";
 import { visibleMetricIds } from "./access";
@@ -47,8 +47,10 @@ describe("taking a Snapshot", () => {
 
   it("refuses a period that is not one, and a second Snapshot of the same period while the first exists", async () => {
     const { owner, dash } = await setup();
-    await expect(takeSnapshot(owner, dash, { kind: "month", start: "2026-10-02" })).rejects.toThrow(/week, month or quarter/);
-    await expect(takeSnapshot(owner, dash, { kind: "year", start: "2026-01-01" })).rejects.toThrow(/week, month or quarter/);
+    await expect(takeSnapshot(owner, dash, { kind: "month", start: "2026-10-02" })).rejects.toThrow(/week, month, quarter, half-year or year/);
+    await expect(takeSnapshot(owner, dash, { kind: "day", start: "2026-01-01" })).rejects.toThrow(/week, month, quarter, half-year or year/);
+    await expect(takeSnapshot(owner, dash, { kind: "year", start: "2026-02-01" })).rejects.toThrow(/Pick/);
+    await expect(takeSnapshot(owner, dash, { kind: "half", start: "2026-04-01" })).rejects.toThrow(/Pick/);
     const first = await takeSnapshot(owner, dash, october);
     await expect(takeSnapshot(owner, dash, october)).rejects.toThrow(/October 2026 already/);
     await deleteSnapshot(owner, first);
@@ -212,6 +214,47 @@ describe("corrections since a Snapshot (#177)", () => {
     // Sara does not get Payroll at all (#193), so she learns only of the correction to the Metric she sees.
     expect((await openSnapshot(owner, id)).corrections.map((c) => c.metricId)).toEqual([rev.id]);
     expect((await openSnapshot(ben, id)).corrections.map((c) => c.metricId).sort()).toEqual([rev.id, payroll.id].sort());
+  });
+});
+
+describe("half-year and annual Snapshots (spec 0020)", () => {
+  it("are taken by hand once the period is over, keep its Metric periods, list newest first and title a deck", async () => {
+    const { w, owner, rev, dash } = await setup();
+    await w.value(rev.id, "2025-12-01", 70);
+    await w.value(rev.id, "2027-01-01", 120);
+    const daily = await w.metric(owner.personId, { name: "Orders", period: "day" });
+    for (const p of ["2026-12-31", "2027-01-01"]) await w.value(daily.id, p, 5);
+    await placeWidget(owner, dash, { type: "metric", id: daily.id });
+    const periods = async (id: number, slug: string) => (await openSnapshot(owner, id)).data.series[slug].map((p) => p.period);
+    await expect(takeSnapshot(owner, dash, { kind: "year", start: "2026-01-01" }, { today: "2026-12-31" })).rejects.toThrow(/2026 is not over yet/);
+    const year = await takeSnapshot(owner, dash, { kind: "year", start: "2026-01-01" }, { today: "2027-01-15" });
+    // The year's months and those before, not January 2027; its last day, not the next.
+    expect(await periods(year, rev.slug)).toEqual(["2025-12-01", "2026-08-01", "2026-09-01", "2026-10-01", "2026-11-01"]);
+    expect(await periods(year, daily.slug)).toEqual(["2026-12-31"]);
+    const h1 = await takeSnapshot(owner, dash, { kind: "half", start: "2026-01-01" }, { today: "2027-01-15" });
+    expect(await periods(h1, rev.slug)).toEqual(["2025-12-01"]);
+    const h2 = await takeSnapshot(owner, dash, { kind: "half", start: "2026-07-01" }, { today: "2027-01-15" });
+    await expect(takeSnapshot(owner, dash, { kind: "year", start: "2026-01-01" }, { today: "2027-01-15" })).rejects.toThrow(/Snapshot of 2026 already/);
+    await takeSnapshot(owner, dash, { kind: "quarter", start: "2026-10-01" }, { today: "2027-01-15" });
+    await takeSnapshot(owner, dash, { kind: "month", start: "2026-12-01" }, { today: "2027-01-15" });
+    await takeSnapshot(owner, dash, { kind: "month", start: "2026-11-01" }, { today: "2027-01-15" });
+    const list = await listSnapshots(owner, dash);
+    expect(list.map((s) => s.label)).toEqual(["2026", "H2 2026", "Q4 2026", "December 2026", "November 2026", "H1 2026"]);
+    expect(list.map((s) => s.kind).slice(0, 2)).toEqual(["year", "half"]);
+    expect(list.find((s) => s.id === h2)).toMatchObject({ start: "2026-07-01", end: "2026-12-31" });
+    expect((await snapshotDeckSeed(owner, year)).name).toBe("Monthly overview, 2026");
+    const { data } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "snapshot.taken").order("id").limit(1);
+    expect(data?.[0].details).toMatchObject({ snapshot_id: year, period: "2026" });
+  });
+
+  it("follow the workspace's year start", async () => {
+    const { w, owner, dash } = await setup();
+    await db().from("workspaces").update({ year_start_month: 4 }).eq("id", w.id);
+    await expect(takeSnapshot(owner, dash, { kind: "year", start: "2026-01-01" }, { today: "2027-05-01" })).rejects.toThrow(/Pick/);
+    const fy = await takeSnapshot(owner, dash, { kind: "year", start: "2026-04-01" }, { today: "2027-05-01" });
+    await takeSnapshot(owner, dash, { kind: "half", start: "2026-10-01" }, { today: "2027-05-01" });
+    expect((await listSnapshots(owner, dash)).map((s) => [s.label, s.end])).toEqual([["FY 2026/27", "2027-03-31"], ["H2 FY 2026/27", "2027-03-31"]]);
+    expect((await openSnapshot(owner, fy)).data.series).toBeDefined();
   });
 });
 

@@ -9,7 +9,7 @@ import * as autoSnapshots from "@ziffr/core/auto-snapshots";
 
 const done = () => revalidatePath("/", "layout");
 
-/** Takes a Snapshot of a dashboard for a week, month or quarter and opens it, to write it up. */
+/** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year and opens it, to write it up. */
 export async function takeSnapshot(dashboardId: number, kind: string, start: string) {
   const id = await snapshots.takeSnapshot(await currentActor(), Number(dashboardId), { kind: String(kind), start: String(start) });
   done();

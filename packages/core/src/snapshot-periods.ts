@@ -1,21 +1,21 @@
-// The periods a Snapshot is taken for (spec 0013; GLOSSARY: Snapshot, Period). Pure. A Snapshot period is a week,
-// a month or a quarter; Metrics keep their own periods of day, week and month. A Snapshot keeps a Metric's values for
-// the periods that end on or before the Snapshot period's last day: for a quarter, a monthly Metric's three months
-// and those before; a weekly one's weeks that end in it; a daily one's days.
+// The periods a Snapshot is taken for (spec 0013, spec 0020; GLOSSARY: Snapshot, Period). Pure. A Snapshot period is
+// a week, a month, a quarter, a half-year or a year; Metrics keep their own periods. A Snapshot keeps a Metric's
+// values for the periods that end on or before the Snapshot period's last day: for a year, a monthly Metric's twelve
+// months and those before; a weekly one's weeks that end in it; a daily one's days.
 import { isPeriodStart, periodEnd, periodLabel, periodStart, periodStartsIn, shiftPeriod, type YearStart } from "./periods";
 import type { CanvasData, Period, Point } from "./types";
 
 /** How long a Snapshot period is. */
-export type SnapshotPeriodKind = "week" | "month" | "quarter";
+export type SnapshotPeriodKind = "week" | "month" | "quarter" | "half" | "year";
 
 /** Every Snapshot period length, for checking what a browser sends. */
-export const SNAPSHOT_PERIOD_KINDS: SnapshotPeriodKind[] = ["week", "month", "quarter"];
+export const SNAPSHOT_PERIOD_KINDS: SnapshotPeriodKind[] = ["week", "month", "quarter", "half", "year"];
 
 /** One Snapshot period: its length, first and last day (yyyy-mm-dd) and its name. */
 export type SnapshotPeriod = { kind: SnapshotPeriodKind; start: string; end: string; label: string };
 
-/** The period of this length starting on `start`; null unless `start` is the first day of one. Quarters start from
- * the workspace's year start. */
+/** The period of this length starting on `start`; null unless `start` is the first day of one. Quarters,
+ * half-years and years start from the workspace's year start. */
 export function snapshotPeriod(kind: SnapshotPeriodKind, start: string, yearStart: YearStart): SnapshotPeriod | null {
   if (!SNAPSHOT_PERIOD_KINDS.includes(kind) || !isPeriodStart(start, kind, yearStart)) return null;
   return { kind, start, end: periodEnd(start, kind), label: periodLabel(start, kind, yearStart) };
@@ -37,11 +37,15 @@ export function inSnapshot(period: Period, start: string, end: string): boolean 
   return periodEnd(start, period) <= end;
 }
 
+/** The most Metric periods one Snapshot period holds: a year of a daily Metric, 366 days, fits. */
+export const MAX_METRIC_PERIODS = 400;
+
 /** The starts of a Metric's periods that lie wholly inside a Snapshot period: those that must be Locked before an
- * automatic Snapshot is taken early. A week that starts before the Snapshot period or ends after it is not one.
+ * automatic Snapshot is taken early. A week that starts before the Snapshot period or ends after it is not one. At
+ * most MAX_METRIC_PERIODS, which no Snapshot period exceeds.
  */
 export function metricPeriodsIn(period: Period, p: SnapshotPeriod, yearStart: YearStart): string[] {
-  return periodStartsIn(period, p.start, p.end, yearStart);
+  return periodStartsIn(period, p.start, p.end, yearStart).slice(0, MAX_METRIC_PERIODS);
 }
 
 /** A Metric's points kept by a Snapshot that ends on `end`. */
