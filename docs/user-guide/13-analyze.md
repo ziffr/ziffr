@@ -63,6 +63,8 @@ A line of the Metric's last 18 periods, continued a few periods ahead: three mon
 
 The forecast follows the recent trend of the values. It knows nothing of plans, seasons or events, so read it as "where this is heading if nothing changes". It needs at least four values.
 
+Placed on a dashboard, a forecast can be shown by quarter, half-year or year with **Show by** (see the Dashboards chapter): it then continues the quarters two ahead (a year one ahead), starting from the last complete one, so a quarter still running does not pull it down.
+
 ### Correlation
 
 A dot for each period, placed by the two Metrics' values, and one sentence such as "strong positive relationship, r = 0.82 over 18 months".
