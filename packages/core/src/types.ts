@@ -202,7 +202,10 @@ export type Panel = {
 
 /** Everything a widget can be set to; each view uses the parts it needs. */
 export type WidgetSettings = {
+  /** How many periods it shows: of its Display Period when it has one. */
   window?: number;
+  /** Show by (GLOSSARY: Display Period): a period longer than the Metric's own; absent means its own. */
+  display?: import("./display-periods").DisplayPeriod;
   showTarget?: boolean;
   showForecast?: boolean;
   rows?: number;

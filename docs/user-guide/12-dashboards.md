@@ -148,6 +148,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Assign a task…** | Everyone | Give someone a task about a value. |
 | **Change view** | The owner and Editors, in edit mode | Draws the Widget another way (see below). Not offered for Analyses. |
 | **Comparisons** | The owner and Editors, in edit mode, for Views | Which Comparisons the Widget shows (see below). |
+| **Show by** | The owner and Editors, in edit mode, for Number + sparkline, Line chart, Bars per period, History table and Forecast | Shows the Metric by a longer period, such as quarters or years (see below). |
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
@@ -196,6 +197,20 @@ Views show a strip of **Comparisons** under the value. **Comparisons** lets you 
 
 - **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year. A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
 - **Full periods instead of to date**: for spans longer than the Metric's period, Ziffr normally compares the span so far with the same stretch before (month to date against the same days last month). Tick this to compare whole periods instead.
+
+### Show by
+
+A Widget shows a Metric in its own period: a monthly Metric as months. **Show by** shows it by a longer **Display Period** instead: week, month, quarter, half-year or year, as far as it is longer than the Metric's own. A monthly Metric can be shown by quarter, half-year or year; a daily one also by week or month. A tick marks the current choice; **(its own)** goes back to the Metric's period.
+
+- **How values combine.** Each quarter's (or year's) value is the Metric's values in it, combined by its **Aggregation**: added up, averaged or the last one. A Derived Metric is computed from its inputs' quarters: revenue minus cost per quarter, not the sum of its monthly results. The Comparisons strip combines the same way, so a quarter has the same value in the chart, the table and the strip.
+- **Gaps.** A quarter is shown once at least half of its months have values. A week belongs to the month it starts in.
+- **To date.** The quarter you are in is not over yet. It is marked **to date**, with how many of its periods it holds ("Q4 26, 2 of 3 months"): hatched in bars, dotted in a line, "to date" in the History table. Its value counts only the months so far.
+- **How many.** The Widget shows as many Display Periods as it showed periods before, such as the last 12 quarters.
+- **Targets.** Where every month of a quarter has a value in the Metric's **Target Series**, the quarter's target is those values combined the same way, drawn as a thin grey line. Otherwise the Metric's target range applies if its values are averaged or a last value; a summed Metric has no target by quarter, as a monthly range says nothing exact about three months. A line under the chart says which applies.
+- **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one.
+- **Rates.** A Metric whose Aggregation is **none**, such as a rate, cannot be combined. **Show by** then says so; change the Aggregation under **Edit details** on the Metric's page if its values can be combined.
+
+Quarters, half-years and years start from the Workspace's fiscal year. **Change view** to another of these views keeps the setting.
 
 ### Saving a widget
 

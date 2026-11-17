@@ -11,6 +11,7 @@ import { DEFAULT_TEMPLATE, TEMPLATES } from "./widget-templates";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
+import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -30,6 +31,8 @@ function settings(s: unknown): WidgetSettings {
   if (JSON.stringify(v).length > MAX_SETTINGS) throw new Error("This widget is too large to save.");
   // A widget drawn as of a day (spec 0013) names that day and nothing else.
   if (v.asOf !== undefined && v.asOf !== null && !(typeof v.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.asOf))) throw new Error("This widget's day is not one.");
+  // Show by (spec 0018): one of the Display Periods or nothing; any other text would draw nothing sensible.
+  if (v.display !== undefined && !isDisplayPeriod(v.display)) throw new Error("A widget is shown by a week, month, quarter, half-year or year.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
   return v;
@@ -169,7 +172,9 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   if (newSettings) update.settings = newSettings;
   if (patch.template) {
     update.template = patch.template;
-    update.settings = { ...TEMPLATES[patch.template].settings, ...(newSettings ?? {}) };
+    // A widget shown by quarter stays so in another view that draws a series (spec 0018).
+    const keep = SHOWN_BY.includes(patch.template) && cur.settings?.display ? { display: cur.settings.display } : {};
+    update.settings = { ...TEMPLATES[patch.template].settings, ...keep, ...(newSettings ?? {}) };
     // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
     if (patch.template === "canvas") update.settings = { canvasSeed: { template: cur.template, metric_ids: cur.metric_ids, settings: cur.settings }, canvas: null };
     // A composed story starts with one panel: this Metric's change on the previous year, as period bars.

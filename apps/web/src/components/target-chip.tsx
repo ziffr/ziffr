@@ -11,12 +11,12 @@ export const COLOUR_LEGEND = "Green and red say whether a value is on target. Ar
 const LABEL = { below: "Below target", above: "Above target", on: "On target" } as const;
 
 /** A small chip next to a value: on target (green) or below/above it (red); nothing when there is no target. */
-export function TargetChip({ metric, value, className }: { metric: Pick<Metric, "target_min" | "target_max" | "format" | "decimals" | "unit">; value: number | null | undefined; className?: string }) {
+export function TargetChip({ metric, value, className, note }: { metric: Pick<Metric, "target_min" | "target_max" | "format" | "decimals" | "unit">; value: number | null | undefined; className?: string; note?: string | null }) {
   const s = targetStatus(metric, value);
   if (!s) return null;
   return (
     <span
-      title={`${formatValue(metric, value)} against a target of ${targetText(metric)}`}
+      title={`${formatValue(metric, value)} against a target of ${targetText(metric)}${note ? `. ${note}` : ""}`}
       className={cn(
         "inline-flex items-center rounded-full border px-1.5 py-px text-[11px] leading-4 font-medium tracking-normal whitespace-nowrap",
         s === "on" ? "border-[color-mix(in_oklab,var(--color-success)_40%,transparent)] text-[var(--color-success)]" : "border-[color-mix(in_oklab,var(--destructive)_40%,transparent)] text-destructive",

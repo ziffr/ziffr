@@ -63,6 +63,26 @@ describe("dashboards and widgets", () => {
     expect(await widgetsOf(d)).toMatchObject([{ x: 0, y: 4, w: 12, h: 1 }]);
     await expect(updateWidget(w.actor(sara), wid.id, { settings: { note: "x".repeat(300_000) } as never })).rejects.toThrow(/too large/);
   });
+  it("keeps a widget's Display Period, and refuses one that is not (spec 0018)", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const m = await w.metric(sara);
+    const d = await createDashboard(w.actor(sara), "Board");
+    await placeWidget(w.actor(sara), d, { type: "spec", template: "bars", metricIds: [m.id], settings: { window: 8, display: "quarter" } });
+    const [wid] = await widgetsOf(d);
+    expect(wid.settings).toMatchObject({ window: 8, display: "quarter" });
+    await updateWidget(w.actor(sara), wid.id, { settings: { ...wid.settings, display: "year" } });
+    expect((await widgetsOf(d))[0].settings.display).toBe("year");
+    // Another view that draws a series keeps it; a gauge does not.
+    await updateWidget(w.actor(sara), wid.id, { template: "line" });
+    expect((await widgetsOf(d))[0].settings.display).toBe("year");
+    await updateWidget(w.actor(sara), wid.id, { template: "gauge" });
+    expect((await widgetsOf(d))[0].settings.display).toBeUndefined();
+    await updateWidget(w.actor(sara), wid.id, { template: "bars", settings: { display: "year" } });
+    await expect(updateWidget(w.actor(sara), wid.id, { settings: { display: "fortnight" } as never })).rejects.toThrow(/shown by/);
+    // Saved to the Pool and placed again, it keeps the setting.
+    await saveToPool(w.actor(sara), { type: "widget", id: wid.id }, "Quarterly");
+    const { data: saved } = await db().from("widgets").select("settings").eq("workspace_id", w.id).eq("saved", true).single();
+    expect(saved!.settings.display).toBe("year");
+  });
   it("keeps saved widgets their owner's", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const gus = await w.person("guest");
     const m = await w.metric(sara);

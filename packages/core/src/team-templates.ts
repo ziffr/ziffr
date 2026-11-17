@@ -121,7 +121,7 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
 
   // Only what a template means to carry: no free-layout documents, no comparison choices of the original.
   const settings: WidgetSettings = {
-    window: s.window, showTarget: s.showTarget, showForecast: s.showForecast, rows: s.rows, fullPeriods: s.fullPeriods,
+    window: s.window, display: s.display, showTarget: s.showTarget, showForecast: s.showForecast, rows: s.rows, fullPeriods: s.fullPeriods,
     kicker: p(s.kicker), headline: p(s.headline), subline: p(s.subline), footnote: p(s.footnote), source: p(s.source),
     highlight: null, period: null,
     ...(s.callouts ? { callouts } : {}),

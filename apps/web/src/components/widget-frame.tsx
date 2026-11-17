@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Check, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { CalendarRange, Check, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -34,6 +34,7 @@ import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { Preview, TemplatePreview } from "./preview";
 import { periodLabel } from "@ziffr/core/periods";
+import { combines, DISPLAY_LABEL, displayPeriodsFor, NOT_COMBINED, SHOWN_BY, type DisplayPeriod } from "@ziffr/core/display-periods";
 
 export type { FrameWidget } from "./read-only-frame";
 
@@ -108,6 +109,12 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const [look, setLook] = useState<{ kind: "builtin"; id: TemplateId } | { kind: "team"; t: WidgetTemplate } | null>(null);
   const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
   const setCompare = (keys: CompareKey[]) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, compare: keys } }));
+  const setDisplay = (display: DisplayPeriod | undefined) => {
+    if (!widget.id) return;
+    const { display: _old, ...rest } = widget.settings;
+    void _old;
+    start(() => updateWidget(widget.id!, { settings: display ? { ...rest, display } : rest }));
+  };
   const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
 
   // One item list, rendered both as right-click menu and ⋯ menu.
@@ -176,6 +183,23 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             <K.Item onClick={() => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, fullPeriods: !widget.settings.fullPeriods } }))}>
               <Check aria-hidden className={widget.settings.fullPeriods ? "" : "invisible"} /> Full periods instead of to date
             </K.Item>
+          </K.SubContent>
+        </K.Sub>
+      )}
+      {m && SHOWN_BY.includes(widget.template) && editable && widget.id && displayPeriodsFor(m.period).length > 0 && (
+        <K.Sub>
+          <K.SubTrigger><CalendarRange /> Show by</K.SubTrigger>
+          <K.SubContent className="max-w-72">
+            <K.Item onClick={() => setDisplay(undefined)}>
+              <Check aria-hidden className={!widget.settings.display ? "" : "invisible"} /> {DISPLAY_LABEL[m.period]} (its own)
+            </K.Item>
+            {displayPeriodsFor(m.period).map((d) => (
+              <K.Item key={d} disabled={!combines(m)} onClick={() => setDisplay(d)}>
+                <Check aria-hidden className={widget.settings.display === d ? "" : "invisible"} /> {DISPLAY_LABEL[d]}
+              </K.Item>
+            ))}
+            {/* A rate cannot be added up: say why, and where its Aggregation is changed. */}
+            {!combines(m) && <p className="px-2 py-1.5 text-xs text-muted-foreground">{NOT_COMBINED} Change it under Edit details on the Metric&apos;s page.</p>}
           </K.SubContent>
         </K.Sub>
       )}
