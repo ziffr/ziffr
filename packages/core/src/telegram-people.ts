@@ -133,6 +133,17 @@ export async function formTelegramLink(formCode: string): Promise<{ linked: bool
   return { linked: Boolean(data), telegramOn };
 }
 
+/** Whether the actor stopped Prompts and reminders on Telegram in their workspace (with the button under one). */
+export async function telegramOptedOut(actor: Actor): Promise<boolean> {
+  const { data } = await db().from("telegram_opt_outs").select("person_id").eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
+  return Boolean(data);
+}
+
+/** The actor gets Prompts and reminders on Telegram again in their workspace. Only they can: it was their choice. */
+export async function telegramOptBackIn(actor: Actor): Promise<void> {
+  await db().from("telegram_opt_outs").delete().eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
+}
+
 /** Forgets the actor's Telegram link in their workspace. */
 export async function unlinkTelegram(actor: Actor): Promise<void> {
   await db().from("telegram_links").delete().eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);

@@ -2,11 +2,16 @@
 // to the webhook with the secret only it and Ziffr know (or polling fetches them on a laptop). Each update is claimed
 // by its update_id before anything else, so a retry changes nothing. Here: linking with /start, /stop, the bot being
 // blocked, and replies: a reply to a sent Delivery, from the Telegram account that Delivery's recipient connected,
-// within 30 days, goes the way an email or Slack reply goes (reply-routing.ts). Button presses follow in their ticket.
+// within 30 days, goes the way an email or Slack reply goes (reply-routing.ts); and the Approve and Stop buttons, taken
+// only from that recipient on that very message.
 import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
+import { tellOwnersOfStop } from "./email-opt-out";
+import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
+import { TELEGRAM_BUTTONS } from "./telegram-send";
+import { approve } from "./workflow-engine";
 import { callTelegram, telegramEnabled, telegramPolling, telegramWebhookSecret } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
@@ -23,7 +28,8 @@ const REPLY_DAYS = 30;
 /** What became of an update; only this name is kept. */
 export type TelegramOutcome =
   | "linked" | "refused" | "unlinked" | "blocked" | "hint" | "duplicate" | "too_many" | "ignored"
-  | "recorded" | "form_link" | "replied" | "corrected" | "empty" | "unknown_message" | "expired" | "wrong_user";
+  | "recorded" | "form_link" | "replied" | "corrected" | "empty" | "unknown_message" | "expired" | "wrong_user"
+  | "approved" | "stopped";
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {});
@@ -75,6 +81,7 @@ const none = (outcome: TelegramOutcome): Handled => ({ outcome, workspaceId: nul
 
 async function handle(u: Obj, userId: number | null, effects: { submission?: SubmissionEffects }): Promise<Handled> {
   if (!userId) return none("ignored");
+  if (u.callback_query) return pressed(obj(u.callback_query), userId);
   // Blocked (or unblocked) in a private chat: blocking ends every link of that account.
   if (u.my_chat_member) {
     const m = obj(u.my_chat_member);
@@ -144,6 +151,61 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
 }
 
 const from = (msg: Obj) => obj(msg.from);
+
+/** Answers a button press, so Telegram stops showing it as pending; the text shows as a short notice. */
+async function answerPress(id: string, text?: string) {
+  try {
+    await callTelegram("answerCallbackQuery", { callback_query_id: id, ...(text ? { text: text.slice(0, 200) } : {}) });
+  } catch {
+    // The press was handled; only its notice is lost.
+  }
+}
+
+/** A button press: taken only for a Ziffr button, on the very message a Delivery was sent as, pressed by the
+ * account that Delivery's recipient connected (still a member or Contact there), while the workspace has Telegram
+ * on and within 30 days. Telegram vouches for who pressed it, as Slack does: an Approval is taken here. */
+async function pressed(cq: Obj, userId: number): Promise<Handled> {
+  const pressId = str(cq.id);
+  if (!pressId || pressId.length > 100) return none("ignored");
+  const m = /^([as]):(\d{1,15})$/.exec(str(cq.data));
+  const message = obj(cq.message);
+  const chatId = obj(message.chat).id;
+  const messageId = message.message_id;
+  if (!m || !isTelegramId(chatId) || typeof messageId !== "number" || !Number.isSafeInteger(messageId)) {
+    await answerPress(pressId);
+    return none("ignored");
+  }
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, created_at")
+    .eq("id", Number(m[2])).eq("connector", "telegram").eq("telegram_chat_id", chatId).eq("telegram_message_id", messageId).maybeSingle();
+  if (!d) {
+    await answerPress(pressId);
+    return none("unknown_message");
+  }
+  const at = async (outcome: TelegramOutcome, notice?: string): Promise<Handled> => {
+    await answerPress(pressId, notice);
+    return { outcome, workspaceId: d.workspace_id as string, deliveryId: d.id as number };
+  };
+  if (!(await telegramOnIn(d.workspace_id))) return at("ignored");
+  if ((await personOfTelegramUser(d.workspace_id, userId)) !== d.recipient_id) return at("wrong_user");
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return at("expired", "This message is too old to act on.");
+  if (m[1] === TELEGRAM_BUTTONS.approve && d.action_id) {
+    // The same path as in Ziffr, which checks the person is this approval's approver and it is still open.
+    try {
+      await approve(d.workspace_id, d.action_id, d.recipient_id);
+      await telegramSay(chatId, "Approved.", messageId);
+      return at("approved", "Approved.");
+    } catch {
+      return at("refused", "This approval is done already.");
+    }
+  }
+  if (m[1] === TELEGRAM_BUTTONS.stop && OPT_OUT_KINDS.includes(d.kind)) {
+    const { data: added } = await db().from("telegram_opt_outs").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id }, { onConflict: "workspace_id,person_id", ignoreDuplicates: true }).select("person_id");
+    if (added?.length) await tellOwnersOfStop(d.workspace_id, d.recipient_id, "on Telegram");
+    await telegramSay(chatId, "Stopped: no more requests for numbers or reminders on Telegram from this workspace. Turn them on again on the Connectors page in Ziffr.", messageId);
+    return at("stopped", "Stopped.");
+  }
+  return at("ignored");
+}
 
 /** One round of polling (ZIFFR_TELEGRAM_POLLING=1, for a laptop): asks Telegram for what came after the last update
  * handled, and handles it. Telegram allows polling only without a webhook, so the first round takes it away. */

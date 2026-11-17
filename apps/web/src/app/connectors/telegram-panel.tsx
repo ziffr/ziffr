@@ -7,11 +7,12 @@ import { toast } from "sonner";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
-import { setTelegram, telegramLinkStart, telegramUnlink } from "@/app/connector-actions";
+import { setTelegram, telegramLinkStart, telegramRemindersAgain, telegramUnlink } from "@/app/connector-actions";
 import type { TelegramConnectionView } from "@ziffr/core/telegram-connection";
 
-/** Turn Telegram on or off, and connect or disconnect your own Telegram. `linked`: whether the viewer is connected. */
-export function TelegramPanel({ connection, linked }: { connection: TelegramConnectionView; linked: boolean }) {
+/** Turn Telegram on or off, and connect or disconnect your own Telegram. `linked`: whether the viewer is connected;
+ * `stopped`: whether they stopped Prompts and reminders on Telegram with the button under one. */
+export function TelegramPanel({ connection, linked, stopped }: { connection: TelegramConnectionView; linked: boolean; stopped: boolean }) {
   const [link, setLink] = useState<{ url: string; minutes: number } | null>(null);
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
@@ -21,6 +22,12 @@ export function TelegramPanel({ connection, linked }: { connection: TelegramConn
     <section aria-labelledby="telegram-h" className="stock mb-12 rounded-[var(--radius-card)] p-4 text-sm">
       {dialog}
       <h2 id="telegram-h" className="flex items-center gap-2 text-[length:var(--text-lg)]"><Send aria-hidden className="size-4" /> Telegram</h2>
+      {stopped && (
+        <p role="status" className="mt-2 flex flex-wrap items-center gap-3">
+          You stopped requests for numbers and reminders on Telegram in this workspace.
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => telegramRemindersAgain(), "You get them on Telegram again")}>Get them on Telegram again</Button>
+        </p>
+      )}
       {!bot ? (
         <p className="mt-2 text-muted-foreground">Telegram does not accept this Ziffr&rsquo;s bot token. Whoever runs Ziffr should check <code>ZIFFR_TELEGRAM_BOT_TOKEN</code>.</p>
       ) : enabled ? (

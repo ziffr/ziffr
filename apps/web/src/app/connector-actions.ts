@@ -37,6 +37,12 @@ export async function telegramFormUnlink(formCode: string) {
   revalidatePath(`/submit/${encodeURIComponent(String(formCode))}`);
 }
 
+/** The person gets Prompts and reminders on Telegram again in this workspace, after stopping them (spec 0016). */
+export async function telegramRemindersAgain() {
+  await telegramPeople.telegramOptBackIn(await currentActor());
+  done();
+}
+
 /** The person forgets their Telegram link in this workspace. */
 export async function telegramUnlink() {
   await telegramPeople.unlinkTelegram(await currentActor());
