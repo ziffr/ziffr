@@ -66,6 +66,11 @@ describe("dashboards over HTTP", () => {
     expect(w).toMatchObject({ view: "line", metrics: [m.slug], x: 0, y: 0 });
     const patched = await patchWidget(req("PATCH", `/dashboards/${d.id}/widgets/${w.id}`, { title: "Money in" }), params({ id: String(d.id), widgetId: String(w.id) }));
     expect((await patched.json()).title).toBe("Money in");
+    // Show by (spec 0018): a Display Period, read back; a period that is none is refused.
+    const byQuarter = await patchWidget(req("PATCH", `/dashboards/${d.id}/widgets/${w.id}`, { settings: { display: "quarter" } }), params({ id: String(d.id), widgetId: String(w.id) }));
+    expect((await byQuarter.json()).display).toBe("quarter");
+    const bad = await patchWidget(req("PATCH", `/dashboards/${d.id}/widgets/${w.id}`, { settings: { display: "fortnight" } }), params({ id: String(d.id), widgetId: String(w.id) }));
+    expect(bad.status).toBe(400);
     for (const body of [{ view: "canvas", metrics: [m.slug] }, { view: "line", metrics: [m.slug], settings: { canvas: {} } }, { metrics: [m.slug], template: 3 }]) {
       const res = await addWidget(req("POST", `/dashboards/${d.id}/widgets`, body), params({ id: String(d.id) }));
       expect(res.status).toBe(400);

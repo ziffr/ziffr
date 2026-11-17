@@ -479,6 +479,7 @@ Creates an empty dashboard owned by the key's creator, with an introduction if g
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
 | `widgets[].words.footnote` | string, at most 500 characters | no |  |
 | `widgets[].words.source` | string, at most 200 characters | no |  |
+| `widgets[].display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -534,6 +535,7 @@ Makes a whole dashboard owned by the key's creator from a Dashboard Template, wi
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
 | `widgets[].words.footnote` | string, at most 500 characters | no |  |
 | `widgets[].words.source` | string, at most 200 characters | no |  |
+| `widgets[].display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -582,6 +584,7 @@ One dashboard with its introduction and its widgets (Findings with their words) 
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
 | `widgets[].words.footnote` | string, at most 500 characters | no |  |
 | `widgets[].words.source` | string, at most 200 characters | no |  |
+| `widgets[].display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -635,6 +638,7 @@ Changes the words above a dashboard: its name, and the introduction shown above 
 | `widgets[].words.subline` | string, at most 200 characters | no |  |
 | `widgets[].words.footnote` | string, at most 500 characters | no |  |
 | `widgets[].words.source` | string, at most 200 characters | no |  |
+| `widgets[].display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -671,6 +675,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 | `settings.showTarget` | boolean | no | Draw the target band. |
 | `settings.showForecast` | boolean | no | Draw a forecast (line). |
 | `settings.rows` | integer, 1 to 50 | no | Rows shown (history table). |
+| `settings.display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` or null | no | Show by: a period longer than the Metric's own, its values combined by its Aggregation (number, line, bars, table, forecast); null for the Metric's own period. Ignored when not longer, or for a Metric whose Aggregation is none. |
 
 **Answer** (201)
 
@@ -690,6 +695,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 | `words.subline` | string, at most 200 characters | no |  |
 | `words.footnote` | string, at most 500 characters | no |  |
 | `words.source` | string, at most 200 characters | no |  |
+| `display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -726,6 +732,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 | `settings.showTarget` | boolean | no | Draw the target band. |
 | `settings.showForecast` | boolean | no | Draw a forecast (line). |
 | `settings.rows` | integer, 1 to 50 | no | Rows shown (history table). |
+| `settings.display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` or null | no | Show by: a period longer than the Metric's own, its values combined by its Aggregation (number, line, bars, table, forecast); null for the Metric's own period. Ignored when not longer, or for a Metric whose Aggregation is none. |
 
 **Answer** (200)
 
@@ -745,6 +752,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 | `words.subline` | string, at most 200 characters | no |  |
 | `words.footnote` | string, at most 500 characters | no |  |
 | `words.source` | string, at most 200 characters | no |  |
+| `display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -825,6 +833,7 @@ Adds a Finding about one Metric below everything on a dashboard, full width, wit
 | `words.subline` | string, at most 200 characters | no |  |
 | `words.footnote` | string, at most 500 characters | no |  |
 | `words.source` | string, at most 200 characters | no |  |
+| `display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 
@@ -877,6 +886,7 @@ Changes a Finding's kicker, headline, subline, footnote or source. An empty text
 | `words.subline` | string, at most 200 characters | no |  |
 | `words.footnote` | string, at most 500 characters | no |  |
 | `words.source` | string, at most 200 characters | no |  |
+| `display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
 
 **Errors**
 

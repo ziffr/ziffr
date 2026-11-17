@@ -41,7 +41,7 @@ Restart the assistant, then ask it, for example, "What was revenue in March?", "
 | `list_dashboards`, `get_dashboard` | The dashboards the key's creator sees, with their widgets and the Metrics they draw (needs "Read dashboards") |
 | `list_templates` | Built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots |
 | `create_dashboard_from_template` | A whole dashboard from a Dashboard Template in one call, one Metric per Slot (needs "Build dashboards") |
-| `create_dashboard`, `add_widget`, `update_widget`, `remove_widget` | An empty dashboard with an introduction if given, and its widgets, placed in the first free spot |
+| `create_dashboard`, `add_widget`, `update_widget`, `remove_widget` | An empty dashboard with an introduction if given, and its widgets, placed in the first free spot; a widget can show its Metric by quarter, half-year or year (`settings.display`) |
 | `update_dashboard`, `add_finding`, `update_finding` | A dashboard's name and introduction, and Findings with their words below everything on it, as a draft for you to finish |
 
 Each Metric is also a read-only resource, `ziffr://metrics/{slug}`, that you can attach to a conversation so the assistant has its values in context.

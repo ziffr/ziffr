@@ -116,6 +116,21 @@ describe("building a dashboard", () => {
     await expect(updateWidgetWithKey(key, mine.id, layout.id, { title: "x" })).rejects.toEqual(unusable);
     await expect(removeWidgetWithKey(key, mine.id, layout.id)).rejects.toEqual(unusable);
   });
+  it("shows a widget by a Display Period, reads it back and clears it with null (spec 0018)", async () => {
+    const w = await ws(); const ben = await w.person("member"); const m = await w.metric(ben);
+    const { key } = await keyFor(w, ben);
+    const d = await createDashboardWithKey(key, { name: "Board" });
+    const a = await addWidgetWithKey(key, d.id, { view: "bars", metrics: [m.slug], settings: { window: 8, display: "quarter" } });
+    expect(a).toMatchObject({ view: "bars", display: "quarter" });
+    expect((await getDashboardWithKey(key, d.id)).widgets[0].display).toBe("quarter");
+    // Changing another setting keeps it; null goes back to the Metric's own period.
+    await updateWidgetWithKey(key, d.id, a.id, { settings: { window: 4 } });
+    expect((await getDashboardWithKey(key, d.id)).widgets[0].display).toBe("quarter");
+    const cleared = await updateWidgetWithKey(key, d.id, a.id, { settings: { display: null } });
+    expect(cleared.display).toBeUndefined();
+    const { data: stored } = await db().from("widgets").select("settings").eq("id", a.id).single();
+    expect(stored!.settings.display).toBeUndefined();
+  });
   it("answers widgets without their settings", async () => {
     const w = await ws(); const ben = await w.person("member"); const m = await w.metric(ben);
     const { key } = await keyFor(w, ben);

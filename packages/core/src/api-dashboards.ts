@@ -4,6 +4,7 @@
 // while the creator's role may create. A key never shares, deletes, publishes a View Link, picks a theme, moves widgets
 // to exact places, edits a Free Layout or saves a template: who sees what stays a decision people make. Every change
 // it makes is a Version that names the key, so the owner can see it and restore what came before.
+import { isDisplayPeriod, type DisplayPeriod } from "./display-periods";
 import { assertCan, assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { visibleDashboards, visibleMetricIds } from "./access";
 import { audit } from "./audit-log";
@@ -33,7 +34,7 @@ export class Unusable extends Error {
 export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => TEMPLATES[id].kind !== "layout" && id !== "story");
 
 /** The few settings a key may set; anything else a widget can hold stays with the editor. */
-export type KeySettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number };
+export type KeySettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number; display?: DisplayPeriod | null };
 
 /** A Finding's words, as plain text; Placeholders such as {metric} or {change yoy} are filled in when it is drawn. An
  * empty text falls back to words drawn from the data. */
@@ -46,7 +47,7 @@ export type ApiDashboardSummary = { id: number; name: string; role: "owner" | "e
 
 /** One widget as a program sees it: what it shows, never its settings (which can hold a Free Layout's drawing and
  * are not needed to decide what to change) and never values (read those per Metric). */
-export type ApiWidget = { id: number; view: TemplateId; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords };
+export type ApiWidget = { id: number; view: TemplateId; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; display?: DisplayPeriod };
 
 /** A dashboard with its introduction and its widgets, in reading order. */
 export type ApiDashboard = ApiDashboardSummary & { intro: string; widgets: ApiWidget[] };
@@ -124,6 +125,9 @@ function keySettings(s: KeySettings | undefined): WidgetSettings {
   if (typeof s.showTarget === "boolean") out.showTarget = s.showTarget;
   if (typeof s.showForecast === "boolean") out.showForecast = s.showForecast;
   if (Number.isInteger(s.rows)) out.rows = Math.max(1, Math.min(50, s.rows!));
+  // Show by (spec 0018): a Display Period, or null for the Metric's own period (an absent key leaves it as it is).
+  if (isDisplayPeriod(s.display)) out.display = s.display;
+  else if (s.display === null) out.display = undefined;
   return out;
 }
 
@@ -168,6 +172,8 @@ async function asSeen(actor: Pick<Actor, "workspaceId" | "personId">, id: number
     id: w.id, view: w.template, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
     metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => byId.get(m)?.slug).filter((s): s is string => Boolean(s)),
     ...(isFinding(w) ? { words: wordsOf(w.settings ?? {}) } : {}),
+    // The one setting that changes which numbers a widget shows, so a program can tell quarters from months.
+    ...(isDisplayPeriod(w.settings?.display) ? { display: w.settings.display } : {}),
   }));
   return { ...summary(d), intro: d.intro ?? "", widgets };
 }

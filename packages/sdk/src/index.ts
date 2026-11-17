@@ -96,7 +96,7 @@ export type DashboardSummary = { id: number; name: string; role: "owner" | "edit
 export type FindingWords = { kicker?: string; headline?: string; subline?: string; footnote?: string; source?: string };
 
 /** One widget: its view, the slugs of the Metrics it draws and where it sits; a Finding has its words too. */
-export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords };
+export type Widget = { id: number; view: string; title: string | null; metrics: string[]; x: number; y: number; w: number; h: number; words?: FindingWords; display?: DisplayPeriod };
 
 /** A dashboard with its introduction and its widgets in reading order. */
 export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
@@ -105,7 +105,14 @@ export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
 export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
 
 /** The few widget settings a key may set. */
-export type WidgetSettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number };
+export type WidgetSettings = {
+  window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number;
+  /** Show by: a period longer than the Metric's own, its values combined by its Aggregation; null for its own. */
+  display?: DisplayPeriod | null;
+};
+
+/** A period a widget can show a Metric by (GLOSSARY: Display Period). */
+export type DisplayPeriod = "week" | "month" | "quarter" | "half" | "year";
 
 /** What adding a widget sends: a view with Metrics, or a team Widget Template with Metric slugs per Slot. */
 export type NewWidget =
