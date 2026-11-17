@@ -1,6 +1,6 @@
 # 0019 Analyses across periods
 
-**Status:** in progress. **Tracking issue:** #51 (label `tracking`); tickets #52 to #54 carry `spec:0019`.
+**Status:** done. **Tracking issue:** #51 (label `tracking`); tickets #52 to #54 carry `spec:0019`.
 
 ## Problem Statement
 

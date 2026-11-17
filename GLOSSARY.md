@@ -216,6 +216,10 @@ _Avoid_: Workbench, lab, playground
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget.
 _Avoid_: Stats, model, insight
 
+**Common Period**:
+The period two Metrics are compared on in an Analysis: the longer of their own periods, the shorter Metric combined to it by its Aggregation ("compared by month"). A Metric whose Aggregation is none has no Common Period with Metrics of another period.
+_Avoid_: Shared grain, joint period
+
 **Recipe**:
 A ready-made analysis setup that runs with one click, e.g. "What drives Cost?"
 _Avoid_: Preset analysis, template

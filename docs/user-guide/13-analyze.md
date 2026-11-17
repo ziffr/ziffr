@@ -76,7 +76,7 @@ Only periods where both Metrics have a value count, and at least six are needed.
 
 ### Metrics counted at different periods
 
-Two Metrics counted at different periods, such as weekly support tickets and monthly churn, are compared on the longer of the two. The shorter one is combined by its **Aggregation** (see [Metrics](10-metrics.md)): weekly tickets are added up to monthly tickets, an average is averaged, a last value is taken from the period's last week. A daily Metric against a weekly one is compared by week, and so on.
+Two Metrics counted at different periods, such as weekly support tickets and monthly churn, are compared on the longer of the two, their **Common Period**. The shorter one is combined by its **Aggregation** (see [Metrics](10-metrics.md)): weekly tickets are added up to monthly tickets, an average is averaged, a last value is taken from the period's last week. A daily Metric against a weekly one is compared by week, and so on.
 
 - Only complete periods count. The month still running is left out, as it would compare part of a month with whole ones.
 - The result says so under the sentence: "Compared by month (18 months)". Nothing is added when both are counted at the same period.
