@@ -249,7 +249,7 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and it is deleted a set number of days after it was made. On such an Installation every Workspace is one.
+A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and it is deleted a set number of days after it was made. On such an Installation every Workspace is one. It starts with made-up Metrics and values of its own, so its dashboard shows something at once; unlike Sample Data, they are the workspace's and can be changed.
 _Avoid_: Sandbox, test workspace, free trial
 
 **Installation**:
