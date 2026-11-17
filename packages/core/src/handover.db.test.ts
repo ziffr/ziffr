@@ -11,8 +11,8 @@ import { saveWorkflow } from "./workflows";
 import { ask } from "./questions";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { listVersions } from "./version-history";
-import { periodStart } from "./format";
 import { workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -32,7 +32,7 @@ describe("handover when someone leaves", () => {
     await createGroup(w.actor(sara), "Ops");
     const { data: g } = await db().from("groups").select("id").eq("workspace_id", w.id).eq("name", "Ops").single();
     await setGroupMember(w.actor(sara), g!.id, ben, true);
-    const task = await ask(w.actor(sara), { metricId: other.id, period: periodStart(new Date(), "month"), assigneeId: ben, text: "Please check", kind: "task" });
+    const task = await ask(w.actor(sara), { metricId: other.id, period: periodStart(new Date(), "month", JANUARY), assigneeId: ben, text: "Please check", kind: "task" });
     const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Ben's script", scopes: ["metrics:read"], expiresOn: inDays(30) });
 
     await removeMember(w.actor(sara), ben, ann);
@@ -76,7 +76,7 @@ describe("after the review of #17", () => {
     const m = await w.metric(ben); const d = await createDashboard(w.actor(ben, "member"), "Ben's");
     const { createViewLink, openViewLink } = await import("./view-links");
     const token = await createViewLink(w.actor(ben, "member"), "dashboard", d, { label: "", expires: inDays(5), frozen: false });
-    const asked = await ask(w.actor(ben, "member"), { metricId: m.id, period: periodStart(new Date(), "month"), assigneeId: cy, text: "Why?" });
+    const asked = await ask(w.actor(ben, "member"), { metricId: m.id, period: periodStart(new Date(), "month", JANUARY), assigneeId: cy, text: "Why?" });
     const { createInviteLink } = await import("./invitations");
     const link = await createInviteLink(w.actor(sara), "member");
 

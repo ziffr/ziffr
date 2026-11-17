@@ -2,8 +2,9 @@
 // so a headline written once stays true next month and works for any metric a template is used with.
 // Pure: no server or React code.
 import { compare, resolverFrom, targetFor } from "./compare";
-import { compactValue, periodLabel } from "./format";
+import { compactValue } from "./format";
 import type { CanvasData, Metric, Widget, WidgetSettings } from "./types";
+import { JANUARY, periodLabel } from "./periods";
 
 /** The Placeholders a story's words can use, with what each one becomes. */
 export const PLACEHOLDERS = [
@@ -30,11 +31,11 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
   const last = pts[pts.length - 1];
   switch (key) {
     case "metric": return m.name;
-    case "period": return last ? periodLabel(last.period, m.period) : undefined;
+    case "period": return last ? periodLabel(last.period, m.period, JANUARY) : undefined;
     case "latest": return last ? compactValue(m, last.value) : undefined;
     case "change yoy":
     case "change prev": {
-      const c = compare(m, resolverFrom(data.metrics, data.series), { keys: [key === "change yoy" ? "yoy" : "prev"] })[0];
+      const c = compare(m, resolverFrom(data.metrics, data.series), { yearStart: JANUARY, keys: [key === "change yoy" ? "yoy" : "prev"] })[0];
       if (!c?.available || c.pct === null || c.pct === undefined) return undefined;
       return `${c.pct > 0 ? "up" : c.pct < 0 ? "down" : "flat at"} ${Math.abs(c.pct).toFixed(1)} %`;
     }

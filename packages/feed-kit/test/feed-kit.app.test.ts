@@ -2,7 +2,7 @@
 // nothing, a second run records nothing new, and a backfill fills the empty periods before the current one.
 import { afterEach, describe, expect, it } from "vitest";
 import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
-import { periodStart } from "@ziffr/core/format";
+import { JANUARY, periodStart } from "@ziffr/core/periods";
 import { valuesOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { defineFeed, runFeed, shiftPeriod } from "../src/index";
 
@@ -19,7 +19,7 @@ describe("@ziffr/feed-kit against the app", () => {
     const { id: feedId } = await createFeed(w.actor(sara), "CRM");
     await addFeedToMetric(w.actor(sara), m.id, feedId);
     const { secret } = await createFeedKey(w.actor(sara), feedId, { name: "Runner", expiresOn: inDays(30) });
-    const current = periodStart(new Date(), "month");
+    const current = periodStart(new Date(), "month", JANUARY);
     await w.value(m.id, shiftPeriod(current, "month", -2), 1, sara);
     const feed = defineFeed({ name: "CRM", metrics: { [m.slug]: { fetch: ({ period }) => Number(period.slice(5, 7)) } } });
     const options = { url: URL, feedKey: secret, backfill: 4 };

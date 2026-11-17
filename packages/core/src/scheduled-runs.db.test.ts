@@ -7,7 +7,8 @@ import { claimDay, runDueWorkspaces, runWorkspaceIfDue } from "./scheduled-runs"
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
-import { dueDate, shiftPeriod } from "./workflow-rules";
+import { dueDate } from "./workflow-rules";
+import { shiftPeriod } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); vi.restoreAllMocks(); });

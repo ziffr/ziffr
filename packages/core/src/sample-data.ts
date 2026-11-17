@@ -1,7 +1,7 @@
 // GLOSSARY: Sample Data. Made-up Metrics that a Preview of a Widget Template draws, because a template has no
 // metrics of its own. Never a workspace's data: built here from a fixed seed, so every viewer, every test and every
 // render sees the same numbers, and a Preview needs no Share check and fetches nothing (spec 0011).
-import { addDays, addMonths, addWeeks, formatISO } from "date-fns";
+import { shiftPeriod } from "./periods";
 import { fromDashboardTemplate, fromTemplate } from "./team-templates";
 import { TEMPLATES } from "./widget-templates";
 import type { BreakdownRow, CanvasData, DashboardTemplateBody, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
@@ -11,7 +11,7 @@ export const SAMPLE_OWNER = "sample";
 /** How many periods each sample series has. */
 export const SAMPLE_PERIODS = 24;
 // The last period drawn. Fixed rather than "now", so a Preview never changes from one day to the next.
-const LAST = new Date(Date.UTC(2026, 5, 1));
+const LAST = "2026-06-01";
 
 type Shape = { slug: string; desc: Omit<MetricDescription, "period" | "sources" | "submission_rule" | "description" | "aggregation">; start: number; growth: number; noise: number; target?: number; breakdown?: string[] };
 
@@ -37,12 +37,9 @@ function seeded(seed: number) {
   };
 }
 
-const step = { month: addMonths, week: addWeeks, day: addDays } as const;
-const day = (d: Date) => formatISO(d, { representation: "date" });
-
 /** The periods a sample series covers, oldest first, as yyyy-mm-dd. */
 export function samplePeriods(period: Period = "month"): string[] {
-  return Array.from({ length: SAMPLE_PERIODS }, (_, i) => day(step[period](LAST, i - (SAMPLE_PERIODS - 1))));
+  return Array.from({ length: SAMPLE_PERIODS }, (_, i) => shiftPeriod(LAST, period, i - (SAMPLE_PERIODS - 1)));
 }
 
 /** The parts of a canvas's data that Sample Data fills. */
@@ -82,7 +79,7 @@ export function sampleData(period: Period = "month"): SampleData {
     out.series[metric.slug] = periods.map((p, k): Point => ({ period: p, value: round(values[k]) }));
     if (s.target) out.targets[id] = periods.map((p, k): Point => ({ period: p, value: round(s.start * s.target! ** k * (1 + s.growth / 2) ** k) }));
     // Three periods ahead, continuing the trend: what a Projection looks like.
-    const ahead = Array.from({ length: 3 }, (_, k) => day(step[period](LAST, k + 1)));
+    const ahead = Array.from({ length: 3 }, (_, k) => shiftPeriod(LAST, period, k + 1));
     out.projections[id] = ahead.map((p, k): Point => ({ period: p, value: round(values[values.length - 1] * (1 + s.growth) ** (k + 1)) }));
     if (s.breakdown) {
       const weights = [0.34, 0.24, 0.18, 0.14, 0.1];

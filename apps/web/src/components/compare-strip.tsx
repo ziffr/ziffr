@@ -2,6 +2,7 @@
 // The comparison strip under a widget (GLOSSARY: Comparison, Attainment): one engine, one look everywhere.
 import { compactValue, formatValue } from "@ziffr/core/format";
 import { COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
+import { JANUARY } from "@ziffr/core/periods";
 import type { CanvasData, Metric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { COLOUR_LEGEND } from "./target-chip";
@@ -15,7 +16,7 @@ const arrow = (n: number) => (n > 0 ? "↗ " : n < 0 ? "↘ " : "→ ");
 /** The attainment and comparisons under a widget's value. */
 export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { metric: Metric; data: CanvasData; keys?: CompareKey[]; full?: boolean }) {
   if (!keys.length) return null;
-  const s = summary(metric, resolverFrom(data.metrics, data.series), data.targets[metric.id], { keys, full });
+  const s = summary(metric, resolverFrom(data.metrics, data.series), data.targets[metric.id], { keys, full, yearStart: JANUARY });
   if (s.value === undefined) return null;
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-border pt-1.5 text-[11px] leading-snug text-muted-foreground">

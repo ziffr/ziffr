@@ -9,13 +9,13 @@ import { FEED_SCOPE, Forbidden, type Actor, type FeedActor } from "./actor";
 import { hash } from "./access-keys";
 import { REFUSED } from "./api-submissions";
 import { audit } from "./audit-log";
-import { periodStart } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { editableMetric } from "./metrics";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { recordVersion } from "./versions";
 import type { Metric, Period } from "./types";
+import { JANUARY, periodStart } from "./periods";
 
 /** Values one Feed may record in any 24 hours, across all its keys. */
 export const FEED_VALUES_PER_DAY = 10_000;
@@ -241,7 +241,7 @@ export async function feedOverview(feed: FeedActor, page: { after?: number | nul
     const { data: obs } = await db().from("observations").select("period_start").eq("workspace_id", feed.workspaceId).eq("metric_id", m.id).order("period_start", { ascending: false }).limit(FEED_FILLED_MAX * 2);
     const filled = [...new Set((obs ?? []).map((o) => o.period_start as string))].slice(0, FEED_FILLED_MAX).reverse();
     const d = workflowId !== null ? due.get(workflowId) : undefined;
-    out.push({ slug: m.slug, name: m.name, period: m.period, unit: m.unit, format: m.format, decimals: m.decimals, current: periodStart(new Date(), m.period), due_working_days: Number.isFinite(d) ? (d as number) : null, filled });
+    out.push({ slug: m.slug, name: m.name, period: m.period, unit: m.unit, format: m.format, decimals: m.decimals, current: periodStart(new Date(), m.period, JANUARY), due_working_days: Number.isFinite(d) ? (d as number) : null, filled });
   }
   return { name: f.name, metrics: { items: out, next: rest.length > limit ? items[items.length - 1].metric.id : null } };
 }
@@ -307,7 +307,7 @@ export async function submitFeedObservations(feed: FeedActor, items: FeedItem[],
     if (!target) { results.push({ metric: slug, period: named, status: "refused", code: "not_found", detail: "This Feed does not submit values to that Metric." }); continue; }
     const value = Number(raw.value);
     const breakdown = (Array.isArray(raw.breakdown) ? raw.breakdown : []).slice(0, 500).map((r) => ({ label: String(r?.label ?? "").slice(0, 200), value: Number(r?.value) }));
-    const period = named ?? periodStart(new Date(), target.metric.period);
+    const period = named ?? periodStart(new Date(), target.metric.period, JANUARY);
     const r = await submitValue({
       source: "api", sender: target.token, workspaceId: feed.workspaceId, accessKeyId: Number(feed.key.id), import: true,
       text: JSON.stringify({ value, period, breakdown: breakdown.length ? breakdown : undefined }).slice(0, 4000),

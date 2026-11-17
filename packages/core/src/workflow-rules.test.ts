@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { addWorkingDays, dueDate, periodEnd, unusualReasons, workingPeriod } from "./workflow-rules";
-import { periodStart } from "./format";
+import { addWorkingDays, dueDate, unusualReasons, workingPeriod } from "./workflow-rules";
 import { metric } from "./test/fixtures";
+import { JANUARY, periodEnd } from "./periods";
 
 describe("workflow rules", () => {
   it("skips weekends when counting working days", () => {
@@ -13,12 +13,12 @@ describe("workflow rules", () => {
     expect(dueDate("2026-10-01", "month", { dueWorkingDays: 3, steps: [] })).toBe("2026-11-04");
   });
   it("works on the last period that has ended", () => {
-    expect(workingPeriod("2026-11-13", "month", periodStart)).toBe("2026-10-01");
+    expect(workingPeriod("2026-11-13", "month", JANUARY)).toBe("2026-10-01");
   });
   it("calls a value unusual for a big change or a missed target, and says why", () => {
     const step = { type: "check" as const, changePct: 30, outsideTarget: true };
-    expect(unusualReasons(metric(), 150, 100, "2026-09-01", step, { min: 100, max: null })).toEqual(["up 50.0 % on September 2026"]);
-    expect(unusualReasons(metric(), 90, 95, "2026-09-01", step, { min: 100, max: null })).toEqual(["below target"]);
-    expect(unusualReasons(metric(), 101, 100, "2026-09-01", step, { min: 100, max: null })).toEqual([]);
+    expect(unusualReasons(metric(), 150, 100, "2026-09-01", step, JANUARY, { min: 100, max: null })).toEqual(["up 50.0 % on September 2026"]);
+    expect(unusualReasons(metric(), 90, 95, "2026-09-01", step, JANUARY, { min: 100, max: null })).toEqual(["below target"]);
+    expect(unusualReasons(metric(), 101, 100, "2026-09-01", step, JANUARY, { min: 100, max: null })).toEqual([]);
   });
 });

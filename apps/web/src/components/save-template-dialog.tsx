@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSlideLayout, saveTemplate } from "@/app/template-actions";
 import { RULES_FOR, slideSpecifics, specifics, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
-import { periodLabel } from "@ziffr/core/format";
 import type { CanvasData, Period, Slot, SlideShape, Widget } from "@ziffr/core/types";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 type Submit = { name: string; description: string; labels: string[]; choices: Choices; replaceId: number | null };
 
@@ -128,7 +128,7 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
               <ul className="space-y-1.5">
                 {items.map((x) => (
                   <li key={x.key} className="grid grid-cols-[minmax(0,1fr)_11rem] items-center gap-2">
-                    <span className="truncate" title={x.text}>“{x.text}” <span className="text-xs text-muted-foreground">at {x.kind === "period" ? periodLabel(x.at, grain, true) : x.at}</span></span>
+                    <span className="truncate" title={x.text}>“{x.text}” <span className="text-xs text-muted-foreground">at {x.kind === "period" ? periodLabel(x.at, grain, JANUARY, true) : x.at}</span></span>
                     <select aria-label={`Rule for ${x.text}`} value={choices[x.key]} onChange={(e) => setChoices({ ...choices, [x.key]: e.target.value as Choices[string] })} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
                       {RULES_FOR[x.kind].map((r) => <option key={r.rule} value={r.rule}>{r.label}</option>)}
                       <option value="drop">Leave out</option>

@@ -12,11 +12,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
-import { formatDate, periodLabel, periodStart } from "@ziffr/core/format";
+import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { DemoControls } from "@/components/demo-controls";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
 const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
@@ -118,13 +119,13 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
               <h2 className="text-sm font-semibold">Metrics on it</h2>
               <ul className="mt-2 space-y-2">
                 {onIt.map((m) => {
-                  const period = workingPeriod(day, m.period, periodStart);
+                  const period = workingPeriod(day, m.period, JANUARY);
                   const st = states.find((s) => s.metric_id === m.id && s.period_start === period);
                   const toks = tokens.filter((t) => t.metric_id === m.id);
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
                       <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
-                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
+                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, JANUARY)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
                       </div>

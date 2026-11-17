@@ -1,6 +1,7 @@
-// Formatting values and periods the way Ziffr shows them everywhere (GLOSSARY: Metric, Period, Submission Rule).
-import { format as fmtDate, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
-import type { Metric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
+// Formatting values and dates the way Ziffr shows them everywhere (GLOSSARY: Metric, Submission Rule). Periods are
+// named in periods.ts.
+import { format as fmtDate, parseISO } from "date-fns";
+import type { Metric, MetricDescription, Polarity, SourceId, SubmissionRule } from "./types";
 
 /** A value in its metric's format, unit and decimals; a dash when there is none. */
 export function formatValue(m: Pick<MetricDescription, "format" | "decimals" | "unit">, v: number | null | undefined) {
@@ -20,28 +21,11 @@ export function compactValue(m: Pick<MetricDescription, "format" | "decimals" | 
   return formatValue(m, v);
 }
 
-/** The first day of the period a date falls in, as yyyy-mm-dd. */
-export function periodStart(date: Date, period: Period): string {
-  const d = period === "month" ? startOfMonth(date) : period === "week" ? startOfISOWeek(date) : date;
-  return fmtDate(d, "yyyy-MM-dd");
-}
-
-/** A period's name, long (October 2026) or short (Oct 26). */
-export function periodLabel(p: string, period: Period, short = false) {
-  const d = parseISO(p);
-  if (period === "month") return fmtDate(d, short ? "MMM yy" : "MMMM yyyy");
-  if (period === "week") return `Week of ${fmtDate(d, "d MMM yyyy")}`;
-  return fmtDate(d, short ? "d MMM" : "EEE d MMM yyyy");
-}
-
 /** A calendar day the one way Ziffr writes it, e.g. "4 Nov 2026", from yyyy-mm-dd, a timestamp or a Date. */
 export function formatDate(d: string | Date) {
   const date = typeof d === "string" ? (/^\d{4}-\d{2}-\d{2}$/.test(d) ? parseISO(d) : new Date(d)) : d;
   return Number.isNaN(date.getTime()) ? "–" : fmtDate(date, "d MMM yyyy");
 }
-
-/** How each period length is named. */
-export const PERIOD_LABEL: Record<Period, string> = { day: "Daily", week: "Weekly", month: "Monthly" };
 
 /** How each Submission Rule is described. */
 export const RULE_LABEL: Record<SubmissionRule, string> = {

@@ -18,7 +18,7 @@ import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
-import { formatValue, PERIOD_LABEL, periodLabel, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@/analyses/correlation";
 import { ANALYSES } from "@/analyses";
@@ -38,6 +38,7 @@ import { isDemo } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { Change, TargetChip } from "@/components/target-chip";
+import { JANUARY, PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -147,13 +148,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period)}` : "Latest"}>
+        <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, JANUARY)}` : "Latest"}>
           <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value) : "–"}<TargetChip metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change pct={change} size="size-5" />
         </Stat>
-        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
+        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, JANUARY)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
           <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value) : targetText(metric)}</span>
         </Stat>
       </div>
@@ -194,7 +195,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
                     {bdPeriods.slice(-6).map((p) => (
                       <Link key={p} href={at({ bp: p })} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
-                        {periodLabel(p, metric.period, true)}
+                        {periodLabel(p, metric.period, JANUARY, true)}
                       </Link>
                     ))}
                   </nav>
@@ -256,7 +257,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {fc ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length} {metric.period}s:{" "}
-                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period)}
+                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, JANUARY)}
                   {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
                 </p>
               ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least 4 values.</p>}
@@ -314,7 +315,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <tbody>
                     {obs.map((o) => (
                       <tr key={o.id} className="border-t">
-                        <td className="py-2">{periodLabel(o.period_start, metric.period)}</td>
+                        <td className="py-2">{periodLabel(o.period_start, metric.period, JANUARY)}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value)}</span> corrected</span>}
@@ -338,7 +339,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
                       <span className="flex-1">{a.question}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
-                      <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, true)}</span>
+                      <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, JANUARY, true)}</span>
                       <Person p={peopleById[a.assignee_id]} />
                     </Link>
                   </li>

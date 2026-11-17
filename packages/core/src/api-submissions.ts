@@ -5,9 +5,9 @@ import { createHash } from "node:crypto";
 import { assertScope, Forbidden, type Actor, type KeyActor, type FeedActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
-import { periodStart } from "./format";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
+import { JANUARY, periodStart } from "./periods";
 
 /** Refusals in words that hold nothing but the rule, for keys that may not read values (and Feeds, which never do). */
 export const REFUSED: Record<string, string> = {
@@ -52,7 +52,7 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
   }
   const value = Number(input.value);
   const breakdown = (input.breakdown ?? []).map((r) => ({ label: String(r.label).slice(0, 200), value: Number(r.value) }));
-  const period = input.period ?? periodStart(new Date(), metric.period);
+  const period = input.period ?? periodStart(new Date(), metric.period, JANUARY);
   const result = await submitValue({
     source: "api", sender: tokens[0].code, text: JSON.stringify({ value, period, breakdown: breakdown.length ? breakdown : undefined }).slice(0, 4000),
     value: { value, breakdown }, period: input.period ?? undefined, accessKeyId: actor.key ? Number(actor.key.id) : undefined, workspaceId: actor.workspaceId,

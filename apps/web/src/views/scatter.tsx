@@ -1,7 +1,8 @@
 "use client";
 import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import { compactValue, formatValue } from "@ziffr/core/format";
 import type { MetricDescription } from "@ziffr/core/types";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 export function ScatterView({
   x,
@@ -27,7 +28,7 @@ export function ScatterView({
               if (!p) return null;
               return (
                 <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
-                  <div className="font-medium">{periodLabel(p.period, x.period)}</div>
+                  <div className="font-medium">{periodLabel(p.period, x.period, JANUARY)}</div>
                   <div>{x.name}: <span className="fig">{formatValue(x, p.x)}</span></div>
                   <div>{y.name}: <span className="fig">{formatValue(y, p.y)}</span></div>
                 </div>

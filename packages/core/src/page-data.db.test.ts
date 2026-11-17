@@ -8,14 +8,14 @@ import { share } from "./sharing";
 import { createDeck } from "./decks";
 import { ask } from "./questions";
 import { deliverPrompt } from "./deliveries";
-import { periodStart } from "./format";
 import { workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws(name?: string) { const w = await workspace(name); cleanups.push(w.cleanup); return w; }
 const forbidden = expect.any(Forbidden);
-const month = periodStart(new Date(), "month");
+const month = periodStart(new Date(), "month", JANUARY);
 
 describe("page loaders", () => {
   it("show each person only their own Token codes and Prompts", async () => {

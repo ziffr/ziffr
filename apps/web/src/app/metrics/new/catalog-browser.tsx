@@ -6,9 +6,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { PERIOD_LABEL, POLARITY_LABEL, targetText } from "@ziffr/core/format";
+import { POLARITY_LABEL, targetText } from "@ziffr/core/format";
 import type { CatalogMetric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { PERIOD_LABEL } from "@ziffr/core/periods";
 
 /** What the workspace's Workspace Profile says about it, for suggestions: its industry and segment keys and words. */
 export type CatalogFit = { industry: string | null; segment: string | null; label: string };

@@ -2,18 +2,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { periodStart } from "./format";
 import { ask, askForMissingValues, markTaskDone, reply, sendDueReminders, setActionStatus, setPreference } from "./questions";
 import { simulateMessage, simulateReply } from "./demo-channels";
 import { approveValue, lockPeriod, saveWorkflow, setAway, setMetricWorkflow, setStandIn, closeWorkflowPeriod } from "./workflows";
 import { submitValue } from "./submissions";
 import { workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws(name?: string) { const w = await workspace(name); cleanups.push(w.cleanup); return w; }
 const forbidden = expect.any(Forbidden);
-const month = periodStart(new Date(), "month");
+const month = periodStart(new Date(), "month", JANUARY);
 
 describe("questions and tasks", () => {
   it("asks only members, about Metrics the asker sees, and tells the assignee", async () => {

@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
+import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { Metric, Period, Polarity, SubmissionRule } from "@ziffr/core/types";
+import { PERIOD_LABEL } from "@ziffr/core/periods";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 type M = Pick<Metric, "id" | "name" | "description" | "unit" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;

@@ -5,17 +5,17 @@ import { Forbidden, type KeyActor } from "./actor";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { admitValues, once, submitObservation, VALUES_PER_DAY } from "./api-submissions";
 import { db } from "./db";
-import { periodStart } from "./format";
 import type { SubmissionEffects } from "./submissions";
 import { valuesOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
+import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws(name?: string) { const w = await workspace(name); cleanups.push(w.cleanup); return w; }
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const quiet = (): SubmissionEffects => ({ notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) });
-const thisMonth = () => periodStart(new Date(), "month");
+const thisMonth = () => periodStart(new Date(), "month", JANUARY);
 
 async function keyFor(w: Awaited<ReturnType<typeof ws>>, person: string, scopes: ("metrics:read" | "values:submit")[] = ["values:submit"]) {
   const { id, secret } = await createAccessKey(w.actor(person, "member"), { name: "Shop export", scopes, expiresOn: inDays(30) });

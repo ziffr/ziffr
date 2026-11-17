@@ -2,9 +2,9 @@
 // Idempotency-Key and what lands in the Access Log. The rules themselves are proven in api-submissions.db.test.ts.
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
-import { periodStart } from "@ziffr/core/format";
 import { accessLogOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { POST } from "./route";
+import { JANUARY, periodStart } from "@ziffr/core/periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -26,7 +26,7 @@ describe("POST /api/v1/metrics/{slug}/observations", () => {
     const { id, post } = await setup();
     const res = await post({ value: 5 }, { "idempotency-key": "run-1" });
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ status: "recorded", period: periodStart(new Date(), "month"), value: 5, detail: expect.any(String) });
+    expect(await res.json()).toEqual({ status: "recorded", period: periodStart(new Date(), "month", JANUARY), value: 5, detail: expect.any(String) });
     expect(res.headers.get("x-ziffr-submitted")).toBeNull();
     const again = await post({ value: 5 }, { "idempotency-key": "run-1" });
     expect(again.status).toBe(201);
@@ -41,7 +41,7 @@ describe("POST /api/v1/metrics/{slug}/observations", () => {
   });
   it("answers 422 locked for a locked period, 400 for a bad body and 403 without the scope", async () => {
     const { w, m, post } = await setup();
-    await w.lock(m.id, periodStart(new Date(), "month"));
+    await w.lock(m.id, periodStart(new Date(), "month", JANUARY));
     const locked = await post({ value: 1 });
     expect(locked.status).toBe(422);
     expect((await locked.json()).error.code).toBe("locked");

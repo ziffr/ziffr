@@ -8,10 +8,10 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
 import { finishTask, postReply } from "./threads";
-import { periodStart } from "./format";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connectors/index";
 import type { ActionKind, Period } from "./types";
+import { JANUARY, periodStart } from "./periods";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const KINDS: PreferenceKind[] = ["question", "task", "reminder", "update"];
@@ -115,7 +115,7 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
   for (const t of tokens ?? []) {
     const m = byId.get(t.metric_id);
     if (!m || m.formula) continue;
-    const period = periodStart(new Date(), m.period as Period);
+    const period = periodStart(new Date(), m.period as Period, JANUARY);
     const [have, { count: asked }] = await Promise.all([
       hasValue(m.id, period),
       db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", t.submitter_id).eq("period_start", period).is("answered_at", null).gte("sent_at", format(new Date(), "yyyy-MM-dd")),

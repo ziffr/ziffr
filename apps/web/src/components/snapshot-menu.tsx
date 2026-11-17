@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { completePeriods, type SnapshotPeriodKind } from "@ziffr/core/snapshot-periods";
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
+import { JANUARY } from "@ziffr/core/periods";
 
 const KINDS: { id: SnapshotPeriodKind; label: string }[] = [{ id: "month", label: "Month" }, { id: "quarter", label: "Quarter" }, { id: "week", label: "Week" }];
 
@@ -58,10 +59,10 @@ export function SnapshotMenu({ dashboardId, snapshots, canTake, auto }: { dashbo
 /** Picks the period to take a Snapshot of: the last complete month by default. */
 function TakeDialog({ dashboardId, onClose }: { dashboardId: number; onClose: () => void }) {
   const [kind, setKind] = useState<SnapshotPeriodKind>("month");
-  const periods = completePeriods(kind, today(), kind === "week" ? 12 : 8);
+  const periods = completePeriods(kind, today(), kind === "week" ? 12 : 8, JANUARY);
   const [start, setStart] = useState(periods[0].start);
   const [pending, run] = useTransition();
-  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(completePeriods(k, today(), 1)[0].start); };
+  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(completePeriods(k, today(), 1, JANUARY)[0].start); };
   const select = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>

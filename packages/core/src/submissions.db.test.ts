@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { decideCorrection, submitValue, type SubmissionEffects } from "./submissions";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { periodStart } from "./format";
 import { valuesOf, workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 
 const effects = (): SubmissionEffects & { notifyCorrection: ReturnType<typeof vi.fn>; afterValue: ReturnType<typeof vi.fn> } => ({
   notifyCorrection: vi.fn(async () => {}),
@@ -21,7 +21,7 @@ describe("values that arrive", () => {
     const r = await submitValue({ source: "web_form", sender: code, text: "12" }, fx);
     expect(r).toMatchObject({ ok: true, outcome: "recorded" });
     expect(await valuesOf(m.id)).toMatchObject([{ value: 12, submitter_id: sara, source: "web_form" }]);
-    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month"), sara, { imported: false });
+    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month", JANUARY), sara, { imported: false });
   });
 
   it("recognises a Contact by Slack handle and by email, and records under them", async () => {
@@ -79,7 +79,7 @@ describe("values that arrive", () => {
   it("turns a value for a locked period into a proposed Correction for the owner", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); const code = await w.token(m.id, ben);
-    await db().from("period_states").insert({ metric_id: m.id, period_start: periodStart(new Date(), "month"), state: "locked" });
+    await db().from("period_states").insert({ metric_id: m.id, period_start: periodStart(new Date(), "month", JANUARY), state: "locked" });
     const fx = effects();
     const r = await submitValue({ source: "web_form", sender: code, text: "9" }, fx);
     expect(r.outcome).toBe("proposed_locked");
@@ -93,7 +93,7 @@ describe("deciding a Correction", () => {
   async function proposal() {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); const code = await w.token(m.id, ben);
-    const period = periodStart(new Date(), "month");
+    const period = periodStart(new Date(), "month", JANUARY);
     await submitValue({ source: "web_form", sender: code, text: "5" }, effects());
     await db().from("period_states").insert({ metric_id: m.id, period_start: period, state: "locked" });
     const fx = effects();
@@ -115,7 +115,7 @@ describe("deciding a Correction", () => {
     const fx = decided();
     await decideCorrection(w.actor(sara), messageId, true, fx);
     expect(await valuesOf(m.id)).toMatchObject([{ value: 8, original_value: 5 }]);
-    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month"), ben);
+    expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month", JANUARY), ben);
     expect(fx.notifyDecision).toHaveBeenCalledWith(expect.objectContaining({ ownerId: sara, authorId: ben, accepted: true }));
   });
 
@@ -138,7 +138,7 @@ describe("hardening", () => {
   it("refuses a Prompt of another workspace without failing", async () => {
     const a = await ws("A"); const b = await ws("B");
     const zoe = await b.person("owner"); const mb = await b.metric(zoe);
-    const { data: p } = await db().from("prompts").insert({ metric_id: mb.id, submitter_id: zoe, source: "slack", text: "?", period_start: periodStart(new Date(), "month") }).select("id").single();
+    const { data: p } = await db().from("prompts").insert({ metric_id: mb.id, submitter_id: zoe, source: "slack", text: "?", period_start: periodStart(new Date(), "month", JANUARY) }).select("id").single();
     const ann = await a.person("owner", { slack_handle: "@ann-t" }); const ma = await a.metric(ann); await a.token(ma.id, ann);
     const r = await submitValue({ source: "slack", sender: "@ann-t", text: "4", promptId: p!.id, workspaceId: a.id }, effects());
     expect(r.ok).toBe(false);
@@ -148,7 +148,7 @@ describe("hardening", () => {
   it("applies a Correction once, however often it is accepted", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); const code = await w.token(m.id, ben);
-    await db().from("period_states").insert({ metric_id: m.id, period_start: periodStart(new Date(), "month"), state: "locked" });
+    await db().from("period_states").insert({ metric_id: m.id, period_start: periodStart(new Date(), "month", JANUARY), state: "locked" });
     const fx = effects();
     await submitValue({ source: "web_form", sender: code, text: "8" }, fx); // nothing there yet: accepting adds the value
     const { data: msg } = await db().from("thread_messages").select("id").eq("action_id", fx.notifyCorrection.mock.calls[0][0].actionId).single();
