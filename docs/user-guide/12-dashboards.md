@@ -414,6 +414,14 @@ The owner and Editors have these buttons:
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |
 
+Everyone who may create also has **Make a deck**: it starts a Deck named after the dashboard and the period, with the Snapshot's introduction on the title slide and one slide for each part, drawn from the values the Snapshot kept.
+
+### Example: the annual review
+
+A dashboard "Annual review" shows Revenue by month. In January 2027 its owner opens **Snapshots ▸ Take a Snapshot…**, chooses **Year** and **2026**, and presses **Take Snapshot**. The Snapshot "2026" keeps Revenue's twelve months of 2026 and those before, not January 2027. The owner writes the introduction ("Revenue grew by a quarter; the second half carried it") and shows it. In the Snapshots menu it comes first, above "H2 2026", "Q4 2026" and "December 2026". **Make a deck** on it starts the deck "Annual review, 2026" for the board.
+
+To have it taken by itself next year, choose **Take one by itself…** ▸ **Every year**. The Snapshot "2027" is then taken as soon as every Metric on the dashboard is Locked for all twelve months of 2027, or the set number of days after 31 December.
+
 ### Automatic Snapshots
 
 The dashboard's owner can have it take a Snapshot by itself. Choose **Take one by itself…**:
