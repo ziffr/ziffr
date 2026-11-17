@@ -49,3 +49,6 @@ packages/*/dist/
 
 # design tool workspace
 .hallmark/
+
+# worktrees of Claude Code agents
+.claude/worktrees/
