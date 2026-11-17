@@ -20,7 +20,7 @@ import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
-const PERIODS: Period[] = ["day", "week", "month"];
+const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
 const RULES: SubmissionRule[] = ["reject", "overwrite", "add", "keep_both"];
 const POLARITIES: Polarity[] = ["higher", "lower", "target"];
 const AGGREGATIONS = ["sum", "average", "last", "none"];
@@ -344,8 +344,13 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   if (lo !== null && hi !== null && Number(lo) > Number(hi)) throw new Error("The lower target is above the upper one.");
   if (p.period !== undefined && p.period !== m.period) {
     const period = pick(p.period, PERIODS, m.period);
-    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
+    const [{ count }, { count: series }] = await Promise.all([
+      db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId),
+      // A Target Series or Projection is kept by period too: a month's target would not start a quarter.
+      db().from("series_values").select("id", { count: "exact", head: true }).eq("metric_id", metricId),
+    ]);
     if (count) throw new Error("The period cannot change once the Metric has values: they would sit in the wrong periods. Duplicate it instead.");
+    if (series) throw new Error("The period cannot change while the Metric has targets or projections by period: remove them first.");
     update.period = period;
   }
   if (!Object.keys(update).length) return;

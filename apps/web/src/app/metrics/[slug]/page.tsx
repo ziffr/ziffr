@@ -355,7 +355,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {canEdit && <EditDetails metric={metric} hasValues={obs.length > 0} />}
+              {canEdit && <EditDetails metric={metric} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>

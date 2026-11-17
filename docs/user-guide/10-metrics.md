@@ -21,7 +21,7 @@ The list shows every Metric you may see, one row each.
 
 | Column | What it shows |
 | --- | --- |
-| **Metric** | Its name, how often it is counted (Daily, Weekly or Monthly) and how its values arrive, such as "via Web form or Mail". A **Derived Metric** says "derived from other metrics" instead. |
+| **Metric** | Its name, how often it is counted (Daily, Weekly, Monthly, Quarterly or Yearly) and how its values arrive, such as "via Web form or Mail". A **Derived Metric** says "derived from other metrics" instead. |
 | **Latest** | The most recent value, its period and its on-target label. "No values yet" when nothing has arrived. |
 | **Change** | The change against the period before, as an arrow and a percentage. |
 | **Trend** | A small line of the last 30 periods, on wider screens. |
@@ -68,7 +68,7 @@ The form has three parts. The panel on the right says that you become the **Owne
 
 | Field | What it does |
 | --- | --- |
-| **Period** | **Daily**, **Weekly** or **Monthly**: one value per period. It cannot change once the Metric has values. |
+| **Period** | **Daily**, **Weekly**, **Monthly**, **Quarterly** or **Yearly**: one value per period. Quarters and years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, Q1 is April to June. The period cannot change once the Metric has values, or targets or projections on its Targets tab. |
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY: **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
@@ -172,7 +172,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | Option | What it does |
 | --- | --- |
 | **Targets** / **Projections** | Switches between the two lists. |
-| **Add row** | Adds a row for the next period. Choose the month or the day, then type the value. |
+| **Add row** | Adds a row for the next period. Choose the month, the day, or for a quarterly or yearly Metric the quarter or year by its name ("Q3 2026"), then type the value. |
 | **Paste from a spreadsheet** | Opens a box for two columns copied from a spreadsheet: period and value. Ziffr shows how many rows it read and which lines it skipped. **Add … to the table** puts them in the table; a row for a period already there replaces it. |
 | **✕** on a row | Removes the row. A saved one is removed after you confirm. |
 | **Note, for everyone who reads it** | A short note saved with the changed rows, such as "Budget 2027". |

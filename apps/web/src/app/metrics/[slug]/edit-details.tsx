@@ -19,8 +19,9 @@ import { PERIOD_LABEL } from "@ziffr/core/periods";
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 type M = Pick<Metric, "id" | "name" | "description" | "unit" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;
 
-/** "Edit details…" with the Metric's description as a form. `hasValues` keeps the period fixed. */
-export function EditDetails({ metric, hasValues }: { metric: M; hasValues: boolean }) {
+/** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
+ * Metric has values, or targets or projections by period. */
+export function EditDetails({ metric, fixed }: { metric: M; fixed: "values" | "series" | null }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -64,10 +65,10 @@ export function EditDetails({ metric, hasValues }: { metric: M; hasValues: boole
           <div><Label htmlFor="ed-dec">Decimals</Label><Input id="ed-dec" name="decimals" type="number" min={0} max={6} defaultValue={metric.decimals} /></div>
           <div>
             <Label htmlFor="ed-period">Period</Label>
-            <select id="ed-period" name="period" defaultValue={metric.period} disabled={hasValues} className={field}>
-              {(["day", "week", "month"] as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
+            <select id="ed-period" name="period" defaultValue={metric.period} disabled={Boolean(fixed)} className={field}>
+              {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
-            {hasValues && <p className="mt-1 text-xs text-muted-foreground">Fixed once values exist; duplicate the Metric for another period.</p>}
+            {fixed && <p className="mt-1 text-xs text-muted-foreground">{fixed === "values" ? "Fixed once values exist; duplicate the Metric for another period." : "Fixed while it has targets or projections by period; remove them first."}</p>}
           </div>
           <div>
             <Label htmlFor="ed-pol">Which way is good</Label>
