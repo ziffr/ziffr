@@ -20,7 +20,7 @@ import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS, forecast } from "@/analyses/forecast";
-import { rankCorrelations, strength } from "@ziffr/core/correlation";
+import { comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
@@ -70,8 +70,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
 
-  // Same period only until the page shows what a cross-period result was compared on (spec 0019, ticket #53).
-  const correlations = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id) && m.period === metric.period), resolverFrom(metrics, series), { yearStart }).ranked;
+  // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
+  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart });
+  const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
   if (!visible.has(metric.id)) {
@@ -268,7 +269,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {partner ? (
                 <>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {partner.result.r.toFixed(2)}, {partner.result.n} {metric.period}s).
+                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {partner.result.r.toFixed(2)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}).{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {correlations.slice(0, 5).map((c) => (
@@ -278,12 +279,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                     ))}
                   </div>
                 </>
-              ) : <p className="mt-1 text-sm text-muted-foreground">No other {PERIOD_LABEL[metric.period].toLowerCase()} metric with enough shared history.</p>}
+              ) : <p className="mt-1 text-sm text-muted-foreground">No other metric with enough shared history.</p>}
+              {notCombined.map((r) => <p key={r} className="mt-1 text-xs text-muted-foreground">{r}</p>)}
             </div>
           </div>
           {partner && (
             <div className="mt-4">
-              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {metric.period}</p>
+              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}</p>
               <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}

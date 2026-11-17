@@ -3,7 +3,9 @@ import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAx
 import { compactValue, formatValue } from "@ziffr/core/format";
 import type { MetricDescription } from "@ziffr/core/types";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import { commonPeriod } from "@ziffr/core/correlation";
 
+/** Two Metrics against each other, one dot per common period: the longer of their periods (spec 0019). */
 export function ScatterView({
   x,
   y,
@@ -31,7 +33,7 @@ export function ScatterView({
               if (!p) return null;
               return (
                 <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
-                  <div className="font-medium">{periodLabel(p.period, x.period, yearStart)}</div>
+                  <div className="font-medium">{periodLabel(p.period, commonPeriod(x.period, y.period), yearStart)}</div>
                   <div>{x.name}: <span className="fig">{formatValue(x, p.x)}</span></div>
                   <div>{y.name}: <span className="fig">{formatValue(y, p.y)}</span></div>
                 </div>

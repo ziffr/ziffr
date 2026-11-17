@@ -88,7 +88,7 @@ describe("correlate", () => {
   it("refuses fewer than six common months, with the count", () => {
     const short = resolverFrom([tickets, churn], { "support-tickets": weekly.slice(0, 20), churn: monthly });
     // 20 weeks reach 19 May: January to May, five months.
-    expect(correlate(churn, tickets, short, { yearStart, today: "2026-03-01" })).toEqual({ ok: false, period: "month", n: 5, reason: `Not enough months in common (5 of ${MIN_PAIRS}).` });
+    expect(correlate(churn, tickets, short, { yearStart, today: "2026-03-01" })).toEqual({ ok: false, period: "month", n: 5, why: "too-few", reason: `Not enough months in common (5 of ${MIN_PAIRS}).` });
   });
 
   it("keeps a Metric with Aggregation none to its own period, and says why", () => {
@@ -123,6 +123,6 @@ describe("rankCorrelations", () => {
     expect(ranked.map((x) => x.metric.slug)).toEqual(["support-tickets", "visits"]);
     expect(ranked[0].result.combined).toBe(true);
     expect(ranked[1].result).toMatchObject({ combined: false, n: 10 });
-    expect(leftOut).toEqual([{ metric: flat, reason: "Aggregation none: NPS is compared only with weekly Metrics." }]);
+    expect(leftOut).toEqual([{ metric: flat, why: "not-combined", reason: "Aggregation none: NPS is compared only with weekly Metrics." }]);
   });
 });

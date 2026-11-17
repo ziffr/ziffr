@@ -117,7 +117,7 @@ The **Pool** holds everything you can put on the dashboard. **Filter** at the to
 
 - **Metrics**: every Metric you can see. A derived Metric has a Σ mark. Metrics owned by someone else show that person's first name. If you see none yet, the Pool links to **Describe your first one**.
 - **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)). Each shows its name and its Widget Template. The **×** next to one deletes it from your Pool, without asking; Widgets already placed from it stay.
-- **Templates**: the built-in **Widget Templates** in four groups, **Views**, **Analyses**, **Findings** and **Layout**, and then **The team's**: Widget Templates colleagues saved, each with its number of Slots and who made it. The full list of built-in templates is in [Templates](05-templates.md#widget-templates).
+- **Templates**: the built-in **Widget Templates** in four groups, **Views**, **Analyses**, **Findings** and **Layout**, and then **The team's**: Widget Templates colleagues saved, each with its number of Slots and who made it. The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
 
 To place something, drag it onto the dashboard where you want it, or point at it and press **+** to add it.
 

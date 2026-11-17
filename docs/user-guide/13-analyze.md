@@ -33,7 +33,7 @@ Under the Metrics, one button per Analysis. A button you cannot use yet is greye
 | Analysis | Needs | What it does |
 | --- | --- | --- |
 | **Forecast** | One Metric or more | Projects each Metric a few periods ahead. With several Metrics, you get one forecast for each. |
-| **Correlation** | Exactly two Metrics, counted equally often | Shows whether the two move together. |
+| **Correlation** | Exactly two Metrics | Shows whether the two move together. |
 | **Drivers** | Two Metrics or more | Ranks the other Metrics by how closely they move with the first one, the Target. |
 | **Correlation matrix** | Three Metrics or more | Shows how every pair moves together, at once. |
 
@@ -47,7 +47,7 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 
 | Recipe | What it does |
 | --- | --- |
-| **What drives Cost?** | Puts Cost and every other monthly Metric on the canvas and runs **Drivers** for Cost. |
+| **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas and runs **Drivers** for Cost. |
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
 
@@ -72,17 +72,26 @@ A dot for each period, placed by the two Metrics' values, and one sentence such 
 - **r** runs from −1 to 1. Near 1, the two rise and fall together. Near −1, one rises when the other falls. Near 0, there is no clear link.
 - The word before it says how clear the link is: **strong** (above 0.7, either way), **moderate** (above 0.4), **weak** (above 0.2), or **no clear** relationship.
 
-Only periods where both Metrics have a value count, and at least six are needed. Otherwise the result says "Needs two metrics with the same period and at least 6 shared values." Two Metrics that move together do not prove that one causes the other; use it to know whom to ask.
+Only periods where both Metrics have a value count, and at least six are needed. Otherwise the result says how many there are, such as "Not enough months in common (4 of 6)." Two Metrics that move together do not prove that one causes the other; use it to know whom to ask.
+
+### Metrics counted at different periods
+
+Two Metrics counted at different periods, such as weekly support tickets and monthly churn, are compared on the longer of the two. The shorter one is combined by its **Aggregation** (see [Metrics](10-metrics.md)): weekly tickets are added up to monthly tickets, an average is averaged, a last value is taken from the period's last week. A daily Metric against a weekly one is compared by week, and so on.
+
+- Only complete periods count. The month still running is left out, as it would compare part of a month with whole ones.
+- The result says so under the sentence: "Compared by month (18 months)". Nothing is added when both are counted at the same period.
+- A Metric whose Aggregation is **none** cannot be combined, so it is compared only with Metrics of its own period. Where that leaves a pair out, the result says why, such as "Aggregation none: Visitors is compared only with weekly Metrics."
+- A yearly Metric rarely has the six years a correlation needs; the result then says how many it has.
 
 ### Drivers
 
 A list of the other Metrics, the one that moves most closely with the Target first. Each has a bar for how strong the link is and its r. A bar in the data colour means they move the same way; a bar in the warning colour means they move opposite ways. Below the list, a sentence names the strongest one ("Shipping cost moves most with Cost (strong positive).") and a dot chart shows the two.
 
-Only Metrics counted as often as the Target are compared. A derived Metric made from the Target, or one the Target is made from, is left out, since it would move with it by its formula. If nothing is left to compare, the result says so.
+Metrics of every period are compared, each on the longer of its own period and the Target's (see above). One combined to another period says so after its name, such as "· by month", and pointing at it shows "Compared by month (18 months)". Below the list, Ziffr names the Metrics it left out and why: an Aggregation of none, or too few periods in common. A derived Metric made from the Target, or one the Target is made from, is left out without a note, since it would move with it by its formula. If nothing is left to compare, the result says so.
 
 ### Correlation matrix
 
-A grid with every Metric on both sides. Each square holds the r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) shows "–". Pointing at a square shows its r.
+A grid with every Metric on both sides. Each square holds the r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its r and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
 
 ## Saving a result
 

@@ -18,7 +18,11 @@ export type PearsonResult = { r: number; n: number; pairs: Pair[] };
 /** The result of correlating two Metrics on their common period, or why there is none. */
 export type Correlation =
   | (PearsonResult & { ok: true; period: Span; combined: boolean })
-  | { ok: false; period: Span; reason: string; n: number };
+  | { ok: false; period: Span; why: NoCorrelation; reason: string; n: number };
+
+/** Why two Metrics have no correlation: one cannot be combined (Aggregation none), too few common periods, one is a
+ * Derived Metric built from the other, or a series does not change. */
+export type NoCorrelation = "not-combined" | "too-few" | "built-from" | "flat";
 
 const NOUN: Record<Span, [string, string]> = {
   day: ["day", "days"], week: ["week", "weeks"], month: ["month", "months"],
@@ -26,9 +30,14 @@ const NOUN: Record<Span, [string, string]> = {
 };
 const ADJECTIVE: Record<Span, string> = { day: "daily", week: "weekly", month: "monthly", quarter: "quarterly", half: "half-yearly", year: "yearly" };
 
+/** A period's name in a sentence: "month", or "months" for more than one. */
+export function periodWord(span: Span, plural = false): string {
+  return NOUN[span][plural ? 1 : 0];
+}
+
 /** A count of periods in words: "1 month", "18 months". */
 export function periodCountLabel(span: Span, n: number): string {
-  return `${n} ${NOUN[span][n === 1 ? 0 : 1]}`;
+  return `${n} ${periodWord(span, n !== 1)}`;
 }
 
 /** The values of both series for the periods both have, in the first series' order. */
@@ -84,7 +93,7 @@ export function comparedBy(c: Correlation): string | null {
 export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearStart: YearStart; today?: string }): Correlation {
   const period = commonPeriod(a.period, b.period);
   const combined = a.period !== b.period;
-  if (builtFrom(a, b)) return { ok: false, period, n: 0, reason: `${a.formula?.includes(`{${b.slug}}`) ? a.name : b.name} is calculated from the other.` };
+  if (builtFrom(a, b)) return { ok: false, period, n: 0, why: "built-from", reason: `${a.formula?.includes(`{${b.slug}}`) ? a.name : b.name} is calculated from the other.` };
   const on = (m: Metric): Point[] | string => {
     if (m.period === period) return resolve(m.slug)?.points ?? [];
     const s = seriesBy(m, resolve, period, opts);
@@ -92,20 +101,20 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
     return s.points.filter((p) => !p.toDate);
   };
   const xs = on(a);
-  if (typeof xs === "string") return { ok: false, period, n: 0, reason: xs };
+  if (typeof xs === "string") return { ok: false, period, n: 0, why: "not-combined", reason: xs };
   const ys = on(b);
-  if (typeof ys === "string") return { ok: false, period, n: 0, reason: ys };
+  if (typeof ys === "string") return { ok: false, period, n: 0, why: "not-combined", reason: ys };
   const pairs = pairUp(xs, ys);
-  if (pairs.length < MIN_PAIRS) return { ok: false, period, n: pairs.length, reason: `Not enough ${NOUN[period][1]} in common (${pairs.length} of ${MIN_PAIRS}).` };
+  if (pairs.length < MIN_PAIRS) return { ok: false, period, n: pairs.length, why: "too-few", reason: `Not enough ${NOUN[period][1]} in common (${pairs.length} of ${MIN_PAIRS}).` };
   const res = pearsonOf(pairs);
-  if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, reason: "One of them does not change, so there is nothing to compare." };
+  if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: "One of them does not change, so there is nothing to compare." };
   return { ok: true, period, combined, ...res };
 }
 
 /** A Metric correlated with another, or left out with the reason. */
 export type Ranked = { metric: Metric; result: Extract<Correlation, { ok: true }> };
 /** A Metric left out of a ranking, with why. */
-export type LeftOut = { metric: Metric; reason: string };
+export type LeftOut = { metric: Metric; why: NoCorrelation; reason: string };
 
 /** Every other Metric correlated with this one on their common period, ranked by |r|, and those left out with why.
  * The Metric itself and Derived Metrics built from it (or it from them) are left out silently, as there is nothing
@@ -117,7 +126,7 @@ export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Res
     if (m.id === metric.id || builtFrom(metric, m)) continue;
     const result = correlate(metric, m, resolve, opts);
     if (result.ok) ranked.push({ metric: m, result });
-    else leftOut.push({ metric: m, reason: result.reason });
+    else leftOut.push({ metric: m, why: result.why, reason: result.reason });
   }
   ranked.sort((x, y) => Math.abs(y.result.r) - Math.abs(x.result.r));
   return { ranked, leftOut };
