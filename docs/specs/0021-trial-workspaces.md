@@ -1,6 +1,6 @@
 # 0021 Trial Workspaces: every Connector, real, for anyone trying Ziffr
 
-**Status:** draft. **Tracking issue:** none yet.
+**Status:** draft. **Tracking issue:** #81 (label `tracking`); tickets #82 to #92 carry `spec:0021`.
 
 ## Problem Statement
 
@@ -42,7 +42,15 @@ The shared demo stays as it is, for people who want to look around without signi
 - **One setting.** `ZIFFR_TRIAL_DAYS` (1 to 30) turns Trial Workspaces on for the Installation. With it set, every Workspace made on the Installation is a Trial Workspace: there are no ordinary ones next to them, so no rule has to tell them apart by anything a person chose. It replaces `ZIFFR_DEMO_ONLY` for a public demo: sign-in opens, and the shared demo stays offered. Unset, nothing changes. The workspace row gets `trial_ends_at`; it is set when the workspace is made and never moved.
 - **One per person, few in all.** A person may own one live Trial Workspace and belong to no other workspace on that Installation: there are no invitations, so nobody can join one. `ZIFFR_TRIAL_MAX` (default 200) caps live Trial Workspaces on the Installation; when it is reached, the welcome page says so and offers the shared demo.
 - **Sign-in against bots.** Sign-in stays the email link. On an Installation with Trial Workspaces, the sign-in form needs a Cloudflare Turnstile check when `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET` are set, verified on the server before any mail is sent. It also takes at most 3 links an hour per address and 20 an hour per IP address. The link goes only to the address typed, so the worst a bot can do is make Ziffr send sign-in links to addresses it does not own. The limits and the check keep that small.
-- **Sample data, through the core.** Making a Trial Workspace runs `seedTrialWorkspace(actor)` in the core. It uses the same operations a person would: four Metrics (daily sign-ups with the Submission Rule "add up", weekly NPS, monthly revenue with a Breakdown by country, monthly orders), twelve to eighteen periods of history as Imports, a target range, a dashboard from a Template, and a Workflow for each Metric that asks the Owner. It does not copy the demo's SQL seed: that seed writes to the demo workspace's fixed id and would need a copy of every table, which breaks each time a table is added. The made-up people of the demo are not copied either: the Owner is the only person, and a few Contacts with no address show the Outbox.
+- **Sample data, through the core.** Making a Trial Workspace runs `seedTrialWorkspace(actor)` in the core. It uses the same operations a person would. The sample has to show every calculation correctly, so it covers:
+  - **Every period:** at least one Metric each by day, week, month, quarter and year.
+  - **Every aggregation:** sum (sign-ups, revenue, orders), average (NPS, delivery time), last (headcount, cash balance) and none (margin and return rate, percentages that cannot be added). Each one is shown on the dashboard in a display period longer than its own, such as daily sign-ups by month or weekly NPS by quarter, so rolling up is visible.
+  - **Unfinished periods:** history runs up to today. The current day, week, month, quarter and year already have values for their days or weeks so far, so "to date" figures (month to date, quarter to date, year to date) and the comparison with the same span of the period before come out right. The current period of some Metrics is left open on purpose, so there is something to answer with **Ask me now**.
+  - **The rest a dashboard needs:** a Breakdown by country on revenue, target ranges and a Target Series on two Metrics, a gap of one missing period to show how a missing value looks, and a derived Metric (average order value from revenue and orders).
+  - **How it looks:** values with a trend, a seasonal swing and noise, generated from a fixed seed per trial, so tests can check the totals.
+  - **Around it:** a dashboard from a Template that shows all of it, and a Workflow for each Metric that asks the Owner.
+
+  Past periods are recorded as Imports; the current periods as ordinary values. It does not copy the demo's SQL seed: that seed writes to the demo workspace's fixed id and would need a copy of every table, which breaks each time a table is added. The made-up people of the demo are not copied either: the Owner is the only person, and a few Contacts with no address show the Outbox.
 - **Only the Owner is reached.** In a Trial Workspace a Delivery is sent for real only when its recipient is the Owner. Email goes to their proven address; Slack to the Slack user found by that address or linked by code (spec 0007); Telegram to their linked chat (spec 0016). A Delivery to anyone else, such as a Contact, stays in the Outbox as it does in the demo. Invitations cannot be made at all. This is one check in the shared delivery queue, next to the demo check that is already there, so no Connector can forget it.
 - **Ask me now.** A Metric's page gets **Ask me now** for its owner when they are its Submitter. It queues the current period's Prompt to them at once, on their chosen Connector, through the same Prompt wording and queue as the Workflow. It is open to every Workspace, not only trials, and at most once every ten minutes per Metric.
 - **Saying what works here, from one source.** A core function, `whatWorksHere(actor)`, answers for each Connector (email out, email replies, Slack, Telegram, the web form, the API, the MCP Server, Feeds, WhatsApp) one of `real`, `simulated` or `off`, with the reason and the limit that applies, such as "real, to your address only, 50 a day" or "simulated: this Installation has no mail server". It is built from the same settings and rules the delivery queue and the API check, so the explanation cannot say "real" while the queue keeps a message back. Unauthenticated pages get an Installation-wide version without any workspace data. Every place below reads it; no page writes its own list.
@@ -65,6 +73,7 @@ The shared demo stays as it is, for people who want to look around without signi
 
 - The core is tested against the database (`*.db.test.ts`) with the existing fakes: Mailpit for SMTP, the fake Slack API and the fake Bot API. Nothing inside the core is mocked.
 - Making: one live Trial Workspace per person; none past `ZIFFR_TRIAL_MAX`; none without the setting; the seed records Imports and makes Workflows that ask the Owner.
+- Sample data: there is a Metric for each period and each aggregation; the current period of each has values up to today and none after; for a fixed seed and date, the month-, quarter- and year-to-date figures and their comparison with the period before match totals worked out by hand in the test; a derived Metric computes from its inputs.
 - Reaching: in a Trial Workspace, a Delivery to the Owner is sent by email, Slack and Telegram; one to a Contact, or to a Slack or Telegram user who is not the Owner, stays in the Outbox; an invitation is refused; the daily limit holds under parallel sends.
 - Keys: Access Keys and Feed Keys stop at the trial's end, even when made with a later date; the per-trial counts hold.
 - Ending: the reminder goes once; at the end, keys stop and links go; seven days later the cleanup deletes every row of the workspace, and the person when it was their only workspace. A test lists the tables with a `workspace_id` and fails when one is not emptied, so a new table cannot escape the cleanup.
@@ -75,17 +84,17 @@ The shared demo stays as it is, for people who want to look around without signi
 
 ## Tickets
 
-1. The setting, `trial_ends_at`, one per person, the cap, no invitations; glossary and ADR.
-2. Sample data: `seedTrialWorkspace` through the core.
-3. Only the Owner is reached: the check in the delivery queue, the per-trial limits.
-4. **Ask me now** on a Metric.
-5. What works here: `whatWorksHere`, the login page's two columns, the demo bar line and "Simulated, not sent" in the Outbox, the reasons on kept-back entries and reached limits, the badges on the Connectors page.
-6. The **Try it** page: cards per Connector with steps, ticking off, and the list of what a trial never does (needs 4 and 5).
-7. Keys and Feeds in trials: counts, end dates; the MCP setup box on the Connectors page.
-8. Sign-in against bots: Turnstile and the limits.
-9. The end: days left, the reminder, closing, the CSV export, `trial-cleanup`, **End my trial**.
-10. Docs, settings, threat model, user guide chapter, release note, and a security review of the whole spec.
-11. The public demo on the VPS: real SMTP and inbound mail, the Telegram bot, the Slack app's distribution, Turnstile, `ZIFFR_TRIAL_DAYS`; done by the person who runs it, with the steps from ticket 10.
+1. #82 The setting, `trial_ends_at`, one per person, the cap, no invitations; glossary and ADR.
+2. #83 Sample data: `seedTrialWorkspace` through the core.
+3. #84 Only the Owner is reached: the check in the delivery queue, the per-trial limits.
+4. #85 **Ask me now** on a Metric.
+5. #86 What works here: `whatWorksHere`, the login page's two columns, the demo bar line and "Simulated, not sent" in the Outbox, the reasons on kept-back entries and reached limits, the badges on the Connectors page.
+6. #87 The **Try it** page: cards per Connector with steps, ticking off, and the list of what a trial never does (needs 4 and 5).
+7. #88 Keys and Feeds in trials: counts, end dates; the MCP setup box on the Connectors page.
+8. #89 Sign-in against bots: Turnstile and the limits.
+9. #90 The end: days left, the reminder, closing, the CSV export, `trial-cleanup`, **End my trial**.
+10. #91 Docs, settings, threat model, user guide chapter, release note, and a security review of the whole spec.
+11. #92 The public demo on the VPS: real SMTP and inbound mail, the Telegram bot, the Slack app's distribution, Turnstile, `ZIFFR_TRIAL_DAYS`; done by the person who runs it, with the steps from ticket 10.
 
 ## Out of Scope
 
