@@ -5,7 +5,7 @@ A handful of ideas explain almost everything Ziffr does. Once they are clear, th
 
 ## A number is described before it is collected
 
-In Ziffr every number you track is a **Metric**. Before anyone can send in a value, the Metric is described: its name, what it means, its unit (euros, hours, percent), how often it is counted (each day, week or month), what a good value is, and who is responsible for it. That person is the **Metric Owner**.
+In Ziffr every number you track is a **Metric**. Before anyone can send in a value, the Metric is described: its name, what it means, its unit (euros, hours, percent), how often it is counted (each day, week, month, quarter or year), what a good value is, and who is responsible for it. That person is the **Metric Owner**.
 
 This sounds like extra work, but it is what makes the numbers trustworthy. Everyone reads "Revenue" the same way, and nobody has to guess whether it includes tax.
 
