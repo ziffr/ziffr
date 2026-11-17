@@ -10,7 +10,7 @@ import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
-import { periodLabel, periodStart } from "./periods";
+import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -110,7 +110,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const ys = await yearStartFor(metric.workspace_id, metric.period as Period);
   const current = periodStart(new Date(), metric.period as Period, ys);
   const period = input.period ?? current;
-  const label = period !== current ? `for ${periodLabel(period, metric.period as Period, ys)}` : metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
+  const label = period !== current ? `for ${periodLabel(period, metric.period as Period, ys)}` : CURRENT_PERIOD[metric.period as Period];
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
