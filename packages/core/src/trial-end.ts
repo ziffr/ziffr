@@ -71,14 +71,18 @@ async function deleteTrial(workspaceId: string): Promise<void> {
   ]);
   const { error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null);
   if (error) throw new Error("The trial could not be deleted.");
+  // Contacts and Feeds are person rows made for this workspace alone, never with a sign-in.
   const others = [...(contacts ?? []).map((c) => c.person_id as string), ...(feeds ?? []).map((f) => f.person_id as string)];
-  if (others.length) await db().from("profiles").delete().in("id", others);
+  if (others.length) {
+    const { error: e2 } = await db().from("profiles").delete().in("id", others);
+    if (e2) throw new Error("The trial's Contacts and Feeds could not be deleted.");
+  }
+  // A member goes only when they belong nowhere else, decided in the same statement that deletes them; their sign-in
+  // goes only once their person row is gone, so nobody is left without one, or with an address and no account.
   for (const m of members ?? []) {
-    const { count } = await db().from("memberships").select("workspace_id", { count: "exact", head: true }).eq("user_id", m.user_id);
-    if (count) continue;
-    const { data: p } = await db().from("profiles").select("auth_user_id").eq("id", m.user_id).maybeSingle();
-    await db().from("profiles").delete().eq("id", m.user_id);
-    if (p?.auth_user_id) await db().auth.admin.deleteUser(p.auth_user_id as string);
+    const { data: authUser, error: e3 } = await db().rpc("delete_lone_person", { p_person: m.user_id });
+    if (e3) throw new Error("A member of the trial could not be deleted.");
+    if (typeof authUser === "string") await db().auth.admin.deleteUser(authUser);
   }
 }
 
@@ -86,8 +90,23 @@ async function deleteTrial(workspaceId: string): Promise<void> {
 export async function deleteExpiredTrials(now = new Date()): Promise<number> {
   const before = new Date(now.getTime() - TRIAL_GRACE_DAYS * DAY).toISOString();
   const { data } = await db().from("workspaces").select("id").lte("trial_ends_at", before);
-  for (const w of data ?? []) await deleteTrial(w.id as string);
-  return data?.length ?? 0;
+  let n = 0;
+  // Each on its own: one that fails waits for the next run and never holds back the others.
+  for (const w of data ?? []) {
+    try {
+      await deleteTrial(w.id as string);
+      n++;
+    } catch (e) {
+      console.error(`Trial ${w.id} could not be deleted: ${(e as Error).message}`);
+    }
+  }
+  return n;
+}
+
+/** Whether any Trial Workspace exists: the cleanup keeps running for them after trials stop being offered. */
+export async function trialsExist(): Promise<boolean> {
+  const { count } = await db().from("workspaces").select("id", { count: "exact", head: true }).not("trial_ends_at", "is", null);
+  return (count ?? 0) > 0;
 }
 
 /** Everything the scheduler does for trials, in order. Answers counts only. */

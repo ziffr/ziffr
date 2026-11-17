@@ -39,7 +39,7 @@ export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?:
       {providers.length > 0 && (
         <div className="space-y-2 border-t border-border pt-6">
           {providers.map((p) => (
-            <Button key={p.id} variant="outline" className="w-full" disabled={pending} onClick={() => start(async () => { try { await signInWith(p.id, next); } catch (err) { setError((err as Error).message); } })}>
+            <Button key={p.id} variant="outline" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)} onClick={() => start(async () => { try { await signInWith(p.id, next, check ?? undefined); } catch (err) { setError((err as Error).message); } })}>
               Continue with {p.label}
             </Button>
           ))}

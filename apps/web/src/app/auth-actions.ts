@@ -38,8 +38,10 @@ export async function sendSignInLink(email: string, next?: string, check?: strin
 }
 
 /** Starts signing in with a provider; only providers that are set up are accepted. */
-export async function signInWith(provider: Provider, next?: string) {
+export async function signInWith(provider: Provider, next?: string, check?: string) {
   if (demoOnly()) throw new Error(DEMO_ONLY);
+  // The same check against bots as for a link (spec 0021): a provider account makes a trial too.
+  if (!(await turnstilePassed(check, networkAddress(await headers())))) throw new Error("The check against bots did not pass. Try it again.");
   if (!enabledProviders().includes(provider)) throw new Error("This way of signing in is not set up.");
   const { data, error } = await (await authClient()).auth.signInWithOAuth({
     provider,
