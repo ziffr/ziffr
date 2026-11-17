@@ -3,6 +3,7 @@
 // changed by its owner or its Editors through the core; only the owner deletes it.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
+import { askMeNow as coreAskMeNow } from "@ziffr/core/ask-now";
 import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows, uploadSeries as coreUploadSeries } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
@@ -44,4 +45,12 @@ export async function setMetricSources(metricId: number, sources: string[]) {
 export async function updateMetricDetails(metricId: number, details: MetricDetails) {
   await coreUpdateMetricDetails(await currentActor(), Number(metricId), details);
   revalidatePath("/", "layout");
+}
+
+/** The Metric's owner, who also submits it, asks for its current Prompt now (spec 0021); the core checks who and how
+ * often, and says where the Prompt went. */
+export async function askMeNow(metricId: number) {
+  const r = await coreAskMeNow(await currentActor(), Number(metricId));
+  revalidatePath("/", "layout");
+  return r;
 }

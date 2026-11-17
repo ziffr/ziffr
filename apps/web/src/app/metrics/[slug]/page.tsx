@@ -28,6 +28,8 @@ import { Person } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MetricWorkspace } from "./workspace";
 import { PinMenu } from "./pin";
+import { AskNow } from "./ask-now";
+import { canAskNow } from "@ziffr/core/ask-now";
 import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
 import { RequestAccess } from "@/components/who-can-see";
@@ -86,7 +88,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     );
   }
   const actor = await currentActor();
-  const [actions, extras, dashboards, shares, groups, keyNames, choices] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
@@ -95,6 +97,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     // Which program sent a value: the names of the Access Keys behind this Metric's values (spec 0002).
     submittingKeyNames(actor, metric.id),
     feedChoices(actor),
+    // Ask me now is for the owner who also submits it (spec 0021).
+    canAskNow(actor, metric.id),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -140,6 +144,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Only the owner shares a metric, so only they get the Share button; everyone gets the ⋯ menu. */}
         <ObjectToolbar type="metric" id={metric.id} people={people} share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null}>
+          {askable && <AskNow metricId={metric.id} />}
           <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
           {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
           {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
