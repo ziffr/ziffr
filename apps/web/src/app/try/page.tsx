@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/page-header";
 import { WayLine } from "@/components/way-state";
 import { trialEndsAt } from "@ziffr/core/trials";
 import { waysTried, whatWorksHere, type Way } from "@ziffr/core/what-works-here";
+import { EndTrialButton } from "@/components/end-trial-button";
 
 const FEEDS_GUIDE = "https://github.com/ziffr/ziffr/blob/main/docs/guides/feeds.md#from-n8n-zapier-or-any-http-client";
 
@@ -69,7 +70,8 @@ export default async function TryItPage() {
         <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
           {NEVER.map((n) => <li key={n}>{n}</li>)}
         </ul>
-        <p className="mt-3 text-muted-foreground">Your trial ends on {ends.toISOString().slice(0, 10)}.</p>
+        <p className="mt-3 text-muted-foreground">Your trial ends on {ends.toISOString().slice(0, 10)}. A week later it is deleted with everything in it. <a href="/try/download" className="underline">Download your values</a> to keep them, or end it now.</p>
+        <div className="mt-3"><EndTrialButton /></div>
       </section>
     </>
   );

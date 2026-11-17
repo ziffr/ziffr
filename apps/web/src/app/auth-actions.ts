@@ -9,7 +9,8 @@ import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { TrialRefused } from "@ziffr/core/trials";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
-import { WORKSPACE_COOKIE } from "@/lib/viewer";
+import { currentActor, WORKSPACE_COOKIE } from "@/lib/viewer";
+import { endTrialNow as coreEndTrialNow } from "@ziffr/core/trial-end";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 import { turnstilePassed } from "@/lib/turnstile";
 
@@ -102,4 +103,16 @@ export async function askToJoin(workspaceId: string) {
   const who = await signedIn();
   if (!who) redirect("/login");
   await requestToJoin(who, String(workspaceId ?? ""));
+}
+
+/** The Owner ends their trial now (spec 0021): it is deleted with everything in it, and they are signed out. */
+export async function endMyTrial(): Promise<{ error: string } | void> {
+  try {
+    await coreEndTrialNow(await currentActor());
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  await (await authClient()).auth.signOut();
+  (await cookies()).delete(WORKSPACE_COOKIE);
+  redirect("/login");
 }

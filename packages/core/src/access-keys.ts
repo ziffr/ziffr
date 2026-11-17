@@ -8,7 +8,7 @@ import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedA
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { trialLimitMessage } from "./trials";
+import { trialEnded, trialLimitMessage } from "./trials";
 import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
@@ -97,6 +97,8 @@ export async function actorForSecret(secret: string): Promise<KeyActor | FeedAct
   if (k.revoked_at || k.expires_on < today()) return null;
   // The demo has no Access Keys (its made-up people are anyone's); one that got there anyway does nothing.
   if (k.workspace_id === DEMO_WORKSPACE_ID) return null;
+  // A trial that has ended takes nothing more, also before its keys are revoked by the cleanup (spec 0021).
+  if (await trialEnded(k.workspace_id)) return null;
   if (k.feed_id) {
     const { data: feed } = await db().from("feeds").select("person_id").eq("person_id", k.feed_id).eq("workspace_id", k.workspace_id).is("deleted_at", null).maybeSingle();
     // Exactly the one scope, whatever the row says: a Feed Key never reads.
