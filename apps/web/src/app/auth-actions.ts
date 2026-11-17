@@ -8,6 +8,7 @@ import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } f
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
 import { TrialRefused } from "@ziffr/core/trials";
+import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 
@@ -65,7 +66,8 @@ export async function createWorkspace(name: string): Promise<{ error: string } |
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
-  redirect("/");
+  // A new trial opens on its Try it page (spec 0021), which says what works in it and how to try each way.
+  redirect(whatThisZiffrOffers().trial ? "/try" : "/");
 }
 
 /** Switches to another of the person's workspaces. */
