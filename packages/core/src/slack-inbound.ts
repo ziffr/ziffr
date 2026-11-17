@@ -14,6 +14,7 @@ import { isSlackId, linkSlackByCode, personOfSlackUser } from "./slack-people";
 import { SLACK_BUTTONS } from "./slack-send";
 import type { SubmissionEffects } from "./submissions";
 import { approve } from "./workflow-engine";
+import { trialEnded } from "./trials";
 
 /** Largest request taken from Slack, in bytes; its events and button presses are far smaller. */
 export const MAX_SLACK_BYTES = 64 * 1024;
@@ -118,7 +119,8 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
     .eq("workspace_id", bot.workspaceId).eq("connector", "slack").eq("slack_channel", channel).eq("slack_ts", threadTs).maybeSingle();
   if (!d) return none("unknown_thread");
   const at = (outcome: SlackOutcome) => ({ outcome, deliveryId: d.id as number });
-  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return at("expired");
+  // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return at("expired");
   // Only the person it went to, as Slack knows them now: someone else in the thread answers nothing.
   if ((await personOfSlackUser(bot.workspaceId, bot.teamId, user)) !== d.recipient_id) return at("wrong_user");
   const { count } = await db().from("slack_events").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_user,too_many)");
@@ -161,7 +163,8 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
     .eq("id", id).eq("workspace_id", bot.workspaceId).eq("connector", "slack").eq("slack_channel", channel).eq("slack_ts", ts).maybeSingle();
   if (!d) return "unknown_thread";
   if ((await personOfSlackUser(bot.workspaceId, bot.teamId, str(obj(p.user).id))) !== d.recipient_id) return "wrong_user";
-  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return "expired";
+  // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return "expired";
   if (action.action_id === SLACK_BUTTONS.approve && d.action_id) {
     // Slack vouches for who pressed it, unlike an email's From: an Approval is taken here, by the same path as in
     // Ziffr, which checks the person is this approval's approver and it is still open.

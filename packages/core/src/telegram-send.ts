@@ -8,6 +8,7 @@ import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
 /** Telegram messages one workspace may send in 24 hours; the rest wait in the queue. */
 export const TELEGRAM_PER_WORKSPACE_PER_DAY = 500;
@@ -50,6 +51,9 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
     await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
     return "failed" as const;
   };
+  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
+  if (held) return keepInOutbox(id, held);
   if (d.workspace_id === DEMO_WORKSPACE_ID || !(await telegramOnIn(d.workspace_id))) return never("Telegram is off in this workspace.");
   // Someone who stopped Prompts and reminders on Telegram gets none, also ones queued before they stopped.
   if (OPT_OUT_KINDS.includes(d.kind)) {
@@ -59,6 +63,9 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   const chat = await telegramChatOf(d.workspace_id, d.recipient_id);
   if (!chat) return never("Not connected to Telegram.");
   // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
+  const trial = await claimTrialSend(id);
+  if (trial === "wait") return "waiting";
+  if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_telegram_send", {
     p_id: id, p_chat: chat.chatId, p_per_workspace: TELEGRAM_PER_WORKSPACE_PER_DAY, p_per_recipient: TELEGRAM_PER_RECIPIENT_PER_HOUR,
     p_per_sender: TELEGRAM_PER_SENDER_PER_DAY, p_per_bot_second: TELEGRAM_PER_BOT_PER_SECOND, p_max_attempts: MAX_ATTEMPTS,

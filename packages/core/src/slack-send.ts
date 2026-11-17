@@ -8,6 +8,7 @@ import { callSlack, slackEnabled, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
 /** Slack messages one workspace may send in 24 hours; the rest wait in the queue. */
 export const SLACK_PER_WORKSPACE_PER_DAY = 500;
@@ -49,6 +50,9 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
     return "failed" as const;
   };
+  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
+  if (held) return keepInOutbox(id, held);
   if (d.workspace_id === DEMO_WORKSPACE_ID || !slackEnabled()) return never("Slack is not set up.");
   const bot = await slackBot(d.workspace_id);
   if (!bot) return never("Slack is not connected.");
@@ -66,6 +70,9 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     return trouble(e, bot, id, Number(d.attempts), false);
   }
   // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
+  const trial = await claimTrialSend(id);
+  if (trial === "wait") return "waiting";
+  if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_slack_send", {
     p_id: id, p_team_id: bot.teamId, p_recipient: `${bot.teamId}:${user}`, p_per_workspace: SLACK_PER_WORKSPACE_PER_DAY,
     p_per_recipient: SLACK_PER_RECIPIENT_PER_HOUR, p_per_sender: SLACK_PER_SENDER_PER_DAY, p_per_team_minute: SLACK_PER_TEAM_PER_MINUTE, p_max_attempts: MAX_ATTEMPTS,

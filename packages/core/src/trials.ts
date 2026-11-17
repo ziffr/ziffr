@@ -50,3 +50,43 @@ export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
 export async function assertNotTrial(workspaceId: string, what = "This"): Promise<void> {
   if (await trialEndsAt(workspaceId)) throw new Forbidden(`${what} is not possible in a trial: a trial is for its Owner alone.`);
 }
+
+/** Real messages a Trial Workspace may send in 24 hours, over all its Connectors together (claim_trial_send). */
+export const TRIAL_DELIVERIES_PER_DAY = 50;
+
+/** Why a trial keeps a Delivery in the Outbox, in words for the Outbox. */
+export const TRIAL_HOLDS_BACK = {
+  notOwner: "Kept in the Outbox: a trial sends only to its Owner.",
+  ended: "Kept in the Outbox: this trial has ended.",
+} as const;
+
+/** Why a Delivery to this recipient may not leave the workspace for real, or null when it may (always outside a
+ * trial). A trial reaches only its Owner (ADR 0010), and nobody once it has ended. Checked when a Delivery is made
+ * and again by each Connector right before it sends, so one queued by any other path is still held back. */
+export async function trialHoldsBack(workspaceId: string, recipientId: string): Promise<string | null> {
+  const ends = await trialEndsAt(workspaceId);
+  if (!ends) return null;
+  if (ends.getTime() <= Date.now()) return TRIAL_HOLDS_BACK.ended;
+  const { data } = await db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", recipientId).maybeSingle();
+  return data?.role === "owner" ? null : TRIAL_HOLDS_BACK.notOwner;
+}
+
+/** Whether a workspace is a Trial Workspace that has ended: it takes no replies and sends nothing any more. */
+export async function trialEnded(workspaceId: string): Promise<boolean> {
+  const ends = await trialEndsAt(workspaceId);
+  return ends !== null && ends.getTime() <= Date.now();
+}
+
+/** Moves a queued Delivery a trial holds back to the Outbox, with the reason, so it reads as kept, not as failed. */
+export async function keepInOutbox(deliveryId: number, reason: string): Promise<"skipped"> {
+  await db().from("deliveries").update({ mail_state: "outbox", last_error: reason }).eq("id", deliveryId).eq("mail_state", "queued");
+  return "skipped";
+}
+
+/** Takes a queued Delivery's slot in its trial's daily limit, right before its Connector sends it: "ok" (also
+ * outside a trial), "wait" (the limit is reached; it is tried again in an hour) or "gone". */
+export async function claimTrialSend(deliveryId: number): Promise<"ok" | "wait" | "gone"> {
+  const { data, error } = await db().rpc("claim_trial_send", { p_id: deliveryId, p_per_day: TRIAL_DELIVERIES_PER_DAY });
+  if (error) throw new Error("The message could not be claimed for sending.");
+  return data === "ok" || data === "wait" ? data : "gone";
+}

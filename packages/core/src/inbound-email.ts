@@ -9,6 +9,7 @@ import { addressIn, headerSafe, isAddress, mailEnabled, sendMail, type MailTrans
 import { routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { trialEnded } from "./trials";
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
@@ -110,7 +111,8 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
   if (!d || d.connector !== "email" || d.workspace_id === DEMO_WORKSPACE_ID) return "unknown_token";
-  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return log(d, "expired");
+  // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return log(d, "expired");
   // Only the person it went to, at the address the workspace keeps for them now: a forwarded copy answers nothing.
   const address = await addressIn(d.workspace_id, d.recipient_id);
   if (!address || !email.from || email.from !== address.toLowerCase()) return log(d, "wrong_sender");

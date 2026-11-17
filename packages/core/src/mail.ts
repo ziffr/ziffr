@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
 /** How often a message is tried before it counts as failed. */
 export const MAX_ATTEMPTS = 5;
@@ -133,6 +134,9 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     return "failed" as const;
   };
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
+  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
+  if (held) return keepInOutbox(id, held);
   if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled()) return never("Email is not set up.");
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
   if (!to) return never("No usable email address for this person here.");
@@ -144,6 +148,9 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   }
   // Claimed in the database within the limits, counted by inbox and by sender across all workspaces, so neither
   // parallel sends nor many Contacts or workspaces for one inbox pass them; over a limit it waits.
+  const trial = await claimTrialSend(id);
+  if (trial === "wait") return "waiting";
+  if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_delivery_send", {
     p_id: id, p_address_key: mailboxKey(to), p_per_workspace: MAIL_PER_WORKSPACE_PER_DAY, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: MAIL_PER_SENDER_PER_DAY, p_max_attempts: MAX_ATTEMPTS,
   });

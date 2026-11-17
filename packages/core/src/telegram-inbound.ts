@@ -15,6 +15,7 @@ import { approve } from "./workflow-engine";
 import { callTelegram, telegramEnabled, telegramPolling, telegramWebhookSecret } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
+import { trialEnded } from "./trials";
 
 /** Largest update taken, in bytes; real ones are far smaller. */
 export const MAX_TELEGRAM_BYTES = 64 * 1024;
@@ -144,7 +145,8 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
   const at = (outcome: TelegramOutcome): Handled => ({ outcome, workspaceId: d.workspace_id as string, deliveryId: d.id as number });
   // A workspace that turned Telegram off takes nothing by it any more, also replies to what it sent before.
   if (!(await telegramOnIn(d.workspace_id))) return at("ignored");
-  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return at("expired");
+  // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return at("expired");
   // Only the person it went to, as linked now: a chat that changed hands answers nothing.
   if ((await personOfTelegramUser(d.workspace_id, userId)) !== d.recipient_id) return at("wrong_user");
   const { count } = await db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_user,too_many)");
@@ -194,7 +196,8 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
   };
   if (!(await telegramOnIn(d.workspace_id))) return at("ignored");
   if ((await personOfTelegramUser(d.workspace_id, userId)) !== d.recipient_id) return at("wrong_user");
-  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return at("expired", "This message is too old to act on.");
+  // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
+  if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return at("expired", "This message is too old to act on.");
   if (m[1] === TELEGRAM_BUTTONS.approve && d.action_id) {
     // The same path as in Ziffr, which checks the person is this approval's approver and it is still open.
     try {
