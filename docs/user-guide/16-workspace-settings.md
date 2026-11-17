@@ -231,6 +231,10 @@ A bot cannot find anyone by email or phone number, so everyone connects their ow
 
 Telegram can read what its bots send and receive, so numbers and questions sent this way pass through Telegram's servers. The box says so as well.
 
+### Claude and other AI assistants
+
+This box shows how to connect an AI assistant, such as Claude Code or Claude Desktop, through the **MCP Server**, filled in with this Ziffr's address. Make an **Access Key** first (see [Access Keys](#access-keys)) and paste it in place of `zk_...`. The assistant then reads the Metrics the key may read, records values and starts Metrics, as far as the key allows. The box is not shown in the demo, which has no Access Keys.
+
 ### Connected systems
 
 One card per **Connector**, each with what it can do (receives values, sends reminders, sends questions and tasks, brings replies back, keeps task status in step) and its state:
@@ -289,6 +293,8 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 ## Access Keys
 
 **Workspace → Access Keys** is where you make an **Access Key**: a secret that lets a program or an AI assistant work in this Workspace on your behalf. A key sees no more than you do, and it stops working when it ends, when it is revoked, or when you leave the Workspace.
+
+In a **Trial Workspace**, at most two Access Keys work at a time, and none works past the trial's last day: a later end date is shortened to it. The same holds for Feeds: at most two, with at most two keys each.
 
 ### Making a key
 

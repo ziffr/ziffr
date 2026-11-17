@@ -51,6 +51,18 @@ export async function assertNotTrial(workspaceId: string, what = "This"): Promis
   if (await trialEndsAt(workspaceId)) throw new Forbidden(`${what} is not possible in a trial: a trial is for its Owner alone.`);
 }
 
+/** Access Keys of people, Feeds, and Feed Keys per Feed that a Trial Workspace may have working at once (the
+ * database keeps the counts: access_keys_in_trial, feeds_in_trial). */
+export const TRIAL_KEYS_MAX = 2;
+
+/** The words for a trial's key and Feed limits, by the code the database raises. */
+export function trialLimitMessage(code: string | undefined): string | null {
+  if (code === "ZF431") return `A trial has at most ${TRIAL_KEYS_MAX} Access Keys that work. Revoke one to make another.`;
+  if (code === "ZF432") return `A Feed in a trial has at most ${TRIAL_KEYS_MAX} keys that work. Revoke one to make another.`;
+  if (code === "ZF433") return `A trial has at most ${TRIAL_KEYS_MAX} Feeds. Delete one to make another.`;
+  return null;
+}
+
 /** Real messages a Trial Workspace may send in 24 hours, over all its Connectors together (claim_trial_send). */
 export const TRIAL_DELIVERIES_PER_DAY = 50;
 

@@ -12,6 +12,8 @@ import { isDemo } from "@/lib/auth";
 import { ConnectorsScreen, type DeliveryRow, type PrefRow } from "./screen";
 import { SlackPanel } from "./slack-panel";
 import { TelegramPanel } from "./telegram-panel";
+import { McpPanel } from "./mcp-panel";
+import { SITE_URL } from "@/lib/sign-in";
 
 const SLACK_OUTCOME: Record<string, string> = {
   connected: "Slack is connected.",
@@ -34,6 +36,8 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
+      {/* The demo has no Access Keys, so it offers no assistant. */}
+      {!demo && <McpPanel siteUrl={SITE_URL} />}
       <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={mailEnabled() ? (inboundEnabled() ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} />
     </>
   );
