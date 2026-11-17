@@ -20,7 +20,7 @@ import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
-import { rankCorrelations, strength } from "@/analyses/correlation";
+import { rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
@@ -70,7 +70,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
 
-  const correlations = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), series);
+  // Same period only until the page shows what a cross-period result was compared on (spec 0019, ticket #53).
+  const correlations = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id) && m.period === metric.period), resolverFrom(metrics, series), { yearStart }).ranked;
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
   if (!visible.has(metric.id)) {

@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatValue, health } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
-import { pearson, strength } from "@/analyses/correlation";
+import { pearson, strength } from "@ziffr/core/correlation";
 import type { CanvasData, Metric, Point, Widget } from "@ziffr/core/types";
 import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
