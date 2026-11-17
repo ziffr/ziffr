@@ -1,6 +1,6 @@
 # 0017 Quarterly and yearly Metrics
 
-**Status:** in progress. **Tracking issue:** #37 (label `tracking`); tickets #38 to #44 carry `spec:0017`.
+**Status:** done. **Tracking issue:** #37 (label `tracking`); tickets #38 to #44 carry `spec:0017`.
 
 ## Problem Statement
 

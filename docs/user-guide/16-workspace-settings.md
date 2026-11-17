@@ -81,11 +81,11 @@ Choose **Save** after changing either. Members and Guests see a single line, suc
 
 ### Fiscal year
 
-**Year starts in** sets the month the Workspace's **Fiscal Year** begins. It decides where quarters, half-years and years start everywhere in Ziffr: in Comparisons such as QoQ and HoH, and in Snapshots of a quarter. It is January unless an Owner or Admin picks another month.
+**Year starts in** sets the month the Workspace's **Fiscal Year** begins. It decides where quarters, half-years and years start everywhere in Ziffr: for quarterly and yearly Metrics, their Prompts and Due Dates, in Comparisons such as QoQ and HoH, in a widget's **Show by**, and in Snapshots of a quarter, half-year or year. Programs read it through the API (`GET /api/v1/workspace`). It is January unless an Owner or Admin picks another month.
 
 With January, quarters and years have their calendar names: "Q3 2026", "H2 2026", "2026". With any other month, a year is named by both calendar years it spans, so it cannot be mistaken for a calendar year: a year that starts in April 2026 is "FY 2026/27", and its first quarter, April to June, is "Q1 FY 2026/27". Months, weeks and days keep their calendar names. Under the list, the page shows what this year and this quarter are called with the month you picked.
 
-Some months may be greyed out. What Ziffr has already kept per quarter, half-year or year, such as a Snapshot of a quarter, stays tied to the months it was kept for. A month that would split those periods cannot be picked, and the page says why. For example, with a Snapshot of Q2 2026, the year can start in January, April, July or October, and the Snapshot is then called by its new name, such as "Q1 FY 2026/27". Comparisons are always worked out afresh, so they follow a change at once.
+Some months may be greyed out. What Ziffr has already kept per quarter, half-year or year, such as the values of a quarterly Metric or a Snapshot of a quarter, stays tied to the months it was kept for. A month that would split those periods cannot be picked, and the page says why. For example, with a Snapshot of Q2 2026, the year can start in January, April, July or October, and the Snapshot is then called by its new name, such as "Q1 FY 2026/27". Comparisons are always worked out afresh, so they follow a change at once.
 
 Choose **Save** after picking a month. The change shows in the Audit Log. Members and Guests see a single line, such as "Year starts in April".
 

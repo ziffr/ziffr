@@ -15,7 +15,7 @@ Everything that defines a metric: name, description, unit and format, period, su
 _Avoid_: Settings, config, schema
 
 **Period**:
-How often a Metric has a value: a day, week or month. Weeks run Monday to Sunday; a period is named by its first day ("Week of 9 Nov 2026", "October 2026").
+How often a Metric has a value: a day, week, month, quarter or year. Weeks run Monday to Sunday; quarters and years are those of the Fiscal Year. A period is named by its first day ("Week of 9 Nov 2026", "October 2026", "Q3 2026", "FY 2026/27").
 _Avoid_: Frequency, interval
 
 **Fiscal Year**:

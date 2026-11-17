@@ -24,7 +24,7 @@ Under **Workspace → General**, tell Ziffr about your business (your industry, 
 Go to **Metrics** and choose **New metric**. The easiest start is the Metric Catalog: pick a number you already track, such as "Revenue" or "Customer satisfaction". Ziffr fills in its description, and you check:
 
 - **Name and description**: would a new colleague understand exactly what is counted?
-- **Period**: daily, weekly or monthly.
+- **Period**: daily, weekly, monthly, quarterly or yearly. A number reported once a quarter, such as a survey score or board figures, is quarterly: Ziffr then asks for it once a quarter.
 - **Target Range and Polarity**: what a good value is, and whether higher or lower is better.
 - **Who submits it**: yourself, a colleague, a Contact without a login, or a Feed.
 
