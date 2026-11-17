@@ -121,6 +121,7 @@ export function createServer(ziffr: Ziffr): McpServer {
     showTarget: z.boolean().optional(),
     showForecast: z.boolean().optional(),
     rows: z.number().int().min(1).max(50).optional(),
+    display: z.enum(["week", "month", "quarter", "half", "year"]).nullable().optional().describe("Show by: a period longer than the Metric's own (a monthly Metric by quarter, half or year), its values combined by its Aggregation; null for its own period. For number, line, bars, table and forecast."),
   }).strict();
   const words = {
     kicker: z.string().max(200).optional().describe("The small line above the headline."),

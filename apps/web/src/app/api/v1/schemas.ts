@@ -178,12 +178,16 @@ export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).descr
 /** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
 export const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
 
+/** A Display Period (GLOSSARY): what a widget can show a Metric by. */
+const DisplayPeriodSchema = z.enum(["week", "month", "quarter", "half", "year"]);
+
 /** The few settings a key may set on a widget. */
 export const KeySettings = z.object({
   window: z.number().int().min(1).max(120).optional().describe("Periods shown."),
   showTarget: z.boolean().optional().describe("Draw the target band."),
   showForecast: z.boolean().optional().describe("Draw a forecast (line)."),
   rows: z.number().int().min(1).max(50).optional().describe("Rows shown (history table)."),
+  display: DisplayPeriodSchema.nullable().optional().describe("Show by: a period longer than the Metric's own, its values combined by its Aggregation (number, line, bars, table, forecast); null for the Metric's own period. Ignored when not longer, or for a Metric whose Aggregation is none."),
 }).strict();
 
 const slugList = z.array(z.string().min(1).max(100)).max(50);
@@ -213,6 +217,7 @@ export const ApiWidget = z.object({
   metrics: z.array(z.string()).describe("Slugs of the Metrics it draws."),
   x: z.number().int(), y: z.number().int(), w: z.number().int(), h: z.number().int(),
   words: FindingWords.optional().describe("A Finding only: its words."),
+  display: DisplayPeriodSchema.optional().describe("The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period)."),
 });
 
 /** A dashboard with its introduction and its widgets in reading order. */
