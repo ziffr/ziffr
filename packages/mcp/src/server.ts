@@ -83,7 +83,7 @@ export function createServer(ziffr: Ziffr): McpServer {
       description: z.string().max(2000).optional(),
       unit: z.string().max(20).optional().describe("Shown after the value, such as signups or EUR."),
       format: z.enum(["number", "currency", "percent"]).optional(),
-      period: z.enum(["day", "week", "month"]).optional().describe("How often it has a value; default month."),
+      period: z.enum(["day", "week", "month", "quarter", "year"]).optional().describe("How often it has a value; default month. Quarters and years start from the workspace's year start (get_workspace)."),
       submission_rule: z.enum(["reject", "overwrite", "add", "keep_both"]).optional().describe("What a second value for a period does; default overwrite."),
       polarity: z.enum(["higher", "lower", "target"]).optional().describe("Whether higher or lower is better, or a range."),
       target_min: z.number().nullable().optional(),
@@ -103,6 +103,12 @@ export function createServer(ziffr: Ziffr): McpServer {
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   }, ({ slug, confirm_name }) => guarded(async () => answer({ ...(await ziffr.metrics.delete(slug, confirm_name)) })));
+
+  server.registerTool("get_workspace", {
+    title: "Describe the workspace",
+    description: "The month the workspace's fiscal year starts in (1 is January). Quarterly and yearly Metrics' periods start from it: with 4 (April), Q1 is April to June and a period of 2026-04-01 is the year FY 2026/27.",
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, () => guarded(async () => answer({ workspace: await ziffr.workspace() })));
 
   server.registerTool("list_people", {
     title: "List people",

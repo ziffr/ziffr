@@ -2,12 +2,15 @@
 // knows only HTTP and the API's published shapes, nothing of the server. Safe by default: it waits out a 429 as the
 // server's Retry-After says, and every submission carries an idempotency key, so a retry never records a value twice.
 
+/** How often a Metric has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year. */
+export type Period = "day" | "week" | "month" | "quarter" | "year";
+
 /** A Metric's description, as `GET /metrics/{slug}` answers it. */
 export type Metric = {
   slug: string;
   name: string;
   description: string;
-  period: "day" | "week" | "month";
+  period: Period;
   format: "number" | "currency" | "percent";
   unit: string;
   decimals: number;
@@ -67,7 +70,7 @@ export type Submission = { status: "recorded" | "awaiting_approval"; period: str
 
 /** A Metric as its Feed sees it (spec 0012): what to fetch and which periods already have a value, never a value. */
 export type FeedMetric = {
-  slug: string; name: string; period: "day" | "week" | "month"; unit: string; format: "number" | "currency" | "percent"; decimals: number;
+  slug: string; name: string; period: Period; unit: string; format: "number" | "currency" | "percent"; decimals: number;
   /** The current period's first day as Ziffr counts it. */
   current: string;
   /** Working days after a period ends by which its value is due, if its Workflow sets one. */
@@ -76,8 +79,11 @@ export type FeedMetric = {
   filled: string[];
 };
 
-/** The Feed a Feed Key acts for, and its Metrics. */
-export type FeedOverview = { name: string; metrics: Page<FeedMetric> };
+/** The Feed a Feed Key acts for, the month the workspace's year starts in, and its Metrics. */
+export type FeedOverview = { name: string; year_start_month: number; metrics: Page<FeedMetric> };
+
+/** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12. */
+export type Workspace = { year_start_month: number };
 
 /** One value in a Feed's batch; `period` is the period's first day, the current period if left out. */
 export type FeedItem = { metric: string; period?: string; value: number; breakdown?: BreakdownRow[] };
@@ -216,6 +222,9 @@ export class Ziffr {
       return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
     },
   };
+
+  /** The month the workspace's fiscal year starts in (1 is January): where quarterly and yearly Metrics' periods start. */
+  workspace = (): Promise<Workspace> => this.get<Workspace>("/workspace");
 
   /** The workspace's people and Contacts. */
   readonly people = {

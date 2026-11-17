@@ -41,6 +41,12 @@ describe("POST /api/v1/metrics", () => {
       ["POST", "/api/v1/metrics", 201], ["POST", "/api/v1/metrics", 201], ["POST", "/api/v1/metrics", 409], ["POST", "/api/v1/metrics", 201],
     ]);
   });
+  it("creates quarterly and yearly Metrics", async () => {
+    const { post } = await setup();
+    expect(await (await post({ name: "Quarterly NPS", period: "quarter" })).json()).toMatchObject({ slug: "quarterly-nps", period: "quarter" });
+    expect(await (await post({ name: "Audit score", period: "year" })).json()).toMatchObject({ slug: "audit-score", period: "year" });
+    expect((await post({ name: "Fortnightly", period: "fortnight" })).status).toBe(400);
+  });
   it("answers 429 with Retry-After at the daily limit, and keeps no idempotent answer for it", async () => {
     const { post, fill } = await setup();
     await fill(50);

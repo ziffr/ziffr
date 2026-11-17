@@ -2,7 +2,7 @@
 // failing fetches, idempotency keys and the period arithmetic. The same against the real app is in test/.
 import { describe, expect, it, vi } from "vitest";
 import type { FeedItem, FeedItemResult, FeedMetric } from "@ziffr/sdk";
-import { defineFeed, periodEnd, recentPeriods, runFeed, shiftPeriod, summary, type FetchContext } from "./index";
+import { defineFeed, periodEnd, periodStart, recentPeriods, runFeed, shiftPeriod, summary, type FetchContext } from "./index";
 import { parseArgs } from "./cli";
 
 const metric = (over: Partial<FeedMetric> = {}): FeedMetric => ({ slug: "revenue", name: "Revenue", period: "month", unit: "EUR", format: "currency", decimals: 0, current: "2026-11-01", due_working_days: null, filled: [], ...over });
@@ -35,9 +35,26 @@ describe("periods", () => {
     expect(recentPeriods("2026-11-01", "month", 2)).toEqual(["2026-09-01", "2026-10-01", "2026-11-01"]);
     expect(() => shiftPeriod("Nov", "month", 1)).toThrow();
   });
+  it("step by quarters and years, which start from the workspace's year start", () => {
+    expect(shiftPeriod("2026-01-01", "quarter", -1)).toBe("2025-10-01");
+    expect(periodEnd("2026-04-01", "year")).toBe("2027-04-01");
+    expect(recentPeriods("2026-07-01", "quarter", 2)).toEqual(["2026-01-01", "2026-04-01", "2026-07-01"]);
+    expect(periodStart("2026-11-17", "quarter")).toBe("2026-10-01");
+    expect(periodStart("2026-11-17", "quarter", 2)).toBe("2026-11-01");
+    expect(periodStart("2026-02-10", "year", 4)).toBe("2025-04-01");
+    expect(periodStart("2026-11-17", "year")).toBe("2026-01-01");
+    expect(periodStart("2026-11-19", "week")).toBe("2026-11-16");
+    expect(periodStart("2026-11-19", "month")).toBe("2026-11-01");
+  });
 });
 
 describe("runFeed", () => {
+  it("fetches a quarterly Metric's quarters, each to the day after its last", async () => {
+    const ziffr = fakeZiffr([metric({ period: "quarter", current: "2026-10-01", filled: [] })]);
+    const fetch = vi.fn(async (ctx: FetchContext) => (ctx.current ? 8 : 7));
+    await runFeed(defineFeed({ name: "Board", metrics: { revenue: { fetch } } }), { client: ziffr, backfill: 1 });
+    expect(fetch.mock.calls.map(([c]) => [c.period, c.periodEnd, c.current])).toEqual([["2026-07-01", "2026-10-01", false], ["2026-10-01", "2027-01-01", true]]);
+  });
   it("fetches the current period and the empty ones before it, and sends them", async () => {
     const ziffr = fakeZiffr([metric({ filled: ["2026-09-01"] })]);
     const fetch = vi.fn(async ({ period }: FetchContext) => (period === "2026-10-01" ? { value: 10, breakdown: [{ label: "EMEA", value: 10 }] } : 20));

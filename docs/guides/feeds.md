@@ -97,7 +97,7 @@ jobs:
 
 No kit is needed: a Feed is two endpoints ([reference](../reference/api.md)).
 
-1. `GET /api/v1/feed` lists the Feed's Metrics. For each it gives the slug, the period (`day`, `week`, `month`), the `current` period's first day, and `filled`: the periods that already have a value.
+1. `GET /api/v1/feed` lists the Feed's Metrics. For each it gives the slug, the period (`day`, `week`, `month`, `quarter`, `year`), the `current` period's first day, and `filled`: the periods that already have a value. `year_start_month` says which month the workspace's quarters and years start from (1 is January).
 2. `POST /api/v1/feed/observations` takes 1 to 500 values and answers with one result per item, in order.
 
 In n8n, add an **HTTP Request** node after the node that reads your CRM:

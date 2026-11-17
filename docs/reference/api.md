@@ -27,7 +27,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | `items[].slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `items[].name` | string | yes |  |
 | `items[].description` | string | yes |  |
-| `items[].period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `items[].period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `items[].format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `items[].unit` | string | yes | Shown after the value, such as orders or EUR. |
 | `items[].decimals` | integer, 0 to 6 | yes | Decimal places to show. |
@@ -68,7 +68,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `unit` | string, at most 20 characters | no | Shown after the value, such as orders or EUR. |
 | `format` | `"number"`, `"currency"`, `"percent"` | no | Default number. |
 | `decimals` | integer, 0 to 6 | no | Default 0. |
-| `period` | `"day"`, `"week"`, `"month"` | no | Default month. |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | no | Default month. Quarters and years start from the workspace's year start. |
 | `submission_rule` | `"reject"`, `"overwrite"`, `"add"`, `"keep_both"` | no | What a second value for a period does. Default overwrite. |
 | `polarity` | `"higher"`, `"lower"`, `"target"` | no | Default higher. |
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | no | Default sum. |
@@ -83,7 +83,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
-| `period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown after the value, such as orders or EUR. |
 | `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
@@ -122,7 +122,7 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `slug` | string | yes | Stable id in paths; survives renames of the name. |
 | `name` | string | yes |  |
 | `description` | string | yes |  |
-| `period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
 | `unit` | string | yes | Shown after the value, such as orders or EUR. |
 | `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
@@ -271,11 +271,12 @@ For a Feed Key only (spec 0012): the Feed's name and the Metrics it submits to t
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `name` | string | yes | The Feed's name, as values from it show in Ziffr. |
+| `year_start_month` | integer, 1 to 12 | yes | The month the workspace's fiscal year starts in, 1 (January) to 12: where its Metrics' quarters and years start. |
 | `metrics` | object | yes | The Metrics it submits to and that take API values. |
 | `metrics.items` | array of object | yes | This page, at most `limit` long. |
 | `metrics.items[].slug` | string | yes | Name it in a batch item's `metric`. |
 | `metrics.items[].name` | string | yes |  |
-| `metrics.items[].period` | `"day"`, `"week"`, `"month"` | yes | How often it has a value. |
+| `metrics.items[].period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value; quarters and years start from `year_start_month`. |
 | `metrics.items[].unit` | string | yes |  |
 | `metrics.items[].format` | `"number"`, `"currency"`, `"percent"` | yes |  |
 | `metrics.items[].decimals` | integer, 0 to 6 | yes |  |
@@ -336,6 +337,27 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key is a person's Access Key, not a Feed Key.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first batch is still running.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Describe the workspace
+
+`GET /workspace` · scope `metrics:read`
+
+The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `year_start_month` | integer, 1 to 12 | yes | The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 

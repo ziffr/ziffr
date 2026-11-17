@@ -36,7 +36,7 @@ describe("@ziffr/mcp against the app", () => {
     const { client, ben, orders, hidden } = await connect();
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
-      "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric",
+      "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric", "get_workspace",
       "list_dashboards", "list_metrics", "list_people", "list_templates", "remove_widget", "submit_value", "update_dashboard", "update_finding", "update_widget",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
@@ -50,6 +50,7 @@ describe("@ziffr/mcp against the app", () => {
     const people = json(await client.callTool({ name: "list_people", arguments: {} })).people;
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
+    expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1 } });
   });
   it("creates a Metric and submits its first value", async () => {
     const { client } = await connect(["metrics:read", "values:submit", "metrics:write"]);
@@ -58,6 +59,10 @@ describe("@ziffr/mcp against the app", () => {
     expect(json(await client.callTool({ name: "submit_value", arguments: { slug: created.slug, value: 9 } }))).toMatchObject({ status: "recorded", value: 9 });
     const refused = await (await connect()).client.callTool({ name: "create_metric", arguments: { name: "X" } });
     expect(refused.isError).toBe(true);
+    // A quarterly Metric takes a value for a quarter's first day.
+    const nps = json(await client.callTool({ name: "create_metric", arguments: { name: "Quarterly NPS", period: "quarter", submit: true } })).metric;
+    expect(nps).toMatchObject({ period: "quarter" });
+    expect(json(await client.callTool({ name: "submit_value", arguments: { slug: nps.slug, value: 41, period: "2026-07-01" } }))).toMatchObject({ status: "recorded", period: "2026-07-01" });
   });
   it("makes a dashboard from a template and writes one up with Findings (spec 0014, spec 0013)", async () => {
     const { client, orders } = await connect(["metrics:read", "dashboards:read", "dashboards:write"]);
