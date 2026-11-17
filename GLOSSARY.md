@@ -30,6 +30,10 @@ _Avoid_: Calculated field, formula metric
 How a metric's values combine into a longer period: summed (revenue, deals), averaged (a score), the last value (a balance), or not at all (a rate).
 _Avoid_: Roll-up, rollup method, combine rule
 
+**Display Period**:
+The period a widget shows a Metric by: its own, or a longer one, with the Metric's values combined by its Aggregation.
+_Avoid_: Granularity, grain, bucket, roll-up
+
 **Target Series**:
 Target values for individual periods, such as a monthly budget, uploaded like observations. Where a period has none, the metric's target range applies.
 _Avoid_: Budget, plan, goal series

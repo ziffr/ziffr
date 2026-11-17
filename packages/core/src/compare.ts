@@ -1,7 +1,7 @@
 // The comparison engine (GLOSSARY: Comparison, Attainment, Aggregation). Pure: no server or React code,
 // so dashboards, decks, the Metric page, History and the PowerPoint export all compute the same numbers.
-import { evaluate, formulaInputs } from "./formula";
-import { periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
+import { combines, seriesBy, valueOver, type DisplayPoint, type Resolver } from "./display-periods";
+import { periodEnd, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { Metric, Period, Point } from "./types";
 
 /** Which Comparison: the previous period, a calendar span to date (day, week, month, quarter, half) or the year before. */
@@ -37,34 +37,8 @@ export type Comparison = {
   good?: boolean | null;
 };
 
-/** Series and aggregation per metric slug: how the engine reads metrics, including a derived metric's inputs. */
-export type Resolver = (slug: string) => { metric: Metric; points: Point[] } | undefined;
-
-/** The value of a metric over [start, end] (inclusive period starts), or undefined when it cannot be combined. */
-function valueOver(slug: string, start: string, end: string, resolve: Resolver, expected: number): number | undefined {
-  const r = resolve(slug);
-  if (!r) return undefined;
-  const { metric, points } = r;
-  if (metric.formula) {
-    const vars: Record<string, number> = {};
-    for (const input of formulaInputs(metric.formula)) {
-      const v = valueOver(input, start, end, resolve, expected);
-      if (v === undefined) return undefined;
-      vars[input] = v;
-    }
-    return evaluate(metric.formula, vars) ?? undefined;
-  }
-  const inSpan = points.filter((p) => p.period >= start && p.period <= end);
-  // Some metrics skip periods (no deals on weekends); a span counts when at least half of it has values.
-  if (!inSpan.length || inSpan.length < Math.ceil(expected / 2)) return undefined;
-  if (inSpan.length === 1) return inSpan[0].value;
-  switch (metric.aggregation) {
-    case "sum": return inSpan.reduce((a, p) => a + p.value, 0);
-    case "average": return inSpan.reduce((a, p) => a + p.value, 0) / inSpan.length;
-    case "last": return inSpan[inSpan.length - 1].value;
-    default: return undefined;
-  }
-}
+/** Series and aggregation per metric slug (kept here, where callers have always found it). */
+export type { Resolver } from "./display-periods";
 
 function spanLabel(start: string, end: string, p: Period, ys: YearStart) {
   return start === end ? periodLabel(start, p, ys, true) : `${periodLabel(start, p, ys, true)} to ${periodLabel(end, p, ys, true)}`;
@@ -81,50 +55,51 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
   const P = metric.period;
   const ys = opts.yearStart;
   // Derived metrics combine through their inputs, so their aggregation is effectively "by formula".
-  const combinable = Boolean(metric.formula) || metric.aggregation !== "none";
+  const combinable = combines(metric);
 
   return keys.map((key): Comparison => {
     const base = { key, label: COMPARE_LABEL[key] };
-    let cur: [string, string, number];
-    let prev: [string, string, number];
+    let cur: [string, string];
+    let prev: [string, string];
     const grain: Grain | null = key === "prev" || key === "yoy" ? null : GRAIN[key];
 
     if (key === "prev" || (grain && RANK[grain] === RANK[P])) {
       const p = shiftPeriod(last.period, P, -1);
-      cur = [last.period, last.period, 1];
-      prev = [p, p, 1];
+      cur = [last.period, last.period];
+      prev = [p, p];
     } else if (key === "yoy") {
       const p = shiftPeriod(last.period, "year", -1);
-      cur = [last.period, last.period, 1];
-      prev = [p, p, 1];
+      cur = [last.period, last.period];
+      prev = [p, p];
     } else {
       if (!combinable) return { ...base, available: false, reason: `${metric.name} does not combine into longer periods` };
       const g = grain!;
       const gStart = periodStart(last.period, g, ys);
+      let s: string;
+      let points: DisplayPoint[];
       if (opts.full) {
-        // Last complete span vs the one before.
-        const nextStart = shiftPeriod(gStart, g, 1);
-        const lastOfSpan = shiftPeriod(nextStart, P, -1);
-        const complete = lastOfSpan <= last.period;
-        const s = complete ? gStart : shiftPeriod(gStart, g, -1);
-        const n = periodsBetween(s, shiftPeriod(s, g, 1), P);
-        const e = shiftPeriod(shiftPeriod(s, g, 1), P, -1);
-        const ps = shiftPeriod(s, g, -1);
-        const pe = shiftPeriod(s, P, -1);
-        cur = [s, e, n];
-        prev = [ps, pe, n];
+        // Last complete span vs the one before: the span the latest period ends is complete, one ending later is not.
+        const complete = periodEnd(gStart, g) <= periodEnd(last.period, P);
+        s = complete ? gStart : shiftPeriod(gStart, g, -1);
+        cur = [s, shiftPeriod(shiftPeriod(s, g, 1), P, -1)];
+        points = seriesBy(metric, resolve, g, { yearStart: ys, today: shiftPeriod(last.period, P, 1) }).points;
       } else {
-        // To date: the current span so far vs the same number of periods at the start of the span before.
+        // To date: the current span so far vs the span before up to the same point.
         // Calendar-aligned: 1 Jul to 12 Nov compares with 1 Jan to 12 May, not a day count.
-        const ps = shiftPeriod(gStart, g, -1);
-        const pe = shiftPeriod(last.period, g, -1);
-        cur = [gStart, last.period, periodsBetween(gStart, last.period, P) + 1];
-        prev = [ps, pe, periodsBetween(ps, pe, P) + 1];
+        s = gStart;
+        cur = [gStart, last.period];
+        points = seriesBy(metric, resolve, g, { yearStart: ys, alignTo: last.period }).points;
       }
+      const ps = shiftPeriod(s, g, -1);
+      prev = [ps, opts.full ? shiftPeriod(s, P, -1) : shiftPeriod(last.period, g, -1)];
+      const at = (start: string) => points.find((p) => p.period === start)?.value;
+      return result(base, at(s), at(ps), cur, prev);
     }
 
-    const current = valueOver(metric.slug, cur[0], cur[1], resolve, cur[2]);
-    const previous = valueOver(metric.slug, prev[0], prev[1], resolve, prev[2]);
+    return result(base, valueOver(metric.slug, cur[0], cur[1], resolve, 1), valueOver(metric.slug, prev[0], prev[1], resolve, 1), cur, prev);
+  });
+
+  function result(base: { key: CompareKey; label: string }, current: number | undefined, previous: number | undefined, cur: [string, string], prev: [string, string]): Comparison {
     if (current === undefined || previous === undefined) {
       return { ...base, available: false, reason: previous === undefined ? "No values for the earlier span" : "Incomplete values for this span", currentSpan: spanLabel(cur[0], cur[1], P, ys), previousSpan: spanLabel(prev[0], prev[1], P, ys) };
     }
@@ -132,7 +107,7 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
     const pct = previous !== 0 ? (abs / Math.abs(previous)) * 100 : null;
     const good = metric.polarity === "target" || abs === 0 ? null : (abs > 0) === (metric.polarity === "higher");
     return { ...base, available: true, current, previous, abs, pct, good, currentSpan: spanLabel(cur[0], cur[1], P, ys), previousSpan: spanLabel(prev[0], prev[1], P, ys) };
-  });
+  }
 }
 
 /** The target for one period: the Target Series value if there is one, otherwise the metric's range. */
