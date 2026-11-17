@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { dashboardRole } from "./dashboards";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
-import { completePeriods, metricPeriodsIn, SNAPSHOT_PERIOD_KINDS, type SnapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
+import { completePeriods, metricPeriodsIn, type SnapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
 import { takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { widgetMetricIds } from "./widget-metrics";
@@ -19,6 +19,9 @@ import { type YearStart } from "./periods";
 
 /** The longest a dashboard may wait after a period ends before taking its Snapshot, in days. */
 export const MAX_WAIT_DAYS = 60;
+
+/** The Snapshot periods a dashboard may take by itself; half-years and years only by hand for now. */
+const AUTO_KINDS: SnapshotPeriodKind[] = ["week", "month", "quarter"];
 
 /** How a dashboard takes its Snapshots by itself: every week, month or quarter, or never (null). */
 export type AutoSnapshots = { every: SnapshotPeriodKind | null; waitDays: number };
@@ -36,7 +39,7 @@ export async function setAutoSnapshots(actor: Actor, dashboardId: number, settin
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   if ((await dashboardRole(actor, dashboardId)) !== "owner") throw new Forbidden();
   const every = setting?.every === null || setting?.every === "" ? null : String(setting?.every);
-  if (every !== null && !SNAPSHOT_PERIOD_KINDS.includes(every as SnapshotPeriodKind)) throw new Error("Pick week, month or quarter, or none.");
+  if (every !== null && !AUTO_KINDS.includes(every as SnapshotPeriodKind)) throw new Error("Pick week, month or quarter, or none.");
   const waitDays = Math.round(Number(setting?.waitDays));
   if (!Number.isFinite(waitDays) || waitDays < 0 || waitDays > MAX_WAIT_DAYS) throw new Error(`Wait between 0 and ${MAX_WAIT_DAYS} days.`);
   const { error } = await db().from("dashboards").update({ snapshot_every: every, snapshot_wait_days: waitDays }).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);

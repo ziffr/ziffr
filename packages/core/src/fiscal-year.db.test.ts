@@ -56,6 +56,29 @@ describe("the year start", () => {
     await takeSnapshot(owner, dash, { kind: "month", start: "2026-10-01" }, { today: "2026-11-17" });
     expect((await yearStartChoices(owner)).allowed).toEqual([1, 4, 7, 10]);
   });
+  it("keeps half-year and annual Snapshots half-years and years (spec 0020)", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const owner = w.actor(sara);
+    const rev = await w.metric(sara, { name: "Revenue" });
+    await w.value(rev.id, "2026-04-01", 10);
+    const dash = await createDashboard(owner, "Annual");
+    await placeWidget(owner, dash, { type: "spec", template: "story", metricIds: [rev.id], settings: { headline: "Revenue", panels: [] } });
+    const h2 = await takeSnapshot(owner, dash, { kind: "half", start: "2025-07-01" }, { today: "2026-11-17" });
+    expect((await yearStartChoices(owner)).allowed).toEqual([1, 7]);
+    await setYearStart(owner, 7);
+    // Taken as the second half of 2025, it is the first half of the year that starts in July 2025 now.
+    expect((await listSnapshots(owner, dash)).map((s) => s.label)).toEqual(["H1 FY 2025/26"]);
+    const year = await takeSnapshot(owner, dash, { kind: "year", start: "2024-07-01" }, { today: "2026-11-17" });
+    const choices = await yearStartChoices(owner);
+    expect(choices.allowed).toEqual([7]);
+    expect(choices.why).toMatch(/Snapshots of quarters, half-years or years/);
+    await expect(setYearStart(owner, 1)).rejects.toThrow(/Some months are out/);
+    // Deleted, they hold it no more.
+    const { deleteSnapshot } = await import("./snapshots");
+    await deleteSnapshot(owner, year);
+    expect((await yearStartChoices(owner)).allowed).toEqual([1, 7]);
+    await deleteSnapshot(owner, h2);
+    expect((await yearStartChoices(owner)).allowed).toHaveLength(12);
+  });
   it("starts a workspace's quarters for Snapshots and canvases", async () => {
     const w = await ws(); const sara = await w.person("owner"); const owner = w.actor(sara);
     await setYearStart(owner, 4);

@@ -1,5 +1,5 @@
 // Snapshots (spec 0013, ticket #175; ADR 0007; GLOSSARY: Snapshot, Dashboard, Finding, Version): a dashboard as it
-// stood for one week, month or quarter. Taking one copies the dashboard's layout and the values up to the end of
+// stood for one week, month, quarter, half-year or year (spec 0020). Taking one copies the dashboard's layout and the values up to the end of
 // the period, as the person taking it sees them, cut down the way a View Link is: only the Metrics on it, names
 // without contact details, nothing to act on. Those never change (the database refuses it). What people write about
 // it, the introduction and each Finding's words, is kept apart and stays editable; every change is a Version.
@@ -91,14 +91,14 @@ function wordsOf(w: Widget): WidgetWords {
   return out;
 }
 
-/** Takes a Snapshot of a dashboard for a week, month or quarter (`start` is its first day) that is over, within the
+/** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
 export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string } = {}): Promise<number> {
   assertCan(actor, "create");
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(actor.workspaceId));
-  if (!p) throw new Error("Pick a week, month or quarter to take the Snapshot of.");
+  if (!p) throw new Error("Pick a week, month, quarter, half-year or year to take the Snapshot of.");
   const dash = await roleOn(actor, dashboardId);
   if (!dash || (dash.role !== "owner" && dash.role !== "editor")) throw new Forbidden();
   const ws = actor.workspaceId;
@@ -141,7 +141,9 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   if (!dash) throw new Forbidden();
   let q = db().from("dashboard_snapshots").select(SUMMARY).eq("workspace_id", actor.workspaceId).eq("dashboard_id", dashboardId).is("deleted_at", null);
   if (dash.role !== "owner" && dash.role !== "editor") q = q.not("shown_at", "is", null);
-  const { data } = await q.order("period_start", { ascending: false }).order("id", { ascending: false }).limit(200);
+  // Newest first by the period's last day; of those ending on the same day the longer first: 2026, H2 2026, Q4
+  // 2026, December 2026.
+  const { data } = await q.order("period_end", { ascending: false }).order("period_start").order("id", { ascending: false }).limit(200);
   return ((data ?? []) as Row[]).map(summary);
 }
 
