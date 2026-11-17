@@ -298,6 +298,6 @@ The form shows:
 
 At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.
 
-Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so and offers **Disconnect**. This is how a Contact without a login connects Telegram.
+Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so and offers **Disconnect**; to switch to another Telegram account, disconnect first. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
 
 A Stand-in's form link works only while they stand in. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.

@@ -6,6 +6,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
+import { callTelegram } from "./telegram-api";
 import { submissionForm } from "./page-data";
 import { telegramBot, telegramOnIn } from "./telegram-connection";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -27,12 +28,25 @@ async function belongs(workspaceId: string, personId: string): Promise<boolean> 
   return Boolean(m || c);
 }
 
-/** The person and workspace of a personal form link that still works (stand-ins only while they are one), or null. */
-async function formOwner(formCode: string): Promise<{ workspaceId: string; personId: string } | null> {
+/** The Contact whose personal form link this is, while it works (stand-ins only while they are one), and their
+ * workspace; null for anyone else. A form link opens without signing in and travels in emails, so it may do no more
+ * for Telegram than for values: a member connects signed in, on the Connectors page, where their Approvals and
+ * questions are theirs to receive. */
+async function formContact(formCode: string): Promise<{ workspaceId: string; personId: string } | null> {
   if (!(await submissionForm(formCode))) return null;
   const { data } = await db().from("tokens").select("workspace_id, submitter_id").eq("code", formCode).maybeSingle();
-  if (!data || !(await belongs(data.workspace_id, data.submitter_id))) return null;
-  return { workspaceId: data.workspace_id as string, personId: data.submitter_id as string };
+  if (!data) return null;
+  const { data: c } = await db().from("contacts").select("person_id").eq("workspace_id", data.workspace_id).eq("person_id", data.submitter_id).maybeSingle();
+  return c ? { workspaceId: data.workspace_id as string, personId: data.submitter_id as string } : null;
+}
+
+/** Tells a chat that it no longer gets a workspace's messages; a lost notice is not worth failing for. */
+async function tellChat(chatId: number, text: string): Promise<void> {
+  try {
+    await callTelegram("sendMessage", { chat_id: chatId, text, link_preview_options: { is_disabled: true } });
+  } catch {
+    // The link changed all the same.
+  }
 }
 
 /** Makes a person's one-time code and the link that opens the bot with it. 32 random bytes in base64url: 43
@@ -55,11 +69,13 @@ export async function startTelegramLink(actor: Actor): Promise<{ url: string; mi
   return codeFor(actor.workspaceId, actor.personId);
 }
 
-/** "Connect Telegram" on a personal form page: for the person whose form it is (a Contact, or a member without
- * signing in), in the Metric's workspace. The form link is their credential, as it is for sending values. */
+/** "Connect Telegram" on a Contact's personal form page, in the Metric's workspace. It never replaces a Telegram the
+ * Contact already connected: whoever holds the form link must disconnect that first, which tells its chat. */
 export async function startTelegramLinkByForm(formCode: string): Promise<{ url: string; minutes: number }> {
-  const owner = await formOwner(formCode);
-  if (!owner) throw new Forbidden("This form link does not work any more.");
+  const owner = await formContact(formCode);
+  if (!owner) throw new Forbidden("Connect Telegram signed in, on the Connectors page.");
+  const { data: linked } = await db().from("telegram_links").select("person_id").eq("workspace_id", owner.workspaceId).eq("person_id", owner.personId).maybeSingle();
+  if (linked) throw new Error("Your Telegram is connected already. To use another one, disconnect first.");
   return codeFor(owner.workspaceId, owner.personId);
 }
 
@@ -79,13 +95,17 @@ export async function linkTelegramByCode(input: { code: string; userId: unknown;
   if (Date.now() - new Date(c.created_at).getTime() > TELEGRAM_CODE_MINUTES * 60_000) return { linked: false, why: "expired" };
   if (!(await belongs(c.workspace_id, c.person_id)) || !(await telegramOnIn(c.workspace_id))) return { linked: false, why: "gone" };
   await db().from("telegram_links").delete().eq("workspace_id", c.workspace_id).eq("telegram_user_id", input.userId).neq("person_id", c.person_id);
+  // The person's Telegram so far, if another account: it is told, so nobody loses their messages without knowing.
+  const { data: before } = await db().from("telegram_links").select("chat_id, telegram_user_id").eq("workspace_id", c.workspace_id).eq("person_id", c.person_id).maybeSingle();
   const { error } = await db().from("telegram_links").upsert(
     { workspace_id: c.workspace_id, person_id: c.person_id, telegram_user_id: input.userId, chat_id: input.chatId, linked_at: new Date().toISOString() },
     { onConflict: "workspace_id,person_id" },
   );
   if (error) return { linked: false, why: "gone" };
   const { data: w } = await db().from("workspaces").select("name").eq("id", c.workspace_id).maybeSingle();
-  return { linked: true, workspace: w?.name ?? "Ziffr" };
+  const name = w?.name ?? "Ziffr";
+  if (before && Number(before.telegram_user_id) !== input.userId) await tellChat(Number(before.chat_id), `Ziffr messages for ${name} now go to another Telegram account. If that was not you, tell an Owner of the workspace.`);
+  return { linked: true, workspace: name };
 }
 
 /** Forgets a Telegram account everywhere: it sent /stop, or blocked the bot. Returns how many links ended. */
@@ -101,9 +121,10 @@ export async function myTelegramLink(actor: Actor): Promise<{ linkedAt: string }
   return data ? { linkedAt: data.linked_at as string } : null;
 }
 
-/** Whether the person whose form this is is linked to Telegram in its workspace; null for a link that does not work. */
+/** Whether the Contact whose form this is is linked to Telegram in its workspace; null for a link that does not work
+ * or is not a Contact's (the form then offers nothing about Telegram). */
 export async function formTelegramLink(formCode: string): Promise<{ linked: boolean; telegramOn: boolean } | null> {
-  const owner = await formOwner(formCode);
+  const owner = await formContact(formCode);
   if (!owner) return null;
   const [{ data }, telegramOn] = await Promise.all([
     db().from("telegram_links").select("person_id").eq("workspace_id", owner.workspaceId).eq("person_id", owner.personId).maybeSingle(),
@@ -117,11 +138,12 @@ export async function unlinkTelegram(actor: Actor): Promise<void> {
   await db().from("telegram_links").delete().eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
 }
 
-/** Forgets the Telegram link of the person whose form this is, in its workspace. */
+/** Forgets the Telegram link of the Contact whose form this is, in its workspace, and tells the chat it was. */
 export async function unlinkTelegramByForm(formCode: string): Promise<void> {
-  const owner = await formOwner(formCode);
+  const owner = await formContact(formCode);
   if (!owner) throw new Forbidden("This form link does not work any more.");
-  await db().from("telegram_links").delete().eq("workspace_id", owner.workspaceId).eq("person_id", owner.personId);
+  const { data: gone } = await db().from("telegram_links").delete().eq("workspace_id", owner.workspaceId).eq("person_id", owner.personId).select("chat_id");
+  if (gone?.[0]) await tellChat(Number(gone[0].chat_id), "Disconnected from Ziffr on your personal form: you get no more Ziffr messages here for that workspace.");
 }
 
 /** The private chat a Delivery to this person goes to in a workspace, or null when they are not linked there. */

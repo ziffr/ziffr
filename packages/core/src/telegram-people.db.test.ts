@@ -6,7 +6,7 @@ import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { setTelegramEnabled } from "./telegram-connection";
 import { receiveTelegramUpdate } from "./telegram-inbound";
-import { formTelegramLink, myTelegramLink, personOfTelegramUser, startTelegramLink, startTelegramLinkByForm, telegramChatOf, unlinkTelegram } from "./telegram-people";
+import { formTelegramLink, myTelegramLink, personOfTelegramUser, startTelegramLink, startTelegramLinkByForm, telegramChatOf, unlinkTelegram, unlinkTelegramByForm } from "./telegram-people";
 import { fakeTelegram } from "./test/fake-telegram";
 import { workspace } from "./test/db-fixtures";
 
@@ -90,7 +90,34 @@ describe("linking Telegram", () => {
     expect(await receiveTelegramUpdate(message(user, `/start ${codeOf(url)}`))).toBe("linked");
     expect(await formTelegramLink(form)).toEqual({ linked: true, telegramOn: true });
     expect(await personOfTelegramUser(w.id, user)).toBe(cleo);
-    await expect(startTelegramLinkByForm("tk-test-unknown-code")).rejects.toThrow(/does not work/);
+    await expect(startTelegramLinkByForm("tk-test-unknown-code")).rejects.toThrow(/Connectors page/);
+    // A form link never replaces a Telegram already connected: disconnecting comes first, and tells that chat.
+    await expect(startTelegramLinkByForm(form)).rejects.toThrow(/disconnect first/);
+    const before = tg.of("sendMessage").length;
+    await unlinkTelegramByForm(form);
+    expect(await formTelegramLink(form)).toEqual({ linked: false, telegramOn: true });
+    expect(tg.of("sendMessage").slice(before).map((c) => c.params.chat_id)).toEqual([user]);
+  });
+
+  it("does not connect a member by their form link: their Approvals and questions need them signed in", async () => {
+    const { w, owner } = await telegramOn();
+    const sara = await w.person("member");
+    const form = await w.token((await w.metric(owner)).id, sara);
+    expect(await formTelegramLink(form)).toBeNull();
+    await expect(startTelegramLinkByForm(form)).rejects.toThrow(/Connectors page/);
+  });
+
+  it("tells the chat a person had before when they connect another Telegram account", async () => {
+    const { w } = await telegramOn();
+    const sara = await w.person("member");
+    const first = id();
+    await receiveTelegramUpdate(message(first, `/start ${codeOf((await startTelegramLink(w.actor(sara, "member"))).url)}`));
+    const before = tg.of("sendMessage").length;
+    const second = id();
+    await receiveTelegramUpdate(message(second, `/start ${codeOf((await startTelegramLink(w.actor(sara, "member"))).url)}`));
+    const told = tg.of("sendMessage").slice(before);
+    expect(told.find((c) => c.params.chat_id === first)?.params.text).toMatch(/now go to another Telegram account/);
+    expect(await personOfTelegramUser(w.id, second)).toBe(sara);
   });
 
   it("unlinks with /stop everywhere, by blocking the bot, and in Ziffr", async () => {

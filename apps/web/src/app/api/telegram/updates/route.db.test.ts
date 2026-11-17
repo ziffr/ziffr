@@ -1,7 +1,6 @@
 // POST /api/telegram/updates over HTTP (spec 0016, ticket #25): only with the secret this Ziffr registered, at most
 // 64 KB, JSON; each update counts once. The updates themselves are tested in the core (telegram-people.db.test.ts).
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db } from "@ziffr/core/db";
 import { telegramWebhookSecret } from "@ziffr/core/telegram-api";
 import { fakeTelegram } from "@ziffr/core/test/fake-telegram";
 import { POST } from "./route";
@@ -32,9 +31,10 @@ describe("POST /api/telegram/updates", () => {
 
   it("takes an update with the secret, once", async () => {
     const update = { update_id: ++next, message: { message_id: 1, from: { id: next, is_bot: false }, chat: { id: next, type: "private" }, date: 0, text: "/start" } };
+    const before = tg.of("sendMessage").length;
     expect((await post(JSON.stringify(update), telegramWebhookSecret())).status).toBe(200);
+    // The bare /start gets its hint once; Telegram sending the same update again changes nothing.
     expect((await post(JSON.stringify(update), telegramWebhookSecret())).status).toBe(200);
-    const { data } = await db().from("telegram_updates").select("outcome").eq("update_id", update.update_id);
-    expect(data).toEqual([{ outcome: "hint" }]);
+    expect(tg.of("sendMessage").slice(before).map((c) => c.params.chat_id)).toEqual([update.message.chat.id]);
   });
 });
