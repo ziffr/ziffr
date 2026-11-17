@@ -3,7 +3,7 @@
 // changed by its owner or its Editors through the core; only the owner deletes it.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
-import { askMeNow as coreAskMeNow } from "@ziffr/core/ask-now";
+import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
 import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows, uploadSeries as coreUploadSeries } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
@@ -49,8 +49,13 @@ export async function updateMetricDetails(metricId: number, details: MetricDetai
 
 /** The Metric's owner, who also submits it, asks for its current Prompt now (spec 0021); the core checks who and how
  * often, and says where the Prompt went. */
-export async function askMeNow(metricId: number) {
-  const r = await coreAskMeNow(await currentActor(), Number(metricId));
-  revalidatePath("/", "layout");
-  return r;
+export async function askMeNow(metricId: number): Promise<AskNowResult | { error: string }> {
+  // Words for the person (asked a moment ago, not theirs to ask) come back as a value: production hides thrown ones.
+  try {
+    const r = await coreAskMeNow(await currentActor(), Number(metricId));
+    revalidatePath("/", "layout");
+    return r;
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }

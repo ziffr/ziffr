@@ -13,6 +13,8 @@ import { CAPABILITY_LABEL, CONNECTORS, CONNECTOR_IDS, type ConnectorId, type Pre
 import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { DemoControls } from "@/components/demo-controls";
+import { WayLine } from "@/components/way-state";
+import type { WayState } from "@ziffr/core/what-works-here";
 
 export type PrefRow = { user_id: string | null; kind: PreferenceKind; connector: ConnectorId };
 export type DeliveryRow = {
@@ -36,7 +38,7 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 /** Connectors, Delivery Preferences and the Outbox. `email` says whether this Ziffr sends real email, and takes
  * replies; `optedOut`, whether the viewer stopped Prompts and reminders by email here (spec 0004); `slack`, whether a
  * Slack workspace is connected (spec 0007). */
-export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off", telegram = "off" }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected"; telegram?: "off" | "on" }) {
+export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off", telegram = "off", ways = [] }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected"; telegram?: "off" | "on"; ways?: WayState[] }) {
   const [pending, start] = useTransition();
   // Asking and reminding by hand is what the schedule does each morning: in the demo anyone plays it; elsewhere
   // owners and admins get it as a fallback, explained, and members do not see it.
@@ -75,7 +77,10 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                   {c.capabilities.map((k) => <li key={k} className="flex items-center gap-1.5"><CheckCircle2 aria-hidden className="size-3.5 text-[var(--color-success)]" /> {CAPABILITY_LABEL[k]}</li>)}
                 </ul>
                 {c.sourceId && demo && <Link href="/sources" className="mt-3 inline-block text-xs underline">Try sending a value</Link>}
-                <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : id === "telegram" && telegram === "on" ? "Sends real messages to everyone who connected their Telegram; replies come back." : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
+                {/* Real, simulated or off, from the core's whatWorksHere (spec 0021), so it says what the queue does. */}
+                {ways.find((w) => w.way === id) ? <WayLine way={ways.find((w) => w.way === id)!} className="mt-3" /> : (
+                  <p className="mt-3 text-xs text-muted-foreground">{id === "email" && email !== "off" ? (email === "both" ? "Sends real email; replies come back." : "Sends real email; answers are given in Ziffr.") : id === "slack" && slack === "connected" ? "Sends real direct messages; answers in the thread come back." : id === "telegram" && telegram === "on" ? "Sends real messages to everyone who connected their Telegram; replies come back." : demo ? "Played in the demo: answer below as the recipient." : "Not connected yet. Ziffr keeps what it would send in the Outbox below."}</p>
+                )}
               </li>
             );
           })}
@@ -169,6 +174,8 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
         <RelativeTime at={d.created_at} />
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
         {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} connector={d.connector} />}
+        {/* What never left Ziffr says so, with the reason a trial kept it back when there is one (spec 0021). */}
+        {d.mail_state === "outbox" && <span title={d.last_error ?? undefined} className="rounded-[var(--radius-input)] border border-border px-1.5">{d.last_error ?? "Simulated, not sent"}</span>}
         {d.action_id && <Link href={`/actions/${d.action_id}`} className="ml-auto underline">Open thread</Link>}
       </div>
       <div className={cn("mt-2 rounded-[var(--radius-input)] p-3", d.connector === "slack" && "border-l-4 border-[var(--color-rule-2)] bg-[var(--muted)]", d.connector === "whatsapp" && "max-w-md rounded-2xl rounded-tl-sm bg-[color-mix(in_oklab,var(--color-success)_10%,var(--card))]", d.connector === "email" && "border border-border", d.connector === "tickets" && "border border-border bg-[var(--muted)]")}>

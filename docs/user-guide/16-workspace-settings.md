@@ -42,6 +42,10 @@ After you sign in for the first time and belong to no Workspace yet, Ziffr opens
 
 You can start another Workspace at any time from the menu under your name in the top bar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.
 
+### On a Ziffr that offers trials
+
+Some Ziffrs, such as a public demo site, offer **Trial Workspaces** instead. The sign-in page then shows two choices side by side: **Try it for real** (a Trial Workspace of your own, with what works in it and its limits) and **Look around** (the shared demo). After signing in, **Start your trial** makes one Trial Workspace for you alone. It starts with made-up Metrics, a dashboard and a Workflow that asks you; nobody else can be invited, nothing is sent to anyone but you, and it is deleted after the number of days the page names.
+
 ### Asking to join
 
 If your colleagues' Workspace has **Domain Joining** switched on, and you signed in with a proven address at the same company domain, the page shows **Your colleagues already use Ziffr** above the form. It lists each such Workspace with an **Ask to join** button.
@@ -237,7 +241,7 @@ This box shows how to connect an AI assistant, such as Claude Code or Claude Des
 
 ### Connected systems
 
-One card per **Connector**, each with what it can do (receives values, sends reminders, sends questions and tasks, brings replies back, keeps task status in step) and its state:
+One card per **Connector**, each with what it can do (receives values, sends reminders, sends questions and tasks, brings replies back, keeps task status in step) and its state. A badge says **Real** (it really goes out), **Simulated** (Ziffr only keeps it in the Outbox) or **Off**, followed by why and, in a **Trial Workspace**, the limit that applies, such as "To you only, at most 50 messages a day":
 
 | Connector | What it does |
 | --- | --- |
@@ -261,7 +265,7 @@ A table of **Delivery Preferences**: one row per person and one column each for 
 
 The **Outbox** lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
 
-For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
+A Delivery that never left Ziffr is marked **Simulated, not sent**, or with the reason it was kept back, such as "Kept in the Outbox: a trial sends only to its Owner". For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
 
 You see Deliveries about Threads you may read, and Prompts and notices you sent or received. The personal form link in someone else's Prompt is hidden.
 

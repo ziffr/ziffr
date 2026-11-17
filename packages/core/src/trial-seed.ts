@@ -9,6 +9,8 @@ import { placeWidget } from "./dashboards";
 import { createMetric, saveSeriesRows, type MetricEffects } from "./metrics";
 import { recordVersion } from "./versions";
 import { saveWorkflow } from "./workflows";
+import { setPreference } from "./questions";
+import type { PreferenceKind } from "./connectors/types";
 import { yearStartFor } from "./fiscal-year";
 import { STARTING_METRICS, startingTargets, startingValues } from "./trial-starting-values";
 import type { WidgetSettings } from "./types";
@@ -26,6 +28,10 @@ export async function seedTrialWorkspace(actor: Actor, now: Date = new Date(), s
     dueWorkingDays: 3,
     steps: [{ type: "remind", daysBefore: 1 }, { type: "check", changePct: 40, outsideTarget: true }, { type: "publish", lock: false }],
   }, { message: "Made with the trial" });
+
+  // Email is the team default, stored so the Connectors page shows it: the Owner gets requests where they signed in,
+  // and picks Slack or Telegram once they connect one.
+  for (const kind of ["question", "task", "reminder", "update"] as PreferenceKind[]) await setPreference(actor, null, kind, "email");
 
   const ids: Record<string, number> = {};
   const slugs: Record<string, string> = {};

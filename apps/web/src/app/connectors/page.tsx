@@ -13,6 +13,7 @@ import { ConnectorsScreen, type DeliveryRow, type PrefRow } from "./screen";
 import { SlackPanel } from "./slack-panel";
 import { TelegramPanel } from "./telegram-panel";
 import { McpPanel } from "./mcp-panel";
+import { whatWorksHere } from "@ziffr/core/what-works-here";
 import { SITE_URL } from "@/lib/sign-in";
 
 const SLACK_OUTCOME: Record<string, string> = {
@@ -31,6 +32,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   // connection comes as its name only; its token never leaves the core (spec 0007). Telegram's bot comes as its
   // username only; its token stays in the environment (spec 0016).
   const [people, view, optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }] = await Promise.all([getProfiles(), connectorsView(actor), emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams]);
+  const ways = await whatWorksHere(actor);
   return (
     <>
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
@@ -38,7 +40,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
       {/* The demo has no Access Keys, so it offers no assistant. */}
       {!demo && <McpPanel siteUrl={SITE_URL} />}
-      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={mailEnabled() ? (inboundEnabled() ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} />
+      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={mailEnabled() ? (inboundEnabled() ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} />
     </>
   );
 }

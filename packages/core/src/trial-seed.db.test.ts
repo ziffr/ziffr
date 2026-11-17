@@ -64,6 +64,9 @@ describe("a new Trial Workspace's starting Metrics", () => {
     expect(new Set(tokens!.map((x) => x.submitter_id))).toEqual(new Set([t.owner]));
     const { count } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", t.id);
     expect(count).toBe(0);
+    // Requests go by email, the team default, until the Owner picks another Connector.
+    const { data: prefs } = await db().from("delivery_preferences").select("kind, connector").eq("workspace_id", t.id).is("user_id", null);
+    expect(prefs!.map((p) => p.connector)).toEqual(["email", "email", "email", "email"]);
   });
 
   it("are on a dashboard that shows each aggregation over a longer period", async () => {

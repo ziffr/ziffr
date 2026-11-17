@@ -11,7 +11,7 @@ On the sign-in page, choose **Try the demo**. It opens a made-up online shop wit
 - Use **↺** to reset the demo to its starting point.
 - Follow the **guided tour** (bottom right). It walks through describing a Metric, sending in a value, building a dashboard, asking a question, running an analysis and making a deck.
 
-Nothing you do in the demo reaches a real Workspace. When you are done, choose **Leave the demo**.
+Nothing you do in the demo reaches a real Workspace, and nothing is sent: a line under the top bar says so. Where this Ziffr offers trials, that line links to one of your own, in which email, Slack, Telegram, the API and assistants work for real (see [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). When you are done, choose **Leave the demo**.
 
 ## 1. Start your Workspace
 
