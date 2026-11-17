@@ -10,12 +10,12 @@ import { lockPeriod, setMetricWorkflow, setStandIn } from "@/app/workflow-action
 import { dueDate } from "@ziffr/core/workflow-rules";
 import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow } from "@ziffr/core/types";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 const STATE: Record<PeriodState["state"], string> = { asked: "asked, waiting for the value", submitted: "in, not approved yet", approval: "waiting for approval", published: "published", locked: "published and locked" };
 
-export function MetricWorkflow({ metric, workflowId, workflows, period, state, tokens, people, isOwner }: {
-  metric: Metric; workflowId: number | null; workflows: Workflow[]; period: string; state: PeriodState | null;
+export function MetricWorkflow({ metric, workflowId, workflows, period, state, tokens, people, isOwner, yearStart }: {
+  metric: Metric; yearStart: YearStart; workflowId: number | null; workflows: Workflow[]; period: string; state: PeriodState | null;
   tokens: { submitter_id: string; stand_in_id: string | null }[]; people: Profile[]; isOwner: boolean;
 }) {
   const [pending, start] = useTransition();
@@ -32,7 +32,7 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
       </select>
       {wf && (
         <div className="mt-3 space-y-1 text-xs">
-          <p><span className="font-medium">{periodLabel(period, metric.period, JANUARY)}</span>, due {formatDate(dueDate(period, metric.period, wf.config))}: {state ? STATE[state.state] : "not started"}.</p>
+          <p><span className="font-medium">{periodLabel(period, metric.period, yearStart)}</span>, due {formatDate(dueDate(period, metric.period, wf.config))}: {state ? STATE[state.state] : "not started"}.</p>
           {state?.note && <p className="text-muted-foreground">{state.note}</p>}
           <Link href={`/workflows?id=${wf.id}`} className="underline">Open {wf.name}</Link>
         </div>
@@ -40,9 +40,9 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
       {isOwner && (
         <div className="mt-3">
           {state?.state === "locked" ? (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => { const r = window.prompt(`Why unlock ${periodLabel(period, metric.period, JANUARY)}? It shows in the history.`); if (r) run(() => lockPeriod(metric.id, period, false, r), "Unlocked"); }}><LockOpen aria-hidden /> Unlock {periodLabel(period, metric.period, JANUARY, true)}</Button>
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => { const r = window.prompt(`Why unlock ${periodLabel(period, metric.period, yearStart)}? It shows in the history.`); if (r) run(() => lockPeriod(metric.id, period, false, r), "Unlocked"); }}><LockOpen aria-hidden /> Unlock {periodLabel(period, metric.period, yearStart, true)}</Button>
           ) : (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => lockPeriod(metric.id, period, true), "Locked")}><Lock aria-hidden /> Lock {periodLabel(period, metric.period, JANUARY, true)}</Button>
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => lockPeriod(metric.id, period, true), "Locked")}><Lock aria-hidden /> Lock {periodLabel(period, metric.period, yearStart, true)}</Button>
           )}
         </div>
       )}

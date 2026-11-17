@@ -13,7 +13,8 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
 import type { Metric, Profile, SourceId, Token } from "./types";
-import { JANUARY, periodLabel, periodStart, shiftPeriod } from "./periods";
+import { periodLabel, periodStart, shiftPeriod } from "./periods";
+import { yearStartFor } from "./fiscal-year";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
 export type SubmissionInput = {
@@ -179,12 +180,13 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
   if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
   const named = input.source === "api" && input.period ? input.period : null;
-  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, JANUARY) !== named)
+  const ys = await yearStartFor(workspaceId, metric.period);
+  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, ys) !== named)
     return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
-  if (named && named > periodStart(new Date(), metric.period, JANUARY)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
-  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period, JANUARY);
+  if (named && named > periodStart(new Date(), metric.period, ys)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
+  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period, ys);
   const fv = (v: number) => formatValue(metric, v);
-  const when = periodLabel(period, metric.period, JANUARY);
+  const when = periodLabel(period, metric.period, ys);
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
   if (await isLocked(metric.id, period)) {
@@ -207,7 +209,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
   // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period:
   // the current period and anything that replaces a value are checked as anyone's.
-  const current = periodStart(new Date(), metric.period, JANUARY);
+  const current = periodStart(new Date(), metric.period, ys);
   const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
   let result: SubmissionResult & { observationId?: number };
   if (!prev) {

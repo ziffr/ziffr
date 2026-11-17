@@ -4,7 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, 
 import { compactValue, formatValue } from "@ziffr/core/format";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@/analyses/forecast";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number] };
 
@@ -17,9 +17,12 @@ export function MetricChart({
   onSelect,
   onPointContext,
   height = 300,
+  yearStart,
 }: {
   metric: MetricDescription;
   points: Point[];
+  /** The workspace's year start, for naming periods. */
+  yearStart: YearStart;
   forecast?: ForecastPoint[] | null;
   markers?: string[];
   selected?: string | null;
@@ -61,7 +64,7 @@ export function MetricChart({
               ifOverflow="extendDomain"
             />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, JANUARY, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, yearStart, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
           <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
@@ -69,7 +72,7 @@ export function MetricChart({
               if (!active || !r) return null;
               return (
                 <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
-                  <div className="font-medium">{periodLabel(r.period, mp, JANUARY)}</div>
+                  <div className="font-medium">{periodLabel(r.period, mp, yearStart)}</div>
                   {r.value !== undefined ? (
                     <div>{metric.name}: <span className="fig">{formatValue(metric, r.value)}</span></div>
                   ) : (

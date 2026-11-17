@@ -18,6 +18,10 @@ _Avoid_: Settings, config, schema
 How often a Metric has a value: a day, week or month. Weeks run Monday to Sunday; a period is named by its first day ("Week of 9 Nov 2026", "October 2026").
 _Avoid_: Frequency, interval
 
+**Fiscal Year**:
+The year a workspace reports in, starting in the month it sets (January unless set); its quarters, half-years and years are the ones Ziffr uses everywhere. One that does not start in January is named by both calendar years it spans, such as "FY 2026/27".
+_Avoid_: Financial year, business year
+
 **Derived Metric**:
 A metric computed by a formula from other metrics. It never receives observations directly.
 _Avoid_: Calculated field, formula metric

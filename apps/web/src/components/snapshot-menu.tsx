@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { completePeriods, type SnapshotPeriodKind } from "@ziffr/core/snapshot-periods";
 import type { SnapshotSummary } from "@ziffr/core/snapshots";
-import { JANUARY } from "@ziffr/core/periods";
+import { type YearStart } from "@ziffr/core/periods";
 
 const KINDS: { id: SnapshotPeriodKind; label: string }[] = [{ id: "month", label: "Month" }, { id: "quarter", label: "Quarter" }, { id: "week", label: "Week" }];
 
@@ -21,7 +21,7 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(
 
 /** The Snapshots button and menu of one dashboard; `canTake` for its owner and Editors who may create. `auto` is how it
  * takes Snapshots by itself, given only to its owner, who alone may change it (#176). */
-export function SnapshotMenu({ dashboardId, snapshots, canTake, auto }: { dashboardId: number; snapshots: SnapshotSummary[]; canTake: boolean; auto?: { every: SnapshotPeriodKind | null; waitDays: number } | null }) {
+export function SnapshotMenu({ dashboardId, snapshots, canTake, auto, yearStart }: { dashboardId: number; snapshots: SnapshotSummary[]; canTake: boolean; auto?: { every: SnapshotPeriodKind | null; waitDays: number } | null; yearStart: YearStart }) {
   const router = useRouter();
   const [taking, setTaking] = useState(false);
   const [setting, setSetting] = useState(false);
@@ -50,19 +50,19 @@ export function SnapshotMenu({ dashboardId, snapshots, canTake, auto }: { dashbo
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      {taking && <TakeDialog dashboardId={dashboardId} onClose={() => setTaking(false)} />}
+      {taking && <TakeDialog dashboardId={dashboardId} yearStart={yearStart} onClose={() => setTaking(false)} />}
       {setting && auto && <AutoDialog dashboardId={dashboardId} auto={auto} onClose={() => setSetting(false)} />}
     </>
   );
 }
 
 /** Picks the period to take a Snapshot of: the last complete month by default. */
-function TakeDialog({ dashboardId, onClose }: { dashboardId: number; onClose: () => void }) {
+function TakeDialog({ dashboardId, yearStart, onClose }: { dashboardId: number; yearStart: YearStart; onClose: () => void }) {
   const [kind, setKind] = useState<SnapshotPeriodKind>("month");
-  const periods = completePeriods(kind, today(), kind === "week" ? 12 : 8, JANUARY);
+  const periods = completePeriods(kind, today(), kind === "week" ? 12 : 8, yearStart);
   const [start, setStart] = useState(periods[0].start);
   const [pending, run] = useTransition();
-  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(completePeriods(k, today(), 1, JANUARY)[0].start); };
+  const pick = (k: SnapshotPeriodKind) => { setKind(k); setStart(completePeriods(k, today(), 1, yearStart)[0].start); };
   const select = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>

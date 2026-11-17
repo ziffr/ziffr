@@ -24,6 +24,6 @@ export function months(start: string, values: number[]): Point[] {
 export function canvas(metrics: Metric[], series: Record<string, Point[]>, over: Partial<CanvasData> = {}): CanvasData {
   return {
     viewer: "sara", metrics, series, people: [], openActions: {}, submitters: {}, targets: {}, projections: {}, breakdowns: {},
-    templates: [], themes: [], canEditThemes: false, groups: [], pending: {}, locked: {}, ...over,
+    templates: [], themes: [], canEditThemes: false, groups: [], pending: {}, locked: {}, yearStart: 1, ...over,
   };
 }

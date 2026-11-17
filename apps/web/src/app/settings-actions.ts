@@ -6,6 +6,7 @@ import { currentActor } from "@/lib/viewer";
 import * as profile from "@ziffr/core/profile";
 import * as optOut from "@ziffr/core/email-opt-out";
 import * as workspace from "@ziffr/core/workspace-settings";
+import * as fiscalYear from "@ziffr/core/fiscal-year";
 
 /** Changes your own name and colour. */
 export async function updateMyProfile(input: { name?: string; color?: string }) {
@@ -16,6 +17,13 @@ export async function updateMyProfile(input: { name?: string; color?: string }) 
 /** Renames the workspace (Owners and Admins). */
 export async function renameWorkspace(name: string) {
   await workspace.renameWorkspace(await currentActor(), name);
+  revalidatePath("/", "layout");
+}
+
+/** Sets the month the workspace's year starts in (Owners and Admins); the core checks the month and what is stored. */
+export async function setYearStart(month: number) {
+  await fiscalYear.setYearStart(await currentActor(), month);
+  // Every page names quarters and years from it.
   revalidatePath("/", "layout");
 }
 

@@ -33,7 +33,7 @@ import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connect
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { Preview, TemplatePreview } from "./preview";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel } from "@ziffr/core/periods";
 
 export type { FrameWidget } from "./read-only-frame";
 
@@ -321,15 +321,15 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
       <div className="border-b p-3">
         <div className="text-sm font-semibold">History of {m.name}</div>
         <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
-        <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} /></div>
+        <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} yearStart={data.yearStart} /></div>
       </div>
-      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact /></div>
+      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact yearStart={data.yearStart} /></div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
           {h.actions.map((a) => (
             <Link key={a.id} href={`/actions/${a.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted">
-              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, JANUARY, true)}</span>
+              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, data.yearStart, true)}</span>
             </Link>
           ))}
         </div>
@@ -340,7 +340,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           <ul className="space-y-0.5 text-xs">
             {h.superseded.slice(0, 8).map((x) => (
               <li key={x.id} className="flex gap-2">
-                <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, JANUARY, true)}</span>
+                <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, data.yearStart, true)}</span>
                 <span className="fig line-through">{formatValue(m, Number(x.value))}</span>
                 <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} <RelativeTime at={x.superseded_at} /></span>
               </li>
@@ -353,7 +353,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           {!h && <tr><td className="p-3 text-muted-foreground">Loading…</td></tr>}
           {h?.observations.slice(0, 60).map((o) => (
             <tr key={o.id} className="border-b last:border-0">
-              <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, JANUARY, true)}</td>
+              <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, data.yearStart, true)}</td>
               <td className="fig py-1.5">
                 {formatValue(m, Number(o.value))}
                 {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value))}</span>}
@@ -376,7 +376,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
   const preferred = [...(data.submitters[metric.id] ?? []), metric.owner_id].find((id) => id !== data.viewer);
   const [assignee, setAssignee] = useState(preferred ?? others[0]?.id);
   const draft = (p: string) => {
-    const label = periodLabel(p, metric.period, JANUARY);
+    const label = periodLabel(p, metric.period, data.yearStart);
     // About one row of a breakdown: "What happened with France in October 2026?"
     if (row) return kind === "task" ? `Look into ${row} for ${metric.name.toLowerCase()} in ${label}` : `What happened with ${row} in ${metric.name.toLowerCase()}, ${label}?`;
     const v = pts.find((x) => x.period === p)?.value;
@@ -411,7 +411,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
         <label className="space-y-1">
           <span className="text-muted-foreground">About</span>
           <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
-            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, JANUARY, true)}, {formatValue(metric, p.value)}</option>)}
+            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, data.yearStart, true)}, {formatValue(metric, p.value)}</option>)}
           </select>
         </label>
         <label className="space-y-1">

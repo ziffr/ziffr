@@ -46,6 +46,7 @@ export const AUDIT_KINDS = {
   "workspace.clock_changed": "changed the workspace's time zone or run hour",
   "workspace.renamed": "renamed the workspace",
   "workspace.profile_changed": "changed the Workspace Profile",
+  "workspace.year_start_changed": "changed the month the workspace's year starts in",
   "slack.connected": "connected a Slack workspace",
   "slack.disconnected": "disconnected Slack",
   "telegram.turned_on": "turned Telegram on",

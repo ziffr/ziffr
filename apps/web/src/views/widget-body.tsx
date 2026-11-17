@@ -23,7 +23,7 @@ import { useSeriesReady } from "@/canvas/series-store";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { PERIOD_LABEL, periodLabel, type YearStart } from "@ziffr/core/periods";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -71,7 +71,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
             <span className="text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]">{formatValue(m, last?.value)}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {last ? periodLabel(last.period, m.period, JANUARY) : "No values yet"}
+            {last ? periodLabel(last.period, m.period, data.yearStart) : "No values yet"}
             <TargetChip metric={m} value={last?.value} />
             {last && <ApprovalMark data={data} metricId={m.id} period={last.period} />}
           </div>
@@ -87,15 +87,15 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
         <div className="flex h-full flex-col">
           {widget.template === "forecast" && fc && (
             <p className="mb-1 text-xs text-muted-foreground">
-              Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, m.period, JANUARY)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
+              Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, m.period, data.yearStart)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
             </p>
           )}
-          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} /></div>
+          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} yearStart={data.yearStart} /></div>
         </div>
       );
     }
     case "bars":
-      return <Bars metric={m} points={pts} showTarget={widget.settings.showTarget !== false} onPointContext={ctx} />;
+      return <Bars metric={m} points={pts} yearStart={data.yearStart} showTarget={widget.settings.showTarget !== false} onPointContext={ctx} />;
     case "gauge":
       return <Gauge metric={m} value={last?.value} history={pts.map((p) => p.value)} />;
     case "table": {
@@ -105,7 +105,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
           <tbody>
             {rows.map((r) => (
               <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
-                <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1">{periodLabel(r.period, m.period, JANUARY, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} short /></span></td>
+                <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1">{periodLabel(r.period, m.period, data.yearStart, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} short /></span></td>
                 <td className={cn("fig py-1.5 text-right", health(m, r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
               </tr>
             ))}
@@ -120,14 +120,14 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
       return (
         <div className="flex h-full flex-col">
           <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{res.r.toFixed(2)}</span> over {res.n} {m.period}s</p>
-          <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" /></div>
+          <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={data.yearStart} /></div>
         </div>
       );
     }
     case "matrix":
       return <Matrix metrics={ms} series={data.series} />;
     case "drivers":
-      return <Drivers target={m} others={ms.slice(1)} series={data.series} />;
+      return <Drivers target={m} others={ms.slice(1)} series={data.series} yearStart={data.yearStart} />;
   }
 }
 
@@ -135,7 +135,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{children}</div>;
 }
 
-function Bars({ metric, points, showTarget, onPointContext }: { metric: Metric; points: Point[]; showTarget: boolean; onPointContext?: (p: string) => void }) {
+function Bars({ metric, points, yearStart, showTarget, onPointContext }: { metric: Metric; points: Point[]; yearStart: YearStart; showTarget: boolean; onPointContext?: (p: string) => void }) {
   const hovered = useRef<string | null>(null);
   return (
     <div className="h-full" role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s`} onContextMenu={() => hovered.current && onPointContext?.(hovered.current)}>
@@ -144,9 +144,9 @@ function Bars({ metric, points, showTarget, onPointContext }: { metric: Metric; 
           {showTarget && (metric.target_min !== null || metric.target_max !== null) && (
             <ReferenceArea y1={metric.target_min ?? 0} y2={metric.target_max ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, JANUARY, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, yearStart, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
           <YAxis tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={56} stroke="var(--color-rule-2)" />
-          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period, JANUARY)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
+          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period, yearStart)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
               <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} />
@@ -190,13 +190,13 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
   );
 }
 
-function Drivers({ target, others, series }: { target: Metric; others: Metric[]; series: Record<string, Point[]> }) {
+function Drivers({ target, others, series, yearStart }: { target: Metric; others: Metric[]; series: Record<string, Point[]>; yearStart: YearStart }) {
   const ranked = others
     .filter((o) => o.period === target.period && !o.formula?.includes(`{${target.slug}}`) && !target.formula?.includes(`{${o.slug}}`))
     .map((o) => ({ o, res: pearson(series[target.slug] ?? [], series[o.slug] ?? []) }))
     .filter((x) => x.res && Number.isFinite(x.res.r))
     .sort((a, b) => Math.abs(b.res!.r) - Math.abs(a.res!.r));
-  if (!ranked.length) return <Empty>No other {target.period}ly metric to compare with.</Empty>;
+  if (!ranked.length) return <Empty>No other {PERIOD_LABEL[target.period].toLowerCase()} metric to compare with.</Empty>;
   const top = ranked[0];
   return (
     <div className="flex h-full flex-col gap-2">
@@ -212,7 +212,7 @@ function Drivers({ target, others, series }: { target: Metric; others: Metric[];
         ))}
       </ul>
       <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{top.o.name}</span> moves most with {target.name} ({strength(top.res!.r)}).</p>
-      <div className="min-h-0 flex-1"><ScatterView x={top.o} y={target} pairs={top.res!.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" /></div>
+      <div className="min-h-0 flex-1"><ScatterView x={top.o} y={target} pairs={top.res!.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={yearStart} /></div>
     </div>
   );
 }

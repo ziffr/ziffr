@@ -194,7 +194,7 @@ How many periods a View shows comes with its Widget Template: the last 12 period
 
 Views show a strip of **Comparisons** under the value. **Comparisons** lets you choose which:
 
-- **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
+- **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year. A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
 - **Full periods instead of to date**: for spans longer than the Metric's period, Ziffr normally compares the span so far with the same stretch before (month to date against the same days last month). Tick this to compare whole periods instead.
 
 ### Saving a widget
@@ -377,7 +377,7 @@ Search engines are asked not to list these pages.
 
 ## Snapshots
 
-A **Snapshot** keeps what the dashboard showed for one week, month or quarter: its layout and the values of every Metric period complete by the period's last day. Its values never change, even when someone corrects one later. Its words (the introduction and each Finding's headline and lines) you write afterwards, such as "What happened in October".
+A **Snapshot** keeps what the dashboard showed for one week, month or quarter (a quarter of the Workspace's fiscal year, such as "Q1 FY 2026/27" when the year starts in April): its layout and the values of every Metric period complete by the period's last day. Its values never change, even when someone corrects one later. Its words (the introduction and each Finding's headline and lines) you write afterwards, such as "What happened in October".
 
 ### The Snapshots menu
 

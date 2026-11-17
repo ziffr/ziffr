@@ -15,7 +15,7 @@ import { fillSettings } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel } from "@ziffr/core/periods";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.
@@ -217,7 +217,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     catAxisLineShow: false,
     valAxisLineShow: false,
   };
-  const labels = pts.map((p) => periodLabel(p.period, m.period, JANUARY, true));
+  const labels = pts.map((p) => periodLabel(p.period, m.period, data.yearStart, true));
   const values = pts.map((p) => Math.round(p.value * 100) / 100);
 
   if (widget.template === "line" && pts.length > 1) {
@@ -236,7 +236,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
         { text: `${title}\n`, options: { fontSize: 12, bold: true, color: INK } },
         { text: formatValue(m, last?.value), options: { fontSize: Math.min(40, Math.max(18, at.h * 9)), bold: true, color: off ? ERROR : INK } },
         { text: change === null ? "" : `  ${change > 0 ? "+" : ""}${(change * 100).toFixed(1)} %\n`, options: { fontSize: 12, color: MUTED, fontFace: FONT } },
-        { text: last ? periodLabel(last.period, m.period, JANUARY) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
+        { text: last ? periodLabel(last.period, m.period, data.yearStart) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
       ],
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
     );
@@ -270,7 +270,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();
     slide.addTable(
       rows.map((r) => [
-        { text: periodLabel(r.period, m.period, JANUARY, true), options: { color: MUTED } },
+        { text: periodLabel(r.period, m.period, data.yearStart, true), options: { color: MUTED } },
         { text: formatValue(m, r.value), options: { align: "right" as const, fontFace: FONT } },
       ]),
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },

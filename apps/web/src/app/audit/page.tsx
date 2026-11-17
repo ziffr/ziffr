@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { auditLog, AUDIT_EXPORT_CAP, AUDIT_RETENTION_DAYS, type AuditEvent } from "@ziffr/core/audit-log";
 import { formatDate } from "@ziffr/core/format";
+import { monthName, toYearStart } from "@ziffr/core/periods";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", viewer: "Viewer", editor: "Editor" };
@@ -51,6 +52,7 @@ function detailText(e: AuditEvent): string {
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
+    case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";
   }

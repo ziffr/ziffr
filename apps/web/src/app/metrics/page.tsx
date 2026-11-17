@@ -4,16 +4,16 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Sparkline } from "@/views/sparkline";
-import { getAllSeries, getProfileMap } from "@/lib/data";
+import { getAllSeries, getProfileMap, getYearStart } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
-import { JANUARY, PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
+import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
 export default async function MetricsPage() {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
-  const [{ metrics: all, series }, people, viewer] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId()]);
+  const [{ metrics: all, series }, people, viewer, yearStart] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart()]);
   const visible = await visibleMetricIds(viewer, all);
   const metrics = all.filter((m) => visible.has(m.id));
   return (
@@ -68,7 +68,7 @@ export default async function MetricsPage() {
                       <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value) : "–"}</div>
                       <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
                         <TargetChip metric={m} value={last?.value} />
-                        {last ? periodLabel(last.period, m.period, JANUARY, true) : "No values yet"}
+                        {last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)]"><Change pct={change} /></td>

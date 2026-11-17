@@ -16,7 +16,8 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
-import { JANUARY, periodStart } from "./periods";
+import { periodStart } from "./periods";
+import { yearStartFor } from "./fiscal-year";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -227,7 +228,8 @@ async function removeValuesAndHistory(ws: string, metricId: number): Promise<voi
 export async function uploadSeries(actor: Actor, metricId: number, kind: "target" | "projection", text: string, note: string) {
   const m = await seriesOwnerMetric(actor, metricId, kind);
   const lines = String(text ?? "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 2000);
-  const read = lines.map((l) => parseSeriesLine(l, m.period as Period)).filter((r): r is { period: string; value: number } => r !== null);
+  const ys = await yearStartFor(actor.workspaceId, m.period as Period);
+  const read = lines.map((l) => parseSeriesLine(l, m.period as Period, ys)).filter((r): r is { period: string; value: number } => r !== null);
   const saved = await upsertSeries(metricId, kind, read, note);
   return { saved, skipped: lines.length - saved };
 }
@@ -238,12 +240,13 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
   const m = await seriesOwnerMetric(actor, metricId, kind);
   // Rows come from a browser: check the shape, the size and every value before anything is written.
   if (!Array.isArray(rows) || rows.length > 2000) throw new Error("Send at most 2,000 rows.");
+  const ys = await yearStartFor(actor.workspaceId, m.period as Period);
   const read = rows.map((r) => {
     const period = typeof r?.period === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.period) ? r.period : null;
     const value = typeof r?.value === "number" && Number.isFinite(r.value) ? r.value : null;
     if (!period || value === null || Number.isNaN(new Date(`${period}T00:00:00`).getTime())) throw new Error("Every row needs a period and a number.");
     // A day inside the period counts as that period, as in pasted lines.
-    return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period, JANUARY), value };
+    return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period, ys), value };
   });
   return { saved: await upsertSeries(metricId, kind, read, note) };
 }

@@ -17,7 +17,7 @@ import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowSt
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { DemoControls } from "@/components/demo-controls";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
 const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
@@ -35,7 +35,7 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf, schedule, canRun }: { schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart }: { yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -119,13 +119,13 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
               <h2 className="text-sm font-semibold">Metrics on it</h2>
               <ul className="mt-2 space-y-2">
                 {onIt.map((m) => {
-                  const period = workingPeriod(day, m.period, JANUARY);
+                  const period = workingPeriod(day, m.period, yearStart);
                   const st = states.find((s) => s.metric_id === m.id && s.period_start === period);
                   const toks = tokens.filter((t) => t.metric_id === m.id);
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
                       <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
-                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, JANUARY)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
+                      <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, yearStart)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
                       </div>

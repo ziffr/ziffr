@@ -1,5 +1,7 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
 export type Period = "day" | "week" | "month";
+/** The month a workspace's Fiscal Year starts in, 1 (January) to 12 (December); periods.ts works with it. */
+export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 /** What a second value for the same period does (GLOSSARY: Submission Rule). */
 export type SubmissionRule = "reject" | "overwrite" | "add" | "keep_both";
 /** Whether higher, lower or a range of values is good. */
@@ -276,6 +278,9 @@ export type CanvasData = {
   /** Periods per metric id whose value waits for Approval, and periods that are locked (GLOSSARY: Approval, Lock). */
   pending: Record<number, string[]>;
   locked: Record<number, string[]>;
+  /** The month the workspace's year starts in (GLOSSARY: Fiscal Year): where every quarter, half-year and year that
+   * is drawn or compared begins. Always the workspace's own now, also for a Snapshot taken under another. */
+  yearStart: YearStart;
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */
