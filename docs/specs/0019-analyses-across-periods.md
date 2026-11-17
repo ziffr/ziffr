@@ -24,7 +24,7 @@ Two Metrics of different periods are compared on the **longer** of the two: the 
 - **Pairs and thresholds** stay as today: `pearson` needs at least 6 common periods; with fewer, the pair is shown as "not enough months in common (4 of 6)".
 - **Aggregation "none"** keeps a Metric to its own period. The Drivers list and the matrix name why such pairs are missing.
 - **Derived Metrics** keep their exclusion: a Metric is not compared with a Derived Metric built from it, or the other way round, at any period.
-- **Where.** `correlation.ts` (`pearson`, `rankCorrelations`), the Drivers and matrix widgets, the scatter plot, and the Analysis Canvas and its recipes. Forecast is unchanged: it works on one Metric (spec 0018 lets it work by a Display Period).
+- **Where.** `packages/core/src/correlation.ts` (`pearson`, `correlate`, `rankCorrelations`; moved from `apps/web/src/analyses` next to `seriesBy`, pure, so the web app's Drivers, matrix, scatter plot, Analysis Canvas and a Metric's page share one implementation), the Drivers and matrix widgets, the scatter plot, and the Analysis Canvas and its recipes. Forecast is unchanged: it works on one Metric (spec 0018 lets it work by a Display Period).
 - **Wording.** "Compared by month (18 months)" under every result that combined a Metric; nothing when both are of the same period, as today.
 
 ## Testing Decisions
