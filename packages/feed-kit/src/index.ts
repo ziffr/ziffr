@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { FEED_BATCH_MAX, Ziffr, type BreakdownRow, type FeedItem, type FeedItemResult, type FeedMetric } from "@ziffr/sdk";
 import { periodEnd, recentPeriods, type Period } from "./periods.js";
 
-export { periodEnd, recentPeriods, shiftPeriod, type Period } from "./periods.js";
+export { periodEnd, periodStart, recentPeriods, shiftPeriod, type Period } from "./periods.js";
 export { parseArgs, printReport, usage } from "./args.js";
 export type { BreakdownRow, FeedItem, FeedItemResult, FeedMetric } from "@ziffr/sdk";
 

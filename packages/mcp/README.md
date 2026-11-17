@@ -37,6 +37,7 @@ Restart the assistant, then ask it, for example, "What was revenue in March?", "
 | `get_metric` | One Metric's description and its values for a range of periods (at most the 500 newest) |
 | `submit_value` | Records a value for the current or a named period, through the Metric's rules (Approvals, Locks) |
 | `create_metric` | Creates a Metric owned by the key's creator, when you ask for one (needs "Create metrics") |
+| `get_workspace` | The month the workspace's fiscal year starts in, where quarterly and yearly Metrics' periods begin |
 | `list_people` | The workspace's people and Contacts by id and name, to say who submitted a value |
 | `list_dashboards`, `get_dashboard` | The dashboards the key's creator sees, with their widgets and the Metrics they draw (needs "Read dashboards") |
 | `list_templates` | Built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots |

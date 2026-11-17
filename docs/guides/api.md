@@ -46,7 +46,8 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
 ```
 
 - The key's creator must submit to the Metric (have a Token for it), and the Metric must take values from its personal form link: a program submits as that person, through the same rules. The value shows in the Metric's history as from the API, with the key's name.
-- `period` is the first day of a period (`2026-11-01` for a monthly Metric, a Monday for a weekly one); without it, the current period. A future period is refused.
+- `period` is the first day of a period (`2026-11-01` for a monthly Metric, a Monday for a weekly one, `2026-10-01` for the fourth quarter of a calendar year); without it, the current period. A future period, or a day that does not start one, is refused.
+- **Quarters and years** start from the workspace's fiscal year. `GET /api/v1/workspace` answers `{ "year_start_month": 4 }` when it starts in April: a quarterly Metric's periods then start on 1 April, 1 July, 1 October and 1 January, and a yearly one's on 1 April.
 - The answer (201) says `recorded`, or `awaiting_approval` when the value is unusual and waits for Approval. A locked period answers 422 `locked`, and the value goes to the Metric's owner as a proposed Correction. The Submission Rule or a Derived Metric can refuse it with 422 `unprocessable`.
 - A key that may submit but not read gets answers without the period's earlier value or the Metric's name, and a Metric its creator does not submit to is not found for it: it learns nothing it did not send.
 - **Idempotency-Key** (optional, up to 200 characters): a repeat within 24 hours with the same key and body gets the first answer again, with `Idempotent-Replayed: true`, and records nothing. The same key with another body answers 409.

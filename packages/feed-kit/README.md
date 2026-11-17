@@ -44,6 +44,7 @@ npx ziffr-feed run crm.feed.mjs --backfill 24   # also fills the 24 periods befo
 ## What a run does
 
 - **It fetches the current period** of each Metric every time, since its value may still change, and **each earlier period that is still empty**, up to `--backfill N` periods back. Ziffr says which period is current, so the Feed fetches the periods Ziffr counts wherever it runs.
+- **Quarterly and yearly Metrics** get one fetch per quarter or year, from its first day to the day after its last. Quarters and years start from the workspace's year start, which `GET /feed` names as `year_start_month`; `periodStart(day, period, yearStartMonth)` gives the period a day falls in.
 - **It keeps no state.** The periods Ziffr already has are the state, so you can run it as often as you like.
 - **It records nothing twice.** Each batch carries an idempotency key made from the Feed and its values, so a repeated run with the same values replays Ziffr's first answer.
 - **Imports skip the Unusual Value check.** A value for a past period that had none is an Import: Ziffr records it without asking for Approval and marks it as imported. The current period is checked as usual.

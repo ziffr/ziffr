@@ -26,7 +26,7 @@ async function setup(scopes: Scope[] = ["metrics:read", "values:submit"]) {
 }
 
 describe("@ziffr/sdk against the app", () => {
-  it("reads Metrics, values, people and Groups, page by page", async () => {
+  it("reads Metrics, values, people, Groups and the year start", async () => {
     const { ben, orders, extra, ziffr } = await setup();
     expect((await ziffr.metrics.list({ limit: 1 })).next).toEqual(expect.any(String));
     expect((await collect(ziffr.metrics.all())).map((m) => m.slug)).toEqual([orders.slug, extra.slug]);
@@ -35,6 +35,8 @@ describe("@ziffr/sdk against the app", () => {
     expect((await collect(ziffr.observations.all(extra.slug, { to: "2026-02-01" }))).map((o) => o.period)).toEqual(["2026-01-01", "2026-02-01"]);
     expect(await collect(ziffr.people.all())).toEqual([{ id: ben, name: expect.any(String), contact: false }]);
     expect((await ziffr.groups.list()).items).toEqual([expect.objectContaining({ everyone: true })]);
+    // Where the workspace's quarters and years start: January unless an Owner set another month.
+    expect(await ziffr.workspace()).toEqual({ year_start_month: 1 });
   });
   it("submits with an idempotency key by default, and replays one given twice", async () => {
     const { orders, ziffr } = await setup();

@@ -25,4 +25,8 @@ describe("metricCatalog", () => {
       for (const s of c.segments ?? []) expect(["b2b", "b2c"], where).toContain(s);
     }
   });
+  it("suggests quarterly and yearly Metrics where that is how they are reported", async () => {
+    const period = new Map(((await metricCatalog()) as CatalogMetric[]).map((c) => [c.name, c.period]));
+    expect([period.get("Net Promoter Score"), period.get("Headcount"), period.get("Annual revenue target")]).toEqual(["quarter", "quarter", "year"]);
+  });
 });

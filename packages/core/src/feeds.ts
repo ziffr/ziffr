@@ -15,8 +15,8 @@ import { submissionEffects, submitValue, type SubmissionEffects } from "./submis
 import { DEMO_WORKSPACE_ID } from "./team";
 import { recordVersion } from "./versions";
 import type { Metric, Period } from "./types";
-import { periodStart } from "./periods";
-import { yearStartFor } from "./fiscal-year";
+import { periodStart, type YearStart } from "./periods";
+import { yearStartFor, yearStartOf } from "./fiscal-year";
 
 /** Values one Feed may record in any 24 hours, across all its keys. */
 export const FEED_VALUES_PER_DAY = 10_000;
@@ -226,7 +226,7 @@ async function feedMetricRows(feed: FeedActor): Promise<{ metric: Metric; token:
 }
 
 /** The Feed's name and its Metrics, a page at a time after the Metric id `after` (GET /api/v1/feed). */
-export async function feedOverview(feed: FeedActor, page: { after?: number | null; limit: number }): Promise<{ name: string; metrics: { items: FeedMetric[]; next: number | null } }> {
+export async function feedOverview(feed: FeedActor, page: { after?: number | null; limit: number }): Promise<{ name: string; yearStartMonth: YearStart; metrics: { items: FeedMetric[]; next: number | null } }> {
   const { data: f } = await db().from("feeds").select("name").eq("person_id", feed.feedId).eq("workspace_id", feed.workspaceId).is("deleted_at", null).maybeSingle();
   if (!f) throw new Forbidden();
   const limit = Math.min(Math.max(Math.trunc(page.limit) || 1, 1), 100);
@@ -244,7 +244,8 @@ export async function feedOverview(feed: FeedActor, page: { after?: number | nul
     const d = workflowId !== null ? due.get(workflowId) : undefined;
     out.push({ slug: m.slug, name: m.name, period: m.period, unit: m.unit, format: m.format, decimals: m.decimals, current: periodStart(new Date(), m.period, await yearStartFor(feed.workspaceId, m.period)), due_working_days: Number.isFinite(d) ? (d as number) : null, filled });
   }
-  return { name: f.name, metrics: { items: out, next: rest.length > limit ? items[items.length - 1].metric.id : null } };
+  // The month the workspace's year starts in, so a Feed knows which months a quarter or year spans.
+  return { name: f.name, yearStartMonth: await yearStartOf(feed.workspaceId), metrics: { items: out, next: rest.length > limit ? items[items.length - 1].metric.id : null } };
 }
 
 /** One value in a Feed's batch: a Metric's slug, a period's first day (the current period if left out), the value,

@@ -7,7 +7,7 @@ export const ApiMetric = z.object({
   slug: z.string().describe("Stable id in paths; survives renames of the name."),
   name: z.string(),
   description: z.string(),
-  period: z.enum(["day", "week", "month"]).describe("How often it has a value."),
+  period: z.enum(["day", "week", "month", "quarter", "year"]).describe("How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace)."),
   format: z.enum(["number", "currency", "percent"]).describe("How its values are written."),
   unit: z.string().describe("Shown after the value, such as orders or EUR."),
   decimals: z.number().int().min(0).max(6).describe("Decimal places to show."),
@@ -52,7 +52,7 @@ export const CreateMetric = z.object({
   unit: z.string().max(20).optional().describe("Shown after the value, such as orders or EUR."),
   format: z.enum(["number", "currency", "percent"]).optional().describe("Default number."),
   decimals: z.number().int().min(0).max(6).optional().describe("Default 0."),
-  period: z.enum(["day", "week", "month"]).optional().describe("Default month."),
+  period: z.enum(["day", "week", "month", "quarter", "year"]).optional().describe("Default month. Quarters and years start from the workspace's year start."),
   submission_rule: z.enum(["reject", "overwrite", "add", "keep_both"]).optional().describe("What a second value for a period does. Default overwrite."),
   polarity: z.enum(["higher", "lower", "target"]).optional().describe("Default higher."),
   aggregation: z.enum(["sum", "average", "last", "none"]).optional().describe("Default sum."),
@@ -133,7 +133,7 @@ export const DeletedMetric = z.object({ deleted: z.string(), values: z.number().
 export const FeedMetric = z.object({
   slug: z.string().describe("Name it in a batch item's `metric`."),
   name: z.string(),
-  period: z.enum(["day", "week", "month"]).describe("How often it has a value."),
+  period: z.enum(["day", "week", "month", "quarter", "year"]).describe("How often it has a value; quarters and years start from `year_start_month`."),
   unit: z.string(),
   format: z.enum(["number", "currency", "percent"]),
   decimals: z.number().int().min(0).max(6),
@@ -145,7 +145,13 @@ export const FeedMetric = z.object({
 /** GET /api/v1/feed answers this. */
 export const FeedOverview = z.object({
   name: z.string().describe("The Feed's name, as values from it show in Ziffr."),
+  year_start_month: z.number().int().min(1).max(12).describe("The month the workspace's fiscal year starts in, 1 (January) to 12: where its Metrics' quarters and years start."),
   metrics: pageOf(FeedMetric).describe("The Metrics it submits to and that take API values."),
+});
+
+/** GET /api/v1/workspace answers this. */
+export const ApiWorkspace = z.object({
+  year_start_month: z.number().int().min(1).max(12).describe("The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it."),
 });
 
 /** A batch item: one value for one Metric and period. */

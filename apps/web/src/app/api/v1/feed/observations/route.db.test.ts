@@ -9,6 +9,8 @@ import { POST } from "./route";
 import { GET } from "../route";
 import { GET as listMetrics } from "../../metrics/route";
 import { JANUARY, periodStart } from "@ziffr/core/periods";
+import { setYearStart } from "@ziffr/core/fiscal-year";
+import { updateMetricDetails } from "@ziffr/core/metrics";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -94,7 +96,19 @@ describe("GET /api/v1/feed", () => {
     const res = await GET(get(secret), {} as never);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ name: "CRM", metrics: { items: [expect.objectContaining({ slug: m.slug, name: "Pipeline", period: "month", filled: ["2026-01-01"] })], next: null } });
+    expect(body).toEqual({ name: "CRM", year_start_month: 1, metrics: { items: [expect.objectContaining({ slug: m.slug, name: "Pipeline", period: "month", filled: ["2026-01-01"] })], next: null } });
     expect(JSON.stringify(body)).not.toContain("1234.5");
+  });
+  it("sends one value per quarter for a quarterly Metric, of the workspace's fiscal year", async () => {
+    const { w, sara, m, secret } = await setup();
+    await setYearStart(w.actor(sara), 4);
+    await updateMetricDetails(w.actor(sara), m.id, { period: "quarter" });
+    const body = await (await GET(get(secret), {} as never)).json();
+    expect(body).toMatchObject({ year_start_month: 4, metrics: { items: [{ slug: m.slug, period: "quarter", current: periodStart(new Date(), "quarter", 4) }] } });
+    const answer = await (await call(secret, { items: [{ metric: m.slug, period: "2026-07-01", value: 12 }, { metric: m.slug, period: "2026-08-01", value: 13 }] })).json();
+    expect(answer.results).toEqual([
+      expect.objectContaining({ period: "2026-07-01", status: "recorded" }),
+      expect.objectContaining({ period: "2026-08-01", status: "refused", code: "period" }),
+    ]);
   });
 });

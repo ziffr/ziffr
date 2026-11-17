@@ -78,6 +78,11 @@ export const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/workspace", scope: "metrics:read", ok: { status: 200, name: "Workspace", schema: S.ApiWorkspace },
+    summary: "Describe the workspace",
+    description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.",
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },
