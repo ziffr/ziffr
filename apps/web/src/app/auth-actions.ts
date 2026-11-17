@@ -11,20 +11,24 @@ import { TrialRefused } from "@ziffr/core/trials";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
+import { turnstilePassed } from "@/lib/turnstile";
 
 const TOO_MANY = "Too many links asked for. Wait a minute and try again.";
 const DEMO_ONLY = "Signing in is off here: this Ziffr is a public demo.";
 
 /** Sends a sign-in link to the address; the same message whether or not an account exists. */
-export async function sendSignInLink(email: string, next?: string) {
+export async function sendSignInLink(email: string, next?: string, check?: string) {
   // The login page shows no form in a demo-only Ziffr; this holds for a call made without it. Auth refuses new
   // accounts there too (GOTRUE_DISABLE_SIGNUP, docker/init.mjs).
   if (demoOnly()) throw new Error(DEMO_ONLY);
   const address = String(email ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("Enter a valid email address.");
+  // The check against bots, where it is set up (spec 0021): verified with Cloudflare before anything is counted or sent.
+  const place = networkAddress(await headers());
+  if (!(await turnstilePassed(check, place))) throw new Error("The check against bots did not pass. Try it again.");
   // Ziffr's own limit first (spec 0009), with the message a Supabase limit gives: the same whether or not the
   // address has an account.
-  if (!(await claimSignInLink(address, networkAddress(await headers())))) throw new Error(TOO_MANY);
+  if (!(await claimSignInLink(address, place))) throw new Error(TOO_MANY);
   const { error } = await (await authClient()).auth.signInWithOtp({
     email: address,
     options: { emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },

@@ -7,6 +7,7 @@ import { LoginForm } from "./form";
 import { DemoColumn, TrialColumn } from "./choices";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { trialsOpen } from "@ziffr/core/trials";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; failed?: string }> }) {
   if (await sessionUser()) redirect("/");
@@ -36,7 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         {sp.failed && <p className="mt-4 rounded-[var(--radius-input)] border border-destructive p-3 text-sm">That link did not work, or it was used already. Ask for a new one.</p>}
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <TrialColumn days={offers.trial.days} ways={offers.trial.ways} open={await trialsOpen()}>
-            <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} />
+            <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} turnstileSiteKey={turnstileSiteKey()} />
           </TrialColumn>
           {offers.demo && <DemoColumn />}
         </div>
@@ -48,7 +49,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <h1 className="text-[length:var(--text-2xl)] leading-tight">Sign in to Ziffr</h1>
       <p className="mt-2 text-sm text-muted-foreground">A metric tracker for anyone.</p>
       {sp.failed && <p className="mt-4 rounded-[var(--radius-input)] border border-destructive p-3 text-sm">That link did not work, or it was used already. Ask for a new one.</p>}
-      <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} />
+      <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} turnstileSiteKey={turnstileSiteKey()} />
       {demoEnabled() && (
         <div className="mt-8 border-t border-border pt-6">
           <p className="text-sm text-muted-foreground">No account? Look around a made-up online shop first. Nothing you do there reaches real data.</p>

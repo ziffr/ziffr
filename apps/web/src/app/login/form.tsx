@@ -1,14 +1,18 @@
 "use client";
 // The sign-in form: an email link always; the providers that are set up as buttons.
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
+import { Turnstile } from "@/components/turnstile";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sendSignInLink, signInWith } from "@/app/auth-actions";
 import type { Provider } from "@/lib/sign-in";
 
-export function LoginForm({ next, providers }: { next?: string; providers: { id: Provider; label: string }[] }) {
+export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?: string; providers: { id: Provider; label: string }[]; turnstileSiteKey?: string | null }) {
   const [email, setEmail] = useState("");
+  const [check, setCheck] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
+  const onAnswer = useCallback((a: string | null) => setCheck(a), []);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -20,14 +24,16 @@ export function LoginForm({ next, providers }: { next?: string; providers: { id:
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
-          start(async () => { try { await sendSignInLink(email, next); setSent(true); } catch (err) { setError((err as Error).message); } });
+          // An answer works once: after a refusal the check is drawn again for the next try.
+          start(async () => { try { await sendSignInLink(email, next, check ?? undefined); setSent(true); } catch (err) { setError((err as Error).message); setCheck(null); setRound((r) => r + 1); } });
         }}
       >
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Work email</span>
           <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <Button type="submit" className="w-full" disabled={pending}><Mail aria-hidden /> Send me a sign-in link</Button>
+        {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} onAnswer={onAnswer} resetKey={round} />}
+        <Button type="submit" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)}><Mail aria-hidden /> Send me a sign-in link</Button>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
       {providers.length > 0 && (
