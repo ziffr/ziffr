@@ -12,6 +12,7 @@ import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
+import { createTrialWorkspace, trialSettings } from "./trials";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
 import type { Action, Metric, Period, Widget } from "./types";
@@ -253,12 +254,20 @@ export async function submissionForm(code: string) {
 export async function createWorkspace(personId: string, name: string): Promise<string> {
   const title = String(name ?? "").trim().slice(0, 80);
   if (!title) throw new Error("Give the workspace a name.");
-  const { data: ws, error } = await db().from("workspaces").insert({ name: title }).select("id").single();
-  if (error || !ws) throw new Error("The workspace could not be created.");
-  await db().from("memberships").insert({ workspace_id: ws.id, user_id: personId, role: "owner" });
+  // On an Installation that offers trials, every workspace is a Trial Workspace (spec 0021).
+  const trials = trialSettings();
+  const ws = trials ? { id: await createTrialWorkspace(personId, title, trials) } : await plainWorkspace(personId, title);
   // Never a copy of another workspace's Theme (logo, footer).
   await db().from("themes").insert({ ...STARTER_THEME, owner_id: personId, is_default: true, workspace_id: ws.id });
   return ws.id as string;
+}
+
+/** An ordinary workspace with its Owner. */
+async function plainWorkspace(personId: string, title: string): Promise<{ id: string }> {
+  const { data: ws, error } = await db().from("workspaces").insert({ name: title }).select("id").single();
+  if (error || !ws) throw new Error("The workspace could not be created.");
+  await db().from("memberships").insert({ workspace_id: ws.id, user_id: personId, role: "owner" });
+  return { id: ws.id as string };
 }
 
 /** Whether a person is a member of a workspace (for switching to it). */

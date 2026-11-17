@@ -8,6 +8,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
 import { headerSafe, isAddress, mailboxKey, mailEnabled, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
+import { assertNotTrial } from "./trials";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
 const DAY = 86_400_000;
@@ -99,6 +100,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
  * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows. */
 export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<string> {
   notDemo(actor);
+  await assertNotTrial(actor.workspaceId, "Inviting people");
   assertMayGrant(actor, input.role);
   const email = String(input.email ?? "").trim().toLowerCase();
   // The same check as sending, so an invitation is never made for an address mail cannot go to.
@@ -123,6 +125,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
 /** Emails an open invitation again, for Owners and Admins: at most three sends in all, a minute apart. */
 export async function resendInvitation(actor: Actor, id: number, transport?: MailTransport): Promise<void> {
   notDemo(actor);
+  await assertNotTrial(actor.workspaceId, "Inviting people");
   assertCan(actor, "manage-members");
   if (!mailEnabled()) throw new Error("Email is not set up on this Ziffr.");
   const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
@@ -135,6 +138,7 @@ export async function resendInvitation(actor: Actor, id: number, transport?: Mai
 /** A link anyone with it can join by, as Member or Guest, for 7 days. Returns its token. */
 export async function createInviteLink(actor: Actor, role: "member" | "guest"): Promise<string> {
   notDemo(actor);
+  await assertNotTrial(actor.workspaceId, "An invite link");
   if (role !== "member" && role !== "guest") throw new Forbidden("Links invite Members or Guests.");
   assertMayGrant(actor, role);
   const t = token();
@@ -175,6 +179,8 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) throw new Forbidden();
   const { data: inv } = await db().from("invitations").select("*").eq("token", t).maybeSingle();
   if (!inv || inv.revoked_at || inv.accepted_at || inv.expires_at <= new Date().toISOString()) throw new Error("This invitation does not work any more. Ask for a new one.");
+  // An invitation made before the workspace became a trial cannot exist, but a trial never takes a second person.
+  await assertNotTrial(inv.workspace_id as string, "Joining");
   if (inv.email && inv.email !== who.verifiedEmail?.toLowerCase()) throw new Error(`This invitation is for ${inv.email}. Sign in with that address.`);
   if (inv.email) {
     // Claimed first, so the same email invitation cannot be used twice at once.
@@ -218,6 +224,7 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
 /** Switches domain joining on for the domain of the Owner's own verified address, or off with null. */
 export async function setJoinDomain(actor: Actor, ownerEmail: string | null, on: boolean) {
   notDemo(actor);
+  await assertNotTrial(actor.workspaceId, "Domain joining");
   if (actor.role !== "owner") throw new Forbidden("Only Owners switch domain joining.");
   let domain: string | null = null;
   if (on) {
@@ -238,7 +245,7 @@ export async function joinableWorkspaces(who: SignedIn) {
   const domain = domainOf(who.verifiedEmail);
   if (!domain || PUBLIC_DOMAINS.has(domain)) return [];
   const [{ data: spaces }, { data: mine }, { data: asked }] = await Promise.all([
-    db().from("workspaces").select("id, name").eq("join_domain", domain).neq("id", DEMO_WORKSPACE_ID),
+    db().from("workspaces").select("id, name").eq("join_domain", domain).neq("id", DEMO_WORKSPACE_ID).is("trial_ends_at", null),
     db().from("memberships").select("workspace_id").eq("user_id", who.personId),
     db().from("join_requests").select("workspace_id").eq("person_id", who.personId).eq("status", "open"),
   ]);
@@ -267,6 +274,8 @@ export async function openJoinRequests(actor: Actor) {
 /** Approves (as Member) or declines a request to join. */
 export async function decideJoinRequest(actor: Actor, id: number, approve: boolean) {
   assertCan(actor, "manage-members");
+  // No request can reach a trial (joinableWorkspaces leaves them out), but one that got there anyway lets nobody in.
+  if (approve) await assertNotTrial(actor.workspaceId, "Joining");
   const { data: r } = await db().from("join_requests").update({ status: approve ? "approved" : "declined", decided_by: actor.personId, decided_at: new Date().toISOString() })
     .eq("id", id).eq("workspace_id", actor.workspaceId).eq("status", "open").select("person_id");
   if (!r?.length) throw new Forbidden();

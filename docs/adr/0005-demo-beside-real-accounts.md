@@ -5,7 +5,7 @@ Ziffr offers a demo next to the real workspaces of the same installation: "Try t
 ## Considered Options
 
 - **Demo only on an empty database** (ADR 0003): rejected; people evaluating Ziffr should be able to try it on the real installation, and a separate installation for the demo is one more thing to run.
-- **A private demo copy per signed-in person**: not now; it needs an account first, which is exactly what a visitor does not have yet.
+- **A private demo copy per signed-in person**: not now; it needs an account first, which is exactly what a visitor does not have yet. Since taken up as Trial Workspaces (ADR 0010, spec 0021).
 
 ## Consequences
 
