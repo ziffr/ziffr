@@ -64,7 +64,7 @@ Give the dashboard an introduction, then **Share** it with a Group. Everyone you
 
 ## 8. Ask about a number
 
-When a value looks odd, open it and assign a **Question** to the person who knows: "Why did returns double in March?" They answer in the Thread, by email or on Slack, and the answer stays with the March value for anyone who looks later.
+When a value looks odd, open it and assign a **Question** to the person who knows: "Why did returns double in March?" They answer in the Thread, by email, on Slack or by Telegram, and the answer stays with the March value for anyone who looks later.
 
 ## 9. Close the month
 
