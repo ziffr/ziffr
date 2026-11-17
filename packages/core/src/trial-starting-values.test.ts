@@ -74,6 +74,9 @@ describe("to-date figures, as the core rolls them up", () => {
     const octByHand = of("sign-ups").filter((v) => v.period >= "2026-10-01" && v.period <= "2026-10-17").reduce((a, v) => a + v.value, 0);
     const aligned = seriesBy(metricOf("sign-ups"), resolver, "month", { yearStart: JANUARY, today: TODAY, alignTo: "2026-11-17" });
     expect(aligned.points.find((p) => p.period === "2026-10-01")!.value).toBeCloseTo(octByHand);
+    // A daily Metric goes back over a year, so quarter on quarter and year on year compare whole spans.
+    const first = of("sign-ups")[0].period;
+    expect(first <= "2025-10-01").toBe(true);
   });
 
   it("quarter and year to date of a monthly sum are the months that are over", () => {
