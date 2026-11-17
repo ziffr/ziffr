@@ -212,6 +212,8 @@ A Widget shows a Metric in its own period: a monthly Metric as months. **Show by
 
 Quarters, half-years and years start from the Workspace's fiscal year. **Change view** to another of these views keeps the setting.
 
+The Widget looks the same wherever it goes: on a deck's slides and in a Free layout, through a View Link, in a Snapshot and in the PowerPoint export. A Snapshot keeps what the Widget showed when its period ended: in a Snapshot of October, the fourth quarter stays "to date, 1 of 3 months", however long after you open it. A frozen View Link counts to date from the day it was made. Through a View Link or in a Snapshot, a Derived Metric whose inputs are not on the dashboard is shown by its own period, with a note, since its quarters are computed from those inputs.
+
 ### Saving a widget
 
 **Save as Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.

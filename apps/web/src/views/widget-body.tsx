@@ -24,7 +24,7 @@ import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
-import { heldText, shownSeries, SHOWN_BY, spanCount, type DisplayPoint } from "@ziffr/core/display-periods";
+import { dayAfter, heldText, shownSeries, SHOWN_BY, spanCount, type DisplayPoint } from "@ziffr/core/display-periods";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -52,7 +52,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   const m = ms[0];
   // Show by (spec 0018): the series by its Display Period, combined by the Aggregation; a Snapshot's deck counts
   // "to date" as of its own day, so it keeps what the widget showed then.
-  const shown = SHOWN_BY.includes(widget.template) ? shownSeries(m, data, widget.settings.display, { today: widget.settings.asOf ?? undefined }) : null;
+  const shown = SHOWN_BY.includes(widget.template) ? shownSeries(m, data, widget.settings.display, { today: widget.settings.asOf ? dayAfter(widget.settings.asOf) : undefined }) : null;
   const by = shown?.by ?? m.period;
   const all: DisplayPoint[] = shown?.points ?? (data.series[m.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
   const combined = !!shown?.combined;

@@ -22,6 +22,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { localTime } from "./workspace-clock";
 import type { CanvasData, Widget, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
+import { dayAfter } from "./display-periods";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
  * and source. Everything else about it is frozen. */
@@ -183,6 +184,12 @@ async function assertSeesKept(actor: Actor, snapshotId: number) {
   await assertSeesMetrics(actor, kept);
 }
 
+/** A Snapshot's data, counting "to date" from the day after its period (spec 0018): a widget shown by quarter keeps
+ * what it showed then, a quarter still running then marked so, however long ago that was. */
+function keptDay(data: CanvasData, row: Pick<Row, "period_end">): CanvasData {
+  return { ...data, today: dayAfter(row.period_end) };
+}
+
 /** A Snapshot's widgets carrying the words written about them; `extra` settings are added to each (such as asOf). */
 function withWords(widgets: Widget[], words: SnapshotWords, extra: WidgetSettings = {}): Widget[] {
   return widgets.map((w) => {
@@ -198,7 +205,7 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
   const { row, role, writer } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
   const frozen = row.frozen as Frozen;
   const words = row.words ?? {};
-  const seen = await forReader(actor, withWords(frozen.widgets, words), frozen.data, frozen.themeId);
+  const seen = await forReader(actor, withWords(frozen.widgets, words), keptDay(frozen.data, row), frozen.themeId);
   const corrections = await correctionsFor(actor, seen.data);
   return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
 }
@@ -227,7 +234,7 @@ export async function snapshotForLink(snapshotId: number, dashboardId: number, k
   // A link shows the words as they were when its owner made it, if it kept them; changed since, they stay in Ziffr.
   const words = keptWords ?? row.words ?? {};
   const widgets = withWords(row.frozen.widgets, words);
-  return { name: row.frozen.name, themeId: row.frozen.themeId, intro: String(words.intro ?? ""), widgets, data: row.frozen.data, label: row.label, takenAt: row.taken_at, words };
+  return { name: row.frozen.name, themeId: row.frozen.themeId, intro: String(words.intro ?? ""), widgets, data: keptDay(row.frozen.data, row), label: row.label, takenAt: row.taken_at, words };
 }
 
 /** What a new deck made from a Snapshot starts with (#178): the dashboard's name and the period, the Snapshot's

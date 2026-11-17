@@ -33,6 +33,14 @@ const ORDER: DisplayPeriod[] = ["week", "month", "quarter", "half", "year"];
 /** Why a Metric with Aggregation "none" is not shown by a longer period (shown where the setting is offered). */
 export const NOT_COMBINED = "Combined only for Metrics whose Aggregation is sum, average or last value; this one is set to none.";
 
+/** Why a Derived Metric is shown by its own period where its inputs are not shared (a View Link, a Snapshot). */
+export const INPUTS_MISSING = "Shown by its own period here: a Derived Metric is combined from its inputs, which are not shared.";
+
+/** The day after a span's last day: the "today" of a Snapshot of that span, by which the span is over. */
+export function dayAfter(day: string): string {
+  return shiftPeriod(day, "day", 1);
+}
+
 /** Whether a Metric's values combine into longer periods: by its Aggregation, or a Derived Metric through its inputs. */
 export function combines(metric: Pick<Metric, "formula" | "aggregation">): boolean {
   return Boolean(metric.formula) || metric.aggregation !== "none";
@@ -210,7 +218,7 @@ export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[
 
 /** What a widget of one Metric draws: by `display` when that is longer than the Metric's own period and the Metric
  * combines, else its own periods. `today` (yyyy-mm-dd) marks the span not over yet: a Snapshot's day when drawing one. */
-export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
+export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
   const own = (data.series[metric.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
   if (!display || !isLonger(display, metric.period)) return { by: metric.period, combined: false, points: own, targets: null };
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
@@ -218,7 +226,12 @@ export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "
     const m = bySlug.get(slug);
     return m ? { metric: m, points: data.series[slug] ?? [] } : undefined;
   };
-  const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today });
+  // A View Link or Snapshot leaves a Derived Metric's inputs out (only what is shown goes out): without them its
+  // quarters cannot be computed, and adding up its own months would give a sum of margins.
+  if (metric.formula && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {
+    return { by: metric.period, combined: false, points: own, reason: INPUTS_MISSING, targets: null };
+  }
+  const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today ?? data.today });
   if (!r.ok) return { by: metric.period, combined: false, points: own, reason: r.reason, targets: null };
   return { by: display, combined: true, points: r.points, targets: targetsBy(metric, data.targets?.[metric.id] ?? [], r.points, display, data.yearStart) };
 }
