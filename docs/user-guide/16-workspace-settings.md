@@ -62,7 +62,7 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 ## General
 
-**Workspace → General** holds the Workspace's name, its time and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+**Workspace → General** holds the Workspace's name, its time, its fiscal year and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
 ### Name
 
@@ -78,6 +78,16 @@ Ziffr counts days, working days and Due Dates in the Workspace's own time.
 | **Workflows run at** | The hour of the morning, in that time zone, at which Workflows ask for values, remind and escalate. |
 
 Choose **Save** after changing either. Members and Guests see a single line, such as "Europe/Berlin, Workflows run at 07:00".
+
+### Fiscal year
+
+**Year starts in** sets the month the Workspace's **Fiscal Year** begins. It decides where quarters, half-years and years start everywhere in Ziffr: in Comparisons such as QoQ and HoH, and in Snapshots of a quarter. It is January unless an Owner or Admin picks another month.
+
+With January, quarters and years have their calendar names: "Q3 2026", "H2 2026", "2026". With any other month, a year is named by both calendar years it spans, so it cannot be mistaken for a calendar year: a year that starts in April 2026 is "FY 2026/27", and its first quarter, April to June, is "Q1 FY 2026/27". Months, weeks and days keep their calendar names. Under the list, the page shows what this year and this quarter are called with the month you picked.
+
+Some months may be greyed out. What Ziffr has already kept per quarter, half-year or year, such as a Snapshot of a quarter, stays tied to the months it was kept for. A month that would split those periods cannot be picked, and the page says why. For example, with a Snapshot of Q2 2026, the year can start in January, April, July or October, and the Snapshot is then called by its new name, such as "Q1 FY 2026/27". Comparisons are always worked out afresh, so they follow a change at once.
+
+Choose **Save** after picking a month. The change shows in the Audit Log. Members and Guests see a single line, such as "Year starts in April".
 
 ### Workspace Profile
 
@@ -96,7 +106,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### In the demo
 
-In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page.
+In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January.
 
 ## Members and Groups
 
@@ -344,7 +354,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new and deleted Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals, Corrections, the Workspace's name, time and profile, Slack, Snapshots taken, shown and deleted, exports and sign-ins.
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new and deleted Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals, Corrections, the Workspace's name, time, fiscal year and profile, Slack, Snapshots taken, shown and deleted, exports and sign-ins.
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 

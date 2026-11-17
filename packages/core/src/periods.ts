@@ -2,13 +2,12 @@
 // half-year or year starts and ends, how to step between them and what each is called. Pure. Weeks are ISO weeks;
 // quarters, half-years and years start from the workspace's year start, January unless it sets another month.
 import { addDays, addMonths, differenceInCalendarDays, differenceInCalendarISOWeeks, differenceInCalendarMonths, format, isValid, parseISO, startOfISOWeek } from "date-fns";
-import type { Period } from "./types";
+import type { Period, YearStart } from "./types";
+
+export type { YearStart };
 
 /** A length of time Ziffr counts in: a Metric's Period, or a longer span that Comparisons and Snapshots use. */
 export type Span = Period | "quarter" | "half" | "year";
-
-/** The month a workspace's Fiscal Year starts in, 1 (January) to 12 (December). */
-export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 /** The calendar year's start, which a workspace has unless it sets another. */
 export const JANUARY: YearStart = 1;
@@ -22,6 +21,11 @@ export function isYearStart(v: unknown): v is YearStart {
 export function toYearStart(v: unknown): YearStart {
   const n = typeof v === "string" && /^\d{1,2}$/.test(v) ? Number(v) : v;
   return isYearStart(n) ? n : JANUARY;
+}
+
+/** A month's name, such as "April", for the month a year starts in. */
+export function monthName(m: YearStart): string {
+  return format(new Date(2026, m - 1, 1), "MMMM");
 }
 
 /** How each Period is named. */

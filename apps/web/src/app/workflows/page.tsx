@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { currentActor } from "@/lib/viewer";
-import { getProfiles } from "@/lib/data";
+import { getProfiles, getYearStart } from "@/lib/data";
 import { workflowsView } from "@ziffr/core/page-data";
 import { workflowSchedule } from "@ziffr/core/workflows";
 import { isDemo } from "@/lib/auth";
@@ -13,7 +13,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const actor = await currentActor();
   const viewer = actor.personId;
   // Only Metrics this viewer may see, decided in the core, and only what the page shows of them.
-  const [people, { workflows, states, tokens, metrics: seen, assigned }, demo] = await Promise.all([getProfiles(), workflowsView(actor), isDemo()]);
+  const [people, { workflows, states, tokens, metrics: seen, assigned }, demo, yearStart] = await Promise.all([getProfiles(), workflowsView(actor), isDemo(), getYearStart()]);
   // A real workspace runs on the clock; the demo pretends a day instead.
   const schedule = demo ? null : await workflowSchedule(actor);
   const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
@@ -35,6 +35,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         asOf={schedule ? schedule.today : asOf}
         schedule={schedule}
         canRun={actor.role === "owner" || actor.role === "admin"}
+        yearStart={yearStart}
       />
     </>
   );

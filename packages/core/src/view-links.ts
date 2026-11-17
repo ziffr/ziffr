@@ -15,6 +15,7 @@ import { audit } from "./audit-log";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
+import { yearStartOf } from "./fiscal-year";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days. */
@@ -64,6 +65,7 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     groups: [],
     pending: pick(full.pending, ids),
     locked: pick(full.locked, ids),
+    yearStart: full.yearStart,
   };
 }
 
@@ -142,7 +144,11 @@ export async function openViewLink(token: string): Promise<ViewPayload | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
-  if (link.frozen) return link.frozen as ViewPayload;
+  if (link.frozen) {
+    // A frozen link keeps its values; its quarters follow the workspace's year start as everywhere else (spec 0017).
+    const frozen = link.frozen as ViewPayload;
+    return { ...frozen, data: { ...frozen.data, yearStart: await yearStartOf(String(link.workspace_id)) } };
+  }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
   if (link.snapshot_id) {
     const s = await snapshotForLink(Number(link.snapshot_id), Number(link.object_id), link.snapshot_words as SnapshotWords | null);

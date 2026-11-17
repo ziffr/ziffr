@@ -139,7 +139,7 @@ The **Comparisons** box sets the latest value against earlier spans.
 
 At the top it shows the **Value** of the latest period, its **Target** ("(series)" when it comes from the Target Series) and its **Attainment**: how far the value reaches its target, as a percentage where higher is always better. Attainment is green from 100 % up, red below.
 
-Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW). Each row shows the two spans with their values, the change, and the change in percent. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
+Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, QoQ in May compares April and May with January and February. Each row shows the two spans with their values, the change, and the change in percent. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
 
 Two buttons choose how spans longer than the Metric's period are compared:
 

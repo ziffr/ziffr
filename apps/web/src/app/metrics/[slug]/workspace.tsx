@@ -9,7 +9,7 @@ import type { ForecastPoint } from "@/analyses/forecast";
 import type { Metric, Point, Profile } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 export function MetricWorkspace({
   metric,
@@ -18,7 +18,10 @@ export function MetricWorkspace({
   markers,
   people,
   viewer,
+  yearStart,
 }: {
+  /** The workspace's year start, for naming periods. */
+  yearStart: YearStart;
   metric: Metric;
   points: Point[];
   forecast: ForecastPoint[] | null;
@@ -39,7 +42,7 @@ export function MetricWorkspace({
     const v = points.find((p) => p.period === period)?.value;
     const bad = metric.polarity === "lower" ? "high" : "low";
     const off = (metric.target_max !== null && v! > metric.target_max) || (metric.target_min !== null && v! < metric.target_min);
-    setQuestion(off ? `Why is ${metric.name.toLowerCase()} so ${bad} in ${periodLabel(period, metric.period, JANUARY)}?` : `What happened with ${metric.name.toLowerCase()} in ${periodLabel(period, metric.period, JANUARY)}?`);
+    setQuestion(off ? `Why is ${metric.name.toLowerCase()} so ${bad} in ${periodLabel(period, metric.period, yearStart)}?` : `What happened with ${metric.name.toLowerCase()} in ${periodLabel(period, metric.period, yearStart)}?`);
   };
 
   return (
@@ -52,12 +55,12 @@ export function MetricWorkspace({
           {markers.length > 0 && <Legend className="rounded-full border border-chart-5 bg-chart-5/25" label="Action" />}
         </span>
       </div>
-      <MetricChart metric={metric} points={points} forecast={forecast} markers={markers} selected={selected} onSelect={pick} />
+      <MetricChart metric={metric} points={points} forecast={forecast} markers={markers} selected={selected} onSelect={pick} yearStart={yearStart} />
       {selected && point && (
         <div className="mt-3 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3">
           <div className="mb-2 flex items-center gap-2 text-sm">
             <MessageSquarePlus className="size-4 text-primary" />
-            <span className="font-medium">New Action about {periodLabel(selected, metric.period, JANUARY)}</span>
+            <span className="font-medium">New Action about {periodLabel(selected, metric.period, yearStart)}</span>
             <span className="fig text-muted-foreground">{formatValue(metric, point.value)}</span>
             <button onClick={() => setSelected(null)} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Cancel"><X className="size-4" /></button>
           </div>

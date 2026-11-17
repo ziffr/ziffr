@@ -10,7 +10,7 @@ import { PanelEditor } from "@/components/panel-editor";
 import { PLACEHOLDERS } from "@ziffr/core/placeholders";
 import { RULES_FOR } from "@ziffr/core/team-templates";
 import type { AnchorRule, CanvasData, Callout, Metric, Widget, WidgetSettings } from "@ziffr/core/types";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel } from "@ziffr/core/periods";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -55,8 +55,8 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
         <div className="grid grid-cols-2 gap-2">
           <Labelled label="Breakdown of">
             <select value={s.period ?? ""} onChange={(e) => set("period", e.target.value || null)} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
-              <option value="">Latest ({periodLabel(b.periods[b.periods.length - 1], m.period, JANUARY, true)})</option>
-              {[...b.periods].reverse().map((p) => <option key={p} value={p}>{periodLabel(p, m.period, JANUARY, true)}</option>)}
+              <option value="">Latest ({periodLabel(b.periods[b.periods.length - 1], m.period, data.yearStart, true)})</option>
+              {[...b.periods].reverse().map((p) => <option key={p} value={p}>{periodLabel(p, m.period, data.yearStart, true)}</option>)}
             </select>
           </Labelled>
           <Labelled label="Highlight">
@@ -86,7 +86,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
                     {RULES_FOR.period.map((r) => <option key={r.rule} value={`rule:${r.rule}`}>{r.label}</option>)}
                   </optgroup>
                   <optgroup label="One period">
-                    {[...series].reverse().slice(0, s.window ?? 12).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, m.period, JANUARY, true)}</option>)}
+                    {[...series].reverse().slice(0, s.window ?? 12).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, m.period, data.yearStart, true)}</option>)}
                   </optgroup>
                 </select>
                 <Input aria-label="Callout text" value={c.text} onChange={(e) => set("callouts", callouts.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />

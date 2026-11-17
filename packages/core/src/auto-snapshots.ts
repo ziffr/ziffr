@@ -14,7 +14,8 @@ import { takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { widgetMetricIds } from "./widget-metrics";
 import type { Period } from "./types";
-import { JANUARY } from "./periods";
+import { yearStartOf } from "./fiscal-year";
+import { type YearStart } from "./periods";
 
 /** The longest a dashboard may wait after a period ends before taking its Snapshot, in days. */
 export const MAX_WAIT_DAYS = 60;
@@ -44,12 +45,12 @@ export async function setAutoSnapshots(actor: Actor, dashboardId: number, settin
 
 /** Whether every Metric on the dashboard is Locked for every one of its periods inside the Snapshot period. A
  * dashboard without Metrics is never complete this way; it waits. */
-async function allLocked(ws: string, metrics: { id: number; period: Period }[], p: SnapshotPeriod): Promise<boolean> {
+async function allLocked(ws: string, metrics: { id: number; period: Period }[], p: SnapshotPeriod, yearStart: YearStart): Promise<boolean> {
   if (!metrics.length) return false;
   const { data } = await db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "locked").in("metric_id", metrics.map((m) => m.id)).gte("period_start", p.start).lte("period_start", p.end);
   const locked = new Set((data ?? []).map((r) => `${r.metric_id}:${r.period_start}`));
   return metrics.every((m) => {
-    const inside = metricPeriodsIn(m.period, p, JANUARY);
+    const inside = metricPeriodsIn(m.period, p, yearStart);
     return inside.length > 0 && inside.every((s) => locked.has(`${m.id}:${s}`));
   });
 }
@@ -62,8 +63,9 @@ export async function takeDueSnapshots(workspaceId: string, today: string, effec
   const { data: dashboards } = await db().from("dashboards").select("id, name, owner_id, snapshot_every, snapshot_wait_days").eq("workspace_id", workspaceId).not("snapshot_every", "is", null).order("id");
   let taken = 0;
   let failed = 0;
+  const yearStart = await yearStartOf(workspaceId);
   for (const d of dashboards ?? []) {
-    const p = completePeriods(d.snapshot_every as SnapshotPeriodKind, today, 1, JANUARY)[0];
+    const p = completePeriods(d.snapshot_every as SnapshotPeriodKind, today, 1, yearStart)[0];
     // Once per period: one there is, or one deleted, is not taken again.
     const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("dashboard_id", d.id).eq("period_kind", p.kind).eq("period_start", p.start);
     if (count) continue;
@@ -72,7 +74,7 @@ export async function takeDueSnapshots(workspaceId: string, today: string, effec
       const { data: widgets } = await db().from("widgets").select("metric_ids, settings").eq("workspace_id", workspaceId).eq("dashboard_id", d.id);
       const ids = [...new Set((widgets ?? []).flatMap((w) => widgetMetricIds(w.metric_ids ?? [], w.settings)))];
       const { data: metrics } = ids.length ? await db().from("metrics").select("id, period").eq("workspace_id", workspaceId).in("id", ids) : { data: [] };
-      if (!(await allLocked(workspaceId, (metrics ?? []) as { id: number; period: Period }[], p))) continue;
+      if (!(await allLocked(workspaceId, (metrics ?? []) as { id: number; period: Period }[], p, yearStart))) continue;
     }
     // In the owner's name, with their role in the workspace and what they see.
     const { data: member } = await db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", d.owner_id).maybeSingle();

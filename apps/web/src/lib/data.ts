@@ -6,6 +6,7 @@ import { cache } from "react";
 import { currentWorkspaceId } from "./viewer";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
+import { yearStartOf } from "@ziffr/core/fiscal-year";
 import type { Metric, Profile } from "@ziffr/core/types";
 
 /** The people of a Workspace, members then Contacts; it lives in the core (see peopleIn there). */
@@ -25,6 +26,9 @@ export const getProfiles = cache(async (): Promise<Profile[]> => {
 export async function getProfileMap() {
   return Object.fromEntries((await getProfiles()).map((p) => [p.id, p])) as Record<string, Profile>;
 }
+
+/** The month the current workspace's year starts in (GLOSSARY: Fiscal Year): pass it to every period name and Comparison. */
+export const getYearStart = cache(async () => yearStartOf(await currentWorkspaceId()));
 
 /** The current workspace's Metrics. */
 export const getMetrics = cache(async () => data.getMetrics(await currentWorkspaceId()));

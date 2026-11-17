@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { attainment, compare, resolverFrom, targetFor } from "./compare";
-import { JANUARY } from "./periods";
+import { JANUARY, type YearStart } from "./periods";
 import { metric, months } from "./test/fixtures";
 
 const revenue = metric();
@@ -41,6 +41,20 @@ describe("compare", () => {
   it("judges change by polarity", () => {
     const cost = metric({ slug: "cost", polarity: "lower" });
     expect(compare(cost, resolverFrom([cost], { cost: months("2026-01", [10, 12]) }), { yearStart: JANUARY, keys: ["prev"] })[0].good).toBe(false);
+  });
+  it("starts quarters and halves from the year start", () => {
+    // Feb 2026 is the last month. An April year keeps calendar quarters; a February one starts a quarter in Feb.
+    const qoq = (yearStart: YearStart) => compare(revenue, resolve, { yearStart, keys: ["qoq"] })[0];
+    expect(qoq(4)).toMatchObject({ current: 220 + 230, previous: 190 + 200 });
+    expect(qoq(2)).toMatchObject({ current: 230, previous: 200, currentSpan: "Feb 26", previousSpan: "Nov 25" });
+    expect(qoq(12)).toMatchObject({ current: 210 + 220 + 230, previous: 180 + 190 + 200, currentSpan: "Dec 25 to Feb 26" });
+    // An April year's second half runs October to March: Oct 2025 to Feb 2026 against Apr to Aug 2025.
+    const [hoh] = compare(revenue, resolve, { yearStart: 4, keys: ["hoh"] });
+    expect(hoh).toMatchObject({ current: 190 + 200 + 210 + 220 + 230, previous: 130 + 140 + 150 + 160 + 170 });
+    // Complete spans: a December year's quarter Dec to Feb is whole, a January year's last whole one is Q4 2025.
+    const [full] = compare(revenue, resolve, { yearStart: 12, keys: ["qoq"], full: true });
+    expect(full).toMatchObject({ current: 210 + 220 + 230, previous: 180 + 190 + 200, currentSpan: "Dec 25 to Feb 26" });
+    expect(compare(revenue, resolve, { yearStart: JANUARY, keys: ["qoq"], full: true })[0]).toMatchObject({ current: 190 + 200 + 210, previous: 160 + 170 + 180 });
   });
 });
 

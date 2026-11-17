@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useSeriesReady } from "@/canvas/series-store";
 import { MEASURE_LABEL } from "@/views/story-panels";
 import type { Anchor, Annotation, CanvasData, MeasureId, Panel, PanelType } from "@ziffr/core/types";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel } from "@ziffr/core/periods";
 
 const TYPES: { id: PanelType; label: string }[] = [
   { id: "period-bars", label: "Period bars" },
@@ -76,12 +76,12 @@ export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data:
                 </select>
                 <select aria-label="Period" value={p.bridge?.period ?? ""} onChange={(e) => set(i, { bridge: { mode: p.bridge?.mode ?? "rows", ...p.bridge, period: e.target.value || null } })} className={select}>
                   <option value="">Latest breakdown</option>
-                  {m && periods.map((x) => <option key={x} value={x}>{periodLabel(x, m.period, JANUARY, true)}</option>)}
+                  {m && periods.map((x) => <option key={x} value={x}>{periodLabel(x, m.period, data.yearStart, true)}</option>)}
                 </select>
                 {p.bridge?.mode === "variance" && (
                   <select aria-label="From" value={p.bridge?.from ?? ""} onChange={(e) => set(i, { bridge: { mode: "variance", ...p.bridge, from: e.target.value || null } })} className={`${select} col-span-2`}>
                     <option value="">From the breakdown before</option>
-                    {m && periods.map((x) => <option key={x} value={x}>From {periodLabel(x, m.period, JANUARY, true)}</option>)}
+                    {m && periods.map((x) => <option key={x} value={x}>From {periodLabel(x, m.period, data.yearStart, true)}</option>)}
                   </select>
                 )}
               </div>
@@ -93,7 +93,7 @@ export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data:
                 periods={(data.series[m.slug] ?? []).slice(-24).map((x) => x.period).reverse()}
                 rows={[...new Set(Object.values(data.breakdowns[m.id] ?? {}).flat().map((r) => r.label))]}
                 bridge={p.type === "bridge"}
-                labelFor={(x) => periodLabel(x, m.period, JANUARY, true)}
+                labelFor={(x) => periodLabel(x, m.period, data.yearStart, true)}
               />
             )}
             {(p.type === "period-bars" || p.type === "bridge") && (

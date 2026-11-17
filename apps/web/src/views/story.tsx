@@ -10,7 +10,7 @@ import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@ziffr/cor
 import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars, resolveAnchor } from "./story-panels";
 import type { Annotation } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
-import { JANUARY, periodLabel } from "@ziffr/core/periods";
+import { periodLabel } from "@ziffr/core/periods";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -33,7 +33,7 @@ const pct = (v: number, of: number) => (of ? Math.round((v / of) * 100) : 0);
 export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
   const name = m.name.toLowerCase();
   const b = storyBreakdown(widget, data, m);
-  const when = b.period ? periodLabel(b.period, m.period, JANUARY) : "";
+  const when = b.period ? periodLabel(b.period, m.period, data.yearStart) : "";
   const via = m.sources.map((s) => SOURCE_LABEL[s]).join(" and ") || "derived from other metrics";
   const source = `Source: ${m.name} in Ziffr, reported via ${via}${when ? `, ${when}` : ""}`;
   const h = b.highlight;
@@ -83,7 +83,7 @@ export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
       const span = pts.length > 1 ? `${pts.length - 1} ${m.period}s` : "";
       return {
         headline: last ? `${m.name} ${ch >= 0 ? "rose" : "fell"} ${Math.abs(ch).toFixed(0)} % in ${span}` : `${m.name} has no values yet`,
-        subline: last ? `${m.name}, ${periodLabel(first.period, m.period, JANUARY, true)} to ${periodLabel(last.period, m.period, JANUARY, true)}` : "",
+        subline: last ? `${m.name}, ${periodLabel(first.period, m.period, data.yearStart, true)} to ${periodLabel(last.period, m.period, data.yearStart, true)}` : "",
         source: `Source: ${m.name} in Ziffr, reported via ${via}`,
       };
     }
@@ -221,7 +221,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
         marginTop: 24,
         marginBottom: 24,
         style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, 17px)", color: "var(--color-muted)", background: "transparent" },
-        x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, JANUARY, true), label: null },
+        x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, data.yearStart, true), label: null },
         y: { axis: null, nice: true, zero: false },
         marks: [
           Plot.ruleY([Math.min(...pts.map((p) => p.value))], { stroke: "var(--color-rule)" }),

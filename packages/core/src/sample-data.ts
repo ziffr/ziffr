@@ -1,7 +1,7 @@
 // GLOSSARY: Sample Data. Made-up Metrics that a Preview of a Widget Template draws, because a template has no
 // metrics of its own. Never a workspace's data: built here from a fixed seed, so every viewer, every test and every
 // render sees the same numbers, and a Preview needs no Share check and fetches nothing (spec 0011).
-import { shiftPeriod } from "./periods";
+import { JANUARY, shiftPeriod } from "./periods";
 import { fromDashboardTemplate, fromTemplate } from "./team-templates";
 import { TEMPLATES } from "./widget-templates";
 import type { BreakdownRow, CanvasData, DashboardTemplateBody, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
@@ -119,6 +119,8 @@ export function sampleCanvasData(viewer: string, period: Period = "month"): Canv
     groups: [],
     pending: {},
     locked: {},
+    // Sample Data belongs to no workspace: its quarters are calendar ones.
+    yearStart: JANUARY,
   };
 }
 

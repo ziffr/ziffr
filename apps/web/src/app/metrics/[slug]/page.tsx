@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues } from "@/lib/data";
+import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { TargetsEditor } from "./series-form";
@@ -38,7 +38,7 @@ import { isDemo } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { Change, TargetChip } from "@/components/target-chip";
-import { JANUARY, PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
+import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -57,7 +57,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
   // Links inside a tab keep the tab; everything else about the page is in its own parameter.
   const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
-  const [{ metrics, series }, people, viewer, demo] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo()]);
+  const [{ metrics, series }, people, viewer, demo, yearStart] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -148,13 +148,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, JANUARY)}` : "Latest"}>
+        <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
           <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value) : "–"}<TargetChip metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change pct={change} size="size-5" />
         </Stat>
-        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, JANUARY)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
+        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, yearStart)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
           <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value) : targetText(metric)}</span>
         </Stat>
       </div>
@@ -174,7 +174,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} markers={markers} people={people} viewer={viewer} />
+            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -185,7 +185,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
-              <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} />
+              <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
             </section>
 
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -195,7 +195,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <nav aria-label="Breakdown period" className="flex flex-wrap gap-1">
                     {bdPeriods.slice(-6).map((p) => (
                       <Link key={p} href={at({ bp: p })} scroll={false} aria-current={p === bdPeriod ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 text-xs no-underline", p === bdPeriod ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>
-                        {periodLabel(p, metric.period, JANUARY, true)}
+                        {periodLabel(p, metric.period, yearStart, true)}
                       </Link>
                     ))}
                   </nav>
@@ -257,7 +257,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {fc ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length} {metric.period}s:{" "}
-                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, JANUARY)}
+                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, yearStart)}
                   {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
                 </p>
               ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least 4 values.</p>}
@@ -283,7 +283,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {partner && (
             <div className="mt-4">
               <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {metric.period}</p>
-              <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} />
+              <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}
         </section>
@@ -296,7 +296,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             The target range ({targetText(metric).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
           </p>
           {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
-            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} />
+            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} />
           )}
           {!canEdit && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} and people it is shared with as Editor change them.</p>}
         </section>
@@ -315,7 +315,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <tbody>
                     {obs.map((o) => (
                       <tr key={o.id} className="border-t">
-                        <td className="py-2">{periodLabel(o.period_start, metric.period, JANUARY)}</td>
+                        <td className="py-2">{periodLabel(o.period_start, metric.period, yearStart)}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value)}</span> corrected</span>}
@@ -339,7 +339,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
                       <span className="flex-1">{a.question}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
-                      <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, JANUARY, true)}</span>
+                      <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, yearStart, true)}</span>
                       <Person p={peopleById[a.assignee_id]} />
                     </Link>
                   </li>
@@ -374,7 +374,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && (
-            <MetricWorkflow metric={metric} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
+            <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
           )}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
