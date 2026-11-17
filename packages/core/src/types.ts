@@ -1,5 +1,5 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
-export type Period = "day" | "week" | "month";
+export type Period = "day" | "week" | "month" | "quarter" | "year";
 /** The month a workspace's Fiscal Year starts in, 1 (January) to 12 (December); periods.ts works with it. */
 export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 /** What a second value for the same period does (GLOSSARY: Submission Rule). */

@@ -29,7 +29,7 @@ export function monthName(m: YearStart): string {
 }
 
 /** How each Period is named. */
-export const PERIOD_LABEL: Record<Period, string> = { day: "Daily", week: "Weekly", month: "Monthly" };
+export const PERIOD_LABEL: Record<Period, string> = { day: "Daily", week: "Weekly", month: "Monthly", quarter: "Quarterly", year: "Yearly" };
 
 // Months per span from a quarter up; a day, week or month is not counted in months.
 const MONTHS: Partial<Record<Span, number>> = { month: 1, quarter: 3, half: 6, year: 12 };
