@@ -20,6 +20,7 @@ export function MetricChart({
   yearStart,
   by,
   toDate = false,
+  partial,
   name,
   targetLine,
 }: {
@@ -37,6 +38,9 @@ export function MetricChart({
   by?: Span;
   /** The latest point is a span not over yet: drawn dotted, so it is not read as a drop. */
   toDate?: boolean;
+  /** Whether a point is a span that is over but has values for only some of its periods: drawn as an open, dashed
+   * point, and named so in the tooltip ("only 2 of 3 months"). */
+  partial?: (period: string) => boolean;
   /** A point's name in the tooltip, such as "Q4 2026 to date, 2 of 3 months". */
   name?: (period: string) => string;
   /** Targets per point (a Target Series combined by a Display Period), drawn as a thin line. */
@@ -135,7 +139,9 @@ export function MetricChart({
               return (
                 <g key={p.index} data-period={period} onClick={onSelect ? () => onSelect(period) : undefined} onContextMenu={onPointContext ? () => onPointContext(period) : undefined} className={onSelect ? "cursor-pointer" : undefined}>
                   {(onSelect || onPointContext) && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
-                  {points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke="var(--color-data)" strokeWidth={1.5} />}
+                  {partial?.(period) ? (
+                    <circle data-partial cx={p.cx} cy={p.cy} r={4} fill="var(--color-cotton)" stroke="var(--color-data)" strokeWidth={1.5} strokeDasharray="2 2" />
+                  ) : points.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke="var(--color-data)" strokeWidth={1.5} />}
                 </g>
               );
             }}

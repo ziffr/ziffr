@@ -25,7 +25,7 @@ import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
 import { periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
-import { dayAfter, heldText, shownSeries, SHOWN_BY, spanCount, type DisplayPoint } from "@ziffr/core/display-periods";
+import { dayAfter, heldText, isPartial, pointName, shownSeries, SHOWN_BY, spanCount, type DisplayPoint } from "@ziffr/core/display-periods";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -65,8 +65,9 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   const targets = shown?.targets ?? null;
   // The target a value is judged against: the span's own when combined, else the Metric's range as always.
   const goal = (p: DisplayPoint | undefined) => (combined ? { target_min: targets?.at[p?.period ?? ""]?.min ?? null, target_max: targets?.at[p?.period ?? ""]?.max ?? null } : m);
-  // "Q4 2026 to date, 2 of 3 months": a half-finished span is never read as a drop.
-  const name = (p: DisplayPoint, short = false) => periodLabel(p.period, by, data.yearStart, short) + (p.toDate ? (short ? " to date" : ` to date, ${heldText(p, m.period)}`) : "");
+  // "Q4 2026 to date, 2 of 3 months", "Q2 2026, only 2 of 3 months": a span not over, or one over with gaps, is
+  // never read as a drop.
+  const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
   const note = shown?.reason ?? (combined ? targets?.note ?? null : null);
 
   switch (widget.template) {
@@ -86,7 +87,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {/* "Q4 26, 2 of 3 months" fits a small card; the tooltip says "to date" in full. */}
-            {last ? (last.toDate ? <span title={name(last)}>{periodLabel(last.period, by, data.yearStart, true)}, {heldText(last, m.period)}</span> : name(last)) : "No values yet"}
+            {last ? (last.toDate || isPartial(last) ? <span title={name(last)}>{periodLabel(last.period, by, data.yearStart, true)}, {heldText(last, m.period)}</span> : name(last)) : "No values yet"}
             <TargetChip metric={{ ...m, ...goal(last) }} value={last?.value} note={note} />
             {last && <ApprovalMark data={data} metricId={m.id} period={last.period} through={combined ? last.through : undefined} />}
           </div>
@@ -109,7 +110,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
               Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, by, data.yearStart)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
             </p>
           )}
-          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} yearStart={data.yearStart} by={by} toDate={!!last?.toDate} name={(p) => { const x = pts.find((q) => q.period === p); return x ? name(x) : periodLabel(p, by, data.yearStart); }} targetLine={showTarget && combined ? targets?.line : undefined} /></div>
+          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} yearStart={data.yearStart} by={by} toDate={!!last?.toDate} partial={(p) => { const x = pts.find((q) => q.period === p); return !!x && isPartial(x); }} name={(p) => { const x = pts.find((q) => q.period === p); return x ? name(x) : periodLabel(p, by, data.yearStart); }} targetLine={showTarget && combined ? targets?.line : undefined} /></div>
           {note && showTarget && <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>}
         </div>
       );
@@ -133,7 +134,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
             <tbody>
               {rows.map((r) => (
                 <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
-                  <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1" title={r.toDate ? name(r) : undefined}>{name(r, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} through={combined ? r.through : undefined} short /></span></td>
+                  <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1" title={r.toDate || isPartial(r) ? name(r) : undefined}>{name(r, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} through={combined ? r.through : undefined} short /></span></td>
                   <td className={cn("fig py-1.5 text-right", health(goal(r), r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
                 </tr>
               ))}
@@ -190,7 +191,7 @@ function Bars({ metric, points, by, name, goal, band, yearStart, onPointContext 
           <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => { const x = byPeriod.get(String(p)); return x ? name(x) : periodLabel(String(p), by, yearStart); }} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
-              <Cell key={p.period} data-to-date={p.toDate || undefined} fill={p.toDate ? `url(#${hatch})` : health(goal(p), p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} stroke={p.toDate ? "var(--color-data)" : undefined} strokeDasharray={p.toDate ? "3 2" : undefined} />
+              <Cell key={p.period} data-to-date={p.toDate || undefined} data-partial={isPartial(p) || undefined} fill={p.toDate || isPartial(p) ? `url(#${hatch})` : health(goal(p), p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} stroke={p.toDate || isPartial(p) ? "var(--color-data)" : undefined} strokeDasharray={p.toDate ? "3 2" : undefined} />
             ))}
           </Bar>
         </BarChart>

@@ -15,8 +15,7 @@ import { fillSettings } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
-import { periodLabel } from "@ziffr/core/periods";
-import { dayAfter, heldText, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
+import { dayAfter, isPartial, pointName, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.
@@ -198,7 +197,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const by = shown.by;
   const all = shown.points;
   const pts = all.slice(-(widget.settings.window ?? 12));
-  const name = (p: DisplayPoint, short = false) => periodLabel(p.period, by, data.yearStart, short) + (p.toDate ? (short ? " to date" : ` to date, ${heldText(p, m.period)}`) : "");
+  const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
   // A span's target when combined (see targetsBy), else the Metric's range as always.
   const goal = (p: DisplayPoint | undefined) => (shown.combined ? { min: shown.targets?.at[p?.period ?? ""]?.min ?? null, max: shown.targets?.at[p?.period ?? ""]?.max ?? null } : { min: m.target_min, max: m.target_max });
   const title = widget.title ?? m.name;
@@ -239,7 +238,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     const t = goal(last);
     const off = last && ((t.max !== null && last.value > t.max) || (t.min !== null && last.value < t.min));
     // A quarter to date against a whole one would read as a drop: no change then.
-    const change = last && prev && prev.value && !last.toDate ? (last.value - prev.value) / Math.abs(prev.value) : null;
+    const change = last && prev && prev.value && !last.toDate && !isPartial(last) && !isPartial(prev) ? (last.value - prev.value) / Math.abs(prev.value) : null;
     slide.addText(
       [
         { text: `${title}\n`, options: { fontSize: 12, bold: true, color: INK } },

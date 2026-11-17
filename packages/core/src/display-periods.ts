@@ -3,7 +3,7 @@
 // is the same in a chart, a table and a Comparison strip.
 import { format } from "date-fns";
 import { evaluate, formulaInputs } from "./formula";
-import { periodEnd, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
+import { periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { CanvasData, Metric, Point, TemplateId } from "./types";
 
 /** A period a widget shows a Metric by: its own, or a longer one (GLOSSARY: Display Period). */
@@ -150,9 +150,25 @@ export function isDisplayPeriod(v: unknown): v is DisplayPeriod {
   return typeof v === "string" && (ORDER as string[]).includes(v);
 }
 
-/** How much of a to-date span has values: "2 of 3 months". */
+/** How much of a span has values: "2 of 3 months". */
 export function heldText(p: Pick<DisplayPoint, "held" | "length">, own: Span): string {
   return `${p.held} of ${spanCount(p.length, own)}`;
+}
+
+/** Whether a span that is over holds values for fewer of the Metric's periods than it has: a past quarter with two
+ * of its three months. Shown (a span counts once half of it has values), but its sum reads low, so it is marked. */
+export function isPartial(p: Pick<DisplayPoint, "held" | "length" | "toDate">): boolean {
+  return !p.toDate && p.held < p.length;
+}
+
+/** A point's name, the same in every view and the export: "Q4 2026 to date, 2 of 3 months" for a span not over yet,
+ * "Q2 2026, only 2 of 3 months" for one over with gaps, else the period's name. Short: "Q4 26 to date",
+ * "Q2 26, 2 of 3 months". */
+export function pointName(p: Pick<DisplayPoint, "period" | "held" | "length" | "toDate">, by: Span, own: Span, yearStart: YearStart, short = false): string {
+  const label = periodLabel(p.period, by, yearStart, short);
+  if (p.toDate) return short ? `${label} to date` : `${label} to date, ${heldText(p, own)}`;
+  if (isPartial(p)) return `${label}, ${short ? "" : "only "}${heldText(p, own)}`;
+  return label;
 }
 
 /** A target for one span: a minimum, a maximum, or both. */
