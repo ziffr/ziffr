@@ -4,8 +4,9 @@
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { attainment, compare, resolverFrom, targetFor } from "@ziffr/core/compare";
-import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import { compactValue, formatValue } from "@ziffr/core/format";
 import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@ziffr/core/types";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 export const MEASURE_LABEL: Record<MeasureId, string> = {
   value: "Value",
@@ -33,10 +34,10 @@ export function measureSeries(m: Metric, data: CanvasData, panel: Panel): Bar[] 
     if (measure === "value") v = p.value;
     else if (measure === "attainment") v = attainment(m, p.value, targetFor(m, p.period, data.targets[m.id]));
     else {
-      const c = compare(m, resolve, { keys: [measure === "pct-prev" ? "prev" : "yoy"], asOf: p.period })[0];
+      const c = compare(m, resolve, { yearStart: JANUARY, keys: [measure === "pct-prev" ? "prev" : "yoy"], asOf: p.period })[0];
       v = c.available ? c.pct : null;
     }
-    if (v !== null && v !== undefined && Number.isFinite(v)) rows.push({ period: p.period, label: periodLabel(p.period, m.period, true), value: v, projected: projected.has(p.period) });
+    if (v !== null && v !== undefined && Number.isFinite(v)) rows.push({ period: p.period, label: periodLabel(p.period, m.period, JANUARY, true), value: v, projected: projected.has(p.period) });
   }
   return rows.slice(-n);
 }
@@ -180,7 +181,7 @@ export function bridgeSteps(m: Metric, data: CanvasData, panel: Panel): { steps:
     const end = total ?? level;
     if (total !== null && Math.abs(total - level) > Math.abs(total) * 0.005)
       steps.push({ key: "x", label: "Not in breakdown", start: level, end: total, kind: total >= level ? "up" : "down" });
-    steps.push({ key: "e", label: periodLabel(to, m.period, true), start: 0, end, kind: "total" });
+    steps.push({ key: "e", label: periodLabel(to, m.period, JANUARY, true), start: 0, end, kind: "total" });
     return { steps };
   }
   // Variance: from one period's total to another's, through each row's change.
@@ -196,13 +197,13 @@ export function bridgeSteps(m: Metric, data: CanvasData, panel: Panel): { steps:
     .filter((c) => c.delta !== 0)
     .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
   let level = a;
-  steps.push({ key: "s", label: periodLabel(from, m.period, true), start: 0, end: a, kind: "total" });
+  steps.push({ key: "s", label: periodLabel(from, m.period, JANUARY, true), start: 0, end: a, kind: "total" });
   changes.forEach((c, i) => {
     steps.push({ key: `c${i}`, label: c.label, start: level, end: level + c.delta, kind: c.delta >= 0 ? "up" : "down" });
     level += c.delta;
   });
   if (Math.abs(b - level) > Math.abs(b) * 0.005) steps.push({ key: "x", label: "Other", start: level, end: b, kind: b >= level ? "up" : "down" });
-  steps.push({ key: "e", label: periodLabel(to, m.period, true), start: 0, end: b, kind: "total" });
+  steps.push({ key: "e", label: periodLabel(to, m.period, JANUARY, true), start: 0, end: b, kind: "total" });
   return { steps };
 }
 

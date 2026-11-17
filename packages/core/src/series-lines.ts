@@ -1,7 +1,7 @@
 // Reading Target Series and Projection lines (GLOSSARY: Target Series, Projection): pure, so the browser can show a
 // preview of pasted rows with exactly the rules the core applies when it saves them.
-import { periodStart } from "./format";
 import type { Period } from "./types";
+import { JANUARY, periodStart } from "./periods";
 
 /** "2026-12 140000", "2026-12-01;140.000", "12/2026 140000" → period start and value. */
 export function parseSeriesLine(line: string, period: Period): { period: string; value: number } | null {
@@ -14,7 +14,7 @@ export function parseSeriesLine(line: string, period: Period): { period: string;
   else num = num.replace(/,/g, "");
   const value = Number(num);
   if (!Number.isFinite(value) || mo < 1 || mo > 12) return null;
-  return { period: periodStart(new Date(y, mo - 1, d), period), value };
+  return { period: periodStart(new Date(y, mo - 1, d), period, JANUARY), value };
 }
 
 /** Pasted text, such as two spreadsheet columns, read line by line: the rows it gives (a later line for the same

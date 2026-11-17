@@ -3,13 +3,14 @@
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
 import { format } from "date-fns";
 import { db } from "./db";
-import { periodLabel, periodStart, formatValue } from "./format";
+import { formatValue } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { deliver, deliverPrompt } from "./deliveries";
 import { targetFor } from "./compare";
-import { dueDate, shiftPeriod, unusualReasons, workingPeriod } from "./workflow-rules";
+import { dueDate, unusualReasons, workingPeriod } from "./workflow-rules";
 import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
 import { recordAudit } from "./audit-log";
+import { JANUARY, periodLabel, shiftPeriod } from "./periods";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string };
@@ -72,11 +73,11 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
     if (m.formula) continue;
-    const period = workingPeriod(asOf, m.period, periodStart);
+    const period = workingPeriod(asOf, m.period, JANUARY);
     const wf = workflows.get(row.workflow_id as number);
     if (!wf) continue;
     const ctx: Ctx = { m, wf, period };
-    const label = `${m.name}, ${periodLabel(period, m.period)}`;
+    const label = `${m.name}, ${periodLabel(period, m.period, JANUARY)}`;
     const [state, value] = await Promise.all([getState(m.id, period), latestValue(m.id, period)]);
     if (value) {
       if (!state || state.state === "asked") log.push(...(await onValue(m.id, period, value.submitter_id ?? actorId)).map((x) => `${label}: ${x}`));
@@ -125,7 +126,7 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
   const from = feeds.length ? ` It should come from the Feed ${feeds.join(", ")}: check that it still runs.` : "";
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: ctx.wf.owner_id === ctx.m.owner_id ? actorId : ctx.wf.owner_id, assignee_id: ctx.m.owner_id,
-    question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period)} was due ${due} and is still missing.${from} Please follow up.`, kind: "question", purpose: "escalation",
+    question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, JANUARY)} was due ${due} and is still missing.${from} Please follow up.`, kind: "question", purpose: "escalation",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
@@ -146,7 +147,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
     const prev = await latestValue(metricId, before);
     const { data: targets } = await db().from("series_values").select("period_start, value").eq("metric_id", metricId).eq("kind", "target");
     const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
-    reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, t);
+    reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, JANUARY, t);
   }
   const approvers = (approve?.approvers ?? []).filter((a) => a !== submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
@@ -163,7 +164,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
 async function requestApproval(ctx: Ctx, approver: string, submitterId: string, reasons: string[], value: number) {
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: submitterId === approver ? ctx.wf.owner_id : submitterId, assignee_id: approver,
-    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period)}: ${formatValue(ctx.m, value)}, ${reasons.join(", ")}. Reply “approve”, or “send back:” with what to check.`,
+    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, JANUARY)}: ${formatValue(ctx.m, value)}, ${reasons.join(", ")}. Reply “approve”, or “send back:” with what to check.`,
     kind: "task", purpose: "approval",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });
@@ -233,7 +234,7 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
   let n = 0;
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
-    const period = workingPeriod(asOf, m.period as Period, periodStart);
+    const period = workingPeriod(asOf, m.period as Period, JANUARY);
     if (!(await latestValue(m.id, period))) continue;
     await setState(m.id, period, { state: "locked", approval_step: null, note: `Closed with the period by ${by}` });
     n++;

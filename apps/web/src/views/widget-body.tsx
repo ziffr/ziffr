@@ -2,7 +2,7 @@
 // PROTOTYPE: renders a Widget by its template. Each branch is where a pluggable View would sit.
 import { useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, health, periodLabel } from "@ziffr/core/format";
+import { compactValue, formatValue, health } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { pearson, strength } from "@/analyses/correlation";
 import type { CanvasData, Metric, Point, Widget } from "@ziffr/core/types";
@@ -23,6 +23,7 @@ import { useSeriesReady } from "@/canvas/series-store";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 type Props = {
   widget: Pick<Widget, "template" | "metric_ids" | "settings">;
@@ -70,7 +71,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
             <span className="text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]">{formatValue(m, last?.value)}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {last ? periodLabel(last.period, m.period) : "No values yet"}
+            {last ? periodLabel(last.period, m.period, JANUARY) : "No values yet"}
             <TargetChip metric={m} value={last?.value} />
             {last && <ApprovalMark data={data} metricId={m.id} period={last.period} />}
           </div>
@@ -86,7 +87,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
         <div className="flex h-full flex-col">
           {widget.template === "forecast" && fc && (
             <p className="mb-1 text-xs text-muted-foreground">
-              Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, m.period)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
+              Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, m.period, JANUARY)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
             </p>
           )}
           <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} /></div>
@@ -104,7 +105,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
           <tbody>
             {rows.map((r) => (
               <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
-                <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1">{periodLabel(r.period, m.period, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} short /></span></td>
+                <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1">{periodLabel(r.period, m.period, JANUARY, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} short /></span></td>
                 <td className={cn("fig py-1.5 text-right", health(m, r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
               </tr>
             ))}
@@ -143,9 +144,9 @@ function Bars({ metric, points, showTarget, onPointContext }: { metric: Metric; 
           {showTarget && (metric.target_min !== null || metric.target_max !== null) && (
             <ReferenceArea y1={metric.target_min ?? 0} y2={metric.target_max ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, metric.period, JANUARY, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
           <YAxis tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={56} stroke="var(--color-rule-2)" />
-          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
+          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => periodLabel(String(p), metric.period, JANUARY)} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
               <Cell key={p.period} fill={health(metric, p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} />

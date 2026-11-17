@@ -14,6 +14,10 @@ _Avoid_: Number, KPI, measure, series
 Everything that defines a metric: name, description, unit and format, period, submission rule, sources, target range, polarity, owner and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
 
+**Period**:
+How often a Metric has a value: a day, week or month. Weeks run Monday to Sunday; a period is named by its first day ("Week of 9 Nov 2026", "October 2026").
+_Avoid_: Frequency, interval
+
 **Derived Metric**:
 A metric computed by a formula from other metrics. It never receives observations directly.
 _Avoid_: Calculated field, formula metric

@@ -4,11 +4,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { addFeedToMetric, createFeed, createFeedKey, FEED_VALUES_PER_DAY } from "@ziffr/core/feeds";
-import { periodStart } from "@ziffr/core/format";
 import { accessLogOf, feedBatch, workspace } from "@ziffr/core/test/db-fixtures";
 import { POST } from "./route";
 import { GET } from "../route";
 import { GET as listMetrics } from "../../metrics/route";
+import { JANUARY, periodStart } from "@ziffr/core/periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -35,8 +35,8 @@ describe("POST /api/v1/feed/observations", () => {
     const res = await call(secret, { items }, { "idempotency-key": "run-1" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ results: [
-      { metric: m.slug, period: periodStart(new Date(), "month"), status: "recorded", imported: false, detail: "Recorded." },
-      { metric: m.slug, period: periodStart(new Date(), "month"), status: "refused", code: "duplicate", detail: expect.any(String) },
+      { metric: m.slug, period: periodStart(new Date(), "month", JANUARY), status: "recorded", imported: false, detail: "Recorded." },
+      { metric: m.slug, period: periodStart(new Date(), "month", JANUARY), status: "refused", code: "duplicate", detail: expect.any(String) },
       { metric: "not-mine", period: null, status: "refused", code: "not_found", detail: expect.any(String) },
     ] });
     const again = await call(secret, { items }, { "idempotency-key": "run-1" });

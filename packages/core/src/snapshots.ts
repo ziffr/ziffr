@@ -21,6 +21,7 @@ import { shownData } from "./view-links";
 import { widgetMetricIds } from "./widget-metrics";
 import { localTime } from "./workspace-clock";
 import type { CanvasData, Widget, WidgetSettings } from "./types";
+import { JANUARY } from "./periods";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
  * and source. Everything else about it is frozen. */
@@ -96,7 +97,7 @@ function wordsOf(w: Widget): WidgetWords {
 export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string } = {}): Promise<number> {
   assertCan(actor, "create");
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
-  const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""));
+  const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), JANUARY);
   if (!p) throw new Error("Pick a week, month or quarter to take the Snapshot of.");
   const dash = await roleOn(actor, dashboardId);
   if (!dash || (dash.role !== "owner" && dash.role !== "editor")) throw new Forbidden();

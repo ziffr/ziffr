@@ -5,12 +5,12 @@
 import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { periodLabel, periodStart } from "./format";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
+import { JANUARY, periodLabel, periodStart } from "./periods";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
 export const linkTo = (path: string) => `${(process.env.ZIFFR_SITE_URL ?? "").replace(/\/+$/, "")}${path}`;
@@ -54,7 +54,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   const ref = refFor(a.id);
   const { subject, body } = c.render({
     kind: input.kind,
-    action: { id: a.id, kind: a.kind, question: a.question, metric: metric.name, period: periodLabel(a.period_start, metric.period), due: a.due_date },
+    action: { id: a.id, kind: a.kind, question: a.question, metric: metric.name, period: periodLabel(a.period_start, metric.period, JANUARY), due: a.due_date },
     sender, recipient, text: input.text, correction: input.correction == null ? null : String(input.correction),
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id),
   });
@@ -106,12 +106,12 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const c = CONNECTORS[via];
   // Answering in place only where the connector receives values and the metric accepts them from there.
   const answerHere = Boolean(c.sourceId && c.capabilities.includes("values") && (metric.sources as string[]).includes(c.sourceId)) && repliesReturn(via, metric.workspace_id);
-  const current = periodStart(new Date(), metric.period as Period);
+  const current = periodStart(new Date(), metric.period as Period, JANUARY);
   const period = input.period ?? current;
-  const label = period !== current ? `for ${periodLabel(period, metric.period as Period)}` : metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
+  const label = period !== current ? `for ${periodLabel(period, metric.period as Period, JANUARY)}` : metric.period === "day" ? "today" : metric.period === "week" ? "this week" : "this month";
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
-  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period), answerHere, formLink: FORM_LINK });
+  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, JANUARY), answerHere, formLink: FORM_LINK });
   const mail_state = await initialDeliveryState(via, metric.workspace_id);
   const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);

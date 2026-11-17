@@ -14,6 +14,7 @@ import { takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { widgetMetricIds } from "./widget-metrics";
 import type { Period } from "./types";
+import { JANUARY } from "./periods";
 
 /** The longest a dashboard may wait after a period ends before taking its Snapshot, in days. */
 export const MAX_WAIT_DAYS = 60;
@@ -48,7 +49,7 @@ async function allLocked(ws: string, metrics: { id: number; period: Period }[], 
   const { data } = await db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "locked").in("metric_id", metrics.map((m) => m.id)).gte("period_start", p.start).lte("period_start", p.end);
   const locked = new Set((data ?? []).map((r) => `${r.metric_id}:${r.period_start}`));
   return metrics.every((m) => {
-    const inside = metricPeriodsIn(m.period, p);
+    const inside = metricPeriodsIn(m.period, p, JANUARY);
     return inside.length > 0 && inside.every((s) => locked.has(`${m.id}:${s}`));
   });
 }
@@ -62,7 +63,7 @@ export async function takeDueSnapshots(workspaceId: string, today: string, effec
   let taken = 0;
   let failed = 0;
   for (const d of dashboards ?? []) {
-    const p = completePeriods(d.snapshot_every as SnapshotPeriodKind, today, 1)[0];
+    const p = completePeriods(d.snapshot_every as SnapshotPeriodKind, today, 1, JANUARY)[0];
     // Once per period: one there is, or one deleted, is not taken again.
     const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("dashboard_id", d.id).eq("period_kind", p.kind).eq("period_start", p.start);
     if (count) continue;

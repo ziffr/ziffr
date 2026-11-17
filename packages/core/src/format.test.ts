@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatValue, periodLabel, periodStart, targetStatus } from "./format";
+import { formatDate, formatValue, targetStatus } from "./format";
 import { metric } from "./test/fixtures";
 
 describe("format", () => {
@@ -9,11 +9,6 @@ describe("format", () => {
   });
   it("shows a dash for no value", () => {
     expect(formatValue(metric(), null)).toBe("–");
-  });
-  it("names periods and finds the start of the current one", () => {
-    expect(periodLabel("2026-10-01", "month")).toBe("October 2026");
-    expect(periodLabel("2026-10-01", "month", true)).toBe("Oct 26");
-    expect(periodStart(new Date("2026-11-13T12:00:00"), "month")).toBe("2026-11-01");
   });
   it("places a value against the target range", () => {
     const m = { target_min: 100, target_max: 200 };

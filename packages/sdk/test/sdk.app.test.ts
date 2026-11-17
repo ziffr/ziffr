@@ -5,7 +5,7 @@ import { createAccessKey } from "@ziffr/core/access-keys";
 import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
 import type { Scope } from "@ziffr/core/actor";
 import { db } from "@ziffr/core/db";
-import { periodStart } from "@ziffr/core/format";
+import { JANUARY, periodStart } from "@ziffr/core/periods";
 import { workspace } from "@ziffr/core/test/db-fixtures";
 import { Ziffr, ZiffrError } from "../src/index";
 
@@ -38,7 +38,7 @@ describe("@ziffr/sdk against the app", () => {
   });
   it("submits with an idempotency key by default, and replays one given twice", async () => {
     const { orders, ziffr } = await setup();
-    expect(await ziffr.observations.submit(orders.slug, { value: 5 })).toMatchObject({ status: "recorded", value: 5, period: periodStart(new Date(), "month"), replayed: false });
+    expect(await ziffr.observations.submit(orders.slug, { value: 5 })).toMatchObject({ status: "recorded", value: 5, period: periodStart(new Date(), "month", JANUARY), replayed: false });
     // A fresh key each call: the Submission Rule adds the second.
     expect((await ziffr.observations.submit(orders.slug, { value: 2 })).value).toBe(7);
     const first = await ziffr.observations.submit(orders.slug, { value: 1, breakdown: [{ label: "Shop", value: 1 }] }, { idempotencyKey: "nightly-1" });
@@ -101,7 +101,7 @@ describe("@ziffr/sdk against the app", () => {
     const first = await ziffr.feed.submit([{ metric: m.slug, value: 3, period: "2026-01-01" }, { metric: m.slug, value: 4 }], { idempotencyKey: "crm-1" });
     expect(first.results.map((r) => [r.status, r.imported])).toEqual([["recorded", true], ["recorded", false]]);
     expect((await ziffr.feed.submit([{ metric: m.slug, value: 3, period: "2026-01-01" }, { metric: m.slug, value: 4 }], { idempotencyKey: "crm-1" })).replayed).toBe(true);
-    expect((await collect(ziffr.feed.metrics()))[0].filled).toEqual(["2026-01-01", periodStart(new Date(), "month")]);
+    expect((await collect(ziffr.feed.metrics()))[0].filled).toEqual(["2026-01-01", periodStart(new Date(), "month", JANUARY)]);
     // A Feed Key reads nothing else.
     await expect(ziffr.metrics.list()).rejects.toMatchObject({ status: 403, code: "forbidden" });
   });

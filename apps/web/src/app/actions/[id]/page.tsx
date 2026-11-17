@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { getMetrics, getObservation, getProfileMap, getSeriesOf } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { actionThread } from "@ziffr/core/page-data";
-import { formatDate, formatValue, periodLabel } from "@ziffr/core/format";
+import { formatDate, formatValue } from "@ziffr/core/format";
 import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
 import { markTaskDone } from "@/app/canvas-actions";
 import { MetricChart } from "@/views/metric-chart";
@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ThreadMessage } from "@ziffr/core/types";
 import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { ApprovalBar } from "@/components/approval-bar";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
@@ -43,7 +44,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <StatusBadge status={a.status} kind={a.kind} />
           <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {formatDate(a.due_date)}</span>}
-          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link><span>{periodLabel(a.period_start, m.period)}</span>
+          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link><span>{periodLabel(a.period_start, m.period, JANUARY)}</span>
           {a.breakdown_label && <span>row <span className="font-medium text-foreground">{a.breakdown_label}</span></span>}
           {obs && <><span className="fig text-foreground">{formatValue(m, obs.value)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value)}</span>}</>}
         </div>

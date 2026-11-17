@@ -1,5 +1,5 @@
 import type { Point } from "@ziffr/core/types";
-import { addDays, addMonths, addWeeks, format, parseISO } from "date-fns";
+import { shiftPeriod } from "@ziffr/core/periods";
 import type { Period } from "@ziffr/core/types";
 
 export type ForecastPoint = { period: string; value: number; lo: number; hi: number };
@@ -21,13 +21,12 @@ export function forecast(points: Point[], period: Period, horizon = period === "
     trend = beta * (level - prevLevel) + (1 - beta) * trend;
   }
   const sd = Math.sqrt(residuals.reduce((s, r) => s + r * r, 0) / residuals.length);
-  const last = parseISO(points[points.length - 1].period);
-  const step = (d: Date, n: number) => (period === "month" ? addMonths(d, n) : period === "week" ? addWeeks(d, n) : addDays(d, n));
+  const last = points[points.length - 1].period;
   const out: ForecastPoint[] = [];
   for (let h = 1; h <= horizon; h++) {
     const value = level + h * trend;
     const spread = 1.96 * sd * Math.sqrt(h);
-    out.push({ period: format(step(last, h), "yyyy-MM-dd"), value, lo: value - spread, hi: value + spread });
+    out.push({ period: shiftPeriod(last, period, h), value, lo: value - spread, hi: value + spread });
   }
   return { points: out, trendPerPeriod: trend, sd };
 }

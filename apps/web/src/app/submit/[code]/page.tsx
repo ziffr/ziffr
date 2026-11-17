@@ -2,12 +2,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { submissionForm } from "@ziffr/core/page-data";
 import { formTelegramLink } from "@ziffr/core/telegram-people";
-import { formatValue, periodLabel, RULE_LABEL } from "@ziffr/core/format";
+import { formatValue, RULE_LABEL } from "@ziffr/core/format";
 import { submitWebForm } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BreakdownField } from "./breakdown-field";
 import { TelegramConnect } from "./telegram-connect";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 export default async function SubmitPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ outcome?: string; detail?: string }> }) {
   const { code } = await params;
@@ -26,7 +27,7 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
         <h1 className="mt-1 text-xl font-semibold">{m.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
         <div className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm">
-          For <span className="font-medium">{periodLabel(period, m.period)}</span>
+          For <span className="font-medium">{periodLabel(period, m.period, JANUARY)}</span>
           {current !== null && <>, already has <span className="font-medium">{formatValue(m, current)}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
         </div>
         {sp.detail && (

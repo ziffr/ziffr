@@ -12,13 +12,14 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PERIOD_LABEL, POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
+import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { CatalogBrowser } from "./catalog-browser";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { INDUSTRY_LABEL } from "@ziffr/core/workspace-profile";
+import { PERIOD_LABEL } from "@ziffr/core/periods";
 
 const RULE_HINT: Record<SubmissionRule, string> = {
   reject: "The first value for a period is final.",

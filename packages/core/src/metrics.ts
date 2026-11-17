@@ -3,7 +3,6 @@
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
-import { periodStart } from "./format";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
 import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
@@ -17,6 +16,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
+import { JANUARY, periodStart } from "./periods";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month"];
@@ -243,7 +243,7 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
     const value = typeof r?.value === "number" && Number.isFinite(r.value) ? r.value : null;
     if (!period || value === null || Number.isNaN(new Date(`${period}T00:00:00`).getTime())) throw new Error("Every row needs a period and a number.");
     // A day inside the period counts as that period, as in pasted lines.
-    return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period), value };
+    return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period, JANUARY), value };
   });
   return { saved: await upsertSeries(metricId, kind, read, note) };
 }

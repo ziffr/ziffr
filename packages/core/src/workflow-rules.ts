@@ -1,19 +1,10 @@
 // Workflow rules (GLOSSARY: Workflow, Due Date, Unusual Value). Pure: the editor, the metric page and the
 // engine compute due dates and checks the same way.
-import { addDays, addMonths, addWeeks, format, isWeekend, parseISO } from "date-fns";
-import { periodLabel } from "./format";
+import { addDays, format, isWeekend, parseISO } from "date-fns";
+import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import type { Metric, Period, Profile, WorkflowConfig, WorkflowStep } from "./types";
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
-
-/** The start of the period n periods before or after a period start. */
-export function shiftPeriod(start: string, p: Period, n: number) {
-  const d = parseISO(start);
-  return iso(p === "day" ? addDays(d, n) : p === "week" ? addWeeks(d, n) : addMonths(d, n));
-}
-
-/** The last day of a period. */
-export const periodEnd = (start: string, p: Period) => iso(addDays(parseISO(shiftPeriod(start, p, 1)), -1));
 
 /** A date n working days later, skipping Saturdays and Sundays. */
 export function addWorkingDays(date: string, n: number) {
@@ -30,16 +21,16 @@ export function addWorkingDays(date: string, n: number) {
 export const dueDate = (start: string, p: Period, cfg: WorkflowConfig) => addWorkingDays(periodEnd(start, p), Math.max(0, cfg.dueWorkingDays));
 
 /** The period a workflow works on as of a day: the last one that has ended. */
-export function workingPeriod(asOf: string, p: Period, currentStart: (d: Date, p: Period) => string) {
-  return shiftPeriod(currentStart(parseISO(asOf), p), p, -1);
+export function workingPeriod(asOf: string, p: Period, yearStart: YearStart) {
+  return shiftPeriod(periodStart(asOf, p, yearStart), p, -1);
 }
 
 /** Why a value is unusual, in words; empty when it is not (GLOSSARY: Unusual Value). */
-export function unusualReasons(m: Metric, value: number, previous: number | undefined, previousPeriod: string | undefined, step: Extract<WorkflowStep, { type: "check" }>, target?: { min: number | null; max: number | null }) {
+export function unusualReasons(m: Metric, value: number, previous: number | undefined, previousPeriod: string | undefined, step: Extract<WorkflowStep, { type: "check" }>, yearStart: YearStart, target?: { min: number | null; max: number | null }) {
   const out: string[] = [];
   if (previous !== undefined && previous !== 0) {
     const pct = ((value - previous) / Math.abs(previous)) * 100;
-    if (Math.abs(pct) > step.changePct) out.push(`${pct > 0 ? "up" : "down"} ${Math.abs(pct).toFixed(1)} % on ${previousPeriod ? periodLabel(previousPeriod, m.period) : "the period before"}`);
+    if (Math.abs(pct) > step.changePct) out.push(`${pct > 0 ? "up" : "down"} ${Math.abs(pct).toFixed(1)} % on ${previousPeriod ? periodLabel(previousPeriod, m.period, yearStart) : "the period before"}`);
   }
   if (step.outsideTarget && target) {
     if (target.min !== null && value < target.min) out.push("below target");

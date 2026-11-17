@@ -14,19 +14,19 @@ import { accessLog } from "./access-log";
 import { deliverPrompt } from "./deliveries";
 import { metricDraftFrom } from "./metrics";
 import { submissionForm } from "./page-data";
-import { periodStart } from "./format";
-import { shiftPeriod, dueDate } from "./workflow-rules";
+import { dueDate } from "./workflow-rules";
 import { runWorkspaceIfDue } from "./scheduled-runs";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { feedBatch, logCalls, valuesOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
+import { JANUARY, periodStart, shiftPeriod } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); vi.restoreAllMocks(); });
 async function ws() { const w = await workspace(); cleanups.push(w.cleanup); return w; }
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-const thisMonth = () => periodStart(new Date(), "month");
+const thisMonth = () => periodStart(new Date(), "month", JANUARY);
 const monthsAgo = (n: number) => shiftPeriod(thisMonth(), "month", -n);
 /** Effects that send nothing but still run the Workflow, so checks and Approvals happen for real. */
 const quiet = (): SubmissionEffects => ({ notifyCorrection: vi.fn(async () => {}), afterValue: submissionEffects.afterValue });

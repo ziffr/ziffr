@@ -18,10 +18,11 @@ import { VersionsDialog } from "@/components/versions-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, formatValue, periodLabel } from "@ziffr/core/format";
+import { formatDate, formatValue } from "@ziffr/core/format";
 import { TEMPLATES } from "@ziffr/core/widget-templates";
 import type { OpenSnapshot, SnapshotWords, WidgetWords, WordKey } from "@ziffr/core/snapshots";
 import type { Widget } from "@ziffr/core/types";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 /** The words a Finding carries, in the order they are read; other widgets only have a title. */
 const FINDING_WORDS: { key: WordKey; label: string }[] = [
@@ -111,8 +112,8 @@ function Corrections({ snapshot: s }: { snapshot: OpenSnapshot }) {
           if (!m) return null;
           const now = c.now === null ? "removed since" : `now ${formatValue(m, c.now)}`;
           return (
-            <li key={`${c.metricId}:${c.period}`} title={`${m.name}, ${periodLabel(c.period, m.period)}: ${formatValue(m, c.was)} here, ${now}`}>
-              {m.name}, {periodLabel(c.period, m.period)}: <span className="font-medium text-foreground">{formatValue(m, c.was)}</span> ({now})
+            <li key={`${c.metricId}:${c.period}`} title={`${m.name}, ${periodLabel(c.period, m.period, JANUARY)}: ${formatValue(m, c.was)} here, ${now}`}>
+              {m.name}, {periodLabel(c.period, m.period, JANUARY)}: <span className="font-medium text-foreground">{formatValue(m, c.was)}</span> ({now})
             </li>
           );
         })}

@@ -24,7 +24,7 @@ import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@ziffr/core/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@ziffr/core/compare";
 import { applyTemplate, assignInPlace, getHistory, placeWidget, removeWidget, saveToPool, updateWidget, type DropSource } from "@/app/canvas-actions";
-import { formatValue, periodLabel, SOURCE_LABEL } from "@ziffr/core/format";
+import { formatValue, SOURCE_LABEL } from "@ziffr/core/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
@@ -33,6 +33,7 @@ import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connect
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { Preview, TemplatePreview } from "./preview";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 export type { FrameWidget } from "./read-only-frame";
 
@@ -328,7 +329,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
           {h.actions.map((a) => (
             <Link key={a.id} href={`/actions/${a.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted">
-              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, true)}</span>
+              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, JANUARY, true)}</span>
             </Link>
           ))}
         </div>
@@ -339,7 +340,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           <ul className="space-y-0.5 text-xs">
             {h.superseded.slice(0, 8).map((x) => (
               <li key={x.id} className="flex gap-2">
-                <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, true)}</span>
+                <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, JANUARY, true)}</span>
                 <span className="fig line-through">{formatValue(m, Number(x.value))}</span>
                 <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} <RelativeTime at={x.superseded_at} /></span>
               </li>
@@ -352,7 +353,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           {!h && <tr><td className="p-3 text-muted-foreground">Loading…</td></tr>}
           {h?.observations.slice(0, 60).map((o) => (
             <tr key={o.id} className="border-b last:border-0">
-              <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, true)}</td>
+              <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, JANUARY, true)}</td>
               <td className="fig py-1.5">
                 {formatValue(m, Number(o.value))}
                 {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value))}</span>}
@@ -375,7 +376,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
   const preferred = [...(data.submitters[metric.id] ?? []), metric.owner_id].find((id) => id !== data.viewer);
   const [assignee, setAssignee] = useState(preferred ?? others[0]?.id);
   const draft = (p: string) => {
-    const label = periodLabel(p, metric.period);
+    const label = periodLabel(p, metric.period, JANUARY);
     // About one row of a breakdown: "What happened with France in October 2026?"
     if (row) return kind === "task" ? `Look into ${row} for ${metric.name.toLowerCase()} in ${label}` : `What happened with ${row} in ${metric.name.toLowerCase()}, ${label}?`;
     const v = pts.find((x) => x.period === p)?.value;
@@ -410,7 +411,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
         <label className="space-y-1">
           <span className="text-muted-foreground">About</span>
           <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
-            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, true)}, {formatValue(metric, p.value)}</option>)}
+            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, JANUARY, true)}, {formatValue(metric, p.value)}</option>)}
           </select>
         </label>
         <label className="space-y-1">

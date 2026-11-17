@@ -1,9 +1,10 @@
 "use client";
 // PROTOTYPE: Views are hardcoded. This folder is where the View plugin seam would go.
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, periodLabel } from "@ziffr/core/format";
+import { compactValue, formatValue } from "@ziffr/core/format";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@/analyses/forecast";
+import { JANUARY, periodLabel } from "@ziffr/core/periods";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number] };
 
@@ -60,7 +61,7 @@ export function MetricChart({
               ifOverflow="extendDomain"
             />
           )}
-          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
+          <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, JANUARY, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
           <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
@@ -68,7 +69,7 @@ export function MetricChart({
               if (!active || !r) return null;
               return (
                 <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
-                  <div className="font-medium">{periodLabel(r.period, mp)}</div>
+                  <div className="font-medium">{periodLabel(r.period, mp, JANUARY)}</div>
                   {r.value !== undefined ? (
                     <div>{metric.name}: <span className="fig">{formatValue(metric, r.value)}</span></div>
                   ) : (

@@ -8,6 +8,7 @@ import { canvasAdd, canvasRemove, canvasSet, type DropSource } from "@/app/canva
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES } from "@/views/templates";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
+import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };
@@ -110,7 +111,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
                 <span key={m.id} className="stock flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] py-1 pr-1 pl-2.5 text-sm">
                   {i === 0 && n > 1 && <span className="rounded-[var(--radius-input)] border border-foreground px-1 text-xs font-medium">Target</span>}
                   {m.name}
-                  <span className="text-xs text-muted-foreground">{m.period === "day" ? "daily" : m.period === "week" ? "weekly" : "monthly"}</span>
+                  <span className="text-xs text-muted-foreground">{PERIOD_LABEL[m.period].toLowerCase()}</span>
                   <button onClick={() => start(() => canvasRemove(m.id))} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
                 </span>
               ))}

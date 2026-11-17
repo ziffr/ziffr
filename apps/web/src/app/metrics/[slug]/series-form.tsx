@@ -5,15 +5,16 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ClipboardPaste, Plus, X } from "lucide-react";
-import { addDays, addMonths, format as fmt, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { removeSeriesRows, saveSeriesRows } from "@/app/series-actions";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatValue, periodLabel, periodStart } from "@ziffr/core/format";
+import { formatValue } from "@ziffr/core/format";
 import { parseSeriesText } from "@ziffr/core/series-lines";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { JANUARY, periodLabel, periodStart, shiftPeriod } from "@ziffr/core/periods";
 
 type Kind = "target" | "projection";
 type Row = { key: string; period: string; value: string; saved?: number };
@@ -49,9 +50,8 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
 
   const nextPeriod = () => {
     const last = [...list].map((r) => r.period).filter(Boolean).sort().pop();
-    if (!last) return periodStart(new Date(), metric.period);
-    const d = parseISO(last);
-    return fmt(metric.period === "month" ? addMonths(d, 1) : addDays(d, metric.period === "week" ? 7 : 1), "yyyy-MM-dd");
+    if (!last) return periodStart(new Date(), metric.period, JANUARY);
+    return shiftPeriod(last, metric.period, 1);
   };
   const merge = (incoming: { period: string; value: number }[]) => setList((r) => {
     const by = new Map(r.map((x) => [x.period, x]));
@@ -71,7 +71,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
 
   // A saved row goes from the database right away, after asking; an unsaved one only leaves the table.
   const removeSaved = async (r: Row) => {
-    const label = periodLabel(r.period, metric.period);
+    const label = periodLabel(r.period, metric.period, JANUARY);
     if (!(await confirm({ title: `Remove the ${word} for ${label}?`, description: `The chart and the target box no longer use it. You can add it again later.`, confirmLabel: `Remove ${word}` }))) return;
     start(async () => {
       try {
@@ -94,7 +94,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
         <tbody>
           {periods.map((p) => (
             <tr key={p} className="border-t border-border">
-              <td className="py-1.5">{periodLabel(p, metric.period)}</td>
+              <td className="py-1.5">{periodLabel(p, metric.period, JANUARY)}</td>
               <td className="fig py-1.5 text-right">{formatValue(metric, targets.find((x) => x.period === p)?.value ?? null)}</td>
               <td className="fig py-1.5 text-right">{formatValue(metric, projections.find((x) => x.period === p)?.value ?? null)}</td>
             </tr>
@@ -125,13 +125,13 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
             return (
               <tr key={r.key} className="border-t border-border">
                 <td className="py-1.5 pr-2">
-                  {r.saved !== undefined ? <span>{periodLabel(r.period, metric.period)}</span> : (
+                  {r.saved !== undefined ? <span>{periodLabel(r.period, metric.period, JANUARY)}</span> : (
                     <Input
                       type={month ? "month" : "date"}
                       lang="en-GB"
                       aria-label={`Period of row ${i + 1}`}
                       value={month ? r.period.slice(0, 7) : r.period}
-                      onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, period: v ? (month ? `${v}-01` : periodStart(parseISO(v), metric.period)) : "" } : x))); }}
+                      onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, period: v ? (month ? `${v}-01` : periodStart(parseISO(v), metric.period, JANUARY)) : "" } : x))); }}
                       className="h-8 w-44"
                     />
                   )}
@@ -139,7 +139,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
                 <td className="py-1.5 pr-2">
                   <Input
                     inputMode="decimal"
-                    aria-label={`${kind === "target" ? "Target" : "Projection"} for ${r.period ? periodLabel(r.period, metric.period) : `row ${i + 1}`}`}
+                    aria-label={`${kind === "target" ? "Target" : "Projection"} for ${r.period ? periodLabel(r.period, metric.period, JANUARY) : `row ${i + 1}`}`}
                     aria-invalid={bad && r.value !== "" ? true : undefined}
                     value={r.value}
                     onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, value: v } : x))); }}
@@ -147,7 +147,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
                   />
                 </td>
                 <td className="py-1.5 text-right">
-                  <button type="button" disabled={pending} aria-label={r.saved === undefined ? "Remove this row" : `Remove the ${word} for ${periodLabel(r.period, metric.period)}`} title="Remove this row" onClick={() => (r.saved === undefined ? setList((all) => all.filter((x) => x.key !== r.key)) : removeSaved(r))} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-3.5" /></button>
+                  <button type="button" disabled={pending} aria-label={r.saved === undefined ? "Remove this row" : `Remove the ${word} for ${periodLabel(r.period, metric.period, JANUARY)}`} title="Remove this row" onClick={() => (r.saved === undefined ? setList((all) => all.filter((x) => x.key !== r.key)) : removeSaved(r))} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-3.5" /></button>
                 </td>
               </tr>
             );
@@ -167,7 +167,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit }: { metri
               <p className="text-xs text-muted-foreground">{preview.rows.length} row{preview.rows.length === 1 ? "" : "s"} read{preview.skipped.length ? `, ${preview.skipped.length} line${preview.skipped.length === 1 ? "" : "s"} skipped` : ""}. Rows for a period already in the table replace it there.</p>
               {preview.rows.length > 0 && (
                 <ul className="mt-1 max-h-40 overflow-y-auto text-xs">
-                  {preview.rows.map((p) => <li key={p.period} className="flex justify-between border-t border-border py-1"><span>{periodLabel(p.period, metric.period)}</span><span className="fig">{formatValue(metric, p.value)}</span></li>)}
+                  {preview.rows.map((p) => <li key={p.period} className="flex justify-between border-t border-border py-1"><span>{periodLabel(p.period, metric.period, JANUARY)}</span><span className="fig">{formatValue(metric, p.value)}</span></li>)}
                 </ul>
               )}
               {preview.skipped.length > 0 && <p className="mt-1 text-xs text-destructive">Skipped: {preview.skipped.slice(0, 3).map((s) => `“${s}”`).join(", ")}{preview.skipped.length > 3 ? " …" : ""}</p>}

@@ -6,6 +6,7 @@ import { db } from "./db";
 import { completePeriods } from "./snapshot-periods";
 import { showSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { JANUARY } from "./periods";
 
 /** Takes and shows the demo's Snapshots; called right after the demo's reset. */
 export async function seedDemoSnapshots(today = new Date().toISOString().slice(0, 10)): Promise<void> {
@@ -13,7 +14,7 @@ export async function seedDemoSnapshots(today = new Date().toISOString().slice(0
   if (!dash) return;
   const owner: Actor = { personId: dash.owner_id as string, workspaceId: DEMO_WORKSPACE_ID, role: "owner" };
   // Oldest first, so the list reads newest first like any other.
-  for (const p of completePeriods("month", today, 2).reverse()) {
+  for (const p of completePeriods("month", today, 2, JANUARY).reverse()) {
     try {
       await showSnapshot(owner, await takeSnapshot(owner, dash.id as number, { kind: p.kind, start: p.start }, { today }));
     } catch {

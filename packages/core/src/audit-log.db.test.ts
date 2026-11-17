@@ -3,7 +3,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
-import { periodStart } from "./format";
 import { AUDIT_EXPORTS_PER_HOUR, AuditExportLimit, auditLog, exportAuditLog, recordAudit, recordDeckExport, recordSignIn } from "./audit-log";
 import { acceptInvitation, createInviteLink, decideJoinRequest, inviteByEmail, revokeInvitation, setJoinDomain, setRole } from "./invitations";
 import { createGroup, deleteGroup, renameGroup, setGroupMember, addContact, removeContact } from "./team";
@@ -19,12 +18,13 @@ import { setWorkspaceClock } from "./workspace-clock";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { renameWorkspace, setWorkspaceProfile } from "./workspace-settings";
 import { workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws(name?: string) { const w = await workspace(name); cleanups.push(w.cleanup); return w; }
 const forbidden = expect.any(Forbidden);
-const month = periodStart(new Date(), "month");
+const month = periodStart(new Date(), "month", JANUARY);
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const quiet = { recordCreated: async () => {}, promptSubmitter: async () => {} };
 const stored = async (wsId: string) => (await db().from("audit_events").select("*").eq("workspace_id", wsId).order("id")).data ?? [];

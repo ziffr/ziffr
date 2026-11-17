@@ -1,0 +1,111 @@
+// Periods (spec 0017; GLOSSARY: Period, Fiscal Year): the one place that knows where a day, week, month, quarter,
+// half-year or year starts and ends, how to step between them and what each is called. Pure. Weeks are ISO weeks;
+// quarters, half-years and years start from the workspace's year start, January unless it sets another month.
+import { addDays, addMonths, differenceInCalendarDays, differenceInCalendarISOWeeks, differenceInCalendarMonths, format, isValid, parseISO, startOfISOWeek } from "date-fns";
+import type { Period } from "./types";
+
+/** A length of time Ziffr counts in: a Metric's Period, or a longer span that Comparisons and Snapshots use. */
+export type Span = Period | "quarter" | "half" | "year";
+
+/** The month a workspace's Fiscal Year starts in, 1 (January) to 12 (December). */
+export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+
+/** The calendar year's start, which a workspace has unless it sets another. */
+export const JANUARY: YearStart = 1;
+
+/** Whether a value is a month a year can start in. */
+export function isYearStart(v: unknown): v is YearStart {
+  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 12;
+}
+
+/** A stored or sent year start as one, January when it is not a month (an old row, a missing field). */
+export function toYearStart(v: unknown): YearStart {
+  const n = typeof v === "string" && /^\d{1,2}$/.test(v) ? Number(v) : v;
+  return isYearStart(n) ? n : JANUARY;
+}
+
+/** How each Period is named. */
+export const PERIOD_LABEL: Record<Period, string> = { day: "Daily", week: "Weekly", month: "Monthly" };
+
+// Months per span from a quarter up; a day, week or month is not counted in months.
+const MONTHS: Partial<Record<Span, number>> = { month: 1, quarter: 3, half: 6, year: 12 };
+
+const iso = (d: Date) => format(d, "yyyy-MM-dd");
+// A yyyy-mm-dd is read as a local calendar day, as date-fns does everywhere else in Ziffr.
+const toDate = (d: Date | string) => (typeof d === "string" ? parseISO(d) : d);
+
+/** The first day (yyyy-mm-dd) of the span a day falls in. */
+export function periodStart(date: Date | string, span: Span, yearStart: YearStart): string {
+  const d = toDate(date);
+  if (span === "day") return iso(d);
+  if (span === "week") return iso(startOfISOWeek(d));
+  const len = MONTHS[span]!;
+  // Months since the year started, so a quarter or half begins on a multiple of its length from the year start.
+  const intoYear = (d.getMonth() - (yearStart - 1) + 12) % 12;
+  return iso(new Date(d.getFullYear(), d.getMonth() - (intoYear % len), 1));
+}
+
+/** Whether a day (yyyy-mm-dd) is the first day of a span; false for anything that is not a day. */
+export function isPeriodStart(start: unknown, span: Span, yearStart: YearStart): start is string {
+  if (typeof start !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !isValid(parseISO(start))) return false;
+  return periodStart(start, span, yearStart) === start;
+}
+
+/** The first day of the span `n` spans after the one starting on `start` (negative: before). Needs no year start:
+ * `start` already says where its span begins. */
+export function shiftPeriod(start: string, span: Span, n: number): string {
+  const d = parseISO(start);
+  if (span === "day") return iso(addDays(d, n));
+  if (span === "week") return iso(addDays(d, 7 * n));
+  return iso(addMonths(d, MONTHS[span]! * n));
+}
+
+/** The last day of the span starting on `start`. */
+export function periodEnd(start: string, span: Span): string {
+  return iso(addDays(parseISO(shiftPeriod(start, span, 1)), -1));
+}
+
+/** How many spans lie between two span starts: 0 for the same one, negative when `to` is earlier. */
+export function periodsBetween(from: string, to: string, span: Span): number {
+  const a = parseISO(from);
+  const b = parseISO(to);
+  if (span === "day") return differenceInCalendarDays(b, a);
+  if (span === "week") return differenceInCalendarISOWeeks(b, a);
+  return Math.trunc(differenceInCalendarMonths(b, a) / MONTHS[span]!);
+}
+
+/** The starts of the spans that lie wholly between two days (inclusive), oldest first: a quarter's three months, the
+ * weeks that begin and end in it, its days. A span that starts before `from` or ends after `to` is not one. */
+export function periodStartsIn(span: Span, from: string, to: string, yearStart: YearStart): string[] {
+  const out: string[] = [];
+  for (let start = periodStart(from, span, yearStart); start <= to; start = shiftPeriod(start, span, 1)) {
+    if (start >= from && periodEnd(start, span) <= to) out.push(start);
+  }
+  return out;
+}
+
+// A Fiscal Year that does not start in January is named by both calendar years it spans ("2026/27"), so it cannot
+// be mistaken for a calendar year; `first` is the calendar year it starts in.
+function fiscalYear(d: Date, yearStart: YearStart) {
+  const first = d.getMonth() >= yearStart - 1 ? d.getFullYear() : d.getFullYear() - 1;
+  const next = String((first + 1) % 100).padStart(2, "0");
+  return { first, long: `${first}/${next}`, short: `${String(first % 100).padStart(2, "0")}/${next}` };
+}
+
+/** A span's name, long ("October 2026", "Q3 2026", "FY 2026/27") or short ("Oct 26", "Q3 26", "FY26/27"), from its
+ * first day. Months, weeks and days keep their calendar names; quarters, halves and years follow the year start. */
+export function periodLabel(start: string, span: Span, yearStart: YearStart, short = false): string {
+  const d = parseISO(start);
+  if (span === "day") return format(d, short ? "d MMM" : "EEE d MMM yyyy");
+  if (span === "week") return `Week of ${format(d, "d MMM yyyy")}`;
+  if (span === "month") return format(d, short ? "MMM yy" : "MMMM yyyy");
+  const calendar = yearStart === JANUARY;
+  const fy = fiscalYear(d, yearStart);
+  const calendarYear = short ? format(d, "yy") : format(d, "yyyy");
+  if (span === "year") return calendar ? format(d, "yyyy") : short ? `FY${fy.short}` : `FY ${fy.long}`;
+  const len = MONTHS[span]!;
+  const n = Math.floor(((d.getMonth() - (yearStart - 1) + 12) % 12) / len) + 1;
+  const name = `${span === "quarter" ? "Q" : "H"}${n}`;
+  if (calendar) return `${name} ${calendarYear}`;
+  return short ? `${name} ${fy.short}` : `${name} FY ${fy.long}`;
+}

@@ -10,12 +10,12 @@ import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
-import { periodStart } from "./format";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
 import type { Action, Metric, Period, Widget } from "./types";
+import { JANUARY, periodStart } from "./periods";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
 const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role === "admin";
@@ -143,7 +143,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   await assertSeesMetrics(actor, [metricId]);
   const ws = actor.workspaceId;
   const today = new Date().toISOString().slice(0, 10);
-  const current = workingPeriod(today, period, periodStart);
+  const current = workingPeriod(today, period, JANUARY);
   const [{ data: tokens }, { data: workflows }, { data: row }, { data: state }] = await Promise.all([
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for").eq("workspace_id", ws).eq("metric_id", metricId),
     db().from("workflows").select("*").eq("workspace_id", ws).order("id"),
@@ -242,7 +242,7 @@ export async function submissionForm(code: string) {
     if (!tokenValid(token, theirs ?? [])) return null;
   }
   const metric = normalizeMetric(token.metrics) as Metric;
-  const period = periodStart(new Date(), metric.period);
+  const period = periodStart(new Date(), metric.period, JANUARY);
   const { data: existing } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   return { metric, person: token.profiles as { id: string; name: string }, period, current: existing?.[0] ? Number(existing[0].value) : null };
 }

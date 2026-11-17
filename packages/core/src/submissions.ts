@@ -3,7 +3,7 @@
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
-import { formatValue, periodLabel, periodStart, SOURCE_LABEL } from "./format";
+import { formatValue, SOURCE_LABEL } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
@@ -13,6 +13,7 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
 import type { Metric, Profile, SourceId, Token } from "./types";
+import { JANUARY, periodLabel, periodStart, shiftPeriod } from "./periods";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
 export type SubmissionInput = {
@@ -178,12 +179,12 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
   if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
   const named = input.source === "api" && input.period ? input.period : null;
-  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period) !== named)
+  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, JANUARY) !== named)
     return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
-  if (named && named > periodStart(new Date(), metric.period)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
-  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period);
+  if (named && named > periodStart(new Date(), metric.period, JANUARY)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
+  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period, JANUARY);
   const fv = (v: number) => formatValue(metric, v);
-  const when = periodLabel(period, metric.period);
+  const when = periodLabel(period, metric.period, JANUARY);
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
   if (await isLocked(metric.id, period)) {
@@ -206,7 +207,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
   // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period:
   // the current period and anything that replaces a value are checked as anyone's.
-  const current = periodStart(new Date(), metric.period);
+  const current = periodStart(new Date(), metric.period, JANUARY);
   const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
   let result: SubmissionResult & { observationId?: number };
   if (!prev) {
@@ -260,10 +261,7 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
 /** The oldest period an Import may fill: 1,000 periods back (about 33 months of days, 19 years of weeks, 83 years of
  * months), what a Feed is told about. Further back, a Feed's value is checked like anyone's. */
 function importFloor(current: string, period: Metric["period"]): string {
-  const d = new Date(`${current}T00:00:00Z`);
-  if (period === "month") d.setUTCMonth(d.getUTCMonth() - 1000);
-  else d.setUTCDate(d.getUTCDate() - 1000 * (period === "week" ? 7 : 1));
-  return d.toISOString().slice(0, 10);
+  return shiftPeriod(current, period, -1000);
 }
 
 /** A Feed of this workspace that is not deleted, as the person it is (GLOSSARY: Feed), or null. */
