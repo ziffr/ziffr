@@ -187,14 +187,15 @@ describe("recording", () => {
     const fx = { notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) };
     await submitValue({ source: "web_form", sender: code, text: "5" }, fx);
     await w.lock(m.id, month);
-    await submitValue({ source: "web_form", sender: code, text: "4242" }, fx);
+    await submitValue({ source: "web_form", sender: code, text: "4242.5" }, fx);
     const actionId = (fx.notifyCorrection.mock.calls[0] as unknown as [{ actionId: number }])[0].actionId;
     const { data: msg } = await db().from("thread_messages").select("id").eq("action_id", actionId).single();
     await decideCorrection(w.actor(sara), msg!.id, true, { notifyDecision: async () => {}, afterValue: async () => [] });
     const rows = await stored(w.id);
     expect(rows.map((r) => r.kind)).toEqual(["correction.accepted"]);
     expect(rows[0].details).toEqual({ period: month, proposed_by: ben });
-    expect(JSON.stringify(rows)).not.toContain("4242");
+    // A value no slug or id can hold (they have no point): the Audit Log never holds a value.
+    expect(JSON.stringify(rows)).not.toContain("4242.5");
   });
 
   it("records sign-ins in each of the person's workspaces, deck exports only for decks they see, and nothing in the demo", async () => {
