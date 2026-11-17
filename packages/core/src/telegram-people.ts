@@ -152,9 +152,10 @@ export async function telegramChatOf(workspaceId: string, personId: string): Pro
   return data ? { chatId: Number(data.chat_id), userId: Number(data.telegram_user_id) } : null;
 }
 
-/** The person a Telegram account is in a workspace, as linked: for answers that come in by Telegram. */
+/** The person a Telegram account is in a workspace, as linked, while they still belong to it (a member or Contact):
+ * for answers that come in by Telegram. Someone who left answers nothing, whatever link remains. */
 export async function personOfTelegramUser(workspaceId: string, userId: unknown): Promise<string | null> {
   if (!isTelegramId(userId)) return null;
   const { data } = await db().from("telegram_links").select("person_id").eq("workspace_id", workspaceId).eq("telegram_user_id", userId).maybeSingle();
-  return data?.person_id ?? null;
+  return data && (await belongs(workspaceId, data.person_id)) ? (data.person_id as string) : null;
 }

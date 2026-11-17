@@ -91,6 +91,19 @@ describe("answers by Telegram", () => {
     expect(count).toBe(0);
   });
 
+  it("takes no reply once the workspace turned Telegram off, nor from someone who left it", async () => {
+    const { w, sara, ann, user, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
+    const d = await latest(w.id, ann);
+    await setTelegramEnabled(w.actor(sara), false);
+    expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("ignored");
+    await setTelegramEnabled(w.actor(sara), true);
+    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", ann);
+    expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("wrong_user");
+    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id);
+    expect(count).toBe(0);
+  });
+
   it("takes at most twenty replies to one Delivery", async () => {
     const { w, sara, ann, user, m } = await setup();
     await ask(w.actor(sara), { metricId: m.id, period: "2026-10-01", assigneeId: ann, text: "Why?", via: "telegram" });

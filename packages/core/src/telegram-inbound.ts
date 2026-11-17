@@ -8,6 +8,7 @@ import { db } from "./db";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { callTelegram, telegramEnabled, telegramPolling, telegramWebhookSecret } from "./telegram-api";
+import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
 
 /** Largest update taken, in bytes; real ones are far smaller. */
@@ -127,6 +128,8 @@ async function reply(userId: number, chatId: number, repliedTo: number, messageI
     .eq("connector", "telegram").eq("telegram_chat_id", chatId).eq("telegram_message_id", repliedTo).maybeSingle();
   if (!d) return none("unknown_message");
   const at = (outcome: TelegramOutcome): Handled => ({ outcome, workspaceId: d.workspace_id as string, deliveryId: d.id as number });
+  // A workspace that turned Telegram off takes nothing by it any more, also replies to what it sent before.
+  if (!(await telegramOnIn(d.workspace_id))) return at("ignored");
   if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000) return at("expired");
   // Only the person it went to, as linked now: a chat that changed hands answers nothing.
   if ((await personOfTelegramUser(d.workspace_id, userId)) !== d.recipient_id) return at("wrong_user");
