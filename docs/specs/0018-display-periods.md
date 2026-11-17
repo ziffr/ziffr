@@ -1,6 +1,6 @@
 # 0018 Display Periods: a Metric shown by quarter or year
 
-**Status:** draft. **Tracking issue:** opened when the spec is agreed (label `tracking`); tickets carry `spec:0018`.
+**Status:** in progress. **Tracking issue:** #45 (label `tracking`); tickets #46 to #50 carry `spec:0018`.
 
 ## Problem Statement
 
@@ -29,6 +29,7 @@ A widget setting **Show by**: the Metric's own period (as today), or a longer **
 - **Targets.** A Display Period's target is the Target Series combined by the Metric's Aggregation where every period in it has one; else the target range for a Metric whose Aggregation is average or last value, and none for a sum (a monthly range of 100 to 120 says nothing exact about a quarter of uneven months). The chart says which applies.
 - **Forecast.** A forecast shown by a Display Period is computed on the combined series, a few Display Periods ahead.
 - **Where it travels.** Dashboards, the widget Pool, saved Widgets and Widget Templates keep the setting; decks and the free layout draw it; View Links and Snapshots show it (a Snapshot keeps what the widget showed, as today); the PowerPoint and PDF export draw the same points. The API's dashboard reads and writes include `display`.
+- **Fiscal year.** Quarters, half-years and years are those of the workspace's year start (spec 0017), passed with the data a widget draws; labels follow spec 0017's names.
 - **Glossary.** A new term **Display Period**: "The period a widget shows a Metric by: its own, or a longer one, with the Metric's values combined by its Aggregation." _Avoid_: Granularity, grain, bucket, roll-up.
 
 ## Testing Decisions
@@ -40,15 +41,15 @@ A widget setting **Show by**: the Metric's own period (as today), or a longer **
 
 ## Tickets
 
-1. `seriesBy` in the core, with Comparisons moved onto it, and unit tests.
-2. The setting **Show by** and its drawing in line, bars, table, number and forecast; to date; targets.
-3. Decks, free layout, View Links, Snapshots, PowerPoint and PDF export.
-4. The API's dashboard reads and writes, the MCP tools that build dashboards, the OpenAPI reference.
-5. Docs: user guide (Dashboards, Metrics), glossary, release note.
+1. #46 `seriesBy` in the core, with Comparisons moved onto it, and unit tests.
+2. #47 The setting **Show by** and its drawing in line, bars, table, number and forecast; to date; targets.
+3. #48 Decks, free layout, View Links, Snapshots, PowerPoint and PDF export.
+4. #49 The API's dashboard reads and writes, the MCP tools that build dashboards, the OpenAPI reference.
+5. #50 Docs: user guide (Dashboards, Metrics), glossary, release note.
 
 ## Out of Scope
 
-Showing a Metric by a shorter period than its own (a monthly value cannot be split into weeks); showing by fiscal quarters (spec 0017, Further Notes); a Breakdown shown by quarter (Breakdowns stay per period); custom spans ("the last 90 days").
+Showing a Metric by a shorter period than its own (a monthly value cannot be split into weeks); a Breakdown shown by quarter (Breakdowns stay per period); custom spans ("the last 90 days").
 
 ## Further Notes
 

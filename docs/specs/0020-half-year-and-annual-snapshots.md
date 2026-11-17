@@ -1,6 +1,6 @@
 # 0020 Half-year and annual Snapshots
 
-**Status:** draft. **Tracking issue:** opened when the spec is agreed (label `tracking`); tickets carry `spec:0020`.
+**Status:** in progress. **Tracking issue:** #55 (label `tracking`); tickets #56 to #58 carry `spec:0020`.
 
 ## Problem Statement
 
@@ -19,7 +19,7 @@ Two more Snapshot periods: **half-year** ("H2 2026") and **year** ("2026"), take
 
 ## Implementation Decisions
 
-- **Snapshot periods** become `"week" | "month" | "quarter" | "half" | "year"` (`snapshot-periods.ts`: start, end, label, `completePeriods`), using `periods.ts` from spec 0017. A half starts on 1 January or 1 July.
+- **Snapshot periods** become `"week" | "month" | "quarter" | "half" | "year"` (`snapshot-periods.ts`: start, end, label, `completePeriods`), using `periods.ts` from spec 0017. Halves and years follow the workspace's year start (spec 0017): with the default, a half starts on 1 January or 1 July; quarters of Snapshots follow it too, so a workspace with an April start gets "Q1 FY 2026/27" for April to June.
 - **The database** allows the two kinds (`dashboard_snapshots.period_kind`, `dashboards.snapshot_every`) in a new migration.
 - **Taking one by itself** (auto-snapshots.ts) works unchanged for the new kinds: a period is taken once, as soon as every Metric on the dashboard is Locked for every one of its periods inside it (`allLocked`: for a yearly Snapshot of monthly Metrics, all twelve months), or the set number of days after it ends. `metricPeriodsIn` walks at most 400 periods, enough for a year of a daily Metric (366); a test keeps it so.
 - **Which Metric values a Snapshot keeps** is unchanged: every Metric period that ends on or before the Snapshot period's last day (`inSnapshot`), so a yearly Snapshot of a monthly Metric keeps its twelve months and those before.
@@ -33,13 +33,13 @@ Two more Snapshot periods: **half-year** ("H2 2026") and **year** ("2026"), take
 
 ## Tickets
 
-1. Half-year and year as Snapshot periods: `snapshot-periods.ts`, the migration, taking by hand, the list, Make a deck.
-2. Taking them by itself, the setting's choices, and their tests.
-3. Docs: user guide (Dashboards, Snapshots), glossary's Snapshot, release note.
+1. #56 Half-year and year as Snapshot periods: `snapshot-periods.ts`, the migration, taking by hand, the list, Make a deck.
+2. #57 Taking them by itself, the setting's choices, and their tests.
+3. #58 Docs: user guide (Dashboards, Snapshots), glossary's Snapshot, release note.
 
 ## Out of Scope
 
-Fiscal half-years and years (spec 0017, Further Notes); Snapshots of a custom span ("1 March to 15 April").
+Snapshots of a custom span ("1 March to 15 April").
 
 ## Further Notes
 

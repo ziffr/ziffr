@@ -1,6 +1,6 @@
 # 0019 Analyses across periods
 
-**Status:** draft. **Tracking issue:** opened when the spec is agreed (label `tracking`); tickets carry `spec:0019`.
+**Status:** in progress. **Tracking issue:** #51 (label `tracking`); tickets #52 to #54 carry `spec:0019`.
 
 ## Problem Statement
 
@@ -34,9 +34,9 @@ Two Metrics of different periods are compared on the **longer** of the two: the 
 
 ## Tickets
 
-1. Correlation on the common period in `correlation.ts`, with unit tests (builds on spec 0018, ticket 1).
-2. Drivers, the matrix, the scatter plot and the Analysis Canvas: results across periods, with the period and reasons shown.
-3. Docs: user guide (Analyze), release note.
+1. #52 Correlation on the common period in `correlation.ts`, with unit tests (builds on spec 0018, ticket 1).
+2. #53 Drivers, the matrix, the scatter plot and the Analysis Canvas: results across periods, with the period and reasons shown.
+3. #54 Docs: user guide (Analyze), release note.
 
 ## Out of Scope
 
@@ -44,4 +44,4 @@ Lagged correlation ("tickets this month, churn next month"); causal or impact an
 
 ## Further Notes
 
-Depends on spec 0018 (`seriesBy`). With spec 0017, quarterly and yearly Metrics join in the same way; a yearly Metric rarely has the six years a correlation needs, and is told so.
+Depends on spec 0018 (`seriesBy`), which carries the workspace's year start (spec 0017). With spec 0017, quarterly and yearly Metrics join in the same way; a yearly Metric rarely has the six years a correlation needs, and is told so.
