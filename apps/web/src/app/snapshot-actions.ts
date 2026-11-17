@@ -16,7 +16,8 @@ export async function takeSnapshot(dashboardId: number, kind: string, start: str
   redirect(`/dashboards/${Number(dashboardId)}/snapshots/${id}`);
 }
 
-/** Sets whether a dashboard takes a Snapshot of every week, month or quarter by itself; only its owner may. */
+/** Sets whether a dashboard takes a Snapshot of every week, month, quarter, half-year or year by itself; only its
+ * owner may. */
 export async function setAutoSnapshots(dashboardId: number, every: string | null, waitDays: number) {
   await autoSnapshots.setAutoSnapshots(await currentActor(), Number(dashboardId), { every: every || null, waitDays: Number(waitDays) });
   done();

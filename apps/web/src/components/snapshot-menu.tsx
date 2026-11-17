@@ -16,8 +16,8 @@ import { type YearStart } from "@ziffr/core/periods";
 
 const KINDS: { id: SnapshotPeriodKind; label: string }[] = [{ id: "month", label: "Month" }, { id: "quarter", label: "Quarter" }, { id: "half", label: "Half-year" }, { id: "year", label: "Year" }, { id: "week", label: "Week" }];
 
-/** The lengths a dashboard may take by itself; half-years and years by hand only for now. */
-const AUTO_KINDS = KINDS.filter((k) => k.id === "month" || k.id === "quarter" || k.id === "week");
+/** "half-year" for "half": how a period length reads in "every …". */
+const every = (k: SnapshotPeriodKind) => (KINDS.find((x) => x.id === k)?.label ?? k).toLowerCase();
 
 /** Today as yyyy-mm-dd in the browser's own calendar. */
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -48,7 +48,7 @@ export function SnapshotMenu({ dashboardId, snapshots, canTake, auto, yearStart 
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setTimeout(() => setTaking(true), 0)}><Camera aria-hidden /> Take a Snapshot…</DropdownMenuItem>
-              {auto && <DropdownMenuItem onClick={() => setTimeout(() => setSetting(true), 0)}><Repeat aria-hidden /> {auto.every ? `Takes one every ${auto.every}…` : "Take one by itself…"}</DropdownMenuItem>}
+              {auto && <DropdownMenuItem onClick={() => setTimeout(() => setSetting(true), 0)}><Repeat aria-hidden /> {auto.every ? `Takes one every ${every(auto.every)}…` : "Take one by itself…"}</DropdownMenuItem>}
             </>
           )}
         </DropdownMenuContent>
@@ -104,7 +104,7 @@ function TakeDialog({ dashboardId, yearStart, onClose }: { dashboardId: number; 
 /** Whether, and how often, the dashboard takes a Snapshot by itself, and how long it waits for the Locks. */
 function AutoDialog({ dashboardId, auto, onClose }: { dashboardId: number; auto: { every: SnapshotPeriodKind | null; waitDays: number }; onClose: () => void }) {
   const router = useRouter();
-  const [every, setEvery] = useState<string>(auto.every ?? "");
+  const [kind, setKind] = useState<string>(auto.every ?? "");
   const [wait, setWait] = useState(String(auto.waitDays));
   const [pending, run] = useTransition();
   const select = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
@@ -117,19 +117,19 @@ function AutoDialog({ dashboardId, auto, onClose }: { dashboardId: number; auto:
         </DialogDescription>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm"><span className="text-muted-foreground">Take one</span>
-            <select aria-label="Take one" value={every} onChange={(e) => setEvery(e.target.value)} className={select}>
+            <select aria-label="Take one" value={kind} onChange={(e) => setKind(e.target.value)} className={select}>
               <option value="">Only by hand</option>
-              {AUTO_KINDS.map((k) => <option key={k.id} value={k.id}>Every {k.label.toLowerCase()}</option>)}
+              {KINDS.map((k) => <option key={k.id} value={k.id}>Every {k.label.toLowerCase()}</option>)}
             </select>
           </label>
           <label className="space-y-1 text-sm"><span className="text-muted-foreground">Wait at most (days)</span>
-            <Input aria-label="Wait at most, in days" type="number" min={0} max={60} value={wait} onChange={(e) => setWait(e.target.value)} disabled={!every} />
+            <Input aria-label="Wait at most, in days" type="number" min={0} max={60} value={wait} onChange={(e) => setWait(e.target.value)} disabled={!kind} />
           </label>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={pending} onClick={() => run(async () => {
-            try { await setAutoSnapshots(dashboardId, every || null, Number(wait)); toast.success(every ? `A Snapshot of every ${every} is taken by itself` : "Snapshots are taken by hand only"); onClose(); router.refresh(); }
+            try { await setAutoSnapshots(dashboardId, kind || null, Number(wait)); toast.success(kind ? `A Snapshot of every ${every(kind as SnapshotPeriodKind)} is taken by itself` : "Snapshots are taken by hand only"); onClose(); router.refresh(); }
             catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
           })}>Save</Button>
         </div>

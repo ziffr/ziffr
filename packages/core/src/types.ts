@@ -152,7 +152,7 @@ export type ThreadMessage = {
 /** A dashboard, or a story kept as one (kind "story", spec 0010): its widgets are then its Findings, read in order. */
 export type Dashboard = {
   id: number; name: string; owner_id: string; theme_id: number | null; intro: string;
-  /** Takes a Snapshot of every week, month or quarter by itself (spec 0013); null for only by hand. */
+  /** Takes a Snapshot of every week, month, quarter, half-year or year by itself (specs 0013, 0020); null for only by hand. */
   snapshot_every?: "week" | "month" | "quarter" | "half" | "year" | null;
   /** Days after a period ends that an automatic Snapshot waits for its Locks at most. */
   snapshot_wait_days?: number;
