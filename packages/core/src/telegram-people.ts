@@ -70,7 +70,8 @@ export async function startTelegramLink(actor: Actor): Promise<{ url: string; mi
 }
 
 /** "Connect Telegram" on a Contact's personal form page, in the Metric's workspace. It never replaces a Telegram the
- * Contact already connected: whoever holds the form link must disconnect that first, which tells its chat. */
+ * Contact already connected, and a form cannot disconnect one: only /stop from that Telegram account does, so holding
+ * a forwarded form link never moves a Contact's messages to another account. */
 export async function startTelegramLinkByForm(formCode: string): Promise<{ url: string; minutes: number }> {
   const owner = await formContact(formCode);
   if (!owner) throw new Forbidden("Connect Telegram signed in, on the Connectors page.");
@@ -80,7 +81,7 @@ export async function startTelegramLinkByForm(formCode: string): Promise<{ url: 
 }
 
 /** What became of a /start: linked (with the workspace's name for the bot to say), or why not. */
-export type TelegramLinkOutcome = { linked: true; workspace: string } | { linked: false; why: "unknown_code" | "expired" | "not_private" | "gone" };
+export type TelegramLinkOutcome = { linked: true; workspace: string; person: string } | { linked: false; why: "unknown_code" | "expired" | "not_private" | "gone" };
 
 /** Links the Telegram account that sent `/start <code>` in a private chat to the person who made the code, once,
  * within ten minutes, if they still belong to its workspace. Whoever was that account in the workspace before is
@@ -102,10 +103,13 @@ export async function linkTelegramByCode(input: { code: string; userId: unknown;
     { onConflict: "workspace_id,person_id" },
   );
   if (error) return { linked: false, why: "gone" };
-  const { data: w } = await db().from("workspaces").select("name").eq("id", c.workspace_id).maybeSingle();
+  const [{ data: w }, { data: p }] = await Promise.all([
+    db().from("workspaces").select("name").eq("id", c.workspace_id).maybeSingle(),
+    db().from("profiles").select("name").eq("id", c.person_id).maybeSingle(),
+  ]);
   const name = w?.name ?? "Ziffr";
   if (before && Number(before.telegram_user_id) !== input.userId) await tellChat(Number(before.chat_id), `Ziffr messages for ${name} now go to another Telegram account. If that was not you, tell an Owner of the workspace.`);
-  return { linked: true, workspace: name };
+  return { linked: true, workspace: name, person: p?.name ?? "you" };
 }
 
 /** Forgets a Telegram account everywhere: it sent /stop, or blocked the bot. Returns how many links ended. */
@@ -149,18 +153,12 @@ export async function unlinkTelegram(actor: Actor): Promise<void> {
   await db().from("telegram_links").delete().eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
 }
 
-/** Forgets the Telegram link of the Contact whose form this is, in its workspace, and tells the chat it was. */
-export async function unlinkTelegramByForm(formCode: string): Promise<void> {
-  const owner = await formContact(formCode);
-  if (!owner) throw new Forbidden("This form link does not work any more.");
-  const { data: gone } = await db().from("telegram_links").delete().eq("workspace_id", owner.workspaceId).eq("person_id", owner.personId).select("chat_id");
-  if (gone?.[0]) await tellChat(Number(gone[0].chat_id), "Disconnected from Ziffr on your personal form: you get no more Ziffr messages here for that workspace.");
-}
-
-/** The private chat a Delivery to this person goes to in a workspace, or null when they are not linked there. */
+/** The private chat a Delivery to this person goes to in a workspace, or null when they are not linked there or no
+ * longer belong to it: someone who left gets nothing, also not what was queued before they left. */
 export async function telegramChatOf(workspaceId: string, personId: string): Promise<{ chatId: number; userId: number } | null> {
   const { data } = await db().from("telegram_links").select("chat_id, telegram_user_id").eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle();
-  return data ? { chatId: Number(data.chat_id), userId: Number(data.telegram_user_id) } : null;
+  if (!data || !(await belongs(workspaceId, personId))) return null;
+  return { chatId: Number(data.chat_id), userId: Number(data.telegram_user_id) };
 }
 
 /** The person a Telegram account is in a workspace, as linked, while they still belong to it (a member or Contact):

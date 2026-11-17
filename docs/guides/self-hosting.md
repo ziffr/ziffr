@@ -42,8 +42,9 @@ Ziffr is a Next.js app on top of a Supabase project (Postgres and its sign-in se
 | A scheduler | Calls two jobs, hourly and every few minutes | yes, for Workflows to run and email to be retried |
 | Inbound mail | A domain whose mail is forwarded to Ziffr, for replies by email | optional |
 | A Slack app | Made from the manifest in the [Slack](slack.md) guide, for messages and answers on Slack | optional |
+| A Telegram bot | Made with @BotFather as the [Telegram](telegram.md) guide says, for messages and answers by Telegram | optional |
 
-Ziffr keeps everything in Postgres. The server makes outgoing connections only to Supabase and to your SMTP server.
+Ziffr keeps everything in Postgres. The server makes outgoing connections only to Supabase and to your SMTP server, and to Slack and Telegram once you set them up.
 
 ### 1. The database
 
@@ -93,6 +94,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_JOB_SECRET` | The secret your scheduler sends to the jobs, at least 32 characters ([jobs](jobs.md)) |
 | `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET`, `ZIFFR_INBOUND_AUTHSERV_ID` | Replies by email, optional ([email](email.md)) |
 | `ZIFFR_PROXY_HOPS` | How many proxies in front of Ziffr add to `X-Forwarded-For` (usually `1`). Lets the sign-in limit count per network address; without it only the per-address limits apply |
+| `ZIFFR_TELEGRAM_BOT_TOKEN` (with `ZIFFR_SECRETS_KEY`) | Telegram, optional ([Telegram](telegram.md)); Telegram sends answers to `ZIFFR_SITE_URL`, which must be https |
 | `ZIFFR_SLACK_CLIENT_ID`, `ZIFFR_SLACK_CLIENT_SECRET`, `ZIFFR_SLACK_SIGNING_SECRET`, `ZIFFR_SECRETS_KEY` | Slack, optional ([Slack](slack.md)); back up `ZIFFR_SECRETS_KEY`, which seals the stored bot tokens; `ZIFFR_SECRETS_KEY_PREVIOUS` while changing it ([Slack](slack.md)) |
 
 Keep the secrets in your platform's secret store, never in the repository.

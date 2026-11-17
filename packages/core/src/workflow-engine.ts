@@ -184,7 +184,10 @@ export async function approve(ws: string, actionId: number, by: string) {
   const state = await getState(a.metric_id, a.period_start);
   const ctx = await metricCtx(a.metric_id, a.period_start);
   if (!ctx || state?.state !== "approval" || state.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
-  await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId);
+  // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
+  // press) approve once, and the second is refused like an approval that is done.
+  const { data: closed } = await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId).eq("status", "open").select("id");
+  if (!closed?.length) throw new Error("This approval is not yours, or it is done.");
   await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Approved.", workspace_id: ws });
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });

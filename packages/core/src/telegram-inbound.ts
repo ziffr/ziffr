@@ -53,11 +53,18 @@ export async function telegramSay(chatId: number, text: string, replyTo?: number
   }
 }
 
-/** Whether the bot already answered this account ten times in the last minute. */
+/** Answers the bot gives everyone together in a second, so a flood from many accounts leaves Telegram's limit to
+ * real Deliveries. */
+const MAX_ANSWERS_PER_SECOND = 5;
+
+/** Whether the bot already answered this account ten times in the last minute, or everyone five times this second. */
 async function quiet(userId: number): Promise<boolean> {
-  const { count } = await db().from("telegram_updates").select("update_id", { count: "exact", head: true })
-    .eq("telegram_user_id", userId).in("outcome", ["hint", "linked", "refused", "unlinked"]).gt("received_at", new Date(Date.now() - 60_000).toISOString());
-  return (count ?? 0) >= MAX_ANSWERS_PER_MINUTE;
+  const answered = ["hint", "linked", "refused", "unlinked"];
+  const [{ count: mine }, { count: all }] = await Promise.all([
+    db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("telegram_user_id", userId).in("outcome", answered).gt("received_at", new Date(Date.now() - 60_000).toISOString()),
+    db().from("telegram_updates").select("update_id", { count: "exact", head: true }).in("outcome", answered).gt("received_at", new Date(Date.now() - 1000).toISOString()),
+  ]);
+  return (mine ?? 0) >= MAX_ANSWERS_PER_MINUTE || (all ?? 0) >= MAX_ANSWERS_PER_SECOND;
 }
 
 /** Takes one update, already known to come from Telegram (the webhook's secret, or polling with the bot token). */
@@ -108,7 +115,7 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
     const result = await linkTelegramByCode({ code: start[1], userId, chatId, chatType: chat.type });
     if (!silent) {
       await telegramSay(chatId, result.linked
-        ? `Connected: you get Ziffr messages for ${result.workspace} here. To answer one, reply to it. Send /stop to stop all of them.`
+        ? `Connected as ${result.person} in ${result.workspace}: you get their Ziffr messages here. If that is not you, send /stop. To answer a message, reply to it.`
         : result.why === "expired" ? "That link has run out. Choose “Connect Telegram” in Ziffr again." : "That link does not work. Choose “Connect Telegram” in Ziffr again.");
     }
     return none(result.linked ? "linked" : "refused");

@@ -114,6 +114,10 @@ async function trouble(e: unknown, id: number, attempts: number, userId: number)
 
 /** Sends the Telegram Deliveries that are due (as every Connector's queue chooses them), at most `limit` per run. */
 export async function sendWaitingTelegram(limit = 50): Promise<{ sent: number; failed: number }> {
+  // Updates and sends are kept only for dedupe, reply counting and limits, which look back 30 days at most.
+  const old = new Date(Date.now() - 31 * 86_400_000).toISOString();
+  await db().from("telegram_updates").delete().lt("received_at", old);
+  await db().from("telegram_sends").delete().lt("sent_at", old);
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "telegram").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
   const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: MAX_ATTEMPTS });

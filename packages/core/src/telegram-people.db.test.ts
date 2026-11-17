@@ -6,7 +6,7 @@ import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { setTelegramEnabled } from "./telegram-connection";
 import { receiveTelegramUpdate } from "./telegram-inbound";
-import { formTelegramLink, myTelegramLink, personOfTelegramUser, startTelegramLink, startTelegramLinkByForm, telegramChatOf, unlinkTelegram, unlinkTelegramByForm } from "./telegram-people";
+import { formTelegramLink, myTelegramLink, personOfTelegramUser, startTelegramLink, startTelegramLinkByForm, telegramChatOf, unlinkTelegram } from "./telegram-people";
 import { fakeTelegram } from "./test/fake-telegram";
 import { workspace } from "./test/db-fixtures";
 
@@ -45,7 +45,7 @@ describe("linking Telegram", () => {
     expect(await myTelegramLink(w.actor(sara, "member"))).not.toBeNull();
     expect(await telegramChatOf(w.id, sara)).toEqual({ chatId: user, userId: user });
     expect(await personOfTelegramUser(w.id, user)).toBe(sara);
-    expect(String(tg.of("sendMessage").at(-1)!.params.text)).toMatch(/^Connected: you get Ziffr messages for Test here/);
+    expect(String(tg.of("sendMessage").at(-1)!.params.text)).toMatch(/^Connected as member \S+ in Test: you get their Ziffr messages here/);
 
     // The same code again links nobody, also not someone else.
     expect(await receiveTelegramUpdate(message(id(), `/start ${codeOf(url)}`))).toBe("refused");
@@ -91,12 +91,10 @@ describe("linking Telegram", () => {
     expect(await formTelegramLink(form)).toEqual({ linked: true, telegramOn: true });
     expect(await personOfTelegramUser(w.id, user)).toBe(cleo);
     await expect(startTelegramLinkByForm("tk-test-unknown-code")).rejects.toThrow(/Connectors page/);
-    // A form link never replaces a Telegram already connected: disconnecting comes first, and tells that chat.
+    // A form link never replaces a Telegram already connected, and cannot disconnect it: /stop from that account does.
     await expect(startTelegramLinkByForm(form)).rejects.toThrow(/disconnect first/);
-    const before = tg.of("sendMessage").length;
-    await unlinkTelegramByForm(form);
+    expect(await receiveTelegramUpdate(message(user, "/stop"))).toBe("unlinked");
     expect(await formTelegramLink(form)).toEqual({ linked: false, telegramOn: true });
-    expect(tg.of("sendMessage").slice(before).map((c) => c.params.chat_id)).toEqual([user]);
   });
 
   it("does not connect a member by their form link: their Approvals and questions need them signed in", async () => {
