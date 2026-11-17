@@ -119,6 +119,19 @@ Call `POST /api/jobs/workflows` every hour and `POST /api/jobs/deliveries` every
 
 Open Ziffr, sign in with an email link, and create a workspace: you are its Owner. On the Team page, set the workspace's time zone and the hour its Workflows run, and invite the others.
 
+## Offering trials
+
+A public Ziffr can let anyone try it for real with a **Trial Workspace** of their own ([spec 0021](../specs/0021-trial-workspaces.md), [ADR 0010](../adr/0010-trial-workspaces-reach-only-their-owner.md)). A visitor signs in with their email address and gets one workspace, filled with made-up Metrics, a dashboard and a Workflow that asks them. Email, Slack, Telegram, the API, the MCP Server and Feeds work in it for real, but reach only its Owner; nobody can be invited, Contacts stay simulated, and it sends at most 50 messages a day. It ends after the days you set and is deleted a week later, with its Owner's account. The shared demo stays beside it for people who only want to look.
+
+1. Set `ZIFFR_TRIAL_DAYS` (1 to 30) and, if you like, `ZIFFR_TRIAL_MAX` (default 200). Leave `ZIFFR_DEMO_ONLY` unset; with Docker on a domain, set `ZIFFR_DEMO=1` to keep offering the demo. Every workspace made on this Ziffr is then a trial, so use an Installation of its own, never one your team works in.
+2. Set up Cloudflare Turnstile: make a widget for your domain in the Cloudflare dashboard (Turnstile, Add widget, mode Managed) and set `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET`.
+3. Real email: set `ZIFFR_SMTP_URL` and `ZIFFR_MAIL_FROM` for a mail provider that allows this volume, and replies by email ([email guide](email.md)) if you want them. Without a mail server, trials still work and say that email is simulated.
+4. Slack, if you want it: set up the app ([Slack guide](slack.md)) and, under Manage Distribution, turn on public distribution, so any Slack workspace can add it. It does not need to be listed in the Slack Marketplace.
+5. Telegram, if you want it: one bot for the Installation ([Telegram guide](telegram.md)).
+6. The scheduler must call `POST /api/jobs/trial-cleanup` every hour ([jobs](jobs.md)); Docker Compose does it when `ZIFFR_TRIAL_DAYS` is set.
+
+The sign-in page then shows the trial next to the demo, with what works in a trial on this Ziffr and what it asks for. A setting that is set but wrong (`ZIFFR_TRIAL_DAYS=14d`) stops workspaces from being made rather than offering ordinary ones.
+
 ## Upgrading
 
 With Docker: [docker/README.md](../../docker/README.md#upgrading). With your own Supabase project:
