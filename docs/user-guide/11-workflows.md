@@ -28,7 +28,7 @@ Each Workflow shows its name, who owns it and how many Metrics use it (counting 
 | Option | What it does |
 | --- | --- |
 | **Name** | What people see in menus, such as "Monthly numbers". |
-| **Due, working days after the period** | The **Due Date**: on which working day after the period ends the value must be in, from 0 to 30. With 3, a monthly value for October is due on the 3rd working day of November. Working days are Monday to Friday; public holidays are not skipped. |
+| **Due, working days after the period** | The **Due Date**: on which working day after the period ends the value must be in, from 0 to 30. With 3, a monthly value for October is due on the 3rd working day of November. A quarterly or yearly value is due the same way after the quarter or year ends: with 5, a value for the quarter July to September is due on 7 October 2026. Quarters and years start from the Workspace's fiscal year (**Workspace → General**). Working days are Monday to Friday; public holidays are not skipped. |
 
 ### The steps
 
@@ -42,7 +42,7 @@ The steps are drawn as a timeline, from top to bottom. Each step shows in words 
 | --- | --- | --- |
 | **Remind** | **… days before the due date** | Sends the Prompt again, while the value is still missing, that many days before the Due Date. These are calendar days. You can add several Remind steps, for example 5 days and 1 day before. |
 | **Escalate** | **… days after the due date**, and **ask the stand-in** or **tell the metric owner** | If the value is still missing once the Due Date has passed (or that many days later), an **Escalation**: either the Submitter's **Stand-in** is asked for the value, or the **Metric Owner** gets a question asking them to follow up. When the missing value should come from a Feed, the Metric Owner is told in any case and asked to check that the Feed still runs. You can add several Escalate steps. |
-| **Check** | **changes more than … %**, and **or outside the target** | Decides what counts as an **Unusual Value**: a value that changes more than this share against the period before, or, when ticked, falls outside its target (the Target Series value for that period if there is one, otherwise the Target Range). One Check step per Workflow. |
+| **Check** | **changes more than … %**, and **or outside the target** | Decides what counts as an **Unusual Value**: a value that changes more than this share against the period before (for a quarterly Metric the quarter before, for a yearly one the year before), or, when ticked, falls outside its target (the Target Series value for that period if there is one, otherwise the Target Range). One Check step per Workflow. |
 | **Approve** | One to three **Approvers**, in order | Who confirms an Unusual Value: the first, **then** the next. **Add approver** adds one, the bin removes one. Approvers are members of the Workspace, not Contacts. "Nobody approves their own value; the next one does." One Approve step per Workflow. |
 
 **Publish** always comes last and cannot be moved or removed. Its one setting is **lock the period once published**. When ticked, the step reads "Publish and lock the period": the value is published and the period is **Lock**ed straight away. When not, the period is published and stays open for later values.
