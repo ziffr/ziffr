@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { dayAfter, displayPeriodsFor, INPUTS_MISSING, NOT_COMBINED, periodCount, seriesBy, shownSeries } from "./display-periods";
+import { dayAfter, displayPeriodsFor, INPUTS_MISSING, isPartial, NOT_COMBINED, periodCount, pointName, seriesBy, shownSeries } from "./display-periods";
 import { JANUARY } from "./periods";
 import { canvas, metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -134,5 +134,24 @@ describe("seriesBy", () => {
   it("offers only the Display Periods longer than a Metric's own", () => {
     expect(displayPeriodsFor("month")).toEqual(["quarter", "half", "year"]);
     expect(displayPeriodsFor("day")).toEqual(["week", "month", "quarter", "half", "year"]);
+  });
+});
+
+describe("pointName", () => {
+  const q = (held: number, toDate: boolean) => ({ period: "2026-01-01", held, length: 3, toDate });
+
+  it("names a span not over yet, one over with gaps, and a full one", () => {
+    expect(pointName(q(2, true), "quarter", "month", ys)).toBe("Q1 2026 to date, 2 of 3 months");
+    expect(pointName(q(2, false), "quarter", "month", ys)).toBe("Q1 2026, only 2 of 3 months");
+    expect(pointName(q(3, false), "quarter", "month", ys)).toBe("Q1 2026");
+    expect(pointName(q(2, false), "quarter", "month", ys, true)).toBe("Q1 26, 2 of 3 months");
+  });
+
+  it("marks a past span with gaps as partial, never one to date or full", () => {
+    expect(isPartial(q(2, false))).toBe(true);
+    expect(isPartial(q(2, true))).toBe(false);
+    expect(isPartial(q(3, false))).toBe(false);
+    // A past quarter with two of three months, from seriesBy itself.
+    expect(isPartial(by("sum", "quarter", "2026-05-01").points.at(-1)!)).toBe(true);
   });
 });
