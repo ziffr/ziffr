@@ -120,9 +120,9 @@ Whoever proposed the Correction hears what the owner decided. Each decision is n
 
 ## Answering by email or Slack
 
-Each new Action, reply, proposed Correction and closed Task reaches the person as a **Delivery**: by email, on Slack or through another Connector, as they chose under **Your Deliveries** (see [Your settings](17-your-settings.md)).
+Each new Action, reply, proposed Correction and closed Task reaches the person as a **Delivery**: by email, on Slack, by Telegram or through another Connector, as they chose under **Your Deliveries** (see [Your settings](17-your-settings.md)).
 
-People answer by replying to that email or Slack message. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check.
+People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check.
 
 In the demo, to answer as someone else, switch **View as** in the top bar to that person, as the Action page reminds you.
 

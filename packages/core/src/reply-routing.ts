@@ -1,4 +1,4 @@
-// Routing a reply to a Delivery (spec 0004, spec 0007; GLOSSARY: Delivery, Prompt, Thread, Correction), whichever
+// Routing a reply to a Delivery (spec 0004, spec 0007, spec 0016; GLOSSARY: Delivery, Prompt, Thread, Correction), whichever
 // real Connector it came back through. The Connector has already checked that the reply is from the person the
 // Delivery went to; this takes it the way a simulated reply always went: a Prompt's answer through submitValue, a
 // reply about a question or task into its Thread, a "Correction:" line as a proposed Correction.
@@ -13,9 +13,10 @@ export type RepliedDelivery = { id: number; workspace_id: string; recipient_id: 
 
 /** Where a reply came from: its Source, the sender as that Source knows them, and how to answer them there. */
 export type ReplyChannel = {
-  source: "mail" | "slack";
+  source: "mail" | "slack" | "telegram";
   sender: string;
-  /** The recipient, when the Connector proved who wrote (Slack signs it); else they are recognised by `sender`. */
+  /** The recipient, when the Connector proved who wrote (Slack signs it, Telegram sends it with the webhook's
+   * secret); else they are recognised by `sender`. */
   provenPersonId?: string;
   answer: (subject: string, text: string) => Promise<void>;
 };
@@ -32,7 +33,7 @@ export async function routeReply(d: RepliedDelivery, text: string, via: ReplyCha
     if (prompt.source !== via.source) {
       // The Metric does not take values from here: the answer is not recorded, and the person gets their form link.
       const { data: token } = await db().from("tokens").select("code").eq("workspace_id", d.workspace_id).eq("metric_id", prompt.metric_id).eq("submitter_id", d.recipient_id).is("stands_in_for", null).limit(1).maybeSingle();
-      await via.answer("Your value was not recorded", token ? `This Metric takes values only through your form:\n${linkTo(`/submit/${token.code}`)}` : `This Metric does not take values ${via.source === "mail" ? "by email" : "on Slack"}.`);
+      await via.answer("Your value was not recorded", token ? `This Metric takes values only through your form:\n${linkTo(`/submit/${token.code}`)}` : `This Metric does not take values ${via.source === "mail" ? "by email" : via.source === "telegram" ? "by Telegram" : "on Slack"}.`);
       return "form_link";
     }
     const r = await submitValue({ source: via.source, sender: via.sender, text, promptId: prompt.id, workspaceId: d.workspace_id }, submission, via.provenPersonId);
