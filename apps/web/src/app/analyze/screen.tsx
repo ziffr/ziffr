@@ -29,7 +29,6 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const ms = onCanvas.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
   const bySlug = (s: string) => data.metrics.find((m) => m.slug === s);
   const n = ms.length;
-  const samePeriod = n > 1 && ms.every((m) => m.period === ms[0].period);
 
   const run = (template: TemplateId, ids: number[]) =>
     setResults((r) => {
@@ -50,7 +49,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   // Analyses offered depend on what's on the canvas (GLOSSARY: Analysis Canvas).
   const suggestions: { label: string; blurb: string; ok: boolean; why?: string; go?: () => void; locked?: boolean }[] = [
     { label: "Forecast", blurb: "Project each metric a few periods ahead.", ok: n >= 1, why: "Drop one metric", go: () => ms.forEach((m) => run("forecast", [m.id])) },
-    { label: "Correlation", blurb: "Do these two move together?", ok: n === 2 && samePeriod, why: n !== 2 ? "Drop exactly two metrics" : "Both need the same period", go: () => run("correlation", [ms[0].id, ms[1].id]) },
+    { label: "Correlation", blurb: "Do these two move together?", ok: n === 2, why: "Drop exactly two metrics", go: () => run("correlation", [ms[0].id, ms[1].id]) },
     { label: "Drivers", blurb: `What moves most with ${ms[0]?.name ?? "the first metric"}?`, ok: n >= 2, why: "Drop two or more metrics", go: () => run("drivers", ms.map((m) => m.id)) },
     { label: "Correlation matrix", blurb: "Every pair at once.", ok: n >= 3, why: "Drop three or more metrics", go: () => run("matrix", ms.map((m) => m.id)) },
     // Analyses still to come are a preview for demo visitors; a real workspace sees only what it can run.
@@ -64,9 +63,8 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const revenue = bySlug("revenue");
   const tickets = bySlug("support-tickets");
   const returns = bySlug("return-rate");
-  const monthly = data.metrics.filter((m) => m.period === "month");
   const recipes = [
-    cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...monthly.filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
+    cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...data.metrics.filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
     revenue && { label: "Where is Revenue heading?", go: () => recipe([revenue.id], "forecast") },
     tickets && returns && { label: "Do support tickets drive returns?", go: () => recipe([returns.id, tickets.id], "correlation") },
   ].filter(Boolean) as { label: string; go: () => void }[];

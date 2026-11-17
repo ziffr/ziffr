@@ -4,8 +4,9 @@ import { useId, useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatValue, health } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
-import { pearson, strength } from "@ziffr/core/correlation";
-import type { CanvasData, Metric, Point, Widget } from "@ziffr/core/types";
+import { comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type Correlation } from "@ziffr/core/correlation";
+import { resolverFrom, type Resolver } from "@ziffr/core/compare";
+import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
 import { Sparkline } from "./sparkline";
@@ -23,7 +24,7 @@ import { useSeriesReady } from "@/canvas/series-store";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { TargetChip } from "@/components/target-chip";
-import { PERIOD_LABEL, periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
+import { periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
 import { dayAfter, heldText, shownSeries, SHOWN_BY, spanCount, type DisplayPoint } from "@ziffr/core/display-periods";
 
 type Props = {
@@ -144,19 +145,21 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
     }
     case "correlation": {
       const b = ms[1];
-      const res = b ? pearson(all, data.series[b.slug] ?? []) : null;
-      if (!b || !res) return <Empty>Needs two metrics with the same period and at least 6 shared values.</Empty>;
+      if (!b) return <Empty>Needs two metrics with at least 6 periods in common.</Empty>;
+      // Metrics of different periods are compared on the longer one, the shorter combined by its Aggregation.
+      const res = correlate(m, b, resolverFrom(data.metrics, data.series), { yearStart: data.yearStart });
+      if (!res.ok) return <Empty>{res.reason}</Empty>;
       return (
         <div className="flex h-full flex-col">
-          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{res.r.toFixed(2)}</span> over {res.n} {m.period}s</p>
+          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{res.r.toFixed(2)}</span> <ComparedOn res={res} /></p>
           <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={data.yearStart} /></div>
         </div>
       );
     }
     case "matrix":
-      return <Matrix metrics={ms} series={data.series} />;
+      return <Matrix metrics={ms} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} />;
     case "drivers":
-      return <Drivers target={m} others={ms.slice(1)} series={data.series} yearStart={data.yearStart} />;
+      return <Drivers target={m} others={ms.slice(1)} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} />;
   }
 }
 
@@ -196,8 +199,23 @@ function Bars({ metric, points, by, name, goal, band, yearStart, onPointContext 
   );
 }
 
-function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string, Point[]> }) {
+/** On what a correlation was computed: "over 18 months", or "Compared by month (18 months)" when a Metric was combined. */
+function ComparedOn({ res }: { res: Extract<Correlation, { ok: true }> }) {
+  return <>{comparedBy(res) ? <>· {comparedBy(res)}</> : <>over {periodCountLabel(res.period, res.n)}</>}</>;
+}
+
+/** Why Metrics are kept to their own period, once each (Aggregation none), so a missing pair is never silent. */
+function NotCombined({ reasons }: { reasons: string[] }) {
+  const unique = [...new Set(reasons)];
+  if (!unique.length) return null;
+  return <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
+}
+
+function Matrix({ metrics, resolve, yearStart }: { metrics: Metric[]; resolve: Resolver; yearStart: YearStart }) {
   if (metrics.length < 2) return <Empty>Drop at least two metrics.</Empty>;
+  // Each pair on its common period: the longer of the two, the shorter combined by its Aggregation.
+  const cells = metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart }))));
+  const notCombined = cells.flat().flatMap((c) => (c && !c.ok && c.why === "not-combined" ? [c.reason] : []));
   return (
     <div className="h-full overflow-auto">
       <table className="text-xs">
@@ -208,14 +226,16 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
           </tr>
         </thead>
         <tbody>
-          {metrics.map((a) => (
+          {metrics.map((a, i) => (
             <tr key={a.id}>
               <th className="pr-2 text-right font-medium whitespace-nowrap">{a.name}</th>
-              {metrics.map((b) => {
-                const r = a.id === b.id ? 1 : a.period === b.period ? pearson(series[a.slug] ?? [], series[b.slug] ?? [])?.r ?? null : null;
+              {metrics.map((b, j) => {
+                const c = cells[i][j];
+                const r = a.id === b.id ? 1 : c?.ok ? c.r : null;
+                const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${c.r.toFixed(2)}`, comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
                 const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-data) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
-                  <td key={b.id} title={r === null ? "Different periods" : `r = ${r.toFixed(2)}`} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
+                  <td key={b.id} title={title} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
                     {r === null ? "–" : r.toFixed(2)}
                   </td>
                 );
@@ -224,33 +244,33 @@ function Matrix({ metrics, series }: { metrics: Metric[]; series: Record<string,
           ))}
         </tbody>
       </table>
+      <NotCombined reasons={notCombined} />
     </div>
   );
 }
 
-function Drivers({ target, others, series, yearStart }: { target: Metric; others: Metric[]; series: Record<string, Point[]>; yearStart: YearStart }) {
-  const ranked = others
-    .filter((o) => o.period === target.period && !o.formula?.includes(`{${target.slug}}`) && !target.formula?.includes(`{${o.slug}}`))
-    .map((o) => ({ o, res: pearson(series[target.slug] ?? [], series[o.slug] ?? []) }))
-    .filter((x) => x.res && Number.isFinite(x.res.r))
-    .sort((a, b) => Math.abs(b.res!.r) - Math.abs(a.res!.r));
-  if (!ranked.length) return <Empty>No other {PERIOD_LABEL[target.period].toLowerCase()} metric to compare with.</Empty>;
+function Drivers({ target, others, resolve, yearStart }: { target: Metric; others: Metric[]; resolve: Resolver; yearStart: YearStart }) {
+  // Metrics of every period, each on its common period with the target; those left out say why.
+  const { ranked, leftOut } = rankCorrelations(target, others, resolve, { yearStart });
+  const why = leftOut.map((l) => (l.why === "not-combined" ? l.reason : `${l.metric.name}: ${l.reason}`));
+  if (!ranked.length) return <div className="flex h-full flex-col items-center justify-center p-4 text-center"><p className="text-xs text-muted-foreground">No other metric with enough periods in common with {target.name}.</p><NotCombined reasons={why} /></div>;
   const top = ranked[0];
   return (
     <div className="flex h-full flex-col gap-2">
       <ul className="space-y-1">
-        {ranked.map(({ o, res }) => (
-          <li key={o.id} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
-            <span className="truncate">{o.name}</span>
+        {ranked.map(({ metric: o, result: res }) => (
+          <li key={o.id} title={comparedBy(res) ?? undefined} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
+            <span className="truncate">{o.name}{res.combined && <span className="text-muted-foreground"> · by {periodWord(res.period)}</span>}</span>
             <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
-              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res!.r) * 100}%`, background: res!.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
+              <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res.r) * 100}%`, background: res.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
             </span>
-            <span className="fig text-right">{res!.r.toFixed(2)}</span>
+            <span className="fig text-right">{res.r.toFixed(2)}</span>
           </li>
         ))}
       </ul>
-      <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{top.o.name}</span> moves most with {target.name} ({strength(top.res!.r)}).</p>
-      <div className="min-h-0 flex-1"><ScatterView x={top.o} y={target} pairs={top.res!.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={yearStart} /></div>
+      <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{top.metric.name}</span> moves most with {target.name} ({strength(top.result.r)}){comparedBy(top.result) && <>. {comparedBy(top.result)}</>}.</p>
+      <NotCombined reasons={why} />
+      <div className="min-h-0 flex-1"><ScatterView x={top.metric} y={target} pairs={top.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={yearStart} /></div>
     </div>
   );
 }
