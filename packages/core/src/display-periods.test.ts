@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { displayPeriodsFor, NOT_COMBINED, periodCount, seriesBy } from "./display-periods";
+import { displayPeriodsFor, NOT_COMBINED, periodCount, seriesBy, shownSeries } from "./display-periods";
 import { JANUARY } from "./periods";
-import { metric, months } from "./test/fixtures";
+import { canvas, metric, months } from "./test/fixtures";
 import type { Point } from "./types";
 
 const ys = JANUARY;
@@ -65,7 +65,7 @@ describe("seriesBy", () => {
   it("returns the Metric's own period unchanged", () => {
     const m = metric();
     const r = seriesBy(m, resolverFrom([m], { revenue: months("2025-01", [1, 2]) }), "month", { yearStart: ys });
-    expect(r.points).toEqual([{ period: "2025-01-01", value: 1, held: 1, length: 1, toDate: false }, { period: "2025-02-01", value: 2, held: 1, length: 1, toDate: false }]);
+    expect(r.points).toEqual([{ period: "2025-01-01", value: 1, held: 1, length: 1, toDate: false, through: "2025-01-01" }, { period: "2025-02-01", value: 2, held: 1, length: 1, toDate: false, through: "2025-02-01" }]);
   });
 
   it("puts weeks into the month they start in", () => {
@@ -89,6 +89,31 @@ describe("seriesBy", () => {
     expect(toDate.current).toBe(q.at(-1)!.value);
     expect(full.current).toBe(q.at(-2)!.value);
     expect(full.previous).toBe(q.at(-3)!.value);
+  });
+
+  it("combines the Target Series where every month has one, else the range for an average, none for a sum", () => {
+    const sum = metric({ target_min: 100 });
+    const data = (m: typeof sum, targets: Point[]) => canvas([m], { revenue: months("2025-01", values.slice(0, 6)) }, { targets: { 1: targets } });
+    // Q1 has three monthly targets; Q2 only two.
+    const t = [...months("2025-01", [100, 100, 120]), ...months("2025-04", [100, 100])];
+    const s = shownSeries(sum, data(sum, t), "quarter", { today: "2026-01-01" });
+    expect(s.targets?.at).toEqual({ "2025-01-01": { min: 320, max: null } });
+    expect(s.targets?.line).toEqual([{ period: "2025-01-01", value: 320 }]);
+    expect(s.targets?.note).toBe("Target per quarter: the Target Series where every month has one.");
+    const avg = metric({ aggregation: "average", target_min: 100, target_max: 120 });
+    const a = shownSeries(avg, data(avg, []), "quarter", { today: "2026-01-01" });
+    expect(a.targets).toMatchObject({ range: true, note: "Target per quarter: the target range.", at: { "2025-04-01": { min: 100, max: 120 } } });
+    expect(shownSeries(sum, data(sum, []), "quarter", { today: "2026-01-01" }).targets?.note).toBe("No target per quarter: the target range is for one month.");
+    // A quarter to date is judged against the targets of the months it holds.
+    const toDate = shownSeries(sum, data(sum, t), "quarter", { today: "2025-06-10" });
+    expect(toDate.points.at(-1)).toMatchObject({ toDate: true, held: 3 });
+  });
+
+  it("shows a Metric whose Aggregation is none by its own period, saying why", () => {
+    const rate = metric({ aggregation: "none" });
+    const s = shownSeries(rate, canvas([rate], { revenue: months("2025-01", [1, 2, 3]) }), "quarter");
+    expect(s).toMatchObject({ by: "month", combined: false, reason: NOT_COMBINED });
+    expect(s.points).toHaveLength(3);
   });
 
   it("offers only the Display Periods longer than a Metric's own", () => {

@@ -33,4 +33,9 @@ describe("team templates", () => {
     expect(w.settings.panels?.[0].metricIds).toEqual([7, 8]);
     expect(w.metric_ids).toEqual([7]);
   });
+  it("keeps the Display Period a widget is shown by (spec 0018)", () => {
+    const bars = { template: "bars" as const, title: null, metric_ids: [1], settings: { window: 8, display: "quarter" as const } };
+    const t = toTemplate(bars, [revenue], {});
+    expect(fromTemplate({ view: "bars", body: t.body }, [[7]]).settings).toMatchObject({ window: 8, display: "quarter" });
+  });
 });

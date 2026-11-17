@@ -10,7 +10,7 @@ Not everyone sees the same Metrics. You see a Metric when you own it, when it is
 
 The same rule holds on every Metric screen, and on dashboards too:
 
-- **Green and red only say whether a value is on target.** A small label next to a value reads "On target" (green), "Below target" or "Above target" (red). When a Metric has no target, there is no label.
+- **Green and red only say whether a value is on target.** A small label next to a value reads "On target" (green), "Below target" or "Above target" (red). When a Metric has no target, there is no label. A Widget that shows a Metric by quarter or year judges each quarter against that quarter's target; point at the label to see which target applies (see **Show by** in the Dashboards chapter).
 - **Arrows and signs show which way a value changed**, such as ↗ +4.2 %. They are never coloured, because a rise is good for revenue and bad for cost.
 
 The Metrics list repeats this in one line above the table. Under a widget on a dashboard, the same comparisons appear as a short line: the **Attainment** ("92% of target"), then for example "vs prev. ↗ +4.2%" and "YoY ↘ −1.0%", or "n/a" when a comparison cannot be made. Point at an entry to see both values it compares.
