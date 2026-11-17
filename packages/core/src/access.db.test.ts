@@ -62,7 +62,7 @@ describe("canvas series (ticket #125)", () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const a = await w.metric(sara, { name: "A" }); const b = await w.metric(sara, { name: "B" }); const hidden = await w.metric(sara, { name: "Hidden" });
     const ratio = await w.metric(sara, { name: "Ratio", formula: `{${a.slug}} / {${b.slug}}` });
-    await w.value(a.id, "2026-10-01", 10); await w.value(b.id, "2026-10-01", 4); await w.value(hidden.id, "2026-10-01", 99);
+    await w.value(a.id, "2026-10-01", 10); await w.value(b.id, "2026-10-01", 4); await w.value(hidden.id, "2026-10-01", 9999.5);
     for (const m of [a, ratio]) await share(w.actor(sara), "metric", m.id, ben, "viewer");
 
     // Sara's dashboard draws Ratio: its series and its inputs' go out, nothing else; a Metric with no values gets [].
@@ -81,7 +81,8 @@ describe("canvas series (ticket #125)", () => {
     // Fetching more: only visible Metrics, whole positive ids, at most 200.
     const more = await canvasSeries(w.actor(ben, "member"), [hidden.id, b.id, a.id]);
     expect(Object.keys(more.series)).toEqual([a.slug]);
-    expect(JSON.stringify(more)).not.toContain("99");
+    // A value no slug can hold (slugs are hex, without a point): the hidden Metric's value must not be sent.
+    expect(JSON.stringify(more)).not.toContain("9999.5");
     for (const bad of ["1,2", [1.5], [-1], [0], Array.from({ length: 201 }, (_, i) => i + 1), [`${a.id}`]]) {
       await expect(canvasSeries(w.actor(ben, "member"), bad)).rejects.toEqual(expect.any(Forbidden));
     }
