@@ -22,7 +22,7 @@ This chapter lists the kinds of things you meet in Ziffr, what each one is for, 
 | **Finding** | A Widget set as an editorial graphic, with a headline that states what happened, a subline, notes and a source, around one or more charts | Anyone who may create |
 | **Dashboard** | A page of Widgets and Findings that you arrange and share. It reads two ways: *Grid*, as arranged, and *Read*, one Widget below the other like an article, good on a phone | Owners, Admins and Members |
 | **Home dashboard** | The dashboard Ziffr opens on for you; you choose it yourself | Everyone, for themselves |
-| **Snapshot** | What a dashboard showed for one week, month or quarter, fixed so its numbers never change afterwards. A Snapshot can carry its own words, such as the explanation for the board | The dashboard's Owner and Editors |
+| **Snapshot** | What a dashboard showed for one week, month, quarter, half-year or year, fixed so its numbers never change afterwards. A Snapshot can carry its own words, such as the explanation for the board | The dashboard's Owner and Editors |
 | **Analysis Canvas** | A space where you drop one or more Metrics and run analyses on them, such as a forecast or a correlation | Anyone who may create |
 | **Deck** | An ordered set of 16:9 slides built from Widgets, text, arrows and shapes, exported as PowerPoint or PDF | Owners, Admins and Members |
 | **Theme** | The look of everything that shows numbers: colours, fonts, logo, footer | Owners and Admins |

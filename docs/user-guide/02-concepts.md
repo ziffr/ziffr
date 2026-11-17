@@ -56,7 +56,7 @@ Metrics and dashboards are given to people or to **Groups** (such as "Management
 
 ## Nothing is lost
 
-When a value is replaced or corrected, the earlier one is kept as a **Superseded Value**. Everything people build (widgets, dashboards, decks, Metric descriptions) keeps its **Versions**, so you can go back. A dashboard's **Snapshot** keeps what it showed at the end of a week, month or quarter, so the numbers in last quarter's board meeting never change afterwards. The **Audit Log** records who changed who may see or do what, and which decisions were taken on numbers, and nobody can change it.
+When a value is replaced or corrected, the earlier one is kept as a **Superseded Value**. Everything people build (widgets, dashboards, decks, Metric descriptions) keeps its **Versions**, so you can go back. A dashboard's **Snapshot** keeps what it showed at the end of a week, month, quarter, half-year or year, so the numbers in last quarter's board meeting, or in the annual review, never change afterwards. The **Audit Log** records who changed who may see or do what, and which decisions were taken on numbers, and nobody can change it.
 
 ## Questions stay with the number
 

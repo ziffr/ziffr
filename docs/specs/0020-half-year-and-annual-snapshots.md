@@ -1,6 +1,6 @@
 # 0020 Half-year and annual Snapshots
 
-**Status:** in progress. **Tracking issue:** #55 (label `tracking`); tickets #56 to #58 carry `spec:0020`.
+**Status:** done. **Tracking issue:** #55 (label `tracking`); tickets #56 to #58 carry `spec:0020`.
 
 ## Problem Statement
 
