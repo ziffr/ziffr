@@ -4,7 +4,7 @@
 import type { Profile } from "../types";
 
 /** The Connectors Ziffr knows. */
-export type ConnectorId = "slack" | "email" | "whatsapp" | "tickets";
+export type ConnectorId = "slack" | "email" | "whatsapp" | "tickets" | "telegram";
 /** values: receives observations (a Source); reminders, actions: sends them; replies: answers come back; status: a task's state stays in step. */
 export type Capability = "values" | "reminders" | "actions" | "replies" | "status";
 /** What a Delivery is about. */
@@ -47,7 +47,7 @@ export type Connector = {
   /** How someone answers there, shown under the message. */
   replyHint: string;
   /** The inbound Source this connector also is, if any. */
-  sourceId?: "slack" | "mail" | "web_form";
+  sourceId?: "slack" | "mail" | "web_form" | "telegram";
 };
 
 /** Each capability in words for the Connectors page. */

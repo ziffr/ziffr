@@ -1,0 +1,108 @@
+// Sending by Telegram (spec 0016, ticket #26; GLOSSARY: Delivery, Connector, Prompt). The Telegram Connector words each
+// Delivery (connectors/telegram.ts); this sends it from the Installation's bot to the private chat the person
+// connected themselves, through the queue every real Connector uses: queued, claimed in the database within limits,
+// retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
+import { db } from "./db";
+import { FORM_LINK, MAX_ATTEMPTS, type SendResult } from "./mail";
+import { callTelegram, TelegramError } from "./telegram-api";
+import { telegramOnIn } from "./telegram-connection";
+import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
+import { DEMO_WORKSPACE_ID } from "./team";
+
+/** Telegram messages one workspace may send in 24 hours; the rest wait in the queue. */
+export const TELEGRAM_PER_WORKSPACE_PER_DAY = 500;
+/** Telegram messages one chat may get in an hour; the rest wait. */
+export const TELEGRAM_PER_RECIPIENT_PER_HOUR = 20;
+/** Telegram messages one person may cause in 24 hours (as the sender of Prompts, questions, notices). */
+export const TELEGRAM_PER_SENDER_PER_DAY = 300;
+/** Messages the bot sends in a second across every workspace, below Telegram's thirty. One a second per chat is in
+ * the claim itself. */
+export const TELEGRAM_PER_BOT_PER_SECOND = 25;
+/** The longest message Telegram takes. */
+const MAX_TEXT = 4096;
+
+/** Whether a new Telegram Delivery in this workspace is really sent: Telegram is on there (never in the demo). */
+export async function telegramSends(workspaceId: string): Promise<boolean> {
+  return telegramOnIn(workspaceId);
+}
+
+/** Sends one queued Telegram Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
+export async function sendTelegramDelivery(id: number): Promise<SendResult> {
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id")
+    .eq("id", id).eq("connector", "telegram").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
+  if (!d) return "skipped";
+  // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
+  const never = async (why: string) => {
+    await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
+    return "failed" as const;
+  };
+  if (d.workspace_id === DEMO_WORKSPACE_ID || !(await telegramOnIn(d.workspace_id))) return never("Telegram is off in this workspace.");
+  const chat = await telegramChatOf(d.workspace_id, d.recipient_id);
+  if (!chat) return never("Not connected to Telegram.");
+  // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
+  const { data: claim, error } = await db().rpc("claim_telegram_send", {
+    p_id: id, p_chat: chat.chatId, p_per_workspace: TELEGRAM_PER_WORKSPACE_PER_DAY, p_per_recipient: TELEGRAM_PER_RECIPIENT_PER_HOUR,
+    p_per_sender: TELEGRAM_PER_SENDER_PER_DAY, p_per_bot_second: TELEGRAM_PER_BOT_PER_SECOND, p_max_attempts: MAX_ATTEMPTS,
+  });
+  if (error) throw new Error("The Telegram message could not be claimed for sending.");
+  if (claim === "wait") return "waiting";
+  if (claim !== "ok") return "skipped";
+  let text = String(d.body);
+  // A Prompt's personal form link goes only into the message, never into the body the Outbox shows its sender.
+  if (text.includes(FORM_LINK)) {
+    const { data: token } = d.form_token_id ? await db().from("tokens").select("code").eq("id", d.form_token_id).eq("workspace_id", d.workspace_id).maybeSingle() : { data: null };
+    const site = String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "");
+    text = text.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
+  }
+  try {
+    const sent = await callTelegram<{ message_id?: unknown; chat?: { id?: unknown } }>("sendMessage", {
+      chat_id: chat.chatId,
+      // Plain text, no parse mode: nothing in the workspace's words becomes formatting or a hidden link.
+      text: text.slice(0, MAX_TEXT),
+      link_preview_options: { is_disabled: true },
+    });
+    const messageId = typeof sent?.message_id === "number" && Number.isSafeInteger(sent.message_id) && sent.message_id > 0 ? sent.message_id : null;
+    if (!messageId) throw new TelegramError("no_message_id");
+    await db().from("deliveries").update({ mail_state: "sent", attempts: Number(d.attempts) + 1, sent_at: new Date().toISOString(), provider_id: String(messageId), telegram_chat_id: chat.chatId, telegram_message_id: messageId, last_error: null }).eq("id", id);
+    return "sent";
+  } catch (e) {
+    return trouble(e, id, Number(d.attempts), chat.userId);
+  }
+}
+
+/** A Telegram call that did not work: a limit waits without using an attempt, a blocked bot (403) ends that person's
+ * links, anything else counts as a failed attempt. Only Telegram's error code is kept. */
+async function trouble(e: unknown, id: number, attempts: number, userId: number): Promise<SendResult> {
+  const code = e instanceof TelegramError ? e.code : "error";
+  if (e instanceof TelegramError && e.code === "too_many_requests") {
+    // Telegram's wait, not ours: the send it refused does not count against Ziffr's limits either.
+    await db().from("telegram_sends").delete().eq("delivery_id", id);
+    await db().from("deliveries").update({ mail_state: "queued", not_before: new Date(Date.now() + (e.retryAfter ?? 30) * 1000).toISOString(), last_error: "Telegram asked to wait." }).eq("id", id);
+    return "waiting";
+  }
+  if (code === "error_403") {
+    // They blocked the bot: Telegram will refuse every message, so the link ends here as it would by the update.
+    await forgetTelegramUser(userId);
+    await db().from("deliveries").update({ mail_state: "failed", last_error: "They blocked Ziffr's bot in Telegram." }).eq("id", id);
+    return "failed";
+  }
+  const next = attempts + 1;
+  await db().from("deliveries").update({ mail_state: next >= MAX_ATTEMPTS ? "failed" : "queued", attempts: next, last_attempt_at: new Date().toISOString(), last_error: `Telegram refused it (${code}).`.slice(0, 200) }).eq("id", id);
+  return "failed";
+}
+
+/** Sends the Telegram Deliveries that are due (as every Connector's queue chooses them), at most `limit` per run. */
+export async function sendWaitingTelegram(limit = 50): Promise<{ sent: number; failed: number }> {
+  const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
+  await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "telegram").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
+  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: MAX_ATTEMPTS });
+  if (error) throw new Error("The waiting Telegram messages could not be read.");
+  let sent = 0;
+  let failed = 0;
+  for (const r of (ids ?? []) as (number | { due_deliveries_via: number })[]) {
+    const out = await sendTelegramDelivery(typeof r === "number" ? r : r.due_deliveries_via);
+    if (out === "sent") sent++;
+    else if (out === "failed") failed++;
+  }
+  return { sent, failed };
+}

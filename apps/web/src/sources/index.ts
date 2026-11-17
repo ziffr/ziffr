@@ -6,6 +6,7 @@ import type { SourceId } from "@ziffr/core/types";
 export const SOURCES: { id: SourceId; label: string; simulated: boolean; identity: string }[] = [
   { id: "slack", label: "Slack", simulated: true, identity: "Slack handle" },
   { id: "mail", label: "Mail", simulated: true, identity: "Mail address" },
+  { id: "telegram", label: "Telegram", simulated: false, identity: "Connected Telegram account" },
   { id: "web_form", label: "Web form", simulated: false, identity: "Personal form link" },
   { id: "api", label: "API and Feeds", simulated: false, identity: "Access Key or Feed Key" },
 ];

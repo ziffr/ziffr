@@ -27,7 +27,7 @@ export async function workspace(name = "Test") {
     const slug = `m-${randomUUID().slice(0, 8)}`;
     const { data } = await must(db().from("metrics").insert({
       slug, name: String(over.name ?? "Field visits"), owner_id: owner, workspace_id: id, unit: "", format: "number", decimals: 0, period: "month",
-      submission_rule: "overwrite", polarity: "higher", sources: ["web_form", "slack", "mail", "api"], ...over,
+      submission_rule: "overwrite", polarity: "higher", sources: ["web_form", "slack", "mail", "telegram", "api"], ...over,
     }).select("*").single());
     return data as { id: number; slug: string; owner_id: string };
   };

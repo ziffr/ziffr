@@ -8,7 +8,7 @@ export type Polarity = "higher" | "lower" | "target";
 export type Format = "number" | "currency" | "percent";
 /** Where values can arrive from (GLOSSARY: Source). "api" is a program with an Access Key; a Metric takes it where it
  * takes its personal form link, since both use the Submitter's own Token. */
-export type SourceId = "slack" | "mail" | "web_form" | "api";
+export type SourceId = "slack" | "mail" | "web_form" | "api" | "telegram";
 
 /** A person in the workspace, with where Connectors reach them. */
 export type Profile = {

@@ -39,7 +39,7 @@ const BLANK: MetricDescription = {
   polarity: "higher",
   target_min: null,
   target_max: null,
-  sources: ["web_form", "mail", "slack", "api"],
+  sources: ["web_form", "mail", "slack", "telegram", "api"],
 };
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";

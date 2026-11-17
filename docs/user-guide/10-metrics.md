@@ -71,7 +71,7 @@ The form has three parts. The panel on the right says that you become the **Owne
 | **Period** | **Daily**, **Weekly** or **Monthly**: one value per period. It cannot change once the Metric has values. |
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY: **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
-| **Sources** | The ways values may arrive: **Slack**, **Mail**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
+| **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
 | **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. |
 
 The four Submission Rules:
@@ -201,7 +201,7 @@ The Settings tab has three boxes: the description, the Workflow, and who submits
 
 The box lists the **Metric Description**: owner, period, format and decimals, which way is good, target and, for a Derived Metric, its **Formula**, written with the names of the Metrics it uses. For other Metrics it also shows how values arrive and what happens to a second value.
 
-**Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused.
+**Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack**, **Telegram** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused.
 
 **Edit details…** opens the description as a form, for the Metric Owner and Editors:
 

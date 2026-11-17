@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { SOURCE_LABEL } from "@ziffr/core/format";
 import type { SourceId } from "@ziffr/core/types";
 
-const CHOICES: SourceId[] = ["web_form", "mail", "slack", "api"];
+const CHOICES: SourceId[] = ["web_form", "mail", "slack", "telegram", "api"];
 // The API takes values from programs with an Access Key and from Feeds (GLOSSARY: Source, Feed).
-const LABEL: Partial<Record<SourceId, string>> = { api: "API and Feeds" };
+const LABEL: Partial<Record<SourceId, string>> = { api: "API and Feeds", telegram: "Telegram" };
 
 /** Checkboxes for the Metric's Sources with a Save button, for its owner. */
 export function SourcesEditor({ metricId, sources }: { metricId: number; sources: SourceId[] }) {
