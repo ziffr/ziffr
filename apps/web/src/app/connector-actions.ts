@@ -31,12 +31,6 @@ export async function telegramFormLinkStart(formCode: string) {
   return telegramPeople.startTelegramLinkByForm(String(formCode));
 }
 
-/** Disconnects the Telegram of the person whose form it is. */
-export async function telegramFormUnlink(formCode: string) {
-  await telegramPeople.unlinkTelegramByForm(String(formCode));
-  revalidatePath(`/submit/${encodeURIComponent(String(formCode))}`);
-}
-
 /** The person gets Prompts and reminders on Telegram again in this workspace, after stopping them (spec 0016). */
 export async function telegramRemindersAgain() {
   await telegramPeople.telegramOptBackIn(await currentActor());

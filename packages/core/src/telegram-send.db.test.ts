@@ -115,6 +115,16 @@ describe("sending by Telegram", () => {
     expect(await telegramChatOf(w.id, ann)).toBeNull();
   });
 
+  it("sends nothing queued to someone who left the workspace since", async () => {
+    const { w, sara, ann, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram", queue: true });
+    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", ann);
+    const before = sends().length;
+    await sendWaitingTelegram();
+    expect(await latest(w.id, ann)).toMatchObject({ mail_state: "failed", last_error: "Not connected to Telegram." });
+    expect(sends()).toHaveLength(before);
+  });
+
   it("counts a failed attempt and tries again, up to the last", async () => {
     const { w, sara, ann, m } = await setup();
     tg.fail("sendMessage", { code: 500 });

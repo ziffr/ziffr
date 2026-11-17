@@ -55,9 +55,11 @@ describe("buttons on Telegram", () => {
 
     expect(await receiveTelegramUpdate(press(annUser, task, "a"))).toBe("wrong_user");
     expect(await receiveTelegramUpdate(press(benUser, task, "a", 999_999))).toBe("unknown_message");
-    const approve = press(benUser, task, "a");
-    expect(await receiveTelegramUpdate(approve)).toBe("approved");
-    expect(await receiveTelegramUpdate(approve)).toBe("duplicate");
+    // A double tap: two presses (two updates) at once approve once.
+    const [one, two] = await Promise.all([receiveTelegramUpdate(press(benUser, task, "a")), receiveTelegramUpdate(press(benUser, task, "a"))]);
+    expect([one, two].sort()).toEqual(["approved", "refused"]);
+    const { count: approvals } = await db().from("audit_events").select("id", { count: "exact", head: true }).eq("workspace_id", w.id).eq("kind", "approval.given");
+    expect(approvals).toBe(1);
     const { data: action } = await db().from("actions").select("period_start").eq("id", task.action_id).single();
     const { data: state } = await db().from("period_states").select("state").eq("metric_id", m.id).eq("period_start", action!.period_start).single();
     expect(state!.state).toBe("locked");
