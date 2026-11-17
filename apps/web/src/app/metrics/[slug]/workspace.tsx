@@ -15,6 +15,7 @@ export function MetricWorkspace({
   metric,
   points,
   forecast,
+  forecastNote,
   markers,
   people,
   viewer,
@@ -25,6 +26,8 @@ export function MetricWorkspace({
   metric: Metric;
   points: Point[];
   forecast: ForecastPoint[] | null;
+  /** Why there is no forecast yet, such as for a yearly Metric with fewer than four years of values. */
+  forecastNote?: string | null;
   markers: string[];
   people: Profile[];
   viewer: string;
@@ -52,6 +55,7 @@ export function MetricWorkspace({
         <span className="flex items-center gap-3">
           <Legend className="bg-[var(--color-band)]" label="Target range" />
           {forecast && <Legend className="border-t-2 border-dashed border-[var(--color-muted)]" label="Forecast" />}
+          {!forecast && forecastNote && <span>{forecastNote}</span>}
           {markers.length > 0 && <Legend className="rounded-full border border-chart-5 bg-chart-5/25" label="Action" />}
         </span>
       </div>

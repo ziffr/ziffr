@@ -15,9 +15,11 @@ export const COMPARE_LABEL: Record<CompareKey, string> = {
 const GRAIN: Record<Exclude<CompareKey, "prev" | "yoy">, Grain> = { dod: "day", wow: "week", mom: "month", qoq: "quarter", hoh: "half" };
 const RANK: Record<Grain, number> = { day: 0, week: 1, month: 2, quarter: 3, half: 4, year: 5 };
 
-/** Which comparisons a metric of this period can have (a monthly metric has no DoD). */
+/** Which comparisons a metric of this period can have (a monthly metric has no DoD; a quarterly one has the previous
+ * quarter, QoQ, HoH and YoY). A yearly Metric's previous period is the year before, so it has YoY only. */
 export function comparisonsFor(period: Period): CompareKey[] {
   const all: CompareKey[] = ["prev", "dod", "wow", "mom", "qoq", "hoh", "yoy"];
+  if (period === "year") return ["yoy"];
   return all.filter((k) => k === "prev" || k === "yoy" || RANK[GRAIN[k as keyof typeof GRAIN]] >= RANK[period]);
 }
 
