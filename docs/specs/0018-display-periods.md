@@ -1,6 +1,6 @@
 # 0018 Display Periods: a Metric shown by quarter or year
 
-**Status:** in progress. **Tracking issue:** #45 (label `tracking`); tickets #46 to #50 carry `spec:0018`.
+**Status:** done. **Tracking issue:** #45 (label `tracking`); tickets #46 to #50 carry `spec:0018`.
 
 ## Problem Statement
 
@@ -23,12 +23,12 @@ A widget setting **Show by**: the Metric's own period (as today), or a longer **
 ## Implementation Decisions
 
 - **One function for every Display Period.** `seriesBy(metric, resolve, display, opts)` in the core (pure, next to compare.ts) turns a Metric's points into one point per Display Period, reusing `valueOver`: the same Aggregation, the same rule that a span counts once at least half of it has values, the same formula path for Derived Metrics. Comparisons, widgets and the export all call it, so nothing can disagree.
-- **Widget setting.** `WidgetSettings.display?: Period | "half"`, absent meaning the Metric's own period. Offered only for templates that draw a series (number, line, bars, table, forecast) and only longer than the Metric's period. `window` counts Display Periods.
+- **Widget setting.** `WidgetSettings.display?: DisplayPeriod` (week, month, quarter, half, year), absent meaning the Metric's own period. _Changed in #46:_ the draft's `Period | "half"` is the same set once spec 0017 adds quarter and year; `DisplayPeriod = Exclude<Span, "day">` names it without waiting for 0017. Offered only for templates that draw a series (number, line, bars, table, forecast) and only longer than the Metric's period. `window` counts Display Periods.
 - **To date.** The latest Display Period is marked "to date" when today is inside it, with how many of its periods it holds ("Q4 26, 2 of 3 months"). It is drawn hatched in bars and dotted in lines, and labelled so in tables.
 - **Aggregation "none".** The setting is disabled with "Combined only for Metrics whose Aggregation is sum, average or last value; this one is set to none."
 - **Targets.** A Display Period's target is the Target Series combined by the Metric's Aggregation where every period in it has one; else the target range for a Metric whose Aggregation is average or last value, and none for a sum (a monthly range of 100 to 120 says nothing exact about a quarter of uneven months). The chart says which applies.
 - **Forecast.** A forecast shown by a Display Period is computed on the combined series, a few Display Periods ahead.
-- **Where it travels.** Dashboards, the widget Pool, saved Widgets and Widget Templates keep the setting; decks and the free layout draw it; View Links and Snapshots show it (a Snapshot keeps what the widget showed, as today); the PowerPoint and PDF export draw the same points. The API's dashboard reads and writes include `display`.
+- **Where it travels.** Dashboards, the widget Pool, saved Widgets and Widget Templates keep the setting; decks and the free layout draw it; View Links and Snapshots show it (a Snapshot keeps what the widget showed, as today); the PowerPoint and PDF export draw the same points. The API's dashboard reads and writes include `display`. _Added in #48:_ "to date" is counted from the day after a Snapshot's period and from the day a frozen View Link was made (`CanvasData.today`), or a Snapshot of October would drop the fourth quarter as too empty once it is over. Where a View Link or Snapshot leaves a Derived Metric's inputs out, it is shown by its own period with a note, since its quarters are computed from those inputs.
 - **Fiscal year.** Quarters, half-years and years are those of the workspace's year start (spec 0017), passed with the data a widget draws; labels follow spec 0017's names.
 - **Glossary.** A new term **Display Period**: "The period a widget shows a Metric by: its own, or a longer one, with the Metric's values combined by its Aggregation." _Avoid_: Granularity, grain, bucket, roll-up.
 
