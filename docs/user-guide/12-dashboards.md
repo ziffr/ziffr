@@ -418,10 +418,10 @@ The owner and Editors have these buttons:
 
 The dashboard's owner can have it take a Snapshot by itself. Choose **Take one by itself…**:
 
-- **Take one**: **Only by hand**, **Every month**, **Every quarter** or **Every week**.
+- **Take one**: **Only by hand**, **Every month**, **Every quarter**, **Every half-year**, **Every year** or **Every week**.
 - **Wait at most (days)**: from 0 to 60, 5 by default.
 
-Each period's Snapshot is then taken in the owner's name as soon as every Metric on the dashboard is **Locked** for that period, or that many days after the period ends, whichever comes first. Ziffr tells the owner it is ready to write up. It stays a draft until someone shows it. A Snapshot deleted is not taken again.
+Each period's Snapshot is then taken in the owner's name as soon as every Metric on the dashboard is **Locked** for every one of its periods in it (for a year of a monthly Metric, all twelve months), or that many days after the period ends, whichever comes first. Ziffr tells the owner it is ready to write up. It stays a draft until someone shows it. A Snapshot deleted is not taken again.
 
 ## Versions
 

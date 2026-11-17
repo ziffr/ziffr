@@ -1,4 +1,4 @@
-// Automatic Snapshots (spec 0013, ticket #176), against the database: who sets them, when the daily run takes them
+// Automatic Snapshots (spec 0013, ticket #176; spec 0020), against the database: who sets them, when the daily run takes them
 // (on Lock or after the wait), once per period, never again after a deletion, and the owner told.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
@@ -34,12 +34,16 @@ async function setup() {
 }
 
 describe("automatic Snapshots", () => {
-  it("are set by the dashboard's owner only, to week, month, quarter or none, with a wait within bounds", async () => {
+  it("are set by the dashboard's owner only, to week, month, quarter, half-year, year or none, with a wait within bounds", async () => {
     const { owner, ben, dash } = await setup();
     await setAutoSnapshots(owner, dash, { every: "month", waitDays: 3 });
     expect((await db().from("dashboards").select("snapshot_every, snapshot_wait_days").eq("id", dash).single()).data).toEqual({ snapshot_every: "month", snapshot_wait_days: 3 });
     await expect(setAutoSnapshots(ben, dash, { every: "week", waitDays: 3 })).rejects.toEqual(forbidden);
-    await expect(setAutoSnapshots(owner, dash, { every: "year", waitDays: 3 })).rejects.toThrow(/week, month or quarter/);
+    await expect(setAutoSnapshots(owner, dash, { every: "day", waitDays: 3 })).rejects.toThrow(/week, month, quarter, half-year or year/);
+    for (const every of ["half", "year"]) {
+      await setAutoSnapshots(owner, dash, { every, waitDays: 30 });
+      expect((await db().from("dashboards").select("snapshot_every").eq("id", dash).single()).data?.snapshot_every).toBe(every);
+    }
     await expect(setAutoSnapshots(owner, dash, { every: "month", waitDays: 61 })).rejects.toThrow(/between 0 and 60/);
     await setAutoSnapshots(owner, dash, { every: null, waitDays: 5 });
     expect((await db().from("dashboards").select("snapshot_every").eq("id", dash).single()).data?.snapshot_every).toBeNull();
@@ -81,6 +85,65 @@ describe("automatic Snapshots", () => {
     expect(await takeDueSnapshots(w.id, "2026-10-02", effects)).toEqual({ taken: 2, failed: 0 });
     expect((await listSnapshots(owner, q)).map((s) => s.label)).toEqual(["Q3 2026"]);
     expect((await listSnapshots(owner, dash)).map((s) => s.label)).toEqual(["October 2026", "September 2026"]);
+  });
+
+  it("take a year once its every month is Locked and not before, once only (spec 0020)", async () => {
+    const { w, owner, rev, dash } = await setup();
+    await setAutoSnapshots(owner, dash, { every: "year", waitDays: 30 });
+    const { sent, effects } = fakeNotices();
+    // On 31 December the last complete year is 2025, long past its wait: that one is taken, not 2026.
+    for (let m = 1; m <= 11; m++) await w.lock(rev.id, `2026-${String(m).padStart(2, "0")}-01`);
+    expect(await takeDueSnapshots(w.id, "2026-12-31", effects)).toEqual({ taken: 1, failed: 0 });
+    expect((await listSnapshots(owner, dash)).map((s) => s.label)).toEqual(["2025"]);
+    // Over, with eleven of twelve months Locked: it waits.
+    expect(await takeDueSnapshots(w.id, "2027-01-02", effects)).toEqual({ taken: 0, failed: 0 });
+    await w.lock(rev.id, "2026-12-01");
+    expect(await takeDueSnapshots(w.id, "2027-01-03", effects)).toEqual({ taken: 1, failed: 0 });
+    const [s] = await listSnapshots(owner, dash);
+    expect(s).toMatchObject({ kind: "year", label: "2026", start: "2026-01-01", end: "2026-12-31", automatic: true });
+    expect(sent.map((n) => n.subject)).toEqual(["Snapshot of 2025 ready to write up", "Snapshot of 2026 ready to write up"]);
+    expect(await takeDueSnapshots(w.id, "2027-02-15", effects)).toEqual({ taken: 0, failed: 0 });
+    expect(await listSnapshots(owner, dash)).toHaveLength(2);
+  });
+
+  it("take a half-year once its six months are Locked, or after the wait, once only (spec 0020)", async () => {
+    const { w, owner, rev, dash } = await setup();
+    await setAutoSnapshots(owner, dash, { every: "half", waitDays: 10 });
+    const { effects } = fakeNotices();
+    for (const m of ["07", "08", "09", "10", "11"]) await w.lock(rev.id, `2026-${m}-01`);
+    expect(await takeDueSnapshots(w.id, "2027-01-05", effects)).toEqual({ taken: 0, failed: 0 });
+    await w.lock(rev.id, "2026-12-01");
+    expect(await takeDueSnapshots(w.id, "2027-01-06", effects)).toEqual({ taken: 1, failed: 0 });
+    expect((await listSnapshots(owner, dash)).map((s) => s.label)).toEqual(["H2 2026"]);
+    expect(await takeDueSnapshots(w.id, "2027-01-07", effects)).toEqual({ taken: 0, failed: 0 });
+    // Without Locks, the first half of 2027 is taken ten days after it ends: 10 July.
+    expect(await takeDueSnapshots(w.id, "2027-07-09", effects)).toEqual({ taken: 0, failed: 0 });
+    expect(await takeDueSnapshots(w.id, "2027-07-10", effects)).toEqual({ taken: 1, failed: 0 });
+    expect((await listSnapshots(owner, dash)).map((s) => s.label)).toEqual(["H1 2027", "H2 2026"]);
+  });
+
+  it("take a year of daily Metrics once every day is Locked, past a thousand Locks", async () => {
+    const { w, owner, dash } = await setup();
+    const days: string[] = [];
+    for (let d = new Date(Date.UTC(2028, 0, 1)); d.getUTCFullYear() === 2028; d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10));
+    expect(days).toHaveLength(366);
+    const daily = [];
+    for (const name of ["Orders", "Visits", "Returns"]) {
+      const m = await w.metric(owner.personId, { name, period: "day" });
+      await placeWidget(owner, dash, { type: "metric", id: m.id });
+      daily.push(m);
+    }
+    const y = await createDashboard(owner, "Daily year");
+    for (const m of daily) await placeWidget(owner, y, { type: "metric", id: m.id });
+    await setAutoSnapshots(owner, y, { every: "year", waitDays: 60 });
+    const rows = daily.flatMap((m) => days.map((p) => ({ metric_id: m.id, period_start: p, state: "locked", workspace_id: w.id })));
+    // All but the last day of the last Metric: 1,097 Locks, more than one request returns.
+    expect((await db().from("period_states").insert(rows.slice(0, -1))).error).toBeNull();
+    const { effects } = fakeNotices();
+    expect(await takeDueSnapshots(w.id, "2029-01-02", effects)).toEqual({ taken: 0, failed: 0 });
+    expect((await db().from("period_states").insert(rows.slice(-1))).error).toBeNull();
+    expect(await takeDueSnapshots(w.id, "2029-01-02", effects)).toEqual({ taken: 1, failed: 0 });
+    expect((await listSnapshots(owner, y)).map((s) => s.label)).toEqual(["2028"]);
   });
 
   it("stop when the dashboard is handed over, and never run in the demo (second security review)", async () => {

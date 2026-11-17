@@ -1,5 +1,5 @@
-// Automatic Snapshots (spec 0013, ticket #176; GLOSSARY: Snapshot, Lock, Workflow). A dashboard's owner may have it
-// take a Snapshot of every week, month or quarter by itself. The daily run of each workspace (spec 0005) takes the
+// Automatic Snapshots (spec 0013, ticket #176; spec 0020; GLOSSARY: Snapshot, Lock, Workflow). A dashboard's owner
+// may have it take a Snapshot of every week, month, quarter, half-year or year by itself. The daily run of each workspace (spec 0005) takes the
 // Snapshot of the last complete period as soon as every Metric on the dashboard is Locked for every Metric period
 // inside it, or a set number of days after it ended, whichever comes first. It is taken in the owner's name, as a
 // draft, with what the owner sees, and the owner is told it is ready to write up. A period is taken once: one that
@@ -9,10 +9,11 @@ import { Forbidden, type Actor } from "./actor";
 import { dashboardRole } from "./dashboards";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
-import { completePeriods, metricPeriodsIn, type SnapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
+import { completePeriods, metricPeriodsIn, SNAPSHOT_PERIOD_KINDS, type SnapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
 import { takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { widgetMetricIds } from "./widget-metrics";
+import { allRows } from "./workspace-data";
 import type { Period } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { type YearStart } from "./periods";
@@ -20,10 +21,7 @@ import { type YearStart } from "./periods";
 /** The longest a dashboard may wait after a period ends before taking its Snapshot, in days. */
 export const MAX_WAIT_DAYS = 60;
 
-/** The Snapshot periods a dashboard may take by itself; half-years and years only by hand for now. */
-const AUTO_KINDS: SnapshotPeriodKind[] = ["week", "month", "quarter"];
-
-/** How a dashboard takes its Snapshots by itself: every week, month or quarter, or never (null). */
+/** How a dashboard takes its Snapshots by itself: every week, month, quarter, half-year or year, or never (null). */
 export type AutoSnapshots = { every: SnapshotPeriodKind | null; waitDays: number };
 
 /** What taking a Snapshot by itself sets off: telling the dashboard's owner. Tests may pass their own. */
@@ -39,19 +37,21 @@ export async function setAutoSnapshots(actor: Actor, dashboardId: number, settin
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   if ((await dashboardRole(actor, dashboardId)) !== "owner") throw new Forbidden();
   const every = setting?.every === null || setting?.every === "" ? null : String(setting?.every);
-  if (every !== null && !AUTO_KINDS.includes(every as SnapshotPeriodKind)) throw new Error("Pick week, month or quarter, or none.");
+  if (every !== null && !SNAPSHOT_PERIOD_KINDS.includes(every as SnapshotPeriodKind)) throw new Error("Pick week, month, quarter, half-year or year, or none.");
   const waitDays = Math.round(Number(setting?.waitDays));
   if (!Number.isFinite(waitDays) || waitDays < 0 || waitDays > MAX_WAIT_DAYS) throw new Error(`Wait between 0 and ${MAX_WAIT_DAYS} days.`);
   const { error } = await db().from("dashboards").update({ snapshot_every: every, snapshot_wait_days: waitDays }).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The setting could not be saved.");
 }
 
-/** Whether every Metric on the dashboard is Locked for every one of its periods inside the Snapshot period. A
- * dashboard without Metrics is never complete this way; it waits. */
+/** Whether every Metric on the dashboard is Locked for every one of its periods inside the Snapshot period: for a
+ * year of monthly Metrics all twelve months, of daily ones every day. A dashboard without Metrics is never complete
+ * this way; it waits. */
 async function allLocked(ws: string, metrics: { id: number; period: Period }[], p: SnapshotPeriod, yearStart: YearStart): Promise<boolean> {
   if (!metrics.length) return false;
-  const { data } = await db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "locked").in("metric_id", metrics.map((m) => m.id)).gte("period_start", p.start).lte("period_start", p.end);
-  const locked = new Set((data ?? []).map((r) => `${r.metric_id}:${r.period_start}`));
+  // A year of daily Metrics may hold more Locks than one request returns, so read them page by page.
+  const rows = await allRows<{ metric_id: number; period_start: string }>((from, to) => db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "locked").in("metric_id", metrics.map((m) => m.id)).gte("period_start", p.start).lte("period_start", p.end).order("metric_id").order("period_start").range(from, to));
+  const locked = new Set(rows.map((r) => `${r.metric_id}:${r.period_start}`));
   return metrics.every((m) => {
     const inside = metricPeriodsIn(m.period, p, yearStart);
     return inside.length > 0 && inside.every((s) => locked.has(`${m.id}:${s}`));
