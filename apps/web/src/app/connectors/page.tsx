@@ -6,7 +6,7 @@ import { inboundEnabled, mailEnabled } from "@ziffr/core/mail";
 import { slackConnection } from "@ziffr/core/slack-connection";
 import { mySlackLink, slackOptedOut } from "@ziffr/core/slack-people";
 import { telegramConnection } from "@ziffr/core/telegram-connection";
-import { myTelegramLink } from "@ziffr/core/telegram-people";
+import { myTelegramLink, telegramOptedOut } from "@ziffr/core/telegram-people";
 import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { ConnectorsScreen, type DeliveryRow, type PrefRow } from "./screen";
@@ -28,12 +28,12 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   // What the person may see is decided in the core: readable Deliveries, and only their own Token codes. The Slack
   // connection comes as its name only; its token never leaves the core (spec 0007). Telegram's bot comes as its
   // username only; its token stays in the environment (spec 0016).
-  const [people, view, optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, { slack: outcome }] = await Promise.all([getProfiles(), connectorsView(actor), emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), searchParams]);
+  const [people, view, optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }] = await Promise.all([getProfiles(), connectorsView(actor), emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams]);
   return (
     <>
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
       {(slack.enabled || slack.team) && <SlackPanel connection={slack} link={slackLink} stopped={slackStopped} notice={outcome ? SLACK_OUTCOME[String(outcome)] : undefined} />}
-      {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} />}
+      {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
       <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={mailEnabled() ? (inboundEnabled() ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} />
     </>
   );

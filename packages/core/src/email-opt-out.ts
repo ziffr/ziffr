@@ -40,7 +40,7 @@ async function stopEmail(workspaceId: string, personId: string): Promise<void> {
 
 /** Tells the owners of the Metrics a person submits to that they stopped Prompts and reminders by email or on
  * Slack: they ask for those values and should know. Once a day at most per person, by either way. */
-export async function tellOwnersOfStop(ws: string, personId: string, where: "by email" | "on Slack"): Promise<void> {
+export async function tellOwnersOfStop(ws: string, personId: string, where: "by email" | "on Slack" | "on Telegram"): Promise<void> {
   // Someone who switches it off, on and off again tells the owners once a day at most, not at every flip; the claim
   // is one statement in the database, so flips sent at once tell them once too.
   const { data: mayTell } = await db().rpc("claim_opt_out_notice", { p_workspace: ws, p_person: personId });

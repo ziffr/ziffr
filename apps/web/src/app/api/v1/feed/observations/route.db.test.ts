@@ -89,11 +89,12 @@ describe("POST /api/v1/feed/observations", () => {
 describe("GET /api/v1/feed", () => {
   it("names the Feed and its Metrics with the periods that have a value", async () => {
     const { w, sara, m, secret } = await setup();
-    await w.value(m.id, "2026-01-01", 42, sara);
+    // A value no slug can contain (slugs are hex, without a point): the value itself must never be in the answer.
+    await w.value(m.id, "2026-01-01", 1234.5, sara);
     const res = await GET(get(secret), {} as never);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ name: "CRM", metrics: { items: [expect.objectContaining({ slug: m.slug, name: "Pipeline", period: "month", filled: ["2026-01-01"] })], next: null } });
-    expect(JSON.stringify(body)).not.toContain("42");
+    expect(JSON.stringify(body)).not.toContain("1234.5");
   });
 });

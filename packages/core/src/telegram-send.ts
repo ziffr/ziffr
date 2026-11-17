@@ -3,7 +3,7 @@
 // connected themselves, through the queue every real Connector uses: queued, claimed in the database within limits,
 // retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
 import { db } from "./db";
-import { FORM_LINK, MAX_ATTEMPTS, type SendResult } from "./mail";
+import { FORM_LINK, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
@@ -21,6 +21,20 @@ export const TELEGRAM_PER_BOT_PER_SECOND = 25;
 /** The longest message Telegram takes. */
 const MAX_TEXT = 4096;
 
+/** What a button's callback_data says: its action and the Delivery, nothing of the workspace (at most 64 bytes). */
+export const TELEGRAM_BUTTONS = { approve: "a", stop: "s" } as const;
+
+/** A Prompt's or reminder's button, and an approval task's: what the recipient can do without opening Ziffr. */
+async function buttons(d: { id: number; workspace_id: string; kind: string; action_id: number | null }) {
+  const row: { text: string; callback_data: string }[] = [];
+  if (d.action_id && d.kind === "task") {
+    const { data: a } = await db().from("actions").select("purpose, status").eq("id", d.action_id).eq("workspace_id", d.workspace_id).maybeSingle();
+    if (a?.purpose === "approval" && a.status === "open") row.push({ text: "Approve", callback_data: `${TELEGRAM_BUTTONS.approve}:${d.id}` });
+  }
+  if (OPT_OUT_KINDS.includes(d.kind)) row.push({ text: "Stop these on Telegram", callback_data: `${TELEGRAM_BUTTONS.stop}:${d.id}` });
+  return row.length ? { inline_keyboard: [row] } : undefined;
+}
+
 /** Whether a new Telegram Delivery in this workspace is really sent: Telegram is on there (never in the demo). */
 export async function telegramSends(workspaceId: string): Promise<boolean> {
   return telegramOnIn(workspaceId);
@@ -37,6 +51,11 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
     return "failed" as const;
   };
   if (d.workspace_id === DEMO_WORKSPACE_ID || !(await telegramOnIn(d.workspace_id))) return never("Telegram is off in this workspace.");
+  // Someone who stopped Prompts and reminders on Telegram gets none, also ones queued before they stopped.
+  if (OPT_OUT_KINDS.includes(d.kind)) {
+    const { data: out } = await db().from("telegram_opt_outs").select("person_id").eq("workspace_id", d.workspace_id).eq("person_id", d.recipient_id).maybeSingle();
+    if (out) return never("They stopped reminders on Telegram.");
+  }
   const chat = await telegramChatOf(d.workspace_id, d.recipient_id);
   if (!chat) return never("Not connected to Telegram.");
   // Claimed in the database within the limits, so neither parallel sends nor many Deliveries pass them.
@@ -54,12 +73,14 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
     const site = String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "");
     text = text.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
   }
+  const markup = await buttons(d);
   try {
     const sent = await callTelegram<{ message_id?: unknown; chat?: { id?: unknown } }>("sendMessage", {
       chat_id: chat.chatId,
       // Plain text, no parse mode: nothing in the workspace's words becomes formatting or a hidden link.
       text: text.slice(0, MAX_TEXT),
       link_preview_options: { is_disabled: true },
+      ...(markup ? { reply_markup: markup } : {}),
     });
     const messageId = typeof sent?.message_id === "number" && Number.isSafeInteger(sent.message_id) && sent.message_id > 0 ? sent.message_id : null;
     if (!messageId) throw new TelegramError("no_message_id");
