@@ -16,6 +16,7 @@ import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
+import { dayAfter, heldText, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.
@@ -192,8 +193,14 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
   if (!m) return;
-  const all = data.series[m.slug] ?? [];
+  // The same points the app draws, by the widget's Display Period when it has one (spec 0018).
+  const shown = shownSeries(m, data, SHOWN_BY.includes(widget.template) ? widget.settings.display : undefined, { today: widget.settings.asOf ? dayAfter(widget.settings.asOf) : undefined });
+  const by = shown.by;
+  const all = shown.points;
   const pts = all.slice(-(widget.settings.window ?? 12));
+  const name = (p: DisplayPoint, short = false) => periodLabel(p.period, by, data.yearStart, short) + (p.toDate ? (short ? " to date" : ` to date, ${heldText(p, m.period)}`) : "");
+  // A span's target when combined (see targetsBy), else the Metric's range as always.
+  const goal = (p: DisplayPoint | undefined) => (shown.combined ? { min: shown.targets?.at[p?.period ?? ""]?.min ?? null, max: shown.targets?.at[p?.period ?? ""]?.max ?? null } : { min: m.target_min, max: m.target_max });
   const title = widget.title ?? m.name;
 
   // Card behind every widget, like the cotton sheet in the app.
@@ -217,7 +224,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     catAxisLineShow: false,
     valAxisLineShow: false,
   };
-  const labels = pts.map((p) => periodLabel(p.period, m.period, data.yearStart, true));
+  const labels = pts.map((p) => name(p, true));
   const values = pts.map((p) => Math.round(p.value * 100) / 100);
 
   if (widget.template === "line" && pts.length > 1) {
@@ -229,14 +236,16 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   } else if (widget.template === "number") {
     const last = all[all.length - 1];
     const prev = all[all.length - 2];
-    const off = last && ((m.target_max !== null && last.value > m.target_max) || (m.target_min !== null && last.value < m.target_min));
-    const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
+    const t = goal(last);
+    const off = last && ((t.max !== null && last.value > t.max) || (t.min !== null && last.value < t.min));
+    // A quarter to date against a whole one would read as a drop: no change then.
+    const change = last && prev && prev.value && !last.toDate ? (last.value - prev.value) / Math.abs(prev.value) : null;
     slide.addText(
       [
         { text: `${title}\n`, options: { fontSize: 12, bold: true, color: INK } },
         { text: formatValue(m, last?.value), options: { fontSize: Math.min(40, Math.max(18, at.h * 9)), bold: true, color: off ? ERROR : INK } },
         { text: change === null ? "" : `  ${change > 0 ? "+" : ""}${(change * 100).toFixed(1)} %\n`, options: { fontSize: 12, color: MUTED, fontFace: FONT } },
-        { text: last ? periodLabel(last.period, m.period, data.yearStart) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
+        { text: last ? name(last) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
       ],
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
     );
@@ -270,7 +279,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();
     slide.addTable(
       rows.map((r) => [
-        { text: periodLabel(r.period, m.period, data.yearStart, true), options: { color: MUTED } },
+        { text: name(r, true), options: { color: MUTED } },
         { text: formatValue(m, r.value), options: { align: "right" as const, fontFace: FONT } },
       ]),
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },

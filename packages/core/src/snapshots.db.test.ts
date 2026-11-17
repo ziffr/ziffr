@@ -6,6 +6,7 @@ import { db } from "./db";
 import { createDashboard, placeWidget, removeWidget, saveDashboardText } from "./dashboards";
 import { dashboardWidgets } from "./page-data";
 import { share } from "./sharing";
+import { createViewLink, openViewLink } from "./view-links";
 import { deleteSnapshot, editSnapshotWords, listSnapshots, MAX_SNAPSHOTS, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
 import { listVersions, restoreVersion, saveNamedVersion } from "./version-history";
 import { activityView } from "./page-data";
@@ -112,6 +113,19 @@ describe("taking a Snapshot", () => {
     expect(JSON.stringify(s.data)).not.toContain("secret@example.com");
     expect(s.data.openActions).toEqual({});
     expect(s.data.groups).toEqual([]);
+  });
+
+  it("keeps a widget's Display Period, counting to date from the day after its period (spec 0018)", async () => {
+    const { owner, dash, rev } = await setup();
+    await placeWidget(owner, dash, { type: "spec", template: "bars", metricIds: [rev.id], settings: { display: "quarter" } });
+    const id = await takeSnapshot(owner, dash, october);
+    await showSnapshot(owner, id);
+    const s = await openSnapshot(owner, id);
+    expect(s.data.today).toBe("2026-11-01");
+    expect(s.widgets.find((x) => x.template === "bars")?.settings.display).toBe("quarter");
+    // Through a View Link to it, the same day.
+    const token = await createViewLink(owner, "dashboard", dash, { label: "Board", expires: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), frozen: false, snapshotId: id });
+    expect((await openViewLink(token))?.data.today).toBe("2026-11-01");
   });
 
   it("is written down in the Audit Log", async () => {

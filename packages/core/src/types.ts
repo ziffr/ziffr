@@ -284,6 +284,9 @@ export type CanvasData = {
   /** The month the workspace's year starts in (GLOSSARY: Fiscal Year): where every quarter, half-year and year that
    * is drawn or compared begins. Always the workspace's own now, also for a Snapshot taken under another. */
   yearStart: YearStart;
+  /** The day a widget shown by a Display Period counts "to date" from (yyyy-mm-dd): the day after a Snapshot's
+   * period, or the day a frozen View Link was made, so they keep what they showed. Absent: the current day. */
+  today?: string;
 };
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */

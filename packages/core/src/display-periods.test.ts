@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { displayPeriodsFor, NOT_COMBINED, periodCount, seriesBy, shownSeries } from "./display-periods";
+import { dayAfter, displayPeriodsFor, INPUTS_MISSING, NOT_COMBINED, periodCount, seriesBy, shownSeries } from "./display-periods";
 import { JANUARY } from "./periods";
 import { canvas, metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -114,6 +114,21 @@ describe("seriesBy", () => {
     const s = shownSeries(rate, canvas([rate], { revenue: months("2025-01", [1, 2, 3]) }), "quarter");
     expect(s).toMatchObject({ by: "month", combined: false, reason: NOT_COMBINED });
     expect(s.points).toHaveLength(3);
+  });
+
+  it("keeps what a Snapshot showed: to date as of its day, not today", () => {
+    const m = metric();
+    // October kept by a Snapshot of October: Q4 was running then, one month of three.
+    const kept = canvas([m], { revenue: months("2025-07", [1, 2, 3, 4]) }, { today: dayAfter("2025-10-31") });
+    expect(shownSeries(m, kept, "quarter").points.at(-1)).toMatchObject({ period: "2025-10-01", value: 4, toDate: true, held: 1 });
+    // Read without its day, the quarter would be over and too empty to show.
+    expect(shownSeries(m, { ...kept, today: undefined }, "quarter").points.map((p) => p.period)).toEqual(["2025-07-01"]);
+  });
+
+  it("shows a Derived Metric by its own period where its inputs are not shared", () => {
+    const margin = metric({ id: 3, slug: "margin", formula: "{revenue} - {cost}", aggregation: "none" });
+    const s = shownSeries(margin, canvas([margin], { margin: months("2025-01", [1, 2, 3]) }), "quarter");
+    expect(s).toMatchObject({ combined: false, reason: INPUTS_MISSING });
   });
 
   it("offers only the Display Periods longer than a Metric's own", () => {
