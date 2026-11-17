@@ -38,9 +38,6 @@
       "Write(./.env.test*)",
       "Bash(supabase db reset --linked:*)",
       "Bash(supabase db push:*)"
-    ],
-    "ask": [
-      "Bash(git push:*)"
     ]
   },
   "hooks": {
