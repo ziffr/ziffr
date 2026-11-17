@@ -59,9 +59,9 @@ Each result is a Widget with a title saying what it compares, such as "Forecast:
 
 ### Forecast
 
-A line of the Metric's last 18 periods, continued a few periods ahead: three months for a monthly Metric, six weeks for a weekly one, fourteen days for a daily one. A shaded band around the continued line shows how far the actual values will likely be from it; it widens the further ahead it looks. Above the line, one sentence sums it up, such as "Expected €1.2M by June 2027 (likely €1.0M–€1.4M)".
+A line of the Metric's last 18 periods, continued a few periods ahead: two quarters for a quarterly Metric, one year for a yearly one, three months for a monthly Metric, six weeks for a weekly one, fourteen days for a daily one. A shaded band around the continued line shows how far the actual values will likely be from it; it widens the further ahead it looks. Above the line, one sentence sums it up, such as "Expected €1.2M by June 2027 (likely €1.0M–€1.4M)".
 
-The forecast follows the recent trend of the values. It knows nothing of plans, seasons or events, so read it as "where this is heading if nothing changes". It needs at least four values.
+The forecast follows the recent trend of the values. It knows nothing of plans, seasons or events, so read it as "where this is heading if nothing changes". It needs at least four values, so a yearly Metric has one after four years.
 
 Placed on a dashboard, a forecast can be shown by quarter, half-year or year with **Show by** (see the Dashboards chapter): it then continues the quarters two ahead (a year one ahead), starting from the last complete one, so a quarter still running does not pull it down.
 

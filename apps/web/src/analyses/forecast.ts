@@ -3,12 +3,15 @@ import { shiftPeriod, type Span } from "@ziffr/core/periods";
 
 export type ForecastPoint = { period: string; value: number; lo: number; hi: number };
 
-// A few spans ahead: two weeks of days, three months, one year.
+// A few spans ahead: two weeks of days, three months, two quarters, one year.
 const HORIZON: Record<Span, number> = { day: 14, week: 6, month: 3, quarter: 2, half: 2, year: 1 };
+
+/** How many values a forecast needs: Holt's method fits a level and a trend, which takes four points. */
+export const FORECAST_MIN_POINTS = 4;
 
 /** Holt's linear trend (double exponential smoothing) with a widening ~95% band. */
 export function forecast(points: Point[], period: Span, horizon = HORIZON[period]) {
-  if (points.length < 4) return null;
+  if (points.length < FORECAST_MIN_POINTS) return null;
   const alpha = 0.5;
   const beta = 0.3;
   const ys = points.map((p) => p.value);

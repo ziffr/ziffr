@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attainment, compare, resolverFrom, targetFor } from "./compare";
+import { attainment, compare, comparisonsFor, resolverFrom, targetFor } from "./compare";
 import { JANUARY, type YearStart } from "./periods";
 import { metric, months } from "./test/fixtures";
 
@@ -69,3 +69,48 @@ describe("targets and attainment", () => {
     expect(attainment(metric({ polarity: "target" }), 5, { min: 1, max: 10 })).toBe(100);
   });
 });
+
+describe("quarterly and yearly Metrics", () => {
+  // Quarter starts, one value per quarter, oldest first.
+  const quarters = (start: string, values: number[]) => values.map((value, i) => {
+    const [y, m] = start.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + 3 * i, 1));
+    return { period: d.toISOString().slice(0, 10), value };
+  });
+  it("offers the previous quarter, QoQ, HoH and YoY to a quarterly Metric, and only YoY to a yearly one", () => {
+    expect(comparisonsFor("quarter")).toEqual(["prev", "qoq", "hoh", "yoy"]);
+    expect(comparisonsFor("year")).toEqual(["yoy"]);
+    expect(comparisonsFor("month")).toEqual(["prev", "mom", "qoq", "hoh", "yoy"]);
+  });
+  it("compares a quarter with the one before, its half so far and the same quarter a year before", () => {
+    const nps = metric({ slug: "nps", period: "quarter", aggregation: "sum" });
+    // Q1 2025 to Q3 2026: 10, 20, 30, 40, 50, 60, 70.
+    const r = resolverFrom([nps], { nps: quarters("2025-01", [10, 20, 30, 40, 50, 60, 70]) });
+    const [prev, qoq, hoh, yoy] = compare(nps, r, { yearStart: JANUARY, keys: comparisonsFor("quarter") });
+    expect(prev).toMatchObject({ current: 70, previous: 60, currentSpan: "Q3 26", previousSpan: "Q2 26" });
+    expect(qoq).toMatchObject({ current: 70, previous: 60 });
+    // H2 2026 so far is Q3 alone, against Q1 2026, the first quarter of H1.
+    expect(hoh).toMatchObject({ current: 70, previous: 50, currentSpan: "Q3 26", previousSpan: "Q1 26" });
+    expect(yoy).toMatchObject({ current: 70, previous: 30, previousSpan: "Q3 25" });
+    // Full periods: H1 2026 (Q1 + Q2) against H2 2025 (Q3 + Q4).
+    const [full] = compare(nps, r, { yearStart: JANUARY, keys: ["hoh"], full: true });
+    expect(full).toMatchObject({ current: 50 + 60, previous: 30 + 40, currentSpan: "Q1 26 to Q2 26" });
+  });
+  it("follows the year start: with April, the half of a quarter from October is the one from October", () => {
+    const nps = metric({ slug: "nps", period: "quarter", aggregation: "sum" });
+    // Apr 2025 to Jan 2027: the last quarter, Q4 FY 2026/27, starts in January.
+    const r = resolverFrom([nps], { nps: quarters("2025-04", [1, 2, 3, 4, 5, 6, 7, 8]) });
+    const [hoh] = compare(nps, r, { yearStart: 4, keys: ["hoh"] });
+    // H2 FY 2026/27 so far is October and January's quarters, against April and July's.
+    expect(hoh).toMatchObject({ current: 7 + 8, previous: 5 + 6, currentSpan: "Q3 26/27 to Q4 26/27" });
+  });
+  it("compares a year with the year before", () => {
+    const audit = metric({ slug: "audit", period: "year", aggregation: "last" });
+    const r = resolverFrom([audit], { audit: [{ period: "2024-01-01", value: 80 }, { period: "2025-01-01", value: 90 }] });
+    expect(compare(audit, r, { yearStart: JANUARY })).toEqual([expect.objectContaining({ key: "yoy", current: 90, previous: 80, currentSpan: "2025", previousSpan: "2024" })]);
+    // A fiscal year is named by both its calendar years.
+    const fy = resolverFrom([audit], { audit: [{ period: "2024-04-01", value: 80 }, { period: "2025-04-01", value: 88 }] });
+    expect(compare(audit, fy, { yearStart: 4 })[0]).toMatchObject({ current: 88, previous: 80, currentSpan: "FY25/26", previousSpan: "FY24/25" });
+  });
+});
+

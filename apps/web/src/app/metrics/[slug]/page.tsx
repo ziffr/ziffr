@@ -19,7 +19,7 @@ import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { forecast } from "@/analyses/forecast";
+import { FORECAST_MIN_POINTS, forecast } from "@/analyses/forecast";
 import { rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
@@ -175,7 +175,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values` : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -257,11 +257,11 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <h3 className="text-sm font-medium">Forecast</h3>
               {fc ? (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length} {metric.period}s:{" "}
+                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length === 1 ? metric.period : `${fc.points.length} ${metric.period}s`}:{" "}
                   <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, yearStart)}
                   {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
                 </p>
-              ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least 4 values.</p>}
+              ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least {FORECAST_MIN_POINTS} values{points.length ? `; ${points.length} so far` : ""}.{metric.period === "year" ? ` A yearly Metric has one after ${FORECAST_MIN_POINTS} years.` : ""}</p>}
             </div>
             <div>
               <h3 className="text-sm font-medium">Correlation</h3>

@@ -39,4 +39,15 @@ describe("forecast", () => {
     expect(d).toHaveLength(14);
     expect([d[0].period, d[13].period]).toEqual(["2025-01-05", "2025-01-18"]);
   });
+
+  it("looks two quarters ahead for a quarterly Metric and one year for a yearly one, after four values", () => {
+    const pts = (starts: string[]) => starts.map((period, i) => ({ period, value: 100 + 10 * i }));
+    const q = forecast(pts(["2025-10-01", "2026-01-01", "2026-04-01", "2026-07-01"]), "quarter");
+    expect(q?.points.map((p) => p.period)).toEqual(["2026-10-01", "2027-01-01"]);
+    const y = forecast(pts(["2022-04-01", "2023-04-01", "2024-04-01", "2025-04-01"]), "year");
+    expect(y?.points.map((p) => p.period)).toEqual(["2026-04-01"]);
+    expect(y?.points[0].value).toBeCloseTo(140, 0);
+    // A yearly Metric has a forecast after four years.
+    expect(forecast(pts(["2023-01-01", "2024-01-01", "2025-01-01"]), "year")).toBeNull();
+  });
 });
