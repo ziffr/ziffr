@@ -220,6 +220,8 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 
 Ziffr has no screen yet for creating a Derived Metric or changing its formula. A Derived Metric's formula is shown here, but not edited.
 
+A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, and other Metrics. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
+
 ### Workflow
 
 A **Workflow** is the path the Metric's value takes each period: who is asked, when they are reminded, who steps in, which values need **Approval**, and when the period locks. This box is described in detail in [Workflows and approvals](11-workflows.md#a-metrics-workflow-box). In short:

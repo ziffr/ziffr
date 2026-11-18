@@ -2,7 +2,7 @@
 // by its Aggregation. Pure. Widgets, Comparisons and the export all combine through `seriesBy`, so a quarter's value
 // is the same in a chart, a table and a Comparison strip.
 import { format } from "date-fns";
-import { evaluate, formulaInputs } from "./formula";
+import { evaluate, formulaInputs, inputsNotCombined } from "./formula";
 import { periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { CanvasData, Metric, Point, TemplateId } from "./types";
 
@@ -105,6 +105,12 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   if (display === own) return { ok: true, points: points.map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period })) };
   if (!isLonger(display, own)) return { ok: false, reason: `A ${own}'s value cannot be split into shorter periods.`, points: [] };
   if (!combines(metric)) return { ok: false, reason: NOT_COMBINED, points: [] };
+  // A Derived Metric combines through its inputs: one set to Aggregation none leaves every span empty, so it says why
+  // instead of drawing an empty chart (spec 0022).
+  if (metric.formula) {
+    const why = inputsNotCombined(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []));
+    if (why) return { ok: false, reason: why, points: [] };
+  }
   const ys = opts.yearStart;
   const today = opts.today ?? format(new Date(), "yyyy-MM-dd");
   const latest = points[points.length - 1]?.period;

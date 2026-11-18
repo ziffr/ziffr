@@ -6,6 +6,7 @@ import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-rea
 import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
+import { inputsProblem } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
 import { DeleteMetric } from "./delete-metric";
 import { canEditMetric } from "@ziffr/core/metrics";
@@ -125,6 +126,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const canEdit = isOwner || (await canEditMetric(actor, metric.id));
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
+  // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
+  const derivedProblem = inputsProblem(metric, metrics);
 
   return (
     <>
@@ -177,7 +180,10 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       {tab === "overview" && (
         <div className="space-y-6">
-          {points.length === 0 ? (
+          {/* A Derived Metric whose inputs cannot be combined says why, instead of an empty chart (spec 0022). */}
+          {derivedProblem ? (
+            <div role="status" className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">{derivedProblem}</div>
+          ) : points.length === 0 ? (
             <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>

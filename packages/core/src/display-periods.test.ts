@@ -131,6 +131,19 @@ describe("seriesBy", () => {
     expect(s).toMatchObject({ combined: false, reason: INPUTS_MISSING });
   });
 
+  it("shows a Derived Metric with an input set to Aggregation none by its own period, saying why (spec 0022)", () => {
+    const revenue = metric({ id: 1, slug: "revenue", name: "Revenue" });
+    const stock = metric({ id: 2, slug: "stock", name: "Stock", aggregation: "none" });
+    const per = metric({ id: 3, slug: "per", name: "Revenue per stock", formula: "{revenue} / {stock}", aggregation: "none" });
+    const all = { revenue: months("2025-01", [10, 20, 30]), stock: months("2025-01", [1, 2, 3]), per: months("2025-01", [10, 10, 10]) };
+    const s = shownSeries(per, canvas([revenue, stock, per], all), "quarter", { today: "2026-01-01" });
+    expect(s).toMatchObject({ by: "month", combined: false, reason: expect.stringMatching(/Stock is set to Aggregation none/) });
+    expect(s.points).toHaveLength(3);
+    // A Comparison by a longer period says the same instead of "no values".
+    const [qoq] = compare(per, resolverFrom([revenue, stock, per], all), { keys: ["qoq"], yearStart: ys });
+    expect(qoq).toMatchObject({ available: false, reason: expect.stringMatching(/Aggregation none/) });
+  });
+
   it("offers only the Display Periods longer than a Metric's own", () => {
     expect(displayPeriodsFor("month")).toEqual(["quarter", "half", "year"]);
     expect(displayPeriodsFor("day")).toEqual(["week", "month", "quarter", "half", "year"]);
