@@ -47,6 +47,10 @@ Read [docs/guides/documentation.md](docs/guides/documentation.md): what gets doc
 
 Work bigger than one pull request starts with a spec in `docs/specs/` and is split into tickets: GitHub issues that are sub-issues of the spec's tracking issue. Every pull request closes a ticket (`Closes #123`), so progress shows itself. Details: [docs/specs/README.md](docs/specs/README.md).
 
+## Calculations
+
+Every calculation on values is held to an independent reference in `packages/core/src/test/reference/`, for every combination of Period, Display Period, Aggregation and Fiscal Year start, on hand-made and generated series (spec 0022). `pnpm test` runs it on every change; `pnpm --filter @ziffr/core test:numbers` is the full-strength run, which CI's `numbers` job runs when a change touches one of the calculation paths in `.github/calculation-paths.txt`, and which runs every night and before a release. A file that calculates with values belongs in that list. How the tests work, what to do when one fails and how to add a case: `docs/guides/calculation-tests.md`.
+
 ## Pull requests
 
 - One concern per pull request; small is better.

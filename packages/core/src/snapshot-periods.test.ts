@@ -1,6 +1,6 @@
 // The periods a Snapshot is taken for (spec 0013, ticket #175).
 import { describe, expect, it } from "vitest";
-import { completePeriods, cutPoints, dataAsOf, inSnapshot, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
+import { completePeriods, cutPoints, dataAsOf, dataAsOfEach, inSnapshot, MAX_METRIC_PERIODS, metricPeriodsIn, periodContaining, snapshotPeriod } from "./snapshot-periods";
 import { JANUARY } from "./periods";
 
 describe("Snapshot periods", () => {
@@ -104,5 +104,29 @@ describe("Snapshot periods", () => {
     expect(inSnapshot("week", "2026-09-28", "2026-09-30")).toBe(false);
     expect(inSnapshot("day", "2026-09-30", "2026-09-30")).toBe(true);
     expect(cutPoints([{ period: "2026-09-01", value: 1 }, { period: "2026-10-01", value: 2 }], "month", "2026-09-30")).toEqual([{ period: "2026-09-01", value: 1 }]);
+  });
+});
+
+describe("data as of a day, from data that is missing parts", () => {
+  it("leaves data alone when no Metric is cut, and reads missing parts as empty", () => {
+    const m = { id: 1, slug: "rev", period: "month" } as never;
+    const data = { metrics: [m], series: { rev: [{ period: "2026-09-01", value: 1 }, { period: "2026-10-01", value: 2 }] } } as never;
+    expect(dataAsOfEach(data, new Map())).toBe(data);
+    // A Snapshot kept before breakdowns, Approvals and Locks were kept has none of them.
+    const cut = dataAsOfEach(data, new Map([[1, "2026-09-30"]]));
+    expect(cut.series.rev).toEqual([{ period: "2026-09-01", value: 1 }]);
+    expect([cut.breakdowns[1], cut.pending[1], cut.locked[1]]).toEqual([{}, [], []]);
+    const other = { metrics: [m], series: {}, breakdowns: undefined, pending: undefined, locked: undefined } as never;
+    expect(dataAsOfEach(other, new Map([[1, "2026-09-30"]])).series.rev).toEqual([]);
+  });
+
+  it("cuts a series or period list of a Metric it does not know by days", () => {
+    const data = { metrics: [], series: { gone: [{ period: "2026-09-30", value: 1 }, { period: "2026-10-01", value: 2 }] }, breakdowns: { 9: { "2026-10-01": [] } }, pending: { 9: ["2026-09-30", "2026-10-01"] }, locked: {} } as never;
+    const cut = dataAsOf(data, "2026-09-30");
+    expect(cut.series.gone).toEqual([{ period: "2026-09-30", value: 1 }]);
+    expect(cut.breakdowns[9]).toEqual({});
+    expect(cut.pending[9]).toEqual(["2026-09-30"]);
+    const bare = dataAsOf({ metrics: [], series: {} } as never, "2026-09-30");
+    expect([bare.breakdowns, bare.pending, bare.locked]).toEqual([{}, {}, {}]);
   });
 });

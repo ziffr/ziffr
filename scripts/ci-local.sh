@@ -15,6 +15,10 @@ pnpm typecheck
 pnpm lint
 pnpm test
 
+step "Calculations against the reference, full strength (when a calculation path changed)"
+# The paths are listed once, in .github/calculation-paths.txt; CI's `numbers` job reads the same file.
+if .github/scripts/calculation-paths-touched.sh origin/main; then pnpm --filter @ziffr/core test:numbers; fi
+
 step "Security"
 if command -v gitleaks >/dev/null; then gitleaks git --redact --no-banner .; else echo "gitleaks not installed: skipped (brew install gitleaks)"; fi
 pnpm audit --prod

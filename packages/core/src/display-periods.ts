@@ -3,7 +3,7 @@
 // is the same in a chart, a table and a Comparison strip.
 import { format } from "date-fns";
 import { evaluate, formulaInputs, inputsNotCombined } from "./formula";
-import { periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
+import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { CanvasData, Metric, Point, TemplateId } from "./types";
 
 /** A period a widget shows a Metric by: its own, or a longer one (GLOSSARY: Display Period). */
@@ -58,11 +58,11 @@ export function isLonger(a: Span, b: Span): boolean {
 
 /** How many periods of length `p` start between two days (inclusive): weeks belong to the month they start in. */
 export function periodCount(p: Span, from: string, to: string, yearStart: YearStart): number {
-  let start = periodStart(from, p, yearStart);
-  if (start < from) start = shiftPeriod(start, p, 1);
-  let n = 0;
-  for (; start <= to; start = shiftPeriod(start, p, 1)) n++;
-  return n;
+  let first = periodStart(from, p, yearStart);
+  if (first < from) first = shiftPeriod(first, p, 1);
+  // From the first period starting in the range to the one the range's last day falls in, counted, not walked: a
+  // daily Metric's year would otherwise step through 365 days.
+  return first > to ? 0 : periodsBetween(first, periodStart(to, p, yearStart), p) + 1;
 }
 
 /** The value of a metric over [start, end] (inclusive period starts), or undefined when it cannot be combined.
@@ -82,26 +82,98 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
     }
     return evaluate(metric.formula, vars) ?? undefined;
   }
-  const inSpan = points.filter((p) => p.period >= start && p.period <= end);
+  return combined(metric.aggregation, latestOfEach(points).filter((p) => p.period >= start && p.period <= end), expected);
+}
+
+/** A resolver over a canvas's data: each Metric with its series, nothing for a slug it does not hold. */
+export function resolverFrom(metrics: readonly Metric[], series: Record<string, Point[]>): Resolver {
+  const bySlug = new Map(metrics.map((m) => [m.slug, m]));
+  return (slug) => {
+    const metric = bySlug.get(slug);
+    return metric ? { metric, points: series[slug] ?? [] } : undefined;
+  };
+}
+
+/** The latest value of each period, oldest first: a period given twice keeps the value given last, as a chart
+ * plots the latest value of a period. Combining must not depend on the order a series comes in (spec 0022). */
+export function latestOfEach(points: readonly Point[]): Point[] {
+  const byPeriod = new Map<string, number>();
+  for (const p of points) byPeriod.set(p.period, p.value);
+  return [...byPeriod].map(([period, value]) => ({ period, value })).sort((a, b) => (a.period < b.period ? -1 : 1));
+}
+
+/** The values of a span (oldest first) combined by an Aggregation, once at least half of the `expected` periods
+ * have one; undefined otherwise and for none. */
+function combined(aggregation: Metric["aggregation"], inSpan: readonly Point[], expected: number): number | undefined {
   // Some metrics skip periods (no deals on weekends); a span counts when at least half of it has values.
   if (!inSpan.length || inSpan.length < Math.ceil(expected / 2)) return undefined;
   if (inSpan.length === 1) return inSpan[0].value;
-  switch (metric.aggregation) {
-    case "sum": return inSpan.reduce((a, p) => a + p.value, 0);
-    case "average": return inSpan.reduce((a, p) => a + p.value, 0) / inSpan.length;
+  switch (aggregation) {
+    case "sum": return exactTotal(inSpan, 1);
+    case "average": return exactTotal(inSpan, inSpan.length);
     case "last": return inSpan[inSpan.length - 1].value;
     default: return undefined;
   }
+}
+
+// Exact sums (spec 0022, "Exact results"): each value is read from its shortest text, the way it came from the
+// database, as a whole number of millionths or finer, and added as a BigInt; the total (or average) is then turned
+// into the double nearest to it. Adding doubles one by one gives 0.30000000000000004 for 0.1 + 0.2 and drifts with
+// every value; this gives 0.3, and a thousand values of 0.01 give 10.
+// BigInt(…) rather than literals such as TEN: the app's TypeScript targets a version before BigInt literals.
+const [ZERO, ONE, TWO, TEN] = [BigInt(0), BigInt(1), BigInt(2), BigInt(10)];
+const TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/;
+
+/** A finite value as digits and how many of them are decimals: 1.25 is 125 and 2, 1e-7 is 1 and 7. */
+function scaled(v: number): { digits: bigint; places: number } {
+  const [, sign, whole, decimals = "", exp = "0"] = TEXT.exec(String(v))!;
+  const places = decimals.length - Number(exp);
+  const digits = BigInt(`${sign}${whole}${decimals}`);
+  return places >= 0 ? { digits, places } : { digits: digits * TEN ** BigInt(-places), places: 0 };
+}
+
+/** The sum of the values divided by `count`, as the double nearest to the exact result. A value that is not finite
+ * has no exact sum: the result is then what adding doubles gives (NaN or an infinity), which shows as no value. */
+function exactTotal(values: readonly Point[], count: number): number {
+  if (!values.every((p) => Number.isFinite(p.value))) return values.reduce((a, p) => a + p.value, 0) / count;
+  const parts = values.map((p) => scaled(p.value));
+  const places = Math.max(...parts.map((p) => p.places));
+  const sum = parts.reduce((a, p) => a + p.digits * TEN ** BigInt(places - p.places), ZERO);
+  return nearestDouble(sum, TEN ** BigInt(places) * BigInt(count));
+}
+
+const bitLength = (n: bigint) => n.toString(2).length;
+const TWO_53 = TWO ** BigInt(53);
+
+/** The double nearest to num / den (den positive), ties to even: the quotient is taken to 53 bits with the
+ * remainder deciding the last one, then scaled by a power of two, which is exact. Values Ziffr keeps are far from
+ * the edges of the double range, so no result is subnormal or infinite. */
+function nearestDouble(num: bigint, den: bigint): number {
+  if (num === ZERO) return 0;
+  const negative = num < ZERO;
+  const a = negative ? -num : num;
+  // A first guess for the power of two that brings the quotient to 53 bits; one more when it lands on 54.
+  let e = bitLength(a) - bitLength(den) - 53;
+  const divide = (shift: number) => {
+    const [top, by] = shift < 0 ? [a << BigInt(-shift), den] : [a, den << BigInt(shift)];
+    return [top / by, top % by, by];
+  };
+  let [q, r, d] = divide(e);
+  if (q >= TWO_53) [q, r, d] = divide(++e);
+  if (TWO * r > d || (TWO * r === d && (q & ONE) === ONE)) q++;
+  const x = Number(q) * 2 ** e;
+  return negative ? -x : x;
 }
 
 /** A Metric's series by a Display Period: one point per span with values, oldest first, combined by its Aggregation.
  * A span counts once at least half of it has values; the one `today` (yyyy-mm-dd, default the current day) falls in
  * is to date, counted only up to the latest value. Quarters, halves and years start from `yearStart`.
  * `alignTo` (a Metric period start) cuts every span at the point `alignTo` sits in its own, for Comparisons to date.
- * By the Metric's own period the points come back as they are; a shorter one, or Aggregation "none", is refused. */
+ * Each period counts once, with its latest value, whatever order the points come in (spec 0022). By the Metric's
+ * own period the points come back as they are, oldest first; a shorter one, or Aggregation "none", is refused. */
 export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts: { yearStart: YearStart; today?: string; alignTo?: string }): SeriesBy {
   const own = metric.period;
-  const points = resolve(metric.slug)?.points ?? [];
+  const points = latestOfEach(resolve(metric.slug)?.points ?? []);
   if (display === own) return { ok: true, points: points.map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period })) };
   if (!isLonger(display, own)) return { ok: false, reason: `A ${own}'s value cannot be split into shorter periods.`, points: [] };
   if (!combines(metric)) return { ok: false, reason: NOT_COMBINED, points: [] };
@@ -116,13 +188,16 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   const latest = points[points.length - 1]?.period;
   const anchor = opts.alignTo ? periodStart(opts.alignTo, display, ys) : null;
 
-  const held = new Map<string, number>();
+  // The spans that hold a value with their values, oldest first (the points are).
+  const spans = new Map<string, Point[]>();
   for (const p of points) {
     const s = periodStart(p.period, display, ys);
-    held.set(s, (held.get(s) ?? 0) + 1);
+    const held = spans.get(s);
+    if (held) held.push(p);
+    else spans.set(s, [p]);
   }
   const out: DisplayPoint[] = [];
-  for (const [start, n] of [...held].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  for (const [start, values] of spans) {
     const last = periodEnd(start, display);
     const length = periodCount(own, start, last, ys);
     const toDate = today >= start && today <= last;
@@ -130,10 +205,14 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     // is not over, so a quarter two months in is two months, not two thirds of a quarter.
     let end = last;
     if (anchor) end = shiftPeriod(opts.alignTo!, display, periodsBetween(anchor, start, display));
-    else if (toDate && latest && latest <= last) end = latest;
-    const value = valueOver(metric.slug, start, end, resolve, periodCount(own, start, end, ys));
+    else if (toDate && latest <= last) end = latest;
+    const inSpan = values.filter((p) => p.period <= end);
+    const expected = periodCount(own, start, end, ys);
+    const value = metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
-    out.push({ period: start, value, held: anchor ? points.filter((p) => p.period >= start && p.period <= end).length : n, length, toDate, through: end });
+    // Every value in the span lies on or before its cut (a span to date is cut at the latest value), so `inSpan`
+    // is what it holds.
+    out.push({ period: start, value, held: inSpan.length, length, toDate, through: end });
   }
   return { ok: true, points: out };
 }
@@ -210,19 +289,19 @@ const VERB = { sum: "added up", average: "averaged", last: "at its last value" }
  * else the target range for an average, a last value or a Derived Metric's rate; none for a sum, since a monthly
  * range of 100 to 120 says nothing exact about a quarter of uneven months. */
 export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[], by: Span, yearStart: YearStart): ShownTargets {
-  const byPeriod = new Map(series.map((t) => [t.period, t.value]));
+  // Each Metric period's target once (the latest given), oldest first; a day that starts no Metric period is none.
+  const targets = latestOfEach(series).filter((t) => isPeriodStart(t.period, metric.period, yearStart));
   const hasRange = metric.target_min !== null || metric.target_max !== null;
   const range = hasRange && metric.aggregation !== "sum";
   const agg = metric.aggregation;
   const at: Record<string, SpanTarget> = {};
   const line: Point[] = [];
   for (const p of points) {
-    const starts: string[] = [];
-    for (let s = periodStart(p.period, metric.period, yearStart); s <= p.through; s = shiftPeriod(s, metric.period, 1)) if (s >= p.period) starts.push(s);
-    const vals = starts.map((s) => byPeriod.get(s));
-    if (starts.length && agg !== "none" && vals.every((v) => v !== undefined)) {
-      const v = vals as number[];
-      const value = agg === "sum" ? v.reduce((a, b) => a + b, 0) : agg === "average" ? v.reduce((a, b) => a + b, 0) / v.length : v[v.length - 1];
+    // The span's Metric periods through its cut all have a target when there are as many targets as periods.
+    const v = targets.filter((t) => t.period >= p.period && t.period <= p.through);
+    if (v.length && agg !== "none" && v.length === periodCount(metric.period, p.period, p.through, yearStart)) {
+      // Exact, as the values are: a quarter's target of 0.1, 0.1 and 0.1 is 0.3.
+      const value = agg === "last" ? v[v.length - 1].value : exactTotal(v, agg === "sum" ? 1 : v.length);
       // As for one period (targetFor): a Metric where lower is better must stay under its target, others reach it.
       at[p.period] = metric.polarity === "lower" ? { min: null, max: value } : { min: value, max: null };
       line.push({ period: p.period, value });
@@ -241,13 +320,10 @@ export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[
 /** What a widget of one Metric draws: by `display` when that is longer than the Metric's own period and the Metric
  * combines, else its own periods. `today` (yyyy-mm-dd) marks the span not over yet: a Snapshot's day when drawing one. */
 export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
-  const own = (data.series[metric.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
+  const own = latestOfEach(data.series[metric.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
   if (!display || !isLonger(display, metric.period)) return { by: metric.period, combined: false, points: own, targets: null };
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
-  const resolve: Resolver = (slug) => {
-    const m = bySlug.get(slug);
-    return m ? { metric: m, points: data.series[slug] ?? [] } : undefined;
-  };
+  const resolve = resolverFrom(data.metrics, data.series);
   // A View Link or Snapshot leaves a Derived Metric's inputs out (only what is shown goes out): without them its
   // quarters cannot be computed, and adding up its own months would give a sum of margins.
   if (metric.formula && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {
