@@ -5,6 +5,7 @@
 import { useId, useRef } from "react";
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatValue, health } from "@ziffr/core/format";
+import { formatOutput } from "@ziffr/core/design-analysis";
 import { commonPeriod } from "@ziffr/core/correlation";
 import { isPartial, spanCount } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
@@ -12,7 +13,8 @@ import type { Part, PlotMark, Tone } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 
 type Plot = Extract<Part, { mark: "plot" }>;
-type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number };
+// A recipe output is kept on its row under "recipe:" and the step, never under a name a value could have.
+type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
 
 // Theme tokens only: a design names a role, the Theme gives it a colour.
 const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
@@ -45,6 +47,15 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
     cur.partial = cur.value;
     cur.value = undefined;
   }
+  // Each series a mark shows of the design's Analysis Recipe, on the periods the plot draws.
+  for (const k of marks) {
+    if (!k.show.startsWith("recipe.") || k.mark === "rule") continue;
+    const res = v.recipe?.[k.show.slice("recipe.".length)];
+    for (const p of res?.kind === "series" ? res.points : []) {
+      const r = rows.find((x) => x.period === p.period);
+      if (r) r[`recipe:${k.show.slice("recipe.".length)}`] = p.value;
+    }
+  }
   for (const t of targetLine ?? []) {
     const r = rows.find((x) => x.period === t.period);
     if (r) r.target = t.value;
@@ -66,7 +77,9 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const tMax = bandOn ? m.target_max : null;
   let domain: [number, number] | ["dataMin", "dataMax"] | undefined;
   if (part.scale === "padded") {
-    const values = rows.flatMap((r) => [r.value, r.partial, r.target, ...(r.band ?? [])]).filter((x): x is number => x !== undefined);
+    const recipeKeys = marks.filter((k) => k.show.startsWith("recipe.")).map((k) => `recipe:${k.show.slice("recipe.".length)}` as const);
+    const ruled = marks.flatMap((k) => (k.mark === "rule" && k.show.startsWith("recipe.") ? [recipeValue(v, k.show)] : [])).filter((x): x is number => x !== null);
+    const values = [...rows.flatMap((r) => [r.value, r.partial, r.target, ...(r.band ?? []), ...recipeKeys.map((key) => r[key])]), ...ruled].filter((x): x is number => x !== undefined && Number.isFinite(x));
     const lo = Math.min(...values, tMin ?? Infinity);
     const hi = Math.max(...values, tMax ?? -Infinity);
     const pad = (hi - lo) * 0.08 || 1;
@@ -107,12 +120,13 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                   ? <ReferenceArea key={i} y1={tMin ?? domain[0]} y2={tMax ?? (domain[1] as number)} fill="var(--color-band)" fillOpacity={0.6} stroke="none" ifOverflow="extendDomain" />
                   : <ReferenceArea key={i} y1={tMin ?? 0} y2={tMax ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />;
               case "rule": {
-                const y = k.show === "target.min" ? m.target_min : m.target_max;
+                const y = k.show.startsWith("recipe.") ? recipeValue(v, k.show) : k.show === "target.min" ? m.target_min : m.target_max;
                 return y === null || y === undefined ? null : <ReferenceLine key={i} y={y} stroke={lineTone(k.tone ?? "muted")} strokeDasharray="4 3" ifOverflow="extendDomain" />;
               }
               case "area":
                 return fc ? <Area key={i} dataKey="band" stroke="none" fill={lineTone(k.tone)} fillOpacity={0.07} isAnimationActive={false} /> : null;
               case "bar":
+                if (k.show !== "values") return <Bar key={i} dataKey={`recipe:${k.show.slice("recipe.".length)}`} radius={[3, 3, 0, 0]} isAnimationActive={false} fill={lineTone(k.tone === "status" ? "data" : k.tone)} fillOpacity={0.85} />;
                 return (
                   <Bar key={i} dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
                     {pts.map((p) => (
@@ -126,6 +140,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                 const dash = k.dash ? "5 4" : undefined;
                 if (k.show === "forecast") return fc ? <Line key={i} dataKey="fc" stroke={stroke} strokeDasharray={dash} {...weight} dot={false} isAnimationActive={false} /> : null;
                 if (k.show === "target.line") return targetLine?.length ? <Line key={i} dataKey="target" stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} connectNulls /> : null;
+                if (k.show.startsWith("recipe.")) return <Line key={i} dataKey={`recipe:${k.show.slice("recipe.".length)}`} stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} connectNulls />;
                 if (k !== full) return <Line key={i} dataKey="value" stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} />;
                 return [
                   toDate ? <Line key={`${i}-to-date`} dataKey="partial" stroke={stroke} {...weight} strokeDasharray="2 3" isAnimationActive={false} activeDot={false} dot={(p: { cx?: number; cy?: number; index?: number; payload?: Row }) => (p.cx === undefined || p.cy === undefined || p.payload?.value !== undefined || p.payload?.partial === undefined ? <g key={p.index} /> : <circle key={p.index} data-to-date cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5} strokeDasharray="2 1.5" />)} /> : null,
@@ -164,6 +179,13 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
 }
 
 
+/** One value a design's recipe gives, for a rule: a step's value, or a series' latest. */
+function recipeValue(v: DesignValues, show: string): number | null {
+  const res = v.recipe?.[show.slice("recipe.".length)];
+  if (!res) return null;
+  return res.kind === "value" ? res.value : res.points[res.points.length - 1]?.value ?? null;
+}
+
 function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; v: DesignValues; label: (p: string) => string }) {
   if (!active || !r) return null;
   const { m, data } = v;
@@ -175,6 +197,7 @@ function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; 
         <>
           <div>{m.name}: <span className="fig">{formatValue(m, r.value ?? r.partial!, ns)}</span></div>
           {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(m, r.target, ns)}</span></div>}
+          {(v.analysis?.outputs ?? []).map((o) => (r[`recipe:${o.step}`] === undefined ? null : <div key={o.step} className="text-muted-foreground">{o.label}: <span className="fig">{formatOutput(o.unit, m, r[`recipe:${o.step}`], ns)}</span></div>))}
         </>
       ) : r.fc !== undefined ? (
         <>

@@ -4,11 +4,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { shownSeries } from "@ziffr/core/display-periods";
-import { formatValue } from "@ziffr/core/format";
+import { formatPercent, formatValue } from "@ziffr/core/format";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import type { ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
 import { DesignView } from "./design-view";
+import { designWithRecipe } from "@ziffr/core/design-files";
+import { BUILT_IN_RECIPES } from "@ziffr/core/built-in-recipes";
+import { growth, mean } from "@ziffr/core/recipe-functions";
 
 const data: CanvasData = { ...sampleCanvasData("v", "1.234,5"), today: "2026-06-20" };
 const draw = (design: ViewDesign, settings: WidgetSettings, d: CanvasData = data, ids = [d.metrics[0].id]) =>
@@ -44,6 +47,18 @@ describe("DesignView", () => {
     const m = data.metrics[0];
     const own = shownSeries(m, data, undefined, {}).points.at(-1)!;
     expect(draw(BUILT_IN_DESIGNS.gauge, { display: "quarter" })).toContain(formatValue(m, own.value, data.numberStyle));
+  });
+
+  it("writes a recipe's outputs as the core computes them, from the widget's own Metric only", () => {
+    const design = designWithRecipe(BUILT_IN_RECIPES.growth);
+    const m = data.metrics[0];
+    const own = shownSeries(m, data, undefined, {}).points.map((p) => ({ period: p.period, value: p.value }));
+    const avg = mean((growth(own) as { points: typeof own }).points);
+    const html = draw(design, { window: 12 });
+    expect(html.replace(/<[^>]+>/g, "")).toContain(`Average growth: ${formatPercent((avg as { value: number }).value, data.numberStyle)}`);
+    // Another Metric's values on the same page change nothing: the recipe never sees them.
+    const other = { ...data, series: { ...data.series, [data.metrics[1].slug]: [] } };
+    expect(draw(design, { window: 12 }, other)).toBe(html);
   });
 
   it("says what a design needs when a Slot is empty", () => {

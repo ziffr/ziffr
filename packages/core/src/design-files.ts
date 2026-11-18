@@ -3,7 +3,9 @@
 // Security: a file made here holds the design and made-up Sample Data only, never a Workspace's Metrics or values.
 import { BUILT_IN_DESIGNS, designSettings, designSlots, isDesignedView } from "./built-in-designs";
 import { sampleData, sampleFills, type SampleWidget } from "./sample-data";
-import { writeViewDesign, VIEW_LIMITS, type ViewDesign } from "./view-design";
+import { VIEW_DESIGN_SCHEMA, VIEW_FORMAT, writeViewDesign, VIEW_LIMITS, type Part, type PlotMark, type ViewDesign } from "./view-design";
+import { checkSchema } from "./json-check";
+import { FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe";
 import type { Period, Widget } from "./types";
 
 /** The format of a Sample Data file that comes with an exported design. */
@@ -25,15 +27,43 @@ export function duplicateAsDesign(widget: Pick<Widget, "template" | "settings" |
   if (o.showTarget && s.showTarget !== undefined) o.showTarget = { ...o.showTarget, default: !!s.showTarget };
   if (o.showForecast && s.showForecast !== undefined) o.showForecast = { ...o.showForecast, default: !!s.showForecast };
   // The widget's title is the person's own words: kept only while it is plain text that fits, else the design's name.
-  const base = (widget.title ?? "").trim();
-  const plain = base && /^[\p{L}\p{M}\p{N} .,;:!?'"’‘“”«»()%€$£¥+\-–—/&#*=_·…°]*$/u.test(base) && !/:\/\/|www\./i.test(base);
-  const name = `${plain ? base : design.name} (copy)`.slice(0, VIEW_LIMITS.name);
+  // Held to the format's own rule for names, and cut by characters, never inside one.
+  const cut = (t: string) => [...t].slice(0, VIEW_LIMITS.name).join("");
+  const base = cut(`${(widget.title ?? "").trim()} (copy)`);
+  const name = (widget.title ?? "").trim() && checkSchema(VIEW_DESIGN_SCHEMA.properties!.name, base).length === 0 ? base : cut(`${design.name} (copy)`);
   return { ...design, name, ...(design.options ? { options: o } : {}) };
 }
 
 /** A design filled with Sample Data, as its Preview draws it: never with a Workspace's Metrics. */
 export function sampleDesignWidget(d: ViewDesign, period: Period = "month"): SampleWidget {
   return { template: "design", metric_ids: sampleFills(designSlots(d), period).flat(), settings: { ...designSettings(d), design: { id: null, body: d } }, title: null };
+}
+
+/** A starting design for an Analysis Recipe: the first Metric's values with the recipe's series in the Metric's unit
+ * on one plot, its other series on a second, and its single values as words. */
+export function designWithRecipe(r: AnalysisRecipe): ViewDesign {
+  const gives = (step: string) => FUNCTIONS[r.steps.find((s) => s.id === step)!.fn].gives;
+  const series = r.outputs.filter((o) => gives(o.step) === "series");
+  const inUnit = series.filter((o) => o.unit === "metric");
+  const other = series.filter((o) => o.unit !== "metric");
+  const values = r.outputs.filter((o) => gives(o.step) === "value");
+  const line = (step: string): PlotMark => ({ mark: "line", show: `recipe.${step}`, tone: "muted", dash: true, weight: "regular" });
+  const parts: Part[] = [
+    { mark: "plot", axes: "regular", grid: "horizontal", scale: "padded", marks: [{ mark: "line", show: "values", tone: "data", weight: "strong", detail: "full" }, ...inUnit.map((o) => line(o.step))] },
+  ];
+  if (other.length) parts.push({ mark: "plot", axes: "regular", grid: "horizontal", scale: "auto", marks: other.map((o) => ({ ...line(o.step), tone: "data", dash: false })) });
+  if (values.length) parts.push({ mark: "text", style: "body", content: values.flatMap((o, i) => [`${i ? ", " : ""}${o.label}: `, { show: `recipe.${o.step}` as const }]) });
+  return {
+    format: VIEW_FORMAT,
+    name: r.name,
+    ...(r.description ? { description: r.description } : {}),
+    kind: "analysis",
+    slots: r.slots.map((s) => ({ label: s.label, metrics: "one" as const })),
+    size: { w: 6, h: 7 },
+    options: { window: { label: "Periods", default: 12 }, display: { label: "Show by" } },
+    analysis: r,
+    parts,
+  };
 }
 
 /** A design's file name, from its name: letters, digits and dashes only. */

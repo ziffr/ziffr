@@ -114,6 +114,12 @@ Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr 
 
 Nothing you type in the Playground is kept unless it is added to the Workspace.
 
+### Analysis Recipes
+
+An **Analysis Recipe** is an Analysis written as steps of Ziffr's own functions: moving average, difference, growth, share, linear trend and slope, mean, standard deviation, z-score, seasonal index and correlation. A View Design can carry one under `analysis` and draw its results: as a line or bars (`recipe.` and the step's name), as a rule across a plot for one value, or as a number in its words. The recipe works on the Metrics in the design's first Slots, as the Widget shows them (by quarter, when it is shown by quarter), and on nothing else. Every number it gives is computed by Ziffr's verified functions, so it is as trustworthy as any other number in Ziffr.
+
+**Start from** also lists the built-in recipes (moving average, growth, linear trend, seasonality, unusual periods, correlation, share of a total), each inside a design that draws it. Once added to the Workspace, a design with a recipe is placed like any other, and goes onto dashboards, Snapshots, View Links, decks and the PowerPoint export, where it becomes a picture.
+
 ## Saving a result
 
 Results are not kept when you leave the screen; save the ones you want. Each result has a **⋯** menu, which right-clicking also opens:

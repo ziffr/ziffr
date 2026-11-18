@@ -23,7 +23,11 @@ import { workspace } from "./test/db-fixtures";
 import { referenceChangeOf } from "./test/reference/change";
 import { valueMismatch } from "./test/reference/check";
 import { referenceSeries, type ReferenceSpan } from "./test/reference/combine";
-import { exactOf, roundedText } from "./test/reference/exact";
+import { exactOf, isNearestDouble, roundedText } from "./test/reference/exact";
+import { refMovingAverage } from "./test/reference/recipes";
+import { BUILT_IN_RECIPES } from "./built-in-recipes";
+import { designRecipe, formatOutput } from "./design-analysis";
+import { designWithRecipe } from "./design-files";
 import { referenceChange, referenceValue } from "./test/reference/write";
 
 // A year of monthly values chosen to break floating point: sums of 0.1 and 0.2, values ending in 5 at the rounding
@@ -110,6 +114,24 @@ describe("the same number everywhere", () => {
     expect(exportedChange(m, data, { compare: ["qoq"], fullPeriods: true })).toBe(`QoQ ${referenceChange(change.pct!, data.numberStyle)}`);
     const shown = shownSeries(m, data, "quarter", { today: TODAY });
     expect(shown.points.map((p) => chartValue(m, p.value))).toEqual(quarters.map((q) => Number(roundedText(q.value, m.decimals))));
+  });
+
+  it("in a View Design's Analysis Recipe, in a widget, a Snapshot and a View Link (spec 0024)", async () => {
+    // A moving average of the quarters, as a design with a recipe draws it: the reference's quarters, averaged exactly.
+    const design = designWithRecipe(BUILT_IN_RECIPES["moving-average"]);
+    const expected = refMovingAverage(quarters.map((q) => ({ period: q.period, value: q.value })), 3);
+    const id = await takeSnapshot(w.actor(sara), dashboardId, { kind: "half", start: "2025-07-01" }, { today: TODAY });
+    const token = await createViewLink(w.actor(sara), "dashboard", dashboardId, { label: "Recipe", expires: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), frozen: true });
+    for (const [where, data] of [["widget", await getCanvasData(w.id, sara)], ["Snapshot", (await openSnapshot(w.actor(sara), id)).data], ["View Link", (await openViewLink(token))!.data]] as const) {
+      const m = data.metrics.find((x) => x.id === metric.id)!;
+      const res = designRecipe(design, [m], { ...data, today: TODAY }, { display: "quarter" })!.avg;
+      const got = res.kind === "series" ? res.points : [];
+      expect(got.map((p) => p.period), where).toEqual(expected.map((p) => p.period));
+      got.forEach((p, i) => {
+        expect(isNearestDouble(p.value, expected[i].value), `${where}, ${p.period}`).toBe(true);
+        expect(formatOutput("metric", m, p.value, data.numberStyle), `${where}, ${p.period}`).toBe(referenceValue(m, roundedText(expected[i].value, 12), data.numberStyle));
+      });
+    }
   });
 
   it("in the API's values", async () => {

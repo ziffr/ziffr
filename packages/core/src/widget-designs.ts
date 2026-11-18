@@ -36,7 +36,9 @@ export function assertWidgetDesigns(doc: unknown, depth = 0): void {
   if (!doc || typeof doc !== "object") return;
   if (depth > MAX_WIDGET_NESTING) throw new Error("This widget nests other widgets too deeply.");
   const walk = (v: unknown, d: number): void => {
-    if (d > 40 || !v || typeof v !== "object") return;
+    if (!v || typeof v !== "object") return;
+    // tldraw keeps shapes a few levels deep: a document nested deeper is refused, so no widget can hide from the check.
+    if (d > 40) throw new Error("This document is nested too deeply.");
     if (Array.isArray(v)) return v.forEach((x) => walk(x, d + 1));
     const r = v as { type?: unknown; props?: { settings?: unknown } };
     if (r.type === "ziffr-widget" && r.props) {

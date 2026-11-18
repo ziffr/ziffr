@@ -1,7 +1,7 @@
 // Version history (GLOSSARY: Version): seeing, naming and restoring earlier states of what people build. Who may
 // see and restore follows who may see and edit the object; a restore brings back only what the restorer may show.
 // Every function takes the Actor first and works only inside the actor's Workspace.
-import { assertSettingsDesigns } from "./widget-designs";
+import { assertSettingsDesigns, assertWidgetDesigns } from "./widget-designs";
 import { db } from "./db";
 import { can, Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
@@ -145,6 +145,9 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       break;
     }
     case "template":
+      // A template's widget, and a slide layout's widgets, keep their View Designs: checked again before they are stored.
+      assertSettingsDesigns((s.body as { settings?: unknown } | undefined)?.settings);
+      assertWidgetDesigns(s.body);
       await db().from("team_templates").update({ kind: s.kind, name: s.name, description: s.description, view: s.view, slots: s.slots, body: s.body, w: s.w, h: s.h, updated_at: at }).eq("id", id).eq("workspace_id", ws);
       break;
     case "widget":
@@ -168,6 +171,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       break;
     }
     case "deck":
+      assertWidgetDesigns(s.document);
       await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws);
       break;
     case "snapshot": {

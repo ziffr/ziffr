@@ -13,6 +13,7 @@ import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { forecast } from "@ziffr/core/forecast";
+import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
 import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
@@ -59,7 +60,9 @@ export function designValues(design: ViewDesign, widget: Pick<Widget, "settings"
   const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
-  return { m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, drivers, matrix, band, goal, name, data, settings: s };
+  // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
+  const recipe = designRecipe(design, metrics, data, s);
+  return { m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, drivers, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -164,6 +167,7 @@ function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v:
 
 /** A value a text shows, written by the core: formatValue in the Number Style, pointName, the correlation's words. */
 function textValue(show: TextShow, v: DesignValues): ReactNode {
+  if (show.startsWith("recipe.")) return recipeText(show.slice("recipe.".length), v);
   const { m, last, data, fc, correlation: c, drivers } = v;
   const ns = data.numberStyle;
   const top = drivers?.ranked[0];
@@ -205,6 +209,15 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
     case "drivers.over":
       return top ? comparedBy(top.result) : null;
   }
+}
+
+/** A recipe output as text: its one value, or a series' latest, in the output's unit (formatOutput). */
+function recipeText(step: string, v: DesignValues): string | null {
+  const out = v.analysis?.outputs.find((o) => o.step === step);
+  const res = v.recipe?.[step];
+  if (!out || !res) return null;
+  const value = res.kind === "value" ? res.value : res.points[res.points.length - 1]?.value;
+  return value === null || value === undefined ? null : formatOutput(out.unit, v.m, value, v.data.numberStyle);
 }
 
 function Empty({ children }: { children: ReactNode }) {

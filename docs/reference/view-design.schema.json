@@ -97,6 +97,388 @@
       "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
       "description": "plain text, without markup or web addresses"
     },
+    "analysis": {
+      "description": "An Analysis Recipe (ziffr.analysis/1) the design draws; its Slots are the design's first Metrics, in order.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "ziffr.analysis/1"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                "description": "plain text, without markup or web addresses",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "label"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "movingAverage"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  },
+                  "window": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 60
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of",
+                  "window"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "difference"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "growth"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "share"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  },
+                  "with": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of",
+                  "with"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "linearTrend"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "slope"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "mean"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "standardDeviation"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "zScore"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "seasonalIndex"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  },
+                  "season": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 53
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of",
+                  "season"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                    "description": "a name for the step: a letter, then letters and digits"
+                  },
+                  "fn": {
+                    "const": "correlation"
+                  },
+                  "of": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  },
+                  "with": {
+                    "type": "string",
+                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  }
+                },
+                "required": [
+                  "id",
+                  "fn",
+                  "of",
+                  "with"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                "description": "plain text, without markup or web addresses",
+                "minLength": 1
+              },
+              "unit": {
+                "enum": [
+                  "metric",
+                  "percent",
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "step",
+              "label",
+              "unit"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "format",
+        "name",
+        "slots",
+        "steps",
+        "outputs"
+      ],
+      "additionalProperties": false
+    },
     "parts": {
       "type": "array",
       "minItems": 1,
@@ -212,24 +594,9 @@
           "description": "A value the core writes, in the Workspace's Number Style.",
           "properties": {
             "show": {
-              "enum": [
-                "metric.name",
-                "latest.value",
-                "latest.period",
-                "latest.status",
-                "latest.approval",
-                "target.note",
-                "forecast.value",
-                "forecast.period",
-                "forecast.low",
-                "forecast.high",
-                "correlation.strength",
-                "correlation.r",
-                "correlation.over",
-                "drivers.name",
-                "drivers.strength",
-                "drivers.over"
-              ]
+              "type": "string",
+              "pattern": "^(?:metric\\.name|latest\\.value|latest\\.period|latest\\.status|latest\\.approval|target\\.note|forecast\\.value|forecast\\.period|forecast\\.low|forecast\\.high|correlation\\.strength|correlation\\.r|correlation\\.over|drivers\\.name|drivers\\.strength|drivers\\.over|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “metric.name”, “latest.value”, “latest.period”, “latest.status”, “latest.approval”, “target.note”, “forecast.value”, “forecast.period”, “forecast.low”, “forecast.high”, “correlation.strength”, “correlation.r”, “correlation.over”, “drivers.name”, “drivers.strength”, “drivers.over”, or “recipe.” and a step of the design's analysis (a value the core writes)"
             },
             "style": {
               "enum": [
@@ -464,11 +831,9 @@
               "const": "line"
             },
             "show": {
-              "enum": [
-                "values",
-                "forecast",
-                "target.line"
-              ]
+              "type": "string",
+              "pattern": "^(?:values|forecast|target\\.line|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “values”, “forecast”, “target.line”, or “recipe.” and a step of the design's analysis (a series)"
             },
             "tone": {
               "enum": [
@@ -549,7 +914,9 @@
               "const": "bar"
             },
             "show": {
-              "const": "values"
+              "type": "string",
+              "pattern": "^(?:values|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “values”, or “recipe.” and a step of the design's analysis (a series)"
             },
             "tone": {
               "enum": [
@@ -636,10 +1003,9 @@
               "const": "rule"
             },
             "show": {
-              "enum": [
-                "target.min",
-                "target.max"
-              ]
+              "type": "string",
+              "pattern": "^(?:target\\.min|target\\.max|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “target.min”, “target.max”, or “recipe.” and a step of the design's analysis (one value)"
             },
             "tone": {
               "enum": [
