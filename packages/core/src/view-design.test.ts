@@ -32,6 +32,22 @@ export const EXAMPLE: ViewDesign = {
   ],
 };
 
+/** A design that draws an Analysis Recipe: a moving average as a line, the deviation as a text. */
+export const WITH_RECIPE: ViewDesign = {
+  ...EXAMPLE,
+  name: "Line with its average",
+  analysis: {
+    format: "ziffr.analysis/1",
+    name: "Average and spread",
+    slots: [{ label: "Metric" }],
+    steps: [{ id: "avg", fn: "movingAverage", of: "slot1", window: 3 }, { id: "sd", fn: "standardDeviation", of: "slot1" }],
+    outputs: [{ step: "avg", label: "Three-period average", unit: "metric" }, { step: "sd", label: "Spread", unit: "metric" }],
+  },
+  parts: [
+    { mark: "plot", axes: "regular", scale: "padded", marks: [{ mark: "line", show: "values", weight: "strong" }, { mark: "line", show: "recipe.avg", tone: "muted", dash: true }, { mark: "rule", show: "target.max" }] },
+    { mark: "text", style: "note", content: ["Spread ", { show: "recipe.sd" }, ", average now ", { show: "recipe.avg" }] },
+  ],
+};
 const text = (v: unknown) => JSON.stringify(v, null, 2);
 const withPart = (part: unknown, extra: Record<string, unknown> = {}) => text({ ...EXAMPLE, ...extra, parts: [part] });
 const deep = (n: number): unknown => (n === 0 ? "x" : { mark: "group", direction: "row", parts: [deep(n - 1)] });
@@ -91,13 +107,28 @@ const HOSTILE: [string, string, string, Where][] = [
   ["pairs on a period axis", withPart({ mark: "plot", axes: "regular", marks: [{ mark: "point", show: "pairs" }] }, { slots: [{ label: "A", metrics: "one" }, { label: "B", metrics: "one" }] }), "A plot of pairs needs “x”: “value”", { after: '"parts": [' }],
   ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": { "admin": true },\n  "format"'), "“__proto__” is not a field here", "__proto__"],
   ["a constructor key in a mark", withPart({ mark: "text", content: ["a"], constructor: { prototype: 1 } }), "“constructor” is not a field here", "constructor"],
+  // A design's Analysis Recipe (#151): checked as a recipe, and every "recipe." names an output of the right kind.
+  ["a recipe output without an analysis", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "recipe.avg" }] }), "but the design has no analysis", '"recipe.avg"'],
+  ["a recipe step that is no output", text({ ...WITH_RECIPE, parts: [{ mark: "text", content: [{ show: "recipe.nothing" }] }] }), "“nothing” is not an output of the design's analysis", '"recipe.nothing"'],
+  ["a value drawn as a line", text({ ...WITH_RECIPE, parts: [{ mark: "plot", axes: "none", marks: [{ mark: "line", show: "recipe.sd" }] }] }), "“recipe.sd” gives one value; this mark needs a series", '"recipe.sd"'],
+  ["a series drawn as a rule", text({ ...WITH_RECIPE, parts: [{ mark: "plot", axes: "none", marks: [{ mark: "rule", show: "recipe.avg" }] }] }), "“recipe.avg” gives a series; this mark needs one value", '"recipe.avg"'],
+  ["a recipe show with markup", text({ ...WITH_RECIPE, parts: [{ mark: "text", content: [{ show: "recipe.<b>" }] }] }), "or “recipe.” and a step of the design's analysis", '"recipe.<b>"'],
+  ["an analysis with a function the library does not have", text({ ...WITH_RECIPE, analysis: { ...WITH_RECIPE.analysis!, steps: [{ id: "avg", fn: "fetch", of: "slot1" }] } }), "must be one of “movingAverage”", '"fetch"'],
+  ["an analysis that reads a Metric by name", text({ ...WITH_RECIPE, analysis: { ...WITH_RECIPE.analysis!, steps: [{ id: "avg", fn: "mean", of: "revenue" }] } }), "“revenue” is neither a Slot of this recipe nor an earlier step", '"revenue"'],
+  ["an analysis with more Slots than the design fills", text({ ...WITH_RECIPE, analysis: { ...WITH_RECIPE.analysis!, slots: [{ label: "A" }, { label: "B" }] } }), "the design fills at most 1", '"slots": [\n      {'],
+  ["an unknown field in an analysis", text({ ...WITH_RECIPE, analysis: { ...WITH_RECIPE.analysis!, run: "x" } }), "“run” is not a field here", '"run"'],
   ["a 400-digit number", text(EXAMPLE).replace('"w": 6', `"w": ${"9".repeat(400)}`), "Expected “,” or “}”", "999"],
 ];
 
 describe("checkViewDesign", () => {
-  it("accepts a design with every kind of part", () => {
+  it("accepts a design with every kind of part, and one that draws an Analysis Recipe", () => {
     const res = checkViewDesign(text(EXAMPLE));
     expect(res.ok ? [] : res.problems).toEqual([]);
+    const withRecipe = checkViewDesign(text(WITH_RECIPE));
+    expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
+    const once = writeViewDesign(WITH_RECIPE);
+    const back = checkViewDesign(once);
+    expect(back.ok && writeViewDesign(back.design)).toBe(once);
   });
 
   it.each(HOSTILE)("refuses %s", (_, file, message, marker) => {

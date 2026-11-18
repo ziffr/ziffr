@@ -4,6 +4,7 @@
 // Security: nothing in a design is run. It holds no web addresses, HTML, scripts or styles, unknown fields are
 // refused, and every number it shows comes from the core's verified functions, never from the file.
 import { checkSchema, parseJson, type Problem, type Schema } from "./json-check";
+import { ANALYSIS_RECIPE_SCHEMA, checkAnalysisRecipeValue, FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe";
 
 /** The format this Ziffr writes; it reads every version in `VIEW_FORMATS`. */
 export const VIEW_FORMAT = "ziffr.view/1";
@@ -14,9 +15,11 @@ export const VIEW_FORMATS = [VIEW_FORMAT] as const;
 export const VIEW_LIMITS = { bytes: 65_536, depth: 10, slots: 4, parts: 12, marksInPlot: 12, partsInGroup: 12, pieces: 12, marks: 48, name: 80, description: 300, label: 60, text: 200 } as const;
 
 /** What a mark may show of a Metric's values: always computed by the core (shownSeries, the forecast), never by a design. */
-export type SeriesShow = "values" | "forecast" | "target.line";
+export type SeriesShow = "values" | "forecast" | "target.line" | RecipeShow;
+/** An output of the design's Analysis Recipe, by its step: computed by the library's verified functions. */
+export type RecipeShow = `recipe.${string}`;
 /** The values a text may show, each written by the core (formatValue in the Number Style, pointName, compare). */
-export type TextShow = (typeof TEXT_SHOWS)[number];
+export type TextShow = (typeof TEXT_SHOWS)[number] | RecipeShow;
 /** A colour, always a Theme token: so a design fits every Theme. */
 export type Tone = (typeof TONES)[number];
 /** When a part is drawn: an option that is on, or something the data has. All must hold. */
@@ -31,10 +34,10 @@ export type Piece = string | { show: TextShow; style?: "strong"; before?: string
 export type PlotMark =
   | { mark: "line"; show: SeriesShow; tone?: Tone; detail?: "plain" | "full"; dash?: boolean; weight?: "light" | "regular" | "strong"; when?: Flag[] }
   | { mark: "area"; show: "forecast.range"; tone?: Tone; when?: Flag[] }
-  | { mark: "bar"; show: "values"; tone?: Tone; when?: Flag[] }
+  | { mark: "bar"; show: "values" | RecipeShow; tone?: Tone; when?: Flag[] }
   | { mark: "point"; show: "pairs" | "drivers.pairs"; tone?: Tone; when?: Flag[] }
   | { mark: "band"; show: "target"; when?: Flag[] }
-  | { mark: "rule"; show: "target.min" | "target.max"; tone?: Tone; when?: Flag[] };
+  | { mark: "rule"; show: "target.min" | "target.max" | RecipeShow; tone?: Tone; when?: Flag[] };
 
 /** A part of a design's layout, drawn top to bottom (or side by side in a row group). */
 export type Part =
@@ -68,6 +71,8 @@ export type ViewDesign = {
   options?: DesignOptions;
   /** What it says while a Slot is not filled or its Metrics have too little in common. */
   empty?: string;
+  /** An Analysis Recipe the design draws: its Slots are the design's first Metrics, in order. */
+  analysis?: AnalysisRecipe;
   parts: Part[];
 };
 
@@ -88,6 +93,13 @@ const TEXT_STYLES = ["headline", "value", "body", "caption", "note"] as const;
 const PLAIN = "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$";
 const text = (max: number, description: string): Schema => ({ type: "string", maxLength: max, pattern: PLAIN, description });
 const flags: Schema = { type: "array", maxItems: FLAGS.length, items: { enum: [...FLAGS] }, description: "Drawn only when all of these hold: showTarget and showForecast are the options; hasForecast, hasNote and manyValues (two or more values) are about the data." };
+const esc = (x: string) => x.replace(/\./g, "\\.");
+// What a mark shows: one of the core's results, or "recipe." and a step of the design's Analysis Recipe.
+const shows = (names: readonly string[], recipe: boolean, what: string): Schema => ({
+  type: "string",
+  pattern: `^(?:${names.map(esc).join("|")}${recipe ? "|recipe\\.[a-z][a-zA-Z0-9]{0,23}" : ""})$`,
+  description: `one of ${names.map((n) => `“${n}”`).join(", ")}${recipe ? `, or “recipe.” and a step of the design's analysis` : ""} (${what})`,
+});
 const tone: Schema = { enum: [...TONES], description: "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)." };
 const mark = (name: string, description: string, props: Record<string, Schema>, required: string[] = []): Schema => ({
   type: "object",
@@ -135,6 +147,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
       additionalProperties: false,
     },
     empty: text(VIEW_LIMITS.text, "plain text, without markup or web addresses"),
+    analysis: { ...ANALYSIS_RECIPE_SCHEMA, $schema: undefined, $id: undefined, title: undefined, description: "An Analysis Recipe (ziffr.analysis/1) the design draws; its Slots are the design's first Metrics, in order." },
     parts: { type: "array", minItems: 1, maxItems: VIEW_LIMITS.parts, items: { $ref: "#/$defs/part" }, description: "What it draws, top to bottom." },
   },
   required: ["format", "name", "kind", "slots", "size", "parts"],
@@ -170,7 +183,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
           type: "object",
           description: "A value the core writes, in the Workspace's Number Style.",
           properties: {
-            show: { enum: [...TEXT_SHOWS] },
+            show: shows(TEXT_SHOWS, true, "a value the core writes"),
             style: { enum: ["strong"] },
             before: text(VIEW_LIMITS.label, "plain text, without markup or web addresses"),
             after: text(VIEW_LIMITS.label, "plain text, without markup or web addresses"),
@@ -202,12 +215,12 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
     },
     plotMark: {
       oneOf: [
-        mark("line", "A line through the values.", { show: { enum: ["values", "forecast", "target.line"] }, tone, detail: { enum: ["plain", "full"] }, dash: { type: "boolean" }, weight: { enum: ["light", "regular", "strong"], description: "light: a fine line, slightly faded; strong: the line of a Metric's own values." } }, ["show"]),
+        mark("line", "A line through the values.", { show: shows(["values", "forecast", "target.line"], true, "a series"), tone, detail: { enum: ["plain", "full"] }, dash: { type: "boolean" }, weight: { enum: ["light", "regular", "strong"], description: "light: a fine line, slightly faded; strong: the line of a Metric's own values." } }, ["show"]),
         mark("area", "A filled range.", { show: { const: "forecast.range" }, tone }, ["show"]),
-        mark("bar", "One bar per period.", { show: { const: "values" }, tone }, ["show"]),
+        mark("bar", "One bar per period.", { show: shows(["values"], true, "a series"), tone }, ["show"]),
         mark("point", "One point per period two Metrics share: the first against the second (pairs), or against the one that moves most with it (drivers.pairs).", { show: { enum: ["pairs", "drivers.pairs"] }, tone }, ["show"]),
         mark("band", "The target range.", { show: { const: "target" } }, ["show"]),
-        mark("rule", "A straight line across the plot.", { show: { enum: ["target.min", "target.max"] }, tone }, ["show"]),
+        mark("rule", "A straight line across the plot.", { show: shows(["target.min", "target.max"], true, "one value"), tone }, ["show"]),
       ],
     },
   },
@@ -271,8 +284,41 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
     });
   walk(d.parts, "parts");
+  recipeUse(d, lines, at);
   if (count > VIEW_LIMITS.marks) at("parts", `has ${count} parts and marks in all; at most ${VIEW_LIMITS.marks} are allowed.`);
   return out;
+}
+
+/** The design's analysis and what its marks show of it: each "recipe." names an output step of the right kind. */
+function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string, message: string) => void) {
+  if (d.analysis) {
+    const sub = new Map([...lines].filter(([k]) => k.startsWith("analysis")).map(([k, v]) => [k.replace(/^analysis\.?/, ""), v]));
+    const res = checkAnalysisRecipeValue(d.analysis, sub);
+    if (!res.ok) for (const p of res.problems) at(p.path ? `analysis.${p.path}` : "analysis", p.message);
+    const metrics = d.slots.reduce((n, s) => n + (s.metrics === "several" ? 2 : 1), 0);
+    if (d.analysis.slots.length > metrics) at("analysis.slots", `The analysis has ${d.analysis.slots.length} Slots; the design fills at most ${metrics}.`);
+  }
+  const kind = (step: string) => {
+    if (!d.analysis?.outputs.some((o) => o.step === step)) return null;
+    const s = d.analysis.steps.find((x) => x.id === step);
+    return s ? FUNCTIONS[s.fn].gives : null;
+  };
+  const use = (show: string, path: string, wants: "series" | "value" | "any") => {
+    if (!show.startsWith("recipe.")) return;
+    const step = show.slice("recipe.".length);
+    if (!d.analysis) return at(path, `shows “${show}”, but the design has no analysis.`);
+    const k = kind(step);
+    if (!k) return at(path, `“${step}” is not an output of the design's analysis.`);
+    if (wants !== "any" && k !== wants) at(path, `“${show}” gives ${k === "series" ? "a series" : "one value"}; this mark needs ${wants === "series" ? "a series" : "one value"}.`);
+  };
+  const walk = (parts: Part[], path: string) =>
+    parts.forEach((p, n) => {
+      const here = `${path}[${n}]`;
+      if (p.mark === "group") walk(p.parts, `${here}.parts`);
+      if (p.mark === "plot") p.marks.forEach((m, k) => use(m.show, `${here}.marks[${k}].show`, m.mark === "rule" ? "value" : "series"));
+      if (p.mark === "text") p.content.forEach((c, k) => typeof c !== "string" && use(c.show, `${here}.content[${k}].show`, "any"));
+    });
+  walk(d.parts, "parts");
 }
 
 /** A design as the text Ziffr writes it: two-space JSON, fields in the order the format lists them, so a design

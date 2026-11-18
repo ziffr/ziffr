@@ -8,7 +8,8 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { Download, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { BUILT_IN_DESIGNS, DESIGNED_VIEWS, designSettings, designSlots } from "@ziffr/core/built-in-designs";
-import { sampleDesignWidget } from "@ziffr/core/design-files";
+import { designWithRecipe, sampleDesignWidget } from "@ziffr/core/design-files";
+import { BUILT_IN_RECIPES, RECIPES, type BuiltInRecipe } from "@ziffr/core/built-in-recipes";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import { checkViewDesign, VIEW_LIMITS, writeViewDesign, type ViewDesign } from "@ziffr/core/view-design";
 import type { Problem } from "@ziffr/core/json-check";
@@ -61,12 +62,18 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
     <div className="grid gap-6 lg:grid-cols-2">
       <section aria-labelledby="pg-file" className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 id="pg-file" className="mr-auto text-sm font-medium">The design&rsquo;s file</h2>
+          <h2 id="pg-file" className="mr-auto text-sm font-medium">The design&rsquo;s file, with its Analysis Recipe under “analysis”</h2>
           <label className="text-xs text-muted-foreground">
             Start from{" "}
-            <select aria-label="Start from a built-in View Design" className="rounded-[var(--radius-input)] border border-input bg-transparent px-1.5 py-1 text-xs" value="" onChange={(e) => { if (e.target.value) { setServer(null); setText(writeViewDesign(BUILT_IN_DESIGNS[e.target.value as (typeof DESIGNED_VIEWS)[number]])); } }}>
-              <option value="">a built-in View…</option>
-              {DESIGNED_VIEWS.map((id) => <option key={id} value={id}>{BUILT_IN_DESIGNS[id].name}</option>)}
+            <select aria-label="Start from a built-in View Design" className="rounded-[var(--radius-input)] border border-input bg-transparent px-1.5 py-1 text-xs" value="" onChange={(e) => { const v = e.target.value; if (!v) return; setServer(null); setText(writeViewDesign(v.startsWith("recipe:") ? designWithRecipe(BUILT_IN_RECIPES[v.slice(7) as BuiltInRecipe]) : BUILT_IN_DESIGNS[v as (typeof DESIGNED_VIEWS)[number]])); }}>
+              <option value="">a built-in View or Analysis Recipe…</option>
+              <optgroup label="Views">
+                {DESIGNED_VIEWS.map((id) => <option key={id} value={id}>{BUILT_IN_DESIGNS[id].name}</option>)}
+              </optgroup>
+              {/* A recipe comes inside a design that draws it: the file is still one View Design. */}
+              <optgroup label="Analysis Recipes">
+                {RECIPES.map((id) => <option key={id} value={`recipe:${id}`}>{BUILT_IN_RECIPES[id].name}</option>)}
+              </optgroup>
             </select>
           </label>
           <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => load(e.target.files?.[0])} />
