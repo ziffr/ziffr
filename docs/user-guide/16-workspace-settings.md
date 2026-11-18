@@ -70,7 +70,7 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 ## General
 
-**Workspace → General** holds the Workspace's name, its time, its fiscal year and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
 ### Name
 
@@ -97,6 +97,12 @@ Some months may be greyed out. What Ziffr has already kept per quarter, half-yea
 
 Choose **Save** after picking a month. The change shows in the Audit Log. Members and Guests see a single line, such as "Year starts in April".
 
+### Number style
+
+**Numbers look like** sets the Workspace's **Number Style**. It is one of four: 1,234.5, 1.234,5, 1 234,5 and 1'234.5. Each choice shows a percentage too, such as "1.234,5 (12,5 %)". The style says which mark groups the digits and which mark is the decimal. Ziffr will write values in it. It will also use it to read a number that could mean two things, such as 1.500 sent by Slack or email.
+
+Until an Owner or Admin picks a style, it follows the country in the Workspace Profile. A Workspace in Germany writes 1.234,5, in France 1 234,5 and in Switzerland 1'234.5. Without a country it is 1,234.5. The page says where the style comes from. Once you pick one and choose **Save**, it stays, even if the country changes later. The change shows in the Audit Log. Members and Guests see a single line, such as "Numbers look like 1.234,5 (12,5 %)".
+
 ### Workspace Profile
 
 The **Workspace Profile** says what kind of business this is, so Ziffr can suggest the Metrics such teams track. Each part is picked from a list; **Not set** leaves it open.
@@ -114,7 +120,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### In the demo
 
-In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January.
+In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, and it writes numbers as 1,234.5.
 
 ## Members and Groups
 

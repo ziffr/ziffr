@@ -53,6 +53,7 @@ function detailText(e: AuditEvent): string {
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
+    case "workspace.number_style_changed": return `${d.from ?? "from the country"} → ${d.to}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";
   }
