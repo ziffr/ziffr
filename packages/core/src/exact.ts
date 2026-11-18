@@ -25,7 +25,8 @@ export function fractionOf(v: number): Fraction {
   return { num: digits, den: TEN ** BigInt(places) };
 }
 
-const bitLength = (n: bigint) => n.toString(2).length;
+/** How many bits a whole number's size takes (0 has one). */
+export const bitLength = (n: bigint) => (n < ZERO ? -n : n).toString(2).length;
 const TWO_53 = TWO ** BigInt(53);
 
 /** The double nearest to num / den (den positive), ties to even: the quotient is taken to 53 bits with the
@@ -62,6 +63,13 @@ export function exactTotal(values: readonly number[], count: number): number {
 export function fractionOfText(text: string): Fraction {
   const [, sign, whole, decimals = ""] = TEXT.exec(text)!;
   return { num: BigInt(`${sign}${whole}${decimals}`), den: TEN ** BigInt(decimals.length) };
+}
+
+/** A fraction in lowest terms: numerator and denominator divided by their greatest common divisor. */
+export function lowestTerms(a: Fraction): Fraction {
+  let [x, y] = [a.num < ZERO ? -a.num : a.num, a.den];
+  while (y) [x, y] = [y, x % y];
+  return x > ONE ? { num: a.num / x, den: a.den / x } : a;
 }
 
 /** a + b on fractions. */

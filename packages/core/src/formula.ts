@@ -1,7 +1,7 @@
 // Formulas of Derived Metrics (GLOSSARY: Derived Metric), like "({revenue} - {cost}) / {revenue} * 100": + - * /,
 // brackets, numbers such as 12 or 0.5, and {slug} for another Metric. A formula is read whole or refused (spec 0022):
 // anything it cannot read gives no value, never a number from the part it could read.
-import { fractionOf, fractionOfText, minus, nearest, over, plus, times, type Fraction } from "./exact";
+import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric } from "./types";
 
 /** The slugs of the metrics a Derived Metric's formula reads, each once. */
@@ -9,11 +9,23 @@ export function formulaInputs(formula: string): string[] {
   return [...new Set([...formula.matchAll(/\{([a-z0-9-]+)\}/g)].map((m) => m[1]))];
 }
 
+/** The longest formula read, in characters: a formula is a short expression, and these bounds keep the exact
+ * arithmetic below from growing without limit on one written to burn time (#126). */
+export const FORMULA_MAX_LENGTH = 500;
+/** The most operations (+ − × ÷ and minus signs) a formula may have. */
+export const FORMULA_MAX_OPERATIONS = 50;
+/** The most digits a number in a formula may have. */
+export const FORMULA_MAX_DIGITS = 20;
+/** The most bits a numerator or denominator may reach while a formula is worked out; beyond, there is no value. With
+ * the bounds above and values of at most 10^15 with six decimals, as values are kept, no formula comes near it. */
+export const FORMULA_MAX_BITS = 8192;
+
 type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
 type Token = { t: string; at: number };
 
 /** A formula read into a tree, or why it cannot be read, in words for the person writing it. */
 function parse(formula: string): { ok: true; node: Node } | { ok: false; reason: string } {
+  if (formula.length > FORMULA_MAX_LENGTH) return { ok: false, reason: `The formula is longer than ${FORMULA_MAX_LENGTH} characters.` };
   const tokens: Token[] = [];
   const re = /\s+|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
   for (let at = 0; at < formula.length; ) {
@@ -29,6 +41,9 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     at += m[0].length;
   }
   if (!tokens.length) return { ok: false, reason: "The formula is empty." };
+  const long = tokens.find((t) => /^\d/.test(t.t) && t.t.replace(".", "").length > FORMULA_MAX_DIGITS);
+  if (long) return { ok: false, reason: `"${long.t.slice(0, 24)}…" has more than ${FORMULA_MAX_DIGITS} digits.` };
+  if (tokens.filter((t) => /^[+\-*/]$/.test(t.t)).length > FORMULA_MAX_OPERATIONS) return { ok: false, reason: `The formula has more than ${FORMULA_MAX_OPERATIONS} operations.` };
   let i = 0;
   const fail = (reason: string): never => { throw new FormulaError(reason); };
   function primary(): Node {
@@ -93,7 +108,10 @@ function run(n: Node, vars: Record<string, number>): Fraction {
     case "op": {
       const a = run(n.a, vars), b = run(n.b, vars);
       if (n.op === "/" && b.num === BigInt(0)) throw new FormulaError("division by zero");
-      return n.op === "+" ? plus(a, b) : n.op === "-" ? minus(a, b) : n.op === "*" ? times(a, b) : over(a, b);
+      // Kept in lowest terms after every step, and stopped past FORMULA_MAX_BITS, so nothing grows without limit.
+      const r = lowestTerms(n.op === "+" ? plus(a, b) : n.op === "-" ? minus(a, b) : n.op === "*" ? times(a, b) : over(a, b));
+      if (bitLength(r.num) > FORMULA_MAX_BITS || bitLength(r.den) > FORMULA_MAX_BITS) throw new FormulaError("too large");
+      return r;
     }
   }
 }

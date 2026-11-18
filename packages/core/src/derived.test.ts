@@ -103,6 +103,42 @@ describe("formulas against the reference evaluator", () => {
     }
     for (const good of ["{a}", "-{a}", "--{a}", "1 - -2", "( {a} )", "007", "{net-revenue} / {c2}"]) expect(referenceReads(good), good).toBe(true);
   });
+  it("are held to bounds, so no formula grows its arithmetic without limit", () => {
+    const ins = asInputs(["a"]);
+    const sum = (n: number) => Array.from({ length: n + 1 }, () => "{a}").join("+");
+    // 50 operations are read, 51 are not.
+    expect(evaluate(sum(50), { a: 1 })).toBe(51);
+    expect(evaluate(sum(51), { a: 1 })).toBeNull();
+    expect(checkFormula(sum(51), ins)).toBe("The formula has more than 50 operations.");
+    // Minus signs count as operations too.
+    expect(checkFormula(`${"-".repeat(51)}{a}`, ins)).toBe("The formula has more than 50 operations.");
+    // A number has at most 20 digits, its decimals included.
+    expect(evaluate("{a} * 12345678901234567890", { a: 1 })).toBe(12345678901234567890);
+    expect(evaluate("{a} * 1234567890.12345678901", { a: 1 })).toBeNull();
+    expect(checkFormula("{a} * 123456789012345678901", ins)).toMatch(/more than 20 digits/);
+    // At most 500 characters, white space included.
+    const padded = (n: number) => `{a}${" ".repeat(n - 3)}`;
+    expect(evaluate(padded(500), { a: 2 })).toBe(2);
+    expect(evaluate(padded(501), { a: 2 })).toBeNull();
+    expect(checkFormula(padded(501), ins)).toBe("The formula is longer than 500 characters.");
+    for (const f of [sum(51), padded(501), "{a} * 123456789012345678901"]) expect(referenceReads(f), f).toBe(false);
+    // Within the bounds, values far beyond what Ziffr keeps can still outgrow the arithmetic: no value then.
+    expect(evaluate(Array(10).fill("{a}").join(" * "), { a: 1e300 })).toBeNull();
+    expect(evaluate(Array(10).fill("{a}").join(" * "), { a: 1e-300 })).toBeNull();
+    expect(evaluate(Array(9).fill("{a}").join(" * "), { a: 1e30 })).toBe(1e270);
+  });
+  it("refuses at once a formula written to burn time", () => {
+    // 200,000 multiplications of a 21-digit value: before the bounds, an exact product of some four million digits.
+    const f = Array.from({ length: 200_001 }, () => "{a}").join("*");
+    const started = performance.now();
+    expect(evaluate(f, { a: 999999999999999.9 })).toBeNull();
+    expect(checkFormula(f, asInputs(["a"]))).toMatch(/longer than 500 characters/);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+  it("keep every fraction in lowest terms", () => {
+    // Twelve halvings and doublings: exact all the way, with nothing left to grow.
+    expect(evaluate(`${Array(12).fill("{a} / 2").join(" * ")} * ${Array(12).fill("2").join(" * ")}`, { a: 3 })).toBe(3 ** 12);
+  });
   it("are exact where floating point is not", () => {
     expect(evaluate("{a} - {b}", { a: 0.3, b: 0.1 })).toBe(0.2);
     expect(evaluate("({a} - {b}) / {a} * 100", { a: 0.3, b: 0.1 })).toBe(66.66666666666667);

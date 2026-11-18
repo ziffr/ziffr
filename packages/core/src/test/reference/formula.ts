@@ -5,6 +5,7 @@
 //   inputs as {slug} with a slug of lower-case letters, digits and "-", the operators + - * /, brackets and white space,
 //   and nothing else;
 // - * and / bind tighter than + and -, and all four group from the left; a "-" where a value is expected negates it;
+// - a formula is at most 500 characters long, with at most 50 operators and at most 20 digits in a number;
 // - a formula that does not read whole (anything unknown, a missing or extra bracket, two values side by side, an
 //   operator without a value) is refused: no value at all;
 // - its value is exact; it has none when an input it names has no value or a division is by zero.
@@ -59,8 +60,12 @@ const PRECEDENCE = { "+": 1, "-": 1, "*": 2, "/": 2, neg: 3 } as const;
 
 /** The formula in postfix order, or null when it is not one expression. */
 function postfix(formula: string): Token[] | null {
+  // The bounds a formula is held to: at most 500 characters, 50 operators and 20 digits in a number.
+  if (formula.length > 500) return null;
   const ts = tokens(formula);
   if (!ts || !ts.length) return null;
+  if (ts.filter((t) => t.kind === "op").length > 50) return null;
+  if (ts.some((t) => t.kind === "number" && t.text.replace(".", "").length > 20)) return null;
   const out: Token[] = [];
   const stack: Token[] = [];
   // Whether a value is expected next: at the start, after an operator and after an opening bracket.

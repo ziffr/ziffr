@@ -1,7 +1,7 @@
 // Exact arithmetic (spec 0022, "Exact results"), on results worked out by hand; the generated tests against the
 // references (aggregations-*.test.ts, changes.test.ts) hold every caller to it.
 import { describe, expect, it } from "vitest";
-import { changeBeyond, changePct, exactTotal, fractionOf, nearestDouble, percentOf, scaled } from "./exact";
+import { bitLength, changeBeyond, changePct, exactTotal, fractionOf, lowestTerms, nearestDouble, percentOf, scaled } from "./exact";
 
 describe("exact arithmetic", () => {
   it("reads a value from its shortest text", () => {
@@ -23,6 +23,13 @@ describe("exact arithmetic", () => {
     expect(exactTotal(Array(1000).fill(0.01), 1)).toBe(10);
     expect(exactTotal([1, 2], 2)).toBe(1.5);
     expect(exactTotal([1, Infinity], 1)).toBe(Infinity);
+  });
+  it("keeps fractions in lowest terms and measures them in bits", () => {
+    const b = (n: number) => BigInt(n);
+    expect(lowestTerms({ num: b(-6), den: b(4) })).toEqual({ num: b(-3), den: b(2) });
+    expect(lowestTerms({ num: b(0), den: b(7) })).toEqual({ num: b(0), den: b(1) });
+    expect(lowestTerms({ num: b(3), den: b(5) })).toEqual({ num: b(3), den: b(5) });
+    expect([bitLength(b(0)), bitLength(b(1)), bitLength(b(-255)), bitLength(b(256))]).toEqual([1, 1, 8, 9]);
   });
   it("divides by a negative value", () => {
     expect(percentOf(1, -4)).toBe(-25);
