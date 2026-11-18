@@ -8,6 +8,7 @@ import { actorForKey } from "@ziffr/core/access-keys";
 import { createServer } from "@ziffr/mcp";
 import { Ziffr } from "@ziffr/sdk";
 import { inProcessFetch } from "@/lib/api-in-process";
+import { readLimited } from "@/lib/limited-body";
 import { SITE_URL } from "@/lib/sign-in";
 
 /** Whether this Installation serves /mcp: `ZIFFR_REMOTE_MCP=1` or `0` decides; unset, it is on where Ziffr is
@@ -63,8 +64,9 @@ export async function handleMcp(req: Request): Promise<Response> {
   if (!secret || !(await actorForKey(secret))) return plain(401, "Sign in to Ziffr: connect this assistant, or send an Access Key as \"Authorization: Bearer <key>\".", challenge());
   // Stateless: no stream to keep open between requests, and no session to end.
   if (req.method !== "POST") return plain(405, "Send MCP messages with POST.", { allow: "POST" });
-  const text = await req.text();
-  if (text.length > MAX_BODY) return plain(413, "The request is too large.");
+  // Counted in bytes while it arrives, never buffered whole first (limited-body.ts).
+  const text = await readLimited(req, MAX_BODY);
+  if (text === null) return plain(413, "The request is too large.");
   let body: unknown;
   try { body = JSON.parse(text); } catch { return plain(400, "The body is not valid JSON."); }
 

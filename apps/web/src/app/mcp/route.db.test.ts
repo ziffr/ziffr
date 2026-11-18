@@ -126,8 +126,14 @@ describe("/mcp", () => {
     const get = await GET(new Request(MCP, { headers: auth }));
     expect(get.status).toBe(405);
     expect(get.headers.get("allow")).toBe("POST");
-    const big = await POST(new Request(MCP, { method: "POST", body: "x".repeat(300 * 1024), headers: { ...auth, "content-type": "application/json" } }));
+    // A declared length over the limit, and a chunked body without one that passes it.
+    const declared = await POST(new Request(MCP, { method: "POST", body: "x".repeat(300 * 1024), headers: { ...auth, "content-type": "application/json", "content-length": String(300 * 1024) } }));
+    expect(declared.status).toBe(413);
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({ pull(c) { if (sent++ > 1000) return c.close(); c.enqueue(new Uint8Array(1024).fill(32)); } });
+    const big = await POST(new Request(MCP, { method: "POST", body: stream, duplex: "half", headers: { ...auth, "content-type": "application/json" } } as RequestInit));
     expect(big.status).toBe(413);
+    expect(sent).toBeLessThan(300);
     process.env.ZIFFR_REMOTE_MCP = "0";
     try {
       expect((await post(initialize, auth)).status).toBe(404);
