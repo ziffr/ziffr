@@ -11,7 +11,7 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, unit and format, period, submission rule, sources, target range, polarity, owner and, for a derived metric, its formula.
+Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, owner and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
 
 **Period**:
@@ -259,6 +259,10 @@ _Avoid_: Instance, deployment, server, tenant
 **Workspace Profile**:
 What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it.
 _Avoid_: Classification, company profile, firmographics, tenant settings
+
+**Number Style**:
+How a Workspace writes numbers: how digits are grouped and which mark is the decimal, such as 1,234.5 or 1.234,5. It also settles how an ambiguous number such as 1.500 is read.
+_Avoid_: Locale, number format, regional settings
 
 **Workspace Role**:
 What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.

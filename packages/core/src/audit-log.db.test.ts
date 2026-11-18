@@ -16,7 +16,7 @@ import { approveValue, closeWorkflowPeriod, lockPeriod, saveWorkflow, sendValueB
 import { decideCorrection, submitValue } from "./submissions";
 import { setWorkspaceClock } from "./workspace-clock";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { renameWorkspace, setWorkspaceProfile } from "./workspace-settings";
+import { renameWorkspace, setNumberStyle, setWorkspaceProfile } from "./workspace-settings";
 import { setYearStart } from "./fiscal-year";
 import { workspace } from "./test/db-fixtures";
 import { JANUARY, periodStart } from "./periods";
@@ -65,13 +65,14 @@ describe("recording", () => {
     await renameWorkspace(owner, "Audit Co");
     await setWorkspaceProfile(owner, { industry: "saas", employeeBand: null });
     await setYearStart(owner, 4);
+    await setNumberStyle(owner, "1.234,5");
 
     expect(await kinds(w.id)).toEqual([
       "member.role_changed", "invitation.created", "invitation.created", "invitation.revoked", "invitation.accepted",
       "domain_joining.on", "domain_joining.off", "join_request.declined",
       "group.created", "group.renamed", "group.member_added", "group.member_removed", "group.deleted",
       "contact.added", "contact.removed", "workspace.clock_changed", "member.removed",
-      "workspace.renamed", "workspace.profile_changed", "workspace.year_start_changed",
+      "workspace.renamed", "workspace.profile_changed", "workspace.year_start_changed", "workspace.number_style_changed",
     ]);
     const rows = await stored(w.id);
     expect(rows[0]).toMatchObject({ actor_id: sara, object_type: "person", object_id: ben, details: { from: "member", to: "admin" } });
@@ -83,6 +84,7 @@ describe("recording", () => {
     expect(rows[17].details).toMatchObject({ to: "Audit Co" });
     expect(rows[18].details).toEqual({ from_industry: null, to_industry: "saas" });
     expect(rows[19].details).toEqual({ from: 1, to: 4 });
+    expect(rows[20].details).toEqual({ from: null, to: "1.234,5" });
     // Never a secret: no invitation token, no Contact's address.
     const all = JSON.stringify(rows);
     expect(all).not.toContain(inviteToken);

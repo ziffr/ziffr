@@ -6,7 +6,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const PURE = new Set([
-  "actor", "compare", "correlation", "display-periods", "format", "formula", "metric-row", "numbers", "parse", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens",
+  "actor", "compare", "correlation", "display-periods", "format", "formula", "metric-row", "number-style", "numbers", "parse", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens",
   "themes", "tokens", "types", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
 ]);

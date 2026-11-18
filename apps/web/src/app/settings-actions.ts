@@ -27,6 +27,13 @@ export async function setYearStart(month: number) {
   revalidatePath("/", "layout");
 }
 
+/** Sets the workspace's Number Style (Owners and Admins); the core checks it is one of the four. */
+export async function setNumberStyle(style: string) {
+  await workspace.setNumberStyle(await currentActor(), style);
+  // Every page will write its values in it.
+  revalidatePath("/", "layout");
+}
+
 /** Sets the Workspace Profile (Owners and Admins); the core checks every field against its list. */
 export async function setWorkspaceProfile(input: Record<string, string | null>) {
   await workspace.setWorkspaceProfile(await currentActor(), input);
