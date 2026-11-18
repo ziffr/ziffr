@@ -1,39 +1,90 @@
-# A pushed version tag becomes a GitHub release whose notes are exactly that version's CHANGELOG.md section (ADR 0004),
-# then the Docker image on GHCR, with the compose file and the installer attached to the release (spec 0015).
+# The Release button (ADR 0004): Actions → Release → Run workflow, on main. One run makes the release and publishes it.
+#   prepare  makes the release commit from the notes in .changeset/, gets it into main by pull request once its
+#            checks pass, and tags it vX.Y.Z (scripts/release-run.mjs);
+#   release  makes the GitHub release, whose notes are exactly that version's CHANGELOG.md section;
+#   numbers  verifies every calculation on the tagged code, and mutation-tests the calculation modules unless none of
+#            them changed since the last nightly run that reached the score;
+#   image    builds, tries and publishes the Docker image, with the compose file and installer on the release (spec 0015).
+# Pressing the button is the maintainer's approval: only the repository's owner may start it, and only from main.
 name: Release
 on:
-  push:
-    tags: ["v*.*.*"]
+  workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-    # The environment "release" waits for a maintainer's approval, and only runs for v* and *-v* tags; the image
-    # job below needs this one, so it waits too.
-    environment: release
+    timeout-minutes: 75
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+      checks: read
+    outputs:
+      version: ${{ steps.run.outputs.version }}
+      sha: ${{ steps.run.outputs.sha }}
+    steps:
+      - name: Only the owner, only from main
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Start the release from main."; exit 1; }
+          [ "$ACTOR" = "$OWNER" ] || { echo "::error::Only $OWNER may release."; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: The release commit, its pull request, its checks, the merge and the tag
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-run.mjs
+
+  release:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: v${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Notes from the changelog
-        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+        run: node scripts/release-notes.mjs "$TAG" > "$RUNNER_TEMP/notes.md"
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "Ziffr ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+        run: gh release create "$TAG" --title "Ziffr ${TAG#v}" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md) on the tagged code, with a
   # new seed, and mutation testing of every calculation module: no image is built or published unless every
-  # calculation still equals its reference and the mutation score is at least 95 %.
+  # calculation still equals its reference and the mutation score is at least 95 %. The mutation run, a few hours, is
+  # left out when no calculation path changed since the last nightly run that reached the score: that run tested
+  # these same modules, and a calculation path is every file that can change their result (.github/calculation-paths.txt).
   numbers:
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 330
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -42,7 +93,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Calculations against the reference, full strength
         run: pnpm --filter @ziffr/core test:numbers
+      - name: Did a calculation path change since the last nightly run that reached the score?
+        id: since
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(gh run list -R "$GITHUB_REPOSITORY" --workflow numbers.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null && ! .github/scripts/calculation-paths-touched.sh "$base"; then
+            echo "mutate=false" >> "$GITHUB_OUTPUT"
+            echo "Mutation testing left out: no calculation path changed since $base, whose nightly run reached the score." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mutate=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Mutation testing of every calculation module
+        if: steps.since.outputs.mutate == 'true'
         env:
           NUMBERS_RUNS: "30"
         run: |
@@ -56,14 +120,18 @@ jobs:
   # docker/compose.yml and checked from outside (docker/smoke-test.sh) before it is pushed. Only on a release, never
   # on pull requests: Actions minutes are counted.
   image:
-    needs: [release, numbers]
+    needs: [prepare, release, numbers]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: write
       packages: write
+    env:
+      TAG: v${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: The image for this runner, to try
@@ -92,7 +160,7 @@ jobs:
       - name: Version tags
         id: tags
         run: |
-          v="${GITHUB_REF_NAME#v}"
+          v="${TAG#v}"
           echo "list=ghcr.io/ziffr/ziffr:$v,ghcr.io/ziffr/ziffr:${v%.*},ghcr.io/ziffr/ziffr:latest" >> "$GITHUB_OUTPUT"
       - name: Push for Intel and ARM
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -106,4 +174,4 @@ jobs:
       - name: The compose file and installer of this version, on the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" docker/compose.yml docker/install.sh --clobber
+        run: gh release upload "$TAG" docker/compose.yml docker/install.sh --clobber
