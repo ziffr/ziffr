@@ -248,8 +248,12 @@ _Avoid_: Copy, freeze, archive, export data
 One team's own space in Ziffr, with its people, metrics, dashboards, decks, themes and connectors. A person can belong to several and switches between them; nothing is shared across workspaces.
 _Avoid_: Tenant, organisation, account, company
 
+**Trial Workspace**:
+A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and it is deleted a set number of days after it was made. On such an Installation every Workspace is one.
+_Avoid_: Sandbox, test workspace, free trial
+
 **Installation**:
-One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo.
+One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo and whether it offers Trial Workspaces.
 _Avoid_: Instance, deployment, server, tenant
 
 **Workspace Profile**:
@@ -289,7 +293,7 @@ The record of every call a program made with an access key: when, what it asked 
 _Avoid_: Audit trail, request log, API history
 
 **Demo Mode**:
-A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people and resetting it. It sits next to real workspaces and never reaches them, and an installation can switch it off.
+A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people and resetting it. It sits next to real workspaces and never reaches them, and an installation can switch it off. Its Connectors are all simulated and it has no Access Keys; trying them for real is what a Trial Workspace is for.
 _Avoid_: Sandbox, test mode
 
 **Share**:

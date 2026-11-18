@@ -1,6 +1,6 @@
 # 0021 Trial Workspaces: every Connector, real, for anyone trying Ziffr
 
-**Status:** draft. **Tracking issue:** #81 (label `tracking`); tickets #82 to #92 carry `spec:0021`.
+**Status:** in progress. **Tracking issue:** #81 (label `tracking`); tickets #82 to #92 carry `spec:0021`.
 
 ## Problem Statement
 
