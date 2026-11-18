@@ -4,6 +4,7 @@
 // correlation matrix, the scatter plot, the Analysis Canvas and a Metric's page all correlate through `correlate`.
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
 import type { Span, YearStart } from "./periods";
+import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
 
 /** How many common periods a correlation needs before it says anything. */
@@ -52,17 +53,24 @@ export function pearson(a: Point[], b: Point[]): PearsonResult | null {
   return pairs.length < MIN_PAIRS ? null : pearsonOf(pairs);
 }
 
+// Pearson's r, worked out exactly on the values' text (exact.ts): r² = Sxy² ÷ (Sxx · Syy) with the sums of products
+// about the means as exact fractions, then r = ±√r² from the double nearest to r², with the sign of Sxy. Only the
+// square root is a double's. A series that does not change has Sxx or Syy exactly 0, and no r (NaN) (spec 0022, #126).
 function pearsonOf(pairs: Pair[]): PearsonResult {
-  const n = pairs.length;
-  const mx = pairs.reduce((s, p) => s + p.x, 0) / n;
-  const my = pairs.reduce((s, p) => s + p.y, 0) / n;
-  let sxy = 0, sxx = 0, syy = 0;
-  for (const p of pairs) {
-    sxy += (p.x - mx) * (p.y - my);
-    sxx += (p.x - mx) ** 2;
-    syy += (p.y - my) ** 2;
-  }
-  return { r: sxy / Math.sqrt(sxx * syy), n, pairs };
+  const n = BigInt(pairs.length);
+  const xs = pairs.map((p) => fractionOf(p.x));
+  const ys = pairs.map((p) => fractionOf(p.y));
+  const sum = (fs: Fraction[]) => fs.reduce((a, b) => lowestTerms(plus(a, b)), { num: BigInt(0), den: BigInt(1) });
+  // n·Sxy = n·Σxy − Σx·Σy, and the same for Sxx and Syy: the factor n cancels in r².
+  const [sx, sy] = [sum(xs), sum(ys)];
+  const about = (as: Fraction[], bs: Fraction[], sa: Fraction, sb: Fraction) => minus(times({ num: n, den: BigInt(1) }, sum(as.map((a, i) => times(a, bs[i])))), times(sa, sb));
+  const sxy = lowestTerms(about(xs, ys, sx, sy));
+  const sxx = lowestTerms(about(xs, xs, sx, sx));
+  const syy = lowestTerms(about(ys, ys, sy, sy));
+  const zero = BigInt(0);
+  if (sxx.num === zero || syy.num === zero) return { r: NaN, n: pairs.length, pairs };
+  const r2 = nearest(over(times(sxy, sxy), times(sxx, syy)));
+  return { r: (sxy.num < zero ? -1 : 1) * Math.sqrt(r2), n: pairs.length, pairs };
 }
 
 /** How strong a correlation is, in words ("strong positive", "no clear"). */

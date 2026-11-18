@@ -1,8 +1,8 @@
 // The deck export's numbers match the app's (spec 0022, ticket #114): the change comes from compare(), so a gap or
 // an earlier 0 shows none, and chart values are rounded to the Metric's decimals.
 import { describe, expect, it } from "vitest";
-import { compare, resolverFrom } from "@ziffr/core/compare";
-import { canvas, metric, months } from "@ziffr/core/test/fixtures";
+import { compare, resolverFrom } from "./compare";
+import { canvas, metric, months } from "./test/fixtures";
 import { chartFormatCode, chartValue, exportedChange } from "./export-values";
 
 const revenue = metric();

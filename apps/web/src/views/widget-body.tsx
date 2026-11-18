@@ -3,7 +3,7 @@
 import { useId, useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
-import { forecast } from "@/analyses/forecast";
+import { forecast } from "@ziffr/core/forecast";
 import { comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type Correlation } from "@ziffr/core/correlation";
 import { resolverFrom, type Resolver } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";

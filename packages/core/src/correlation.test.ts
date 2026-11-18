@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolverFrom } from "./compare";
-import { commonPeriod, comparedBy, correlate, MIN_PAIRS, pearson, rankCorrelations, strength } from "./correlation";
+import { commonPeriod, comparedBy, correlate, MIN_PAIRS, pearson, periodWord, rankCorrelations, strength } from "./correlation";
 import { JANUARY } from "./periods";
 import { metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -106,6 +106,21 @@ describe("correlate", () => {
     const r = resolverFrom([tickets, churn, perMonth], { "support-tickets": weekly, churn: monthly, "tickets-per-churn": monthly });
     expect(correlate(tickets, perMonth, r, { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, reason: "Tickets per churn is calculated from the other." });
     expect(rankCorrelations(tickets, [tickets, churn, perMonth], r, { yearStart, today: "2026-03-01" }).ranked.map((x) => x.metric.slug)).toEqual(["churn"]);
+    // Named whichever side it stands on.
+    expect(correlate(perMonth, tickets, r, { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, reason: "Tickets per churn is calculated from the other." });
+  });
+
+  it("says why when the second Metric cannot be combined, and has nothing for a Metric without values", () => {
+    const stock = metric({ id: 6, slug: "stock", name: "Stock", period: "week", aggregation: "none" });
+    const flagged = metric({ id: 7, slug: "flagged", name: "Flagged", period: "week", formula: "{stock} * 2" });
+    const r = resolverFrom([churn, stock, flagged], { churn: monthly, stock: weekly, flagged: weekly });
+    expect(correlate(churn, stock, r, { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, why: "not-combined", reason: "Aggregation none: Stock is compared only with weekly Metrics." });
+    expect(correlate(stock, churn, r, { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, why: "not-combined" });
+    // A Derived Metric that cannot be combined gives the reason seriesBy names.
+    expect(correlate(churn, flagged, r, { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, why: "not-combined", reason: expect.stringMatching(/STOCK|Stock is set to Aggregation none/) });
+    const empty = metric({ id: 8, slug: "empty", name: "Empty", period: "month" });
+    expect(correlate(churn, empty, resolverFrom([churn], { churn: monthly }), { yearStart, today: "2026-03-01" })).toMatchObject({ ok: false, why: "too-few", n: 0 });
+    expect([periodWord("month"), periodWord("half", true)]).toEqual(["month", "half-years"]);
   });
 });
 

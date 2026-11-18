@@ -189,7 +189,7 @@ Press **Send question** or **Assign task**. A note confirms it, with **Open thre
 - The **Findings**. Ranked bars, Part of the whole and 7 in 10 are offered only when the Metric has a **Breakdown**.
 - **Free layout**.
 - The team's Widget Templates, each with "…". Choosing one asks for its Slots, starting with this Widget's Metrics, and then turns the Widget into that template. Its Preview uses Sample Data.
-- For **Line chart** and **Bars per period**: **Show target band**, on by default, draws the Metric's **Target Range** behind the values. For **Line chart** only: **Show forecast** adds Ziffr's projection of the next few periods, with a band of how far it may be off.
+- For **Line chart** and **Bars per period**: **Show target band**, on by default, draws the Metric's **Target Range** behind the values. For **Line chart** only: **Show forecast** adds Ziffr's projection of the next few periods, with a band of how far it may be off. It is the same forecast the Metric page shows.
 
 How many periods a View shows comes with its Widget Template: the last 12 periods for Number + sparkline, Line chart and Bars per period, and the last 6 values for History table. There is no setting to change it.
 

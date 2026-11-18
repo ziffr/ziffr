@@ -116,7 +116,7 @@ Slides are exported in their order on the canvas. Each export is noted in the wo
 Choose **Export PowerPoint**. Your browser downloads a file named after the deck.
 
 - Text, shapes and arrows become normal PowerPoint objects you can edit.
-- Line and bar Widgets, and Findings with ranked bars, become real PowerPoint charts you can edit.
+- Line and bar Widgets, and Findings with ranked bars, become real PowerPoint charts you can edit. Their values are rounded to the Metric's decimals the way Ziffr shows them: 1.005 at two decimals is 1.01.
 - Number Widgets become text, and history tables become tables. Values are written as in Ziffr, in the Workspace's Number Style with the Metric's unit. Under the value stands the Widget's first comparison, exactly as the Widget shows it, such as "vs prev. +4.2 %". When the Widget shows "n/a", for example because the period before has no value, the slide shows no change.
 - Chart values are rounded to the Metric's decimals and labelled with its unit. PowerPoint writes their digits the way the computer that opens the file does.
 - A Widget shown by quarter or year (**Show by**, see the Dashboards chapter) exports the same quarters or years, with the one still running labelled "to date", and a past one that lacks some of its values labelled "only 2 of 3 months" (shown without a change against it).

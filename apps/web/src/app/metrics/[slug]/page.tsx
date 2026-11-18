@@ -21,7 +21,7 @@ import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { FORECAST_MIN_POINTS, forecast } from "@/analyses/forecast";
+import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
 import { comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";

@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { dayOf, daysInMonth, samePoint, spanEnd, spanStart, startsSpan, textOf, weekday } from "./calendar";
 import { combine, nextDay, referenceKept, referenceSeries, referenceTargets, referenceValueOver } from "./combine";
-import { compareExact, dividedBy, exactOf, exactOfDouble, exactText, fitsDigits, fraction, isNearestDouble, minus, placesOf, plus, roundedText, same, sumOf } from "./exact";
+import { compareExact, dividedBy, exactOf, exactOfDouble, exactText, fitsDigits, fraction, isNearestDouble, minus, nearestDoubleOf, placesOf, plus, roundedText, same, sumOf } from "./exact";
 
 const e = exactOf;
 const text = (x: { value: ReturnType<typeof exactOf> }) => exactText(x.value);
@@ -92,6 +92,16 @@ describe("reference exact numbers", () => {
     expect(exactText(e(-12.5))).toBe("-12.5");
   });
 
+  it("finds the double nearest to an exact value, however small or large", () => {
+    expect(nearestDoubleOf(fraction(1n, 3n))).toBe(1 / 3);
+    expect(nearestDoubleOf(fraction(-2n, 3n))).toBe(-2 / 3);
+    expect(nearestDoubleOf(fraction(0n, 5n))).toBe(0);
+    expect(nearestDoubleOf(plus(e(0.1), e(0.2)))).toBe(0.3);
+    expect(nearestDoubleOf(fraction(10n ** 300n + 1n, 3n))).toBe(1e300 / 3);
+    // About 1.1 · 10^-25, which a guess from 40 decimals missed by more than one double (nightly seed 29916739).
+    const tiny = fraction(6997088046315517778484394606475355182809n, 62221653733345416346085529149363446454565912982062978199052773140n);
+    expect(isNearestDouble(nearestDoubleOf(tiny), tiny)).toBe(true);
+  });
   it("knows the double nearest to an exact value", () => {
     expect(isNearestDouble(0.3, plus(e(0.1), e(0.2)))).toBe(true);
     // 0.1 + 0.2 in floating point is the double above 0.3: not the nearest.
