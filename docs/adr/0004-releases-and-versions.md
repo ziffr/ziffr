@@ -13,3 +13,7 @@ Ziffr has one version number for the product (the app, the core and the database
 - Contributors and agents add a file under `.changeset/` with every user-visible change; `pnpm changeset` writes it for people, agents write it directly.
 - Before `1.0` a breaking change is a minor bump; the release script refuses a major bump until the first public release is decided.
 - Notes for self-hosters (migrations, new environment variables, manual steps) start with "Self-hosters:" and are shown first in every release.
+
+## Amendment, 2026-11-18: releases go in by pull request
+
+`main` is protected: it takes changes only through pull requests whose required checks pass (`check`, `core-db`, `numbers`), with no exception for administrators. The agents act with a maintainer's GitHub account, so an exception for maintainers would be one for them too. `pnpm release` therefore commits the release on a branch `release/vX.Y.Z` instead of `main`; once its pull request is merged, `pnpm release:tag` tags the merged commit after checking that it is that release, and pushing the tag makes the GitHub release as before. The release notes and the changelog still come from the same section.

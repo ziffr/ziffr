@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // `pnpm release` (ADR 0004): turns the waiting release notes in .changeset/ into a new CHANGELOG.md section, sets the
-// product version in every package, commits and tags vX.Y.Z. It never pushes; pushing the tag makes the GitHub
-// release (.github/workflows/release.yml).
+// product version in every package, and commits it on a branch `release/vX.Y.Z`. `main` takes changes only through
+// pull requests whose checks pass, so the release goes in by pull request too; once it is merged, `pnpm release:tag`
+// tags the merged commit, and pushing the tag makes the GitHub release (.github/workflows/release.yml). It never pushes.
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +14,7 @@ const PACKAGES = ["package.json", "apps/web/package.json", "packages/core/packag
 const DOCKER = ["docker/compose.yml", "docker/install.sh"];
 
 if (git("status", "--porcelain")) throw new Error("Commit or set aside your changes first: a release starts from a clean tree.");
+if (git("branch", "--show-current") !== "main") throw new Error("Start a release from main, up to date with origin/main.");
 
 const files = readdirSync(".changeset").filter((f) => f.endsWith(".md") && f !== "README.md");
 const notes = files.map((f) => {
@@ -34,7 +36,10 @@ for (const p of PACKAGES) {
 for (const p of DOCKER) writeFileSync(p, setDockerVersion(readFileSync(p, "utf8"), version));
 for (const f of files) rmSync(join(".changeset", f));
 
+git("switch", "-q", "-c", `release/v${version}`);
 git("add", "-A", "CHANGELOG.md", ".changeset", ...PACKAGES, ...DOCKER);
 git("commit", "-q", "-m", `Release ${version}`);
-git("tag", "-a", `v${version}`, "-m", `Ziffr ${version}`);
-console.log(`Released ${version} with ${notes.length} notes. Push it with: git push --follow-tags`);
+console.log(`Prepared ${version} with ${notes.length} notes on release/v${version}. Next:
+  git push -u origin release/v${version}
+  gh pr create --fill --label no-release-note
+Once its checks pass and it is merged: git switch main && git pull && pnpm release:tag`);
