@@ -23,7 +23,7 @@ The year a workspace reports in, starting in the month it sets (January unless s
 _Avoid_: Financial year, business year
 
 **Derived Metric**:
-A metric computed by a formula from other metrics. It never receives observations directly.
+A metric computed by a formula from other metrics. It never receives observations directly. Its inputs are counted by its own period and combine by an Aggregation other than none; a formula Ziffr cannot read whole is refused.
 _Avoid_: Calculated field, formula metric
 
 **Aggregation**:

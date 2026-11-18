@@ -12,6 +12,7 @@ import { saveWorkflow } from "./workflows";
 import { setPreference } from "./questions";
 import type { PreferenceKind } from "./connectors/types";
 import { yearStartFor } from "./fiscal-year";
+import { checkFormula } from "./formula";
 import { STARTING_METRICS, startingTargets, startingValues } from "./trial-starting-values";
 import type { WidgetSettings } from "./types";
 
@@ -50,12 +51,15 @@ export async function seedTrialWorkspace(actor: Actor, now: Date = new Date(), s
     slugs[m.slug] = slug;
   }
   // The core has no operation for a formula yet (the demo's are seeded in SQL). A formula names Metrics by slug, so
-  // the starting ones' keys become the slugs createMetric gave them.
+  // the starting ones' keys become the slugs createMetric gave them. Checked like any formula written (spec 0022).
+  const made = STARTING_METRICS.map((x) => ({ slug: slugs[x.slug], name: x.name, period: x.period, aggregation: x.aggregation, formula: x.formula ?? null }));
   for (const m of STARTING_METRICS.filter((x) => x.formula)) {
     const formula = m.formula!.replace(/\{([a-z0-9-]+)\}/g, (_, key: string) => {
       if (!slugs[key]) throw new Error(`No starting Metric ${key}.`);
       return `{${slugs[key]}}`;
     });
+    const refused = checkFormula(formula, made, { slug: slugs[m.slug], period: m.period });
+    if (refused) throw new Error(`The starting formula of ${m.name} is refused: ${refused}`);
     await db().from("metrics").update({ formula }).eq("id", ids[m.slug]).eq("workspace_id", actor.workspaceId);
   }
 

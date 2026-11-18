@@ -1,7 +1,7 @@
 // Data of one Workspace (GLOSSARY: Metric, Observation, Action, Target Series, Projection, Breakdown). Every loader
 // takes the workspace and reads nothing outside it; what a person may see is decided in access.ts.
 import { db } from "./db";
-import { evaluate, formulaInputs } from "./formula";
+import { evaluate, formulaInputs, inputsProblem } from "./formula";
 import { normalizeMetric } from "./metric-row";
 import type { Action, BreakdownRow, Metric, Observation, Point } from "./types";
 
@@ -103,6 +103,12 @@ export function buildSeries(metrics: Metric[], observations: Observation[]): Rec
   }
   for (const m of metrics) {
     if (!m.formula) continue;
+    // Inputs of different periods meet only by chance (a day that starts a month): no series rather than a wrong one.
+    // The page and widgets say why (inputsProblem).
+    if (inputsProblem(m, metrics)) {
+      bySlug[m.slug] = [];
+      continue;
+    }
     const inputs = formulaInputs(m.formula);
     const periods = [...new Set(inputs.flatMap((s) => [...(raw[s]?.keys() ?? [])]))].sort();
     bySlug[m.slug] = periods

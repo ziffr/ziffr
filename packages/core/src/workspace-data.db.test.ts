@@ -41,6 +41,19 @@ describe("the latest value of each period", () => {
     expect((await getLastValues(w.id, m.id, 3)).map((o) => o.value)).toEqual([1, 2, 5]);
   });
 
+  it("computes no Derived Metric from inputs of different periods, rather than a wrong one (spec 0022)", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const deals = await w.metric(sara, { period: "day" }); const revenue = await w.metric(sara, { period: "month" });
+    const per = await w.metric(sara, { period: "month", formula: `{${revenue.slug}} / {${deals.slug}}`, sources: [] });
+    const same = await w.metric(sara, { period: "month", formula: `{${revenue.slug}} * 2`, sources: [] });
+    // 1 January is a day and starts a month: the two meet by chance.
+    await valueAt(w.id, deals.id, "2026-01-01", 4, "2026-01-02T10:00:00Z");
+    await valueAt(w.id, revenue.id, "2026-01-01", 100, "2026-02-02T10:00:00Z");
+    const series = buildSeries(await getMetrics(w.id), await getLatestObservations(w.id));
+    expect(series[per.slug]).toEqual([]);
+    expect(series[same.slug]).toEqual([{ period: "2026-01-01", value: 200 }]);
+  });
+
   it("keeps every value and the newest ones past the database's row limit", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const m = await w.metric(sara, { period: "day" });

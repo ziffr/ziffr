@@ -84,13 +84,17 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
         const complete = periodEnd(gStart, g) <= periodEnd(last.period, P);
         s = complete ? gStart : shiftPeriod(gStart, g, -1);
         cur = [s, shiftPeriod(shiftPeriod(s, g, 1), P, -1)];
-        points = seriesBy(metric, resolve, g, { yearStart: ys, today: shiftPeriod(last.period, P, 1) }).points;
+        const r = seriesBy(metric, resolve, g, { yearStart: ys, today: shiftPeriod(last.period, P, 1) });
+        if (!r.ok) return { ...base, available: false, reason: r.reason };
+        points = r.points;
       } else {
         // To date: the current span so far vs the span before up to the same point.
         // Calendar-aligned: 1 Jul to 12 Nov compares with 1 Jan to 12 May, not a day count.
         s = gStart;
         cur = [gStart, last.period];
-        points = seriesBy(metric, resolve, g, { yearStart: ys, alignTo: last.period }).points;
+        const r = seriesBy(metric, resolve, g, { yearStart: ys, alignTo: last.period });
+        if (!r.ok) return { ...base, available: false, reason: r.reason };
+        points = r.points;
       }
       const ps = shiftPeriod(s, g, -1);
       prev = [ps, opts.full ? shiftPeriod(s, P, -1) : shiftPeriod(last.period, g, -1)];

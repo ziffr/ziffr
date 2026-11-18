@@ -6,6 +6,7 @@ import { compactValue, formatValue, health } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type Correlation } from "@ziffr/core/correlation";
 import { resolverFrom, type Resolver } from "@ziffr/core/compare";
+import { inputsProblem } from "@ziffr/core/formula";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
@@ -51,6 +52,9 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
     return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">No access to this metric. Ask its owner to share it.</div>;
   }
   const m = ms[0];
+  // A Derived Metric whose inputs are counted by different periods has no value in any period: it says why.
+  const broken = inputsProblem(m, data.metrics);
+  if (broken) return <Empty>{broken}</Empty>;
   // Show by (spec 0018): the series by its Display Period, combined by the Aggregation; a Snapshot's deck counts
   // "to date" as of its own day, so it keeps what the widget showed then.
   const shown = SHOWN_BY.includes(widget.template) ? shownSeries(m, data, widget.settings.display, { today: widget.settings.asOf ? dayAfter(widget.settings.asOf) : undefined }) : null;
