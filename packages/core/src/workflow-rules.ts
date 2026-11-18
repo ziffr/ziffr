@@ -4,6 +4,7 @@ import { addDays, format, isWeekend, parseISO } from "date-fns";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import type { Metric, Period, Profile, WorkflowConfig, WorkflowStep } from "./types";
 import { formatChange } from "./format";
+import { changeBeyond, changePct } from "./exact";
 import type { NumberStyle } from "./number-style";
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
@@ -32,8 +33,10 @@ export function unusualReasons(m: Metric, value: number, previous: number | unde
   const out: string[] = [];
   const before = previousPeriod ? periodLabel(previousPeriod, m.period, yearStart) : "the period before";
   if (previous !== undefined && previous !== 0) {
-    const pct = ((value - previous) / Math.abs(previous)) * 100;
-    if (Math.abs(pct) > step.changePct) out.push(`${pct > 0 ? "up" : "down"} ${formatChange(pct, style, { signed: false })} on ${before}`);
+    // The same change a Comparison shows, exact on the values' text (exact.ts), and compared with the step exactly:
+    // a change of exactly the step is not unusual.
+    const pct = changePct(value, previous)!;
+    if (changeBeyond(value, previous, step.changePct)) out.push(`${pct > 0 ? "up" : "down"} ${formatChange(pct, style, { signed: false })} on ${before}`);
   } else if (previous === 0 && value !== 0) {
     // Any change from 0 is an infinite share of it: always more than the step allows (spec 0022).
     out.push(`${value > 0 ? "up" : "down"} from 0 on ${before}`);

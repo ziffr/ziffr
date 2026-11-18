@@ -44,6 +44,17 @@ function toNumber(a: Fraction): number {
 
 /** Attainment in % by `method` for a value against a target, or null where the method has no percentage. */
 export function referenceAttainment(method: "ratio" | "distance", polarity: "higher" | "lower" | "target", value: number, min: number | null, max: number | null): number | null {
+  const a = referenceAttainmentExact(method, polarity, value, min, max);
+  return a === null ? null : toNumber({ n: a.num, d: a.den });
+}
+
+/** Attainment as the exact fraction `num / den` (den positive), so a test can ask for the double nearest to it. */
+export function referenceAttainmentExact(method: "ratio" | "distance", polarity: "higher" | "lower" | "target", value: number, min: number | null, max: number | null): { num: bigint; den: bigint } | null {
+  const a = attainmentOf(method, polarity, value, min, max);
+  return a === null ? null : { num: a.n, den: a.d };
+}
+
+function attainmentOf(method: "ratio" | "distance", polarity: "higher" | "lower" | "target", value: number, min: number | null, max: number | null): Fraction | null {
   const v = exact(value);
   const lo = min === null ? null : exact(min);
   const hi = max === null ? null : exact(max);
@@ -57,17 +68,17 @@ export function referenceAttainment(method: "ratio" | "distance", polarity: "hig
     if (lo === null && hi === null) return null;
     if (lo !== null && below(v, lo)) { bound = lo; moreIsBetter = true; }
     else if (hi !== null && below(hi, v)) { bound = hi; moreIsBetter = false; }
-    else return 100;
+    else return HUNDRED;
   }
   if (bound === null) return null;
 
   if (method === "ratio") {
     if (sign(bound) <= 0) return null;
-    if (moreIsBetter) return toNumber(times(over(v, bound), HUNDRED));
+    if (moreIsBetter) return times(over(v, bound), HUNDRED);
     if (sign(v) <= 0) return null;
-    return toNumber(times(over(bound, v), HUNDRED));
+    return times(over(bound, v), HUNDRED);
   }
   if (sign(bound) === 0) return null;
   const ahead = moreIsBetter ? minus(v, bound) : minus(bound, v);
-  return toNumber(plus(HUNDRED, times(over(ahead, abs(bound)), HUNDRED)));
+  return plus(HUNDRED, times(over(ahead, abs(bound)), HUNDRED));
 }

@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "test:numbers": "NUMBERS_RUNS=${NUMBERS_RUNS:-1000} NUMBERS_SEED=${NUMBERS_SEED:-random} vitest run src/aggregations src/test/reference",
+    "test:numbers": "NUMBERS_RUNS=${NUMBERS_RUNS:-1000} NUMBERS_SEED=${NUMBERS_SEED:-random} vitest run src/aggregations src/test/reference src/changes src/writing",
     "lint": "eslint",
     "test:db": "vitest run --config vitest.db.config.ts"
   },

@@ -5,7 +5,7 @@
 # (.github/scripts/calculation-paths-touched.sh).
 
 # The calculation modules.
-^packages/core/src/(numbers|display-periods|formula|compare|format|parse|correlation|snapshot-periods|periods|workflow-rules|number-style|series-lines|attainment-method)\.ts$
+^packages/core/src/(numbers|display-periods|formula|compare|format|parse|correlation|snapshot-periods|periods|workflow-rules|number-style|series-lines|attainment-method|units|exact)\.ts$
 ^packages/core/src/numbers/
 # Where values are stored, read and combined on their way to a widget, a Snapshot, a deck or a program.
 ^packages/core/src/(submissions|api-submissions|workspace-data|snapshots|auto-snapshots|deck-content|page-data|api-metrics|api-dashboards|metric-row|types)\.ts$
@@ -14,7 +14,7 @@
 # The references, the tests that hold the code to them, and how they run.
 ^packages/core/src/test/reference/
 ^packages/core/src/aggregations[^/]*\.test\.ts$
-^packages/core/src/(display-periods|periods|snapshot-periods|compare)\.test\.ts$
+^packages/core/src/(display-periods|periods|snapshot-periods|compare|changes|writing|exact|format|workflow-rules|attainment-method)\.test\.ts$
 ^packages/core/(package\.json|vitest\.config\.ts)$
 ^\.github/calculation-paths\.txt$
 ^\.github/scripts/calculation-paths-touched\.sh$

@@ -8,7 +8,8 @@ import { dayOf, monthsLater, spanEnd, spanStart, textOf } from "./test/reference
 import { at, everyCase, LATER, starts, type Source } from "./test/reference/cases";
 import { AGGREGATIONS, valueMismatch } from "./test/reference/check";
 import { referenceSeries, referenceValueOver } from "./test/reference/combine";
-import { exactOf, exactText } from "./test/reference/exact";
+import { referenceChangeOf } from "./test/reference/change";
+import { exactOf, exactText, fitsDigits, isNearestDouble } from "./test/reference/exact";
 import type { Aggregation, Point } from "./types";
 
 describe("Comparisons against the reference", () => {
@@ -52,6 +53,14 @@ describe("Comparisons against the reference", () => {
             expect(cmp.available, where).toBe(true);
             expect(valueMismatch(cmp.current!, values[0], 2), where).toBeNull();
             expect(valueMismatch(cmp.previous!, values[1], 2), where).toBeNull();
+            // The change, its percentage and whether it is good (#126): exact on the two values. Where both spans
+            // end within 15 digits the values are exactly the spans', so the change is the exact one's nearest double.
+            const change = referenceChangeOf(values[0], values[1], m.polarity);
+            const shown = referenceChangeOf(exactOf(cmp.current!), exactOf(cmp.previous!), m.polarity);
+            expect(isNearestDouble(cmp.abs!, shown.abs), `${where}: change ${cmp.abs}`).toBe(true);
+            expect(shown.pct === null ? cmp.pct === null : isNearestDouble(cmp.pct!, shown.pct), `${where}: % ${cmp.pct}`).toBe(true);
+            if (fitsDigits(values[0], 15) && fitsDigits(values[1], 15)) expect(valueMismatch(cmp.abs!, change.abs, 2), where).toBeNull();
+            expect(cmp.good, where).toBe(change.good);
           }
         }
       }

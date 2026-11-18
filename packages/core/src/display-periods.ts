@@ -1,6 +1,7 @@
 // Display Periods (spec 0018; GLOSSARY: Display Period, Aggregation): a Metric's values combined into a longer period
 // by its Aggregation. Pure. Widgets, Comparisons and the export all combine through `seriesBy`, so a quarter's value
 // is the same in a chart, a table and a Comparison strip.
+import { exactTotal } from "./exact";
 import { format } from "date-fns";
 import { evaluate, formulaInputs, inputsNotCombined } from "./formula";
 import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
@@ -109,61 +110,16 @@ function combined(aggregation: Metric["aggregation"], inSpan: readonly Point[], 
   if (!inSpan.length || inSpan.length < Math.ceil(expected / 2)) return undefined;
   if (inSpan.length === 1) return inSpan[0].value;
   switch (aggregation) {
-    case "sum": return exactTotal(inSpan, 1);
-    case "average": return exactTotal(inSpan, inSpan.length);
+    case "sum": return total(inSpan, 1);
+    case "average": return total(inSpan, inSpan.length);
     case "last": return inSpan[inSpan.length - 1].value;
     default: return undefined;
   }
 }
 
-// Exact sums (spec 0022, "Exact results"): each value is read from its shortest text, the way it came from the
-// database, as a whole number of millionths or finer, and added as a BigInt; the total (or average) is then turned
-// into the double nearest to it. Adding doubles one by one gives 0.30000000000000004 for 0.1 + 0.2 and drifts with
-// every value; this gives 0.3, and a thousand values of 0.01 give 10.
-// BigInt(…) rather than literals such as TEN: the app's TypeScript targets a version before BigInt literals.
-const [ZERO, ONE, TWO, TEN] = [BigInt(0), BigInt(1), BigInt(2), BigInt(10)];
-const TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/;
-
-/** A finite value as digits and how many of them are decimals: 1.25 is 125 and 2, 1e-7 is 1 and 7. */
-function scaled(v: number): { digits: bigint; places: number } {
-  const [, sign, whole, decimals = "", exp = "0"] = TEXT.exec(String(v))!;
-  const places = decimals.length - Number(exp);
-  const digits = BigInt(`${sign}${whole}${decimals}`);
-  return places >= 0 ? { digits, places } : { digits: digits * TEN ** BigInt(-places), places: 0 };
-}
-
-/** The sum of the values divided by `count`, as the double nearest to the exact result. A value that is not finite
- * has no exact sum: the result is then what adding doubles gives (NaN or an infinity), which shows as no value. */
-function exactTotal(values: readonly Point[], count: number): number {
-  if (!values.every((p) => Number.isFinite(p.value))) return values.reduce((a, p) => a + p.value, 0) / count;
-  const parts = values.map((p) => scaled(p.value));
-  const places = Math.max(...parts.map((p) => p.places));
-  const sum = parts.reduce((a, p) => a + p.digits * TEN ** BigInt(places - p.places), ZERO);
-  return nearestDouble(sum, TEN ** BigInt(places) * BigInt(count));
-}
-
-const bitLength = (n: bigint) => n.toString(2).length;
-const TWO_53 = TWO ** BigInt(53);
-
-/** The double nearest to num / den (den positive), ties to even: the quotient is taken to 53 bits with the
- * remainder deciding the last one, then scaled by a power of two, which is exact. Values Ziffr keeps are far from
- * the edges of the double range, so no result is subnormal or infinite. */
-function nearestDouble(num: bigint, den: bigint): number {
-  if (num === ZERO) return 0;
-  const negative = num < ZERO;
-  const a = negative ? -num : num;
-  // A first guess for the power of two that brings the quotient to 53 bits; one more when it lands on 54.
-  let e = bitLength(a) - bitLength(den) - 53;
-  const divide = (shift: number) => {
-    const [top, by] = shift < 0 ? [a << BigInt(-shift), den] : [a, den << BigInt(shift)];
-    return [top / by, top % by, by];
-  };
-  let [q, r, d] = divide(e);
-  if (q >= TWO_53) [q, r, d] = divide(++e);
-  if (TWO * r > d || (TWO * r === d && (q & ONE) === ONE)) q++;
-  const x = Number(q) * 2 ** e;
-  return negative ? -x : x;
-}
+// Sums and averages are exact (spec 0022, "Exact results"): exact.ts adds the values' text as BigInts and turns
+// the total into the double nearest to it, so 0.1 + 0.2 is 0.3 and a thousand values of 0.01 give 10.
+const total = (values: readonly Point[], count: number) => exactTotal(values.map((p) => p.value), count);
 
 /** A Metric's series by a Display Period: one point per span with values, oldest first, combined by its Aggregation.
  * A span counts once at least half of it has values; the one `today` (yyyy-mm-dd, default the current day) falls in
@@ -301,7 +257,7 @@ export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[
     const v = targets.filter((t) => t.period >= p.period && t.period <= p.through);
     if (v.length && agg !== "none" && v.length === periodCount(metric.period, p.period, p.through, yearStart)) {
       // Exact, as the values are: a quarter's target of 0.1, 0.1 and 0.1 is 0.3.
-      const value = agg === "last" ? v[v.length - 1].value : exactTotal(v, agg === "sum" ? 1 : v.length);
+      const value = agg === "last" ? v[v.length - 1].value : total(v, agg === "sum" ? 1 : v.length);
       // As for one period (targetFor): a Metric where lower is better must stay under its target, others reach it.
       at[p.period] = metric.polarity === "lower" ? { min: null, max: value } : { min: value, max: null };
       line.push({ period: p.period, value });
