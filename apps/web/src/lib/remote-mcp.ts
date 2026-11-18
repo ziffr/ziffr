@@ -5,6 +5,7 @@
 // the same checks, limit and Access Log. Nothing here reads the database.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { actorForKey } from "@ziffr/core/access-keys";
+import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
 import { createServer } from "@ziffr/mcp";
 import { Ziffr } from "@ziffr/sdk";
 import { inProcessFetch } from "@/lib/api-in-process";
@@ -50,9 +51,18 @@ export function originAllowed(req: Request): boolean {
   return own.has(origin);
 }
 
-/** The challenge a 401 carries, so a client knows to sign in. */
+/** Where this resource's metadata is (RFC 9728, 3.1): the well-known address with /mcp's path. */
+export const resourceMetadataUrl = () => `${SITE_URL}/.well-known/oauth-protected-resource/mcp`;
+
+/** The challenge a 401 carries (RFC 9728, 5.1): where to find out how to sign in. No `scope`, so a client asks for
+ * every scope and the person picks on the consent screen, with only reading ticked. */
 export function challenge(): Record<string, string> {
-  return { "www-authenticate": `Bearer realm="ziffr"` };
+  return { "www-authenticate": `Bearer resource_metadata="${resourceMetadataUrl()}"` };
+}
+
+/** Whether a bearer credential works now: an assistant's access token, or an Access Key. */
+async function credentialWorks(secret: string): Promise<boolean> {
+  return Boolean(secret.startsWith("zat_") ? await actorForAssistantToken(secret) : await actorForKey(secret));
 }
 
 /** Answers one request to /mcp. */
@@ -61,7 +71,7 @@ export async function handleMcp(req: Request): Promise<Response> {
   if (!originAllowed(req)) return plain(403, "Not from this site.");
   const secret = bearer(req);
   // The same check the API makes on every call; the API makes it again for each tool's call.
-  if (!secret || !(await actorForKey(secret))) return plain(401, "Sign in to Ziffr: connect this assistant, or send an Access Key as \"Authorization: Bearer <key>\".", challenge());
+  if (!secret || !(await credentialWorks(secret))) return plain(401, "Sign in to Ziffr: connect this assistant, or send an Access Key as \"Authorization: Bearer <key>\".", challenge());
   // Stateless: no stream to keep open between requests, and no session to end.
   if (req.method !== "POST") return plain(405, "Send MCP messages with POST.", { allow: "POST" });
   // Counted in bytes while it arrives, never buffered whole first (limited-body.ts).

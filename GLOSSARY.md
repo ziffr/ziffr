@@ -289,7 +289,7 @@ A person known to a Workspace who has no login, such as a field worker or an out
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
-A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, reading dashboards, building dashboards as that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. Not to be confused with a Token, which lets a submitter record values for one metric.
+A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, reading dashboards, building dashboards as that person), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. An assistant that connects by address, such as Claude.ai, holds an access key of the kind assistant: made when a person approves it on Ziffr's consent screen, and used through short-lived OAuth tokens instead of a secret anyone sees; disconnecting it revokes the key. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
 **Feed Key**:
@@ -297,7 +297,7 @@ An Access Key that acts for a Feed instead of a person. It can only record value
 _Avoid_: Service account, bot token, connector key
 
 **MCP Server**:
-The program that lets an AI assistant read a workspace's metrics and submit values through the API, with an access key. It runs on the person's own computer and sees no more than the key does.
+The program that lets an AI assistant read a workspace's metrics and submit values through the API, with an access key. It runs on the person's own computer, or at the Installation's own address `/mcp` for assistants that connect over the internet, and sees no more than the key does.
 _Avoid_: AI integration, plugin, connector (a Connector is how Ziffr reaches people)
 
 **Access Log**:

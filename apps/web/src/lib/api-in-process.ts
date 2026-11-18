@@ -18,6 +18,7 @@ import * as people from "@/app/api/v1/people/route";
 import * as templates from "@/app/api/v1/templates/route";
 import * as workspace from "@/app/api/v1/workspace/route";
 import * as rest from "@/app/api/v1/[...rest]/route";
+import { runFromMcp } from "@/lib/mcp-context";
 
 type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 type RouteModule = Partial<Record<"GET" | "POST" | "PATCH" | "DELETE", unknown>>;
@@ -80,5 +81,5 @@ export const inProcessFetch: typeof fetch = async (input, init) => {
   // A known path without the method is 405, as Next answers; an unknown path goes to the catch-all, which logs it.
   if (found && !found.mod[method]) return new Response(null, { status: 405 });
   const handler = (found ? found.mod[method] : rest[method]) as Handler;
-  return handler(req, { params: Promise.resolve(found?.params ?? {}) });
+  return runFromMcp(() => handler(req, { params: Promise.resolve(found?.params ?? {}) }));
 };

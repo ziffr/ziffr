@@ -26,6 +26,8 @@ export const AUDIT_KINDS = {
   "view_link.revoked": "revoked a View Link to",
   "access_key.created": "created the Access Key",
   "access_key.revoked": "revoked the Access Key",
+  "assistant.connected": "connected the assistant",
+  "assistant.disconnected": "disconnected the assistant",
   "feed.created": "created the Feed",
   "feed.renamed": "renamed the Feed",
   "feed.deleted": "deleted the Feed",
@@ -68,7 +70,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", feed: "Feeds", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", assistant: "Assistants", feed: "Feeds", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
   workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 

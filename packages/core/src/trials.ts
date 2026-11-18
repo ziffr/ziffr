@@ -59,6 +59,7 @@ export const TRIAL_KEYS_MAX = 2;
 export function trialLimitMessage(code: string | undefined): string | null {
   if (code === "ZF431") return `A trial has at most ${TRIAL_KEYS_MAX} Access Keys that work. Revoke one to make another.`;
   if (code === "ZF432") return `A Feed in a trial has at most ${TRIAL_KEYS_MAX} keys that work. Revoke one to make another.`;
+  if (code === "ZF434") return "A trial may connect one assistant at a time. Disconnect it to connect another.";
   if (code === "ZF433") return `A trial has at most ${TRIAL_KEYS_MAX} Feeds. Delete one to make another.`;
   return null;
 }
