@@ -2,6 +2,52 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.10.0 (2026-11-18)
+
+### New and changed
+
+- Analyses can now be written as files: the Analysis Recipe format, `ziffr.analysis/1`, with its JSON Schema in `docs/reference/analysis-recipe.schema.json`. A recipe is steps of Ziffr's verified functions (moving average, difference, growth, share, linear trend and slope, mean, standard deviation, z-score, seasonal index and correlation), each listed in the Calculation Catalogue and tested against an independent reference.
+- Owners and Admins choose the languages answers are read in, under Workspace → General: English, German, French, Spanish, Italian and Dutch. Until they do, a Workspace reads English plus its country's languages. Dates such as 11/12 follow the country's order, month first in the US.
+- Assistants such as Claude.ai can sign in to Ziffr's MCP Server at `/mcp` with OAuth: Ziffr registers them, and each connection is an Access Key of the kind assistant, limited, logged and revoked like any key. Developers: the endpoints are in `docs/guides/mcp.md`.
+- Attainment can be computed two ways: by ratio (value ÷ target, target ÷ value when lower is better), as before, or by distance to the target in steps of its size, which reads the same in every direction and works for targets below 0. Owners and Admins set the Workspace's method on Workspace → General, and each Metric can choose its own under Edit details. Every existing Workspace keeps computing by ratio, so nothing changes until someone picks distance. The tooltip on an Attainment names its method, and Snapshots and frozen View Links keep the method they were made with. Developers: API and SDK Metrics carry `attainment_method`.
+- Connect Claude.ai or another assistant to Ziffr by its address: a Ziffr page asks you to pick the Workspace, what the assistant may do (only reading is ticked to begin with) and until when. **Settings → Connected assistants** lists your connections with **Disconnect**, and Owners and Admins see them on the Access Keys page.
+- Ziffr installs as an app on phones and computers (Add to Home Screen on iPhone, Install in Chrome and Edge) and opens in a window of its own; without a connection it says so. Actions lists and a Metric's comparisons read better on a phone.
+- Ziffr reads every number one way, wherever it comes in, and your Workspace's Number Style settles `1.500`. Answers can be sentences: "we had 2 signups last week" records 2 for last week, in any of the Workspace's Answer Languages, and Ziffr asks back instead of guessing when an answer holds several numbers or names another period than the Prompt asked for.
+- A View Design can now carry an Analysis Recipe and draw its results as lines, bars, rules or words, wherever the design goes: dashboards, Snapshots, View Links, decks and the PowerPoint export. The Playground starts from any built-in recipe.
+- Ziffr serves its MCP Server at `/mcp` too, with the same tools as `@ziffr/mcp`: an assistant that connects by address can use it with an Access Key, without installing anything. Self-hosters: the MCP Server at `/mcp` is on where `ZIFFR_SITE_URL` is https; `ZIFFR_REMOTE_MCP=0` turns it off.
+- Values are now written in the Workspace's Number Style everywhere, and each Metric's unit can stand before or after the number ("$1,200", "1.200 €"). A new money Metric starts with the unit of the Workspace Profile's currency. Chart labels shorten every unit from 10,000 on ("12.3k", "126k €"), and percentage changes are written one way ("+4.2 %"). Existing Metrics look as before. Developers: API and SDK Metrics carry `unit_position`.
+- Views can now be written as files: the View Design format, `ziffr.view/1`, with its JSON Schema in `docs/reference/view-design.schema.json`. A design holds no code, and Ziffr refuses any file with web addresses, markup, unknown fields or more than it allows, naming each problem with its line.
+- The new Playground under Analyze shows a View Design drawn as you type its file, with Sample Data or your own Metrics, and names every mistake with its line.
+- Owners and Admins can add View Designs to the Workspace on the new **View Designs** page under Analyze, and everyone places them from the Pool like a built-in View. Any Widget's menu offers **Export View Design** and **Duplicate as View Design**, which download the design with a Sample Data file, never your values.
+- The built-in Views and Analyses (Number + sparkline, Line chart, Bars per period, Gauge, History table, Forecast, Correlation, Correlation matrix, Drivers) are now View Designs drawn by one renderer. They look as before. Drivers now asks for the Metrics to compare with when you place it.
+- Owners and Admins can pick the Workspace's Number Style on Workspace → General: 1,234.5, 1.234,5, 1 234,5 or 1'234.5. Until they do, it follows the Workspace Profile's country. Every value is written in it, and an ambiguous number such as `1.500` is read by it.
+
+### Fixed
+
+- "Add up all values" no longer loses a value when two arrive at the same moment, and no longer stores rounding noise such as 0.30000000000000004.
+- Attainment never shows "-Infinity%" or a misleading percentage around 0: where a target of 0 or below has no percentage that means anything, the difference to the target is shown instead. A value that rises or falls from 0 is now an Unusual Value.
+- Values that arrive at the same moment for one period now follow the Submission Rule exactly: under "Reject a second value" only the first is kept, under "Overwrite with the newer value" one replaces the other instead of both being stored, and under "Add up all values" every Breakdown row of both counts. Before, two such values could both be kept, or lose Breakdown rows.
+- The Connectors page shows the address to add as a connector in Claude.ai, with the steps, next to the instructions for Claude Code and Claude Desktop. A connection's old tokens are now tidied away as it refreshes.
+- Derived Metrics are now worked out exactly: a formula such as `{revenue} - {cost}` gives 0.2 for 0.3 and 0.1, no longer 0.19999999999999998. A Derived Metric's quarter or year now shows wherever each of its inputs holds at least half of it, also when no month has a value of both, and one whose input is itself a Derived Metric says so instead of showing nothing.
+- Quarters, years and other longer periods now add up and average values exactly, so 0.1 and 0.2 make 0.3 and a total that ends in 5 rounds the right way. A weekly Metric's YoY now compares with the same week a year before (it used to be never available), and a weekly Metric's MoM and QoQ name the weeks they count.
+- The forecast and correlations are now worked out exactly, so a forecast no longer differs from the exact one in its last decimals (247.03835 was 247.03834999999998, shown as 247.0383 at four decimals). Charts in a PowerPoint export round values the way the app does: 1.005 at two decimals is 1.01, no longer 1, and −0.125 is −0.13. The CSV export writes very small values with their decimals.
+- Changes and percentage changes in Comparisons, Attainment and the difference to a target are now worked out exactly, as quarters and years already are: 0.3 against 0.1 is a change of 0.2 and +200 %, no longer 0.19999999999999998 and 199.99999999999997 %. A Workflow check no longer calls a value unusual when it changed by exactly the allowed percentage (1.1 after 1 with 10 % allowed).
+- Exported decks now show the same change as the Widget in Ziffr, and none across a gap, and their charts round values to the Metric's decimals and label them with its unit. A trial's CSV download writes values in the Workspace's Number Style and separates fields with ";" when the decimal mark is a comma.
+- A Derived Metric's formula is read whole or refused: one with a sign Ziffr does not know, a missing bracket, or two values without a sign between them no longer gives a number from the part it could read. A Derived Metric whose inputs are counted by different periods, or set to Aggregation none, now says so on its page and in Widgets instead of showing an empty chart.
+- A value a hair below its target, such as 1 · 10^-20 under a target of 0.00017, is no longer shown as on target: whether a value is on target is now decided on the exact difference, not on the rounded Attainment. A correlation no longer counts a period twice when a Metric was given two values for it; it uses the latest one, as charts do. A Workflow check never calls an unchanged value unusual. Developers: every calculation module is now mutation-tested with Stryker on pull requests that change it, every night and before each release, and must keep a score of at least 95 %.
+- Values sent by email, Slack, Telegram or the form link keep their decimal comma: `1,5` is now 1.5, not 1, and `1.234,56` is 1234.56. A typographic minus counts, and a number too long to be real is refused.
+- A typed value just above the largest one Ziffr takes, such as 1,000,000,000,000,000.01, is now refused like any larger one instead of being read as 10^15.
+- New guides for designers (`docs/guides/view-designs.md`) and analysts (`docs/guides/analysis-recipes.md`): the formats, where to start, the functions and what Ziffr refuses.
+- An answer such as "KW 46: 2050" now records 2050 for week 46; it was refused as naming two periods. One such as "KW 46 2050 visits", where 2050 could be the year or the value, now records nothing and the reply asks which was meant, instead of reading 2050 as the year.
+
+### For developers
+
+- The Calculation Catalogue (docs/reference/calculations.md) lists every calculation Ziffr does on values with its rule, code, reference and tests; a test fails when a calculation has no entry.
+- A database test now reads one Metric through every path a value takes (widget data, Snapshot, View Link, Comparison, deck and CSV exports, API and MCP Server) and checks each against the reference.
+- The SDK test that waits out a 429 no longer depends on how fast the machine is, so it no longer fails at random in CI.
+
+This version becomes available under AGPL-3.0 on 2029-11-18.
+
 ## 0.9.0 (2026-11-18)
 
 ### For self-hosters

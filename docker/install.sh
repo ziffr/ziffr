@@ -9,7 +9,7 @@
 # ZIFFR_MAIL_FROM from the environment.
 set -eu
 
-ZIFFR_VERSION=0.9.0
+ZIFFR_VERSION=0.10.0
 COMPOSE_URL="${ZIFFR_COMPOSE_URL:-https://raw.githubusercontent.com/ziffr/ziffr/v${ZIFFR_VERSION}/docker/compose.yml}"
 
 say() { printf '%s\n' "$*"; }
