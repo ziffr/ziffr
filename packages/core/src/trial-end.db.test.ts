@@ -8,6 +8,7 @@ import { db } from "./db";
 import { createFeed } from "./feeds";
 import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialValuesCsv } from "./trial-end";
 import { workspace } from "./test/db-fixtures";
+import { setNumberStyle } from "./workspace-settings";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c().catch(() => {}); });
@@ -114,5 +115,22 @@ describe("a trial's values as CSV", () => {
     expect(lines[1]).toContain(`"'=HYPERLINK(""x"")"`);
     expect(lines[1]).toContain('"2026-09-01","3"');
     await expect(trialValuesCsv(t.actor(await t.person("member"), "member"))).rejects.toBeInstanceOf(Forbidden);
+  });
+
+  it("writes values in the Number Style, with ; between fields when the decimal mark is a comma (spec 0022)", async () => {
+    const t = await trial(48);
+    const m = await t.metric(t.owner, { name: "Margin", unit: "%" });
+    await t.value(m.id, "2026-09-01", -1234.25, t.owner);
+    await t.value(m.id, "2026-10-01", 0.000123, t.owner);
+    const comma = (await trialValuesCsv(t.ownerActor)).trim().split("\r\n");
+    expect(comma[1]).toContain('"2026-09-01","-1234.25","%"');
+    await setNumberStyle(t.ownerActor, "1.234,5");
+    const semi = (await trialValuesCsv(t.ownerActor)).trim().split("\r\n");
+    expect(semi[0]).toBe('"metric";"name";"period";"period_start";"value";"unit";"source";"recorded_at"');
+    // No group marks, every stored decimal, and a negative value stays a number, not an escaped formula.
+    expect(semi[1]).toContain('"2026-09-01";"-1234,25";"%"');
+    expect(semi[2]).toContain('"2026-10-01";"0,000123"');
+    await setNumberStyle(t.ownerActor, "1'234.5");
+    expect((await trialValuesCsv(t.ownerActor)).split("\r\n")[1]).toContain('"2026-09-01","-1234.25"');
   });
 });
