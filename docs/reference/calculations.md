@@ -72,6 +72,24 @@ Every calculation Ziffr does on values, with its rule in plain words, the code t
 | CSV export | The Number Style's decimal mark, no group marks, and every decimal the value has (at most 6). ";" is the separator when the decimal mark is a comma. | `src/export-values.ts`: `csvNumber` | `write.ts` | `analyses.test.ts`, `same-number.db.test.ts` |
 | The same number everywhere | A widget, a Snapshot, a live and a frozen View Link, a Comparison, the deck export, the CSV download, the API and the MCP Server all show the reference's number for the same Metric and span. | all of the above | `combine.ts`, `change.ts`, `write.ts` | `same-number.db.test.ts` (core and web) |
 
+## Analysis Recipes
+
+The functions an Analysis Recipe can use (spec 0024), and running a recipe. Each takes a series in its order (the periods a widget shows) and is exact on the values' text; where there is a square root, it is taken of the double nearest to the exact square, as for Pearson's r.
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| Moving average | The mean of the last n values (2 to 60) at each period, from the n-th value on. Exact. | `src/recipe-functions.ts`: `movingAverage` | `recipes.ts` (`refMovingAverage`) | `recipe-functions.test.ts` |
+| Difference | Each value minus the one before, from the second value on. Exact. | `src/recipe-functions.ts`: `difference` | `recipes.ts` (`refDifference`) | `recipe-functions.test.ts` |
+| Growth | The change on the period before ÷ \|the one before\| × 100, as a Comparison's percentage; none from 0. Exact. | `src/recipe-functions.ts`: `growth` | `recipes.ts` (`refGrowth`) | `recipe-functions.test.ts` |
+| Share | One series ÷ another × 100 on the periods both have; none where the whole is 0. Exact. | `src/recipe-functions.ts`: `share` | `recipes.ts` (`refShare`) | `recipe-functions.test.ts` |
+| Linear trend and slope | The least-squares line through the values against their place 0, 1, 2, …: slope Σ(x − x̄)(y − ȳ) ÷ Σ(x − x̄)², through the means. Its value at each period, and the slope alone. None for fewer than two values. Exact. | `src/recipe-functions.ts`: `linearTrend`, `slope` | `recipes.ts` (`refLine`) | `recipe-functions.test.ts` |
+| Mean | The values' sum ÷ their count; none for no values. Exact. | `src/recipe-functions.ts`: `mean` | `recipes.ts` (`refMean`) | `recipe-functions.test.ts` |
+| Standard deviation | The sample standard deviation, √ of the double nearest to the exact variance Σ(y − ȳ)² ÷ (n − 1); none for fewer than two values. | `src/recipe-functions.ts`: `standardDeviation` | `recipes.ts` (`refVariance`) | `recipe-functions.test.ts` |
+| z-score | (y − ȳ) ÷ the standard deviation for each value, as ±√ of the double nearest to the exact z²; none when the values do not vary. | `src/recipe-functions.ts`: `zScore` | `recipes.ts` (`refZ`) | `recipe-functions.test.ts` |
+| Seasonal index | The mean of the values in the same place of the season (every L-th value, L from 2 to 53) ÷ the mean of all × 100, for each value. Needs two full seasons and a mean that is not 0. Exact. | `src/recipe-functions.ts`: `seasonalIndex` | `recipes.ts` (`refSeasonal`) | `recipe-functions.test.ts` |
+| Correlation in a recipe | Pearson's r as the Correlation Analysis computes it (see above), on the periods both series have; none without six pairs or for a series that does not change. | `src/recipe-functions.ts`: `correlation` | `analyses.ts` (`referencePearson`) | `recipe-functions.test.ts`, `analyses.test.ts` |
+| A recipe's output | Its steps in order, each the library's function on a Slot's series or an earlier step's; a Slot left empty gives an empty series. A recipe reaches nothing but its Slots' series. | `src/recipe-run.ts`: `runRecipe` | the rows above | `analysis-recipe.test.ts`, `recipe-functions.test.ts` |
+
 ## Mutants that cannot matter
 
 Mutation testing changes the code on purpose and expects a test to fail. A change that leaves every result the same cannot fail a test. Such a mutant is left out in the code with a `// Stryker disable next-line <mutator>: <reason>` comment, and listed here as `file` · mutator · reason. The catalogue test fails when a comment has no line here.

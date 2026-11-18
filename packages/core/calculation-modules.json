@@ -18,5 +18,7 @@
   "src/correlation.ts",
   "src/forecast.ts",
   "src/export-values.ts",
-  "src/series-lines.ts"
+  "src/series-lines.ts",
+  "src/recipe-functions.ts",
+  "src/recipe-run.ts"
 ]

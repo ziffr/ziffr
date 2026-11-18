@@ -221,8 +221,12 @@ The page under Analyze where a View Design or an Analysis Recipe is pasted or up
 _Avoid_: Editor, sandbox, studio
 
 **Analysis**:
-A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget.
+A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
+
+**Analysis Recipe**:
+An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
+_Avoid_: Script, model, custom analysis, formula
 
 **Common Period**:
 The period two Metrics are compared on in an Analysis: the longer of their own periods, the shorter Metric combined to it by its Aggregation ("compared by month"). A Metric whose Aggregation is none has no Common Period with Metrics of another period.
