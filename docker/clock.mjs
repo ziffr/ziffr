@@ -28,6 +28,8 @@ async function call(job) {
 // A public demo (ZIFFR_DEMO_ONLY=1, set by docker/init.mjs): the demo starts clean every night, at 03:30 UTC, away
 // from the hour when Workflows run.
 const DEMO_RESET = process.env.ZIFFR_DEMO_RESET === "1";
+// A Ziffr that offers trials (spec 0021): reminders, closing and deleting of trials, every hour at twenty past.
+const TRIAL_CLEANUP = process.env.ZIFFR_TRIAL_CLEANUP === "1";
 
 // One turn a minute: deliveries on every fifth minute, Workflows on the hour.
 let last = -1;
@@ -40,6 +42,7 @@ setInterval(() => {
   if (now.getUTCMinutes() % 5 === 0) void call("deliveries");
   if (now.getUTCMinutes() === 0) void call("workflows");
   if (DEMO_RESET && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset");
+  if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's reset nightly at 03:30 UTC" : ""}).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's reset nightly at 03:30 UTC" : ""}${TRIAL_CLEANUP ? ", trials hourly" : ""}).`);

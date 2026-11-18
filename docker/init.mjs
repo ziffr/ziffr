@@ -103,6 +103,8 @@ const jobSecret = set(env.ZIFFR_JOB_SECRET) ? env.ZIFFR_JOB_SECRET : kept.jobSec
 // A public demo and nothing else (ZIFFR_DEMO_ONLY=1): the demo is on, Auth makes no accounts, and the clock resets the
 // demo every night.
 const demoOnly = env.ZIFFR_DEMO_ONLY === "1";
+// Trials offered (spec 0021): the clock then runs their cleanup.
+const trials = set(env.ZIFFR_TRIAL_DAYS);
 const demo = demoOnly ? "1" : set(env.ZIFFR_DEMO) ? env.ZIFFR_DEMO : domain ? "0" : "1";
 
 // The app's own settings from .env (Slack, replies by email, providers offered, the user guide…): every ZIFFR_*
@@ -133,7 +135,9 @@ const files = {
     SUPABASE_SERVICE_ROLE_KEY: kept.serviceRoleKey,
     ZIFFR_DEMO: demo,
   },
-  clock: { ZIFFR_JOB_SECRET: jobSecret, ZIFFR_DEMO_RESET: demoOnly ? "1" : "0" },
+  // A Ziffr that offers trials (spec 0021) ends and deletes them hourly, and resets its shared demo nightly like a
+  // public demo does.
+  clock: { ZIFFR_JOB_SECRET: jobSecret, ZIFFR_DEMO_RESET: demoOnly || trials ? "1" : "0", ZIFFR_TRIAL_CLEANUP: trials ? "1" : "0" },
   // supabase/postgres: the superuser's password, which compose.yml's roles script also gives the roles Auth and
   // PostgREST sign in as. Read by the image's entrypoint, which starts as root.
   db: { POSTGRES_PASSWORD: dbPassword, PGPASSWORD: dbPassword, ZIFFR_AUTH_DB_PASSWORD: authPassword, ZIFFR_REST_DB_PASSWORD: restPassword },

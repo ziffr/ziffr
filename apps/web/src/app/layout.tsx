@@ -11,6 +11,8 @@ import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
 import { ResetButton } from "@/components/reset-button";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
+import { trialStatus } from "@ziffr/core/trial-end";
+import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
@@ -60,6 +62,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   }
   const [profiles, viewer] = await Promise.all([getProfiles(), viewerId()]);
   const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
+  const trial = demo ? null : await trialStatus(workspaceId);
   return (
     <html lang="en">
       <head>
@@ -91,7 +95,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {whatThisZiffrOffers().trial && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
           </p>
         )}
-        <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{children}</main>
+        {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} />}
+        <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
         {demo && <Tour />}
         <Toaster />
       </body>

@@ -48,6 +48,8 @@ Some Ziffrs, such as a public demo site, offer **Trial Workspaces** instead. The
 
 A new trial opens on **Try it**: one card per way values and messages travel (email, replies by email, Slack, Telegram, the web form, the API, AI assistants, Feeds, WhatsApp, the ticket system). Each says whether it is **Real**, **Simulated** or **Off** on this Ziffr and why, and, for the real ones, how to try it in a sentence with a link. A card is ticked once a value really arrived that way; the made-up starting values do not count. Below the cards, **What a trial never does** lists what to not wait for.
 
+While the trial runs, a line under the top bar says how many days it has left, with **Try it** and **Download your values** (a CSV file of every Metric's values). The day before it ends, Ziffr reminds you once. When it ends, Ziffr shows **This trial has ended** instead of the app: nothing is sent or taken any more and its keys stop working, but you can still download your values. A week later the trial is deleted with everything in it, and your account with it. **End my trial** on the Try it page, or **Delete it now** on the ended screen, deletes it at once after you confirm.
+
 ### Asking to join
 
 If your colleagues' Workspace has **Domain Joining** switched on, and you signed in with a proven address at the same company domain, the page shows **Your colleagues already use Ziffr** above the form. It lists each such Workspace with an **Ask to join** button.
