@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/reset-button.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/reset-button.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the top bar, and your two own pages, **Your profile** and **Your Deliveries**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
@@ -136,3 +136,22 @@ If your Ziffr sends no email, the box cannot be ticked and the page says so.
 ### Away
 
 Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
+
+## Connected assistants
+
+**You → Connected assistants** lists the AI assistants you connected to Ziffr by its address, such as Claude.ai: for each, the name it gave itself, the Workspace, what it may do, when you connected it, when it was last used and until when it works. **Disconnect** ends one at once. A connection also ends on its end date and when you leave its Workspace, and an Owner can end it on the Workspace's **Access Keys** page, where it shows as a **Connected assistant**.
+
+### Connecting an assistant
+
+In the assistant, add a connector with your Ziffr's address followed by `/mcp`, such as `https://ziffr.example.com/mcp`. The page shows the exact address. The assistant opens Ziffr's page **Connect an assistant to Ziffr?**, after you sign in if you are not signed in yet:
+
+| Part | What it is |
+| --- | --- |
+| **says it is "…"** | The name the assistant gave itself. Any program can give itself any name, so check that you started this from that assistant just now. |
+| **you go back to …** | Where Ziffr sends you after you answer. For an assistant on your own computer, a note says that any program there could claim its name. |
+| **Workspace** | The one Workspace the assistant works in. |
+| **It may** | What it may do: read metrics and their values, submit values, create metrics, read dashboards, build dashboards. Only reading is ticked to begin with. Guests cannot let it create anything. |
+| **Until** | The last day it works, 90 days from now unless you pick another, at most a year. |
+| **Connect** / **Cancel** | Connect makes the connection and sends you back to the assistant; Cancel tells the assistant no. |
+
+A connection acts as you, with your current Workspace Role, and sees no more than you do. What it does shows in the Access Log on the **Access Keys** page. A Trial Workspace can have one connected assistant at a time. The demo has none.

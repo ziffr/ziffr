@@ -35,12 +35,14 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
         <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
           {keys.map((k) => (
             <li key={k.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-              <span className="font-medium">{k.name}</span>
+              <span className="font-medium break-words">{k.name}</span>
+              {/* A connected assistant (spec 0023): its name is what it called itself; revoking it disconnects it. */}
+              {k.kind === "assistant" && <span className="rounded-full border border-border px-2 text-xs text-muted-foreground">Connected assistant</span>}
               <span className="text-muted-foreground">{k.scopes.map((s) => SCOPE_LABEL[s as Scope] ?? s).join(", ")}</span>
               <span className="text-muted-foreground">{k.revoked ? "revoked" : `until ${formatDate(k.expires_on)}`}</span>
               {k.created_by !== viewer && <span className="text-muted-foreground">by {people[k.created_by] ?? "someone"}</span>}
               {!k.revoked && (isOwner || k.created_by === viewer) && (
-                <button type="button" aria-label={`Revoke ${k.name}`} disabled={pending} onClick={() => run(() => revokeKey(k.id), "Key revoked")} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
+                <button type="button" aria-label={`Revoke ${k.name}`} disabled={pending} onClick={() => run(() => revokeKey(k.id), k.kind === "assistant" ? "Assistant disconnected" : "Key revoked")} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
               )}
               <details className="w-full text-xs">
                 <summary className="cursor-pointer text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">{logs[k.id]?.length ? `Recent calls (last ${when(logs[k.id][0].at)})` : "No calls yet"}</summary>

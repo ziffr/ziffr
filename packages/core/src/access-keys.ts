@@ -18,7 +18,8 @@ export const hash = (secret: string) => createHash("sha256").update(secret).dige
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
-export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: string[]; expires_on: string; revoked: boolean; last_used_at: string | null; created_by: string };
+/** `kind` is `assistant` for a connected assistant (spec 0023), whose `name` is what the assistant calls itself. */
+export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: string[]; expires_on: string; revoked: boolean; last_used_at: string | null; created_by: string; kind: "program" | "assistant"; created_at: string };
 
 /** What any key the actor makes may hold, checked the same for keys made on the Team page and for assistants
  * connected by OAuth (spec 0023): never by a key, never in the demo, known scopes only, never more than the role
@@ -68,20 +69,23 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
 export async function listAccessKeys(actor: Actor): Promise<AccessKeyInfo[]> {
   if (actor.key) throw new Forbidden();
   // A Feed's keys are the Feed's, listed with it (feeds.ts), not as anyone's own.
-  let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by").eq("workspace_id", actor.workspaceId).is("feed_id", null).order("id", { ascending: false });
+  let q = db().from("access_keys").select("id, name, prefix, scopes, expires_on, revoked_at, last_used_at, created_by, kind, created_at").eq("workspace_id", actor.workspaceId).is("feed_id", null).order("id", { ascending: false });
   if (actor.role !== "owner" && actor.role !== "admin") q = q.eq("created_by", actor.personId);
   const { data } = await q;
-  return (data ?? []).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at, created_by: k.created_by }));
+  return (data ?? []).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at, created_by: k.created_by, kind: k.kind, created_at: k.created_at }));
 }
 
-/** Revokes a key: its creator may, and the workspace's Owners may revoke any. */
+/** Revokes a key: its creator may, and the workspace's Owners may revoke any. A connected assistant's key is
+ * disconnected the same way (spec 0023): its tokens are forgotten too, and the Audit Log says it was disconnected. */
 export async function revokeAccessKey(actor: Actor, id: number) {
   if (actor.key) throw new Forbidden("A key cannot revoke keys.");
   let q = db().from("access_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("feed_id", null);
   if (actor.role !== "owner") q = q.eq("created_by", actor.personId);
-  const { data } = await q.select("id, name, created_by");
+  const { data } = await q.select("id, name, created_by, kind");
   if (!data?.length) throw new Forbidden();
-  await audit(actor, { kind: "access_key.revoked", object: { type: "access_key", id: data[0].id, name: data[0].name }, details: { created_by: data[0].created_by } });
+  const assistant = data[0].kind === "assistant";
+  if (assistant) await db().from("assistant_tokens").delete().eq("access_key_id", data[0].id);
+  await audit(actor, { kind: assistant ? "assistant.disconnected" : "access_key.revoked", object: { type: "access_key", id: data[0].id, name: data[0].name }, details: { created_by: data[0].created_by } });
 }
 
 /** The Actor a presented secret acts as, or null when it is unknown, wrong, revoked, ended, or its creator has left.

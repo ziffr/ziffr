@@ -4,9 +4,9 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { actorForSecret, revokeAccessKey } from "./access-keys";
+import { actorForSecret, listAccessKeys, revokeAccessKey } from "./access-keys";
 import {
-  actorForAssistantToken, approveConnection, checkAuthorizationRequest, mcpResource, OAuthError, registerClient,
+  actorForAssistantToken, approveConnection, checkAuthorizationRequest, disconnectMine, listMyConnections, mcpResource, OAuthError, registerClient,
   REGISTRATIONS_PER_NETWORK, revokeToken, tokenRequest, type TokenAnswer,
 } from "./assistant-connections";
 import { removeMember } from "./handover";
@@ -236,5 +236,41 @@ describe("a connection is an Access Key", () => {
     const { data } = await db().from("access_keys").select("expires_on").eq("id", keyId).single();
     expect(data!.expires_on).toBe(ends.toISOString().slice(0, 10));
     await expect(consent(s)).rejects.toThrow(/one assistant/);
+  });
+});
+
+describe("Connected assistants (ticket #141)", () => {
+  it("lists a person's own connections in each of their workspaces, and they disconnect them there", async () => {
+    const s = await setup();
+    const { keyId } = await consent(s, ["metrics:read", "values:submit"]);
+    const t = await exchange(s, (await consent(s)).code);
+    const other = await workspace("Elsewhere"); cleanups.push(other.cleanup);
+    // Ben in another workspace too: his connections from both are his to see.
+    const { data: m } = await db().from("memberships").insert({ workspace_id: other.id, user_id: s.ben, role: "member" }).select("user_id");
+    expect(m).toHaveLength(1);
+    const mine = await listMyConnections(other.actor(s.ben, "member"));
+    expect(mine.map((c) => c.id).sort()).toEqual([keyId, (await actorForAssistantToken(t.access_token))!.key.id].map(Number).sort());
+    expect(mine[0]).toMatchObject({ name: "Claude", workspaceId: s.w.id, workspaceName: "Test", lastUsedAt: expect.anything() });
+    // Nobody else's: Sara, an Owner, sees none of them here (she has the Access Keys page).
+    expect(await listMyConnections(s.w.actor(s.sara, "owner"))).toEqual([]);
+    await expect(disconnectMine(s.w.actor(s.sara, "owner"), keyId)).rejects.toThrow();
+    // Ben disconnects from his other workspace's settings: the key is revoked where it lives, audited there.
+    await disconnectMine(other.actor(s.ben, "member"), keyId);
+    expect((await listMyConnections(other.actor(s.ben, "member"))).map((c) => c.id)).not.toContain(keyId);
+    const { data: events } = await db().from("audit_events").select("kind, object_id, actor_id").eq("workspace_id", s.w.id).eq("kind", "assistant.disconnected");
+    expect(events).toEqual([{ kind: "assistant.disconnected", object_id: String(keyId), actor_id: s.ben }]);
+  });
+  it("shows connections to Owners and Admins next to keys; an Owner ends one, its tokens forgotten", async () => {
+    const s = await setup();
+    const admin = await s.w.person("admin");
+    const t = await exchange(s, (await consent(s)).code);
+    const keyId = Number((await actorForAssistantToken(t.access_token))!.key.id);
+    const seen = await listAccessKeys(s.w.actor(admin, "admin"));
+    expect(seen.find((k) => k.id === keyId)).toMatchObject({ kind: "assistant", name: "Claude", created_by: s.ben });
+    await expect(revokeAccessKey(s.w.actor(admin, "admin"), keyId)).rejects.toThrow();
+    await revokeAccessKey(s.w.actor(s.sara, "owner"), keyId);
+    const { data: left } = await db().from("assistant_tokens").select("token_hash").eq("access_key_id", keyId);
+    expect(left).toEqual([]);
+    expect(await actorForAssistantToken(t.access_token)).toBeNull();
   });
 });

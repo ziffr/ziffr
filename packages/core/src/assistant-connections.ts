@@ -10,7 +10,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { Forbidden, SCOPES, type Actor, type KeyActor, type Scope } from "./actor";
-import { actorOfKey, checkKeyRequest, hash, KEY_ROW } from "./access-keys";
+import { actorOfKey, checkKeyRequest, hash, KEY_ROW, revokeAccessKey } from "./access-keys";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
 import { trialLimitMessage } from "./trials";
 
@@ -286,6 +287,33 @@ export async function revokeToken(form: Record<string, unknown>): Promise<void> 
   const key = await connectionKey(row.access_key_id);
   if (!key || (form.client_id !== undefined && form.client_id !== key.oauth_client_id)) return;
   await endConnection(key.id);
+}
+
+/** A connection as its person sees it under Connected assistants. */
+export type MyConnection = { id: number; name: string; workspaceId: string; workspaceName: string; scopes: string[]; createdAt: string; lastUsedAt: string | null; expiresOn: string };
+
+/** The assistants the person connected that still work, in every Workspace they still belong to (never the demo).
+ * Only their own: an Owner sees the Workspace's connections on its Access Keys page instead. */
+export async function listMyConnections(actor: Actor): Promise<MyConnection[]> {
+  if (actor.key) throw new Forbidden();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: memberships } = await db().from("memberships").select("workspace_id, workspaces(name)").eq("user_id", actor.personId).neq("workspace_id", DEMO_WORKSPACE_ID);
+  const names = new Map((memberships ?? []).map((m) => [m.workspace_id as string, (m.workspaces as unknown as { name: string } | null)?.name ?? ""]));
+  if (!names.size) return [];
+  const { data } = await db().from("access_keys").select("id, name, workspace_id, scopes, created_at, last_used_at, expires_on")
+    .eq("created_by", actor.personId).eq("kind", "assistant").is("revoked_at", null).gte("expires_on", today).in("workspace_id", [...names.keys()]).order("id", { ascending: false });
+  return (data ?? []).map((k) => ({ id: k.id, name: k.name, workspaceId: k.workspace_id, workspaceName: names.get(k.workspace_id) ?? "", scopes: k.scopes, createdAt: k.created_at, lastUsedAt: k.last_used_at, expiresOn: k.expires_on }));
+}
+
+/** Disconnects one of the person's own assistants, in whichever of their Workspaces it is: revoked as its key, its
+ * tokens forgotten, audited there. Anything else (another person's, a program's key, unknown) is refused alike. */
+export async function disconnectMine(actor: Actor, keyId: number): Promise<void> {
+  if (actor.key) throw new Forbidden();
+  const { data: key } = await db().from("access_keys").select("workspace_id").eq("id", Number(keyId)).eq("created_by", actor.personId).eq("kind", "assistant").maybeSingle();
+  if (!key) throw new Forbidden();
+  const { data: m } = await db().from("memberships").select("role").eq("workspace_id", key.workspace_id).eq("user_id", actor.personId).maybeSingle();
+  if (!m) throw new Forbidden();
+  await revokeAccessKey({ personId: actor.personId, workspaceId: key.workspace_id, role: m.role as Actor["role"] }, Number(keyId));
 }
 
 /** The Actor an assistant's access token acts as, or null when it is unknown, expired, or its connection no longer
