@@ -322,6 +322,8 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 
 **Workspace → Access Keys** is where you make an **Access Key**: a secret that lets a program or an AI assistant work in this Workspace on your behalf. A key sees no more than you do, and it stops working when it ends, when it is revoked, or when you leave the Workspace.
 
+An assistant someone connected by Ziffr's address, such as Claude.ai, is listed here too, marked **Connected assistant** and named as it named itself (see [Connected assistants](17-your-settings.md#connected-assistants)). Revoking it disconnects it. Owners and Admins see every connection with its recent calls, and Owners can end anyone's.
+
 In a **Trial Workspace**, at most two Access Keys work at a time, and none works past the trial's last day: a later end date is shortened to it. The same holds for Feeds: at most two, with at most two keys each.
 
 ### Making a key

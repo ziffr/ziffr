@@ -7,7 +7,7 @@ import { workspaceLinks } from "@/lib/settings-links";
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const actor = await currentActor();
   const groups = [
-    { label: "You", links: [{ href: "/settings/profile", label: "Profile" }, { href: "/settings/deliveries", label: "Deliveries" }] },
+    { label: "You", links: [{ href: "/settings/profile", label: "Profile" }, { href: "/settings/deliveries", label: "Deliveries" }, { href: "/settings/assistants", label: "Connected assistants" }] },
     { label: "Workspace", links: workspaceLinks(actor.role) },
   ];
   return (

@@ -46,6 +46,17 @@ export const currentWorkspaceId = cache(async (): Promise<string> => {
   return (mine.find((w) => w.id === chosen) ?? mine[0]).id;
 });
 
+/** The signed-in person acting in one of their workspaces named in a form (the consent screen, spec 0023), never
+ * during a demo visit; refuses a workspace they do not belong to. */
+export async function actorIn(workspaceId: string): Promise<Actor> {
+  if (await isDemo()) throw new Error("Leave the demo first: assistants connect only to your own workspaces.");
+  const personId = await viewerId();
+  const mine = await myWorkspaces(personId);
+  const w = mine.find((x) => x.id === String(workspaceId));
+  if (!w) throw new Error("Pick one of your workspaces.");
+  return { personId, workspaceId: w.id, role: w.role };
+}
+
 /** The person, workspace and Workspace Role together; refuses someone who is not a member of the workspace. */
 export async function currentActor(): Promise<Actor> {
   const [personId, workspaceId] = await Promise.all([viewerId(), currentWorkspaceId()]);
