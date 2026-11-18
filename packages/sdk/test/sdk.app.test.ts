@@ -79,16 +79,36 @@ describe("@ziffr/sdk against the app", () => {
     await expect(new Ziffr({ url: URL, accessKey: "zk_wrong" }).metrics.list()).rejects.toEqual(expect.any(ZiffrError));
   });
   it("waits out a 429 as Retry-After says, or gives up when the wait is too long", async () => {
-    const { keyId, ziffr } = await setup();
-    // 60 calls that leave the minute's window in about two seconds.
-    const at = new Date(Date.now() - 58_500).toISOString();
-    await db().from("access_log").insert(Array.from({ length: 60 }, () => ({ key_id: keyId, method: "GET", route: "/api/v1/metrics", status: 200, at })));
+    // Nothing here depends on how long a step takes (#126: the test used to leave the minute's window two seconds
+    // after filling it, and failed whenever setting up took longer). Both keys have made their 60 calls just now, so
+    // the window stays full for a minute, far longer than the test runs.
+    const patient = await setup();
     const impatient = await setup();
-    await db().from("access_log").insert(Array.from({ length: 60 }, () => ({ key_id: impatient.keyId, method: "GET", route: "/api/v1/metrics", status: 200 })));
-    await expect(new Ziffr({ url: URL, accessKey: impatient.secret, maxRetryWait: 5 }).metrics.list()).rejects.toMatchObject({ status: 429, code: "rate_limited" });
-    const started = Date.now();
-    expect((await ziffr.metrics.list()).items).toHaveLength(2);
-    expect(Date.now() - started).toBeGreaterThan(900);
+    for (const keyId of [patient.keyId, impatient.keyId]) {
+      await db().from("access_log").insert(Array.from({ length: 60 }, () => ({ key_id: keyId, method: "GET", route: "/api/v1/metrics", status: 200 })));
+    }
+    // The server asks for most of a minute, more than this client waits: it gives up at once.
+    const gaveUp = await new Ziffr({ url: URL, accessKey: impatient.secret, maxRetryWait: 5 }).metrics.list().catch((e: unknown) => e);
+    expect(gaveUp).toMatchObject({ status: 429, code: "rate_limited" });
+    expect((gaveUp as ZiffrError).retryAfter).toBeGreaterThan(5);
+    // The server's own 429, with its Retry-After shortened to one second so the test does not wait a minute; the
+    // calls are cleared meanwhile, as the window passing would. The client must wait that second, then call again.
+    const calls: { status: number; retryAfter: string | null; at: number }[] = [];
+    const shortened: typeof fetch = async (input, init) => {
+      const res = await fetch(input, init);
+      calls.push({ status: res.status, retryAfter: res.headers.get("retry-after"), at: performance.now() });
+      if (res.status !== 429) return res;
+      await db().from("access_log").delete().eq("key_id", patient.keyId);
+      const headers = new Headers(res.headers);
+      headers.set("retry-after", "1");
+      return new Response(await res.text(), { status: 429, headers });
+    };
+    const waited = new Ziffr({ url: URL, accessKey: patient.secret, fetch: shortened });
+    expect((await waited.metrics.list()).items).toHaveLength(2);
+    expect(calls.map((c) => c.status)).toEqual([429, 200]);
+    expect(Number(calls[0].retryAfter)).toBeGreaterThan(5);
+    // A timer never fires early, so the second call starts at least the second after the 429 was read.
+    expect(calls[1].at - calls[0].at).toBeGreaterThanOrEqual(1000);
   });
   it("reads a Feed's Metrics and records a batch with a Feed Key (spec 0012)", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
