@@ -1,6 +1,6 @@
 # 0023 Remote MCP Server: Claude.ai and other web assistants connect to Ziffr
 
-**Status:** draft. **Tracking issue:** #137 (label `tracking`); tickets #138 to #142 carry `spec:0023`. Starts after spec 0022.
+**Status:** in progress. **Tracking issue:** #137 (label `tracking`); tickets #138 to #142 carry `spec:0023`. Starts after spec 0022.
 
 ## Problem Statement
 
@@ -23,17 +23,19 @@ Every Ziffr Installation serves its MCP Server at an address of its own, `https:
 
 ## Implementation Decisions
 
-- **One set of tools.** `@ziffr/mcp` exports the function that builds the server from a `Ziffr` SDK client (it does today). The remote endpoint builds the same server per request with an SDK client that holds the connection's token, so every tool still goes through the API and the core's checks. Nothing in the remote path reads the database directly. A test lists both servers' tools and fails when they differ.
-- **Transport.** `POST /mcp` and `GET /mcp` with Streamable HTTP, stateless (no session kept between requests), JSON responses. The endpoint checks the `Origin` header and answers `401` with `WWW-Authenticate` pointing to the protected resource metadata when there is no valid token.
+- **One set of tools.** `@ziffr/mcp` exports the function that builds the server from a `Ziffr` SDK client (it does today). The remote endpoint builds the same server per request with an SDK client that holds the connection's token, so every tool still goes through the API and the core's checks. The SDK client's requests are handed to the API's own route handlers in the same process (no second trip through the network, no internal address to configure), so each still passes the key check, the limit and the Access Log. Nothing in the remote path reads the database directly. A test lists both servers' tools and fails when they differ.
+- **Transport.** `POST /mcp` with Streamable HTTP, stateless (no session kept between requests), JSON responses. `GET /mcp` answers `405`: a stateless server has no stream to offer, which the transport allows. The endpoint refuses an `Origin` header that is not Ziffr's own with `403` (browsers send one; Claude.ai's servers and the inspector's proxy do not) and answers `401` with `WWW-Authenticate: Bearer resource_metadata="…"` when there is no valid token. It takes an assistant's access token or an Access Key, so Claude Desktop and other clients that send a fixed header can use the address with a key too.
 - **OAuth 2.1, with Ziffr as its own authorization server.** This follows the MCP authorization spec:
   - protected resource metadata (RFC 9728) at `/.well-known/oauth-protected-resource`, and authorization server metadata (RFC 8414) at `/.well-known/oauth-authorization-server`;
-  - dynamic client registration (RFC 7591) at `/oauth/register`, with limits per network address, and registrations that are never used expire;
+  - dynamic client registration (RFC 7591) at `/oauth/register`, with limits per network address and for the Installation as a whole, and registrations that are never used expire after a day. Client ID Metadata Documents are left out for now (ADR 0011): Claude.ai and the inspector fall back to registration;
   - the authorization code flow with PKCE (S256 only) at `/oauth/authorize` and `/oauth/token`; refresh tokens rotate on every use, and a reused one ends the connection;
   - revocation at `/oauth/revoke`;
-  - redirect addresses must be https (or localhost for development) and match exactly.
+  - redirect addresses must be https (or `http://localhost` or `http://127.0.0.1` for programs on the person's computer) and match exactly; for those two loopback addresses the port may differ, as RFC 8252 asks and Claude Code needs;
+  - the `resource` (RFC 8707), when sent, must be this Installation's `/mcp`; access tokens work only there, never on `/api/v1` directly;
+  - only hashes of codes and tokens are stored; a code works once, for ten minutes.
 
-  Whether Supabase Auth's own OAuth server can do this on every Installation, including Docker with the pinned GoTrue, is checked in ticket 1 and recorded in an ADR. If it can, it is used; otherwise Ziffr's own endpoints are built on the core.
-- **The consent screen** is a Ziffr page. It needs the person signed in, and shows the client's name as it registered and its redirect address. It lets the person pick one Workspace and the scopes (`metrics:read`, `observations:write`, `dashboards:read`, `dashboards:write`, never more than their role allows, as for Access Keys) and the end date (90 days by default). The client's name is untrusted text: it is shown as given, marked as "says it is".
+  Supabase Auth's own OAuth server was checked in ticket 1 and is not used (ADR 0011): its tokens are the person's whole session, it has no custom scopes, no revocation endpoint and no audience. Ziffr's own endpoints are built on the core.
+- **The consent screen** is a Ziffr page. It needs the person signed in, and shows the client's name as it registered and its redirect address. It lets the person pick one Workspace and the scopes (the Access Key scopes `metrics:read`, `values:submit`, `metrics:write`, `dashboards:read`, `dashboards:write`, never more than their role allows, as for Access Keys) and the end date (90 days by default). The client's name is untrusted text: it is shown as given, marked as "says it is".
 - **A connection is an Access Key.** What a confirmed connection holds is stored as an Access Key of kind `assistant`: bound to the person and one Workspace, with its scopes and end date, hashed tokens only, the same Access Log. So every rule that limits Access Keys holds for connections without a second implementation: ending with the person's membership, Owners revoking, the API limits. Access tokens live one hour; the refresh token carries the connection.
 - **Settings.** **Connected assistants** in the person's settings lists their connections (client name, Workspace, scopes, made, last used, ends) with **Disconnect**. The Workspace's Access Keys page shows connections next to keys for Owners and Admins. Connecting and disconnecting are audited.
 - **A setting for self-hosters.** `ZIFFR_REMOTE_MCP` (on by default where `ZIFFR_SITE_URL` is https, off otherwise) turns the endpoint and the OAuth routes on. The shared demo offers no connections. A Trial Workspace may connect one assistant, which ends with the trial (spec 0021).
