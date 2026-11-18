@@ -59,7 +59,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     sender, recipient, text: input.text, correction: input.correction == null ? null : String(input.correction),
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id),
   });
-  const mail_state = await initialDeliveryState(via, a.workspace_id);
+  const mail_state = await initialDeliveryState(via, a.workspace_id, recipient.id);
   const { data: d } = await db().from("deliveries").insert({
     connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id, workspace_id: a.workspace_id,
     subject, body, external_ref: via === "tickets" ? ref : null, mail_state,
@@ -114,7 +114,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
-  const mail_state = await initialDeliveryState(via, metric.workspace_id);
+  const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
   const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
   return true;
@@ -125,7 +125,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
 export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string }) {
   if (input.senderId !== null && input.recipientId === input.senderId) return;
   const via = await connectorFor(ws, input.recipientId, "reply", null);
-  const mail_state = await initialDeliveryState(via, ws);
+  const mail_state = await initialDeliveryState(via, ws, input.recipientId);
   const { data: d } = await db().from("deliveries").insert({
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice", workspace_id: ws,
     // A notice holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.

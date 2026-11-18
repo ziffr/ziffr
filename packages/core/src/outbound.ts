@@ -5,9 +5,12 @@
 import { initialMailState, sendDelivery, sendWaiting } from "./mail";
 import { sendSlackDelivery, sendWaitingSlack, slackSends } from "./slack-send";
 import { sendTelegramDelivery, sendWaitingTelegram, telegramSends } from "./telegram-send";
+import { trialHoldsBack } from "./trials";
 
-/** The state a new Delivery starts in: queued when it will really be sent, else it stays in the Outbox. */
-export async function initialDeliveryState(connector: string, workspaceId: string): Promise<"queued" | "outbox"> {
+/** The state a new Delivery starts in: queued when it will really be sent, else it stays in the Outbox. In a Trial
+ * Workspace only a Delivery to its Owner is ever sent (ADR 0010). */
+export async function initialDeliveryState(connector: string, workspaceId: string, recipientId: string): Promise<"queued" | "outbox"> {
+  if (await trialHoldsBack(workspaceId, recipientId)) return "outbox";
   if (connector === "slack") return (await slackSends(workspaceId)) ? "queued" : "outbox";
   if (connector === "telegram") return (await telegramSends(workspaceId)) ? "queued" : "outbox";
   return initialMailState(connector, workspaceId);

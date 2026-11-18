@@ -61,6 +61,10 @@ export async function assertSubmittersIn(actor: Actor, personIds: string[]) {
   if (!ids.every((id) => known.has(id))) throw new Forbidden("Submitters must be members or Contacts of this workspace.");
 }
 
+/** Metrics a Trial Workspace may hold (spec 0021). The trigger metrics_per_trial keeps the count and writes the same
+ * number; a database test fails when the two differ. */
+export const TRIAL_METRICS_MAX = 25;
+
 /** Thrown when an Access Key created as many Metrics as it may in 24 hours (the database keeps the count). */
 export class TooManyMetrics extends Error {
   constructor() {
@@ -103,6 +107,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,
   }).select("id, slug, from_catalog_id").single();
   if (error?.code === "ZF429") throw new TooManyMetrics();
+  if (error?.code === "ZF430") throw new Error(`A trial holds at most ${TRIAL_METRICS_MAX} Metrics. Delete one to make another.`);
   if (error || !metric) throw new Error("The Metric could not be created.");
   await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });
