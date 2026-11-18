@@ -29,10 +29,10 @@ export type Piece = string | { show: TextShow; style?: "strong"; before?: string
 
 /** A mark inside a plot: drawn against the plot's scales. */
 export type PlotMark =
-  | { mark: "line"; show: SeriesShow; tone?: Tone; detail?: "plain" | "full"; dash?: boolean; width?: "thin" | "regular"; when?: Flag[] }
+  | { mark: "line"; show: SeriesShow; tone?: Tone; detail?: "plain" | "full"; dash?: boolean; weight?: "light" | "regular" | "strong"; when?: Flag[] }
   | { mark: "area"; show: "forecast.range"; tone?: Tone; when?: Flag[] }
   | { mark: "bar"; show: "values"; tone?: Tone; when?: Flag[] }
-  | { mark: "point"; show: "pairs"; tone?: Tone; when?: Flag[] }
+  | { mark: "point"; show: "pairs" | "drivers.pairs"; tone?: Tone; when?: Flag[] }
   | { mark: "band"; show: "target"; when?: Flag[] }
   | { mark: "rule"; show: "target.min" | "target.max" | "average"; tone?: Tone; when?: Flag[] };
 
@@ -42,7 +42,7 @@ export type Part =
   | { mark: "group"; direction: "row" | "column"; align?: "start" | "center"; style?: TextStyle; parts: Part[]; when?: Flag[] }
   | { mark: "plot"; axes: "none" | "compact" | "regular"; x?: "period" | "value"; grid?: "none" | "horizontal" | "both"; scale?: "padded" | "auto" | "tight"; marks: PlotMark[]; when?: Flag[] }
   | { mark: "gauge"; show: "latest"; when?: Flag[] }
-  | { mark: "rows"; show: "values" | "correlations" | "matrix"; limit?: "rows" | number; when?: Flag[] };
+  | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] };
 
 /** A place a design is filled with Metrics when it is used (GLOSSARY: Slot): one, or several for small multiples. */
 export type DesignSlot = { label: string; metrics: "one" | "several"; min?: number };
@@ -53,6 +53,8 @@ export type DesignOptions = {
   rows?: { label?: string; default: number };
   showTarget?: { label?: string; default: boolean };
   showForecast?: { label?: string; default: boolean };
+  /** It may be shown by a longer period than the Metric's own (GLOSSARY: Display Period); the Metric's own by default. */
+  display?: { label?: string };
 };
 
 /** A View written as a file (GLOSSARY: View Design), in the newest format. */
@@ -123,6 +125,12 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         rows: { $ref: "#/$defs/countOption" },
         showTarget: { $ref: "#/$defs/switchOption" },
         showForecast: { $ref: "#/$defs/switchOption" },
+        display: {
+          type: "object",
+          description: "It may be shown by a longer period than the Metric's own, its values combined by the Metric's Aggregation (Show by).",
+          properties: { label: text(VIEW_LIMITS.label, "plain text, without markup or web addresses") },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },
@@ -189,15 +197,15 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
           marks: { type: "array", minItems: 1, maxItems: VIEW_LIMITS.marksInPlot, items: { $ref: "#/$defs/plotMark" } },
         }, ["axes", "marks"]),
         mark("gauge", "Where the latest value sits against the target.", { show: { const: "latest" } }, ["show"]),
-        mark("rows", "Table rows: the latest values, or correlations.", { show: { enum: ["values", "correlations", "matrix"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
+        mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
       ],
     },
     plotMark: {
       oneOf: [
-        mark("line", "A line through the values.", { show: { enum: ["values", "forecast", "target.line"] }, tone, detail: { enum: ["plain", "full"] }, dash: { type: "boolean" }, width: { enum: ["thin", "regular"] } }, ["show"]),
+        mark("line", "A line through the values.", { show: { enum: ["values", "forecast", "target.line"] }, tone, detail: { enum: ["plain", "full"] }, dash: { type: "boolean" }, weight: { enum: ["light", "regular", "strong"], description: "light: a fine line, slightly faded; strong: the line of a Metric's own values." } }, ["show"]),
         mark("area", "A filled range.", { show: { const: "forecast.range" }, tone }, ["show"]),
         mark("bar", "One bar per period.", { show: { const: "values" }, tone }, ["show"]),
-        mark("point", "One point per pair of values.", { show: { const: "pairs" }, tone }, ["show"]),
+        mark("point", "One point per period two Metrics share: the first against the second (pairs), or against the one that moves most with it (drivers.pairs).", { show: { enum: ["pairs", "drivers.pairs"] }, tone }, ["show"]),
         mark("band", "The target range.", { show: { const: "target" } }, ["show"]),
         mark("rule", "A straight line across the plot.", { show: { enum: ["target.min", "target.max", "average"] }, tone }, ["show"]),
       ],

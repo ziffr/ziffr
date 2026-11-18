@@ -193,6 +193,8 @@ Press **Send question** or **Assign task**. A note confirms it, with **Open thre
 
 How many periods a View shows comes with its Widget Template: the last 12 periods for Number + sparkline, Line chart and Bars per period, and the last 6 values for History table. There is no setting to change it.
 
+Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with.
+
 ### Comparisons
 
 Views show a strip of **Comparisons** under the value. **Comparisons** lets you choose which:

@@ -1,0 +1,13 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Correlation matrix",
+  "description": "Every pair at once.",
+  "kind": "analysis",
+  "slots": [{ "label": "Metrics", "metrics": "several", "min": 2 }],
+  "size": { "w": 6, "h": 7 },
+  "empty": "Drop at least two metrics.",
+  "parts": [
+    { "mark": "rows", "show": "matrix" },
+    { "mark": "rows", "show": "reasons" }
+  ]
+}

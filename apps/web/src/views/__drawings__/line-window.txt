@@ -5,8 +5,6 @@
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=48.741522453774756 y2=48.741522453774756 y=12>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
-<path fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
-<path fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M76,196.34482758620692L154.4,98.46581833617982L232.8,110.54554429055162L311.20000000000005,38.409252001540125L389.6,79.32981233402775L468,25.655172413793217 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=216 y2=210 y=210>

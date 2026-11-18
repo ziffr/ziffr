@@ -23,7 +23,7 @@ vi.mock("recharts", async (orig) => {
 const DRAWN = new Set(["path", "circle", "line", "rect", "text", "tspan", "pattern", "polygon", "polyline", "ellipse", "table", "tr", "td", "th", "li"]);
 const BLOCKS = new Set(["div", "p", "ul", "svg", "tbody", "thead", "table"]);
 // Ids depend on the order React hands them out, not on the drawing.
-const LEFT_OUT = new Set(["class", "id", "clip-path", "tabindex", "xmlns", "role", "aria-label", "aria-hidden"]);
+const LEFT_OUT = new Set(["class", "id", "data-recharts-item-id","clip-path", "tabindex", "xmlns", "role", "aria-label", "aria-hidden"]);
 
 /** What a widget draws, one line per mark, text or value, independent of the markup that holds them. */
 function drawing(root: Element): string {
@@ -43,6 +43,8 @@ function drawing(root: Element): string {
     if (n.nodeType !== 1) return;
     const el = n as Element;
     const tag = el.tagName.toLowerCase();
+    // A tooltip shows only on hover, and a path without a shape draws nothing.
+    if (el.classList.contains("recharts-tooltip-wrapper") || (tag === "path" && !el.getAttribute("d"))) return;
     const attrs = [...el.attributes]
       .filter((a) => !LEFT_OUT.has(a.name) && (DRAWN.has(tag) || a.name === "title" || a.name.startsWith("data-") || (a.name === "style" && /background|width/.test(a.value) && !/position|cursor/.test(a.value))))
       .map((a) => `${a.name}=${a.value.replace(/url\(#[^)]*\)/g, "url(#)")}`)

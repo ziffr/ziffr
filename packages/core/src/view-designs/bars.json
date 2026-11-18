@@ -1,0 +1,25 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Bars per period",
+  "description": "One bar per period, coloured by target.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric", "metrics": "one" }],
+  "size": { "w": 6, "h": 6 },
+  "options": {
+    "window": { "label": "Periods", "default": 12 },
+    "showTarget": { "label": "Show target", "default": true },
+    "display": { "label": "Show by" }
+  },
+  "parts": [
+    {
+      "mark": "plot",
+      "axes": "compact",
+      "scale": "auto",
+      "marks": [
+        { "mark": "band", "show": "target", "when": ["showTarget"] },
+        { "mark": "bar", "show": "values", "tone": "status" }
+      ]
+    },
+    { "mark": "text", "style": "note", "when": ["showTarget", "hasNote"], "content": [{ "show": "target.note" }] }
+  ]
+}

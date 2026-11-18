@@ -6,8 +6,6 @@
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
 <path d=M 76,73.6289 h 392 v 122.7159 h -392 Z fill-opacity=0.6 fill=var(--color-band) height=122.7159 radius=0 stroke-width=1 stroke=none width=392 x=76 y1=100000 y2=130000 y=73.6289>
-<path fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
-<path fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M76.00000000000003,147.4220832451872L111.63636363636365,137.2121192088005L147.2727272727273,141.84259969325151L182.90909090909093,129.77962535699172L218.54545454545456,121.22632615823987L254.1818181818182,95.03056907129255L289.81818181818187,97.096286955257L325.4545454545455,56.12962436534797L361.0909090909091,61.18552001798177L396.72727272727275,30.993314668394298L432.3636363636364,48.12036571821449L468,25.655172413793064 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76.00000000000003 x2=76.00000000000003 x=76 y1=216 y2=210 y=210>

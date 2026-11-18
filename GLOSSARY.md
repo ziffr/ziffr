@@ -149,7 +149,7 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **View Design**:
-A View written as a file: its Slots, its marks and what each shows, and its Theme colours. Ziffr checks it and draws it with its own renderer; it holds no code.
+A View written as a file: its Slots, its marks and what each shows, and its Theme colours. Ziffr checks it and draws it with its own renderer; it holds no code. Every built-in View that draws Metrics or an Analysis is one; Findings and the Free layout are drawn by code of their own.
 _Avoid_: Chart plugin, visualization plugin, custom widget
 
 **Finding**:
