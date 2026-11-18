@@ -44,11 +44,11 @@ describe("workflow rules", () => {
   });
   it("calls any change from 0 unusual, and a change across zero by the size of the earlier value (spec 0022)", () => {
     const step = { type: "check" as const, changePct: 30, outsideTarget: false };
-    expect(unusualReasons(metric(), 1000, 0, "2026-09-01", step, JANUARY)).toEqual(["up from 0 on September 2026"]);
-    expect(unusualReasons(metric(), -3, 0, "2026-09-01", step, JANUARY)).toEqual(["down from 0 on September 2026"]);
-    expect(unusualReasons(metric(), 0, 0, "2026-09-01", step, JANUARY)).toEqual([]);
-    expect(unusualReasons(metric(), 10, -10, "2026-09-01", step, JANUARY)).toEqual(["up 200.0 % on September 2026"]);
-    expect(unusualReasons(metric(), -11, -10, "2026-09-01", step, JANUARY)).toEqual([]);
-    expect(unusualReasons(metric(), 5, undefined, undefined, step, JANUARY)).toEqual([]);
+    expect(unusualReasons(metric(), 1000, 0, "2026-09-01", step, JANUARY, "1,234.5")).toEqual(["up from 0 on September 2026"]);
+    expect(unusualReasons(metric(), -3, 0, "2026-09-01", step, JANUARY, "1,234.5")).toEqual(["down from 0 on September 2026"]);
+    expect(unusualReasons(metric(), 0, 0, "2026-09-01", step, JANUARY, "1,234.5")).toEqual([]);
+    expect(unusualReasons(metric(), 10, -10, "2026-09-01", step, JANUARY, "1,234.5")).toEqual(["up 200.0 % on September 2026"]);
+    expect(unusualReasons(metric(), -11, -10, "2026-09-01", step, JANUARY, "1,234.5")).toEqual([]);
+    expect(unusualReasons(metric(), 5, undefined, undefined, step, JANUARY, "1,234.5")).toEqual([]);
   });
 });
