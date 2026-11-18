@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { FileUp } from "lucide-react";
 import { parseBreakdown } from "@ziffr/core/parse";
+import type { NumberStyle } from "@ziffr/core/number-style";
 
-/** Paste rows from Excel or Sheets, or load a CSV; shows what Ziffr read before you submit. */
-export function BreakdownField() {
+/** Paste rows from Excel or Sheets, or load a CSV; shows what Ziffr read before you submit, read in the Workspace's
+ * Number Style by the same rules the core applies. */
+export function BreakdownField({ numberStyle }: { numberStyle: NumberStyle }) {
   const [text, setText] = useState("");
-  const parsed = text.trim() ? parseBreakdown(text) : null;
+  const parsed = text.trim() ? parseBreakdown(text, numberStyle) : null;
   return (
     <div className="mt-5">
       <label htmlFor="breakdown" className="text-sm font-medium">Breakdown <span className="font-normal text-muted-foreground">(optional)</span></label>

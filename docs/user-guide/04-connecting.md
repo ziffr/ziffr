@@ -19,7 +19,30 @@ Each Metric says which **Sources** it accepts. You can turn on several for the s
 
 Every value goes through the same checks, whichever way it came: the Submission Rule, Approval of Unusual Values and Locks.
 
-A number may be written with a decimal comma or a decimal point: `1,5`, `12,50` and `1.234,56` are read as 1.5, 12.5 and 1234.56, and `126,657` or `1,234.5` as thousands. A single dot before three digits, such as `1.500`, is still read as 1.5. Ziffr's reply shows the value as it was read.
+### How Ziffr reads a number you send
+
+Ziffr reads every number the same way, whichever way it came in: a reply, the form link, a pasted Breakdown or a Target Series.
+
+- **Either way of writing works.** `1,5` and `1.5` are both one and a half; `1.234,5`, `1,234.5`, `1 234,5` and `1'234.5` are all the same number. You may add a sign (`-5`, `+5`) or `k` and `M` (`2,5k` is 2,500).
+- **One case depends on your Workspace.** A single dot or comma followed by exactly three digits, such as `1.500`, could be either. Ziffr reads it the way your Workspace writes numbers (its Number Style, see [Workspace settings](16-workspace-settings.md)): fifteen hundred where you write `1.234,5`, one and a half where you write `1,234.5`.
+
+You can answer in a sentence. Ziffr first takes out the words that name a period and reads them as the period, never as the value: "today", "yesterday", "last week", "this month", "October", "Q3", "week 46", "KW 46", "2026", "FY 2026/27", and dates such as "12.11." or "2026-11-12". English and German words are understood. Then exactly one number must be left, and that is the value.
+
+| You write | Ziffr records |
+| --- | --- |
+| `we had 2 signups last week` | 2, for last week |
+| `KW 46: 2` | 2, for week 46 |
+| `Q3 revenue 4500` | 4,500, for Q3, if the Metric counts quarters |
+| `October: 12,5` | 12.5, for October, if the Metric counts months |
+| `yesterday 340 pc` | 340, for the period yesterday falls in |
+
+Ziffr records nothing and asks back when it cannot be sure:
+
+- **Several numbers**, such as "2 signups and 1 cancellation". Send the value on its own.
+- **A different period than the Prompt asked for**, such as "this week 3" in reply to last week's Prompt. Reply with the value alone for the Prompt's period, or send the other one as a new message.
+- **A period the Metric does not count in**, such as "Q3" for a monthly Metric, or one that has not begun yet.
+
+Without a Prompt, for example on the form link, a period you name is used instead of the current one. Ziffr's reply always names the value and the period as it read them, such as "2 recorded for Sign-ups, week of 9 Nov 2026", so you see a misreading at once.
 
 ### The personal form link
 

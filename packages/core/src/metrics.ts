@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
+import { numberStyleOf } from "./workspace-settings";
 import { assertSeesMetrics } from "./sharing";
 import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
@@ -234,7 +235,8 @@ export async function uploadSeries(actor: Actor, metricId: number, kind: "target
   const m = await seriesOwnerMetric(actor, metricId, kind);
   const lines = String(text ?? "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 2000);
   const ys = await yearStartFor(actor.workspaceId, m.period as Period);
-  const read = lines.map((l) => parseSeriesLine(l, m.period as Period, ys)).filter((r): r is { period: string; value: number } => r !== null);
+  const style = await numberStyleOf(actor.workspaceId);
+  const read = lines.map((l) => parseSeriesLine(l, m.period as Period, ys, style)).filter((r): r is { period: string; value: number } => r !== null);
   const saved = await upsertSeries(metricId, kind, read, note);
   return { saved, skipped: lines.length - saved };
 }

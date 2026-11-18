@@ -65,6 +65,19 @@ describe("replies by email", () => {
     const [o] = await valuesOf(m.id);
     expect(o.value).toBe(42);
   });
+  it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
+    const { w, m, d, annMail } = await promptFor();
+    const send = async (text: string) => receiveEmail(await parseInbound(reply({ from: annMail, token: d.reply_token!, text })), { submission: quiet() });
+    expect(await send("2 visits and 1 cancellation")).toBe("refused");
+    expect(await send("last month 5")).toBe("refused");
+    expect(await valuesOf(m.id)).toEqual([]);
+    expect(await send("this month we had 12,5 visits")).toBe("recorded");
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 12.5, source: "mail" }]);
+    const { data: log } = await db().from("intake_log").select("outcome, detail").eq("workspace_id", w.id).order("id");
+    expect(log!.map((l) => l.outcome)).toEqual(["rejected_several_numbers", "rejected_other_period", "recorded"]);
+    expect(log![0].detail).toContain("“2” and “1”");
+    expect(log![1].detail).toMatch(/^This Prompt asks for \w+ \d{4}, but “last month” is \w+ \d{4}\./);
+  });
   it("puts a reply about a question into its Thread, and a Correction line as a proposed Correction", async () => {
     const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ben = await w.person("member", { email: address("ben") });
     const m = await w.metric(sara, { name: "Revenue" });

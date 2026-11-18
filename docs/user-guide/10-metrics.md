@@ -173,7 +173,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | Option | What it does |
 | --- | --- |
 | **Targets** / **Projections** | Switches between the two lists. |
-| **Add row** | Adds a row for the next period. Choose the month, the day, or for a quarterly or yearly Metric the quarter or year by its name ("Q3 2026"), then type the value. |
+| **Add row** | Adds a row for the next period. Choose the month, the day, or for a quarterly or yearly Metric the quarter or year by its name ("Q3 2026"), then type the value. Numbers are read as everywhere in Ziffr, with your Workspace's Number Style settling `1.500` ([How Ziffr reads a number you send](04-connecting.md#how-ziffr-reads-a-number-you-send)). |
 | **Paste from a spreadsheet** | Opens a box for two columns copied from a spreadsheet: period and value. Ziffr shows how many rows it read and which lines it skipped. **Add … to the table** puts them in the table; a row for a period already there replaces it. |
 | **✕** on a row | Removes the row. A saved one is removed after you confirm. |
 | **Note, for everyone who reads it** | A short note saved with the changed rows, such as "Budget 2027". |
@@ -213,7 +213,7 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 | **Period** | Fixed once the Metric has values: "duplicate the Metric for another period". |
 | **Which way is good** | The Polarity. |
 | **Aggregation** | Sum, Average, Last value or Does not combine. |
-| **Target from**, **Target up to** | The Target Range, for every period without its own target. The lower end may not be above the upper one. |
+| **Target from**, **Target up to** | The Target Range, for every period without its own target. The lower end may not be above the upper one. A value Ziffr cannot read as a number is not saved, and Ziffr says so. |
 | **A second value for a period** | The Submission Rule. Not shown for a Derived Metric. |
 
 **Save** keeps the change as a new **Version**.
@@ -296,7 +296,7 @@ The form shows:
 - "Hi …, please report", then the Metric's name and description.
 - **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
 - **Total**: the value. Type it as you would write it.
-- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read. If you leave the total empty, it becomes the sum of the rows. If you fill in both and they differ, the total counts.
+- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the total empty, it becomes the sum of the rows. If you fill in both and they differ, the total counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval.
 
 At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.

@@ -36,7 +36,7 @@ export default async function SubmitPage({ params, searchParams }: { params: Pro
         <form action={submitWebForm.bind(null, code)} className="mt-4">
           <label htmlFor="value" className="text-sm font-medium">Total</label>
           <Input id="value" name="value" inputMode="decimal" placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} className="mt-1.5 h-10 text-base" autoFocus />
-          <BreakdownField />
+          <BreakdownField numberStyle={form.numberStyle} />
           <Button type="submit" size="lg" className="mt-4 w-full">Submit</Button>
         </form>
       </div>

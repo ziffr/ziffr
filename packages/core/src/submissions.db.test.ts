@@ -4,7 +4,7 @@ import { decideCorrection, submitValue, type SubmissionEffects } from "./submiss
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { valuesOf, workspace } from "./test/db-fixtures";
-import { JANUARY, periodStart } from "./periods";
+import { JANUARY, periodStart, shiftPeriod } from "./periods";
 
 const effects = (): SubmissionEffects & { notifyCorrection: ReturnType<typeof vi.fn>; afterValue: ReturnType<typeof vi.fn> } => ({
   notifyCorrection: vi.fn(async () => {}),
@@ -109,6 +109,45 @@ describe("values that arrive", () => {
     expect(await valuesOf(m.id)).toEqual([]);
     expect(fx.notifyCorrection).toHaveBeenCalledWith(expect.objectContaining({ senderId: ben, ownerId: sara, value: 9 }));
     expect(fx.afterValue).not.toHaveBeenCalled();
+  });
+});
+
+describe("answers without a Prompt (spec 0022)", () => {
+  const periodOf = async (metricId: number) => (await db().from("observations").select("period_start").eq("metric_id", metricId)).data!.map((o) => String(o.period_start));
+
+  it("books a value to the period the answer names, by Slack, mail or the form", async () => {
+    const w = await ws(); const ann = await w.person("owner", { slack_handle: "@ann-t", email: "ann-answers@example.test" });
+    const weekly = await w.metric(ann, { name: "Sign-ups", period: "week" }); const code = await w.token(weekly.id, ann);
+    const thisWeek = periodStart(new Date(), "week", JANUARY);
+    const lastWeek = shiftPeriod(thisWeek, "week", -1);
+    const r = await submitValue({ source: "slack", sender: "@ann-t", text: "we had 2 signups last week", workspaceId: w.id }, effects());
+    expect(r).toMatchObject({ ok: true, outcome: "recorded" });
+    expect(r.detail).toMatch(/^2 recorded for Sign-ups, week of \d+ \w+ \d{4}/);
+    expect(await periodOf(weekly.id)).toEqual([lastWeek]);
+    expect((await submitValue({ source: "mail", sender: "ann-answers@example.test", text: "diese Woche 3", workspaceId: w.id }, effects())).ok).toBe(true);
+    expect((await submitValue({ source: "web_form", sender: code, text: "yesterday 4" }, effects())).ok).toBe(true);
+    // Yesterday is in this week, or last week on a Monday; overwriting keeps one value per period.
+    expect((await periodOf(weekly.id)).sort()).toEqual([...new Set([lastWeek, thisWeek, periodStart(shiftPeriod(new Date().toISOString().slice(0, 10), "day", -1), "week", JANUARY)])].sort());
+  });
+
+  it("refuses a period still to come or not one of the Metric's, and asks back for several numbers", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const m = await w.metric(ann, { name: "Revenue" }); const code = await w.token(m.id, ann);
+    const nextYear = new Date().getFullYear() + 1;
+    expect(await submitValue({ source: "web_form", sender: code, text: `March ${nextYear}: 5` }, effects())).toMatchObject({ ok: false, outcome: "rejected_period" });
+    const q = await submitValue({ source: "web_form", sender: code, text: "last week 5" }, effects());
+    expect(q).toMatchObject({ ok: false, outcome: "rejected_not_a_period" });
+    expect(q.detail).toMatch(/^Revenue counts by month, and “last week” is week of /);
+    expect(await submitValue({ source: "web_form", sender: code, text: "2 deals, 1 lost" }, effects())).toMatchObject({ ok: false, outcome: "rejected_several_numbers" });
+    expect(await valuesOf(m.id)).toEqual([]);
+  });
+
+  it("settles 1.500 by the Workspace's Number Style", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const m = await w.metric(ann, { submission_rule: "keep_both" }); const code = await w.token(m.id, ann);
+    await submitValue({ source: "web_form", sender: code, text: "1.500" }, effects());
+    await db().from("workspaces").update({ number_style: "1.234,5" }).eq("id", w.id);
+    await submitValue({ source: "web_form", sender: code, text: "1.500" }, effects());
+    await submitValue({ source: "web_form", sender: code, text: "Germany 1.500\nAustria 2,5" }, effects());
+    expect((await valuesOf(m.id)).map((v) => v.value)).toEqual([1.5, 1500, 1502.5]);
   });
 });
 
