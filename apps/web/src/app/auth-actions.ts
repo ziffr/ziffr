@@ -7,6 +7,7 @@ import { forBrowser } from "@/lib/auth-settings";
 import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
+import { TrialRefused } from "@ziffr/core/trials";
 import { WORKSPACE_COOKIE } from "@/lib/viewer";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
 
@@ -48,12 +49,19 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** A signed-in person without a workspace creates one and becomes its Owner (GLOSSARY: Workspace, Workspace Role). */
-export async function createWorkspace(name: string) {
+/** A signed-in person without a workspace creates one and becomes its Owner (GLOSSARY: Workspace, Workspace Role).
+ * Why a trial could not be made comes back as words, not as a thrown error, whose message production builds hide. */
+export async function createWorkspace(name: string): Promise<{ error: string } | void> {
   const user = await sessionUser();
   if (!user) redirect("/login");
   const person = await personFor(user);
-  const ws = { id: await coreCreateWorkspace(person, String(name ?? "")) };
+  let ws: { id: string };
+  try {
+    ws = { id: await coreCreateWorkspace(person, String(name ?? "")) };
+  } catch (e) {
+    if (e instanceof TrialRefused) return { error: e.message };
+    throw e;
+  }
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit

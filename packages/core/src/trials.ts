@@ -102,3 +102,13 @@ export async function claimTrialSend(deliveryId: number): Promise<"ok" | "wait" 
   if (error) throw new Error("The message could not be claimed for sending.");
   return data === "ok" || data === "wait" ? data : "gone";
 }
+
+/** Whether a new trial can be made right now on this Installation: false when trials are off or the cap is reached.
+ * A count only, never which workspaces, so the login page may ask it for anyone. */
+export async function trialsOpen(env: Record<string, string | undefined> = process.env): Promise<boolean> {
+  let settings: { days: number; max: number } | null = null;
+  try { settings = trialSettings(env); } catch { return false; }
+  if (!settings) return false;
+  const { count } = await db().from("workspaces").select("id", { count: "exact", head: true }).gt("trial_ends_at", new Date().toISOString());
+  return (count ?? 0) < settings.max;
+}

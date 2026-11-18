@@ -12,6 +12,7 @@ export function AskNow({ metricId }: { metricId: number }) {
   const press = () => start(async () => {
     try {
       const r = await askMeNow(metricId);
+      if ("error" in r) { toast.error(r.error); return; }
       if (r.state === "sent" || r.state === "queued") toast.success(`Asked by ${r.label}. Answer it there, or by the form link in it.`);
       else toast.message(`Kept in the Outbox: ${r.note ?? `${r.label} does not send for real here.`}`, { description: "Open the Outbox to see and answer it." });
     } catch (e) {

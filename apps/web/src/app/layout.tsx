@@ -10,6 +10,7 @@ import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
 import { ResetButton } from "@/components/reset-button";
+import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
@@ -83,6 +84,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </>
           ) : undefined}
         />
+        {/* The demo sends nothing (spec 0021): say so on every page, and where to get it for real when this Ziffr offers trials. */}
+        {demo && (
+          <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">
+            Messages in the demo are simulated: nothing is sent, and you answer them yourself in the Outbox.
+            {whatThisZiffrOffers().trial && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
+          </p>
+        )}
         <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{children}</main>
         {demo && <Tour />}
         <Toaster />
