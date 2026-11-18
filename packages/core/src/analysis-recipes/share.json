@@ -1,0 +1,28 @@
+{
+  "format": "ziffr.analysis/1",
+  "name": "Share of a total",
+  "description": "One Metric as a share of another, in %, period by period.",
+  "slots": [
+    {
+      "label": "Part"
+    },
+    {
+      "label": "Total"
+    }
+  ],
+  "steps": [
+    {
+      "id": "share",
+      "fn": "share",
+      "of": "slot1",
+      "with": "slot2"
+    }
+  ],
+  "outputs": [
+    {
+      "step": "share",
+      "label": "Share",
+      "unit": "percent"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "format": "ziffr.analysis/1",
+  "name": "Moving average",
+  "description": "The mean of the last three periods, so a single high or low stands out less.",
+  "slots": [
+    {
+      "label": "Metric"
+    }
+  ],
+  "steps": [
+    {
+      "id": "avg",
+      "fn": "movingAverage",
+      "of": "slot1",
+      "window": 3
+    }
+  ],
+  "outputs": [
+    {
+      "step": "avg",
+      "label": "Three-period average",
+      "unit": "metric"
+    }
+  ]
+}
