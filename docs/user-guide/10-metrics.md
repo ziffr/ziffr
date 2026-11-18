@@ -109,6 +109,7 @@ If a Metric is not shared with you, its page says "… isn't shared with you", n
 
 | Button | What it does | Who sees it |
 | --- | --- | --- |
+| **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went, or why it stayed in the Outbox. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
 | **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
 | **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
