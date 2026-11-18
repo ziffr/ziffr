@@ -38,12 +38,12 @@ Where each run happens:
 
 | Where | Full strength | Mutation testing |
 |---|---|---|
-| CI's `numbers` job, on a pull request or push that touches a **calculation path**, beside `check` and `core-db` | yes | not yet: it starts from the nightly run's results, which the next pull request of #126 adds |
+| CI's `numbers` job, on a pull request or push that touches a **calculation path**, beside `check` and `core-db` | yes | the calculation modules the change touches, incrementally from the nightly run's results: only mutants on changed lines, or whose tests changed, run again. Without results of the last three days, only the changed lines are mutated. It stops after 20 minutes with a message (`.github/scripts/mutation-pr.sh`) |
 | Every night (`.github/workflows/numbers.yml`) | yes | every module |
 | The release workflow, before the image is built: a failure blocks the release | yes | every module |
 | `pnpm ci:local` | when a calculation path changed against `origin/main` | the touched modules, from an earlier local run's results when there are any (`--incremental`), except with `--quick` |
 
-Each mutation run writes its score per module and its time to the job's summary (`.github/scripts/mutation-summary.mjs`). `NUMBERS_RUNS` and `NUMBERS_SEED` set the count and the seed for any of these runs: `NUMBERS_RUNS=5000 pnpm --filter @ziffr/core test:numbers`. Mutation testing runs with 30 generated cases per combination, because the hand-made cases and the references kill most mutants, and every mutant runs the tests again.
+The nightly run keeps its results in the Actions cache (`reports/stryker-incremental.json`) for pull requests to start from. When a pull request's mutation run stops at 20 minutes, run the full run (Actions, Numbers, Run workflow, on `main`) so the next run starts from fresh results, or split the change. Each mutation run writes its score per module and its time to the job's summary (`.github/scripts/mutation-summary.mjs`). `NUMBERS_RUNS` and `NUMBERS_SEED` set the count and the seed for any of these runs: `NUMBERS_RUNS=5000 pnpm --filter @ziffr/core test:numbers`. Mutation testing runs with 30 generated cases per combination, because the hand-made cases and the references kill most mutants, and every mutant runs the tests again.
 
 ## The calculation paths
 
