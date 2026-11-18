@@ -1,6 +1,6 @@
 # 0024 View Designs and Analysis Recipes: new ways to draw and analyse, without running anyone's code
 
-**Status:** in progress. **Tracking issue:** #145 (label `tracking`); tickets #146 to #152 carry `spec:0024`. Starts after spec 0023.
+**Status:** done. **Tracking issue:** #145 (label `tracking`); tickets #146 to #152 carry `spec:0024`. Starts after spec 0023.
 
 ## Problem Statement
 
@@ -81,6 +81,17 @@ Code plugins, for Views or Analyses no file can describe, are a later step with 
 5. #150 The function library with its references (spec 0022's rules), the Analysis Recipe format, and forecast and correlation as recipes where their methods allow.
 6. #151 Recipes in the playground and in widgets, decks and the export.
 7. #152 Docs: a guide for designers and one for analysts, the user guide, the threat model.
+
+## Security review
+
+An independent review of the whole spec (#152) checked the parser and validator (prototype keys, duplicate fields, ReDoS in the plain-text pattern, depth, size and number limits), every path by which widget settings reach the database or the renderer, authorization (roles, the demo, Access Keys, other Workspaces' ids), what goes to browsers, View Links, Snapshots and exports, how untrusted text is drawn, what a recipe can reach and cost, and the PowerPoint export. Findings, all fixed:
+
+- **A Free layout's seed** (`canvasSeed`) could carry an unchecked design from the browser (found in #148 by an automated review): only the server sets it now, and designs are checked at every depth.
+- **Cost:** a chain of steps the checks allowed took half a minute on ten years of daily values; recipes now take the latest 120 values and the library is linear (#151).
+- **Infinity:** a share of a tiny total failed the page; values that are not finite are left out, and a design that fails to draw stays its widget's problem (#151).
+- **Smaller:** restored deck and template Versions are checked again, too deep a document is refused, checks name at most 50 problems, and a duplicated design's name follows the format's rule (#151).
+
+Two risks are accepted and written into the threat model: any checked design on a slide, and the Workspace's designs sent to every member's canvas.
 
 ## Out of Scope
 
