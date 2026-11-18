@@ -1,0 +1,95 @@
+<li>
+"Orders"
+<span style=width: 99.89362954750688%; background: var(--color-data);>
+"1.00"
+<li>
+"Active customers"
+<span style=width: 99.80742066312617%; background: var(--color-data);>
+"1.00"
+<li>
+"Operating cost"
+<span style=width: 98.83188415303667%; background: var(--color-data);>
+"0.99"
+<li>
+"Churn rate"
+<span style=width: 90.4058006451383%; background: var(--color-error);>
+"-0.90"
+"Orders moves most with Revenue (strong positive)."
+<svg style=width: 100%; height: 100%; display: block;>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=202 y2=202 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=153.5 y2=153.5 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=105 y2=105 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=56.5 y2=56.5 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=8 y2=8 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=76 x2=76 x=76 y1=8 y2=202 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=174 x2=174 x=76 y1=8 y2=202 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=272 x2=272 x=76 y1=8 y2=202 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=370 x2=370 x=76 y1=8 y2=202 y=8>
+<line fill=none height=194 stroke=var(--color-rule) width=392 x1=468 x2=468 x=76 y1=8 y2=202 y=8>
+<rect height=194 width=392 x=76 y=8>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=202 y2=202 y=202>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=208 y2=202 y=202>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=174 x2=174 x=76 y1=208 y2=202 y=202>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=272 x2=272 x=76 y1=208 y2=202 y=202>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=370 x2=370 x=76 y1=208 y2=202 y=202>
+<line angle=0 fill=none height=30 name=Orders orientation=bottom stroke=var(--color-rule-2) width=392 x1=468 x2=468 x=76 y1=208 y2=202 y=202>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=76 x2=76 x=8 y1=8 y2=202 y=8>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=202 y2=202 y=8>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=153.5 y2=153.5 y=8>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=105 y2=105 y=8>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=56.5 y2=56.5 y=8>
+<line angle=0 fill=none height=194 name=Revenue orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=8 y2=8 y=8>
+<path cx=126.96000000000001 cy=195.59606000000002 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(126.96000000000001, 195.59606000000002) width=9.0270333367641 x=122.44648333161796 y=191.08254333161798>
+<path cx=136.76 cy=188.1484 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(136.76, 188.1484) width=9.0270333367641 x=132.24648333161795 y=183.63488333161797>
+<path cx=166.55200000000002 cy=174.58392 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(166.55200000000002, 174.58392) width=9.0270333367641 x=162.03848333161798 y=170.07040333161797>
+<path cx=173.608 cy=173.06683999999998 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(173.608, 173.06683999999998) width=9.0270333367641 x=169.09448333161797 y=168.55332333161795>
+<path cx=179.88 cy=172.25204 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(179.88, 172.25204) width=9.0270333367641 x=175.36648333161796 y=167.73852333161796>
+<path cx=186.54399999999998 cy=167.66199999999998 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(186.54399999999998, 167.66199999999998) width=9.0270333367641 x=182.03048333161794 y=163.14848333161794>
+<path cx=198.69600000000003 cy=162.9672 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(198.69600000000003, 162.9672) width=9.0270333367641 x=194.182483331618 y=158.45368333161795>
+<path cx=206.144 cy=159.21718 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(206.144, 159.21718) width=9.0270333367641 x=201.63048333161797 y=154.70366333161797>
+<path cx=221.824 cy=154.53207999999998 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(221.824, 154.53207999999998) width=9.0270333367641 x=217.31048333161797 y=150.01856333161794>
+<path cx=234.368 cy=148.15142 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(234.368, 148.15142) width=9.0270333367641 x=229.85448333161796 y=143.63790333161796>
+<path cx=239.072 cy=148.01367999999997 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(239.072, 148.01367999999997) width=9.0270333367641 x=234.55848333161796 y=143.50016333161793>
+<path cx=252.792 cy=141.95893999999998 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(252.792, 141.95893999999998) width=9.0270333367641 x=248.27848333161796 y=137.44542333161795>
+<path cx=279.056 cy=130.29760000000002 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(279.056, 130.29760000000002) width=9.0270333367641 x=274.5424833316179 y=125.78408333161796>
+<path cx=286.112 cy=125.45536 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(286.112, 125.45536) width=9.0270333367641 x=281.59848333161796 y=120.94184333161795>
+<path cx=290.03200000000004 cy=127.65144 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(290.03200000000004, 127.65144) width=9.0270333367641 x=285.518483331618 y=123.13792333161794>
+<path cx=308.84799999999996 cy=121.93037999999999 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(308.84799999999996, 121.93037999999999) width=9.0270333367641 x=304.3344833316179 y=117.41686333161793>
+<path cx=315.12 cy=117.87384 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(315.12, 117.87384) width=9.0270333367641 x=310.60648333161794 y=113.36032333161795>
+<path cx=338.64 cy=105.45008 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(338.64, 105.45008) width=9.0270333367641 x=334.1264833316179 y=100.93656333161795>
+<path cx=340.6 cy=106.42978 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(340.6, 106.42978) width=9.0270333367641 x=336.08648333161796 y=101.91626333161794>
+<path cx=378.62399999999997 cy=87.00068 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(378.62399999999997, 87.00068) width=9.0270333367641 x=374.1104833316179 y=82.48716333161795>
+<path cx=375.488 cy=89.39851999999999 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(375.488, 89.39851999999999) width=9.0270333367641 x=370.97448333161793 y=84.88500333161794>
+<path cx=411.94399999999996 cy=75.07938 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(411.94399999999996, 75.07938) width=9.0270333367641 x=407.4304833316179 y=70.56586333161795>
+<path cx=400.96799999999996 cy=83.20216 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(400.96799999999996, 83.20216) width=9.0270333367641 x=396.4544833316179 y=78.68864333161795>
+<path cx=416.256 cy=72.54768 d=M4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,-4.51351666838205,0A4.51351666838205,4.51351666838205,0,1,1,4.51351666838205,0 data-recharts-item-id=recharts-scatter-_r_2i_ fill=var(--color-data) height=9.0270333367641 transform=translate(416.256, 72.54768) width=9.0270333367641 x=411.7424833316179 y=68.03416333161795>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=30 name=Orders orientation=bottom stroke=none text-anchor=middle width=392 x=76 y=210>
+<tspan dy=0.71em x=76>
+"1,000"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=30 name=Orders orientation=bottom stroke=none text-anchor=middle width=392 x=174 y=210>
+<tspan dy=0.71em x=174>
+"1,250"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=30 name=Orders orientation=bottom stroke=none text-anchor=middle width=392 x=272 y=210>
+<tspan dy=0.71em x=272>
+"1,500"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=30 name=Orders orientation=bottom stroke=none text-anchor=middle width=392 x=370 y=210>
+<tspan dy=0.71em x=370>
+"1,750"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=30 name=Orders orientation=bottom stroke=none text-anchor=middle width=392 x=468 y=210>
+<tspan dy=0.71em x=468>
+"2,000"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=202>
+<tspan dy=0.355em x=68>
+"75k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=153.5>
+<tspan dy=0.355em x=68>
+"100k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=105>
+<tspan dy=0.355em x=68>
+"125k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=56.5>
+<tspan dy=0.355em x=68>
+"150k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=8>
+<tspan dy=0.355em x=68>
+"175k €"

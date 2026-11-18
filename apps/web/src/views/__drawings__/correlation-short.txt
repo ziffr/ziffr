@@ -1,0 +1,1 @@
+"Not enough months in common (4 of 6)."

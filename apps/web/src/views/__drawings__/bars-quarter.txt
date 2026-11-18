@@ -1,0 +1,77 @@
+<div style=margin: 0px; padding: 10px; background-color: #fff; border: 1px solid #ccc; white-space: nowrap; border-radius: 8px; font-size: 12px;>
+<svg style=width: 100%; height: 100%; display: block;>
+<rect height=206 width=420 x=56 y=4>
+<pattern height=6 patternTransform=rotate(45) patternUnits=userSpaceOnUse width=6>
+<rect fill-opacity=0.25 fill=var(--color-data) height=6 width=6>
+<line stroke-width=3 stroke=var(--color-data) x1=0 x2=0 y1=0 y2=6>
+<path d=M61.25,70.2714A 3,3,0,0,1,64.25,67.2714L 100.25,67.2714A 3,3,0,0,1,
+        103.25,70.2714L 103.25,210L 61.25,210Z fill-opacity=0.85 fill=var(--color-error) height=142.7286 name=undefined width=42 x=61.25 y=67.2714>
+<path d=M113.75,62.9879A 3,3,0,0,1,116.75,59.9879L 152.75,59.9879A 3,3,0,0,1,
+        155.75,62.9879L 155.75,210L 113.75,210Z fill-opacity=0.85 fill=var(--color-error) height=150.0121 name=undefined width=42 x=113.75 y=59.9879>
+<path d=M166.25,56.7343A 3,3,0,0,1,169.25,53.7343L 205.25,53.7343A 3,3,0,0,1,
+        208.25,56.7343L 208.25,210L 166.25,210Z fill-opacity=0.85 fill=var(--color-error) height=156.2657 name=undefined width=42 x=166.25 y=53.7343>
+<path d=M218.75,50.4071A 3,3,0,0,1,221.75,47.4071L 257.75,47.4071A 3,3,0,0,1,
+        260.75,50.4071L 260.75,210L 218.75,210Z fill-opacity=0.85 fill=var(--color-error) height=162.5929 name=undefined width=42 x=218.75 y=47.4071>
+<path d=M271.25,41.9464A 3,3,0,0,1,274.25,38.9464L 310.25,38.9464A 3,3,0,0,1,
+        313.25,41.9464L 313.25,210L 271.25,210Z fill-opacity=0.85 fill=var(--color-error) height=171.0536 name=undefined width=42 x=271.25 y=38.9464>
+<path d=M323.75,34.4421A 3,3,0,0,1,326.75,31.4421L 362.75,31.4421A 3,3,0,0,1,
+        365.75,34.4421L 365.75,210L 323.75,210Z fill-opacity=0.85 fill=var(--color-error) height=178.5579 name=undefined width=42 x=323.75 y=31.4421>
+<path d=M376.25,24.8779A 3,3,0,0,1,379.25,21.8779L 415.25,21.8779A 3,3,0,0,1,
+        418.25,24.8779L 418.25,210L 376.25,210Z fill-opacity=0.85 fill=var(--color-error) height=188.1221 name=undefined width=42 x=376.25 y=21.8779>
+<path d=M428.75,17.3A 3,3,0,0,1,431.75,14.3L 467.75,14.3A 3,3,0,0,1,
+        470.75,17.3L 470.75,210L 428.75,210Z data-to-date=true fill-opacity=0.85 fill=url(#) height=195.7 name=undefined stroke-dasharray=3 2 stroke=var(--color-data) width=42 x=428.75 y=14.3>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=56 x2=476 x=56 y1=210 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=82.25 x2=82.25 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=134.75 x2=134.75 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=187.25 x2=187.25 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=239.75 x2=239.75 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=292.25 x2=292.25 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=344.75 x2=344.75 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=397.25 x2=397.25 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=449.75 x2=449.75 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=56 x2=56 x=0 y1=4 y2=210 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=210 y2=210 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=158.5 y2=158.5 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=107 y2=107 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=55.5 y2=55.5 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=4 y2=4 y=4>
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=82.25 y=218>
+<tspan dy=0.71em x=82.25>
+"Q3 24"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=134.75 y=218>
+<tspan dy=0.71em x=134.75>
+"Q4 24"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=187.25 y=218>
+<tspan dy=0.71em x=187.25>
+"Q1 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=239.75 y=218>
+<tspan dy=0.71em x=239.75>
+"Q2 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=292.25 y=218>
+<tspan dy=0.71em x=292.25>
+"Q3 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=344.75 y=218>
+<tspan dy=0.71em x=344.75>
+"Q4 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=397.25 y=218>
+<tspan dy=0.71em x=397.25>
+"Q1 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=449.75 y=218>
+<tspan dy=0.71em x=449.75>
+"Q2 26"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=210>
+<tspan dy=0.355em x=48>
+"0"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=158.5>
+<tspan dy=0.355em x=48>
+"700"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=107>
+<tspan dy=0.355em x=48>
+"1,400"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=55.5>
+<tspan dy=0.355em x=48>
+"2,100"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=4>
+<tspan dy=0.355em x=48>
+"2,800"
+"Target per quarter: the Target Series added up."

@@ -1,0 +1,35 @@
+<table>
+<tr>
+<td>
+<span title=Q2 2026 to date, 3 of 3 months>
+"Q2 26 to date"
+<span title=Not approved yet>
+"unapproved"
+<td>
+"418,387 €"
+<tr>
+<td>
+"Q1 26"
+<td>
+"391,583 €"
+<tr>
+<td>
+"Q4 25"
+<td>
+"359,405 €"
+<tr>
+<td>
+"Q3 25"
+<td>
+"339,740 €"
+<tr>
+<td>
+"Q2 25"
+<td>
+"311,534 €"
+<tr>
+<td>
+"Q1 25"
+<td>
+"291,641 €"
+"Target per quarter: the Target Series added up."

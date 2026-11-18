@@ -1,0 +1,101 @@
+<div style=margin: 0px; padding: 10px; background-color: #fff; border: 1px solid #ccc; white-space: nowrap; border-radius: 8px; font-size: 12px;>
+<svg style=width: 100%; height: 100%; display: block;>
+<rect height=206 width=420 x=56 y=4>
+<pattern height=6 patternTransform=rotate(45) patternUnits=userSpaceOnUse width=6>
+<rect fill-opacity=0.25 fill=var(--color-data) height=6 width=6>
+<line stroke-width=3 stroke=var(--color-data) x1=0 x2=0 y1=0 y2=6>
+<path d=M 56,49.0625 h 420 v 160.9375 h -420 Z fill-opacity=0.6 fill=var(--color-band) height=160.9375 radius=0 stroke-width=1 stroke=none width=420 x=56 y1=0 y2=2.5 y=49.0625>
+<path d=M59.5,13.4375A 3,3,0,0,1,62.5,10.4375L 84.5,10.4375A 3,3,0,0,1,
+        87.5,13.4375L 87.5,210L 59.5,210Z fill-opacity=0.85 fill=var(--color-error) height=199.5625 name=undefined width=28 x=59.5 y=10.4375>
+<path d=M94.5,26.3125A 3,3,0,0,1,97.5,23.3125L 119.5,23.3125A 3,3,0,0,1,
+        122.5,26.3125L 122.5,210L 94.5,210Z fill-opacity=0.85 fill=var(--color-error) height=186.6875 name=undefined width=28 x=94.5 y=23.3125>
+<path d=M129.5,32.75A 3,3,0,0,1,132.5,29.75L 154.5,29.75A 3,3,0,0,1,
+        157.5,32.75L 157.5,210L 129.5,210Z fill-opacity=0.85 fill=var(--color-error) height=180.25 name=undefined width=28 x=129.5 y=29.75>
+<path d=M164.5,26.3125A 3,3,0,0,1,167.5,23.3125L 189.5,23.3125A 3,3,0,0,1,
+        192.5,26.3125L 192.5,210L 164.5,210Z fill-opacity=0.85 fill=var(--color-error) height=186.6875 name=undefined width=28 x=164.5 y=23.3125>
+<path d=M199.5,39.1875A 3,3,0,0,1,202.5,36.1875L 224.5,36.1875A 3,3,0,0,1,
+        227.5,39.1875L 227.5,210L 199.5,210Z fill-opacity=0.85 fill=var(--color-error) height=173.8125 name=undefined width=28 x=199.5 y=36.1875>
+<path d=M234.5,32.75A 3,3,0,0,1,237.5,29.75L 259.5,29.75A 3,3,0,0,1,
+        262.5,32.75L 262.5,210L 234.5,210Z fill-opacity=0.85 fill=var(--color-error) height=180.25 name=undefined width=28 x=234.5 y=29.75>
+<path d=M269.5,39.1875A 3,3,0,0,1,272.5,36.1875L 294.5,36.1875A 3,3,0,0,1,
+        297.5,39.1875L 297.5,210L 269.5,210Z fill-opacity=0.85 fill=var(--color-error) height=173.8125 name=undefined width=28 x=269.5 y=36.1875>
+<path d=M304.5,26.3125A 3,3,0,0,1,307.5,23.3125L 329.5,23.3125A 3,3,0,0,1,
+        332.5,26.3125L 332.5,210L 304.5,210Z fill-opacity=0.85 fill=var(--color-error) height=186.6875 name=undefined width=28 x=304.5 y=23.3125>
+<path d=M339.5,45.625A 3,3,0,0,1,342.5,42.625L 364.5,42.625A 3,3,0,0,1,
+        367.5,45.625L 367.5,210L 339.5,210Z fill-opacity=0.85 fill=var(--color-error) height=167.375 name=undefined width=28 x=339.5 y=42.625>
+<path d=M374.5,39.1875A 3,3,0,0,1,377.5,36.1875L 399.5,36.1875A 3,3,0,0,1,
+        402.5,39.1875L 402.5,210L 374.5,210Z fill-opacity=0.85 fill=var(--color-error) height=173.8125 name=undefined width=28 x=374.5 y=36.1875>
+<path d=M409.5,52.0625A 3,3,0,0,1,412.5,49.0625L 434.5,49.0625A 3,3,0,0,1,
+        437.5,52.0625L 437.5,210L 409.5,210Z fill-opacity=0.85 fill=var(--color-data) height=160.9375 name=undefined width=28 x=409.5 y=49.0625>
+<path d=M444.5,58.5A 3,3,0,0,1,447.5,55.5L 469.5,55.5A 3,3,0,0,1,
+        472.5,58.5L 472.5,210L 444.5,210Z fill-opacity=0.85 fill=var(--color-data) height=154.5 name=undefined width=28 x=444.5 y=55.5>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=56 x2=476 x=56 y1=210 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=73.5 x2=73.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=108.5 x2=108.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=143.5 x2=143.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=178.5 x2=178.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=213.5 x2=213.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=248.5 x2=248.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=283.5 x2=283.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=318.5 x2=318.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=353.5 x2=353.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=388.5 x2=388.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=423.5 x2=423.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=420 x1=458.5 x2=458.5 x=56 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=56 x2=56 x=0 y1=4 y2=210 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=210 y2=210 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=158.5 y2=158.5 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=107 y2=107 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=55.50000000000002 y2=55.50000000000002 y=4>
+<line angle=0 fill=none height=206 orientation=left stroke=var(--color-rule-2) width=56 x1=50 x2=56 x=0 y1=4 y2=4 y=4>
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=73.5 y=218>
+<tspan dy=0.71em x=73.5>
+"Jul 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=108.5 y=218>
+<tspan dy=0.71em x=108.5>
+"Aug 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=143.5 y=218>
+<tspan dy=0.71em x=143.5>
+"Sep 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=178.5 y=218>
+<tspan dy=0.71em x=178.5>
+"Oct 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=213.5 y=218>
+<tspan dy=0.71em x=213.5>
+"Nov 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=248.5 y=218>
+<tspan dy=0.71em x=248.5>
+"Dec 25"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=283.5 y=218>
+<tspan dy=0.71em x=283.5>
+"Jan 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=318.5 y=218>
+<tspan dy=0.71em x=318.5>
+"Feb 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=353.5 y=218>
+<tspan dy=0.71em x=353.5>
+"Mar 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=388.5 y=218>
+<tspan dy=0.71em x=388.5>
+"Apr 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=423.5 y=218>
+<tspan dy=0.71em x=423.5>
+"May 26"
+<text fill=var(--color-muted) font-size=11 height=30 orientation=bottom stroke=none text-anchor=middle width=420 x=458.5 y=218>
+<tspan dy=0.71em x=458.5>
+"Jun 26"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=210>
+<tspan dy=0.355em x=48>
+"0.0 %"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=158.5>
+<tspan dy=0.355em x=48>
+"0.8 %"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=107>
+<tspan dy=0.355em x=48>
+"1.6 %"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=55.50000000000002>
+<tspan dy=0.355em x=48>
+"2.4 %"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=11 height=206 orientation=left stroke=none text-anchor=end width=56 x=48 y=4>
+<tspan dy=0.355em x=48>
+"3.2 %"
