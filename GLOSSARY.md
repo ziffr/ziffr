@@ -145,8 +145,12 @@ _Avoid_: Freeze, finalize, close
 ### Presentation
 
 **View**:
-A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table.
+A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table. Ziffr ships its own Views; more can be added to a Workspace as View Designs.
 _Avoid_: Chart type, visualization plugin
+
+**View Design**:
+A View written as a file: its Slots, its marks and what each shows, and its Theme colours. Ziffr checks it and draws it with its own renderer; it holds no code.
+_Avoid_: Chart plugin, visualization plugin, custom widget
 
 **Finding**:
 A widget set as an editorial graphic: a frame of kicker, headline stating the finding, subline, footnotes and source, around one or more panels. Findings sit on dashboards, where they read like the sections of an article in the Read view, and on slides.

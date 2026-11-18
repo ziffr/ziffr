@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.app/schemas/ziffr.view-1.json",
+  "title": "Ziffr View Design (ziffr.view/1)",
+  "description": "A View written as a file: its Slots, its marks and what each shows, and its Theme colours. It holds no code.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.view/1",
+      "description": "The format and its version."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses"
+    },
+    "kind": {
+      "enum": [
+        "metric",
+        "analysis"
+      ],
+      "description": "Draws one Metric, or analyses several."
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/slot"
+      },
+      "description": "The Metrics it takes, in order."
+    },
+    "size": {
+      "type": "object",
+      "description": "Its size when placed on a dashboard, in grid columns and rows.",
+      "properties": {
+        "w": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "h": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 24
+        }
+      },
+      "required": [
+        "w",
+        "h"
+      ],
+      "additionalProperties": false
+    },
+    "options": {
+      "type": "object",
+      "description": "What a person may change when placing it, with the defaults.",
+      "properties": {
+        "window": {
+          "$ref": "#/$defs/countOption"
+        },
+        "rows": {
+          "$ref": "#/$defs/countOption"
+        },
+        "showTarget": {
+          "$ref": "#/$defs/switchOption"
+        },
+        "showForecast": {
+          "$ref": "#/$defs/switchOption"
+        }
+      },
+      "additionalProperties": false
+    },
+    "empty": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses"
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/part"
+      },
+      "description": "What it draws, top to bottom."
+    }
+  },
+  "required": [
+    "format",
+    "name",
+    "kind",
+    "slots",
+    "size",
+    "parts"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "when": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "enum": [
+          "showTarget",
+          "showForecast",
+          "hasForecast",
+          "hasNote",
+          "manyValues"
+        ]
+      },
+      "description": "Drawn only when all of these hold: showTarget and showForecast are the options; hasForecast, hasNote and manyValues (two or more values) are about the data."
+    },
+    "slot": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses",
+          "minLength": 1
+        },
+        "metrics": {
+          "enum": [
+            "one",
+            "several"
+          ],
+          "description": "One Metric, or several (small multiples, a matrix)."
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "For several: how many it needs at least."
+        }
+      },
+      "required": [
+        "label",
+        "metrics"
+      ],
+      "additionalProperties": false
+    },
+    "countOption": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "default": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "additionalProperties": false
+    },
+    "switchOption": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "default": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "additionalProperties": false
+    },
+    "piece": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        {
+          "type": "object",
+          "description": "A value the core writes, in the Workspace's Number Style.",
+          "properties": {
+            "show": {
+              "enum": [
+                "metric.name",
+                "latest.value",
+                "latest.period",
+                "latest.status",
+                "latest.approval",
+                "target.note",
+                "forecast.value",
+                "forecast.period",
+                "forecast.low",
+                "forecast.high",
+                "correlation.strength",
+                "correlation.r",
+                "correlation.over",
+                "drivers.name",
+                "drivers.strength",
+                "drivers.over"
+              ]
+            },
+            "style": {
+              "enum": [
+                "strong"
+              ]
+            },
+            "before": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            },
+            "after": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            }
+          },
+          "required": [
+            "show"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "part": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Words and values, drawn as text.",
+          "properties": {
+            "mark": {
+              "const": "text"
+            },
+            "content": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "$ref": "#/$defs/piece"
+              }
+            },
+            "style": {
+              "enum": [
+                "headline",
+                "value",
+                "body",
+                "caption",
+                "note"
+              ]
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "content"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Parts side by side (a row) or stacked (a column).",
+          "properties": {
+            "mark": {
+              "const": "group"
+            },
+            "direction": {
+              "enum": [
+                "row",
+                "column"
+              ]
+            },
+            "align": {
+              "enum": [
+                "start",
+                "center"
+              ]
+            },
+            "style": {
+              "enum": [
+                "headline",
+                "value",
+                "body",
+                "caption",
+                "note"
+              ]
+            },
+            "parts": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "$ref": "#/$defs/part"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "direction",
+            "parts"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A chart: marks against a period or value axis and a value axis.",
+          "properties": {
+            "mark": {
+              "const": "plot"
+            },
+            "axes": {
+              "enum": [
+                "none",
+                "compact",
+                "regular"
+              ]
+            },
+            "x": {
+              "enum": [
+                "period",
+                "value"
+              ]
+            },
+            "grid": {
+              "enum": [
+                "none",
+                "horizontal",
+                "both"
+              ]
+            },
+            "scale": {
+              "enum": [
+                "padded",
+                "auto",
+                "tight"
+              ]
+            },
+            "marks": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "$ref": "#/$defs/plotMark"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "axes",
+            "marks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Where the latest value sits against the target.",
+          "properties": {
+            "mark": {
+              "const": "gauge"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Table rows: the latest values, or correlations.",
+          "properties": {
+            "mark": {
+              "const": "rows"
+            },
+            "show": {
+              "enum": [
+                "values",
+                "correlations",
+                "matrix"
+              ]
+            },
+            "limit": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "rows"
+                  ]
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 120
+                }
+              ]
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "plotMark": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A line through the values.",
+          "properties": {
+            "mark": {
+              "const": "line"
+            },
+            "show": {
+              "enum": [
+                "values",
+                "forecast",
+                "target.line"
+              ]
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "detail": {
+              "enum": [
+                "plain",
+                "full"
+              ]
+            },
+            "dash": {
+              "type": "boolean"
+            },
+            "width": {
+              "enum": [
+                "thin",
+                "regular"
+              ]
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A filled range.",
+          "properties": {
+            "mark": {
+              "const": "area"
+            },
+            "show": {
+              "const": "forecast.range"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per period.",
+          "properties": {
+            "mark": {
+              "const": "bar"
+            },
+            "show": {
+              "const": "values"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One point per pair of values.",
+          "properties": {
+            "mark": {
+              "const": "point"
+            },
+            "show": {
+              "const": "pairs"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The target range.",
+          "properties": {
+            "mark": {
+              "const": "band"
+            },
+            "show": {
+              "const": "target"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A straight line across the plot.",
+          "properties": {
+            "mark": {
+              "const": "rule"
+            },
+            "show": {
+              "enum": [
+                "target.min",
+                "target.max",
+                "average"
+              ]
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
