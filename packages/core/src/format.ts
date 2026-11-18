@@ -47,7 +47,8 @@ export const SOURCE_LABEL: Record<SourceId, string> = { slack: "Slack", mail: "M
 
 /** good | bad | neutral for a value, given the metric's target range. */
 export function health(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined) {
-  if (v === null || v === undefined) return "neutral" as const;
+  // A value that is not a number (NaN, ∞) is on no side of a target: neutral, never "good".
+  if (v === null || v === undefined || !Number.isFinite(v)) return "neutral" as const;
   if (m.target_min === null && m.target_max === null) return "neutral" as const;
   if (m.target_min !== null && v < Number(m.target_min)) return "bad" as const;
   if (m.target_max !== null && v > Number(m.target_max)) return "bad" as const;
@@ -56,7 +57,7 @@ export function health(m: Pick<Metric, "target_min" | "target_max">, v: number |
 
 /** Where a value sits against its metric's Target Range: below, on or above it; null without a target or value. */
 export function targetStatus(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined): "below" | "on" | "above" | null {
-  if (v === null || v === undefined || (m.target_min === null && m.target_max === null)) return null;
+  if (v === null || v === undefined || !Number.isFinite(v) || (m.target_min === null && m.target_max === null)) return null;
   if (m.target_min !== null && v < Number(m.target_min)) return "below";
   if (m.target_max !== null && v > Number(m.target_max)) return "above";
   return "on";

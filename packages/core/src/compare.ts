@@ -119,16 +119,42 @@ export function targetFor(metric: Metric, period: string, targets: Point[] = [])
   return { min: metric.target_min, max: metric.target_max, fromSeries: false, value: metric.polarity === "lower" ? metric.target_max : metric.target_min };
 }
 
-/** Attainment in %, higher always better (GLOSSARY: Attainment). */
+/** Attainment in %, higher always better (GLOSSARY: Attainment). It is measured by the distance to the target, in
+ * steps of the target's own size: 100 % on target, 150 % half a target better, 50 % half a target short. That holds
+ * for targets below zero too, where a ratio of value to target turns around. A target of 0 has no size to measure
+ * by, so there is no percentage (null; `targetGap` gives the difference instead), and null for a value that is not
+ * a number. */
 export function attainment(metric: Metric, value: number, t: { min: number | null; max: number | null }): number | null {
-  if (metric.polarity === "higher" && t.min) return (value / t.min) * 100;
-  if (metric.polarity === "lower" && t.max && value) return (t.max / value) * 100;
-  if (metric.polarity === "target" && (t.min !== null || t.max !== null)) {
-    if (t.min !== null && value < t.min) return (value / t.min) * 100;
-    if (t.max !== null && value > t.max) return (t.max / value) * 100;
-    return 100;
-  }
-  return null;
+  const min = t.min === null ? null : Number(t.min);
+  const max = t.max === null ? null : Number(t.max);
+  if (!Number.isFinite(value)) return null;
+  // `ahead` is how far the value is on the good side of `target`, negative when it falls short.
+  const pct = (target: number, ahead: number) => (target === 0 || !Number.isFinite(target) ? null : 100 + (ahead / Math.abs(target)) * 100);
+  if (metric.polarity === "higher") return min === null ? null : pct(min, value - min);
+  if (metric.polarity === "lower") return max === null ? null : pct(max, max - value);
+  if (min === null && max === null) return null;
+  if (min !== null && value < min) return pct(min, value - min);
+  if (max !== null && value > max) return pct(max, max - value);
+  return 100;
+}
+
+/** How far a value is from its target, in the Metric's unit: positive above it, negative below, 0 inside a range;
+ * null without a target. What a widget shows where Attainment has no percentage (a target of 0). */
+export function targetGap(metric: Metric, value: number, t: { min: number | null; max: number | null }): number | null {
+  const min = t.min === null ? null : Number(t.min);
+  const max = t.max === null ? null : Number(t.max);
+  if (!Number.isFinite(value)) return null;
+  if (metric.polarity === "higher") return min === null ? null : value - min;
+  if (metric.polarity === "lower") return max === null ? null : value - max;
+  if (min !== null && value < min) return value - min;
+  if (max !== null && value > max) return value - max;
+  return min === null && max === null ? null : 0;
+}
+
+/** Attainment rounded for display, e.g. "92%": a value that rounds to zero is "0%", never "-0%". */
+export function attainmentText(a: number, digits = 0): string {
+  const f = 10 ** digits;
+  return `${(Math.round(a * f) / f || 0).toFixed(digits)}%`;
 }
 
 /** Everything a widget's comparison strip needs, for the latest period. */
@@ -136,11 +162,17 @@ export function summary(metric: Metric, resolve: Resolver, targets: Point[] | un
   const pts = resolve(metric.slug)?.points ?? [];
   const last = pts[pts.length - 1];
   const t = last ? targetFor(metric, last.period, targets ?? []) : null;
+  const att = last && t ? attainment(metric, last.value, t) : null;
+  const gap = last && t ? targetGap(metric, last.value, t) : null;
   return {
     value: last?.value,
     period: last?.period,
     target: t,
-    attainment: last && t ? attainment(metric, last.value, t) : null,
+    attainment: att,
+    /** The difference to the target, shown where Attainment has no percentage. */
+    gap,
+    /** Whether the latest value is on target, from Attainment or, without one, from the difference; null without a target. */
+    onTarget: att !== null ? att >= 100 : gap === null ? null : metric.polarity === "higher" ? gap >= 0 : metric.polarity === "lower" ? gap <= 0 : gap === 0,
     comparisons: compare(metric, resolve, opts),
   };
 }
