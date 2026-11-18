@@ -9,7 +9,7 @@ import { templatesFor } from "@ziffr/core/widget-templates";
 import { Preview, TemplatePreview } from "./preview";
 
 describe("Preview", () => {
-  it.each(Object.keys(TEMPLATES) as TemplateId[])("draws %s with Sample Data", (id) => {
+  it.each((Object.keys(TEMPLATES) as TemplateId[]).filter((id) => id !== "design"))("draws %s with Sample Data", (id) => {
     const html = renderToString(<TemplatePreview numberStyle={"1,234.5"} template={id} viewer="v" />);
     expect(html).toContain(`data-preview="${id}"`);
     expect(html).toContain("Sample data");

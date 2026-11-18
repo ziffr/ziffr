@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CalendarRange, Check, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { MetricChart } from "@/views/metric-chart";
-import { templatesFor, TEMPLATES } from "@/views/templates";
+import { templatesFor, TEMPLATES, templateOf } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import { CompareTable } from "@/components/compare-table";
@@ -32,6 +32,8 @@ import { SaveTemplateDialog } from "@/components/save-template-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
+import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
+import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
 import { periodLabel } from "@ziffr/core/periods";
 import { combines, DISPLAY_LABEL, displayPeriodsFor, NOT_COMBINED, SHOWN_BY, type DisplayPeriod } from "@ziffr/core/display-periods";
@@ -77,12 +79,14 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const [, start] = useTransition();
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
-  const isMetricWidget = TEMPLATES[widget.template].kind !== "analysis";
-  const isStory = TEMPLATES[widget.template].kind === "story";
+  const isMetricWidget = templateOf(widget).kind !== "analysis";
+  const isStory = templateOf(widget).kind === "story";
   const hasBreakdown = !!m && Object.keys(data.breakdowns[m.id] ?? {}).length > 0;
   const [row, setRow] = useState<string | null>(null);
   // A story carries its own headline, so its frame header stays quiet.
-  const isLayout = TEMPLATES[widget.template].kind === "layout";
+  const isLayout = templateOf(widget).kind === "layout";
+  // The View Design the widget is drawn with, to take away as a file: none for a Finding or a Free layout.
+  const ownDesign = designOf(widget);
   const title = frameTitle(widget, ms);
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
@@ -166,7 +170,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
-      {m && TEMPLATES[widget.template].kind === "metric" && editable && widget.id && (
+      {m && templateOf(widget).kind === "metric" && editable && widget.id && (
         <K.Sub>
           <K.SubTrigger><Scale /> Comparisons</K.SubTrigger>
           <K.SubContent>
@@ -215,6 +219,12 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
         <BookmarkPlus /> Save as Widget
       </K.Item>
       {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
+      {ownDesign && (
+        <>
+          <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
+          <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
+        </>
+      )}
       {targets.length > 0 && (
         <K.Sub>
           <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
@@ -259,7 +269,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             <div className="@container min-h-0 flex-1">
             <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
             </div>
-            {m && TEMPLATES[widget.template].kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
+            {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>

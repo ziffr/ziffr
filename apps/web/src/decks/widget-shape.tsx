@@ -4,7 +4,7 @@
 import { createContext, useContext } from "react";
 import { BaseBoxShapeUtil, HTMLContainer, T, type TLShape } from "tldraw";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
-import { TEMPLATES } from "@/views/templates";
+import { templateOf } from "@/views/templates";
 import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
 
 export const WIDGET_SHAPE = "ziffr-widget";
@@ -39,8 +39,9 @@ function WidgetCard({ shape }: { shape: WidgetShape }) {
   if (!data) return null;
   const widget = widgetFromShape(shape);
   const ms = widgetMetrics(widget, data);
-  const title = widget.title ?? (TEMPLATES[widget.template].kind === "metric" ? ms[0]?.name : `${TEMPLATES[widget.template].label}: ${ms.map((m) => m.name).join(" vs. ")}`);
-  const story = TEMPLATES[widget.template].kind === "story";
+  const t = templateOf(widget);
+  const title = widget.title ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
+  const story = t.kind === "story";
   return (
     <div className="stock flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] font-sans">
       {/* A story carries its own headline; other widgets get a title bar. */}

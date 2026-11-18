@@ -33,6 +33,8 @@ export const AUDIT_KINDS = {
   "feed.deleted": "deleted the Feed",
   "feed.key_created": "created a Feed Key for",
   "feed.key_revoked": "revoked a Feed Key of",
+  "view_design.added": "added the View Design",
+  "view_design.removed": "removed the View Design",
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
@@ -70,15 +72,15 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", assistant: "Assistants", feed: "Feeds", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", assistant: "Assistants", feed: "Feeds", view_design: "View Designs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
   workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */
-export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "workflow" | "audit_log";
+export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "view_design" | "workflow" | "audit_log";
 
 /** Every object type, for checking a filter. */
-export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "workflow", "audit_log"];
+export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "view_design", "workflow", "audit_log"];
 
 /** Objects whose names only people who see them may read: Owners and Admins do not see every Metric, dashboard or deck. */
 export const NAMED_IF_SEEN: AuditObjectType[] = ["metric", "dashboard", "deck"];

@@ -71,7 +71,8 @@ describe("Sample Data", () => {
 });
 
 describe("Sample widgets for Previews", () => {
-  const ids = Object.keys(TEMPLATES) as TemplateId[];
+  // A Workspace's View Design has its own Preview, of its own design (design-files.test.ts).
+  const ids = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => id !== "design");
 
   it.each(ids)("%s has Slots its Sample Data fills completely", (id) => {
     const t = TEMPLATES[id];

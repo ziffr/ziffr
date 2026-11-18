@@ -4,6 +4,7 @@ import { getCanvasData, visibleDashboards } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { AnalyzeScreen } from "./screen";
+import Link from "next/link";
 
 export default async function AnalyzePage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
   const actor = await currentActor();
@@ -21,7 +22,9 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const onCanvas = canvas.filter((id) => data.metrics.some((m) => m.id === id));
   return (
     <>
-      <PageHeader title="Analyze" sub="Drop metrics on the canvas, then pick an analysis or a ready-made recipe. Save any result as a widget." />
+      <PageHeader title="Analyze" sub="Drop metrics on the canvas, then pick an analysis or a ready-made recipe. Save any result as a widget.">
+        <Link href="/analyze/designs" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">View Designs</Link>
+      </PageHeader>
       <AnalyzeScreen data={data} demo={demo}onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );

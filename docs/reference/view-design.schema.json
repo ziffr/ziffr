@@ -638,8 +638,7 @@
             "show": {
               "enum": [
                 "target.min",
-                "target.max",
-                "average"
+                "target.max"
               ]
             },
             "tone": {

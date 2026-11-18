@@ -2,7 +2,7 @@
 // GLOSSARY: Widget, View Link, Preview. A widget's card and its numbers only: no menus and nothing that calls the
 // server. Kept apart from WidgetFrame's menus so a View Link or a Preview loads none of their code.
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
-import { TEMPLATES } from "@/views/templates";
+import { templateOf } from "@/views/templates";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -21,9 +21,10 @@ const ANALYSIS_TITLE: Record<string, (ms: Metric[]) => string> = {
  * layouts carry their own headline, so their header stays quiet. */
 export function frameTitle(widget: FrameWidget, ms: Metric[]): string {
   if (widget.title) return widget.title;
-  const kind = TEMPLATES[widget.template].kind;
+  const kind = templateOf(widget).kind;
   if (kind === "story" || kind === "layout") return "";
-  if (kind === "analysis") return ANALYSIS_TITLE[widget.template]?.(ms) ?? "";
+  // A Workspace's analysis design is titled by its name and what it compares.
+  if (kind === "analysis") return ANALYSIS_TITLE[widget.template]?.(ms) ?? `${templateOf(widget).label}: ${ms.map((m) => m.name).join(" vs. ")}`;
   return ms[0]?.name ?? "";
 }
 
@@ -31,7 +32,7 @@ export function frameTitle(widget: FrameWidget, ms: Metric[]): string {
 export function ReadOnlyFrame({ widget, data, className }: { widget: FrameWidget; data: CanvasData; className?: string }) {
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
-  const kind = TEMPLATES[widget.template].kind;
+  const kind = templateOf(widget).kind;
   const title = frameTitle(widget, ms);
   return (
     <div className={cn("stock flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", className)}>

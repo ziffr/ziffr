@@ -1,6 +1,7 @@
 // Dashboard Templates (spec 0014, GLOSSARY: Dashboard Template, Slot): listing them and making a dashboard from one.
 // Every function takes the Actor first. A dashboard made from a template is the actor's own, independent copy, and
 // every Metric that fills a Slot must be one the actor sees. Saving a dashboard as a template is in templates.ts.
+import { assertSettingsDesigns } from "./widget-designs";
 import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { visibleMetricIds } from "./access";
@@ -57,6 +58,8 @@ export async function createDashboardFromTemplate(actor: Actor, input: { templat
   const fills = Array.isArray(input.fills) ? input.fills.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])) : [];
   if (!t || !fillsComplete(t.slots, fills)) throw new Forbidden();
   const widgets = fromDashboardTemplate(t.body, fills.slice(0, t.slots.length));
+  // A template keeps its widgets' View Designs: checked again as they become widgets (spec 0024).
+  for (const w of widgets) assertSettingsDesigns(w.settings);
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));
   const id = await createDashboard(actor, String(input.name ?? "").trim() || t.name);
   if (widgets.length) {

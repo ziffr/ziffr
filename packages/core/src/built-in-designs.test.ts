@@ -53,7 +53,7 @@ describe("the built-in View Designs", () => {
     const d = BUILT_IN_DESIGNS.line;
     const plot = d.parts[0] as Extract<(typeof d.parts)[number], { mark: "plot" }>;
     expect(nativeForm({ ...d, parts: [{ ...plot, marks: [{ mark: "bar", show: "values" }] }] }, {})).toBe("bar");
-    expect(nativeForm({ ...d, parts: [{ ...plot, marks: [{ mark: "line", show: "values" }, { mark: "rule", show: "average" }] }] }, {})).toBe("picture");
+    expect(nativeForm({ ...d, parts: [{ ...plot, marks: [{ mark: "line", show: "values" }, { mark: "rule", show: "target.max" }] }] }, {})).toBe("picture");
     expect(nativeForm({ ...d, parts: [{ ...plot, marks: [{ mark: "area", show: "forecast.range" }] }] }, {})).toBe("picture");
     expect(nativeForm({ ...d, parts: [{ mark: "text", content: ["Now ", { show: "latest.value" }] }] }, {})).toBe("number");
     expect(nativeForm({ ...d, parts: [{ mark: "text", content: [{ show: "metric.name" }] }] }, {})).toBe("picture");

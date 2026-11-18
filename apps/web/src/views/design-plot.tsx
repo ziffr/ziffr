@@ -107,7 +107,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                   ? <ReferenceArea key={i} y1={tMin ?? domain[0]} y2={tMax ?? (domain[1] as number)} fill="var(--color-band)" fillOpacity={0.6} stroke="none" ifOverflow="extendDomain" />
                   : <ReferenceArea key={i} y1={tMin ?? 0} y2={tMax ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />;
               case "rule": {
-                const y = k.show === "average" ? avg(pts.map((p) => p.value)) : k.show === "target.min" ? m.target_min : m.target_max;
+                const y = k.show === "target.min" ? m.target_min : m.target_max;
                 return y === null || y === undefined ? null : <ReferenceLine key={i} y={y} stroke={lineTone(k.tone ?? "muted")} strokeDasharray="4 3" ifOverflow="extendDomain" />;
               }
               case "area":
@@ -163,7 +163,6 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   );
 }
 
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; v: DesignValues; label: (p: string) => string }) {
   if (!active || !r) return null;

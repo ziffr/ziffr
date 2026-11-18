@@ -1,6 +1,6 @@
 // GLOSSARY: Widget Template, View, Finding. How the Pool and Browse templates group the built-in templates.
 import { ChartColumn, ChartLine, LayoutGrid, Newspaper } from "lucide-react";
-import { TEMPLATES, type TemplateDef } from "@/views/templates";
+import { OFFERED_TEMPLATES, type TemplateDef } from "@/views/templates";
 
 /** The groups of built-in templates, in the order they are listed. */
 export const TEMPLATE_GROUPS: { kind: TemplateDef["kind"]; title: string; icon: typeof ChartLine }[] = [
@@ -11,4 +11,4 @@ export const TEMPLATE_GROUPS: { kind: TemplateDef["kind"]; title: string; icon: 
 ];
 
 /** Built-in templates offered on a canvas. A free layout goes only on dashboards: a slide or a free layout already is one. */
-export const builtinTemplates = (layouts: boolean) => Object.values(TEMPLATES).filter((t) => layouts || t.kind !== "layout");
+export const builtinTemplates = (layouts: boolean) => OFFERED_TEMPLATES.filter((t) => layouts || t.kind !== "layout");

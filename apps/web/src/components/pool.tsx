@@ -4,11 +4,13 @@ import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { BookmarkCheck, GripVertical, Info, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
+import { BookmarkCheck, ChartLine, GripVertical, Info, LayoutTemplate, Plus, Search, Sigma, X } from "lucide-react";
+import { sampleCanvasData } from "@ziffr/core/sample-data";
+import { sampleDesignWidget } from "@ziffr/core/design-files";
 import { TemplateMenu } from "./template-menu";
 import { setDrag } from "@/lib/drag";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
-import { DEFAULT_TEMPLATE, TEMPLATES, type TemplateDef } from "@/views/templates";
+import { DEFAULT_TEMPLATE, TEMPLATES, designTemplate, type TemplateDef, templateOf } from "@/views/templates";
 import type { CanvasData, Widget, WidgetTemplate } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { Preview, TemplatePreview } from "./preview";
@@ -95,7 +97,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
   const builtinShown = (t: TemplateDef): Shown => ({ key: `b${t.id}`, name: t.label, blurb: t.blurb, draw: () => <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
   const teamShown = (t: WidgetTemplate): Shown => ({ key: `t${t.id}`, name: t.name, blurb: t.description, draw: () => <TemplatePreview template={t} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
   // A saved widget is the viewer's own: its Preview draws their data, never more than placing it would show.
-  const savedShown = (w: Widget): Shown => ({ key: `w${w.id}`, name: w.title ?? TEMPLATES[w.template].label, blurb: TEMPLATES[w.template].label, draw: () => <Preview widget={w} data={data} size={{ w: w.w, h: w.h }} width={260} /> });
+  const savedShown = (w: Widget): Shown => ({ key: `w${w.id}`, name: w.title ?? templateOf(w).label, blurb: templateOf(w).label, draw: () => <Preview widget={w} data={data} size={{ w: w.w, h: w.h }} width={260} /> });
   // A metric's Preview is the widget a drop would place, from the series the Pool already fetches on pointing.
   const metricShown = (id: number, name: string): Shown => ({ key: `m${id}`, name, draw: () => <Preview widget={{ template: DEFAULT_TEMPLATE, metric_ids: [id], settings: TEMPLATES[DEFAULT_TEMPLATE].settings, title: null }} data={data} size={TEMPLATES[DEFAULT_TEMPLATE].size} width={260} /> });
 
@@ -135,7 +137,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
                   <BookmarkCheck aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{w.title}</span>
-                    <span className="block text-xs text-muted-foreground">{TEMPLATES[w.template].label}</span>
+                    <span className="block text-xs text-muted-foreground">{templateOf(w).label}</span>
                   </span>
                   <button title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(() => deleteSavedWidget(w.id))} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted focus-visible:opacity-100"><X className="size-3.5" /></button>
                 </Item>
@@ -171,6 +173,24 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
                 </li>
               );
             })}
+            {(data.designs ?? []).length > 0 && (
+              <li className="pt-1">
+                <h4 className="px-2 pb-0.5 text-[11px] text-muted-foreground">The Workspace&rsquo;s View Designs</h4>
+                <ul className="space-y-0.5">
+                  {(data.designs ?? []).map((d) => {
+                    // Placed with the design as the Workspace keeps it; the core looks it up again by its id.
+                    const src: DropSource = { type: "spec", template: "design", metricIds: [], settings: { ...designTemplate(d.body).settings, design: { id: d.id, body: d.body } } };
+                    const s: Shown = { key: `d${d.id}`, name: d.name, blurb: d.body.description, draw: () => <Preview widget={sampleDesignWidget(d.body)} data={sampleCanvasData(data.viewer, data.numberStyle)} size={d.body.size} width={260} sample /> };
+                    return (
+                      <Item key={s.key} {...drag(src, s)} onAdd={onAdd && (() => onAdd(src))} info={info(s)}>
+                        <ChartLine aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                      </Item>
+                    );
+                  })}
+                </ul>
+              </li>
+            )}
             <li className="pt-1">
               <h4 className="px-2 pb-0.5 text-[11px] text-muted-foreground">The team&rsquo;s</h4>
               <ul className="space-y-0.5">

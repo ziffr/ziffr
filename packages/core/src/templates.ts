@@ -10,6 +10,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
+import { assertWidgetDesigns } from "./widget-designs";
 import type { AnchorRule, SlideShape, Widget, WidgetSettings } from "./types";
 
 const RULES: AnchorRule[] = ["max", "min", "last", "first", "largest-step"];
@@ -48,6 +49,7 @@ export async function saveSlideLayout(actor: Actor, input: { deckId: number; sha
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   const shapes = Array.isArray(input.shapes) ? input.shapes : [];
   if (shapes.length > 80 || JSON.stringify(shapes).length > 400_000) throw new Error("This slide is too large to save as a layout.");
+  assertWidgetDesigns(shapes);
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
   const clean: SlideShape[] = shapes
     .filter((sh) => sh && SLIDE_SHAPES.includes(String(sh.type)) && sh.props && typeof sh.props === "object")
