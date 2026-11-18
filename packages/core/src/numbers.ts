@@ -4,7 +4,7 @@
 import { parseISO } from "date-fns";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
 import { DEFAULT_ANSWER_LANGUAGES } from "./numbers/languages";
-import { findPeriodWords, type PeriodWords } from "./numbers/period-words";
+import { findPeriodWords, wordsFor, type PeriodWords } from "./numbers/period-words";
 import { periodStart, type YearStart } from "./periods";
 import type { Period } from "./types";
 
@@ -110,6 +110,7 @@ export type AnswerReading =
   | { ok: false; reason: "no_number" }
   | { ok: false; reason: "unreadable_number"; text: string }
   | { ok: false; reason: "several_numbers"; numbers: string[] }
+  | { ok: false; reason: "year_or_value"; named: PeriodWords; year: string }
   | { ok: false; reason: "several_periods"; named: PeriodWords[] }
   | { ok: false; reason: "no_such_period"; named: PeriodWords }
   | { ok: false; reason: "not_a_period_of_metric"; named: PeriodWords & { start: string } }
@@ -123,7 +124,12 @@ export type AnswerReading =
 export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
   const today = typeof ctx.today === "string" ? ctx.today : periodStart(ctx.today, "day", ctx.yearStart);
   const current = periodStart(parseISO(today), ctx.period, ctx.yearStart);
-  const words = findPeriodWords(text, today, ctx.yearStart, ctx.languages ?? DEFAULT_ANSWER_LANGUAGES, ctx.monthFirst ?? false);
+  const languages = ctx.languages ?? DEFAULT_ANSWER_LANGUAGES;
+  const found = findPeriodWords(text, today, ctx.yearStart, languages, ctx.monthFirst ?? false);
+  // A year on its own beside other period words is the value, not a second period: "KW 46: 2050" is 2050 for week
+  // 46 (#126). Alone, a year still names the Fiscal Year ("2026 revenue 4500").
+  const lone = (w: PeriodWords) => w.span === "year" && /^\d{4}$/.test(w.text);
+  const words = found.some((w) => !lone(w)) ? found.filter((w) => !lone(w)) : found;
   // Period words are blanked out, so their digits are never the value.
   let rest = text;
   for (const w of words) rest = rest.slice(0, w.from) + " ".repeat(w.to - w.from) + rest.slice(w.to);
@@ -142,13 +148,20 @@ export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
     const bad = words.find((w) => w.start === null);
     if (bad) return { ok: false, reason: "no_such_period", named: bad };
     // "last week (KW 46)" names one period twice; "last week or yesterday" names two.
-    const resolved = words.map((w) => ({ w, period: inMetricPeriod(w, ctx.period, ctx.yearStart) }));
+    // Every word names a period that exists here: one that does not was answered above.
+    const resolved = words.map((w) => ({ w, period: inMetricPeriod(w as PeriodWords & { start: string }, ctx.period, ctx.yearStart) }));
     const distinct = new Set(resolved.map((r) => r.period ?? `${r.w.span}:${r.w.start}`));
     if (distinct.size > 1) return { ok: false, reason: "several_periods", named: words };
     const first = resolved[0];
     named = first.w;
     if (first.period === null) return { ok: false, reason: "not_a_period_of_metric", named: { ...first.w, start: first.w.start! } };
     period = first.period;
+    // A year written after a week, month, quarter or half-year with only a space between ("KW 46 2050", "November
+    // 2025") is its year or the value; with no other number in the answer nothing tells which, so it asks back
+    // rather than guess, also when that year is still to come (#126). "FY 2026" is a year by its word.
+    const attached = numbers.length === 0 && named.span !== "year" && named.span !== "day" ? /^(.*?)(\S+)\s+(\d{4})$/u.exec(named.text) : null;
+    const fy = new Set(wordsFor(languages).flatMap((l) => l.byHand.fiscalYear.map((w) => w.toLowerCase())));
+    if (attached && !fy.has(attached[2].toLowerCase())) return { ok: false, reason: "year_or_value", named, year: attached[3] };
     if (ctx.promptPeriod && period !== ctx.promptPeriod) return { ok: false, reason: "other_period", named, period, promptPeriod: ctx.promptPeriod };
     if (!ctx.promptPeriod && period > current) return { ok: false, reason: "future_period", named, period };
   }
@@ -163,8 +176,7 @@ export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
 
 /** The Metric's period that period words name: the same span, or a day inside one ("yesterday" for a weekly
  * Metric is this week, or last week on a Monday). A longer or other span ("Q3" for a monthly Metric) is none. */
-function inMetricPeriod(w: PeriodWords, period: Period, yearStart: YearStart): string | null {
-  if (w.start === null) return null;
+function inMetricPeriod(w: PeriodWords & { start: string }, period: Period, yearStart: YearStart): string | null {
   if (w.span === period || w.span === "day") return periodStart(parseISO(w.start), period, yearStart);
   return null;
 }

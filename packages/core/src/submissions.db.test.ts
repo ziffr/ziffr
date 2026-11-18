@@ -76,6 +76,17 @@ describe("values that arrive", () => {
     expect((await valuesOf(add.id)).map((v) => v.value)).toEqual([7]);
   });
 
+  it("reads a year beside a week as the value, and asks back when it could be either (#126)", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara, { period: "week" }); const code = await w.token(m.id, sara);
+    const asked = await submitValue({ source: "web_form", sender: code, text: "week 46 2050 visits" }, effects());
+    expect(asked).toMatchObject({ ok: false, outcome: "rejected_several_numbers" });
+    expect(asked.detail).toBe("“2050” after “week 46” could be its year or the value. Nothing was recorded: send the value with the period, such as “week 46: 2050”, or the period with the value, such as “week 46 2050: 12”.");
+    expect(await valuesOf(m.id)).toEqual([]);
+    expect(await submitValue({ source: "web_form", sender: code, text: "week 46: 2050" }, effects())).toMatchObject({ ok: true, outcome: "recorded" });
+    expect((await valuesOf(m.id)).map((v) => v.value)).toEqual([2050]);
+  });
+
   it("adds up values sent at the same moment without losing one, and without float noise (spec 0022)", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const add = await w.metric(sara, { submission_rule: "add", decimals: 2 }); const ta = await w.token(add.id, sara);
