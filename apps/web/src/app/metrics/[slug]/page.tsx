@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
+import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues, getNumberStyle, getYearStart } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
@@ -60,7 +60,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
   // Links inside a tab keep the tab; everything else about the page is in its own parameter.
   const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
-  const [{ metrics, series }, people, viewer, demo, yearStart] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart()]);
+  const [{ metrics, series }, people, viewer, demo, yearStart, numberStyle] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -311,7 +311,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             The target range ({targetText(metric).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
           </p>
           {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
-            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} />
+            <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} numberStyle={numberStyle} />
           )}
           {!canEdit && !metric.formula && <p className="mt-3 text-xs text-muted-foreground">Only {peopleById[metric.owner_id]?.name ?? "the owner"} and people it is shared with as Editor change them.</p>}
         </section>
@@ -370,7 +370,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {canEdit && <EditDetails metric={metric} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
+              {canEdit && <EditDetails metric={metric} numberStyle={numberStyle} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>

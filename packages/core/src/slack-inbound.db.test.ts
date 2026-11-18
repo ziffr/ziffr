@@ -84,6 +84,20 @@ describe("answers by Slack", () => {
     expect((await sent(w.id, ann)).status).toBe("answered");
   });
 
+  it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
+    const { w, sara, bot, ann, annSlack, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
+    const d = await sent(w.id, ann);
+    const said = () => String(slack.of("chat.postMessage").at(-1)!.params.text);
+    expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "2 visits, 1 no-show"))).toEqual({ outcome: "refused" });
+    expect(said()).toContain("Found several numbers: “2” and “1”");
+    expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "last month: 4"))).toEqual({ outcome: "refused" });
+    expect(said()).toMatch(/This Prompt asks for/);
+    expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "we had 6 visits this month"))).toEqual({ outcome: "recorded" });
+    expect(said()).toMatch(/^Recorded: 6 recorded for Field visits, \w+ \d{4}/);
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 6, source: "slack" }]);
+  });
+
   it("takes nothing from another Slack user, Slack workspace or app, an unknown thread or an old Delivery", async () => {
     const { w, sara, bot, ann, annSlack, m } = await setup();
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });

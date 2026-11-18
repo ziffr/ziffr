@@ -5,7 +5,8 @@
 import { db } from "./db";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { normalizeMetric } from "./metric-row";
-import { valueInText } from "./numbers";
+import { readAnswer, type AnswerReading } from "./numbers";
+import { numberStyleOf } from "./workspace-settings";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
@@ -14,8 +15,8 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
 import type { Metric, Profile, SourceId, Token } from "./types";
-import { periodLabel, periodStart, shiftPeriod } from "./periods";
-import { yearStartFor } from "./fiscal-year";
+import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
+import { yearStartOf } from "./fiscal-year";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
 export type SubmissionInput = {
@@ -49,11 +50,6 @@ export type SubmissionEffects = {
   /** Hands a new value to the Metric's Workflow; returns what it did, in words. An Import skips the check. */
   afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean }) => Promise<string[]>;
 };
-
-/** Pulls the first number out of a message: "we closed 3 today" → 3, "126,657 €" → 126657, "1,5" → 1.5 (numbers.ts). */
-export function parseValue(text: string): number | null {
-  return valueInText(text);
-}
 
 async function writeRows(observationId: number, rows: { label: string; value: number }[], mode: "replace" | "add") {
   if (mode === "replace") {
@@ -173,27 +169,42 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   if (!metric.sources.includes(input.source))
     return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
 
-  // 3. What value, for which period? A breakdown's total (or the sum of its rows) is the value.
+  // 3. What value, for which period? A program names both; a breakdown's total (or the sum of its rows) is the value
+  // for the Prompt's or the current period; any other text is read as an answer (numbers.ts, spec 0022).
+  const [style, workspaceYearStart] = await Promise.all([numberStyleOf(workspaceId), yearStartOf(workspaceId)]);
+  // A day, week or month is the same whatever the year start; quarters and years follow the workspace's.
+  const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
+  const current = periodStart(new Date(), metric.period, ys);
   const sent = input.source === "api" ? input.value : undefined;
-  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text);
+  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
-  const value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : parseValue(input.text);
-  if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
-  const named = input.source === "api" && input.period ? input.period : null;
-  const ys = await yearStartFor(workspaceId, metric.period);
-  if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, ys) !== named)
-    return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
-  if (named && named > periodStart(new Date(), metric.period, ys)) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
-  const period = named ?? prompt?.period_start ?? periodStart(new Date(), metric.period, ys);
+  let value: number | null;
+  let period: string;
+  if (sent || breakdown) {
+    value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : null;
+    if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
+    const named = input.source === "api" && input.period ? input.period : null;
+    if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, ys) !== named)
+      return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
+    if (named && named > current) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
+    period = named ?? prompt?.period_start ?? current;
+  } else {
+    // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
+    // rightly when it says that is not one of its periods.
+    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null });
+    if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current) });
+    value = answer.value;
+    period = answer.period;
+  }
   const fv = (v: number) => formatValue(metric, v);
-  const when = periodLabel(period, metric.period, ys);
+  const when = midSentence(periodLabel(period, metric.period, ys));
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
   if (await isLocked(metric.id, period)) {
     // It proposes a change to the value already there (GLOSSARY: Correction), so accepting it replaces that value.
-    const { data: current } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+    const { data: latest } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
     const { data: a } = await db().from("actions").insert({
-      metric_id: metric.id, period_start: period, observation_id: current?.[0]?.id ?? null, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
+      metric_id: metric.id, period_start: period, observation_id: latest?.[0]?.id ?? null, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
       question: `${metric.name} for ${when} is locked. ${sender?.name.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
     }).select("id").single();
     if (a) {
@@ -209,7 +220,6 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
   // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period:
   // the current period and anything that replaces a value are checked as anyone's.
-  const current = periodStart(new Date(), metric.period, ys);
   const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
   let result: SubmissionResult & { observationId?: number };
   if (metric.submission_rule === "add") {
@@ -248,6 +258,47 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   return log({ ...base, ...result });
+}
+
+/** A period's name inside a sentence: "week of 9 Nov 2026". */
+function midSentence(label: string): string {
+  return label.replace(/^Week of/, "week of");
+}
+
+const SPAN_NOUN: Record<Span, string> = { day: "day", week: "week", month: "month", quarter: "quarter", half: "half-year", year: "year" };
+
+/** "“2”", "“2” and “1”", "“2”, “1” and “3”": what an answer held, as the sender wrote it. */
+function listed(items: string[]): string {
+  const q = items.map((t) => `“${t.trim()}”`);
+  return q.length < 2 ? q.join("") : `${q.slice(0, -1).join(", ")} and ${q[q.length - 1]}`;
+}
+
+/** Why an answer recorded nothing, as an outcome and a reply that asks back, naming what was found (spec 0022:
+ * a wrong number recorded quietly is worse than a question). */
+function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearStart: YearStart, fallback: string): { outcome: string; detail: string } {
+  const label = (start: string, span: Span) => midSentence(periodLabel(start, span, yearStart));
+  const forNow = label(fallback, metric.period);
+  switch (a.reason) {
+    case "no_number":
+      return { outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." };
+    case "unreadable_number":
+      return { outcome: "rejected_no_value", detail: `Couldn’t read ${listed([a.text])} as a number. Nothing was recorded.` };
+    case "several_numbers":
+      return { outcome: "rejected_several_numbers", detail: `Found several numbers: ${listed(a.numbers)}. Nothing was recorded: send the value for ${metric.name} alone.` };
+    case "several_periods":
+      return { outcome: "rejected_several_periods", detail: `Found several periods: ${listed(a.named.map((w) => w.text))}. Nothing was recorded: name one, or send the value alone for ${forNow}.` };
+    case "no_such_period":
+      return { outcome: "rejected_period", detail: `${listed([a.named.text])} is no ${SPAN_NOUN[a.named.span]} there is. Nothing was recorded.` };
+    case "not_a_period_of_metric":
+      return { outcome: "rejected_not_a_period", detail: `${metric.name} counts by ${SPAN_NOUN[metric.period]}, and ${listed([a.named.text])} is ${label(a.named.start, a.named.span)}. Nothing was recorded: name a ${SPAN_NOUN[metric.period]}, or send the value alone for ${forNow}.` };
+    case "other_period": {
+      const asked = label(a.promptPeriod, metric.period);
+      const said = label(a.period, metric.period);
+      return { outcome: "rejected_other_period", detail: `This Prompt asks for ${asked}, but ${listed([a.named.text])} is ${said}. Nothing was recorded: for ${asked}, reply with the value alone; for ${said}, send it as a new message.` };
+    }
+    case "future_period":
+      return { outcome: "rejected_period", detail: `${listed([a.named.text])} is ${label(a.period, metric.period)}, which has not begun yet. Nothing was recorded.` };
+  }
 }
 
 /** The people of a Workspace: members, then Contacts (flagged `contact`). A Contact's email, Slack handle and phone

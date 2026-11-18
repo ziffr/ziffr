@@ -1,7 +1,8 @@
 "use client";
 // Changing a Metric's description (GLOSSARY: Metric, Target Range, Polarity, Submission Rule, Aggregation): for its
 // owner, in a dialog on the Settings tab. The core checks the owner and every field, refuses a new period once the
-// Metric has values, and keeps each change as a Version.
+// Metric has values, and keeps each change as a Version. The target range is read in the Workspace's Number Style by
+// the core's one reader, and a number it cannot read is refused rather than dropped.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -15,17 +16,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { Metric, Period, Polarity, SubmissionRule } from "@ziffr/core/types";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
+import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
+import { readNumber } from "@ziffr/core/numbers";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 type M = Pick<Metric, "id" | "name" | "description" | "unit" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;
 
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
-export function EditDetails({ metric, fixed }: { metric: M; fixed: "values" | "series" | null }) {
+export function EditDetails({ metric, fixed, numberStyle }: { metric: M; fixed: "values" | "series" | null; numberStyle: NumberStyle }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const num = (v: FormDataEntryValue | null) => (v === null || String(v).trim() === "" ? null : Number(String(v).replace(",", ".")));
+  // Empty is no target; anything else must read as a number, or nothing is saved.
+  const num = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? "").trim();
+    if (!s) return null;
+    const n = readNumber(s, numberStyle);
+    if (n === null) throw new Error(`“${s}” is not a number. Write it like ${numberStyle}.`);
+    return n;
+  };
+  // Written with the style's decimal mark, so the field reads back as the same number.
+  const shown = (v: number | null) => (v === null ? "" : String(v).replace(".", NUMBER_STYLE_MARKS[numberStyle].decimal));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className={buttonVariants({ variant: "outline", size: "sm" })}><PencilLine aria-hidden /> Edit details…</DialogTrigger>
@@ -82,8 +94,8 @@ export function EditDetails({ metric, fixed }: { metric: M; fixed: "values" | "s
               <option value="sum">Sum</option><option value="average">Average</option><option value="last">Last value</option><option value="none">Does not combine</option>
             </select>
           </div>
-          <div><Label htmlFor="ed-tmin">Target from</Label><Input id="ed-tmin" name="target_min" inputMode="decimal" defaultValue={metric.target_min ?? ""} placeholder="no lower target" /></div>
-          <div><Label htmlFor="ed-tmax">Target up to</Label><Input id="ed-tmax" name="target_max" inputMode="decimal" defaultValue={metric.target_max ?? ""} placeholder="no upper target" /></div>
+          <div><Label htmlFor="ed-tmin">Target from</Label><Input id="ed-tmin" name="target_min" inputMode="decimal" defaultValue={shown(metric.target_min)} placeholder="no lower target" /></div>
+          <div><Label htmlFor="ed-tmax">Target up to</Label><Input id="ed-tmax" name="target_max" inputMode="decimal" defaultValue={shown(metric.target_max)} placeholder="no upper target" /></div>
           <p className="text-xs text-muted-foreground sm:col-span-2">This range applies to every period without its own target; targets for single periods are on the Targets tab.</p>
           {!metric.formula && (
             <div className="sm:col-span-2">

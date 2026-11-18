@@ -11,6 +11,8 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatValue } from "@ziffr/core/format";
+import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
+import { readNumber } from "@ziffr/core/numbers";
 import { parseSeriesText } from "@ziffr/core/series-lines";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -20,21 +22,17 @@ type Kind = "target" | "projection";
 type Row = { key: string; period: string; value: string; saved?: number };
 type M = Pick<Metric, "id" | "period" | "format" | "decimals" | "unit">;
 
-const toRows = (pts: Point[]): Row[] => [...pts].sort((a, b) => a.period.localeCompare(b.period)).map((p) => ({ key: p.period, period: p.period, value: String(p.value), saved: p.value }));
-/** A typed value as a number: "140000", "140,000", "1.5" or "1,5"; null when it is not one. */
-const readNumber = (s: string) => {
-  let n = s.trim().replace(/['  ]/g, "");
-  if (!n) return null;
-  if (/,\d{1,2}$/.test(n) && !n.includes(".")) n = n.replace(",", ".");
-  else n = n.replace(/,/g, "");
-  const v = Number(n);
-  return Number.isFinite(v) ? v : null;
-};
+// A value in a cell is written with the Number Style's decimal mark, so it reads back as the same number ("1.234" is
+// 1234 in a Workspace that writes 1.234,5; "1,234" is 1.234 there).
+const cell = (v: number, style: NumberStyle) => String(v).replace(".", NUMBER_STYLE_MARKS[style].decimal);
+const toRows = (pts: Point[], style: NumberStyle): Row[] => [...pts].sort((a, b) => a.period.localeCompare(b.period)).map((p) => ({ key: p.period, period: p.period, value: cell(p.value, style), saved: p.value }));
 
-/** The targets and projections of one metric as an editable table (owner) or a plain one (everyone else). */
-export function TargetsEditor({ metric, targets, projections, canEdit, yearStart }: { metric: M; targets: Point[]; projections: Point[]; canEdit: boolean; yearStart: YearStart }) {
+/** The targets and projections of one metric as an editable table (owner) or a plain one (everyone else). Typed and
+ * pasted numbers are read in the Workspace's Number Style, by the core's one reader. */
+export function TargetsEditor({ metric, targets, projections, canEdit, yearStart, numberStyle }: { metric: M; targets: Point[]; projections: Point[]; canEdit: boolean; yearStart: YearStart; numberStyle: NumberStyle }) {
+  const read = (s: string) => readNumber(s, numberStyle);
   const [kind, setKind] = useState<Kind>("target");
-  const [rows, setRows] = useState<Record<Kind, Row[]>>({ target: toRows(targets), projection: toRows(projections) });
+  const [rows, setRows] = useState<Record<Kind, Row[]>>({ target: toRows(targets, numberStyle), projection: toRows(projections, numberStyle) });
   const [note, setNote] = useState("");
   const [paste, setPaste] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -47,9 +45,9 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
   const long = metric.period === "quarter" || metric.period === "year";
   const current = periodStart(new Date(), metric.period, yearStart);
   const choices = useMemo(() => (long ? periodStartsIn(metric.period, shiftPeriod(current, "year", -10), shiftPeriod(current, "year", 11), yearStart) : []), [long, metric.period, current, yearStart]);
-  const changed = list.filter((r) => r.period && readNumber(r.value) !== null && readNumber(r.value) !== r.saved);
-  const invalid = list.filter((r) => !r.period || readNumber(r.value) === null);
-  const preview = useMemo(() => (paste ? parseSeriesText(paste, metric.period, yearStart) : null), [paste, metric.period, yearStart]);
+  const changed = list.filter((r) => r.period && read(r.value) !== null && read(r.value) !== r.saved);
+  const invalid = list.filter((r) => !r.period || read(r.value) === null);
+  const preview = useMemo(() => (paste ? parseSeriesText(paste, metric.period, yearStart, numberStyle) : null), [paste, metric.period, yearStart, numberStyle]);
   const word = kind === "target" ? "target" : "projection";
 
   const nextPeriod = () => {
@@ -59,14 +57,14 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
   };
   const merge = (incoming: { period: string; value: number }[]) => setList((r) => {
     const by = new Map(r.map((x) => [x.period, x]));
-    for (const p of incoming) by.set(p.period, { ...(by.get(p.period) ?? { key: `n${p.period}` }), period: p.period, value: String(p.value) });
+    for (const p of incoming) by.set(p.period, { ...(by.get(p.period) ?? { key: `n${p.period}` }), period: p.period, value: cell(p.value, numberStyle) });
     return [...by.values()].sort((a, b) => a.period.localeCompare(b.period));
   });
   const save = () => start(async () => {
     try {
-      const r = await saveSeriesRows(metric.id, kind, changed.map((x) => ({ period: x.period, value: readNumber(x.value)! })), note);
+      const r = await saveSeriesRows(metric.id, kind, changed.map((x) => ({ period: x.period, value: read(x.value)! })), note);
       toast.success(`${r.saved} ${r.saved === 1 ? word : `${word}s`} saved`);
-      setList((all) => all.map((x) => (readNumber(x.value) !== null && x.period ? { ...x, saved: readNumber(x.value)! } : x)));
+      setList((all) => all.map((x) => (read(x.value) !== null && x.period ? { ...x, saved: read(x.value)! } : x)));
       router.refresh();
     } catch (err) {
       toast.error("Not saved", { description: (err as Error).message });
@@ -125,7 +123,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
         <tbody>
           {list.length === 0 && <tr><td colSpan={3} className="py-3 text-muted-foreground">No {word}s yet. Add a row, or paste two columns from a spreadsheet.</td></tr>}
           {list.map((r, i) => {
-            const bad = !r.period || readNumber(r.value) === null;
+            const bad = !r.period || read(r.value) === null;
             return (
               <tr key={r.key} className="border-t border-border">
                 <td className="py-1.5 pr-2">
@@ -156,7 +154,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
                     aria-invalid={bad && r.value !== "" ? true : undefined}
                     value={r.value}
                     onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, value: v } : x))); }}
-                    className={cn("fig h-8 w-40 text-right", readNumber(r.value) !== r.saved && !bad && "border-[var(--color-accent-2)]")}
+                    className={cn("fig h-8 w-40 text-right", read(r.value) !== r.saved && !bad && "border-[var(--color-accent-2)]")}
                   />
                 </td>
                 <td className="py-1.5 text-right">

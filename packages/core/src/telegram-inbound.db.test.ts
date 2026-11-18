@@ -50,6 +50,19 @@ describe("answers by Telegram", () => {
     expect((await latest(w.id, ann)).status).toBe("answered");
   });
 
+  it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
+    const { w, sara, ann, user, m } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
+    const d = await latest(w.id, ann);
+    expect(await receiveTelegramUpdate(text(user, "2 Besuche, 1 abgesagt", d.telegram_message_id))).toBe("refused");
+    expect(lastSaid()).toContain("Found several numbers: “2” and “1”");
+    expect(await receiveTelegramUpdate(text(user, "letzten Monat 4", d.telegram_message_id))).toBe("refused");
+    expect(lastSaid()).toMatch(/This Prompt asks for/);
+    expect(await receiveTelegramUpdate(text(user, "diesen Monat hatten wir 3 Besuche", d.telegram_message_id))).toBe("recorded");
+    const { data: obs } = await db().from("observations").select("value").eq("metric_id", m.id);
+    expect(obs).toEqual([{ value: 3 }]);
+  });
+
   it("sends the form link when the Metric does not take values by Telegram", async () => {
     const { w, sara, ann, user, m } = await setup(["web_form"]);
     // Asked by Telegram, but the Metric takes values only through the form: the Prompt says to use the form.
