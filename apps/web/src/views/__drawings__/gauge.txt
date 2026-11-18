@@ -1,0 +1,5 @@
+<path d=M 14 60 A 46 46 0 0 1 106 59.99999999999999 fill=none stroke-width=10 stroke=var(--color-paper-3)>
+<path d=M 14 60 A 46 46 0 0 1 106 59.99999999999999 fill=none stroke-opacity=0.45 stroke-width=10 stroke=var(--color-success)>
+<line stroke-linecap=round stroke-width=2.5 stroke=var(--color-ink) x1=60 x2=87.65112738061366 y1=60 y2=31.096450830718425>
+<circle cx=60 cy=60 fill=var(--color-ink) r=3.5>
+"141,728 €"

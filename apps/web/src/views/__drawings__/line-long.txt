@@ -1,0 +1,142 @@
+<svg style=width: 100%; height: 100%; display: block;>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=154.2190669371197 y2=154.2190669371197 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=98.43813387423936 y2=98.43813387423936 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=42.65720081135903 y2=42.65720081135903 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
+<rect height=198 width=392 x=76 y=12>
+<path d=M76,175.14807302231236L84.34042553191489,166.2231237322515L92.68085106382979,196.3448275862069L101.02127659574468,187.41987829614604L109.36170212765958,178.49492900608516L117.70212765957447,169.56997971602433L126.04255319148936,160.64503042596348L134.38297872340425,151.72008113590266L142.72340425531917,142.7951318458418L151.06382978723406,172.91683569979716L159.40425531914894,163.9918864097363L167.74468085106383,155.0669371196755L176.08510638297872,146.1419878296146L184.4255319148936,137.21703853955376L192.7659574468085,128.29208924949288L201.10638297872342,119.36713995943204L209.4468085106383,149.48884381338743L217.7872340425532,140.56389452332655L226.12765957446808,131.63894523326573L234.468085106383,122.71399594320486L242.8085106382979,113.78904665314401L251.14893617021278,104.86409736308318L259.48936170212767,95.93914807302231L267.82978723404256,126.06085192697768L276.17021276595744,117.13590263691682L284.51063829787233,108.21095334685599L292.8510638297872,99.28600405679514L301.1914893617021,90.36105476673427L309.531914893617,81.43610547667343L317.8723404255319,72.51115618661258L326.21276595744683,102.63286004056796L334.5531914893617,93.7079107505071L342.8936170212766,84.78296146044626L351.2340425531915,75.85801217038541L359.5744680851064,66.93306288032454L367.9148936170213,58.00811359026369L376.25531914893617,49.08316430020285L384.59574468085106,79.20486815415822L392.936170212766,70.27991886409735L401.2765957446809,61.35496957403651L409.6170212765958,52.430020283975665L417.95744680851067,43.5050709939148L426.29787234042556,34.580121703853955L434.63829787234044,25.65517241379311L442.97872340425533,55.776876267748484L451.3191489361702,46.85192697768763L459.6595744680851,37.92697768762677L468,29.002028397565923 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=92.68085106382979 x2=92.68085106382979 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=117.70212765957447 x2=117.70212765957447 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=142.72340425531917 x2=142.72340425531917 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=167.74468085106383 x2=167.74468085106383 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=192.7659574468085 x2=192.7659574468085 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=217.7872340425532 x2=217.7872340425532 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=242.8085106382979 x2=242.8085106382979 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=267.82978723404256 x2=267.82978723404256 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=292.8510638297872 x2=292.8510638297872 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=317.8723404255319 x2=317.8723404255319 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=342.8936170212766 x2=342.8936170212766 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=367.9148936170213 x2=367.9148936170213 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=392.936170212766 x2=392.936170212766 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=417.95744680851067 x2=417.95744680851067 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=442.97872340425533 x2=442.97872340425533 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=468 x2=468 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=76 x2=76 x=8 y1=12 y2=210 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=210 y2=210 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=154.2190669371197 y2=154.2190669371197 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=98.43813387423936 y2=98.43813387423936 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=42.65720081135903 y2=42.65720081135903 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=12 y2=12 y=12>
+<g data-period=2022-07-01>
+<g data-period=2022-08-01>
+<g data-period=2022-09-01>
+<g data-period=2022-10-01>
+<g data-period=2022-11-01>
+<g data-period=2022-12-01>
+<g data-period=2023-01-01>
+<g data-period=2023-02-01>
+<g data-period=2023-03-01>
+<g data-period=2023-04-01>
+<g data-period=2023-05-01>
+<g data-period=2023-06-01>
+<g data-period=2023-07-01>
+<g data-period=2023-08-01>
+<g data-period=2023-09-01>
+<g data-period=2023-10-01>
+<g data-period=2023-11-01>
+<g data-period=2023-12-01>
+<g data-period=2024-01-01>
+<g data-period=2024-02-01>
+<g data-period=2024-03-01>
+<g data-period=2024-04-01>
+<g data-period=2024-05-01>
+<g data-period=2024-06-01>
+<g data-period=2024-07-01>
+<g data-period=2024-08-01>
+<g data-period=2024-09-01>
+<g data-period=2024-10-01>
+<g data-period=2024-11-01>
+<g data-period=2024-12-01>
+<g data-period=2025-01-01>
+<g data-period=2025-02-01>
+<g data-period=2025-03-01>
+<g data-period=2025-04-01>
+<g data-period=2025-05-01>
+<g data-period=2025-06-01>
+<g data-period=2025-07-01>
+<g data-period=2025-08-01>
+<g data-period=2025-09-01>
+<g data-period=2025-10-01>
+<g data-period=2025-11-01>
+<g data-period=2025-12-01>
+<g data-period=2026-01-01>
+<g data-period=2026-02-01>
+<g data-period=2026-03-01>
+<g data-period=2026-04-01>
+<g data-period=2026-05-01>
+<g data-period=2026-06-01>
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=92.68085106382979 y=218>
+<tspan dy=0.71em x=92.68085106382979>
+"Sep 22"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=117.70212765957447 y=218>
+<tspan dy=0.71em x=117.70212765957447>
+"Dec 22"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=142.72340425531917 y=218>
+<tspan dy=0.71em x=142.72340425531917>
+"Mar 23"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=167.74468085106383 y=218>
+<tspan dy=0.71em x=167.74468085106383>
+"Jun 23"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=192.7659574468085 y=218>
+<tspan dy=0.71em x=192.7659574468085>
+"Sep 23"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=217.7872340425532 y=218>
+<tspan dy=0.71em x=217.7872340425532>
+"Dec 23"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=242.8085106382979 y=218>
+<tspan dy=0.71em x=242.8085106382979>
+"Mar 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=267.82978723404256 y=218>
+<tspan dy=0.71em x=267.82978723404256>
+"Jun 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=292.8510638297872 y=218>
+<tspan dy=0.71em x=292.8510638297872>
+"Sep 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=317.8723404255319 y=218>
+<tspan dy=0.71em x=317.8723404255319>
+"Dec 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=342.8936170212766 y=218>
+<tspan dy=0.71em x=342.8936170212766>
+"Mar 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=367.9148936170213 y=218>
+<tspan dy=0.71em x=367.9148936170213>
+"Jun 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=392.936170212766 y=218>
+<tspan dy=0.71em x=392.936170212766>
+"Sep 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=417.95744680851067 y=218>
+<tspan dy=0.71em x=417.95744680851067>
+"Dec 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=442.97872340425533 y=218>
+<tspan dy=0.71em x=442.97872340425533>
+"Mar 26"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=468 y=218>
+<tspan dy=0.71em x=468>
+"Jun 26"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=210>
+<tspan dy=0.355em x=68>
+"88.9k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=154.2190669371197>
+<tspan dy=0.355em x=68>
+"104k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=98.43813387423936>
+<tspan dy=0.355em x=68>
+"119k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=42.65720081135903>
+<tspan dy=0.355em x=68>
+"134k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=12>
+<tspan dy=0.355em x=68>
+"142k €"

@@ -1,7 +1,8 @@
 "use client";
 // Deck export (GLOSSARY: Snapshot): values as of the moment of export, stamped on every slide.
-// Text, shapes and arrows become native PowerPoint objects; line and bar widgets become native
-// (editable) charts, number widgets text, history tables tables; everything else an image.
+// Text, shapes and arrows become native PowerPoint objects. A widget drawn by a View Design is drawn natively where
+// its marks allow (nativeForm: a line or bar chart, a number as text, a table), a ranked-bars Finding as a native
+// bar chart; everything else as a picture of the widget as the app draws it.
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
 import { formatValue } from "@ziffr/core/format";
@@ -16,7 +17,9 @@ import { fillSettings } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
-import { dayAfter, pointName, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
+import { dayAfter, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
+import { BUILT_IN_DESIGNS, isDesignedView } from "@ziffr/core/built-in-designs";
+import { nativeForm } from "@ziffr/core/design-export";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.
@@ -193,8 +196,10 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
   if (!m) return;
-  // The same points the app draws, by the widget's Display Period when it has one (spec 0018).
-  const shown = shownSeries(m, data, SHOWN_BY.includes(widget.template) ? widget.settings.display : undefined, { today: widget.settings.asOf ? dayAfter(widget.settings.asOf) : undefined });
+  const design = isDesignedView(widget.template) ? BUILT_IN_DESIGNS[widget.template] : null;
+  // The same points the app draws: by the widget's Display Period when its design offers Show by (spec 0018).
+  const shown = shownSeries(m, data, design?.options?.display ? widget.settings.display : undefined, { today: widget.settings.asOf ? dayAfter(widget.settings.asOf) : undefined });
+  const form = design ? nativeForm(design, widget.settings) : "picture";
   const by = shown.by;
   const all = shown.points;
   const pts = all.slice(-(widget.settings.window ?? 12));
@@ -230,13 +235,13 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const labels = pts.map((p) => name(p, true));
   const values = pts.map((p) => chartValue(m, p.value));
 
-  if (widget.template === "line" && pts.length > 1) {
+  if (form === "line" && pts.length > 1) {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
     slide.addChart(pptx.ChartType.line, [{ name: m.name, labels, values }], { ...chartOpts, chartColors: [INK_2], lineSize: 2, lineDataSymbol: "circle", lineDataSymbolSize: 5 });
-  } else if (widget.template === "bars" && pts.length > 0) {
+  } else if (form === "bar" && pts.length > 0) {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
     slide.addChart(pptx.ChartType.bar, [{ name: m.name, labels, values }], { ...chartOpts, barDir: "col", chartColors: [INK_2], barGapWidthPct: 40 });
-  } else if (widget.template === "number") {
+  } else if (form === "number") {
     const last = all[all.length - 1];
     const t = goal(last);
     const off = last && ((t.max !== null && last.value > t.max) || (t.min !== null && last.value < t.min));
@@ -276,7 +281,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       },
     );
     slide.addText(s.source || d.source, { x: inner.x, y: inner.y + inner.h - 0.24, w: inner.w, h: 0.24, fontSize: 8, color: MUTED, fontFace: FONT, margin: 0 });
-  } else if (widget.template === "table") {
+  } else if (form === "table") {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
     const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();
     slide.addTable(
@@ -287,7 +292,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },
     );
   } else {
-    // Gauge, forecast, correlation, matrix, drivers: the app's own rendering as an image.
+    // Gauges, forecasts, correlations and the rest: the app's own drawing as a picture.
     slide.addImage({ data: await shapeImage(editor, [shape.id]), ...at });
   }
 }

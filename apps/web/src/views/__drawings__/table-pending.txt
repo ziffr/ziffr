@@ -1,0 +1,27 @@
+<table>
+<tr>
+<td>
+"Jun 26"
+<span title=Not approved yet>
+"unapproved"
+<td>
+"141,728 €"
+<tr>
+<td>
+"May 26"
+<td>
+"136,236 €"
+<tr>
+<td>
+"Apr 26"
+<rect height=11 rx=2 ry=2 width=18 x=3 y=11>
+<path d=M7 11V7a5 5 0 0 1 10 0v4>
+<td>
+"140,423 €"
+<tr>
+<td>
+"Mar 26"
+<rect height=11 rx=2 ry=2 width=18 x=3 y=11>
+<path d=M7 11V7a5 5 0 0 1 10 0v4>
+<td>
+"133,042 €"

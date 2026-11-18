@@ -74,6 +74,19 @@
         },
         "showForecast": {
           "$ref": "#/$defs/switchOption"
+        },
+        "display": {
+          "type": "object",
+          "description": "It may be shown by a longer period than the Metric's own, its values combined by the Metric's Aggregation (Show by).",
+          "properties": {
+            "label": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -401,7 +414,7 @@
         },
         {
           "type": "object",
-          "description": "Table rows: the latest values, or correlations.",
+          "description": "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).",
           "properties": {
             "mark": {
               "const": "rows"
@@ -410,7 +423,8 @@
               "enum": [
                 "values",
                 "correlations",
-                "matrix"
+                "matrix",
+                "reasons"
               ]
             },
             "limit": {
@@ -477,11 +491,13 @@
             "dash": {
               "type": "boolean"
             },
-            "width": {
+            "weight": {
               "enum": [
-                "thin",
-                "regular"
-              ]
+                "light",
+                "regular",
+                "strong"
+              ],
+              "description": "light: a fine line, slightly faded; strong: the line of a Metric's own values."
             },
             "when": {
               "$ref": "#/$defs/when"
@@ -559,13 +575,16 @@
         },
         {
           "type": "object",
-          "description": "One point per pair of values.",
+          "description": "One point per period two Metrics share: the first against the second (pairs), or against the one that moves most with it (drivers.pairs).",
           "properties": {
             "mark": {
               "const": "point"
             },
             "show": {
-              "const": "pairs"
+              "enum": [
+                "pairs",
+                "drivers.pairs"
+              ]
             },
             "tone": {
               "enum": [

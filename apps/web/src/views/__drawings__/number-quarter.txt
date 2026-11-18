@@ -1,0 +1,8 @@
+"418,387 €"
+<span title=Q2 2026 to date, 3 of 3 months>
+"Q2 26, 3 of 3 months"
+<span title=418,387 € against a target of ≥ 500,011 €. Target per quarter: the Target Series added up.>
+"Below target"
+<svg style=width: 100%; height: 100%; display: block;>
+<rect height=230 width=470 x=5 y=5>
+<path d=M5,235L72.14285714285714,203.15281907898634L139.28571428571428,177.6846114658737L206.42857142857142,150.5814683616288L273.57142857142856,112.1523096425652L340.71428571428567,85.3598042816354L407.85714285714283,41.519009086924065L475,5 fill=none height=230 stroke-width=1.75 stroke=var(--color-error) width=470>

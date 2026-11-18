@@ -1,0 +1,78 @@
+<table>
+<tr>
+<th>
+<th>
+"Revenue"
+<th>
+"Orders"
+<th>
+"Active customers"
+<th>
+"Churn rate"
+<th>
+"Operating cost"
+<tr>
+<th>
+"Revenue"
+<td>
+"1.00"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td title=r = -0.90, over 24 months>
+"-0.90"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<tr>
+<th>
+"Orders"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td>
+"1.00"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td title=r = -0.91, over 24 months>
+"-0.91"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<tr>
+<th>
+"Active customers"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td title=r = 1.00, over 24 months>
+"1.00"
+<td>
+"1.00"
+<td title=r = -0.91, over 24 months>
+"-0.91"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<tr>
+<th>
+"Churn rate"
+<td title=r = -0.90, over 24 months>
+"-0.90"
+<td title=r = -0.91, over 24 months>
+"-0.91"
+<td title=r = -0.91, over 24 months>
+"-0.91"
+<td>
+"1.00"
+<td title=r = -0.85, over 24 months>
+"-0.85"
+<tr>
+<th>
+"Operating cost"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<td title=r = 0.99, over 24 months>
+"0.99"
+<td title=r = -0.85, over 24 months>
+"-0.85"
+<td>
+"1.00"

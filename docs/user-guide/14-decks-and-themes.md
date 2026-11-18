@@ -120,7 +120,7 @@ Choose **Export PowerPoint**. Your browser downloads a file named after the deck
 - Number Widgets become text, and history tables become tables. Values are written as in Ziffr, in the Workspace's Number Style with the Metric's unit. Under the value stands the Widget's first comparison, exactly as the Widget shows it, such as "vs prev. +4.2 %". When the Widget shows "n/a", for example because the period before has no value, the slide shows no change.
 - Chart values are rounded to the Metric's decimals and labelled with its unit. PowerPoint writes their digits the way the computer that opens the file does.
 - A Widget shown by quarter or year (**Show by**, see the Dashboards chapter) exports the same quarters or years, with the one still running labelled "to date", and a past one that lacks some of its values labelled "only 2 of 3 months" (shown without a change against it).
-- Gauges, analyses and everything else go in as pictures.
+- Gauges, analyses and everything else go in as pictures. Ziffr decides this from what the Widget's View Design draws, so a View Design your Workspace added becomes an editable chart, text or table by the same rules: a single line or bars of the values, the latest value with its period, or a list of values.
 - The Theme's background, logo, footer and slide number are set up once for the whole file, so changing them in PowerPoint changes every slide.
 - The Theme's fonts are named so PowerPoint can find them. If a computer does not have a font, PowerPoint uses a similar one.
 

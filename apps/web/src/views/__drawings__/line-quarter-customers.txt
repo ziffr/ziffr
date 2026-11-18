@@ -1,0 +1,86 @@
+<svg style=width: 100%; height: 100%; display: block;>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=151.6112924153658 y2=151.6112924153658 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=93.22258483073169 y2=93.22258483073169 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=34.833877246097536 y2=34.833877246097536 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
+<rect height=198 width=392 x=76 y=12>
+<path d=M370,76.25871898714267L419,52.43083517995783L468,29.22089358699266L468,50.14646404875608L419,67.22744795366762L370,76.25871898714267Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
+<path d=M370,76.25871898714267L419,59.82914156681274L468,39.683678817874366 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
+<path d=M76,193.6200212322573L125,173.37860260291745L174,151.5801517713207L223,129.0031848385955L272,105.06381472889552L321,79.95667046750282L370,53.48712302913534L419,25.655172413793085 fill=none height=198 stroke-opacity=0.8 stroke-width=1 stroke=var(--color-muted) width=392>
+<path d=M370,76.25871898714267L419,56.211929383084936 fill=none height=198 stroke-dasharray=2 3 stroke-width=1.75 stroke=var(--color-data) width=392>
+<path d=M76,196.34482758620686L125,177.0765540832776L174,160.53308693429796L223,143.79499076003617L272,121.41265285259306L321,101.56049227381746L370,76.25871898714267 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=125 x2=125 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=174 x2=174 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=223 x2=223 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=272 x2=272 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=321 x2=321 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=370 x2=370 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=419 x2=419 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=468 x2=468 x=76 y1=216 y2=210 y=210>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=76 x2=76 x=8 y1=12 y2=210 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=210 y2=210 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=151.6112924153658 y2=151.6112924153658 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=93.22258483073169 y2=93.22258483073169 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=34.833877246097536 y2=34.833877246097536 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=12 y2=12 y=12>
+<circle cx=419 cy=56.211929383084936 data-to-date=true fill=var(--color-cotton) r=3 stroke-dasharray=2 1.5 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2024-07-01>
+<circle cx=76 cy=196.34482758620686 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2024-10-01>
+<circle cx=125 cy=177.0765540832776 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2025-01-01>
+<circle cx=174 cy=160.53308693429796 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2025-04-01>
+<circle cx=223 cy=143.79499076003617 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2025-07-01>
+<circle cx=272 cy=121.41265285259306 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2025-10-01>
+<circle cx=321 cy=101.56049227381746 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<g data-period=2026-01-01>
+<circle cx=370 cy=76.25871898714267 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=76 y=218>
+<tspan dy=0.71em x=76>
+"Q3 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=125 y=218>
+<tspan dy=0.71em x=125>
+"Q4 24"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=174 y=218>
+<tspan dy=0.71em x=174>
+"Q1 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=223 y=218>
+<tspan dy=0.71em x=223>
+"Q2 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=272 y=218>
+<tspan dy=0.71em x=272>
+"Q3 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=321 y=218>
+<tspan dy=0.71em x=321>
+"Q4 25"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=370 y=218>
+<tspan dy=0.71em x=370>
+"Q1 26"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=419 y=218>
+<tspan dy=0.71em x=419>
+"Q2 26"
+<text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=468 y=218>
+<tspan dy=0.71em x=468>
+"Q3 26"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=210>
+<tspan dy=0.355em x=68>
+"1,870"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=151.6112924153658>
+<tspan dy=0.355em x=68>
+"2,170"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=93.22258483073169>
+<tspan dy=0.355em x=68>
+"2,470"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=34.833877246097536>
+<tspan dy=0.355em x=68>
+"2,770"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=12>
+<tspan dy=0.355em x=68>
+"2,887"
+"Target per quarter: the Target Series added up."

@@ -1,5 +1,7 @@
-// Built-in Widget Templates (GLOSSARY: View, Widget Template). PROTOTYPE: in the real product each one maps onto a
-// pluggable View, so others can add templates. Plain data, shared by the app and the core.
+// Built-in Widget Templates (GLOSSARY: View, Widget Template). The Views for Metrics and Analyses are View Designs
+// (built-in-designs.ts): their name, Slots, size and settings come from their files. Findings and the free layout are
+// drawn by code of their own. Plain data, shared by the app and the core.
+import { BUILT_IN_DESIGNS, designSettings, designSlots, type DesignedView } from "./built-in-designs";
 import type { Slot, TemplateId, WidgetSettings } from "./types";
 
 /** A built-in Widget Template: what it draws and its default size and settings. */
@@ -19,17 +21,23 @@ export type TemplateDef = {
 const one: Slot[] = [{ label: "Metric", multiple: false }];
 const withBreakdown: Slot[] = [{ label: "Metric with a breakdown", multiple: false }];
 
+// A built-in View Design as a Widget Template.
+const designed = (id: DesignedView): TemplateDef => {
+  const d = BUILT_IN_DESIGNS[id];
+  return { id, label: d.name, blurb: d.description ?? "", kind: d.kind, slots: designSlots(d), size: d.size, settings: designSettings(d) };
+};
+
 /** Every built-in Widget Template by id. */
 export const TEMPLATES: Record<TemplateId, TemplateDef> = {
-  number: { id: "number", label: "Number + sparkline", blurb: "Latest value, change and a small trend.", kind: "metric", slots: one, size: { w: 3, h: 4 }, settings: { window: 12 } },
-  line: { id: "line", label: "Line chart", blurb: "Trend with target band and optional forecast.", kind: "metric", slots: one, size: { w: 6, h: 6 }, settings: { window: 12, showTarget: true, showForecast: false } },
-  bars: { id: "bars", label: "Bars per period", blurb: "One bar per period, coloured by target.", kind: "metric", slots: one, size: { w: 6, h: 6 }, settings: { window: 12, showTarget: true } },
-  gauge: { id: "gauge", label: "Gauge vs. target", blurb: "Where the latest value sits against the target.", kind: "metric", slots: one, size: { w: 3, h: 4 }, settings: {} },
-  table: { id: "table", label: "History table", blurb: "The last values as a list.", kind: "metric", slots: one, size: { w: 3, h: 6 }, settings: { rows: 6 } },
-  forecast: { id: "forecast", label: "Forecast", blurb: "Trend projected a few periods ahead.", kind: "analysis", slots: one, size: { w: 6, h: 7 }, settings: { window: 18 } },
-  correlation: { id: "correlation", label: "Correlation", blurb: "Do two metrics move together?", kind: "analysis", slots: [{ label: "First metric", multiple: false }, { label: "Second metric", multiple: false }], size: { w: 6, h: 7 }, settings: {} },
-  matrix: { id: "matrix", label: "Correlation matrix", blurb: "Every pair at once.", kind: "analysis", slots: [{ label: "Metrics", multiple: true }], size: { w: 6, h: 7 }, settings: {} },
-  drivers: { id: "drivers", label: "Drivers", blurb: "Which metrics move most with this one.", kind: "analysis", slots: one, size: { w: 6, h: 8 }, settings: {} },
+  number: designed("number"),
+  line: designed("line"),
+  bars: designed("bars"),
+  gauge: designed("gauge"),
+  table: designed("table"),
+  forecast: designed("forecast"),
+  correlation: designed("correlation"),
+  matrix: designed("matrix"),
+  drivers: designed("drivers"),
   ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Finding: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 4, h: 8 }, settings: {} },
