@@ -1,6 +1,6 @@
 # 0022 Correct numbers: one way to read them, the workspace's way to write them, tested calculations
 
-**Status:** in progress. **Tracking issue:** #106 (label `tracking`); tickets #107 to #115 and #118 carry `spec:0022`.
+**Status:** in progress. **Tracking issue:** #106 (label `tracking`); tickets #107 to #115, #118 and #126 carry `spec:0022`.
 
 ## Problem Statement
 
@@ -43,7 +43,7 @@ Ziffr is only useful if its numbers are right, and today three things can make t
 14. As anyone, I want Attainment, target status and changes to be right around zero and below it, and never to see "∞", "NaN", "-Infinity%" or "−0".
 15. As someone presenting a deck, I want the exported numbers and changes to match what the app shows.
 16. As someone opening the CSV export in a spreadsheet, I want its numbers and separators to fit the Workspace's Number Style.
-17. As a developer, I want every calculation tested against a reference with generated inputs, and CI to fail when the tests stop covering it, so that "the numbers are right" is checked, not hoped.
+17. As anyone relying on Ziffr's numbers, I want every calculation, above all every aggregation from granular values into longer periods, proven equal to an independent reference for every combination of period, Aggregation, Display Period and Fiscal Year, so that "the numbers are right" is checked, not hoped.
 
 ## Implementation Decisions
 
@@ -80,11 +80,50 @@ Ziffr is only useful if its numbers are right, and today three things can make t
 - **Reading:** one table of texts with their expected value in each Number Style, run against `readNumber`, `parseValue` and every caller (form, Slack, Telegram, email, breakdowns, pasted and typed Target Series, target range), so no two places can read the same text differently. It includes `1,5`, `12,50`, `1.500`, `1,500`, `1.234,5`, `1'234.5`, `1 234,5`, `2,5k`, `−5`, `+5`, `1e3`, `Q3 revenue 4500`, a 400-digit number and text with no number.
 - **Sentences:** a second table of answers in every language with a word file (English and German first), each with the value and period `readAnswer` must find, or that it must ask back and why, for a weekly, monthly, quarterly and yearly Metric, a fixed today and a Fiscal Year from April: "we had 2 signups last week", "in week 46 we had 2 signups", "KW 46: 2", "wir hatten letzte Woche 2 Anmeldungen", "2 signups, 1 churn", "Q3 revenue 4500", "October: 12,5", "yesterday 340 pc", "12.11.: 4", a reply to last week's Prompt that says "this week 3", and a future period. The database tests send some of them through email, Slack and Telegram replies, with and without a Prompt. A test fails when a word file has no rows in the table, or when two answer languages offered together share a word that names different periods.
 - **Writing:** a table of values, units, sides, decimals and Number Styles to their text, including negatives, −0.4, very large and very small values, and `compactValue` at its thresholds.
-- **Generated-input tests** (fast-check) for combining periods: for random series with negatives, decimals and gaps, every Aggregation, every Display Period and every Fiscal Year start, `seriesBy` agrees with a reference that combines naively; a quarter's sum is the sum of its months; an average lies between the lowest and highest value; "last" is the latest; reordering the input changes nothing; Comparisons equal the difference of the points they compare.
+- **Verification is the first requirement of this spec.** Every calculation Ziffr does on values is listed, has a rule written down, an independent reference implementation, and tests that prove the code equals the reference for every combination of its inputs. "Tested with a few examples" does not count. The points below say what that means.
+- **The Calculation Catalogue** (`docs/reference/calculations.md`): one entry per calculation, with its rule in plain words, the code that does it (file and function), its reference implementation and its tests:
+  - each Aggregation (sum, average, last, none) from each Period into each longer Display Period;
+  - the half-the-periods rule, partial spans, to-date spans and the Comparison cut;
+  - Target Series combined;
+  - Derived Metrics per period and over spans;
+  - the Submission Rules (overwrite, add, keep both, reject) and breakdown totals;
+  - changes and percentage changes, Attainment, target status and health, the Unusual Value check;
+  - Comparisons, correlation and the forecast;
+  - Snapshot and View Link values, widget numbers, the deck and CSV exports, and the API's and MCP's values;
+  - rounding to the Metric's decimals.
+
+  A test fails when an exported function of a calculation module has no catalogue entry, so a new calculation cannot slip in untested.
+- **Reference implementations** (`packages/core/src/test/reference/`) are written separately from the code they check, as plainly as possible:
+  - they walk every calendar day and use exact decimal arithmetic on the values' text;
+  - they share no helper with the code under test except the types;
+  - each reference has its own small tests with sums worked out by hand.
+- **Aggregations, exhaustively.** For every source Period (day, week, month, quarter, year), every longer Display Period (week, month, quarter, half-year, year), every Aggregation and every Fiscal Year start (all twelve months), `seriesBy` and everything built on it must equal the reference. This holds for:
+  - hand-made edge cases: an empty series; one value; a span with exactly half and one short of half of its periods; a span that starts before the first value; week 53; a week crossing a month, quarter or year boundary; 29 February; the current span to date; a Snapshot's day; a Comparison point in the middle of a span;
+  - generated series (fast-check, at least 1,000 runs per combination in CI, with a fixed seed reported on failure): random gaps, negative values, zeros, values with up to six decimals, very large and very small values, duplicate periods, unsorted input.
+
+  Invariants checked on top of the reference:
+  - a sum over a year equals the sum of its quarters' sums and of its months' sums wherever every span is complete;
+  - an average lies between the lowest and highest value it averages;
+  - "last" is the value of the latest period with one;
+  - reordering the input changes nothing;
+  - "none" never combines;
+  - every Metric period is counted in exactly one span.
+- **Exact results.** A sum or average must equal the exact decimal result rounded to the Metric's decimals, never a floating-point neighbour. Tests include values chosen to break floating point: 0.1 + 0.2, a thousand values of 0.01, values ending in 5 at the rounding digit. Where JavaScript numbers cannot meet this, the calculation is done on scaled integers.
+- **Derived Metrics, exhaustively.** For every combination of the inputs' Aggregations and every Display Period, the value over a span is computed from the inputs' combined values. This includes inputs with gaps, an input that is zero (division), and the refusals (inputs with another period, Aggregation none, an input that is itself derived) giving their reason rather than a number. Generated formulas, random trees of + − × ÷ and brackets over 1 to 4 inputs, are checked against a reference evaluator. A table of malformed formulas must give null.
+- **Same number everywhere.** For a fixed workspace in the database, one test reads the same Metric and span through every path:
+  - a widget's data (`shownData`);
+  - a Snapshot and a View Link;
+  - a Comparison;
+  - the deck export;
+  - the CSV export;
+  - the API and the MCP Server.
+
+  It checks that each one shows the reference's number. A path that computes on its own fails here.
+- **Mutation testing** (Stryker) runs on the calculation modules every week in CI and before each release. It changes the code on purpose (a `<` into `<=`, a `+` into `-`) and checks that a test fails. A surviving change is a gap in the tests and is fixed, or recorded in the catalogue with the reason it cannot matter. The score must not fall below 95 % on the calculation modules.
 - **Formulas:** a table of malformed formulas that must give null, and generated formulas checked against a reference evaluator.
 - **Around zero:** Attainment, target status and changes for targets below, at and above zero, for every polarity.
-- **Database:** "Add up all values" with two values sent at the same moment records both; decimals do not leave noise.
-- **Coverage:** `@vitest/coverage-v8` in the core, with a threshold on the calculation modules (`numbers`, `display-periods`, `formula`, `compare`, `format`, `parse`, `correlation`) that CI enforces.
+- **Database:** "Add up all values" with two values sent at the same moment records both; decimals do not leave noise. The same holds for a value sent with a Breakdown: two at once keep every row (left open by #111, done in #126).
+- **Coverage:** `@vitest/coverage-v8` in the core. CI requires 100 % of lines and branches in the calculation modules (`numbers`, `display-periods`, `formula`, `compare`, `format`, `parse`, `correlation`, `snapshot-periods`, `periods`, `workflow-rules`, and the forecast). Coverage only shows that code ran, so it is the floor; the references and mutation testing show that the results are right.
 - Screens that change (settings, the Metric form, charts) are tried in the running app in both Number Styles.
 
 ## Tickets
@@ -97,8 +136,9 @@ Ziffr is only useful if its numbers are right, and today three things can make t
 6. #112 Formulas read whole or refused, `checkFormula`, Derived Metrics with inputs that cannot be combined say why.
 7. #113 Around zero: Attainment, target status, the Unusual Value check from 0, no ∞, NaN or −0 shown.
 8. #114 The deck export uses `compare()` and the Metric's decimals; the CSV export follows the Number Style (needs 2).
-9. #115 Generated-input tests for combining periods and formulas against a reference, and coverage thresholds in CI.
+9. #115 Aggregations verified: the reference for combining periods, the exhaustive and generated tests for every Period, Display Period, Aggregation and Fiscal Year start, exact results, Target Series combined, coverage thresholds in CI. Started at once, alongside the others, because it is the first requirement; bugs it finds are fixed in it.
 10. #118 Answer languages: the setting, word files generated from `Intl`, French, Spanish, Italian and Dutch, and the contributor guide (needs 3).
+11. #126 Everything else verified: the Calculation Catalogue and its check, references for Derived Metrics, Submission Rules, changes, Attainment, Unusual Values, Comparisons, correlation and the forecast, the same-number-everywhere test, mutation testing in CI (needs every other ticket).
 
 ## Out of Scope
 
