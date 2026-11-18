@@ -2,11 +2,12 @@
 // PROTOTYPE: renders a Widget by its template. Each branch is where a pluggable View would sit.
 import { useId, useRef } from "react";
 import { Bar, BarChart, Cell, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, health } from "@ziffr/core/format";
+import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
 import { forecast } from "@/analyses/forecast";
 import { comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type Correlation } from "@ziffr/core/correlation";
 import { resolverFrom, type Resolver } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { Lock } from "lucide-react";
 import { MetricChart } from "./metric-chart";
@@ -87,12 +88,12 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
         <div className="flex h-full flex-col">
           <div className="flex items-baseline gap-2">
             {/* The headline stays neutral; the chip says on or off target (one colour rule, see target-chip). */}
-            <span className="text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]">{formatValue(m, last?.value)}</span>
+            <span className="text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]">{formatValue(m, last?.value, data.numberStyle)}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {/* "Q4 26, 2 of 3 months" fits a small card; the tooltip says "to date" in full. */}
             {last ? (last.toDate || isPartial(last) ? <span title={name(last)}>{periodLabel(last.period, by, data.yearStart, true)}, {heldText(last, m.period)}</span> : name(last)) : "No values yet"}
-            <TargetChip metric={{ ...m, ...goal(last) }} value={last?.value} note={note} />
+            <TargetChip metric={{ ...m, ...goal(last) }} value={last?.value} note={note} numberStyle={data.numberStyle} />
             {last && <ApprovalMark data={data} metricId={m.id} period={last.period} through={combined ? last.through : undefined} />}
           </div>
           {/* A small card has no room for the target's note: it is the chip's tooltip. */}
@@ -111,10 +112,10 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
         <div className="flex h-full flex-col">
           {widget.template === "forecast" && fc && (
             <p className="mb-1 text-xs text-muted-foreground">
-              Expected {formatValue(m, fc[fc.length - 1].value)} by {periodLabel(fc[fc.length - 1].period, by, data.yearStart)} (likely {compactValue(m, fc[fc.length - 1].lo)}–{compactValue(m, fc[fc.length - 1].hi)})
+              Expected {formatValue(m, fc[fc.length - 1].value, data.numberStyle)} by {periodLabel(fc[fc.length - 1].period, by, data.yearStart)} (likely {compactValue(m, fc[fc.length - 1].lo, data.numberStyle)}–{compactValue(m, fc[fc.length - 1].hi, data.numberStyle)})
             </p>
           )}
-          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} yearStart={data.yearStart} by={by} toDate={!!last?.toDate} partial={(p) => { const x = pts.find((q) => q.period === p); return !!x && isPartial(x); }} name={(p) => { const x = pts.find((q) => q.period === p); return x ? name(x) : periodLabel(p, by, data.yearStart); }} targetLine={showTarget && combined ? targets?.line : undefined} /></div>
+          <div className="min-h-0 flex-1"><MetricChart metric={view} points={pts} forecast={fc} height="100%" onPointContext={ctx} yearStart={data.yearStart} numberStyle={data.numberStyle} by={by} toDate={!!last?.toDate} partial={(p) => { const x = pts.find((q) => q.period === p); return !!x && isPartial(x); }} name={(p) => { const x = pts.find((q) => q.period === p); return x ? name(x) : periodLabel(p, by, data.yearStart); }} targetLine={showTarget && combined ? targets?.line : undefined} /></div>
           {note && showTarget && <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>}
         </div>
       );
@@ -123,13 +124,13 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
       const showTarget = widget.settings.showTarget !== false;
       return (
         <div className="flex h-full flex-col">
-          <div className="min-h-0 flex-1"><Bars metric={m} points={pts} by={by} name={name} goal={goal} band={showTarget && (!combined || !!targets?.range)} yearStart={data.yearStart} onPointContext={ctx} /></div>
+          <div className="min-h-0 flex-1"><Bars metric={m} points={pts} by={by} name={name} goal={goal} band={showTarget && (!combined || !!targets?.range)} yearStart={data.yearStart} numberStyle={data.numberStyle} onPointContext={ctx} /></div>
           {note && showTarget && <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>}
         </div>
       );
     }
     case "gauge":
-      return <Gauge metric={m} value={last?.value} history={pts.map((p) => p.value)} />;
+      return <Gauge metric={m} value={last?.value} history={pts.map((p) => p.value)} numberStyle={data.numberStyle} />;
     case "table": {
       const rows = all.slice(-(widget.settings.rows ?? 6)).reverse();
       return (
@@ -139,7 +140,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
               {rows.map((r) => (
                 <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
                   <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1" title={r.toDate || isPartial(r) ? name(r) : undefined}>{name(r, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} through={combined ? r.through : undefined} short /></span></td>
-                  <td className={cn("fig py-1.5 text-right", health(goal(r), r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value)}</td>
+                  <td className={cn("fig py-1.5 text-right", health(goal(r), r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value, data.numberStyle)}</td>
                 </tr>
               ))}
             </tbody>
@@ -156,15 +157,15 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
       if (!res.ok) return <Empty>{res.reason}</Empty>;
       return (
         <div className="flex h-full flex-col">
-          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{res.r.toFixed(2)}</span> <ComparedOn res={res} /></p>
-          <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={data.yearStart} /></div>
+          <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{strength(res.r)}</span> relationship, r = <span className="fig">{formatNumber(res.r, 2, data.numberStyle)}</span> <ComparedOn res={res} /></p>
+          <div className="min-h-0 flex-1"><ScatterView x={b} y={m} pairs={res.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={data.yearStart} numberStyle={data.numberStyle} /></div>
         </div>
       );
     }
     case "matrix":
-      return <Matrix metrics={ms} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} />;
+      return <Matrix metrics={ms} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} numberStyle={data.numberStyle} />;
     case "drivers":
-      return <Drivers target={m} others={ms.slice(1)} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} />;
+      return <Drivers target={m} others={ms.slice(1)} resolve={resolverFrom(data.metrics, data.series)} yearStart={data.yearStart} numberStyle={data.numberStyle} />;
   }
 }
 
@@ -172,7 +173,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{children}</div>;
 }
 
-function Bars({ metric, points, by, name, goal, band, yearStart, onPointContext }: { metric: Metric; points: DisplayPoint[]; by: Span; name: (p: DisplayPoint, short?: boolean) => string; goal: (p: DisplayPoint) => Pick<Metric, "target_min" | "target_max">; band: boolean; yearStart: YearStart; onPointContext?: (p: string) => void }) {
+function Bars({ metric, points, by, name, goal, band, yearStart, numberStyle, onPointContext }: { metric: Metric; points: DisplayPoint[]; by: Span; name: (p: DisplayPoint, short?: boolean) => string; goal: (p: DisplayPoint) => Pick<Metric, "target_min" | "target_max">; band: boolean; yearStart: YearStart; numberStyle: NumberStyle; onPointContext?: (p: string) => void }) {
   const hovered = useRef<string | null>(null);
   // A span still running is hatched, so it is not read as a drop (spec 0018).
   const hatch = `hatch-${useId().replace(/:/g, "")}`;
@@ -191,8 +192,8 @@ function Bars({ metric, points, by, name, goal, band, yearStart, onPointContext 
             <ReferenceArea y1={metric.target_min ?? 0} y2={metric.target_max ?? undefined} fill="var(--color-band)" fillOpacity={0.6} ifOverflow="extendDomain" />
           )}
           <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, by, yearStart, true)} tick={{ fontSize: 11, fill: "var(--color-muted)" }} minTickGap={16} stroke="var(--color-rule-2)" />
-          <YAxis tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 11, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={56} stroke="var(--color-rule-2)" />
-          <Tooltip formatter={(v) => [formatValue(metric, Number(v)), metric.name]} labelFormatter={(p) => { const x = byPeriod.get(String(p)); return x ? name(x) : periodLabel(String(p), by, yearStart); }} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
+          <YAxis tickFormatter={(v) => compactValue(metric, v, numberStyle)} tick={{ fontSize: 11, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={56} stroke="var(--color-rule-2)" />
+          <Tooltip formatter={(v) => [formatValue(metric, Number(v), numberStyle), metric.name]} labelFormatter={(p) => { const x = byPeriod.get(String(p)); return x ? name(x) : periodLabel(String(p), by, yearStart); }} contentStyle={{ borderRadius: 8, fontSize: 12 }} cursor={{ fill: "var(--color-paper-3)" }} />
           <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
             {points.map((p) => (
               <Cell key={p.period} data-to-date={p.toDate || undefined} data-partial={isPartial(p) || undefined} fill={p.toDate || isPartial(p) ? `url(#${hatch})` : health(goal(p), p.value) === "bad" ? "var(--color-error)" : "var(--color-data)"} fillOpacity={0.85} stroke={p.toDate || isPartial(p) ? "var(--color-data)" : undefined} strokeDasharray={p.toDate ? "3 2" : undefined} />
@@ -216,7 +217,7 @@ function NotCombined({ reasons }: { reasons: string[] }) {
   return <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
 }
 
-function Matrix({ metrics, resolve, yearStart }: { metrics: Metric[]; resolve: Resolver; yearStart: YearStart }) {
+function Matrix({ metrics, resolve, yearStart, numberStyle }: { metrics: Metric[]; resolve: Resolver; yearStart: YearStart; numberStyle: NumberStyle }) {
   if (metrics.length < 2) return <Empty>Drop at least two metrics.</Empty>;
   // Each pair on its common period: the longer of the two, the shorter combined by its Aggregation.
   const cells = metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart }))));
@@ -237,11 +238,11 @@ function Matrix({ metrics, resolve, yearStart }: { metrics: Metric[]; resolve: R
               {metrics.map((b, j) => {
                 const c = cells[i][j];
                 const r = a.id === b.id ? 1 : c?.ok ? c.r : null;
-                const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${c.r.toFixed(2)}`, comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
+                const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${formatNumber(c.r, 2, numberStyle)}`, comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
                 const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-data) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
                   <td key={b.id} title={title} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
-                    {r === null ? "–" : r.toFixed(2)}
+                    {r === null ? "–" : formatNumber(r, 2, numberStyle)}
                   </td>
                 );
               })}
@@ -254,7 +255,7 @@ function Matrix({ metrics, resolve, yearStart }: { metrics: Metric[]; resolve: R
   );
 }
 
-function Drivers({ target, others, resolve, yearStart }: { target: Metric; others: Metric[]; resolve: Resolver; yearStart: YearStart }) {
+function Drivers({ target, others, resolve, yearStart, numberStyle }: { target: Metric; others: Metric[]; resolve: Resolver; yearStart: YearStart; numberStyle: NumberStyle }) {
   // Metrics of every period, each on its common period with the target; those left out say why.
   const { ranked, leftOut } = rankCorrelations(target, others, resolve, { yearStart });
   const why = leftOut.map((l) => (l.why === "not-combined" ? l.reason : `${l.metric.name}: ${l.reason}`));
@@ -269,13 +270,13 @@ function Drivers({ target, others, resolve, yearStart }: { target: Metric; other
             <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
               <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res.r) * 100}%`, background: res.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
             </span>
-            <span className="fig text-right">{res.r.toFixed(2)}</span>
+            <span className="fig text-right">{formatNumber(res.r, 2, numberStyle)}</span>
           </li>
         ))}
       </ul>
       <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{top.metric.name}</span> moves most with {target.name} ({strength(top.result.r)}){comparedBy(top.result) && <>. {comparedBy(top.result)}</>}.</p>
       <NotCombined reasons={why} />
-      <div className="min-h-0 flex-1"><ScatterView x={top.metric} y={target} pairs={top.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={yearStart} /></div>
+      <div className="min-h-0 flex-1"><ScatterView x={top.metric} y={target} pairs={top.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} height="100%" yearStart={yearStart} numberStyle={numberStyle} /></div>
     </div>
   );
 }

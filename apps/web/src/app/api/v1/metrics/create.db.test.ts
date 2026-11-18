@@ -28,7 +28,7 @@ describe("POST /api/v1/metrics", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body).toEqual({
-      slug: "weekly-signups", name: "Weekly signups", description: "", period: "week", format: "number", unit: "signups", decimals: 0,
+      slug: "weekly-signups", name: "Weekly signups", description: "", period: "week", format: "number", unit: "signups", unit_position: "after", decimals: 0,
       polarity: "higher", aggregation: "sum", target_min: null, target_max: null, derived: false,
     });
     const again = await post({ name: "Weekly signups", period: "week", unit: "signups", submission_rule: "add" }, { "idempotency-key": "setup-1" });

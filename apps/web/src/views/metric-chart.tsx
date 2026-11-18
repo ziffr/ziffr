@@ -2,6 +2,7 @@
 // PROTOTYPE: Views are hardcoded. This folder is where the View plugin seam would go.
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compactValue, formatValue } from "@ziffr/core/format";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@/analyses/forecast";
 import { periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
@@ -18,6 +19,7 @@ export function MetricChart({
   onPointContext,
   height = 300,
   yearStart,
+  numberStyle,
   by,
   toDate = false,
   partial,
@@ -28,6 +30,8 @@ export function MetricChart({
   points: Point[];
   /** The workspace's year start, for naming periods. */
   yearStart: YearStart;
+  /** How the workspace writes numbers. */
+  numberStyle: NumberStyle;
   forecast?: ForecastPoint[] | null;
   markers?: string[];
   selected?: string | null;
@@ -81,7 +85,7 @@ export function MetricChart({
   const label = (p: string) => name?.(p) ?? periodLabel(p, mp, yearStart);
 
   return (
-    <div style={{ height }} role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s${points.length ? `, latest ${formatValue(metric, points[points.length - 1].value)}` : ""}`}>
+    <div style={{ height }} role="img" aria-label={`${metric.name}, ${points.length} ${metric.period}s${points.length ? `, latest ${formatValue(metric, points[points.length - 1].value, numberStyle)}` : ""}`}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           accessibilityLayer={false}
@@ -100,7 +104,7 @@ export function MetricChart({
             />
           )}
           <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, yearStart, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
-          <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
+          <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
               const r = payload?.[0]?.payload as Row | undefined;
@@ -110,13 +114,13 @@ export function MetricChart({
                   <div className="font-medium">{label(r.period)}</div>
                   {r.value !== undefined || r.partial !== undefined ? (
                     <>
-                      <div>{metric.name}: <span className="fig">{formatValue(metric, r.value ?? r.partial!)}</span></div>
-                      {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(metric, r.target)}</span></div>}
+                      <div>{metric.name}: <span className="fig">{formatValue(metric, r.value ?? r.partial!, numberStyle)}</span></div>
+                      {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(metric, r.target, numberStyle)}</span></div>}
                     </>
                   ) : (
                     <>
-                      <div>Forecast: <span className="fig">{formatValue(metric, r.fc!)}</span></div>
-                      {r.band && <div className="text-muted-foreground">Likely {formatValue(metric, r.band[0])} – {formatValue(metric, r.band[1])}</div>}
+                      <div>Forecast: <span className="fig">{formatValue(metric, r.fc!, numberStyle)}</span></div>
+                      {r.band && <div className="text-muted-foreground">Likely {formatValue(metric, r.band[0], numberStyle)} – {formatValue(metric, r.band[1], numberStyle)}</div>}
                     </>
                   )}
                 </div>

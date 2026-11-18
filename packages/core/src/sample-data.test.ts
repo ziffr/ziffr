@@ -36,7 +36,7 @@ describe("Sample Data", () => {
   });
 
   it("uses only negative ids and an owner nobody is", () => {
-    const d = sampleCanvasData("viewer");
+    const d = sampleCanvasData("viewer", "1,234.5");
     expect(d.metrics.length).toBeGreaterThanOrEqual(5);
     expect(d.metrics.every((m) => m.id < 0 && m.owner_id === "sample")).toBe(true);
     expect(new Set(d.metrics.map((m) => m.id)).size).toBe(d.metrics.length);

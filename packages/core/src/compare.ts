@@ -3,6 +3,8 @@
 import { combines, seriesBy, valueOver, type DisplayPoint, type Resolver } from "./display-periods";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { Metric, Period, Point } from "./types";
+import { formatPercent } from "./format";
+import type { NumberStyle } from "./number-style";
 
 /** Which Comparison: the previous period, a calendar span to date (day, week, month, quarter, half) or the year before. */
 export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
@@ -155,10 +157,10 @@ export function targetGap(metric: Metric, value: number, t: { min: number | null
   return min === null && max === null ? null : 0;
 }
 
-/** Attainment rounded for display, e.g. "92%": a value that rounds to zero is "0%", never "-0%". */
-export function attainmentText(a: number, digits = 0): string {
-  const f = 10 ** digits;
-  return `${(Math.round(a * f) / f || 0).toFixed(digits)}%`;
+/** Attainment rounded for display in the Number Style, e.g. "92 %": a value that rounds to zero is "0 %", never
+ * "-0 %". */
+export function attainmentText(a: number, style: NumberStyle, digits = 0): string {
+  return formatPercent(a, style, digits);
 }
 
 /** Everything a widget's comparison strip needs, for the latest period. */

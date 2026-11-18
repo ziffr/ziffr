@@ -14,17 +14,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
-import type { Metric, Period, Polarity, SubmissionRule } from "@ziffr/core/types";
+import type { Metric, Period, Polarity, SubmissionRule, UnitPosition } from "@ziffr/core/types";
+import { UnitFields } from "../unit-fields";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
 import { readNumber } from "@ziffr/core/numbers";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
-type M = Pick<Metric, "id" | "name" | "description" | "unit" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;
+type M = Pick<Metric, "id" | "name" | "description" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;
 
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
-export function EditDetails({ metric, fixed, numberStyle }: { metric: M; fixed: "values" | "series" | null; numberStyle: NumberStyle }) {
+export function EditDetails({ metric, fixed, money, numberStyle }: { metric: M; fixed: "values" | "series" | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -51,7 +52,7 @@ export function EditDetails({ metric, fixed, numberStyle }: { metric: M; fixed: 
             start(async () => {
               try {
                 await updateMetricDetails(metric.id, {
-                  name: String(f.get("name") ?? ""), description: String(f.get("description") ?? ""), unit: String(f.get("unit") ?? ""),
+                  name: String(f.get("name") ?? ""), description: String(f.get("description") ?? ""), unit: String(f.get("unit") ?? ""), unitPosition: String(f.get("unit_position") ?? "after"),
                   format: String(f.get("format")), decimals: Number(f.get("decimals")), period: String(f.get("period") ?? metric.period),
                   submissionRule: metric.formula ? undefined : String(f.get("submission_rule")), polarity: String(f.get("polarity")),
                   aggregation: String(f.get("aggregation")), targetMin: num(f.get("target_min")), targetMax: num(f.get("target_max")),
@@ -67,14 +68,7 @@ export function EditDetails({ metric, fixed, numberStyle }: { metric: M; fixed: 
         >
           <div className="sm:col-span-2"><Label htmlFor="ed-name">Name</Label><Input id="ed-name" name="name" defaultValue={metric.name} required maxLength={120} /></div>
           <div className="sm:col-span-2"><Label htmlFor="ed-desc">Description</Label><Textarea id="ed-desc" name="description" defaultValue={metric.description ?? ""} maxLength={2000} rows={3} /></div>
-          <div>
-            <Label htmlFor="ed-format">Format</Label>
-            <select id="ed-format" name="format" defaultValue={metric.format} className={field}>
-              <option value="number">Number</option><option value="currency">Currency</option><option value="percent">Percent</option>
-            </select>
-          </div>
-          <div><Label htmlFor="ed-unit">Unit</Label><Input id="ed-unit" name="unit" defaultValue={metric.unit ?? ""} maxLength={20} placeholder="e.g. orders, €" /></div>
-          <div><Label htmlFor="ed-dec">Decimals</Label><Input id="ed-dec" name="decimals" type="number" min={0} max={6} defaultValue={metric.decimals} /></div>
+          <UnitFields format={metric.format} unit={metric.unit ?? ""} unitPosition={metric.unit_position} decimals={metric.decimals} money={money} numberStyle={numberStyle} idPrefix="ed" />
           <div>
             <Label htmlFor="ed-period">Period</Label>
             <select id="ed-period" name="period" defaultValue={metric.period} disabled={Boolean(fixed)} className={field}>

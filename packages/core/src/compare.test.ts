@@ -136,10 +136,10 @@ describe("around zero", () => {
   });
 
   it("writes Attainment without -0", () => {
-    expect(attainmentText(-0.4)).toBe("0%");
-    expect(attainmentText(-0.04, 1)).toBe("0.0%");
-    expect(attainmentText(92.4)).toBe("92%");
-    expect(attainmentText(-12.6)).toBe("-13%");
+    expect(attainmentText(-0.4, "1,234.5")).toBe("0 %");
+    expect(attainmentText(-0.04, "1,234.5", 1)).toBe("0.0 %");
+    expect(attainmentText(92.4, "1,234.5")).toBe("92 %");
+    expect(attainmentText(-12.6, "1.234,5", 1)).toBe("-12,6 %");
   });
 
   it("says a value is on target from the difference where there is no percentage", () => {

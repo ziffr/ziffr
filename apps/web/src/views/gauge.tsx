@@ -1,10 +1,11 @@
 "use client";
 import { formatValue } from "@ziffr/core/format";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric } from "@ziffr/core/types";
 import { TargetChip } from "@/components/target-chip";
 
 /** Semicircle gauge: target band in green, needle at the latest value. */
-export function Gauge({ metric, value, history }: { metric: Metric; value: number | undefined; history: number[] }) {
+export function Gauge({ metric, value, history, numberStyle }: { metric: Metric; value: number | undefined; history: number[]; numberStyle: NumberStyle }) {
   const all = [...history, metric.target_min, metric.target_max].filter((v): v is number => v !== null && v !== undefined);
   const lo = Math.min(...all) * 0.9;
   const hi = Math.max(...all) * 1.1;
@@ -21,14 +22,14 @@ export function Gauge({ metric, value, history }: { metric: Metric; value: numbe
   const [nx, ny] = pt(value === undefined ? 0 : t(value), 40);
   return (
     <div className="flex h-full flex-col items-center justify-center">
-      <svg viewBox="0 0 120 68" className="w-full max-w-56" role="img" aria-label={`${metric.name} ${formatValue(metric, value)} against target`}>
+      <svg viewBox="0 0 120 68" className="w-full max-w-56" role="img" aria-label={`${metric.name} ${formatValue(metric, value, numberStyle)} against target`}>
         <path d={arc(0, 1, 46)} stroke="var(--color-paper-3)" strokeWidth={10} fill="none" />
         <path d={arc(tMin, tMax, 46)} stroke="var(--color-success)" strokeOpacity={0.45} strokeWidth={10} fill="none" />
         {value !== undefined && <line x1={60} y1={60} x2={nx} y2={ny} stroke={ok ? "var(--color-ink)" : "var(--color-error)"} strokeWidth={2.5} strokeLinecap="round" />}
         <circle cx={60} cy={60} r={3.5} fill="var(--color-ink)" />
       </svg>
-      <div className="-mt-1 text-xl font-semibold tracking-[-0.02em]">{formatValue(metric, value)}</div>
-      <TargetChip metric={metric} value={value} className="mt-1" />
+      <div className="-mt-1 text-xl font-semibold tracking-[-0.02em]">{formatValue(metric, value, numberStyle)}</div>
+      <TargetChip metric={metric} value={value} className="mt-1" numberStyle={numberStyle} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 // The comparison strip under a widget (GLOSSARY: Comparison, Attainment): one engine, one look everywhere.
-import { compactValue, formatValue } from "@ziffr/core/format";
+import { compactValue, formatChange, formatValue } from "@ziffr/core/format";
 import { attainmentText, COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
 import type { CanvasData, Metric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -17,25 +17,26 @@ export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { m
   if (!keys.length) return null;
   const s = summary(metric, resolverFrom(data.metrics, data.series), data.targets[metric.id], { keys, full, yearStart: data.yearStart });
   if (s.value === undefined) return null;
+  const style = data.numberStyle;
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-border pt-1.5 text-[11px] leading-snug text-muted-foreground">
       {s.attainment !== null ? (
-        <span title={`Target ${formatValue(metric, s.target?.value ?? null)}${s.target?.fromSeries ? " from the target series" : ""}`}>
-          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{attainmentText(s.attainment)}</span> of target
+        <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}`}>
+          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{attainmentText(s.attainment, style)}</span> of target
         </span>
       ) : s.gap !== null && (
         // A target of 0 has no percentage: the difference to it instead.
-        <span title={`Target ${formatValue(metric, s.target?.value ?? null)}${s.target?.fromSeries ? " from the target series" : ""}`}>
-          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{s.gap === 0 ? "on" : `${sign(s.gap)}${compactValue(metric, Math.abs(s.gap))}`}</span> {s.gap === 0 ? "target" : "vs target"}
+        <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}`}>
+          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{s.gap === 0 ? "on" : `${sign(s.gap)}${compactValue(metric, Math.abs(s.gap), style)}`}</span> {s.gap === 0 ? "target" : "vs target"}
         </span>
       )}
       {s.comparisons.map((c) =>
         c.available ? (
           // Direction is an arrow and a sign in the text colour; colour is kept for the target (see target-chip).
-          <span key={c.key} title={`${c.currentSpan}: ${formatValue(metric, c.current)} vs ${c.previousSpan}: ${formatValue(metric, c.previous)}. ${COLOUR_LEGEND}`}>
+          <span key={c.key} title={`${c.currentSpan}: ${formatValue(metric, c.current, style)} vs ${c.previousSpan}: ${formatValue(metric, c.previous, style)}. ${COLOUR_LEGEND}`}>
             {SHORT[c.key]}{" "}
             <span className="fig font-medium text-[var(--color-ink-2)]">
-              {arrow(c.pct ?? c.abs ?? 0)}{c.pct === null || c.pct === undefined ? `${sign(c.abs!)}${compactValue(metric, Math.abs(c.abs!))}` : `${sign(c.pct)}${Math.abs(c.pct).toFixed(1)}%`}
+              {arrow(c.pct ?? c.abs ?? 0)}{c.pct === null || c.pct === undefined ? `${sign(c.abs!)}${compactValue(metric, Math.abs(c.abs!), style)}` : formatChange(c.pct, style)}
             </span>
           </span>
         ) : (

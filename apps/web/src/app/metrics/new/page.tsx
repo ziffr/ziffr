@@ -4,7 +4,9 @@ import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
 import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
 import { Forbidden } from "@ziffr/core/actor";
-import { getProfiles } from "@/lib/data";
+import { getNumberStyle, getProfiles } from "@/lib/data";
+import { moneyUnit } from "@ziffr/core/units";
+import { UnitFields } from "../unit-fields";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
@@ -33,6 +35,7 @@ const BLANK: MetricDescription = {
   aggregation: "sum",
   description: "",
   unit: "",
+  unit_position: "after",
   format: "number",
   decimals: 0,
   period: "month",
@@ -55,7 +58,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
   if (!picked && !sp.scratch && !copy) {
     // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
-    const profile = await workspaceProfile(await currentActor());
+    const [profile, numberStyle] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle()]);
     const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
     return (
       <>
@@ -68,15 +71,17 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>
-        <CatalogBrowser items={items} fit={fit} />
+        <CatalogBrowser items={items} fit={fit} money={moneyUnit(profile.currency)} numberStyle={numberStyle} />
       </>
     );
   }
 
   // A new Metric takes values every way Ziffr knows (web form, email, Slack), so each submitter can use what suits
   // them; a duplicate keeps its original's. The owner can narrow it here or later on the Metric's Settings tab.
-  const d: MetricDescription = copy ?? (picked ? { ...picked, sources: BLANK.sources } : BLANK);
-  const [people, viewer, demo] = await Promise.all([getProfiles(), viewerId(), isDemo()]);
+  const [people, viewer, demo, profile, numberStyle] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle()]);
+  // A new money Metric starts with the unit of the Workspace Profile's currency (spec 0022), one from the catalog too.
+  const money = moneyUnit(profile.currency);
+  const d: MetricDescription = copy ?? (picked ? { ...picked, ...(picked.format === "currency" ? money : {}), sources: BLANK.sources } : BLANK);
   return (
     <>
       {copy
@@ -96,17 +101,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
             <div className="grid gap-4 sm:grid-cols-2">
               <F label="Name" className="sm:col-span-2"><Input name="name" required defaultValue={d.name} placeholder="e.g. Customer satisfaction" /></F>
               <F label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={d.description} rows={2} placeholder="What exactly is counted, and what isn’t?" /></F>
-              <F label="Format">
-                <select name="format" defaultValue={d.format} className={field}>
-                  <option value="number">Number</option>
-                  <option value="currency">Currency (€)</option>
-                  <option value="percent">Percent</option>
-                </select>
-              </F>
-              <div className="grid grid-cols-2 gap-3">
-                <F label="Unit"><Input name="unit" defaultValue={d.unit} placeholder="kg, deals…" /></F>
-                <F label="Decimals"><Input name="decimals" type="number" min={0} max={4} defaultValue={d.decimals} /></F>
-              </div>
+              <UnitFields format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new" />
             </div>
           </Section>
 

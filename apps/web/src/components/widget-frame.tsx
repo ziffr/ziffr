@@ -159,7 +159,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               <div aria-hidden className="hidden w-[18rem] flex-col justify-center gap-2 border-l border-border p-3 md:flex">
                 {look.kind === "builtin"
                   ? <Preview widget={{ ...widget, template: look.id }} data={data} size={TEMPLATES[look.id].size} width={256} />
-                  : <TemplatePreview template={look.t} viewer={data.viewer} width={256} />}
+                  : <TemplatePreview template={look.t} viewer={data.viewer} numberStyle={data.numberStyle} width={256} />}
                 <p className="text-xs text-muted-foreground">{look.kind === "builtin" ? TEMPLATES[look.id].blurb : look.t.description || "Drawn with sample data."}</p>
               </div>
             )}
@@ -345,9 +345,9 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
       <div className="border-b p-3">
         <div className="text-sm font-semibold">History of {m.name}</div>
         <div className="text-xs text-muted-foreground"><span className="fig">{data.series[m.slug]?.length ?? 0}</span> {m.period}s on record</div>
-        <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} yearStart={data.yearStart} /></div>
+        <div className="mt-2"><MetricChart metric={m} points={data.series[m.slug] ?? []} height={120} markers={h?.actions.map((a) => a.period_start)} yearStart={data.yearStart} numberStyle={data.numberStyle} /></div>
       </div>
-      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact yearStart={data.yearStart} /></div>
+      <div className="border-b p-3"><CompareTable metric={m} resolve={resolverFrom(data.metrics, data.series)} targets={data.targets[m.id]} compact yearStart={data.yearStart} numberStyle={data.numberStyle} /></div>
       {h && h.actions.length > 0 && (
         <div className="border-b p-3">
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
@@ -365,7 +365,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
             {h.superseded.slice(0, 8).map((x) => (
               <li key={x.id} className="flex gap-2">
                 <span className="text-muted-foreground">{periodLabel(x.period_start, m.period, data.yearStart, true)}</span>
-                <span className="fig line-through">{formatValue(m, Number(x.value))}</span>
+                <span className="fig line-through">{formatValue(m, Number(x.value), data.numberStyle)}</span>
                 <span className="ml-auto text-muted-foreground">{x.change === "deleted" ? "removed" : "replaced"} <RelativeTime at={x.superseded_at} /></span>
               </li>
             ))}
@@ -379,8 +379,8 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
             <tr key={o.id} className="border-b last:border-0">
               <td className="py-1.5 pl-3 text-muted-foreground">{periodLabel(o.period_start, m.period, data.yearStart, true)}</td>
               <td className="fig py-1.5">
-                {formatValue(m, Number(o.value))}
-                {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value))}</span>}
+                {formatValue(m, Number(o.value), data.numberStyle)}
+                {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value), data.numberStyle)}</span>}
               </td>
               <td className="py-1.5 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}</td>
               <td className="py-1.5 pr-3 text-right text-muted-foreground">{o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}</td>
@@ -435,7 +435,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
         <label className="space-y-1">
           <span className="text-muted-foreground">About</span>
           <select value={period} onChange={(e) => { setPeriod(e.target.value); setText(draft(e.target.value)); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
-            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, data.yearStart, true)}, {formatValue(metric, p.value)}</option>)}
+            {pts.slice(0, 36).map((p) => <option key={p.period} value={p.period}>{periodLabel(p.period, metric.period, data.yearStart, true)}, {formatValue(metric, p.value, data.numberStyle)}</option>)}
           </select>
         </label>
         <label className="space-y-1">

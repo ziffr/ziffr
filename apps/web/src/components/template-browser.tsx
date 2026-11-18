@@ -21,7 +21,7 @@ export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: Canva
       title: g.title,
       cards: builtinTemplates(layouts).filter((t) => t.kind === g.kind && match(t.label, t.blurb)).map((t): Card => ({
         key: `b${t.id}`, name: t.label, blurb: t.blurb,
-        draw: () => <TemplatePreview template={t.id} viewer={data.viewer} width={232} />,
+        draw: () => <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={232} />,
         source: { type: "spec", template: t.id, metricIds: [] },
       })),
     })),
@@ -29,7 +29,7 @@ export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: Canva
       title: "The team's",
       cards: data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && match(t.name, t.description)).map((t): Card => ({
         key: `t${t.id}`, name: t.name, blurb: t.description,
-        draw: () => <TemplatePreview template={t} viewer={data.viewer} width={232} />,
+        draw: () => <TemplatePreview template={t} viewer={data.viewer} numberStyle={data.numberStyle} width={232} />,
         source: { type: "template", id: t.id },
       })),
     },

@@ -29,7 +29,8 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | `items[].description` | string | yes |  |
 | `items[].period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `items[].format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
-| `items[].unit` | string | yes | Shown after the value, such as orders or EUR. |
+| `items[].unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `items[].unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
 | `items[].decimals` | integer, 0 to 6 | yes | Decimal places to show. |
 | `items[].polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
 | `items[].aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
@@ -65,7 +66,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | --- | --- | --- | --- |
 | `name` | string, at most 120 characters | yes | What it is called; its slug is made from it. |
 | `description` | string, at most 2000 characters | no |  |
-| `unit` | string, at most 20 characters | no | Shown after the value, such as orders or EUR. |
+| `unit` | string, at most 20 characters | no | Shown next to the value, such as orders, € or $. Left out for a currency, the workspace's currency; for a percent, %. |
+| `unit_position` | `"before"`, `"after"` | no | Which side of the value the unit stands on. Default after, or the side of the workspace's currency when the unit is left out. |
 | `format` | `"number"`, `"currency"`, `"percent"` | no | Default number. |
 | `decimals` | integer, 0 to 6 | no | Default 0. |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | no | Default month. Quarters and years start from the workspace's year start. |
@@ -85,7 +87,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `description` | string | yes |  |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
-| `unit` | string | yes | Shown after the value, such as orders or EUR. |
+| `unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
 | `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
 | `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
@@ -124,7 +127,8 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `description` | string | yes |  |
 | `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
 | `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
-| `unit` | string | yes | Shown after the value, such as orders or EUR. |
+| `unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
 | `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
 | `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |

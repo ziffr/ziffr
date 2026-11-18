@@ -3,6 +3,8 @@
 import { addDays, format, isWeekend, parseISO } from "date-fns";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import type { Metric, Period, Profile, WorkflowConfig, WorkflowStep } from "./types";
+import { formatChange } from "./format";
+import type { NumberStyle } from "./number-style";
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -26,12 +28,12 @@ export function workingPeriod(asOf: string, p: Period, yearStart: YearStart) {
 }
 
 /** Why a value is unusual, in words; empty when it is not (GLOSSARY: Unusual Value). */
-export function unusualReasons(m: Metric, value: number, previous: number | undefined, previousPeriod: string | undefined, step: Extract<WorkflowStep, { type: "check" }>, yearStart: YearStart, target?: { min: number | null; max: number | null }) {
+export function unusualReasons(m: Metric, value: number, previous: number | undefined, previousPeriod: string | undefined, step: Extract<WorkflowStep, { type: "check" }>, yearStart: YearStart, style: NumberStyle, target?: { min: number | null; max: number | null }) {
   const out: string[] = [];
   const before = previousPeriod ? periodLabel(previousPeriod, m.period, yearStart) : "the period before";
   if (previous !== undefined && previous !== 0) {
     const pct = ((value - previous) / Math.abs(previous)) * 100;
-    if (Math.abs(pct) > step.changePct) out.push(`${pct > 0 ? "up" : "down"} ${Math.abs(pct).toFixed(1)} % on ${before}`);
+    if (Math.abs(pct) > step.changePct) out.push(`${pct > 0 ? "up" : "down"} ${formatChange(pct, style, { signed: false })} on ${before}`);
   } else if (previous === 0 && value !== 0) {
     // Any change from 0 is an infinite share of it: always more than the step allows (spec 0022).
     out.push(`${value > 0 ? "up" : "down"} from 0 on ${before}`);

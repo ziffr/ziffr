@@ -6,6 +6,7 @@ import { MetricChart } from "@/views/metric-chart";
 import { createAction } from "@/app/actions";
 import { formatValue } from "@ziffr/core/format";
 import type { ForecastPoint } from "@/analyses/forecast";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric, Point, Profile } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,9 +21,12 @@ export function MetricWorkspace({
   people,
   viewer,
   yearStart,
+  numberStyle,
 }: {
   /** The workspace's year start, for naming periods. */
   yearStart: YearStart;
+  /** How the workspace writes numbers. */
+  numberStyle: NumberStyle;
   metric: Metric;
   points: Point[];
   forecast: ForecastPoint[] | null;
@@ -59,13 +63,13 @@ export function MetricWorkspace({
           {markers.length > 0 && <Legend className="rounded-full border border-chart-5 bg-chart-5/25" label="Action" />}
         </span>
       </div>
-      <MetricChart metric={metric} points={points} forecast={forecast} markers={markers} selected={selected} onSelect={pick} yearStart={yearStart} />
+      <MetricChart numberStyle={numberStyle} metric={metric} points={points} forecast={forecast} markers={markers} selected={selected} onSelect={pick} yearStart={yearStart} />
       {selected && point && (
         <div className="mt-3 rounded-lg border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3">
           <div className="mb-2 flex items-center gap-2 text-sm">
             <MessageSquarePlus className="size-4 text-primary" />
             <span className="font-medium">New Action about {periodLabel(selected, metric.period, yearStart)}</span>
-            <span className="fig text-muted-foreground">{formatValue(metric, point.value)}</span>
+            <span className="fig text-muted-foreground">{formatValue(metric, point.value, numberStyle)}</span>
             <button onClick={() => setSelected(null)} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Cancel"><X className="size-4" /></button>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">

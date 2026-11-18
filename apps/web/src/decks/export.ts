@@ -4,7 +4,7 @@
 // (editable) charts, number widgets text, history tables tables; everything else an image.
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
-import { formatValue } from "@ziffr/core/format";
+import { formatChange, formatValue } from "@ziffr/core/format";
 import type { CanvasData, SlideDesign } from "@ziffr/core/types";
 import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
@@ -242,8 +242,8 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     slide.addText(
       [
         { text: `${title}\n`, options: { fontSize: 12, bold: true, color: INK } },
-        { text: formatValue(m, last?.value), options: { fontSize: Math.min(40, Math.max(18, at.h * 9)), bold: true, color: off ? ERROR : INK } },
-        { text: change === null ? "" : `  ${change > 0 ? "+" : ""}${(change * 100).toFixed(1)} %\n`, options: { fontSize: 12, color: MUTED, fontFace: FONT } },
+        { text: formatValue(m, last?.value, data.numberStyle), options: { fontSize: Math.min(40, Math.max(18, at.h * 9)), bold: true, color: off ? ERROR : INK } },
+        { text: change === null ? "" : `  ${formatChange(change * 100, data.numberStyle)}\n`, options: { fontSize: 12, color: MUTED, fontFace: FONT } },
         { text: last ? name(last) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
       ],
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
@@ -279,7 +279,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     slide.addTable(
       rows.map((r) => [
         { text: name(r, true), options: { color: MUTED } },
-        { text: formatValue(m, r.value), options: { align: "right" as const, fontFace: FONT } },
+        { text: formatValue(m, r.value, data.numberStyle), options: { align: "right" as const, fontFace: FONT } },
       ]),
       { ...body, fontSize: 10, fontFace: FONT, color: INK, border: { type: "solid", pt: 0.5, color: RULE } },
     );

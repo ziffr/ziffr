@@ -10,7 +10,7 @@ import { Preview, TemplatePreview } from "./preview";
 
 describe("Preview", () => {
   it.each(Object.keys(TEMPLATES) as TemplateId[])("draws %s with Sample Data", (id) => {
-    const html = renderToString(<TemplatePreview template={id} viewer="v" />);
+    const html = renderToString(<TemplatePreview numberStyle={"1,234.5"} template={id} viewer="v" />);
     expect(html).toContain(`data-preview="${id}"`);
     expect(html).toContain("Sample data");
     expect(html).not.toContain("No access to this metric");
@@ -19,7 +19,7 @@ describe("Preview", () => {
 
   it("draws a team template without the metrics it was made with", () => {
     const t = { view: "number" as const, w: 3, h: 4, slots: [{ label: "Revenue", multiple: false, exampleIds: [41] }], body: { metricSlots: [0], settings: { window: 12 } } };
-    const html = renderToString(<TemplatePreview template={t} viewer="v" />);
+    const html = renderToString(<TemplatePreview numberStyle={"1,234.5"} template={t} viewer="v" />);
     expect(html).toContain("Revenue");
     expect(html).not.toContain("No access to this metric");
   });
@@ -27,7 +27,7 @@ describe("Preview", () => {
 
 describe("Preview in Change view", () => {
   // Stands in for a page's own data: the restyle Preview draws the widget's metrics, only the template changes.
-  const data = sampleCanvasData("v");
+  const data = sampleCanvasData("v", "1,234.5");
   const widget = { template: "line" as const, metric_ids: [data.metrics[0].id], settings: { window: 12, showTarget: true, compare: [] }, title: null };
 
   it.each(templatesFor(true).map((t) => t.id))("redraws a line widget as %s with its own metrics and settings", (id) => {

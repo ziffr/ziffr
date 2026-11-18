@@ -12,9 +12,11 @@ import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./type
 import { recordAudit } from "./audit-log";
 import { periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
+import type { NumberStyle } from "./number-style";
+import { numberStyleOf } from "./workspace-settings";
 
 /** A Metric with its Workflow and the period at hand. */
-type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart };
+type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle };
 
 /** The Metric and its Workflow for a period, or null when it has none. */
 async function metricCtx(metricId: number, period: string): Promise<Ctx | null> {
@@ -22,7 +24,7 @@ async function metricCtx(metricId: number, period: string): Promise<Ctx | null> 
   if (!row?.workflow_id) return null;
   const { data: wf } = await db().from("workflows").select("*").eq("id", row.workflow_id).single();
   const m = normalizeMetric(row) as Metric;
-  return wf ? { m, wf: wf as Workflow, period, yearStart: await yearStartFor(String(row.workspace_id), m.period) } : null;
+  return wf ? { m, wf: wf as Workflow, period, yearStart: await yearStartFor(String(row.workspace_id), m.period), numberStyle: await numberStyleOf(String(row.workspace_id)) } : null;
 }
 
 /** The Workflow state of one period of a Metric. */
@@ -71,7 +73,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     db().from("workflows").select("*").eq("workspace_id", workspaceId),
   ]);
   const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
-  const yearStart = await yearStartOf(workspaceId);
+  const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
   const log: string[] = [];
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
@@ -79,7 +81,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const period = workingPeriod(asOf, m.period, yearStart);
     const wf = workflows.get(row.workflow_id as number);
     if (!wf) continue;
-    const ctx: Ctx = { m, wf, period, yearStart };
+    const ctx: Ctx = { m, wf, period, yearStart, numberStyle };
     const label = `${m.name}, ${periodLabel(period, m.period, yearStart)}`;
     const [state, value] = await Promise.all([getState(m.id, period), latestValue(m.id, period)]);
     if (value) {
@@ -150,7 +152,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
     const prev = await latestValue(metricId, before);
     const { data: targets } = await db().from("series_values").select("period_start, value").eq("metric_id", metricId).eq("kind", "target");
     const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
-    reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, t);
+    reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
   const approvers = (approve?.approvers ?? []).filter((a) => a !== submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
@@ -167,7 +169,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
 async function requestApproval(ctx: Ctx, approver: string, submitterId: string, reasons: string[], value: number) {
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: submitterId === approver ? ctx.wf.owner_id : submitterId, assignee_id: approver,
-    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value)}, ${reasons.join(", ")}. Reply “approve”, or “send back:” with what to check.`,
+    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value, ctx.numberStyle)}, ${reasons.join(", ")}. Reply “approve”, or “send back:” with what to check.`,
     kind: "task", purpose: "approval",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });
