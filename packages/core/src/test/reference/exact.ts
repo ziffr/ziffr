@@ -157,7 +157,15 @@ export function exactText(x: Exact): string {
 /** The double nearest to an exact value, ties to the even one: a first guess from its decimals, then the neighbour
  * that `isNearestDouble` confirms. What Ziffr holds for a combined value that a double cannot carry (1/3). */
 export function nearestDoubleOf(x: Exact): number {
-  const guess = Number(roundedText(x, 40));
-  for (const c of [guess, neighbour(guess, true), neighbour(guess, false)]) if (isNearestDouble(c, x)) return c === 0 ? 0 : c;
+  if (x.num === 0n) return 0;
+  // Enough decimals for 25 significant digits, however small the value: a guess within a double's spacing.
+  const size = x.num < 0n ? -x.num : x.num;
+  const zeros = Math.max(0, x.den.toString().length - size.toString().length);
+  let guess = Number(roundedText(x, zeros + 25));
+  // Walk to the nearest one from there: a few steps at most.
+  for (let step = 0; step < 8; step++) {
+    if (isNearestDouble(guess, x)) return guess;
+    guess = neighbour(guess, compareDyadic(x, dyadic(guess)) > 0);
+  }
   throw new Error(`No double is nearest to ${exactText(x)}`);
 }
