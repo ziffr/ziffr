@@ -19,7 +19,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
       - name: The tag names the package and its version
         id: tag
         run: |
@@ -55,7 +54,6 @@ jobs:
           pnpm --filter "@ziffr/${{ steps.tag.outputs.name }}" build
           (cd "packages/${{ steps.tag.outputs.name }}" && pnpm pack --pack-destination "$RUNNER_TEMP/pack")
       - name: Publish
-        # Trusted publishing once it is set up on npmjs.com; until then the NPM_TOKEN secret (first publish).
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Trusted publishing (set up for each package on npmjs.com): npm checks this workflow's OIDC identity, so there is
+        # no token to store or leak. No registry-url above, as setup-node would write an .npmrc that asks for a token.
         run: npx -y npm@11.6.2 publish "$RUNNER_TEMP"/pack/*.tgz --provenance --access public
