@@ -18,7 +18,14 @@ import { createInterface } from "node:readline/promises";
 import { insertSection, nextVersion, parseChangeset, renderSection, setDockerVersion } from "./release-lib.mjs";
 
 const REPO = "ziffr/ziffr";
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: "utf8", ...opts }).trim();
+// A failed command says why: its own error output goes into the message.
+function run(cmd, args, opts = {}) {
+  try {
+    return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...opts }).trim();
+  } catch (e) {
+    throw new Error(`${cmd} ${args.join(" ")} failed${e.stderr?.trim() ? `:\n${e.stderr.trim()}` : ""}`);
+  }
+}
 const git = (...args) => run("git", args);
 const gh = (...args) => run("gh", [...args, "-R", REPO]);
 const live = (cmd, args) => execFileSync(cmd, args, { stdio: "inherit" });
@@ -42,7 +49,9 @@ async function ask(question) {
 /** Back on main, up to date with origin/main. */
 function syncMain() {
   git("switch", "-q", "main");
-  git("fetch", "-q", "origin", "main", "--tags");
+  // Only main: fetching every tag fails on the rolling `preview` tag, which the Preview workflow moves on every push.
+  // The release tag is looked up on origin itself (pushedTag).
+  git("fetch", "origin", "main");
   git("merge", "-q", "--ff-only", "origin/main");
 }
 
