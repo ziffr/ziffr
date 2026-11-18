@@ -19,6 +19,8 @@ Each Metric says which **Sources** it accepts. You can turn on several for the s
 
 Every value goes through the same checks, whichever way it came: the Submission Rule, Approval of Unusual Values and Locks.
 
+A number may be written with a decimal comma or a decimal point: `1,5`, `12,50` and `1.234,56` are read as 1.5, 12.5 and 1234.56, and `126,657` or `1,234.5` as thousands. A single dot before three digits, such as `1.500`, is still read as 1.5. Ziffr's reply shows the value as it was read.
+
 ### The personal form link
 
 Every Submitter has a personal link for each Metric they send in. It needs no password, which is why Contacts such as an outside bookkeeper can use it. The link only lets them send values for their own Metrics; it shows them nothing else.

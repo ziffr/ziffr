@@ -5,6 +5,7 @@
 import { db } from "./db";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { normalizeMetric } from "./metric-row";
+import { valueInText } from "./numbers";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
@@ -49,10 +50,9 @@ export type SubmissionEffects = {
   afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean }) => Promise<string[]>;
 };
 
-/** Pulls the first number out of a message: "we closed 3 today" → 3, "126,657 €" → 126657. */
+/** Pulls the first number out of a message: "we closed 3 today" → 3, "126,657 €" → 126657, "1,5" → 1.5 (numbers.ts). */
 export function parseValue(text: string): number | null {
-  const m = text.replace(/(\d)[ ,](?=\d{3}\b)/g, "$1").match(/-?\d+(?:\.\d+)?/);
-  return m ? Number(m[0]) : null;
+  return valueInText(text);
 }
 
 async function writeRows(observationId: number, rows: { label: string; value: number }[], mode: "replace" | "add") {
