@@ -27,6 +27,12 @@ claude mcp add ziffr --env ZIFFR_URL=https://ziffr.example.com --env ZIFFR_ACCES
 }
 ```
 
+**Without installing anything:** a Ziffr reached over https also serves this server at `https://<your ziffr>/mcp` (Streamable HTTP), with the same tools. A client that sends a fixed header can use it with the key:
+
+```sh
+claude mcp add --transport http ziffr https://ziffr.example.com/mcp --header "Authorization: Bearer zk_..."
+```
+
 Restart the assistant, then ask it, for example, "What was revenue in March?", "Record 42 orders for this month", "Start tracking weekly signups", or "Make a dashboard for revenue from the one-metric template."
 
 ## What the assistant gets

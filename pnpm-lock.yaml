@@ -23,6 +23,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.9(react@19.2.9))(react@19.2.9)
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.2
+        version: 1.32.2(zod@4.6.7)
       '@observablehq/plot':
         specifier: 0.6.19
         version: 0.6.19
@@ -35,6 +38,12 @@ importers:
       '@ziffr/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@ziffr/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
+      '@ziffr/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

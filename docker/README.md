@@ -57,6 +57,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_TRIAL_MAX` | How many trials may run at once; default 200 |
 | `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
 | `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
+| `ZIFFR_REMOTE_MCP` | The remote MCP Server at `https://<your domain>/mcp`, for assistants such as Claude.ai. On with a domain, off at `http://localhost`; `0` turns it off, `1` on |
 | `ZIFFR_HTTP_PORT`, `ZIFFR_HTTPS_PORT`, `ZIFFR_MAIL_PORT` | Other ports on this machine, when 80, 443 or 8025 are taken |
 | `ZIFFR_IMAGE` | Another image than the version `compose.yml` names, such as `ghcr.io/ziffr/ziffr:X.Y.Z` or one you built |
 | `ZIFFR_TELEGRAM_BOT_TOKEN` | Messages and answers by Telegram, from a bot you made with @BotFather ([Telegram](../docs/guides/telegram.md)). Needs a domain, as Telegram sends answers over https |

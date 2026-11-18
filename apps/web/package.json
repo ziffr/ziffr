@@ -15,10 +15,13 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@observablehq/plot": "0.6.19",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "@ziffr/core": "workspace:*",
+    "@ziffr/mcp": "workspace:*",
+    "@ziffr/sdk": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "date-fns": "^4.4.0",
