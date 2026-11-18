@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
@@ -14,11 +14,19 @@ import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorker } from "@/components/service-worker";
+import { APP_COLOURS } from "@/lib/app-colours";
 
 export const metadata: Metadata = {
   title: "Ziffr",
   description: "A metric tracker for anyone: define any number you care about, collect its values from people and systems, and see, share and discuss them over time.",
+  // Installable (#143): manifest.ts is linked by Next itself; iOS reads its own tags for "Add to Home Screen".
+  icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }], apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Ziffr", statusBarStyle: "default" },
 };
+
+/** The browser's colour around the page (address bar, installed app's title bar), as the manifest's. */
+export const viewport: Viewport = { themeColor: APP_COLOURS.background };
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +64,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <Toaster />
+          <ServiceWorker />
         </body>
       </html>
     );
@@ -99,6 +108,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
         {demo && <Tour />}
         <Toaster />
+        <ServiceWorker />
       </body>
     </html>
   );

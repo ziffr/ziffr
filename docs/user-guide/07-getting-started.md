@@ -70,6 +70,16 @@ When a value looks odd, open it and assign a **Question** to the person who know
 
 At the end of each period, check the Unusual Values waiting for Approval, then lock the period. If your dashboard should keep what it showed, take a **Snapshot**, or let the dashboard take one by itself once every Metric on it is locked. Need slides for the board? Make a **Deck** from your Widgets and export it as PowerPoint or PDF.
 
+## Put Ziffr on your phone or desktop
+
+Ziffr installs as an app from the browser: it then opens from your home screen or dock in a window of its own, without the browser's address bar. There is nothing to download from an app store.
+
+- **iPhone and iPad (Safari):** open Ziffr, choose the Share button, then **Add to Home Screen**.
+- **Android (Chrome):** open Ziffr, choose the menu (⋮), then **Add to Home screen** or **Install app**.
+- **Computer (Chrome or Edge):** open Ziffr and choose the install icon at the right of the address bar, or **Install Ziffr** in the browser's menu. On a Mac, Safari offers **File → Add to Dock**.
+
+The installed app is the same Ziffr as in the browser and needs a connection: your numbers stay on the server, never on the device. Without a connection it shows a page saying so. Signing out in the app signs you out there, as in the browser.
+
 ## What to do next
 
 - **Bring in numbers from other systems.** Ask whoever looks after your systems to set up a Feed for numbers that already live in your CRM, shop or data warehouse. See [Connecting Ziffr](04-connecting.md).

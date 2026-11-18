@@ -29,10 +29,10 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
             <tr key={c.key} className="border-t border-border align-top">
               <td className="py-1.5 font-medium">{c.label}</td>
               <td className="py-1.5 text-muted-foreground">
-                {c.available ? <>{c.currentSpan} <span className="fig text-foreground">{formatValue(metric, c.current, style)}</span><br />vs {c.previousSpan} <span className="fig text-foreground">{formatValue(metric, c.previous, style)}</span></> : c.reason}
+                {c.available ? <>{c.currentSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.current, style)}</span><br />vs {c.previousSpan} <span className="fig whitespace-nowrap text-foreground">{formatValue(metric, c.previous, style)}</span></> : c.reason}
               </td>
-              <td className="fig py-1.5 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs, style)}` : "–"}</td>
-              <td className="fig py-1.5 text-right">{c.available ? formatChange(c.pct, style) : "–"}</td>
+              <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs, style)}` : "–"}</td>
+              <td className="fig whitespace-nowrap py-1.5 pl-2 text-right">{c.available ? formatChange(c.pct, style) : "–"}</td>
             </tr>
           ))}
         </tbody>

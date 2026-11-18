@@ -149,7 +149,7 @@ At the top it shows the **Value** of the latest period, its **Target** ("(series
 
 For "higher is better" with a target above 0, the two give the same number.
 
-Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW, a quarterly one has "vs previous period", QoQ, HoH and YoY, and a yearly one only YoY, which is its previous period). Quarters and half-years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, QoQ in May compares April and May with January and February. Each row shows the two spans with their values, the change, and the change in percent. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
+Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW, a quarterly one has "vs previous period", QoQ, HoH and YoY, and a yearly one only YoY, which is its previous period). Quarters and half-years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, QoQ in May compares April and May with January and February. Each row shows the two spans with their values, the change, and the change in percent; each figure stays on one line, also on a phone. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
 
 Two buttons choose how spans longer than the Metric's period are compared:
 

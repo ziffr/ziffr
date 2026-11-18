@@ -69,7 +69,7 @@ Each row shows:
 - the Metric and the period it is about,
 - who asked whom.
 
-Choose a row to open the Action.
+Choose a row to open the Action. On a phone, the Metric, the period and who asked whom move to a line under the question.
 
 ## An Action and its Thread
 
@@ -107,7 +107,7 @@ When an Action is closed, the page says "Closed." and nobody can reply. The aske
 
 ## Corrections
 
-A **Correction** is a new value for the period, proposed in the Thread. Type it under **Propose a correction**, with a reply saying why, and choose **Reply**. You can leave the reply empty; Ziffr then writes "Proposing a correction."
+A **Correction** is a new value for the period, proposed in the Thread. Type it under **Propose a correction** (on a phone, the keyboard shows numbers), with a reply saying why, and choose **Reply**. You can leave the reply empty; Ziffr then writes "Proposing a correction."
 
 The Thread shows the Correction as the old value crossed out, an arrow and the new value. The Metric Owner hears about it. Until they decide, others see "Waiting for the metric owner … to accept."
 

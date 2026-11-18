@@ -108,7 +108,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             {obs && (
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <PencilLine className="size-4" /> Propose a correction
-                <Input name="correction" type="number" step="any" placeholder={String(obs.value)} className="h-8 w-32" />
+                <Input name="correction" type="number" step="any" inputMode="decimal" placeholder={String(obs.value)} className="h-8 w-32" />
               </label>
             )}
             <div className="ml-auto flex gap-2">

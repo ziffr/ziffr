@@ -89,5 +89,7 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-// Everything except Next's own files and static assets.
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|flags/|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"] };
+// Everything except Next's own files and static assets. The installable app's files (#143) are the same for everyone
+// and must load signed out too: a browser fetches the manifest without cookies, and the offline page is shown when
+// nothing else can be reached.
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|flags/|manifest.webmanifest$|sw.js$|offline.html$|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"] };

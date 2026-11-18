@@ -256,6 +256,10 @@ _Avoid_: Sandbox, test workspace, free trial
 One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo and whether it offers Trial Workspaces.
 _Avoid_: Instance, deployment, server, tenant
 
+**Installed app**:
+Ziffr added to a phone's home screen or a computer's dock from the browser, so it opens in a window of its own. It is the same Ziffr as in the browser, needs a connection and keeps no Workspace data on the device; there is no native app. Not an Installation, which is a running Ziffr on a server.
+_Avoid_: PWA, native app, mobile app, offline mode
+
 **Workspace Profile**:
 What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it.
 _Avoid_: Classification, company profile, firmographics, tenant settings

@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- The page the service worker (sw.js) shows when a page cannot be reached (#143). Static and the same for everyone:
+     it holds no Workspace data, so the worker may keep it. Everything is inline, as nothing else is cached. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f4f1">
+  <title>Ziffr needs a connection</title>
+  <style>
+    /* Colours from tokens.css: --color-paper, --color-ink, --color-muted, --color-board, --color-focus. */
+    :root { color-scheme: light; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f8f4f1; color: #1d1614;
+      font-family: "General Sans", ui-sans-serif, system-ui, sans-serif; }
+    main { max-width: 22rem; padding: 2rem 1rem; text-align: center; }
+    svg { width: 64px; height: 64px; }
+    h1 { margin: 1.5rem 0 0.5rem; font-size: 1.44rem; font-weight: 600; letter-spacing: -0.03em; }
+    p { margin: 0 0 1.5rem; color: #615955; line-height: 1.5; }
+    a { display: inline-block; padding: 0.6rem 1rem; border-radius: 6px; background: #1f1917; color: #f8f4f1;
+      text-decoration: none; font-weight: 500; }
+    a:focus-visible { outline: 2px solid #bd3a2b; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <svg viewBox="0 0 512 512" aria-hidden="true">
+      <rect width="512" height="512" rx="112" fill="#1f1917"/>
+      <rect x="152" y="148" width="208" height="48" fill="#f8f4f1"/>
+      <polygon points="282,196 360,196 230,316 152,316" fill="#ef8b7b"/>
+      <rect x="152" y="316" width="208" height="48" fill="#f8f4f1"/>
+    </svg>
+    <h1>Ziffr needs a connection</h1>
+    <p>Your numbers live on the server, not on this device. Connect to the internet and try again.</p>
+    <a href="/">Try again</a>
+  </main>
+</body>
+</html>
