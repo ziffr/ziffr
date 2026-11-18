@@ -3,7 +3,8 @@
 // Security: a file made here holds the design and made-up Sample Data only, never a Workspace's Metrics or values.
 import { BUILT_IN_DESIGNS, designSettings, designSlots, isDesignedView } from "./built-in-designs";
 import { sampleData, sampleFills, type SampleWidget } from "./sample-data";
-import { VIEW_FORMAT, writeViewDesign, VIEW_LIMITS, type Part, type PlotMark, type ViewDesign } from "./view-design";
+import { VIEW_DESIGN_SCHEMA, VIEW_FORMAT, writeViewDesign, VIEW_LIMITS, type Part, type PlotMark, type ViewDesign } from "./view-design";
+import { checkSchema } from "./json-check";
 import { FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe";
 import type { Period, Widget } from "./types";
 
@@ -26,9 +27,10 @@ export function duplicateAsDesign(widget: Pick<Widget, "template" | "settings" |
   if (o.showTarget && s.showTarget !== undefined) o.showTarget = { ...o.showTarget, default: !!s.showTarget };
   if (o.showForecast && s.showForecast !== undefined) o.showForecast = { ...o.showForecast, default: !!s.showForecast };
   // The widget's title is the person's own words: kept only while it is plain text that fits, else the design's name.
-  const base = (widget.title ?? "").trim();
-  const plain = base && /^[\p{L}\p{M}\p{N} .,;:!?'"’‘“”«»()%€$£¥+\-–—/&#*=_·…°]*$/u.test(base) && !/:\/\/|www\./i.test(base);
-  const name = `${plain ? base : design.name} (copy)`.slice(0, VIEW_LIMITS.name);
+  // Held to the format's own rule for names, and cut by characters, never inside one.
+  const cut = (t: string) => [...t].slice(0, VIEW_LIMITS.name).join("");
+  const base = cut(`${(widget.title ?? "").trim()} (copy)`);
+  const name = (widget.title ?? "").trim() && checkSchema(VIEW_DESIGN_SCHEMA.properties!.name, base).length === 0 ? base : cut(`${design.name} (copy)`);
   return { ...design, name, ...(design.options ? { options: o } : {}) };
 }
 

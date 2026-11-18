@@ -30,6 +30,10 @@ describe("duplicateAsDesign", () => {
     expect(d.options?.rows?.default).toBe(120);
     expect(checkViewDesign(writeViewDesign(d)).ok).toBe(true);
     expect(duplicateAsDesign({ template: "gauge", settings: {}, title: null }, BUILT_IN_DESIGNS.gauge).options).toEqual(BUILT_IN_DESIGNS.gauge.options);
+    // The format's own rule for names decides: a scheme or url( is not taken, and a long title is cut by characters.
+    for (const title of ["javascript:alert(1)", "Data: data:x", "see url(x)"]) expect(duplicateAsDesign({ template: "line", settings: {}, title }, BUILT_IN_DESIGNS.line).name).toBe("Line chart (copy)");
+    const emoji = duplicateAsDesign({ template: "line", settings: {}, title: `${"Ä".repeat(79)}𝔸` }, BUILT_IN_DESIGNS.line);
+    expect(checkViewDesign(writeViewDesign(emoji)).ok).toBe(true);
   });
 });
 

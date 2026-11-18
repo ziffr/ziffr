@@ -3,7 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { BUILT_IN_DESIGNS } from "./built-in-designs";
 import { BUILT_IN_RECIPES } from "./built-in-recipes";
-import { designRecipe, formatOutput, recipeInputs } from "./design-analysis";
+import { designRecipe, formatOutput, recipeInputs, RECIPE_INPUT_POINTS } from "./design-analysis";
+import type { AnalysisRecipe } from "./analysis-recipe";
+import { runRecipe } from "./recipe-run";
+import { shiftPeriod } from "./periods";
 import { designWithRecipe } from "./design-files";
 import { shownSeries } from "./display-periods";
 import { movingAverage, share } from "./recipe-functions";
@@ -36,6 +39,35 @@ describe("designRecipe", () => {
     expect(formatOutput("metric", revenue, 1234.5, "1.234,5")).toBe("1.235 €");
     expect(formatOutput("percent", revenue, 12.345, "1,234.5")).toBe("12.3 %");
     expect(formatOutput("number", revenue, -0.5, "1,234.5")).toBe("-0.50");
+  });
+});
+
+describe("what a recipe may cost (spec 0024 security review)", () => {
+  // The worst a file that passes the checks can ask for: twelve steps, each on the one before, windows of 60.
+  const heavy: AnalysisRecipe = {
+    format: "ziffr.analysis/1", name: "Heavy", slots: [{ label: "A" }],
+    steps: [{ id: "z", fn: "zScore", of: "slot1" }, ...Array.from({ length: 11 }, (_, i) => ({ id: `m${i}`, fn: "movingAverage" as const, of: i ? `m${i - 1}` : "z", window: 60 }))],
+    outputs: [{ step: "m10", label: "x", unit: "number" }],
+  };
+  const daily = Array.from({ length: 3650 }, (_, i) => ({ period: shiftPeriod("2016-01-01", "day", i), value: 1000 + Math.sin(i) * 123.456789 + i / 7 }));
+
+  it("takes at most the latest values a design shows, however long the series", () => {
+    const d = { ...data, metrics: [{ ...revenue, period: "day" as const }], series: { [revenue.slug]: daily } };
+    const inputs = recipeInputs(designWithRecipe(heavy), d.metrics, d, {});
+    expect(inputs[0]).toHaveLength(RECIPE_INPUT_POINTS);
+    expect(inputs[0].at(-1)).toEqual(daily.at(-1));
+  });
+
+  it("runs the heaviest recipe the checks let through quickly, even on ten years of days", () => {
+    const started = performance.now();
+    runRecipe(heavy, [daily]);
+    expect(performance.now() - started).toBeLessThan(5000);
+  });
+
+  it("leaves out values that are not finite, and gives no infinite share", () => {
+    const pts = [{ period: "2026-01-01", value: 1e15 }, { period: "2026-02-01", value: Number.NaN }, { period: "2026-03-01", value: 2 }];
+    expect(movingAverage(pts, 2)).toEqual({ kind: "series", points: [{ period: "2026-03-01", value: 500000000000001 }] });
+    expect(share([{ period: "2026-01-01", value: 1e15 }], [{ period: "2026-01-01", value: 1e-300 }])).toEqual({ kind: "series", points: [] });
   });
 });
 

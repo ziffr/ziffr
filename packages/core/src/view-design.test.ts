@@ -155,6 +155,14 @@ describe("checkViewDesign", () => {
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
 
+  it("names at most 50 problems, and does not walk a list that is already too long", () => {
+    const many = text({ ...EXAMPLE, parts: Array.from({ length: 12 }, () => ({ mark: "group", direction: "row", parts: Array.from({ length: 12 }, () => ({ mark: "text", content: ["a"], x: 1, y: 2, z: 3 })) })) });
+    const res = checkViewDesign(many);
+    expect(res.ok ? 0 : res.problems.length).toBe(50);
+    const long = checkViewDesign(text({ ...EXAMPLE, slots: Array(500).fill({ label: "<b>", metrics: "x" }) }));
+    expect(long.ok ? [] : long.problems.map((p) => p.path)).toEqual(["slots"]);
+  });
+
   it("names every problem, not only the first", () => {
     const res = checkViewDesign(text({ ...EXAMPLE, name: "", kind: "chart", x: 1 }));
     expect(res.ok ? 0 : res.problems.length).toBe(3);

@@ -146,10 +146,14 @@ const WORD: Record<string, string> = { object: "an object", array: "a list", str
 const quoted = (xs: (string | number)[]) => xs.map((x) => `“${x}”`).join(", ");
 const chars = (s: string) => [...s].length;
 
+/** How many problems a check names at most. */
+export const MAX_PROBLEMS = 50;
+
 /** Holds `value` to `schema` (and its `$defs`), adding each problem found to the list; `lines` names where. */
 export function checkSchema(root: Schema, value: unknown, lines: Map<string, number> = new Map()): Problem[] {
   const problems: Problem[] = [];
-  const at = (path: string, message: string) => problems.push({ path, line: lines.get(path) ?? null, message });
+  // A file with hundreds of mistakes is named by its first ones: enough to fix it, and the answer stays small.
+  const at = (path: string, message: string) => void (problems.length < MAX_PROBLEMS && problems.push({ path, line: lines.get(path) ?? null, message }));
   const resolve = (s: Schema): Schema => {
     if (!s.$ref) return s;
     const name = s.$ref.replace("#/$defs/", "");
@@ -182,7 +186,7 @@ export function checkSchema(root: Schema, value: unknown, lines: Map<string, num
     }
     if (Array.isArray(v)) {
       if (s.minItems !== undefined && v.length < s.minItems) at(path, s.minItems === 1 ? "must not be empty." : `must have at least ${s.minItems} entries.`);
-      if (s.maxItems !== undefined && v.length > s.maxItems) at(path, `has ${v.length} entries; at most ${s.maxItems} are allowed.`);
+      if (s.maxItems !== undefined && v.length > s.maxItems) return void at(path, `has ${v.length} entries; at most ${s.maxItems} are allowed.`);
       if (s.items) v.forEach((x, n) => walk(s.items!, x, `${path}[${n}]`));
     }
     if (t === "object") {

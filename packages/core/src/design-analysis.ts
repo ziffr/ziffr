@@ -9,14 +9,19 @@ import type { Output } from "./analysis-recipe";
 import type { ViewDesign } from "./view-design";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
 
-/** The series a design's recipe works on: one per recipe Slot, from the widget's Metrics in order. */
+/** At most this many of the latest values go into a recipe: enough for two years of weeks or ten of months, and a
+ * bound on the work any recipe can ask for (spec 0024 security review). */
+export const RECIPE_INPUT_POINTS = 120;
+
+/** The series a design's recipe works on: one per recipe Slot, from the widget's Metrics in order, each its latest
+ * `RECIPE_INPUT_POINTS` values. */
 export function recipeInputs(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings) {
   const slots = design.analysis?.slots ?? [];
   const today = settings.asOf ? dayAfter(settings.asOf) : undefined;
   return slots.map((_, i) => {
     const m = metrics[i];
     if (!m) return [];
-    return shownSeries(m, data, design.options?.display ? settings.display : undefined, { today }).points.map((p) => ({ period: p.period, value: p.value }));
+    return shownSeries(m, data, design.options?.display ? settings.display : undefined, { today }).points.slice(-RECIPE_INPUT_POINTS).map((p) => ({ period: p.period, value: p.value }));
   });
 }
 
