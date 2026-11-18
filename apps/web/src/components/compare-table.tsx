@@ -1,6 +1,6 @@
 // Every comparison for a metric, with spans, values and changes (GLOSSARY: Comparison, Attainment).
 import { formatValue } from "@ziffr/core/format";
-import { comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
+import { attainmentText, comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
@@ -16,7 +16,7 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
       <dl className="mb-3 grid grid-cols-3 gap-3">
         <div><dt className="text-xs text-muted-foreground">Value, {periodLabel(s.period!, metric.period, yearStart, true)}</dt><dd className="fig font-medium">{formatValue(metric, s.value)}</dd></div>
         <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value) : "–"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.attainment !== null && (s.attainment >= 100 ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment === null ? "–" : `${s.attainment.toFixed(1)}%`}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap)} vs target`) : "–"}</dd></div>
       </dl>
       <table className="w-full">
         <thead className="text-left text-xs text-muted-foreground">

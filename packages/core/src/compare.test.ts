@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { attainment, compare, comparisonsFor, resolverFrom, targetFor } from "./compare";
+import { attainment, attainmentText, compare, comparisonsFor, resolverFrom, summary, targetFor, targetGap } from "./compare";
+import { health, targetStatus } from "./format";
 import { JANUARY, type YearStart } from "./periods";
 import { metric, months } from "./test/fixtures";
 
@@ -65,8 +66,117 @@ describe("targets and attainment", () => {
   });
   it("is higher-is-better for every polarity", () => {
     expect(attainment(revenue, 230, { min: 200, max: null })).toBeCloseTo(115);
-    expect(attainment(metric({ polarity: "lower" }), 50, { min: null, max: 100 })).toBe(200);
+    expect(attainment(metric({ polarity: "lower" }), 50, { min: null, max: 100 })).toBe(150);
     expect(attainment(metric({ polarity: "target" }), 5, { min: 1, max: 10 })).toBe(100);
+  });
+});
+
+// Around zero (spec 0022): Attainment is the distance to the target in steps of the target's size, so 100 % is on
+// target and more is better, whichever side of zero the target is. A target of 0 has no size: no percentage, the
+// difference instead.
+describe("around zero", () => {
+  const higher = metric({ polarity: "higher" });
+  const lower = metric({ polarity: "lower" });
+  const target = metric({ polarity: "target" });
+  type Row = [label: string, m: ReturnType<typeof metric>, value: number, t: { min: number | null; max: number | null }, attainment: number | null, gap: number | null];
+  const rows: Row[] = [
+    // Higher is better, target above, at and below zero.
+    ["higher, target 10, short", higher, 5, { min: 10, max: null }, 50, -5],
+    ["higher, target 10, ahead", higher, 20, { min: 10, max: null }, 200, 10],
+    ["higher, target 10, below zero", higher, -5, { min: 10, max: null }, -50, -15],
+    ["higher, target 0, ahead", higher, 5, { min: 0, max: null }, null, 5],
+    ["higher, target 0, short", higher, -5, { min: 0, max: null }, null, -5],
+    ["higher, target -10, ahead", higher, -5, { min: -10, max: null }, 150, 5],
+    ["higher, target -10, short", higher, -20, { min: -10, max: null }, 0, -10],
+    ["higher, target -10, on it", higher, -10, { min: -10, max: null }, 100, 0],
+    // Lower is better.
+    ["lower, target 10, ahead", lower, 5, { min: null, max: 10 }, 150, -5],
+    ["lower, target 10, short", lower, 20, { min: null, max: 10 }, 0, 10],
+    ["lower, target 10, at zero", lower, 0, { min: null, max: 10 }, 200, -10],
+    ["lower, target 10, below zero", lower, -5, { min: null, max: 10 }, 250, -15],
+    ["lower, target 0, ahead", lower, -5, { min: null, max: 0 }, null, -5],
+    ["lower, target 0, short", lower, 5, { min: null, max: 0 }, null, 5],
+    ["lower, target -10, ahead", lower, -20, { min: null, max: -10 }, 200, -10],
+    ["lower, target -10, short", lower, -5, { min: null, max: -10 }, 50, 5],
+    // Closer to the target is better: 100 inside the range, less the further outside.
+    ["target, 1 to 10, inside", target, 5, { min: 1, max: 10 }, 100, 0],
+    ["target, 10 to 20, below", target, 5, { min: 10, max: 20 }, 50, -5],
+    ["target, 10 to 20, above", target, 25, { min: 10, max: 20 }, 75, 5],
+    ["target, 0 to 10, below", target, -5, { min: 0, max: 10 }, null, -5],
+    ["target, -10 to 0, above", target, 5, { min: -10, max: 0 }, null, 5],
+    ["target, -10 to 0, inside", target, -5, { min: -10, max: 0 }, 100, 0],
+    ["target, -20 to -10, below", target, -25, { min: -20, max: -10 }, 75, -5],
+    ["target, -20 to -10, above", target, -5, { min: -20, max: -10 }, 50, 5],
+    ["target, at least -10, below", target, -15, { min: -10, max: null }, 50, -5],
+    // No target, or a value that is not a number: nothing.
+    ["higher, no target", higher, 5, { min: null, max: null }, null, null],
+    ["target, no target", target, 5, { min: null, max: null }, null, null],
+    ["higher, NaN", higher, NaN, { min: 10, max: null }, null, null],
+    ["lower, Infinity", lower, Infinity, { min: null, max: 10 }, null, null],
+  ];
+  it.each(rows)("%s", (_, m, v, t, a, gap) => {
+    const got = attainment(m, v, t);
+    if (a === null) expect(got).toBeNull();
+    else expect(got).toBeCloseTo(a, 9);
+    expect(targetGap(m, v, t)).toBe(gap);
+  });
+
+  it("always gives a finite number or null, and more for a better value", () => {
+    const values = [-1e6, -20, -10, -5, -0.5, 0, 0.5, 5, 10, 20, 1e6];
+    const targets = [-10, -1, 0, 1, 10];
+    for (const tv of targets) for (const [m, t] of [[higher, { min: tv, max: null }], [lower, { min: null, max: tv }]] as const) {
+      const got = values.map((v) => attainment(m, v, t));
+      for (const g of got) expect(g === null || Number.isFinite(g)).toBe(true);
+      if (tv === 0) { expect(got.every((g) => g === null)).toBe(true); continue; }
+      // Higher is better: attainment rises with the value; lower is better: it falls.
+      const nums = got as number[];
+      for (let i = 1; i < nums.length; i++) expect(m.polarity === "higher" ? nums[i] > nums[i - 1] : nums[i] < nums[i - 1]).toBe(true);
+      expect(attainment(m, tv, t)).toBe(100);
+    }
+  });
+
+  it("writes Attainment without -0", () => {
+    expect(attainmentText(-0.4)).toBe("0%");
+    expect(attainmentText(-0.04, 1)).toBe("0.0%");
+    expect(attainmentText(92.4)).toBe("92%");
+    expect(attainmentText(-12.6)).toBe("-13%");
+  });
+
+  it("says a value is on target from the difference where there is no percentage", () => {
+    const at = (m: ReturnType<typeof metric>, value: number, t: { min?: number | null; max?: number | null }) => {
+      const mm = { ...m, target_min: t.min ?? null, target_max: t.max ?? null };
+      return summary(mm, resolverFrom([mm], { [mm.slug]: [{ period: "2026-01-01", value }] }), [], { keys: [], yearStart: JANUARY });
+    };
+    expect(at(higher, 3, { min: 0 })).toMatchObject({ attainment: null, gap: 3, onTarget: true });
+    expect(at(higher, -3, { min: 0 })).toMatchObject({ attainment: null, gap: -3, onTarget: false });
+    expect(at(lower, -3, { max: 0 })).toMatchObject({ attainment: null, gap: -3, onTarget: true });
+    expect(at(target, 0, { min: 0, max: 0 })).toMatchObject({ attainment: 100, gap: 0, onTarget: true });
+    expect(at(higher, -5, { min: -10 })).toMatchObject({ attainment: 150, onTarget: true });
+    expect(at(higher, 3, {})).toMatchObject({ attainment: null, gap: null, onTarget: null });
+  });
+
+  it("puts a value that is not a number on no side of the target", () => {
+    for (const v of [NaN, Infinity, -Infinity]) {
+      expect(health({ target_min: 10, target_max: null }, v)).toBe("neutral");
+      expect(health({ target_min: null, target_max: 10 }, v)).toBe("neutral");
+      expect(targetStatus({ target_min: 0, target_max: 10 }, v)).toBeNull();
+    }
+    // Below, at and above zero.
+    const m = { target_min: -10, target_max: 0 };
+    expect([-20, -10, -5, -0, 0, 5].map((v) => targetStatus(m, v))).toEqual(["below", "on", "on", "on", "on", "above"]);
+    expect([-20, -5, 5].map((v) => health(m, v))).toEqual(["bad", "good", "bad"]);
+  });
+
+  it("compares changes from below, at and above zero by the size of the earlier value", () => {
+    const cases: [previous: number, current: number, pct: number | null][] = [
+      [10, 15, 50], [10, 5, -50], [-10, -5, 50], [-10, -15, -50], [-10, 5, 150], [0, 5, null], [0, 0, null], [5, 0, -100],
+    ];
+    for (const [previous, current, pct] of cases) {
+      const r = compare(higher, resolverFrom([higher], { [higher.slug]: [{ period: "2026-01-01", value: previous }, { period: "2026-02-01", value: current }] }), { keys: ["prev"], yearStart: JANUARY })[0];
+      expect(r).toMatchObject({ available: true, abs: current - previous });
+      if (pct === null) expect(r.pct).toBeNull();
+      else expect(r.pct).toBeCloseTo(pct, 9);
+    }
   });
 });
 

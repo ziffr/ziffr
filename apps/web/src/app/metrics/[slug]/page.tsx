@@ -112,7 +112,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const bdRows = bdPeriod ? [...bdByPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
   const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
   const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
-  const bdAdds = bdTotal !== null && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
+  // Rows that add up to nothing have no shares: 0 of 0 would show as "NaN %".
+  const bdAdds = bdTotal !== null && bdSum !== 0 && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
   // Tables on this page read like the chart: oldest on top, newest at the bottom.
   const obs = (await getLastValues(metric.id, 12)).reverse();
   // Feeds are Submitters but nobody's colleague: the names of only those this page shows, as its Submitters or as

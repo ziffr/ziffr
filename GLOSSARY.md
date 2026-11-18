@@ -73,7 +73,7 @@ A metric's latest value against an earlier span: the previous period, or the sam
 _Avoid_: Delta, variance, period over period
 
 **Attainment**:
-How far a value reaches its target, as a percentage where higher is always better, whichever way the metric's polarity runs.
+How far a value reaches its target, as a percentage where higher is always better, whichever way the metric's polarity runs. It is measured by the distance to the target in steps of the target's size, so 100 % is on target also for targets below zero; a target of 0 has no percentage, and the difference to it is shown instead.
 _Avoid_: Achievement, target fulfilment, performance
 
 ### Input

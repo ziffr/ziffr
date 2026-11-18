@@ -42,4 +42,13 @@ describe("workflow rules", () => {
     expect(unusualReasons(metric(), 90, 95, "2026-09-01", step, JANUARY, { min: 100, max: null })).toEqual(["below target"]);
     expect(unusualReasons(metric(), 101, 100, "2026-09-01", step, JANUARY, { min: 100, max: null })).toEqual([]);
   });
+  it("calls any change from 0 unusual, and a change across zero by the size of the earlier value (spec 0022)", () => {
+    const step = { type: "check" as const, changePct: 30, outsideTarget: false };
+    expect(unusualReasons(metric(), 1000, 0, "2026-09-01", step, JANUARY)).toEqual(["up from 0 on September 2026"]);
+    expect(unusualReasons(metric(), -3, 0, "2026-09-01", step, JANUARY)).toEqual(["down from 0 on September 2026"]);
+    expect(unusualReasons(metric(), 0, 0, "2026-09-01", step, JANUARY)).toEqual([]);
+    expect(unusualReasons(metric(), 10, -10, "2026-09-01", step, JANUARY)).toEqual(["up 200.0 % on September 2026"]);
+    expect(unusualReasons(metric(), -11, -10, "2026-09-01", step, JANUARY)).toEqual([]);
+    expect(unusualReasons(metric(), 5, undefined, undefined, step, JANUARY)).toEqual([]);
+  });
 });
