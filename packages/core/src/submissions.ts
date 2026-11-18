@@ -51,22 +51,6 @@ export type SubmissionEffects = {
   afterValue: (metricId: number, period: string, submitterId: string, opts?: { imported?: boolean }) => Promise<string[]>;
 };
 
-async function writeRows(observationId: number, rows: { label: string; value: number }[], mode: "replace" | "add") {
-  if (mode === "replace") {
-    await db().from("breakdown_rows").delete().eq("observation_id", observationId);
-    await db().from("breakdown_rows").insert(rows.map((r, i) => ({ observation_id: observationId, label: r.label, value: r.value, position: i })));
-    return;
-  }
-  const { data: existing } = await db().from("breakdown_rows").select("*").eq("observation_id", observationId).order("position");
-  const merged = [...(existing ?? []).map((r) => ({ label: r.label as string, value: Number(r.value) }))];
-  for (const r of rows) {
-    const hit = merged.find((m) => m.label.toLowerCase() === r.label.toLowerCase());
-    if (hit) hit.value += r.value;
-    else merged.push(r);
-  }
-  await writeRows(observationId, merged, "replace");
-}
-
 /** Takes a value that arrived by Slack, mail or a personal form link (GLOSSARY: Submission Rule, Token, Lock).
  * There is no signed-in Actor: the sender is known by their Token or their identity on the Source, which may be a
  * Contact without a login. Everything is looked up in one workspace only: the Token's, or the one given for Slack
@@ -215,40 +199,32 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
   }
 
-  // 4. Submission Rule
-  const { data: existing } = await db().from("observations").select("*").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false });
-  const prev = existing?.[0];
-  const row = { metric_id: metric.id, period_start: period, submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
-  // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period:
-  // the current period and anything that replaces a value are checked as anyone's.
-  const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
-  let result: SubmissionResult & { observationId?: number };
-  if (metric.submission_rule === "add") {
-    // Added up in one statement in the database, not read here and written back: two values arriving together both
-    // count, also in an empty period, and the sum carries no float noise (spec 0022). The reply names what was summed.
-    const { data, error } = await db()
-      .rpc("add_to_observation", { p_metric: metric.id, p_period: period, p_value: value, p_submitter: row.submitter_id, p_source: row.source, p_access_key: row.access_key_id, p_imported: imported })
-      .single<{ observation_id: number; before: number | string | null; after: number | string }>();
-    if (error || !data) throw new Error(`Couldn’t add the value: ${error?.message ?? "no row"}`);
-    const first = data.before === null;
-    const after = Number(data.after);
-    result = first
-      ? { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, observationId: data.observation_id, imported }
-      : { ok: true, outcome: "added", detail: `${fv(Number(data.before))} + ${fv(value)} = ${fv(after)} for ${metric.name}, ${when}.`, observationId: data.observation_id, imported: false };
-  } else if (!prev) {
-    const { data } = await db().from("observations").insert({ ...row, value, imported }).select("id").single();
-    result = { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, observationId: data?.id, imported };
-  } else if (metric.submission_rule === "reject") {
-    result = { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(Number(prev.value))} for ${when}, and its rule rejects a second value.` };
-  } else if (metric.submission_rule === "overwrite") {
-    await db().from("observations").update({ ...row, value, created_at: new Date().toISOString() }).eq("id", prev.id);
-    result = { ok: true, outcome: "overwritten", detail: `Replaced ${fv(Number(prev.value))} with ${fv(value)} for ${metric.name}, ${when}.`, observationId: prev.id };
-  } else {
-    const { data } = await db().from("observations").insert({ ...row, value }).select("id").single();
-    result = { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${existing!.length} earlier value(s) for ${metric.name}, ${when}.`, observationId: data?.id };
-  }
-  if (breakdown && result.ok && result.observationId) {
-    await writeRows(result.observationId, breakdown.rows, result.outcome === "added" ? "add" : "replace");
+  // 4. Submission Rule, applied in one call to the database with the breakdown's rows (spec 0022, #111 and #126):
+  // two values arriving together wait for each other there, so both count under "add", the second is rejected under
+  // "reject" and replaces the first under "overwrite", and no Breakdown row is lost or mixed with another value's.
+  const row = { submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
+  // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period
+  // (the database checks that one): the current period and anything that replaces a value are checked as anyone's.
+  const mayImport = Boolean(input.import && feed && period < current && period >= importFloor(current, metric.period));
+  const { data, error } = await db()
+    .rpc("record_observation", {
+      p_metric: metric.id, p_period: period, p_rule: metric.submission_rule, p_value: value, p_submitter: row.submitter_id, p_source: row.source,
+      p_access_key: row.access_key_id, p_imported: mayImport, p_rows: (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value })),
+    })
+    .single<{ observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number }>();
+  if (error || !data) throw new Error(`Couldn’t record the value: ${error?.message ?? "no row"}`);
+  const imported = mayImport && data.outcome === "recorded";
+  const before = data.before === null ? null : Number(data.before);
+  const result: SubmissionResult = (() => {
+    switch (data.outcome) {
+      case "recorded": return { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, imported };
+      case "added": return { ok: true, outcome: "added", detail: `${fv(before!)} + ${fv(value)} = ${fv(Number(data.after))} for ${metric.name}, ${when}.`, imported: false };
+      case "overwritten": return { ok: true, outcome: "overwritten", detail: `Replaced ${fv(before!)} with ${fv(value)} for ${metric.name}, ${when}.` };
+      case "kept_both": return { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${data.earlier} earlier value(s) for ${metric.name}, ${when}.` };
+      default: return { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(before!)} for ${when}, and its rule rejects a second value.` };
+    }
+  })();
+  if (breakdown && result.ok) {
     const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
     result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
   }
