@@ -1,6 +1,6 @@
 # 0022 Correct numbers: one way to read them, the workspace's way to write them, tested calculations
 
-**Status:** in progress. **Tracking issue:** #106 (label `tracking`); tickets #107 to #115, #118 and #126 carry `spec:0022`.
+**Status:** in progress. **Tracking issue:** #106 (label `tracking`); tickets #107 to #115, #118, #126 and #130 carry `spec:0022`.
 
 ## Problem Statement
 
@@ -78,7 +78,17 @@ Ziffr is only useful if its numbers are right, and today three things can make t
 - **Writing** (`formatValue`, `compactValue`): both take the Number Style. `compactValue` shortens every unit at 10,000 and above to `k` and `M` with one decimal where it is needed (`1.2M`, `126k €`, `12k pc`), never `1000k`. Percentage changes are written one way everywhere, by one function. `−0` is written as `0`; a value that is not finite is written as "–" and never reaches a chart.
 - **Add up in the database.** "Add up all values" becomes one SQL statement (`value = value + $1`) in a function the core calls, so two values arriving together both count, and the sum is rounded to 6 decimals there to drop floating-point noise. Values are stored as received; only the display rounds to the Metric's decimals.
 - **Formulas.** `evaluate` reads its whole formula or refuses it: any character it does not know, a missing or extra bracket, two values without an operator, or a number such as `.5` or `1e3` gives null. A function `checkFormula(formula, inputs, metric)` says why a formula is refused, and the core calls it wherever a formula is written (today only the trial seed; the demo's formulas are seeded in SQL and checked by a database test; any later editor gets it for free). A Derived Metric whose inputs have different periods, or another period than its own, or whose inputs are set to Aggregation none, or are Derived Metrics themselves (series are computed one level deep), is refused when written, and an existing one shows the reason on its page and in widgets ("Its inputs are counted by different periods") instead of an empty chart.
-- **Around zero.** Attainment is computed against the distance to the target, so that it is right for targets at or below zero and for all three polarities, or it is null where no percentage means anything (target 0 for "higher is better" shows the difference instead). `health` and `targetStatus` return neutral for a value that is not finite. The Unusual Value check treats a change from 0 as unusual when the new value is not 0.
+- **Around zero.** Attainment by distance (below) is computed against the distance to the target, so that it is right for targets at or below zero and for all three polarities, or it is null where no percentage means anything (target 0 for "higher is better" shows the difference instead). `health` and `targetStatus` return neutral for a value that is not finite. The Unusual Value check treats a change from 0 as unusual when the new value is not 0.
+- **Two ways to compute Attainment, chosen per Metric** (#130). Both are kept, because each is right for different Metrics:
+  - **Ratio** is value ÷ target, or target ÷ value for "lower is better". It is what Ziffr showed up to 0.9.0, is familiar, and is never negative for positive values. It has no percentage where a ratio means nothing: a target at or below zero, or a value of 0 for "lower is better". There the difference to the target is shown instead.
+  - **Distance** is 100 % plus the distance to the target, in steps of the target's size. It reads the same in every direction and works around zero.
+
+  For "higher is better" with a positive target, the two give the same number; they differ for "lower is better" (5 against at most 10: Ratio 200 %, Distance 150 %) and around zero.
+  - **Where it is set:** a Workspace default, set by Owners and Admins and audited. Existing Workspaces get Ratio, so nothing changes from 0.9.0. Each Metric may override the default in its Metric Description.
+  - **No per-viewer switch.** Everyone sees the same number for the same value, and the tooltip names the method.
+  - **Snapshots and View Links** keep the method they were made with.
+  - Both methods are in the Calculation Catalogue, each with its reference, and table tests for every polarity and for targets and values below, at and above zero.
+  - **Glossary:** **Attainment** names both methods.
 - **Export.** The deck export takes its changes from `compare()`, as the app does, and rounds to the Metric's decimals. The trial's CSV export writes values in the Number Style and uses `;` as the separator when the decimal mark is a comma.
 - **Glossary.** Adds **Number Style**: "How a Workspace writes numbers: how digits are grouped and which mark is the decimal, such as 1,234.5 or 1.234,5. It also settles how an ambiguous number such as 1.500 is read. _Avoid_: Locale, number format, regional settings". Changes **Metric Description**: "unit and which side of the number it stands on, format". Lands with ticket 2.
 
@@ -151,6 +161,7 @@ Ziffr is only useful if its numbers are right, and today three things can make t
 9. #115 Aggregations verified: the reference for combining periods, the exhaustive and generated tests for every Period, Display Period, Aggregation and Fiscal Year start, exact results, Target Series combined, coverage thresholds in CI. Started at once, alongside the others, because it is the first requirement; bugs it finds are fixed in it.
 10. #118 Answer languages: the setting, word files generated from `Intl`, French, Spanish, Italian and Dutch, and the contributor guide (needs 3).
 11. #126 Everything else verified: the Calculation Catalogue and its check, references for Derived Metrics, Submission Rules, changes, Attainment, Unusual Values, Comparisons, correlation and the forecast, the same-number-everywhere test, mutation testing in CI (needs every other ticket).
+12. #130 Attainment by Ratio or by Distance: the Workspace default, the per-Metric choice, Snapshots keeping theirs (needs 4).
 
 ## Out of Scope
 
