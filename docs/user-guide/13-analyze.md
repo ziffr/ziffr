@@ -103,6 +103,17 @@ A grid with every Metric on both sides. Each square holds the r of that pair. Th
 
 Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr checks it as you paste and names every mistake with its line, such as "Line 12: parts[0].marks[1].tone must be one of “data”, “muted”…". **Add to the Workspace** checks it again on the server. A file with web addresses, markup, fields Ziffr does not know, or more than the limits allow is refused. **Remove** takes a design out of the Workspace; Widgets already drawn with it keep it. Adding and removing are in the Audit Log. The demo keeps no View Designs.
 
+## Playground
+
+**Playground** at the top right of Analyze is where you work on a View Design's file. The file is on the left, the drawing on the right.
+
+- **Start from** loads a built-in View's design; **Upload** loads a file. You can also paste or type.
+- Ziffr checks the file as you type. Every mistake is listed above the file with its line, such as "Line 3: name must be plain text, without markup or web addresses". Click one to select that line. While the file has mistakes, the drawing keeps the last version that passed.
+- **Sample Data** draws the design with made-up Metrics. **My Metrics** asks for a Metric for each Slot, from those you can see, and draws your values.
+- **Download with Sample Data** saves the file and a Sample Data file. For Owners and Admins, **Add to the Workspace** adds the design, checked again on the server, as on the View Designs page.
+
+Nothing you type in the Playground is kept unless it is added to the Workspace.
+
 ## Saving a result
 
 Results are not kept when you leave the screen; save the ones you want. Each result has a **⋯** menu, which right-clicking also opens:

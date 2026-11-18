@@ -214,7 +214,11 @@ _Avoid_: Board, report, page, story
 
 **Analysis Canvas**:
 A workspace where a user drops one or more metrics and runs analyses on them.
-_Avoid_: Workbench, lab, playground
+_Avoid_: Workbench, lab
+
+**Playground**:
+The page under Analyze where a View Design or an Analysis Recipe is pasted or uploaded, checked as it is typed, with every mistake named by its line, and drawn at once with Sample Data or with the person's own Metrics. Nothing typed there is kept unless an Owner or Admin adds it to the Workspace. Not the Analysis Canvas, where Metrics are analysed.
+_Avoid_: Editor, sandbox, studio
 
 **Analysis**:
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget.
