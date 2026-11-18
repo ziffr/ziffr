@@ -16,7 +16,6 @@
     "test": "pnpm -r --if-present test && node --test scripts/*.test.mjs",
     "changeset": "changeset",
     "release": "node scripts/release.mjs",
-    "release:tag": "node scripts/release-tag.mjs",
     "ci:local": "bash scripts/ci-local.sh",
     "telegram:poll": "node --env-file-if-exists=.env.local scripts/telegram-poll.mjs"
   },
