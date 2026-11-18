@@ -58,12 +58,24 @@ export function exactTotal(values: readonly number[], count: number): number {
   return nearestDouble(sum, TEN ** BigInt(places) * BigInt(count));
 }
 
-// a − b and a ÷ b on fractions, the denominator kept positive.
-const minus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den - b.num * a.den, den: a.den * b.den });
-const over = (a: Fraction, b: Fraction): Fraction => (b.num < ZERO ? { num: -a.num * b.den, den: a.den * -b.num } : { num: a.num * b.den, den: a.den * b.num });
+/** A number written as digits with an optional decimal part ("12", "0.5"), exactly. */
+export function fractionOfText(text: string): Fraction {
+  const [, sign, whole, decimals = ""] = TEXT.exec(text)!;
+  return { num: BigInt(`${sign}${whole}${decimals}`), den: TEN ** BigInt(decimals.length) };
+}
+
+/** a + b on fractions. */
+export const plus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den + b.num * a.den, den: a.den * b.den });
+/** a − b on fractions. */
+export const minus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den - b.num * a.den, den: a.den * b.den });
+/** a × b on fractions. */
+export const times = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.num, den: a.den * b.den });
+/** a ÷ b on fractions, the denominator kept positive; b is not 0. */
+export const over = (a: Fraction, b: Fraction): Fraction => (b.num < ZERO ? { num: -a.num * b.den, den: a.den * -b.num } : { num: a.num * b.den, den: a.den * b.num });
+/** The double nearest to a fraction. */
+export const nearest = (a: Fraction) => nearestDouble(a.num, a.den);
 const times100 = (a: Fraction): Fraction => ({ num: a.num * HUNDRED, den: a.den });
 const plus100 = (a: Fraction): Fraction => ({ num: a.num + HUNDRED * a.den, den: a.den });
-const nearest = (a: Fraction) => nearestDouble(a.num, a.den);
 const finite = (...vs: number[]) => vs.every((v) => Number.isFinite(v));
 
 /** a − b, exactly on the values' text, as the nearest double: 0.3 − 0.1 is 0.2. Not finite in, not finite out. */

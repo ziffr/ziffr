@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, type FormulaInput } from "./formula";
 import { STARTING_METRICS } from "./trial-starting-values";
+import { referenceReads } from "./test/reference/formula";
 
 describe("formula", () => {
   it("lists the metrics a formula reads, once each", () => {
@@ -47,35 +48,11 @@ describe("formula", () => {
   it.each(malformed)("refuses %j", (formula, why) => {
     expect(evaluate(formula, { a: 10, b: 3 })).toBeNull();
     expect(checkFormula(formula, [input("a"), input("b")])).toMatch(why);
+    expect(referenceReads(formula)).toBe(false);
   });
 
-  it("agrees with a reference evaluator on generated formulas", () => {
-    // A small seeded generator: random trees of + - * /, brackets, unary minus, numbers and inputs, written out and
-    // computed by plain JavaScript as the reference.
-    let seed = 22;
-    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
-    const vars = { a: 7.5, b: -3, c: 0.25, "net-revenue": 1200 };
-    const names = Object.keys(vars) as (keyof typeof vars)[];
-    const gen = (depth: number): [string, number] => {
-      const r = rand();
-      if (depth === 0 || r < 0.25) {
-        if (rand() < 0.5) { const n = names[Math.floor(rand() * names.length)]; return [`{${n}}`, vars[n]]; }
-        const v = Math.floor(rand() * 1000) / (rand() < 0.5 ? 1 : 100);
-        return [String(v), v];
-      }
-      if (r < 0.35) { const [s, v] = gen(depth - 1); return [`-(${s})`, -v]; }
-      const [sa, va] = gen(depth - 1), [sb, vb] = gen(depth - 1);
-      const op = "+-*/"[Math.floor(rand() * 4)];
-      const v = op === "+" ? va + vb : op === "-" ? va - vb : op === "*" ? va * vb : va / vb;
-      return [`(${sa}) ${op} (${sb})`, v];
-    };
-    for (let i = 0; i < 500; i++) {
-      const [f, want] = gen(4);
-      const got = evaluate(f, vars);
-      if (!Number.isFinite(want)) expect(got).toBeNull();
-      else expect(got).toBeCloseTo(want, 6);
-    }
-  });
+  // Generated formulas are checked against an exact reference evaluator in derived.test.ts (#126); the plain-JavaScript
+  // reference that stood here computed in floating point, so it could only ask for six decimals.
 });
 
 function input(slug: string, over: Partial<FormulaInput> = {}): FormulaInput {

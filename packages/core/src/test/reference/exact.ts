@@ -153,3 +153,11 @@ export function exactText(x: Exact): string {
   const places = placesOf(x);
   return places === null ? `${x.num}/${x.den}` : roundedText(x, places);
 }
+
+/** The double nearest to an exact value, ties to the even one: a first guess from its decimals, then the neighbour
+ * that `isNearestDouble` confirms. What Ziffr holds for a combined value that a double cannot carry (1/3). */
+export function nearestDoubleOf(x: Exact): number {
+  const guess = Number(roundedText(x, 40));
+  for (const c of [guess, neighbour(guess, true), neighbour(guess, false)]) if (isNearestDouble(c, x)) return c === 0 ? 0 : c;
+  throw new Error(`No double is nearest to ${exactText(x)}`);
+}
