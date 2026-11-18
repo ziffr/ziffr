@@ -14,7 +14,7 @@
 name: ziffr
 
 x-ziffr: &ziffr
-  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.8.0}
+  image: ${ZIFFR_IMAGE:-ghcr.io/ziffr/ziffr:0.9.0}
   volumes: ["keys:/keys:ro"]
   restart: unless-stopped
   # The image's health check asks the web server; only `app` runs one.

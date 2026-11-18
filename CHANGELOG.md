@@ -2,6 +2,58 @@
 
 What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
 
+## 0.9.0 (2026-11-18)
+
+### For self-hosters
+
+- A public Ziffr can offer Trial Workspaces with `ZIFFR_TRIAL_DAYS`: anyone signs in and gets a workspace of their own in which email, Slack, Telegram, the API, AI assistants and Feeds work for real but reach only them, deleted a week after it ends. See "Offering trials" in the self-hosting guide; use an Installation of its own for it.
+- With `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET` set, the sign-in form shows Cloudflare Turnstile and sends no link until the server has checked its answer with Cloudflare. For a public Ziffr, so bots cannot make it mail any address.
+- The [Telegram guide](docs/guides/telegram.md) says how to make the bot, set `ZIFFR_TELEGRAM_BOT_TOKEN`, turn Telegram on and try it on a laptop, and what to tell people about privacy: Telegram can read bot chats, so recommend its two-step verification to everyone who connects.
+
+### New and changed
+
+- Correlation, Drivers, the correlation matrix and a Metric's Correlation now compare Metrics of different periods, such as weekly support tickets with monthly churn: the shorter one is combined to the longer by its Aggregation, and the result says "Compared by month (18 months)". A Metric whose Aggregation is none stays with its own period, and the result says why it is missing.
+- A Metric's owner who also submits it can press **Ask me now** on its page to get this period's request for the value at once, by email, Slack or Telegram, instead of waiting for the Workflow.
+- A dashboard can take a Snapshot of every half-year or every year by itself: choose **Every half-year** or **Every year** under **Snapshots ▸ Take one by itself…**. Each is taken once every Metric on the dashboard is Locked for all its periods in the half-year or year, or after the set number of days.
+- Owners and Admins can set the month the workspace's year starts in, under Workspace → General. Quarters, half-years and years in Comparisons and Snapshots follow it, and a fiscal year is named by both calendar years it spans, such as "FY 2026/27" and "Q1 FY 2026/27".
+- A Snapshot can now be of a half-year ("H2 2026") or a whole year ("2026") as well as of a week, a month or a quarter: choose **Half-year** or **Year** under **Take a Snapshot…**. Half-years and years follow the month your year starts in. A deck made from an annual Snapshot is titled with the year.
+- A quarterly Metric compares with the quarter before, its half-year and the year before (never MoM), and a yearly one with the year before. Their forecasts look two quarters or one year ahead; a yearly Metric has one after four years, and the chart says so until then.
+- Workflows work per quarter and year: a quarterly or yearly Metric is asked for the quarter or year that ended ("What's the number for NPS for Q3 2026?"), its Due Date counts working days after that quarter or year, and Unusual Values, Approvals and Locks go per quarter or year.
+- A Metric can now be Quarterly or Yearly: one value per quarter or year of the workspace's fiscal year, named "Q3 2026" or "2026" in its form, chart, tables and Targets tab.
+- A Widget shown by quarter or year looks the same on deck slides, in Free layouts, through View Links, in Snapshots and in the PowerPoint and PDF export. A Snapshot keeps the quarter that was running at the end of its period marked "to date", however long after you open it.
+- Widgets can show a Metric by a longer period: **Show by** in a Widget's menu turns a monthly Metric into quarters, half-years or years (and a daily or weekly one into weeks or months), combined by its Aggregation the same way the Comparisons are. The quarter you are in is marked "to date" with how many of its months it holds, and targets are combined by quarter too.
+- Owners and Admins can turn Telegram on for their workspace on the Connectors page, once whoever runs Ziffr has set up a Telegram bot. Self-hosters: make a bot with @BotFather and set `ZIFFR_TELEGRAM_BOT_TOKEN` (with `ZIFFR_SECRETS_KEY` and an https `ZIFFR_SITE_URL`). Connecting people, sending and answers follow in the next steps of spec 0016.
+- Telegram messages have buttons: an Approver approves an Unusual Value with **Approve**, and anyone stops requests for numbers and reminders on Telegram with **Stop these on Telegram**, which tells the Metric owners. Turn them on again on the Connectors page.
+- Where a workspace has Telegram on, everyone can connect their own Telegram: members in the Telegram box on the Connectors page, Contacts on their personal form. Sending /stop to the bot, or blocking it, disconnects. Developers: `pnpm telegram:poll` fetches Telegram updates for a Ziffr on a laptop (`ZIFFR_TELEGRAM_POLLING=1`).
+- Answers by Telegram come back: replying to a request for a number records the value, replying to a question or task answers in its Thread, and a line "Correction: 1234" proposes a Correction. A message that replies to nothing gets a hint instead, so no number lands on the wrong Metric.
+- Ziffr sends requests for numbers, questions, tasks, reminders and replies by Telegram to everyone who connected their Telegram, where the workspace turned it on: choose Telegram as where you get them on the Connectors page. Telegram is a new Source for values too; Metrics that took answers by Slack or email take them by Telegram as well.
+- The Connectors page shows how to connect Claude or another AI assistant through the MCP Server, with this Ziffr's address filled in. Developers: a Trial Workspace keeps at most two Access Keys and two Feeds (two keys each) that work, none past the trial's last day.
+- The Connectors page says for each Connector whether it is real, simulated or off here, and why; the Outbox marks what was not sent. The demo says on every page that its messages are simulated. Developers: a Ziffr that offers trials shows them next to the demo on its sign-in page, with what works in a trial and what it asks of you.
+
+### Fixed
+
+- An Approval given twice at the same moment, such as a double tap on Approve in Slack or Telegram, now counts once, so the next Approver is asked once and the period is published once.
+- After "Try the demo" the top bar shows the demo's navigation at once, and after "Leave the demo" the signed-out one, without reloading the page.
+- A Widget shown by quarter, half-year or year now marks a past span that lacks some of its values, such as a quarter with two of its three months. It is hatched in bars, an open dashed point in a line, and named "only 2 of 3 months", so its lower sum is not read as a drop. The PowerPoint export names it the same way and shows no change against it.
+- Previews of Widget and Dashboard Templates show their sample months and weeks correctly in time zones west of UTC.
+- In a deck, **+** in the Pool puts a widget in the first free space on the slide, next to what is already there, instead of on top of it.
+- The user guide explains quarterly and yearly Metrics: creating one, how Workflows ask for it, its Comparisons and forecast, and how the workspace's fiscal year decides where its quarters and years start.
+- Comparisons of a weekly Metric by month, quarter or half-year now count the weeks of a span by the Monday they start on, so a month that starts on a Monday no longer misses a week, and one that does not no longer expects one too many.
+
+### For developers
+
+- Correlation moved into the core (`@ziffr/core/correlation`), where `correlate` compares two Metrics of different periods on the longer one; Forecast and Correlation now have unit tests.
+- Between releases, the pre-release "Preview" on the releases page shows what `main` holds: the waiting release notes and every commit since the last release.
+- The API, `@ziffr/sdk`, the MCP server and `@ziffr/feed-kit` accept and return the periods `quarter` and `year`. `GET /api/v1/workspace` (`ziffr.workspace()`, the MCP tool `get_workspace`) and `GET /api/v1/feed` say which month the fiscal year starts in. The Metric Catalog suggests Net Promoter Score, Employee Net Promoter Score and Headcount as quarterly Metrics, and Annual revenue and Annual revenue target as yearly ones.
+- The API's dashboard widgets take and return `display`, the period a widget shows its Metric by ("quarter", "half", "year", and "week" or "month" for shorter Metrics; `null` for its own). The SDK and the MCP tools `add_widget` and `update_widget` take it too.
+- A Trial Workspace shows its days left on every page, reminds its Owner the day before it ends, then closes (keys stop, Slack and Telegram unlinked) and is deleted a week later with its Owner, by the new job `POST /api/jobs/trial-cleanup`; its Owner can download its values as CSV or end it at once. Self-hosters: Docker Compose calls the job hourly when `ZIFFR_TRIAL_DAYS` is set, and then also resets the shared demo nightly.
+- A new Trial Workspace starts with thirteen made-up Metrics (every period from day to year, every aggregation, a Breakdown, a Target Series, a Derived Metric), their history up to the last finished period, a Workflow that asks its Owner and a dashboard that shows each of them by a longer period, to date.
+- With `ZIFFR_TRIAL_DAYS` set, every new workspace is a Trial Workspace (spec 0021): one per person, at most `ZIFFR_TRIAL_MAX` at once, and nobody can be invited to it. Trials are not ready to offer yet; leave the setting unset until the spec is done.
+- A Trial Workspace sends email, Slack and Telegram messages only to its Owner, at most 50 a day over all of them, keeps everything else in the Outbox, takes no replies once it has ended, and holds at most 25 Metrics.
+- A new Trial Workspace opens on **Try it**, a card per way values and messages travel with whether it is real here, how to try it, and a tick once a value came by it, followed by what a trial never does.
+
+This version becomes available under AGPL-3.0 on 2029-11-18.
+
 ## 0.8.0 (2026-11-16)
 
 ### For self-hosters
