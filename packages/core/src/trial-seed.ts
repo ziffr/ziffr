@@ -64,7 +64,8 @@ export async function seedTrialWorkspace(actor: Actor, now: Date = new Date(), s
   const values = startingValues(today, yearStart, seed);
   const rows = values.map((v) => ({
     metric_id: ids[v.slug], period_start: v.period, value: v.value, submitter_id: actor.personId,
-    source: v.imported ? "api" : "web_form", imported: v.imported, workspace_id: actor.workspaceId,
+    // Made-up values, so never "by the web form": the Try it page ticks a way off only once a real value came by it.
+    source: "api", imported: v.imported, workspace_id: actor.workspaceId,
   }));
   for (let i = 0; i < rows.length; i += 500) {
     const part = values.slice(i, i + 500);

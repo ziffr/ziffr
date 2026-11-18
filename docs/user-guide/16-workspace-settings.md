@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -45,6 +45,8 @@ You can start another Workspace at any time from the menu under your name in the
 ### On a Ziffr that offers trials
 
 Some Ziffrs, such as a public demo site, offer **Trial Workspaces** instead. The sign-in page then shows two choices side by side: **Try it for real** (a Trial Workspace of your own, with what works in it and its limits) and **Look around** (the shared demo). After signing in, **Start your trial** makes one Trial Workspace for you alone. It starts with made-up Metrics, a dashboard and a Workflow that asks you; nobody else can be invited, nothing is sent to anyone but you, and it is deleted after the number of days the page names.
+
+A new trial opens on **Try it**: one card per way values and messages travel (email, replies by email, Slack, Telegram, the web form, the API, AI assistants, Feeds, WhatsApp, the ticket system). Each says whether it is **Real**, **Simulated** or **Off** on this Ziffr and why, and, for the real ones, how to try it in a sentence with a link. A card is ticked once a value really arrived that way; the made-up starting values do not count. Below the cards, **What a trial never does** lists what to not wait for.
 
 ### Asking to join
 

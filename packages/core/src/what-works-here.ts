@@ -4,6 +4,7 @@
 // trial rules), so the explanation can never say "real" while the queue keeps a message back. Every page that sets
 // expectations reads this; none writes its own list. It holds no workspace data beyond whether Slack or Telegram is on.
 import type { Actor } from "./actor";
+import { db } from "./db";
 import { inboundEnabled, mailEnabled } from "./mail";
 import { slackEnabled } from "./slack-api";
 import { slackSends } from "./slack-send";
@@ -85,4 +86,24 @@ export function whatThisZiffrOffers(env: Record<string, string | undefined> = pr
     way("feeds", "real", "n8n, scripts and other programs with a Feed Key.", `At most ${TRIAL_KEYS_MAX} Feeds.`),
   ];
   return { demo, trial: { days: settings.days, ways } };
+}
+
+/** Which ways have worked in the actor's workspace: a value arrived by them, not counting the made-up values a trial
+ * starts with. For the Try it page; Owners only, since it looks at every value of the workspace. Counts only. */
+export async function waysTried(actor: Pick<Actor, "workspaceId" | "role">): Promise<Record<Way, boolean>> {
+  const none = Object.fromEntries(WAYS.map((w) => [w, false])) as Record<Way, boolean>;
+  if (actor.role !== "owner") return none;
+  const ws = actor.workspaceId;
+  const count = async (q: PromiseLike<{ count: number | null }>) => ((await q).count ?? 0) > 0;
+  const by = (source: string) => count(db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("source", source));
+  const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", ws);
+  const feedIds = (feeds ?? []).map((f) => f.person_id as string);
+  const [email, slack, telegram, form, keyed, fed, replied] = await Promise.all([
+    by("mail"), by("slack"), by("telegram"), by("web_form"),
+    // A value sent with a person's Access Key: by a program or an assistant, which look the same to Ziffr.
+    count(db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).not("access_key_id", "is", null)),
+    feedIds.length ? count(db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("submitter_id", feedIds)) : Promise.resolve(false),
+    count(db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("outcome", ["recorded", "replied", "corrected"])),
+  ]);
+  return { ...none, email, "email-replies": replied && email, slack, telegram, "web-form": form, api: keyed, mcp: keyed, feeds: fed };
 }
