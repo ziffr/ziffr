@@ -1,15 +1,11 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
 // Unit tests of the pure rules; tests against the database (*.db.test.ts) run with vitest.db.config.ts.
 // Coverage (spec 0022): every line and branch of the calculation modules runs in a test. Coverage only shows that code
-// ran; the references (src/test/reference) show that it is right. The other calculation modules join the list as
-// they reach 100 % (#126): numbers, formula, format, parse, correlation, workflow-rules and the forecast.
-export const CALCULATION_MODULES = [
-  "src/display-periods.ts", "src/periods.ts", "src/snapshot-periods.ts", "src/compare.ts", "src/exact.ts",
-  "src/format.ts", "src/workflow-rules.ts", "src/attainment-method.ts", "src/units.ts", "src/number-style.ts", "src/formula.ts", "src/series.ts",
-  "src/numbers.ts", "src/numbers/period-words.ts", "src/numbers/languages.ts", "src/parse.ts",
-  "src/correlation.ts", "src/forecast.ts", "src/export-values.ts",
-];
+// ran; the references (src/test/reference) show that it is right. The modules are listed once, in
+// calculation-modules.json, for coverage and the Calculation Catalogue's test (catalogue.test.ts).
+export const CALCULATION_MODULES: string[] = JSON.parse(readFileSync(new URL("./calculation-modules.json", import.meta.url), "utf8"));
 
 export default defineConfig({
   test: {

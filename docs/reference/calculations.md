@@ -1,0 +1,79 @@
+# The Calculation Catalogue
+
+Every calculation Ziffr does on values, with its rule in plain words, the code that does it, the reference it is held to and the tests that hold it there (spec 0022, "Verification is the first requirement"). How the tests work, and how to add one, is in [the calculation tests guide](../guides/calculation-tests.md).
+
+**What is checked.** `packages/core/src/catalogue.test.ts` fails when an exported function of a calculation module (`packages/core/calculation-modules.json`) has no row here, when a module has no section, and when a mutant that mutation testing leaves out has no line under "Mutants that cannot matter". So a new calculation cannot slip in untested.
+
+**How to read a row.** _Code_ names the module and its functions. _Reference_ is a file in `packages/core/src/test/reference/`, written apart from the code and checked by its own hand-worked tests. _Tests_ are files in `packages/core/src/`. "Exact" means the double nearest to the exact decimal result, ties to the even one, never a floating-point neighbour.
+
+**What every module gets.** Each calculation module is held to 100 % of lines and branches by coverage. Mutation testing (Stryker, at least 95 %) follows in the next pull request of #126.
+
+## Combining periods (Aggregations and Display Periods)
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| A series by a Display Period | Sum, average or last value of each span's Metric periods. A Metric period belongs to the span its first day falls in, so a week belongs to the month its Monday is in. A period given twice counts once, with the value given last. A span shows once it holds a value and at least half of its periods, rounded up. The span today falls in counts up to its latest value. Aggregation none never combines. Sums and averages are exact. | `src/display-periods.ts`: `seriesBy`, `latestOfEach`, `periodCount`, `valueOver`, `combines`, `displayPeriodsFor`, `isLonger`, `isDisplayPeriod` | `combine.ts`, `calendar.ts`, `exact.ts` | `aggregations.test.ts`, `aggregations-generated-*.test.ts`, `display-periods.test.ts` |
+| What a widget shows | The Metric's own periods, or its series by the chosen Display Period when it combines. Otherwise its own periods, with the reason (Aggregation none, inputs not shared). | `src/display-periods.ts`: `shownSeries`, `resolverFrom` | `combine.ts` | `display-periods.test.ts`, `same-number.db.test.ts` |
+| A span's name and how full it is | "Q4 2026 to date, 2 of 3 months" for a span not over yet. "Q2 2026, only 2 of 3 months" for one that is over but has gaps. Otherwise the period's name. | `src/display-periods.ts`: `pointName`, `heldText`, `isPartial`, `spanCount`, `dayAfter` | — (words) | `display-periods.test.ts` |
+| Target Series combined | A span's target is the Target Series combined by the Aggregation over every Metric period the span counts, where each has one. Otherwise it is the Target Range, unless the values are added up. Otherwise there is none. | `src/display-periods.ts`: `targetsBy` | `combine.ts` (`referenceTargets`) | `aggregations-targets.test.ts`, generated tests |
+| Exact sums and averages | Values are read from their shortest text as BigInt fractions, added and divided once, and turned into the nearest double. | `src/exact.ts`: `exactTotal`, `scaled`, `fractionOf`, `fractionOfText`, `nearestDouble`, `nearest`, `lowestTerms`, `bitLength`, `plus`, `minus`, `times`, `over` | `exact.ts` | `exact.test.ts`, every generated test |
+| Periods and the Fiscal Year | Weeks start on Monday (ISO). Quarters, halves and years start in the Workspace's first month. A period is named by its first day. | `src/periods.ts`: `periodStart`, `periodEnd`, `shiftPeriod`, `periodsBetween`, `periodStartsIn`, `isPeriodStart`, `periodLabel`, `monthName`, `isYearStart`, `toYearStart` | `calendar.ts` | `periods.test.ts`, every generated test |
+| Snapshot and View Link values | A Snapshot keeps the Metric periods that are over by its last day, and is combined as of the day after. A frozen View Link keeps what it showed. | `src/snapshot-periods.ts`: `snapshotPeriod`, `periodContaining`, `completePeriods`, `inSnapshot`, `metricPeriodsIn`, `cutPoints`, `dataAsOfEach`, `dataAsOf` | `combine.ts` (`referenceKept`) | `aggregations-snapshots.test.ts`, `snapshot-periods.test.ts`, `same-number.db.test.ts` |
+
+## Comparisons, changes and Attainment
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| Comparisons | The latest period against the one before (prev), a calendar span to date or in full (DoD, WoW, MoM, QoQ, HoH), or the year before (YoY). YoY is 52 weeks back for a weekly Metric. The Comparison cut puts every span at the same point. | `src/compare.ts`: `compare`, `comparisonsFor`, `resolverFrom` | `combine.ts` | `aggregations-compare.test.ts`, `compare.test.ts` |
+| A change and its percentage | The difference of the two values, and that ÷ \|earlier value\| × 100, worked out exactly on the values' text; there is no percentage from 0. It is good when it goes the way the polarity likes, and neither for "closer to target" or no change. | `src/compare.ts`: `compare`; `src/exact.ts`: `difference`, `changePct` | `change.ts` (`referenceChangeOf`) | `changes.test.ts`, `aggregations-compare.test.ts` |
+| Attainment | By ratio: value ÷ target (target ÷ value when lower is better), with no percentage for a target at or below 0, or a value at or below 0 when lower is better. By distance: 100 % plus the distance to the target in steps of \|target\|, with none for a target of 0. A range is 100 % inside it. Both are exact. | `src/compare.ts`: `attainment`, `summary`, `targetFor`, `attainmentText`; `src/exact.ts`: `percentOf`, `distancePct` | `attainment.ts` | `changes.test.ts`, `compare.test.ts`, `attainment.test.ts` (reference) |
+| The difference to a target | The value minus the bound it is measured against, exactly. Shown where Attainment has no percentage. | `src/compare.ts`: `targetGap` | `change.ts` | `changes.test.ts` |
+| Which Attainment method | The Metric's own, else the Workspace's. A Snapshot made before the choice existed keeps ratio. | `src/attainment-method.ts`: `methodFor`, `keptMethod`, `isAttainmentMethod`, `attainmentMethodNote` | — (a choice) | `attainment-method.test.ts`, `attainment-method.db.test.ts` |
+| Target status and health | Below the lower bound, above the upper bound, or on the target. Health is bad outside the range, good inside it, and neutral without a range or without a finite value. A bound kept as text reads the same. | `src/format.ts`: `targetStatus`, `health`, `targetText` | `change.ts` (`referenceStatus`, `referenceHealth`) | `changes.test.ts`, `format.test.ts` |
+| The Unusual Value check | Unusual when the change in % is larger in size than the step, decided exactly (a change of exactly the step is not). Any change away from 0 is unusual. When the step says so, a value outside the target is unusual too. | `src/workflow-rules.ts`: `unusualReasons`; `src/exact.ts`: `changeBeyond` | `change.ts` (`referenceUnusual`) | `changes.test.ts`, `workflow-rules.test.ts` |
+| Due dates and Workflow words | A Due Date is n working days after a period's end, skipping weekends. A Workflow works on the last period that has ended. | `src/workflow-rules.ts`: `addWorkingDays`, `dueDate`, `workingPeriod`, `stepLabel` | — (dates by hand) | `workflow-rules.test.ts` |
+
+## Derived Metrics
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| A formula | + − × ÷, brackets, unary minus, numbers such as 12 or 0.5, and {slug}. Anything else, a missing or extra bracket, two values side by side, or `.5` and `1e3`, is refused. It is exact on the inputs' text. A division by zero or a missing input gives no value. Bounds: at most 500 characters, 50 operations (+ − × ÷ and minus signs) and 20 digits in a number, each refused with its reason. Every step is kept in lowest terms. A numerator or denominator past 8,192 bits gives no value: with values as Ziffr keeps them, no formula within the bounds gets near that. | `src/formula.ts`: `evaluate`, `checkFormula`, `formulaInputs` | `formula.ts` (shunting-yard, exact) | `derived.test.ts` (generated trees, formulas broken on purpose, bounds), `formula.test.ts` |
+| A Derived Metric per period | The formula on the latest value of each input, for periods where every input has one. | `src/series.ts`: `buildSeries` | `derived.ts` (`referenceDerivedPeriods`) | `derived.test.ts` |
+| A Derived Metric over a span | Each input is combined by its own Aggregation, and counts when it holds at least half of the span. The formula is worked out on those values as they are held (the nearest double). Spans are looked for wherever an input has a value. A span holds what the input with the fewest values holds. | `src/display-periods.ts`: `seriesBy`, `valueOver` | `derived.ts` (`referenceDerivedSeries`) | `derived.test.ts`, for every combination of the inputs' Aggregations, Display Periods and Fiscal Year starts |
+| Refusals | Inputs of different periods, or of another period than the Metric's, an input set to Aggregation none, or an input that is a Derived Metric itself are refused with the reason, when the formula is written and wherever the Metric is shown. | `src/formula.ts`: `inputsProblem`, `inputsNotCombined`, `checkFormula` | — (reasons) | `derived.test.ts`, `formula.test.ts`, `formula.db.test.ts` |
+
+## Values as they arrive
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| Reading a number | Either convention, with an optional + or − (both signs), grouping by `.`, `,`, a space or `'`, and k or M. A number with both marks, or a group that is not three digits, reads one way only. A single mark followed by exactly three digits is settled by the Number Style. Anything else is null, and so is a number larger than 10^15. | `src/numbers.ts`: `readNumber`, `numbersIn` | `write.ts` (a generated round trip) | `numbers.test.ts` |
+| Reading an answer | Period words come out first. A lone year beside another period word is the value. A year right after a period with no other number in the answer asks back. The named period is checked against the Metric's and the Prompt's. Exactly one number left is the value. | `src/numbers.ts`: `readAnswer`, `findPeriodWords`; `src/numbers/period-words.ts`: `findPeriodWords`, `wordsFor` | — (the sentence table) | `numbers.test.ts`, `answer-languages.db.test.ts`, `submissions.db.test.ts` |
+| Answer Languages | English and the languages of the Workspace's country. Only languages with a word file are tried. A US date puts the month first. | `src/numbers/languages.ts`: `answerLanguagesForCountry`, `monthFirstIn`, `checkAnswerLanguages` | — (a table) | `numbers.test.ts` |
+| Breakdowns and Target Series lines | "label value" lines read with `readNumber`. A total row is taken as the total. Two rows make a Breakdown. | `src/parse.ts`: `parseBreakdown`; `src/series-lines.ts`: `parseSeriesLine`, `parseSeriesText` | — (the reading table) | `numbers.test.ts`, `series-lines.test.ts` |
+| Submission Rules and Breakdown totals | One database call, under a lock on the Metric's period. Overwrite replaces the latest value. Add adds to it, rounded to 6 decimals. Keep both stores another value. Reject keeps the first. The Breakdown goes in with the value: under add, a label already there (in any case) is added to. A Breakdown's total is the value; the sum of its rows is used when it has none. | `record_observation` and `add_to_observation` in `supabase/migrations`; `src/submissions.ts` calls them | — (the rules on concurrent submissions) | `submissions.db.test.ts`, `api-submissions.db.test.ts` |
+
+## Writing values
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| A value with its unit | Rounded to the Metric's decimals, half away from zero, on the value's exact text. Grouped in the Number Style. A unit before has no space; a unit after has one. No minus on a value that rounds to 0. "–" for no number. | `src/format.ts`: `formatValue`, `formatNumber`, `formatPercent` | `write.ts` | `writing.test.ts`, `format.test.ts` |
+| A percentage change | One decimal, then " %", signed "+", "−", or "±" when it rounds to zero. | `src/format.ts`: `formatChange` | `write.ts` (`referenceChange`) | `writing.test.ts` |
+| Short values | From 10,000 on, k or M with one decimal below 100, never "1000k". Below 10,000, as `formatValue` writes it. | `src/format.ts`: `compactValue` | `write.ts` (`referenceCompact`) | `writing.test.ts` |
+| Dates | "4 Nov 2026", from a day, a timestamp or a Date; "–" for an invalid one. | `src/format.ts`: `formatDate` | — (dates by hand) | `format.test.ts` |
+| The Number Style and units | The four styles, the style a country usually writes, the unit a money Metric starts with, and the unit an old Snapshot's Metric shows. | `src/number-style.ts`: `isNumberStyle`, `numberStyleForCountry`, `effectiveNumberStyle`, `numberStyleExample`; `src/units.ts`: `moneyUnit`, `keptUnit`, `isUnitPosition` | — (tables) | `number-style.test.ts`, `format.test.ts` |
+
+## Analyses and exports
+
+| Calculation | Rule | Code | Reference | Tests |
+|---|---|---|---|---|
+| Correlation | Pearson's r on the periods both Metrics have, at least six of them. The shorter period is combined to the longer, complete periods only. r² = Sxy² ÷ (Sxx · Syy) is exact, and r is ±√ of its nearest double. A series that does not change has none. The strength words go by \|r\| (above 0.7, 0.4, 0.2). | `src/correlation.ts`: `correlate`, `pearson`, `pairUp`, `strength`, `commonPeriod`, `builtFrom`, `comparedBy`, `rankCorrelations`, `periodWord`, `periodCountLabel` | `analyses.ts` (`referencePearson`) | `analyses.test.ts`, `correlation.test.ts` |
+| The forecast | Holt's linear trend with α = 1/2 and β = 3/10, exact. The value h periods ahead is level + h · trend. The band is 1.96 · sd · √h, with sd the root of the mean squared one-step error. | `src/forecast.ts`: `forecast` | `analyses.ts` (`referenceHolt`) | `analyses.test.ts`, `forecast.test.ts` |
+| Deck export values | The slide's change is the widget's first Comparison, written as `formatChange` writes it. Chart values are rounded as the display rounds them. The chart number format carries the unit on its side. | `src/export-values.ts`: `exportedChange`, `chartValue`, `chartFormatCode` | `write.ts` | `analyses.test.ts`, `export-values.test.ts`, `same-number.db.test.ts` |
+| CSV export | The Number Style's decimal mark, no group marks, and every decimal the value has (at most 6). ";" is the separator when the decimal mark is a comma. | `src/export-values.ts`: `csvNumber` | `write.ts` | `analyses.test.ts`, `same-number.db.test.ts` |
+| The same number everywhere | A widget, a Snapshot, a live and a frozen View Link, a Comparison, the deck export, the CSV download, the API and the MCP Server all show the reference's number for the same Metric and span. | all of the above | `combine.ts`, `change.ts`, `write.ts` | `same-number.db.test.ts` (core and web) |
+
+## Mutants that cannot matter
+
+Mutation testing changes the code on purpose and expects a test to fail. A change that leaves every result the same cannot fail a test. Such a mutant is left out in the code with a `// Stryker disable next-line <mutator>: <reason>` comment, and listed here as `file` · mutator · reason. The catalogue test fails when a comment has no line here.
+
+<!-- mutants: one line per disabled mutant, "- `src/file.ts` · Mutator · reason" -->
