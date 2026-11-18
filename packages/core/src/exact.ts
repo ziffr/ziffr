@@ -25,7 +25,8 @@ export function fractionOf(v: number): Fraction {
   return { num: digits, den: TEN ** BigInt(places) };
 }
 
-const bitLength = (n: bigint) => n.toString(2).length;
+/** How many bits a whole number's size takes (0 has one). */
+export const bitLength = (n: bigint) => (n < ZERO ? -n : n).toString(2).length;
 const TWO_53 = TWO ** BigInt(53);
 
 /** The double nearest to num / den (den positive), ties to even: the quotient is taken to 53 bits with the
@@ -58,12 +59,31 @@ export function exactTotal(values: readonly number[], count: number): number {
   return nearestDouble(sum, TEN ** BigInt(places) * BigInt(count));
 }
 
-// a − b and a ÷ b on fractions, the denominator kept positive.
-const minus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den - b.num * a.den, den: a.den * b.den });
-const over = (a: Fraction, b: Fraction): Fraction => (b.num < ZERO ? { num: -a.num * b.den, den: a.den * -b.num } : { num: a.num * b.den, den: a.den * b.num });
+/** A number written as digits with an optional decimal part ("12", "0.5"), exactly. */
+export function fractionOfText(text: string): Fraction {
+  const [, sign, whole, decimals = ""] = TEXT.exec(text)!;
+  return { num: BigInt(`${sign}${whole}${decimals}`), den: TEN ** BigInt(decimals.length) };
+}
+
+/** A fraction in lowest terms: numerator and denominator divided by their greatest common divisor. */
+export function lowestTerms(a: Fraction): Fraction {
+  let [x, y] = [a.num < ZERO ? -a.num : a.num, a.den];
+  while (y) [x, y] = [y, x % y];
+  return x > ONE ? { num: a.num / x, den: a.den / x } : a;
+}
+
+/** a + b on fractions. */
+export const plus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den + b.num * a.den, den: a.den * b.den });
+/** a − b on fractions. */
+export const minus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den - b.num * a.den, den: a.den * b.den });
+/** a × b on fractions. */
+export const times = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.num, den: a.den * b.den });
+/** a ÷ b on fractions, the denominator kept positive; b is not 0. */
+export const over = (a: Fraction, b: Fraction): Fraction => (b.num < ZERO ? { num: -a.num * b.den, den: a.den * -b.num } : { num: a.num * b.den, den: a.den * b.num });
+/** The double nearest to a fraction. */
+export const nearest = (a: Fraction) => nearestDouble(a.num, a.den);
 const times100 = (a: Fraction): Fraction => ({ num: a.num * HUNDRED, den: a.den });
 const plus100 = (a: Fraction): Fraction => ({ num: a.num + HUNDRED * a.den, den: a.den });
-const nearest = (a: Fraction) => nearestDouble(a.num, a.den);
 const finite = (...vs: number[]) => vs.every((v) => Number.isFinite(v));
 
 /** a − b, exactly on the values' text, as the nearest double: 0.3 − 0.1 is 0.2. Not finite in, not finite out. */

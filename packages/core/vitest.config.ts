@@ -6,7 +6,7 @@ import { defineConfig } from "vitest/config";
 // they reach 100 % (#126): numbers, formula, format, parse, correlation, workflow-rules and the forecast.
 export const CALCULATION_MODULES = [
   "src/display-periods.ts", "src/periods.ts", "src/snapshot-periods.ts", "src/compare.ts", "src/exact.ts",
-  "src/format.ts", "src/workflow-rules.ts", "src/attainment-method.ts", "src/units.ts", "src/number-style.ts",
+  "src/format.ts", "src/workflow-rules.ts", "src/attainment-method.ts", "src/units.ts", "src/number-style.ts", "src/formula.ts", "src/series.ts",
 ];
 
 export default defineConfig({

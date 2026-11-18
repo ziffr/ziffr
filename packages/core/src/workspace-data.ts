@@ -1,9 +1,13 @@
 // Data of one Workspace (GLOSSARY: Metric, Observation, Action, Target Series, Projection, Breakdown). Every loader
 // takes the workspace and reads nothing outside it; what a person may see is decided in access.ts.
 import { db } from "./db";
-import { evaluate, formulaInputs, inputsProblem } from "./formula";
+import { formulaInputs } from "./formula";
+import { buildSeries } from "./series";
 import { normalizeMetric } from "./metric-row";
 import type { Action, BreakdownRow, Metric, Observation, Point } from "./types";
+
+/** Plotted series per Metric, computed from observations (series.ts). */
+export { buildSeries } from "./series";
 
 /** Rows a hosted database returns at most for one request (its API "Max Rows", 1000 by default). */
 export const PAGE_ROWS = 1000;
@@ -84,47 +88,6 @@ export function withInputs(metrics: readonly Metric[], ids: Iterable<number>): n
     }
   }
   return [...out];
-}
-
-/** Plotted series per metric slug. keep_both → latest value wins on the chart. Derived metrics are computed. */
-export function buildSeries(metrics: Metric[], observations: Observation[]): Record<string, Point[]> {
-  const bySlug: Record<string, Point[]> = {};
-  const byId = Object.fromEntries(metrics.map((m) => [m.id, m]));
-  const raw: Record<string, Map<string, number>> = {};
-  for (const o of observations) {
-    const m = byId[o.metric_id];
-    if (!m) continue;
-    (raw[m.slug] ??= new Map()).set(o.period_start, o.value);
-  }
-  for (const m of metrics) {
-    if (!m.formula) {
-      bySlug[m.slug] = [...(raw[m.slug] ?? new Map())].map(([period, value]) => ({ period, value })).sort((a, b) => a.period.localeCompare(b.period));
-    }
-  }
-  for (const m of metrics) {
-    if (!m.formula) continue;
-    // Inputs of different periods meet only by chance (a day that starts a month): no series rather than a wrong one.
-    // The page and widgets say why (inputsProblem).
-    if (inputsProblem(m, metrics)) {
-      bySlug[m.slug] = [];
-      continue;
-    }
-    const inputs = formulaInputs(m.formula);
-    const periods = [...new Set(inputs.flatMap((s) => [...(raw[s]?.keys() ?? [])]))].sort();
-    bySlug[m.slug] = periods
-      .map((period) => {
-        const vars: Record<string, number> = {};
-        for (const s of inputs) {
-          const v = raw[s]?.get(period);
-          if (v === undefined) return null;
-          vars[s] = v;
-        }
-        const value = evaluate(m.formula!, vars);
-        return value === null ? null : { period, value };
-      })
-      .filter((p): p is Point => p !== null);
-  }
-  return bySlug;
 }
 
 /** A workspace's Metrics and their plotted series. With `points`, each series holds only its last periods, for lists;

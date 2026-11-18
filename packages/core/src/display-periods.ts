@@ -3,7 +3,7 @@
 // is the same in a chart, a table and a Comparison strip.
 import { exactTotal } from "./exact";
 import { format } from "date-fns";
-import { evaluate, formulaInputs, inputsNotCombined } from "./formula";
+import { evaluate, formulaInputs, inputsNotCombined, inputsProblem } from "./formula";
 import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { CanvasData, Metric, Point, TemplateId } from "./types";
 
@@ -135,16 +135,21 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   if (!combines(metric)) return { ok: false, reason: NOT_COMBINED, points: [] };
   // A Derived Metric combines through its inputs: one set to Aggregation none leaves every span empty, so it says why
   // instead of drawing an empty chart (spec 0022).
+  // So do inputs of another period, or Derived Metrics themselves: no span could be computed rightly from them.
+  const inputs = metric.formula ? formulaInputs(metric.formula).flatMap((s) => resolve(s) ?? []) : [];
   if (metric.formula) {
-    const why = inputsNotCombined(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []));
+    const why = inputsProblem(metric, inputs.map((r) => r.metric)) ?? inputsNotCombined(metric, inputs.map((r) => r.metric));
     if (why) return { ok: false, reason: why, points: [] };
   }
+  const inputPoints = inputs.map((r) => latestOfEach(r.points));
   const ys = opts.yearStart;
   const today = opts.today ?? format(new Date(), "yyyy-MM-dd");
   const latest = points[points.length - 1]?.period;
   const anchor = opts.alignTo ? periodStart(opts.alignTo, display, ys) : null;
 
   // The spans that hold a value with their values, oldest first (the points are).
+  // A Derived Metric's spans are those its inputs have values in: each input counts once it holds half of a span,
+  // so two inputs may both count in a half-year without a month of both (spec 0022, #126).
   const spans = new Map<string, Point[]>();
   for (const p of points) {
     const s = periodStart(p.period, display, ys);
@@ -152,8 +157,12 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     if (held) held.push(p);
     else spans.set(s, [p]);
   }
+  for (const p of inputPoints.flat()) {
+    const s = periodStart(p.period, display, ys);
+    if (!spans.has(s)) spans.set(s, []);
+  }
   const out: DisplayPoint[] = [];
-  for (const [start, values] of spans) {
+  for (const [start, values] of [...spans].sort(([a], [b]) => (a < b ? -1 : 1))) {
     const last = periodEnd(start, display);
     const length = periodCount(own, start, last, ys);
     const toDate = today >= start && today <= last;
@@ -167,8 +176,9 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     const value = metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
     // Every value in the span lies on or before its cut (a span to date is cut at the latest value), so `inSpan`
-    // is what it holds.
-    out.push({ period: start, value, held: inSpan.length, length, toDate, through: end });
+    // is what it holds; a Derived Metric holds what the input with the fewest values holds.
+    const held = metric.formula ? Math.min(...inputPoints.map((ps) => ps.filter((p) => p.period >= start && p.period <= end).length)) : inSpan.length;
+    out.push({ period: start, value, held, length, toDate, through: end });
   }
   return { ok: true, points: out };
 }
