@@ -154,8 +154,8 @@ describe("a Feed as a Metric's Submitter", () => {
 describe("what a Feed Key sees", () => {
   it("lists only its own Metrics that take API values, with the periods that have a value and no values", async () => {
     const { w, sara, m, feed, feedId } = await withFeed({ name: "Pipeline" });
-    await w.value(m.id, monthsAgo(2), 100, sara);
-    await w.value(m.id, monthsAgo(1), 120, sara);
+    await w.value(m.id, monthsAgo(2), 98765, sara);
+    await w.value(m.id, monthsAgo(1), 87654, sara);
     const off = await w.metric(sara, { sources: ["web_form"] }); await addFeedToMetric(w.actor(sara), off.id, feedId);
     await db().from("metrics").update({ sources: ["web_form"] }).eq("id", off.id);
     const derived = await w.metric(sara, { formula: `{${m.slug}} * 2`, sources: ["api"] }); await w.token(derived.id, feedId);
@@ -163,7 +163,7 @@ describe("what a Feed Key sees", () => {
     const overview = await feedOverview(feed, { limit: 50 });
     expect(overview.name).toBe("CRM");
     expect(overview.metrics.items).toEqual([{ slug: m.slug, name: "Pipeline", period: "month", unit: "", format: "number", decimals: 0, current: thisMonth(), due_working_days: null, filled: [monthsAgo(2), monthsAgo(1)] }]);
-    expect(JSON.stringify(overview)).not.toMatch(/100|120/);
+    expect(JSON.stringify(overview)).not.toMatch(/98765|87654/);
   });
   it("refuses a Metric of another workspace, one it does not feed, and one whose API is off, alike", async () => {
     const { w, sara, m, feed } = await withFeed();

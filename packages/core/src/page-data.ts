@@ -259,6 +259,16 @@ export async function createWorkspace(personId: string, name: string): Promise<s
   const ws = trials ? { id: await createTrialWorkspace(personId, title, trials) } : await plainWorkspace(personId, title);
   // Never a copy of another workspace's Theme (logo, footer).
   await db().from("themes").insert({ ...STARTER_THEME, owner_id: personId, is_default: true, workspace_id: ws.id });
+  if (trials) {
+    // A trial starts filled, so its dashboard shows something at once. Loaded here, not at the top: the seed uses
+    // the operations that themselves read this module. A seed that fails leaves an empty trial, not none.
+    const { seedTrialWorkspace } = await import("./trial-seed");
+    try {
+      await seedTrialWorkspace({ personId, workspaceId: ws.id, role: "owner" });
+    } catch (e) {
+      console.error("The trial's starting Metrics could not be made:", (e as Error).message);
+    }
+  }
   return ws.id as string;
 }
 
