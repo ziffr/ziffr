@@ -7,23 +7,25 @@ import { LayoutTemplate } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
-import { TEMPLATES } from "@/views/templates";
+import { templateOf } from "@/views/templates";
 import type { DropSource } from "@/app/canvas-actions";
-import type { CanvasData, Slot, TeamTemplate, TemplateId, WidgetTemplate } from "@ziffr/core/types";
+import type { CanvasData, Slot, TeamTemplate, TemplateId, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 import { Preview } from "./preview";
 import type { FrameWidget } from "./read-only-frame";
 
 /** What the dialog asks for: a team template, or a built-in one by id. */
-type Asked = { kind: "team"; t: WidgetTemplate } | { kind: "builtin"; id: TemplateId };
+type Asked = { kind: "team"; t: WidgetTemplate } | { kind: "builtin"; id: TemplateId; settings?: WidgetSettings };
 type Ask = { asked: Asked; fills: number[][]; resolve: (f: number[][] | null) => void };
 
-const slotsOf = (a: Asked): Slot[] => (a.kind === "team" ? a.t.slots : TEMPLATES[a.id].slots);
+// A built-in template, or a Workspace's View Design (its Slots come from the design it carries).
+const builtin = (a: Extract<Asked, { kind: "builtin" }>) => templateOf({ template: a.id, settings: a.settings ?? {} });
+const slotsOf = (a: Asked): Slot[] => (a.kind === "team" ? a.t.slots : builtin(a).slots);
 
 /** The widget the chosen metrics make, and its size in grid cells. */
 function made(a: Asked, fills: number[][]): { widget: FrameWidget; size: { w: number; h: number } } {
   if (a.kind === "team") return { widget: fromTemplate(a.t, fills), size: { w: a.t.w, h: a.t.h } };
-  const t = TEMPLATES[a.id];
-  return { widget: { template: a.id, metric_ids: fills.flat(), settings: t.settings, title: null }, size: t.size };
+  const t = builtin(a);
+  return { widget: { template: a.id, metric_ids: fills.flat(), settings: { ...t.settings, ...(a.settings ?? {}) }, title: null }, size: t.size };
 }
 
 /** Returns a dialog to render and ask(): the fills for a template, or null when cancelled. */
@@ -48,8 +50,8 @@ export function useSlotFill(data: CanvasData) {
 
   /** A Pool drop, with the slots filled in when it is a template: a team one, or a built-in one without metrics yet. */
   const complete = useCallback(async (s: DropSource): Promise<DropSource | null> => {
-    if (s.type === "spec" && s.metricIds.length === 0 && TEMPLATES[s.template]?.slots.length) {
-      const fills = await open({ kind: "builtin", id: s.template });
+    if (s.type === "spec" && s.metricIds.length === 0 && templateOf({ template: s.template, settings: s.settings ?? {} }).slots.length) {
+      const fills = await open({ kind: "builtin", id: s.template, settings: s.settings });
       return fills ? { ...s, metricIds: fills.flat() } : null;
     }
     if (s.type !== "template" || s.fills) return s;
@@ -68,8 +70,8 @@ export function useSlotFill(data: CanvasData) {
   const example = (ids?: number[]) => (ids ?? []).map((id) => data.metrics.find((m) => m.id === id)?.name).filter(Boolean).join(", ");
   const slots = state ? slotsOf(state.asked) : [];
   const ready = !!state && fillsComplete(slots, state.fills);
-  const name = state && (state.asked.kind === "team" ? state.asked.t.name : TEMPLATES[state.asked.id].label);
-  const description = state && (state.asked.kind === "team" ? state.asked.t.description : TEMPLATES[state.asked.id].blurb);
+  const name = state && (state.asked.kind === "team" ? state.asked.t.name : builtin(state.asked).label);
+  const description = state && (state.asked.kind === "team" ? state.asked.t.description : builtin(state.asked).blurb);
   // The Preview draws metrics the viewer picked from those the page has: nothing they could not place anyway.
   const preview = state && ready ? made(state.asked, state.fills) : null;
   const dialog = state && (

@@ -6,6 +6,7 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { visibleDecks } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
+import { assertWidgetDesigns } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
 
@@ -39,6 +40,8 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   if (JSON.stringify(document ?? null).length > MAX_DOCUMENT) throw new Error("This deck is too large to save.");
   // Showing a deck, also through a View Link, must tell no other site that someone looked (spec 0009).
   assertNoOutsideContent(document, "deck");
+  // A widget on a slide may carry a View Design: it is checked like a file brought in (spec 0024).
+  assertWidgetDesigns(document);
   const { data: before } = await db().from("decks").select("document").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   // A malformed marker (NaN) never counts as "already there": only real ids are.
   const had = new Set(deckMetricIds(before?.document).filter(Number.isFinite));

@@ -14,7 +14,7 @@ import { WidgetFrame } from "@/components/widget-frame";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { placeWidget, saveDashboardText, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
-import { TEMPLATES, DEFAULT_TEMPLATE } from "@/views/templates";
+import { TEMPLATES, DEFAULT_TEMPLATE, templateOf } from "@/views/templates";
 import type { CanvasData, Share, Widget } from "@ziffr/core/types";
 import type { DashboardAccess } from "@/lib/access";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,7 @@ const sizeOf = (s: DropSource | null, saved: Widget[], templates: CanvasData["te
     const w = saved.find((x) => x.id === s.id);
     return w ? { w: w.w, h: w.h } : TEMPLATES[DEFAULT_TEMPLATE].size;
   }
-  if (s.type === "spec") return TEMPLATES[s.template].size;
+  if (s.type === "spec") return templateOf({ template: s.template, settings: s.settings ?? {} }).size;
   if (s.type === "template") {
     const t = templates.find((x) => x.id === s.id);
     return t ? { w: t.w, h: t.h } : TEMPLATES[DEFAULT_TEMPLATE].size;

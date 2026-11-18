@@ -3,6 +3,7 @@
 // drawn by code of their own. Plain data, shared by the app and the core.
 import { BUILT_IN_DESIGNS, designSettings, designSlots, type DesignedView } from "./built-in-designs";
 import type { Slot, TemplateId, WidgetSettings } from "./types";
+import type { ViewDesign } from "./view-design";
 
 /** A built-in Widget Template: what it draws and its default size and settings. */
 export type TemplateDef = {
@@ -42,6 +43,8 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Finding: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 4, h: 8 }, settings: {} },
   story: { id: "story", label: "Finding: composed", blurb: "A frame around one or more panels: period bars, bridges, small multiples.", kind: "story", slots: one, size: { w: 8, h: 10 }, settings: { panels: [] } },
+  // A View Design of the Workspace: its name, Slots and settings come from the design the widget carries (designTemplate).
+  design: { id: "design", label: "View Design", blurb: "A View your Workspace added as a View Design.", kind: "metric", slots: one, size: { w: 6, h: 6 }, settings: {} },
   canvas: { id: "canvas", label: "Free layout", blurb: "Place widgets, text, arrows and shapes freely, like on a slide.", kind: "layout", slots: [], size: { w: 8, h: 10 }, settings: {} },
   "story-line": { id: "story-line", label: "Finding: annotated line", blurb: "The trend with callouts at moments that matter.", kind: "story", slots: one, size: { w: 8, h: 9 }, settings: { window: 12, callouts: [] } },
 };
@@ -49,8 +52,22 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
 /** The template a Metric dropped on a dashboard gets. */
 export const DEFAULT_TEMPLATE: TemplateId = "number";
 /** Templates that show one Metric. */
-export const METRIC_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "metric");
+export const METRIC_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "metric" && t.id !== "design");
 /** Story templates. */
 export const STORY_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "story");
 /** Templates one metric can be shown in: story templates that need a breakdown only when it has one. */
 export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES.filter((t) => !t.needsBreakdown || hasBreakdown), TEMPLATES.canvas];
+
+/** The built-in templates offered to choose from: every one but the stand-in for a Workspace's View Design, which is
+ * offered by its own name (GLOSSARY: View Design). */
+export const OFFERED_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.id !== "design");
+
+/** A Workspace's View Design as a template to offer and fill: by its own name, Slots, size and settings. */
+export function designTemplate(design: ViewDesign): TemplateDef {
+  return { id: "design", label: design.name, blurb: design.description ?? "", kind: design.kind, slots: designSlots(design), size: design.size, settings: designSettings(design) };
+}
+
+/** A widget's template as it is drawn and filled: for a Workspace's View Design, that design's. */
+export function templateOf(widget: { template: TemplateId; settings: WidgetSettings }): TemplateDef {
+  return widget.template === "design" && widget.settings.design ? designTemplate(widget.settings.design.body) : TEMPLATES[widget.template];
+}

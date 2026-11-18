@@ -170,7 +170,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -241,6 +241,9 @@ export type WidgetSettings = {
   asOf?: string | null;
   /** The widget this free layout started from, placed on the artboard the first time it opens. */
   canvasSeed?: { template: TemplateId; metric_ids: number[]; settings: WidgetSettings } | null;
+  /** A widget drawn by a View Design of the Workspace (template "design"): which one, and the widget's own checked
+   * copy of it, so removing the design from the Workspace changes no widget already placed. */
+  design?: { id: number | null; body: import("./view-design").ViewDesign } | null;
 };
 
 /** A widget on a dashboard, or saved to its owner's Pool (GLOSSARY: Widget). */
@@ -283,6 +286,9 @@ export type CanvasData = {
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   /** The team's Widget Templates (GLOSSARY: Widget Template). */
   templates: TeamTemplate[];
+  /** The Workspace's View Designs to choose from (GLOSSARY: View Design); left out where nothing is placed, such as a
+   * View Link or a Snapshot, whose widgets carry their own copy. */
+  designs?: { id: number; name: string; body: import("./view-design").ViewDesign }[];
   /** The team's Themes; one is the default (GLOSSARY: Theme). */
   themes: Theme[];
   /** May change themes (the workspace owner). */

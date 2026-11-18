@@ -31,7 +31,7 @@ export class Unusable extends Error {
 
 /** Built-in views a key may place: not a Free Layout (a drawing), not a composed Finding (its panels need the
  * editor); Findings are added with addFindingWithKey instead. */
-export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => TEMPLATES[id].kind !== "layout" && id !== "story");
+export const KEY_VIEWS = (Object.keys(TEMPLATES) as TemplateId[]).filter((id) => TEMPLATES[id].kind !== "layout" && id !== "story" && id !== "design");
 
 /** The few settings a key may set; anything else a widget can hold stays with the editor. */
 export type KeySettings = { window?: number; showTarget?: boolean; showForecast?: boolean; rows?: number; display?: DisplayPeriod | null };

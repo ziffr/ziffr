@@ -93,6 +93,16 @@ Metrics of every period are compared, each on the longer of its own period and t
 
 A grid with every Metric on both sides. Each square holds the r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its r and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
 
+## View Designs
+
+**View Designs** at the top right of Analyze opens the list of designs. A **View Design** is a View written as a file: which Metrics it takes, what it draws and in which Theme colours. It holds no code. Ziffr checks the file and draws it with its own renderer, and every number in it is one Ziffr computes.
+
+- **The Workspace's View Designs**: the designs Owners and Admins added. Everyone in the Workspace finds them in the Pool, under **The Workspace's View Designs**, and places them like a built-in View.
+- **Built-in View Designs**: every built-in View and Analysis, drawn with Sample Data.
+- **Export** downloads the design's file and a Sample Data file that fits it. Neither holds any of your Workspace's values.
+
+Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr checks it as you paste and names every mistake with its line, such as "Line 12: parts[0].marks[1].tone must be one of “data”, “muted”…". **Add to the Workspace** checks it again on the server. A file with web addresses, markup, fields Ziffr does not know, or more than the limits allow is refused. **Remove** takes a design out of the Workspace; Widgets already drawn with it keep it. Adding and removing are in the Audit Log. The demo keeps no View Designs.
+
 ## Saving a result
 
 Results are not kept when you leave the screen; save the ones you want. Each result has a **⋯** menu, which right-clicking also opens:

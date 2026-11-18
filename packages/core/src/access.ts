@@ -1,6 +1,7 @@
 // Who sees what in a Workspace (GLOSSARY: Share, Viewer, Editor, Group, Token, Thread). These load the facts of one
 // workspace only; the decisions are made by the pure rules in visibility.ts, which ignore rows from any other one.
 import { db } from "./db";
+import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
@@ -152,7 +153,7 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
  * `seriesOf` every visible Metric's series is sent; pages pass the ones they show, and fetch more with canvasSeries. */
 export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf?: SeriesOf } = {}): Promise<CanvasData> {
-  const [metrics, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }, yearStart, numberStyle, attainmentMethod] = await Promise.all([
+  const [metrics, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }, yearStart, numberStyle, attainmentMethod, { data: designRows }] = await Promise.all([
     getMetrics(ws), peopleIn(ws),
     // Only the Actions still open, with the columns that decide who may read them: the canvas only counts them.
     allRows<Pick<Action, "id" | "metric_id" | "status" | "asker_id" | "assignee_id" | "read_group_id"> & { workspace_id: string }>((from, to) =>
@@ -168,6 +169,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     yearStartOf(ws),
     numberStyleOf(ws),
     attainmentMethodOf(ws),
+    // The Workspace's View Designs to choose from (spec 0024): names and checked files, no values.
+    db().from("view_designs").select("id, name, body").eq("workspace_id", ws).order("id"),
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
@@ -187,6 +190,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     targets,
     projections,
     templates: (templates ?? []) as TeamTemplate[],
+    // Guests place nothing; a row that no longer passes the checks is never sent.
+    designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],
     themes: (themes ?? []) as Theme[],
     // Owners and admins manage themes (GLOSSARY: Workspace Role).
     canEditThemes: me?.role === "owner" || me?.role === "admin",

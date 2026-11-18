@@ -48,5 +48,7 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   const broken = inputsProblem(m, data.metrics);
   if (broken) return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{broken}</div>;
   if (isDesignedView(widget.template)) return <DesignView design={BUILT_IN_DESIGNS[widget.template]} widget={widget} metrics={ms} data={data} onPointContext={onPointContext} />;
+  // A Workspace's View Design: the widget's own checked copy (the core checks it on every save).
+  if (widget.template === "design") return widget.settings.design ? <DesignView design={widget.settings.design.body} widget={widget} metrics={ms} data={data} onPointContext={onPointContext} /> : <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">This widget has no View Design.</div>;
   return <StoryBody widget={{ ...widget, settings: fillSettings(widget, data) }} data={data} m={m} onRowContext={onRowContext ? (l, p) => onRowContext(m.id, l, p) : undefined} />;
 }

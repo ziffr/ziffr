@@ -77,7 +77,7 @@ You can paste or drop an image file onto a slide. Links cannot go on a slide: Zi
 
 What the side panel shows depends on what you have selected.
 
-**A Widget selected.** The **Visualization** list changes how the Widget draws its Metric, with the same choices as on a dashboard. The note below it reminds you which ones become editable charts in PowerPoint. When the Widget is a **Finding**, its editor opens below, so you can change its headline, words and panels.
+**A Widget selected.** The **Visualization** list changes how the Widget draws its Metric, with the same choices as on a dashboard. The note below it reminds you which ones become editable charts in PowerPoint. A Widget drawn by one of the Workspace's View Designs keeps its design on the slide, titled by the design's name when it is an Analysis. When the Widget is a **Finding**, its editor opens below, so you can change its headline, words and panels.
 
 **A slide selected.** Click the edge or the name of a slide to select it.
 

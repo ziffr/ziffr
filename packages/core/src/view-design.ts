@@ -34,7 +34,7 @@ export type PlotMark =
   | { mark: "bar"; show: "values"; tone?: Tone; when?: Flag[] }
   | { mark: "point"; show: "pairs" | "drivers.pairs"; tone?: Tone; when?: Flag[] }
   | { mark: "band"; show: "target"; when?: Flag[] }
-  | { mark: "rule"; show: "target.min" | "target.max" | "average"; tone?: Tone; when?: Flag[] };
+  | { mark: "rule"; show: "target.min" | "target.max"; tone?: Tone; when?: Flag[] };
 
 /** A part of a design's layout, drawn top to bottom (or side by side in a row group). */
 export type Part =
@@ -207,7 +207,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("bar", "One bar per period.", { show: { const: "values" }, tone }, ["show"]),
         mark("point", "One point per period two Metrics share: the first against the second (pairs), or against the one that moves most with it (drivers.pairs).", { show: { enum: ["pairs", "drivers.pairs"] }, tone }, ["show"]),
         mark("band", "The target range.", { show: { const: "target" } }, ["show"]),
-        mark("rule", "A straight line across the plot.", { show: { enum: ["target.min", "target.max", "average"] }, tone }, ["show"]),
+        mark("rule", "A straight line across the plot.", { show: { enum: ["target.min", "target.max"] }, tone }, ["show"]),
       ],
     },
   },
