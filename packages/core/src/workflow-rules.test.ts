@@ -79,4 +79,9 @@ describe("a Workflow step in words", () => {
     expect(unusualReasons(metric(), 0, 0, "2026-01-01", check, JANUARY, "1,234.5", { min: null, max: -1 })).toEqual(["above target"]);
     expect(unusualReasons(metric(), 5, 0, "2026-01-01", { ...check, outsideTarget: false }, JANUARY, "1,234.5", { min: 10, max: null })).toEqual(["up from 0 on January 2026"]);
   });
+  it("calls a value on the target's bound within it", () => {
+    const check = { type: "check" as const, changePct: 10, outsideTarget: true };
+    expect(unusualReasons(metric(), 10, 10, "2026-01-01", check, JANUARY, "1,234.5", { min: 10, max: 10 })).toEqual([]);
+    expect(unusualReasons(metric(), 10, 10, "2026-01-01", check, JANUARY, "1,234.5", { min: null, max: 9 })).toEqual(["above target"]);
+  });
 });

@@ -79,6 +79,11 @@ describe("the function library, against the references", () => {
       sameSeries(got, ref, `${vs} by ${season}`);
     }), { numRuns: numRuns * 2, seed });
   });
+  it("seasonal index has nothing for values whose mean is 0, and works for a negative mean", () => {
+    // Generated values rarely add up to exactly 0 (#126, found by mutation testing): say so by hand.
+    expect(pts(seasonalIndex(at([1, -1, 2, -2]), 2))).toEqual([]);
+    expect(pts(seasonalIndex(at([-1, -3, -1, -3]), 2)).map((p) => p.value)).toEqual([50, 150, 50, 150]);
+  });
   it("correlation is Pearson's r as the Correlation Analysis computes it, none without six pairs or for a flat series", () => {
     fc.assert(fc.property(values(0, 20), values(0, 20), (a, b) => {
       const r = pearson(at(a), at(b));

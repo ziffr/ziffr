@@ -68,7 +68,8 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
     const base = { key, label: COMPARE_LABEL[key] };
     let cur: [string, string];
     let prev: [string, string];
-    const grain: Grain | null = key === "prev" || key === "yoy" ? null : GRAIN[key];
+    // None for the previous period and the year before, which are not calendar spans to date.
+    const grain: Grain | undefined = GRAIN[key as keyof typeof GRAIN];
 
     if (key === "prev" || (grain && RANK[grain] === RANK[P])) {
       const p = shiftPeriod(last.period, P, -1);
@@ -129,14 +130,15 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
     // Exact on the values' text, as the aggregations are (spec 0022): 0.3 against 0.1 is a change of 0.2 and +200 %.
     const abs = difference(current, previous);
     const pct = changePct(current, previous);
+    // Stryker disable next-line EqualityOperator: abs is not 0 past the guard, so `abs > 0` and `abs >= 0` never differ.
     const good = metric.polarity === "target" || abs === 0 ? null : (abs > 0) === (metric.polarity === "higher");
     return { ...base, available: true, current, previous, abs, pct, good, currentSpan: spanLabel(cur[0], cur[1], P, ys), previousSpan: spanLabel(prev[0], prev[1], P, ys) };
   }
 }
 
 /** The target for one period: the Target Series value if there is one, otherwise the metric's range. */
-export function targetFor(metric: Metric, period: string, targets: Point[] = []) {
-  const t = targets.find((p) => p.period === period);
+export function targetFor(metric: Metric, period: string, targets?: readonly Point[]) {
+  const t = targets?.find((p) => p.period === period);
   if (t) return { min: metric.polarity === "lower" ? null : t.value, max: metric.polarity === "lower" ? t.value : null, fromSeries: true, value: t.value };
   return { min: metric.target_min, max: metric.target_max, fromSeries: false, value: metric.polarity === "lower" ? metric.target_max : metric.target_min };
 }
@@ -159,7 +161,9 @@ function byDistance(polarity: Metric["polarity"], value: number, min: number | n
   // `ahead` is a − b: how far the value is on the good side of `target`, negative when it falls short. Exact
   // (exact.ts), so 0.3 against at most 0.2 is 50 % and not 49.99…%.
   const pct = (target: number, a: number, b: number) => (target === 0 || !Number.isFinite(target) ? null : distancePct(a, b, target));
+  // Stryker disable next-line ConditionalExpression: pct gives null for no target too (Number.isFinite(null) is false); the guard only keeps the types right.
   if (polarity === "higher") return min === null ? null : pct(min, value, min);
+  // Stryker disable next-line ConditionalExpression: as above, for the upper bound.
   if (polarity === "lower") return max === null ? null : pct(max, max, value);
   if (min === null && max === null) return null;
   if (min !== null && value < min) return pct(min, value, min);
@@ -172,7 +176,8 @@ function byDistance(polarity: Metric["polarity"], value: number, min: number | n
  * target, so a target at or below zero has no percentage, and neither has a value at or below zero for "lower is
  * better" (target ÷ 0 is no number, and a negative ratio would call the best value the worst). */
 function byRatio(polarity: Metric["polarity"], value: number, min: number | null, max: number | null): number | null {
-  const usable = (target: number | null): target is number => target !== null && Number.isFinite(target) && target > 0;
+  // Number.isFinite is false for null, so it also says there is a target.
+  const usable = (target: number | null): target is number => Number.isFinite(target) && Number(target) > 0;
   // Exact (exact.ts): 0.1 against at least 0.3 is the double nearest to a third, from the values' text.
   if (polarity === "higher") return usable(min) ? percentOf(value, min) : null;
   if (polarity === "lower") return usable(max) && value > 0 ? percentOf(max, value) : null;
@@ -192,7 +197,9 @@ export function targetGap(metric: Metric, value: number, t: { min: number | null
   if (!Number.isFinite(value)) return null;
   if (metric.polarity === "higher") return min === null ? null : difference(value, min);
   if (metric.polarity === "lower") return max === null ? null : difference(value, max);
+  // Stryker disable next-line EqualityOperator: on the bound the difference is 0, as inside the range.
   if (min !== null && value < min) return difference(value, min);
+  // Stryker disable next-line EqualityOperator: on the bound the difference is 0, as inside the range.
   if (max !== null && value > max) return difference(value, max);
   return min === null && max === null ? null : 0;
 }
@@ -207,9 +214,10 @@ export function attainmentText(a: number, style: NumberStyle, digits = 0): strin
 export function summary(metric: Metric, resolve: Resolver, targets: Point[] | undefined, opts: { keys?: CompareKey[]; full?: boolean; yearStart: YearStart; attainmentMethod: AttainmentMethod }) {
   const pts = latestOfEach(resolve(metric.slug)?.points ?? []);
   const last = pts[pts.length - 1];
-  const t = last ? targetFor(metric, last.period, targets ?? []) : null;
-  const att = last && t ? attainment(metric, last.value, t, opts.attainmentMethod) : null;
-  const gap = last && t ? targetGap(metric, last.value, t) : null;
+  // There is a target exactly when there is a latest value.
+  const t = last ? targetFor(metric, last.period, targets) : null;
+  const att = t ? attainment(metric, last!.value, t, opts.attainmentMethod) : null;
+  const gap = t ? targetGap(metric, last!.value, t) : null;
   return {
     value: last?.value,
     period: last?.period,
@@ -219,8 +227,9 @@ export function summary(metric: Metric, resolve: Resolver, targets: Point[] | un
     method: methodFor(metric, opts.attainmentMethod),
     /** The difference to the target, shown where Attainment has no percentage. */
     gap,
-    /** Whether the latest value is on target, from Attainment or, without one, from the difference; null without a target. */
-    onTarget: att !== null ? att >= 100 : gap === null ? null : metric.polarity === "higher" ? gap >= 0 : metric.polarity === "lower" ? gap <= 0 : gap === 0,
+    /** Whether the latest value is on target, from the difference; null without a target. Attainment, where it has
+     * a percentage, is 100 % or more exactly then: both are exact, and no value next to its target rounds to 100 %. */
+    onTarget: gap === null ? null : metric.polarity === "higher" ? gap >= 0 : metric.polarity === "lower" ? gap <= 0 : gap === 0,
     comparisons: compare(metric, resolve, opts),
   };
 }

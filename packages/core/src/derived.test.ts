@@ -277,6 +277,24 @@ describe("a Derived Metric", () => {
     const d = metric({ id: 3, slug: "d", formula: "{a} + {w}" });
     const obs = observationsOf([a, w, metric({ id: 9, slug: "gone" })], [[{ period: "2026-01-01", value: 1 }], [{ period: "2026-01-05", value: 2 }], [{ period: "2026-01-01", value: 3 }]]);
     expect(buildSeries([a, w, d], obs)).toEqual({ a: [{ period: "2026-01-01", value: 1 }], w: [{ period: "2026-01-05", value: 2 }], d: [] });
+    // Even where a week and a month start on the same day (Monday 1 June 2026), the two do not meet.
+    const same = observationsOf([a, w], [[{ period: "2026-06-01", value: 1 }], [{ period: "2026-06-01", value: 2 }]]);
+    expect(buildSeries([a, w, d], same).d).toEqual([]);
+  });
+  it("plots each Metric's values oldest first, whatever order they were stored in, and a Derived Metric's where all inputs have one", () => {
+    const [a, b] = [metric({ id: 1, slug: "a" }), metric({ id: 2, slug: "b" })];
+    const d = metric({ id: 3, slug: "d", formula: "{a} + {b}" });
+    const lone = metric({ id: 4, slug: "lone", formula: "{a} * {nobody}" });
+    const obs = observationsOf([a, b], [
+      [{ period: "2026-03-01", value: 3 }, { period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }],
+      [{ period: "2026-02-01", value: 20 }, { period: "2026-01-01", value: 10 }],
+    ]);
+    expect(buildSeries([a, b, d, lone], obs)).toEqual({
+      a: [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }, { period: "2026-03-01", value: 3 }],
+      b: [{ period: "2026-01-01", value: 10 }, { period: "2026-02-01", value: 20 }],
+      d: [{ period: "2026-01-01", value: 11 }, { period: "2026-02-01", value: 22 }],
+      lone: [],
+    });
   });
 });
 

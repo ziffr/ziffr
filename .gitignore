@@ -12,6 +12,9 @@ node_modules
 
 # testing
 coverage
+# mutation testing (Stryker): its sandbox and reports
+.stryker-tmp/
+packages/core/reports/
 
 # next.js
 .next/

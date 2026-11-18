@@ -27,6 +27,7 @@ type Token = { t: string; at: number };
 function parse(formula: string): { ok: true; node: Node } | { ok: false; reason: string } {
   if (formula.length > FORMULA_MAX_LENGTH) return { ok: false, reason: `The formula is longer than ${FORMULA_MAX_LENGTH} characters.` };
   const tokens: Token[] = [];
+  // Stryker disable next-line Regex: white space is read one character or a run at a time, and left out either way
   const re = /\s+|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
   for (let at = 0; at < formula.length; ) {
     re.lastIndex = at;
@@ -34,16 +35,18 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     if (!m) {
       const ch = formula[at];
       if (ch === "{") return { ok: false, reason: `"${formula.slice(at, formula.indexOf("}", at) + 1 || undefined)}" does not name a Metric: write its slug in lower case, such as {revenue}.` };
-      if (/\d/.test(formula[at - 1] ?? "") || ch === ".") return { ok: false, reason: `"${ch}" is not part of a number here: write numbers such as 12 or 0.5.` };
+      // Right after a digit, or a point: written as part of a number.
+      if (/\d$/.test(formula.slice(0, at)) || ch === ".") return { ok: false, reason: `"${ch}" is not part of a number here: write numbers such as 12 or 0.5.` };
       return { ok: false, reason: `"${ch}" cannot be read: a formula has + - * /, brackets, numbers and {metric}.` };
     }
-    if (!/^\s/.test(m[0])) tokens.push({ t: m[0], at });
+    // White space only separates.
+    if (m[0].trim()) tokens.push({ t: m[0], at });
     at += m[0].length;
   }
   if (!tokens.length) return { ok: false, reason: "The formula is empty." };
   const long = tokens.find((t) => /^\d/.test(t.t) && t.t.replace(".", "").length > FORMULA_MAX_DIGITS);
   if (long) return { ok: false, reason: `"${long.t.slice(0, 24)}…" has more than ${FORMULA_MAX_DIGITS} digits.` };
-  if (tokens.filter((t) => /^[+\-*/]$/.test(t.t)).length > FORMULA_MAX_OPERATIONS) return { ok: false, reason: `The formula has more than ${FORMULA_MAX_OPERATIONS} operations.` };
+  if (tokens.filter((t) => OPERATORS.has(t.t)).length > FORMULA_MAX_OPERATIONS) return { ok: false, reason: `The formula has more than ${FORMULA_MAX_OPERATIONS} operations.` };
   let i = 0;
   const fail = (reason: string): never => { throw new FormulaError(reason); };
   function primary(): Node {
@@ -57,8 +60,10 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     }
     if (tok.t === "-") return { k: "neg", a: primary() };
     if (tok.t.startsWith("{")) return { k: "ref", slug: tok.t.slice(1, -1) };
-    if (/^\d/.test(tok.t)) return { k: "num", v: tok.t };
-    return fail(tok.t === ")" ? "A bracket is closed that was not opened." : `"${tok.t}" stands where a value is missing.`);
+    if (tok.t === ")") return fail("A bracket is closed that was not opened.");
+    if (OPERATORS.has(tok.t)) return fail(`"${tok.t}" stands where a value is missing.`);
+    // What is left is a number.
+    return { k: "num", v: tok.t };
   }
   function term(): Node {
     let node = primary();
@@ -91,27 +96,32 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
 
 class FormulaError extends Error {}
 
+// The operators a formula may have; a minus where a value stands negates it.
+const OPERATORS = new Set(["+", "-", "*", "/"]);
+
 // Worked out exactly on the inputs' text and the formula's numbers (exact.ts), so {a} - {b} for 0.3 and 0.1 is 0.2 and
-// a margin is the double nearest to the exact one; a division by zero or an input that is not a number gives none.
-function run(n: Node, vars: Record<string, number>): Fraction {
+// a margin is the double nearest to the exact one. Null for no value: an input that is missing or not a number, a
+// division by zero, or a result past FORMULA_MAX_BITS.
+function run(n: Node, vars: Record<string, number>): Fraction | null {
   switch (n.k) {
     case "num": return fractionOfText(n.v);
     case "ref": {
       const v = vars[n.slug];
-      if (v === undefined || !Number.isFinite(v)) throw new FormulaError("missing");
-      return fractionOf(v);
+      return Number.isFinite(v) ? fractionOf(v) : null;
     }
     case "neg": {
       const a = run(n.a, vars);
-      return { num: -a.num, den: a.den };
+      return a && { num: -a.num, den: a.den };
     }
     case "op": {
       const a = run(n.a, vars), b = run(n.b, vars);
-      if (n.op === "/" && b.num === BigInt(0)) throw new FormulaError("division by zero");
+      if (!a || !b || (n.op === "/" && b.num === BigInt(0))) return null;
       // Kept in lowest terms after every step, and stopped past FORMULA_MAX_BITS, so nothing grows without limit.
       const r = lowestTerms(n.op === "+" ? plus(a, b) : n.op === "-" ? minus(a, b) : n.op === "*" ? times(a, b) : over(a, b));
-      if (bitLength(r.num) > FORMULA_MAX_BITS || bitLength(r.den) > FORMULA_MAX_BITS) throw new FormulaError("too large");
-      return r;
+      // A numerator past the bound with a denominator within it is a value past the doubles, which `evaluate` refuses
+      // anyway; the bound on both is what keeps the work small.
+      // Stryker disable next-line EqualityOperator,ConditionalExpression: a safety bound, not a rule of results; no value Ziffr keeps comes to exactly 8,192 bits, and a numerator past it alone means no double
+      return bitLength(r.num) > FORMULA_MAX_BITS || bitLength(r.den) > FORMULA_MAX_BITS ? null : r;
     }
   }
 }
@@ -121,13 +131,11 @@ function run(n: Node, vars: Record<string, number>): Fraction {
 export function evaluate(formula: string, vars: Record<string, number>): number | null {
   const p = parse(formula);
   if (!p.ok) return null;
-  try {
-    const v = nearest(run(p.node, vars));
-    // −0 is 0; a result beyond the doubles (a division by a tiny value) is none.
-    return Number.isFinite(v) ? v || 0 : null;
-  } catch {
-    return null;
-  }
+  const v = run(p.node, vars);
+  if (!v) return null;
+  const x = nearest(v);
+  // −0 is 0; a result beyond the doubles (a division by a tiny value) is none.
+  return Number.isFinite(x) ? x || 0 : null;
 }
 
 /** The Metrics a Derived Metric may be computed from: what `checkFormula` needs to know of each. */
@@ -139,8 +147,7 @@ export type FormulaInput = Pick<Metric, "slug" | "name" | "period" | "aggregatio
  * View Link leaves them out); `checkFormula` refuses those. Shown on the Metric's page and in widgets. */
 export function inputsProblem(metric: Pick<Metric, "formula" | "period">, inputs: FormulaInput[]): string | null {
   if (!metric.formula) return null;
-  const bySlug = new Map(inputs.map((m) => [m.slug, m]));
-  const used = formulaInputs(metric.formula).flatMap((s) => bySlug.get(s) ?? []);
+  const used = known(metric.formula, inputs);
   // Series are computed one level deep (workspace-data.ts): a Derived Metric among the inputs has no values here.
   const derived = used.filter((m) => m.formula).map((m) => m.name);
   if (derived.length) return `${derived.join(" and ")} ${derived.length === 1 ? "is a Derived Metric itself" : "are Derived Metrics themselves"}: compute from the Metrics ${derived.length === 1 ? "it is" : "they are"} made of.`;
@@ -153,8 +160,12 @@ export function inputsProblem(metric: Pick<Metric, "formula" | "period">, inputs
 
 /** The inputs of a formula set to Aggregation none, by name; they have no quarter of months. */
 function notCombining(formula: string, inputs: FormulaInput[]): string[] {
-  const bySlug = new Map(inputs.map((m) => [m.slug, m]));
-  return formulaInputs(formula).flatMap((s) => bySlug.get(s) ?? []).filter((m) => !m.formula && m.aggregation === "none").map((m) => m.name);
+  return known(formula, inputs).filter((m) => !m.formula && m.aggregation === "none").map((m) => m.name);
+}
+
+/** The inputs a formula names that are among `inputs`, in the order it names them. */
+function known(formula: string, inputs: FormulaInput[]): FormulaInput[] {
+  return formulaInputs(formula).map((s) => inputs.find((m) => m.slug === s)).filter((m): m is FormulaInput => m !== undefined);
 }
 
 const noneWords = (names: string[]) => `${names.join(" and ")} ${names.length === 1 ? "is" : "are"} set to Aggregation none`;
@@ -178,11 +189,9 @@ export function checkFormula(formula: string, inputs: FormulaInput[], metric?: P
   const bySlug = new Map(inputs.map((m) => [m.slug, m]));
   for (const s of slugs) {
     if (metric && s === metric.slug) return `{${s}} is this Metric itself: a formula cannot read its own value.`;
-    const m = bySlug.get(s);
-    if (!m) return `{${s}} is not a Metric of this Workspace.`;
-    // Series are computed from Metrics that take values (workspace-data.ts), one level deep.
-    if (m.formula) return `${m.name} is a Derived Metric itself: compute from the Metrics it is made of.`;
+    if (!bySlug.has(s)) return `{${s}} is not a Metric of this Workspace.`;
   }
+  // A Derived Metric among the inputs, or inputs of another period: inputsProblem says which.
   const own = metric?.period ?? bySlug.get(slugs[0])!.period;
   const periods = inputsProblem({ formula, period: own }, inputs);
   if (periods) return periods;

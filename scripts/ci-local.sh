@@ -19,6 +19,13 @@ step "Calculations against the reference, full strength (when a calculation path
 # The paths are listed once, in .github/calculation-paths.txt; CI's `numbers` job reads the same file.
 if .github/scripts/calculation-paths-touched.sh origin/main; then pnpm --filter @ziffr/core test:numbers; fi
 
+if ! $quick; then
+  step "Mutation testing of the calculation modules this change touches"
+  changed=$(.github/scripts/mutation-changed.sh origin/main)
+  # With the results of an earlier local run (pnpm --filter @ziffr/core test:mutation), only changed lines are tested.
+  if [ -n "$changed" ]; then pnpm --filter @ziffr/core exec stryker run --incremental --mutate "$changed"; else echo "No calculation module changed."; fi
+fi
+
 step "Security"
 if command -v gitleaks >/dev/null; then gitleaks git --redact --no-banner .; else echo "gitleaks not installed: skipped (brew install gitleaks)"; fi
 pnpm audit --prod

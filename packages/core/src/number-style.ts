@@ -25,7 +25,8 @@ export const NUMBER_STYLE_MARKS: Readonly<Record<NumberStyle, { group: string; d
 
 /** Whether a value is one of the four style keys. */
 export function isNumberStyle(x: unknown): x is NumberStyle {
-  return typeof x === "string" && (NUMBER_STYLES as readonly string[]).includes(x);
+  // No typeof check: includes() matches only one of the four strings, so nothing else gets through.
+  return (NUMBER_STYLES as readonly unknown[]).includes(x);
 }
 
 // Countries whose usual style is not the default; every other ISO 3166-1 alpha-2 code writes 1,234.5. Short on

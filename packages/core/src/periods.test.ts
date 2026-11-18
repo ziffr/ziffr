@@ -64,6 +64,11 @@ describe("periods", () => {
     expect(isPeriodStart("2026-11-09", "week", JANUARY)).toBe(true);
     expect(isPeriodStart("2026-13-01", "month", JANUARY)).toBe(false);
     expect(isPeriodStart(20260101, "day", JANUARY)).toBe(false);
+    // Only a day written yyyy-mm-dd is a first day, whatever else reads as one.
+    expect(isPeriodStart(["2026-04-01"], "day", JANUARY)).toBe(false);
+    expect(isPeriodStart("2026-04-01T00:00", "day", JANUARY)).toBe(false);
+    expect(isPeriodStart("20260401", "day", JANUARY)).toBe(false);
+    expect(isPeriodStart("2026-04-01 ", "day", JANUARY)).toBe(false);
   });
   it("names calendar periods as people expect", () => {
     expect(periodLabel("2026-11-13", "day", JANUARY)).toBe("Fri 13 Nov 2026");
@@ -87,6 +92,7 @@ describe("periods", () => {
     expect(periodLabel("2026-04-01", "half", APRIL)).toBe("H1 FY 2026/27");
     expect(periodLabel("2026-10-01", "half", APRIL, true)).toBe("H2 26/27");
     expect(periodLabel("2099-10-01", "year", OCTOBER)).toBe("FY 2099/00");
+    expect(periodLabel("2009-04-01", "year", APRIL, true)).toBe("FY09/10");
     expect(periodLabel("2025-10-01", "quarter", OCTOBER)).toBe("Q1 FY 2025/26");
     expect(periodLabel("2026-07-01", "quarter", OCTOBER)).toBe("Q4 FY 2025/26");
     // Months, weeks and days keep their calendar names.
@@ -96,10 +102,20 @@ describe("periods", () => {
     expect(isYearStart(4)).toBe(true);
     expect(isYearStart(0)).toBe(false);
     expect(isYearStart(4.5)).toBe(false);
+    expect(isYearStart(1)).toBe(true);
+    expect(isYearStart(12)).toBe(true);
+    expect(isYearStart(13)).toBe(false);
+    expect(isYearStart("4")).toBe(false);
     expect(toYearStart(10)).toBe(10);
     expect(toYearStart("7")).toBe(7);
     expect(toYearStart(13)).toBe(JANUARY);
     expect(toYearStart(null)).toBe(JANUARY);
+    expect(toYearStart("12")).toBe(12);
+    // Only one or two digits are read as a month: not a list, a space or anything else around them.
+    expect(toYearStart([4])).toBe(JANUARY);
+    expect(toYearStart(" 7")).toBe(JANUARY);
+    expect(toYearStart("7 ")).toBe(JANUARY);
+    expect(toYearStart("4.0")).toBe(JANUARY);
   });
 });
 

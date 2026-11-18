@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { runs, valueText } from "./test/reference/check";
 import { exactOf, isNearestDouble, roundedText } from "./test/reference/exact";
 import { referenceNumber } from "./test/reference/write";
-import { ANSWER_LANGUAGES, findPeriodWords, numbersIn, readAnswer, readNumber, type AnswerReading } from "./numbers";
+import { ANSWER_LANGUAGES, findPeriodWords, numbersIn, readAnswer, readNumber, type AnswerReading, type AnswerWords } from "./numbers";
 import { answerLanguagesForCountry, checkAnswerLanguages, monthFirstIn } from "./numbers/languages";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { parseBreakdown } from "./parse";
@@ -44,6 +44,21 @@ const READING: Row[] = [
   { text: "-5", values: all(-5) },
   { text: "+5", values: all(5) },
   { text: "-0", values: all(0) },
+  // k after a space, and k moving the point inside the fraction.
+  { text: "2,5 k", values: all(2500) },
+  { text: "1.2345k", values: all(1234.5) },
+  // A first group of four, or a mark beside another kind, is no group of thousands: the mark is the decimal.
+  { text: "1234.567", values: all(1234.567) },
+  { text: "1234,567", values: all(1234.567) },
+  { text: "1 234,567", values: all(1234.567) },
+  { text: "1'234.567", values: all(1234.567) },
+  // Any space groups like a plain one, either apostrophe like the other; the groups still must be three digits.
+  { text: "1 234 567", values: all(1234567) },
+  { text: "1’234'567", values: all(1234567) },
+  { text: "1 23", values: all(null) },
+  { text: "1’23", values: all(null) },
+  { text: "1234.567.890", values: all(null) },
+  { text: "1.234.56", values: all(null) },
   { text: "1e3", values: all(null) },
   { text: "1,23,4", values: all(null) },
   { text: "1.234,5.6", values: all(null) },
@@ -79,6 +94,11 @@ describe("readNumber and every caller read a text the same way", () => {
     expect(numbersIn("3-4", "1,234.5").map((n) => n.value)).toEqual([3, 4]);
     expect(numbersIn("Umsatz: 4,75 Mio", "1.234,5").map((n) => n.value)).toEqual([4.75]);
     expect(numbersIn("it was 12.", "1,234.5").map((n) => n.value)).toEqual([12]);
+    expect(numbersIn("we had 12 signups", "1,234.5")).toEqual([{ from: 7, to: 9, text: "12", value: 12 }]);
+  });
+
+  it("reads a number with spaces around it", () => {
+    for (const style of NUMBER_STYLES) expect(readNumber(" 12 ", style)).toBe(12);
   });
 });
 
@@ -197,6 +217,36 @@ const SENTENCES: Sentence[] = [
   // A year on its own is the value, not the period.
   { lang: "en", text: "2026", ...now(2026) },
   { lang: "en", text: "Q3", week: NOT, month: NOT, quarter: ask("no_number"), year: NOT },
+  // A date is never a year with the value before it, nor a year alone.
+  { lang: "en", text: "2026-11-12", week: ask("no_number"), month: ask("no_number"), quarter: ask("no_number"), year: ask("no_number") },
+  { lang: "en", text: "12 November 2025", week: ask("no_number"), month: ask("no_number"), quarter: ask("no_number"), year: ask("no_number") },
+  // A Fiscal Year written after a quarter is its year, not a value.
+  { lang: "en", text: "Q3 2026/27", week: NOT, month: NOT, quarter: ask("no_number"), year: NOT },
+  // Any run of spaces between a period and a year.
+  { lang: "en", text: "week 46  2025", week: ask("year_or_value"), month: NOT, quarter: NOT, year: NOT },
+  // Only a year by itself beside other period words is the value: "2026/27" and "FY 2026" are periods.
+  { lang: "en", text: "2026/27 and last week", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  { lang: "en", text: "FY 2026 or last week: 3", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  { lang: "en", text: "2026 2027", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  // Both period words are blanked out, so the digits of the second are not a number.
+  { lang: "en", text: "2 signups last week (week 46)", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  // Two words name one period when they fall in the same one of the Metric's; two that are not its periods are two.
+  { lang: "en", text: "yesterday (this week): 3", week: v(3, "2026-11-16"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  { lang: "en", text: "Q2 or Q3: 4500", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  { lang: "en", text: "today or last week: 3", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
+  // Month forms added by hand.
+  { lang: "en", text: "Sept: 5", week: NOT, month: v(5, "2026-09-01"), quarter: NOT, year: NOT },
+  { lang: "de", text: "Jänner: 5", week: NOT, month: v(5, "2026-01-01"), quarter: NOT, year: NOT },
+  // A month and a number with a dot after it is a month and a value, not a date ("12." is no ordinal after a month).
+  { lang: "de", text: "im Oktober 12.", week: NOT, month: v(12, "2026-10-01"), quarter: NOT, year: NOT },
+  // Dates with a year other than this one.
+  { lang: "en", text: "November 12th, 2025: 4", week: v(4, "2025-11-10"), month: v(4, "2025-11-01"), quarter: v(4, "2025-10-01"), year: v(4, "2025-04-01") },
+  { lang: "en", text: "November 12, 2025: 4", week: v(4, "2025-11-10"), month: v(4, "2025-11-01"), quarter: v(4, "2025-10-01"), year: v(4, "2025-04-01") },
+  { lang: "de", text: "12.11.2025: 4", week: v(4, "2025-11-10"), month: v(4, "2025-11-01"), quarter: v(4, "2025-10-01"), year: v(4, "2025-04-01") },
+  // Days, months and weeks that do not exist.
+  { lang: "de", text: "5.13.2026: 4", week: ask("no_such_period"), month: ask("no_such_period"), quarter: ask("no_such_period"), year: ask("no_such_period") },
+  { lang: "en", text: "0026-11-12: 4", week: ask("no_such_period"), month: ask("no_such_period"), quarter: ask("no_such_period"), year: ask("no_such_period") },
+  { lang: "en", text: "week 0: 3", week: ask("no_such_period"), month: ask("no_such_period"), quarter: ask("no_such_period"), year: ask("no_such_period") },
 ];
 
 describe("readAnswer reads sentences", () => {
@@ -217,6 +267,7 @@ describe("readAnswer reads sentences", () => {
     expect(readAnswer("2 signups, 1 churn", at("week"))).toMatchObject({ reason: "several_numbers", numbers: ["2", "1"] });
     expect(readAnswer("this week 3", at("week", "2026-11-09"))).toMatchObject({ reason: "other_period", period: "2026-11-16", promptPeriod: "2026-11-09", named: { text: "this week" } });
     expect(readAnswer("Q3 revenue 4500", at("month"))).toMatchObject({ reason: "not_a_period_of_metric", named: { text: "Q3", span: "quarter", start: "2026-10-01" } });
+    expect(readAnswer("1,23,4 signups", at("week"))).toEqual({ ok: false, reason: "unreadable_number", text: "1,23,4" });
   });
 
   it("reads only the languages it is given", () => {
@@ -262,7 +313,41 @@ describe("Answer Languages", () => {
     expect(monthFirstIn("US")).toBe(true);
     expect(monthFirstIn("GB")).toBe(false);
     expect(checkAnswerLanguages(["fr", "en", "fr"])).toEqual(["en", "fr"]);
-    for (const bad of [[], ["xx"], ["en", "xx"], "en", null, [1], Array(21).fill("en")]) expect(checkAnswerLanguages(bad)).toBeNull();
+    expect(checkAnswerLanguages(Array(20).fill("en"))).toEqual(["en"]);
+    // ["en"] is not a code, though it reads as one as a property name.
+    for (const bad of [[], ["xx"], ["en", "xx"], "en", null, [1], [["en"]], [["en"], "en"], Array(21).fill("en")]) expect(checkAnswerLanguages(bad)).toBeNull();
+  });
+  it("name English once for every country", () => {
+    for (const c of ["DE", "AT", "LI", "FR", "MC", "ES", "MX", "AR", "IT", "SM", "NL", "BE", "CH", "LU"]) expect(answerLanguagesForCountry(c).filter((l) => l === "en"), c).toEqual(["en"]);
+  });
+  it("write every word in lower case, a phrase with single plain spaces", () => {
+    const words = (x: unknown): string[] => (typeof x === "string" ? [x] : x && typeof x === "object" ? Object.values(x).flatMap(words) : []);
+    for (const l of Object.values(ANSWER_LANGUAGES)) {
+      for (const w of [...words(l.fromIntl), ...words(l.byHand)]) {
+        expect(w, `${l.code}: ${w}`).toBe(w.toLowerCase());
+        expect(w, `${l.code}: ${w}`).not.toMatch(/\s(?<! )|  /u);
+      }
+      // Words a period word can start with start with a letter, so two period words never touch (the catalogue's
+      // mutant for the overlap test in period-words.ts relies on it).
+      const h = l.byHand;
+      const first = [...words(l.fromIntl), ...words(h.relative), ...words(h.months), ...h.week.before, ...h.quarter.before, ...h.half.before, ...h.fiscalYear];
+      for (const w of first) expect(w, `${l.code}: ${w}`).toMatch(/^\p{L}/u);
+    }
+  });
+  it("read a language's words however its file writes them (a word file made for this test)", () => {
+    // A month form with a space, and a word that starts a longer one of the same kind.
+    const months = ANSWER_LANGUAGES.en.byHand.months.map((forms, i) => (i === 9 ? [...forms, "w październiku"] : forms));
+    const zz = { ...ANSWER_LANGUAGES.en, code: "zz", name: "Test", byHand: { ...ANSWER_LANGUAGES.en.byHand, months, relative: { week: { last: ["vorige", "vorige woche"] } } } };
+    const registry = ANSWER_LANGUAGES as Record<string, AnswerWords>;
+    registry.zz = zz;
+    try {
+      const found = (t: string) => findPeriodWords(t, "2026-11-18", 1, ["zz"]).map((w) => [w.text, w.from, w.to, w.start]);
+      expect(found("w  październiku: 4")).toEqual([["w  październiku", 0, 15, "2026-10-01"]]);
+      expect(found("vorige woche: 3")).toEqual([["vorige woche", 0, 12, "2026-11-09"]]);
+      expect(readAnswer("w  październiku: 4", { ...at("month"), languages: ["zz"] })).toMatchObject({ ok: true, value: 4, period: "2026-10-01" });
+    } finally {
+      delete registry.zz;
+    }
   });
 });
 
@@ -298,9 +383,46 @@ describe("every form the readers know (#126)", () => {
     // "2026/27" is a Fiscal Year only when the second year is the next one: "2026/12" is the year and a number.
     expect(found("2026/27")).toEqual([["2026/27", "year", "2026-01-01"]]);
     expect(found("2026/12")).toEqual([["2026", "year", "2026-01-01"]]);
+    // ISO weeks run from 1 to 52 or 53: 2026 has 53, 2025 has 52.
+    expect(found("week 1 2026")).toEqual([["week 1 2026", "week", "2025-12-29"]]);
+    expect(found("2026-W53")).toEqual([["2026-W53", "week", "2026-12-28"]]);
+    expect(found("2025-W53")).toEqual([["2025-W53", "week", null]]);
+    // Halves are only 1 and 2.
+    expect(found("H3")).toEqual([]);
+    // A month that begins today has begun.
+    expect(found("November", "2026-11-01")).toEqual([["November", "month", "2026-11-01"]]);
+    // Day first unless told otherwise.
+    expect(found("12/11")).toEqual([["12/11", "day", "2026-11-12"]]);
+  });
+  it("finds words with either apostrophe", () => {
+    for (const t of ["aujourd'hui", "aujourd’hui"]) expect(findPeriodWords(t, "2026-11-18", 1, ["fr"]).map((w) => [w.text, w.start])).toEqual([[t, "2026-11-18"]]);
+  });
+  it("keeps period words that do not overlap, in the order they stand", () => {
+    const found = (t: string) => findPeriodWords(t, "2026-11-18", 1, ["en"]).map((w) => w.text);
+    expect(found("today or last week")).toEqual(["today", "last week"]);
+    expect(found("Q3, today or last week")).toEqual(["Q3", "today", "last week"]);
+    // Of two that overlap, the longer one, even when it starts later; of two as long, the earlier.
+    expect(found("12 Nov 13th")).toEqual(["Nov 13th"]);
+    expect(found("Nov 12th Nov")).toEqual(["Nov 12th", "Nov"]);
   });
   it("skips empty lines of a breakdown and takes its total", () => {
     expect(parseBreakdown("A 1\n\nB 2\nTotal 3", "1,234.5")).toEqual({ rows: [{ label: "A", value: 1 }, { label: "B", value: 2 }], total: 3 });
+  });
+  it("takes a colon with or without spaces, quoted labels, and leaves out a row with no label", () => {
+    // `"  9` has only spaces inside its quote: no label, so no row.
+    const text = 'Germany:5\nAustria: 1.234,5\n  "Swiss" 7\n" Italy"  2\n"  9';
+    expect(parseBreakdown(text, "1.234,5")).toEqual({
+      rows: [{ label: "Germany", value: 5 }, { label: "Austria", value: 1234.5 }, { label: "Swiss", value: 7 }, { label: "Italy", value: 2 }],
+      total: null,
+    });
+  });
+  it("reads signs and k, keeps digits inside a label, and leaves out what is no row", () => {
+    // "2025 100" starts with a number, so it is no label; "1..2" is no number; "5x" has something after the number.
+    const text = "Returns -5\nSales 5  k\nQ1 bonus 3\n2025 100\nBad 1..2\nOdd 5x";
+    expect(parseBreakdown(text, "1,234.5")).toEqual({
+      rows: [{ label: "Returns", value: -5 }, { label: "Sales", value: 5000 }, { label: "Q1 bonus", value: 3 }],
+      total: null,
+    });
   });
 });
 

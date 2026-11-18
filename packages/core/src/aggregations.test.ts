@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { resolverFrom } from "./compare";
 import { seriesBy } from "./display-periods";
+import { formatValue } from "./format";
 import type { Span } from "./periods";
 import { metric } from "./test/fixtures";
 import { dayOf, spanEnd, spanStart, textOf } from "./test/reference/calendar";
@@ -156,6 +157,10 @@ describe("exact results", () => {
   it("gives no value where a value is not finite, rather than a wrong one", () => {
     const m = metric();
     const r = resolverFrom([m], { revenue: at(starts("2026-01-01", "month", 3, 1), (i) => (i === 1 ? Number.POSITIVE_INFINITY : 1)) });
-    expect(seriesBy(m, r, "quarter", { yearStart: 1, today: LATER }).points[0].value).toBe(Number.POSITIVE_INFINITY);
+    // No number at all (NaN since #126: exact.ts gives NaN for any value that is not finite, as for every other
+    // calculation), and the display writes it as a dash, never "∞" or a sum of the other months.
+    const [q1] = seriesBy(m, r, "quarter", { yearStart: 1, today: LATER }).points;
+    expect(q1.value).toBeNaN();
+    expect(formatValue(m, q1.value, "1,234.5")).toBe("–");
   });
 });

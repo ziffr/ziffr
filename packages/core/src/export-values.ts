@@ -17,7 +17,9 @@ export function exportedChange(m: Metric, data: CanvasData, settings: Pick<Widge
   const key = (settings.compare ?? DEFAULT_KEYS)[0];
   if (!key) return "";
   const c = compare(m, resolverFrom(data.metrics, data.series), { keys: [key], full: settings.fullPeriods, yearStart: data.yearStart })[0];
-  if (!c?.available || c.pct === null || c.pct === undefined) return "";
+  // compare() gives one Comparison per key asked for, and only an available one with an earlier value other than 0
+  // has a number as its change: that one test covers a gap, no earlier value and an earlier 0.
+  if (typeof c.pct !== "number") return "";
   return `${SHORT[key]} ${formatChange(c.pct, data.numberStyle)}`;
 }
 

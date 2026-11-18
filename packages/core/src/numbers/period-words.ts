@@ -13,19 +13,22 @@ const iso = (d: Date) => format(d, "yyyy-MM-dd");
 // A period word never starts or ends inside a word or a number: "faq3" and "1.2026" name none.
 const B = String.raw`(?<![\p{L}\p{N}]|[\p{N}][.,'’])`;
 const E = String.raw`(?![\p{L}\p{N}]|[.,'’][\p{N}])`;
-// Within a phrase, any run of spaces stands for one.
+// Within a phrase, any run of spaces stands for one; the word files write a phrase with single plain spaces.
 const S = String.raw`\s+`;
 // An apostrophe matches either kind, so "aujourd'hui" typed on a plain keyboard is "aujourd’hui".
-const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, S).replace(/['’]/g, "['’]");
-// Longest first, so "letzten monat" is taken before "monat" could be.
-const alt = (words: string[]) => [...new Set(words.map((w) => w.toLowerCase()))].sort((a, b) => b.length - a.length).map(esc).join("|") || "(?!)";
+const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, S).replace(/['’]/g, "['’]");
+// Longest first, so a phrase is taken before a shorter word it starts with could be ("vorige woche" before
+// "vorige"). The word files are in lower case and the patterns ignore case.
+const alt = (words: string[]) => [...new Set(words)].sort((a, b) => b.length - a.length).map(esc).join("|") || "(?!)";
 
 type Rule = { re: RegExp; read: (m: RegExpExecArray) => { span: Span; start: string | null } | null };
 
 /** The day a calendar date is, or null when there is no such day (31 February). */
 function day(y: number, m: number, d: number): string | null {
+  // A day past its month's end rolls into the next month and has another day number; a month past 12 or before 1
+  // rolls into another year, and so does a year below 100, which Date reads as 19xx.
   const date = new Date(y, m - 1, d);
-  return m >= 1 && m <= 12 && date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d ? iso(date) : null;
+  return date.getFullYear() === y && date.getDate() === d ? iso(date) : null;
 }
 
 /** A two-digit year as the one in this century ("26" is 2026). */
@@ -55,6 +58,7 @@ function rules(langs: AnswerWords[], today: string, yearStart: YearStart, monthF
   const ORD = `${ORDINAL}?`;
   // "12 de noviembre de 2026", "12th of November".
   const JOIN = `(?:\\s+(?:${alt(all((l) => l.byHand.dateWords))}))?`;
+  // A month as written, in lower case and with one space where the text has several ("w  październiku").
   const monthOf = (w: string) => monthIndex.get(w.toLowerCase().replace(/\s+/g, " "))!;
   const YEAR4 = String.raw`(20\d{2})`;
   // A year after a quarter, half or week: "Q3 2026", "Q3/26", "KW 46/2026", "Q3 FY 2026/27".
@@ -152,8 +156,10 @@ function rules(langs: AnswerWords[], today: string, yearStart: YearStart, monthF
   // today, yesterday, this week, letzten Monat, ...
   for (const unit of RELATIVE_UNITS) {
     for (const which of ["this", "last"] as const) {
-      const words = all((l) => [...l.fromIntl.relative[unit][which], ...(l.byHand.relative[unit]?.[which] ?? [])]);
-      if (!words.length) continue;
+      const words = all((l) => {
+        const byHand = l.byHand.relative[unit]?.[which];
+        return byHand ? [...l.fromIntl.relative[unit][which], ...byHand] : l.fromIntl.relative[unit][which];
+      });
       const now = periodStart(today, unit, yearStart);
       const start = which === "this" ? now : shiftPeriod(now, unit, -1);
       out.push({ re: r(alt(words)), read: () => ({ span: unit, start }) });
@@ -168,7 +174,8 @@ export function wordsFor(languages: readonly string[]): AnswerWords[] {
 }
 
 /** Every stretch of `text` that names a period, in the order they stand, none overlapping: where two overlap, the
- * longer one wins ("October 2026" over "2026"). `today` is a yyyy-mm-dd; `monthFirst` reads "11/12" as 12 November. */
+ * longer one wins ("October 2026" over "2026"), and of two as long the earlier. `today` is a yyyy-mm-dd;
+ * `monthFirst` reads "11/12" as 12 November. */
 export function findPeriodWords(text: string, today: string, yearStart: YearStart, languages: readonly string[], monthFirst = false): PeriodWords[] {
   const found: PeriodWords[] = [];
   for (const rule of rules(wordsFor(languages), today, yearStart, monthFirst)) {
@@ -180,6 +187,7 @@ export function findPeriodWords(text: string, today: string, yearStart: YearStar
   }
   found.sort((a, b) => b.to - b.from - (a.to - a.from) || a.from - b.from);
   const kept: PeriodWords[] = [];
+  // Stryker disable next-line EqualityOperator: two period words never touch, since each must end before a letter or digit may stand and each starts with one
   for (const f of found) if (!kept.some((k) => f.from < k.to && k.from < f.to)) kept.push(f);
   return kept.sort((a, b) => a.from - b.from);
 }

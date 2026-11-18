@@ -77,6 +77,7 @@ function pearsonOf(pairs: Pair[]): PearsonResult {
 export function strength(r: number): string {
   const a = Math.abs(r);
   if (a <= 0.2) return "no clear";
+  // Stryker disable next-line EqualityOperator: an r of 0 is "no clear" above, so `>` and `>=` never differ here.
   return `${a > 0.7 ? "strong" : a > 0.4 ? "moderate" : "weak"} ${r >= 0 ? "positive" : "negative"}`;
 }
 
@@ -102,10 +103,12 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   const period = commonPeriod(a.period, b.period);
   const combined = a.period !== b.period;
   if (builtFrom(a, b)) return { ok: false, period, n: 0, why: "built-from", reason: `${a.formula?.includes(`{${b.slug}}`) ? a.name : b.name} is calculated from the other.` };
+  // By its own period too, so each period counts once with its latest value (spec 0022): seriesBy gives a Metric's
+  // own points as latestOfEach does.
   const on = (m: Metric): Point[] | string => {
-    if (m.period === period) return resolve(m.slug)?.points ?? [];
     const s = seriesBy(m, resolve, period, opts);
-    if (!s.ok) return m.aggregation === "none" && !m.formula ? `Aggregation none: ${m.name} is compared only with ${ADJECTIVE[m.period]} Metrics.` : s.reason;
+    // A Metric that is not derived is refused only for Aggregation none: the common period is never shorter than its own.
+    if (!s.ok) return !m.formula ? `Aggregation none: ${m.name} is compared only with ${ADJECTIVE[m.period]} Metrics.` : s.reason;
     return s.points.filter((p) => !p.toDate);
   };
   const xs = on(a);

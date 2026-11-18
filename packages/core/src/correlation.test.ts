@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolverFrom } from "./compare";
-import { commonPeriod, comparedBy, correlate, MIN_PAIRS, pearson, periodWord, rankCorrelations, strength } from "./correlation";
+import { builtFrom, commonPeriod, comparedBy, correlate, MIN_PAIRS, pearson, periodCountLabel, periodWord, rankCorrelations, strength } from "./correlation";
 import { JANUARY } from "./periods";
 import { metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -139,5 +139,63 @@ describe("rankCorrelations", () => {
     expect(ranked[0].result.combined).toBe(true);
     expect(ranked[1].result).toMatchObject({ combined: false, n: 10 });
     expect(leftOut).toEqual([{ metric: flat, why: "not-combined", reason: "Aggregation none: NPS is compared only with weekly Metrics." }]);
+  });
+
+  it("ranks by |r| whatever order the Metrics come in", () => {
+    const noise = metric({ id: 6, slug: "visits", name: "Visits", period: "month", aggregation: "sum" });
+    const anti = metric({ id: 8, slug: "refunds", name: "Refunds", period: "month", aggregation: "sum" });
+    const r = resolverFrom([churn, tickets, noise, anti], {
+      churn: monthly,
+      "support-tickets": weekly,
+      visits: months("2025-01", [5, 3, 8, 1, 9, 2, 7, 4, 6, 5]),
+      refunds: monthly.map((p, i) => ({ ...p, value: -p.value + (i % 2) * 0.05 })),
+    });
+    const { ranked } = rankCorrelations(churn, [noise, anti, tickets], r, { yearStart, today: "2026-03-01" });
+    expect(ranked.map((x) => x.metric.slug)).toEqual(["support-tickets", "refunds", "visits"]);
+    const size = ranked.map((x) => Math.abs(x.result.r));
+    expect(size).toEqual([...size].sort((p, q) => q - p));
+    expect(ranked[1].result.r).toBeLessThan(-0.9);
+  });
+});
+
+describe("what correlating refuses, and how it says so (spec 0022)", () => {
+  it("counts a period given twice once, with its latest value (bug: it was paired twice)", () => {
+    const a = metric({ id: 1, slug: "a", name: "A" });
+    const b = metric({ id: 2, slug: "b", name: "B" });
+    // January is given twice; the latest, 1, is its value: A is 1 to 6, B twice that, so r is 1 on six months.
+    const r = resolverFrom([a, b], { a: [{ period: "2025-01-01", value: 100 }, ...months("2025-01", [1, 2, 3, 4, 5, 6])], b: months("2025-01", [2, 4, 6, 8, 10, 12]) });
+    const res = correlate(a, b, r, { yearStart, today: "2026-03-01" });
+    expect(res).toMatchObject({ ok: true, n: 6, r: 1 });
+    expect(res.ok && res.pairs[0]).toEqual({ period: "2025-01-01", x: 1, y: 2 });
+  });
+
+  it("gives an r of exactly 0, not −0, where the two do not move together at all", () => {
+    expect(Object.is(pearson(months("2025-01", [1, 2, 3, 4, 5, 6]), months("2025-01", [1, 2, 3, 3, 2, 1]))!.r, 0)).toBe(true);
+  });
+
+  it("says why, in words and as a kind", () => {
+    const a = metric({ id: 1, slug: "a", name: "A" });
+    const flat = metric({ id: 2, slug: "flat", name: "Flat" });
+    const r = resolverFrom([a, flat], { a: months("2025-01", [1, 2, 3, 4, 5, 6]), flat: months("2025-01", [7, 7, 7, 7, 7, 7]) });
+    expect(correlate(a, flat, r, { yearStart })).toEqual({ ok: false, period: "month", n: 6, why: "flat", reason: "One of them does not change, so there is nothing to compare." });
+    expect(periodCountLabel("month", 1)).toBe("1 month");
+    expect(periodCountLabel("month", 18)).toBe("18 months");
+  });
+
+  it("names the Derived Metric built from the other, even where both are derived", () => {
+    const cost = metric({ id: 1, slug: "cost", name: "Cost" });
+    const double = metric({ id: 2, slug: "double", name: "Double cost", formula: "{cost} * 2", aggregation: "none" });
+    const quad = metric({ id: 3, slug: "quad", name: "Quadruple cost", formula: "{double} * 2", aggregation: "none" });
+    expect(builtFrom(double, cost)).toBe(true);
+    expect(builtFrom(double, quad)).toBe(true);
+    expect(builtFrom(double, metric({ id: 4, slug: "visits" }))).toBe(false);
+    expect(correlate(double, quad, () => undefined, { yearStart })).toEqual({ ok: false, period: "month", n: 0, why: "built-from", reason: "Quadruple cost is calculated from the other." });
+  });
+
+  it("gives a Derived Metric set to Aggregation none the reason of its inputs, not of its own Aggregation", () => {
+    const stock = metric({ id: 6, slug: "stock", name: "Stock", period: "week", aggregation: "none" });
+    const flagged = metric({ id: 7, slug: "flagged", name: "Flagged", period: "week", formula: "{stock} * 2", aggregation: "none" });
+    const r = resolverFrom([churn, stock, flagged], { churn: monthly, stock: weekly, flagged: weekly });
+    expect(correlate(churn, flagged, r, { yearStart, today: "2026-03-01" })).toEqual({ ok: false, period: "month", n: 0, why: "not-combined", reason: "Shown by its own period: Stock is set to Aggregation none, so it cannot be combined into longer periods." });
   });
 });

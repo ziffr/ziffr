@@ -50,10 +50,11 @@ describe("a Comparison's change", () => {
       expect(difference(cur, prev), `${cur} − ${prev}`).toBe(abs);
       expect(changePct(cur, prev), `${cur} against ${prev}`).toBe(pct);
     }
-    // A value that is not a number gives what doubles give, which shows as no value.
-    expect(difference(Infinity, 1)).toBe(Infinity);
+    // A value that is not a number has no difference or change: NaN, which shows as no value.
+    expect(difference(Infinity, 1)).toBeNaN();
+    expect(difference(1, NaN)).toBeNaN();
     expect(changePct(NaN, 1)).toBeNaN();
-    expect(changePct(Infinity, -1)).toBe(Infinity);
+    expect(changePct(1, -Infinity)).toBeNaN();
   });
   it("is the exact difference of the spans a Comparison combines", () => {
     // Three months of 0.1 against three of 0.2, added up: −0.3 and −50 %, which doubles miss (0.30000000000000004).
@@ -87,7 +88,10 @@ describe("Attainment", () => {
     expect(distancePct(0.3, 0.2, 0.2)).toBe(150); // 100 + 0.1 of 0.2
     expect(attainment(metric({ polarity: "target" }), 0.3, { min: 0.1, max: 0.2 }, "distance")).toBe(50);
     expect(attainment(metric({ polarity: "higher" }), 0.3, { min: 0.1, max: null }, "ratio")).toBe(300);
-    expect(percentOf(Infinity, 1)).toBe(Infinity);
+    expect(percentOf(Infinity, 1)).toBeNaN();
+    expect(percentOf(1, NaN)).toBeNaN();
+    expect(distancePct(1, Infinity, 1)).toBeNaN();
+    expect(distancePct(1, 1, NaN)).toBeNaN();
     expect(distancePct(NaN, 1, 1)).toBeNaN();
     for (const method of ["ratio", "distance"] as const) {
       expect(attainment(metric(), NaN, { min: 1, max: null }, method)).toBeNull();
@@ -156,6 +160,14 @@ describe("the Unusual Value check", () => {
         expect(got, `${v} after ${p}, step ${JSON.stringify(s)}, target ${JSON.stringify(t)}`).toEqual(want);
       }),
     );
+  });
+  it("never calls an unchanged value unusual, even for a step below 0 %", () => {
+    // Workflows are saved with a step of 1 % to 1,000 %; the check does not rely on that.
+    for (const changePct of [-5, 0]) {
+      const check = { type: "check" as const, changePct, outsideTarget: false };
+      expect(unusualReasons(metric(), 1, 1, "2026-01-01", check, 1, "1,234.5"), String(changePct)).toEqual([]);
+      expect(unusualReasons(metric(), 1.5, 1, "2026-01-01", check, 1, "1,234.5"), String(changePct)).toEqual(["up 50.0 % on January 2026"]);
+    }
   });
   it("does not flag a change of exactly the step", () => {
     const check = { type: "check" as const, changePct: 10, outsideTarget: false };

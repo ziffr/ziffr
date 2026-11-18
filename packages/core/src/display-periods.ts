@@ -78,6 +78,7 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
     const vars: Record<string, number> = {};
     for (const input of formulaInputs(metric.formula)) {
       const v = valueOver(input, start, end, resolve, expected);
+      // Stryker disable next-line ConditionalExpression: `evaluate` gives none for a formula missing an input too; this only stops early.
       if (v === undefined) return undefined;
       vars[input] = v;
     }
@@ -100,7 +101,8 @@ export function resolverFrom(metrics: readonly Metric[], series: Record<string, 
 export function latestOfEach(points: readonly Point[]): Point[] {
   const byPeriod = new Map<string, number>();
   for (const p of points) byPeriod.set(p.period, p.value);
-  return [...byPeriod].map(([period, value]) => ({ period, value })).sort((a, b) => (a.period < b.period ? -1 : 1));
+  // Sorted as text, which is time order for days written yyyy-mm-dd.
+  return [...byPeriod.keys()].sort().map((period) => ({ period, value: byPeriod.get(period)! }));
 }
 
 /** The values of a span (oldest first) combined by an Aggregation, once at least half of the `expected` periods
@@ -109,12 +111,10 @@ function combined(aggregation: Metric["aggregation"], inSpan: readonly Point[], 
   // Some metrics skip periods (no deals on weekends); a span counts when at least half of it has values.
   if (!inSpan.length || inSpan.length < Math.ceil(expected / 2)) return undefined;
   if (inSpan.length === 1) return inSpan[0].value;
-  switch (aggregation) {
-    case "sum": return total(inSpan, 1);
-    case "average": return total(inSpan, inSpan.length);
-    case "last": return inSpan[inSpan.length - 1].value;
-    default: return undefined;
-  }
+  // Aggregation none has no value for a span of more than one period.
+  if (aggregation === "none") return undefined;
+  if (aggregation === "last") return inSpan[inSpan.length - 1].value;
+  return total(inSpan, aggregation === "sum" ? 1 : inSpan.length);
 }
 
 // Sums and averages are exact (spec 0022, "Exact results"): exact.ts adds the values' text as BigInts and turns
@@ -136,42 +136,33 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   // A Derived Metric combines through its inputs: one set to Aggregation none leaves every span empty, so it says why
   // instead of drawing an empty chart (spec 0022).
   // So do inputs of another period, or Derived Metrics themselves: no span could be computed rightly from them.
+  // Both checks find nothing for a Metric that is not derived.
   const inputs = metric.formula ? formulaInputs(metric.formula).flatMap((s) => resolve(s) ?? []) : [];
-  if (metric.formula) {
-    const why = inputsProblem(metric, inputs.map((r) => r.metric)) ?? inputsNotCombined(metric, inputs.map((r) => r.metric));
-    if (why) return { ok: false, reason: why, points: [] };
-  }
+  const why = inputsProblem(metric, inputs.map((r) => r.metric)) ?? inputsNotCombined(metric, inputs.map((r) => r.metric));
+  if (why) return { ok: false, reason: why, points: [] };
   const inputPoints = inputs.map((r) => latestOfEach(r.points));
   const ys = opts.yearStart;
   const today = opts.today ?? format(new Date(), "yyyy-MM-dd");
   const latest = points[points.length - 1]?.period;
   const anchor = opts.alignTo ? periodStart(opts.alignTo, display, ys) : null;
 
-  // The spans that hold a value with their values, oldest first (the points are).
-  // A Derived Metric's spans are those its inputs have values in: each input counts once it holds half of a span,
+  // The spans that hold a value, oldest first (sorted as text, which is time order for days written yyyy-mm-dd). A
+  // Derived Metric's spans are also those its inputs have values in: each input counts once it holds half of a span,
   // so two inputs may both count in a half-year without a month of both (spec 0022, #126).
-  const spans = new Map<string, Point[]>();
-  for (const p of points) {
-    const s = periodStart(p.period, display, ys);
-    const held = spans.get(s);
-    if (held) held.push(p);
-    else spans.set(s, [p]);
-  }
-  for (const p of inputPoints.flat()) {
-    const s = periodStart(p.period, display, ys);
-    if (!spans.has(s)) spans.set(s, []);
-  }
+  const starts = new Set([...points, ...inputPoints.flat()].map((p) => periodStart(p.period, display, ys)));
   const out: DisplayPoint[] = [];
-  for (const [start, values] of [...spans].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  for (const start of [...starts].sort()) {
     const last = periodEnd(start, display);
     const length = periodCount(own, start, last, ys);
     const toDate = today >= start && today <= last;
     // Where the span is cut (a day, inclusive): at the same point as `alignTo`, or at the latest value while the span
     // is not over, so a quarter two months in is two months, not two thirds of a quarter.
+    // Stryker disable next-line EqualityOperator: a latest value on the span's last day cuts it there either way.
+    const atLatest = toDate && latest <= last;
     let end = last;
     if (anchor) end = shiftPeriod(opts.alignTo!, display, periodsBetween(anchor, start, display));
-    else if (toDate && latest <= last) end = latest;
-    const inSpan = values.filter((p) => p.period <= end);
+    else if (atLatest) end = latest;
+    const inSpan = points.filter((p) => p.period >= start && p.period <= end);
     const expected = periodCount(own, start, end, ys);
     const value = metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
@@ -198,7 +189,7 @@ export function spanCount(n: number, span: Span): string {
 
 /** Whether a value is a Display Period, for checking what a browser or a program sends. */
 export function isDisplayPeriod(v: unknown): v is DisplayPeriod {
-  return typeof v === "string" && (ORDER as string[]).includes(v);
+  return (ORDER as unknown[]).includes(v);
 }
 
 /** How much of a span has values: "2 of 3 months". */
@@ -297,5 +288,6 @@ export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "
   }
   const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today ?? data.today });
   if (!r.ok) return { by: metric.period, combined: false, points: own, reason: r.reason, targets: null };
+  // Stryker disable next-line ArrayDeclaration: targetsBy keeps only targets on a Metric period's first day, so a list with anything else in it is the empty one.
   return { by: display, combined: true, points: r.points, targets: targetsBy(metric, data.targets?.[metric.id] ?? [], r.points, display, data.yearStart) };
 }

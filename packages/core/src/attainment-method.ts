@@ -17,7 +17,8 @@ export const DEFAULT_ATTAINMENT_METHOD: AttainmentMethod = "ratio";
 
 /** Whether a value is one of the two method keys. */
 export function isAttainmentMethod(x: unknown): x is AttainmentMethod {
-  return typeof x === "string" && (ATTAINMENT_METHODS as readonly string[]).includes(x);
+  // No typeof check: includes() matches only one of the two strings, so nothing else gets through.
+  return (ATTAINMENT_METHODS as readonly unknown[]).includes(x);
 }
 
 /** The method a Metric's Attainment is computed with: its own override if it has one, else the Workspace's default.

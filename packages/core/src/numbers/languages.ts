@@ -65,8 +65,8 @@ export const ANSWER_LANGUAGES: Readonly<Record<string, AnswerWords>> = { en, de,
 /** The languages answers are read in when nothing else is known: English and German. */
 export const DEFAULT_ANSWER_LANGUAGES: readonly string[] = ["en", "de"];
 
-// The languages a country's people write in, where Ziffr has words for them; English is added to every Workspace's
-// default. Several for a country with several (Belgium, Switzerland).
+// The languages a country's people write in, where Ziffr has words for them, other than English, which is added to
+// every Workspace's default. Several for a country with several (Belgium, Switzerland).
 const COUNTRY_LANGUAGES: Readonly<Record<string, readonly string[]>> = {
   ...Object.fromEntries(["DE", "AT", "LI"].map((c) => [c, ["de"]])),
   ...Object.fromEntries(["FR", "MC"].map((c) => [c, ["fr"]])),
@@ -81,7 +81,7 @@ const COUNTRY_LANGUAGES: Readonly<Record<string, readonly string[]>> = {
 /** The Answer Languages a Workspace has until an Owner or Admin chooses: English plus its country's languages. */
 export function answerLanguagesForCountry(country: string | null | undefined): string[] {
   const own = country && Object.hasOwn(COUNTRY_LANGUAGES, country) ? COUNTRY_LANGUAGES[country] : [];
-  return ["en", ...own.filter((c) => c !== "en")];
+  return ["en", ...own];
 }
 
 /** Whether a country writes a date such as "11/12" month first, as the US does; every other country day first. */

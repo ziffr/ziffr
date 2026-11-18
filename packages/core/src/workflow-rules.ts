@@ -32,13 +32,17 @@ export function workingPeriod(asOf: string, p: Period, yearStart: YearStart) {
 export function unusualReasons(m: Metric, value: number, previous: number | undefined, previousPeriod: string | undefined, step: Extract<WorkflowStep, { type: "check" }>, yearStart: YearStart, style: NumberStyle, target?: { min: number | null; max: number | null }) {
   const out: string[] = [];
   const before = previousPeriod ? periodLabel(previousPeriod, m.period, yearStart) : "the period before";
+  // Stryker disable next-line ConditionalExpression: changeBeyond is false without an earlier value (not a finite number), so this only keeps the types right.
   if (previous !== undefined && previous !== 0) {
     // The same change a Comparison shows, exact on the values' text (exact.ts), and compared with the step exactly:
     // a change of exactly the step is not unusual.
     const pct = changePct(value, previous)!;
-    if (changeBeyond(value, previous, step.changePct)) out.push(`${pct > 0 ? "up" : "down"} ${formatChange(pct, style, { signed: false })} on ${before}`);
+    // A step below 0 % is taken as 0 %: an unchanged value is never unusual, whatever a Workflow holds.
+    // Stryker disable next-line EqualityOperator: pct is 0 only for an unchanged value, which a step of 0 % or more (see the line above) never calls unusual.
+    if (changeBeyond(value, previous, Math.max(0, step.changePct))) out.push(`${pct > 0 ? "up" : "down"} ${formatChange(pct, style, { signed: false })} on ${before}`);
   } else if (previous === 0 && value !== 0) {
     // Any change from 0 is an infinite share of it: always more than the step allows (spec 0022).
+    // Stryker disable next-line EqualityOperator: the value is not 0 here, so `>` and `>=` never differ.
     out.push(`${value > 0 ? "up" : "down"} from 0 on ${before}`);
   }
   if (step.outsideTarget && target) {

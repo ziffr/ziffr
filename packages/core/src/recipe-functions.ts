@@ -25,6 +25,7 @@ const finite = (points: Point[]) => points.filter((p) => Number.isFinite(p.value
 // The values as whole numbers at one scale: value = ys[i] / scale, exactly.
 function scaledAll(points: Point[]): { ys: bigint[]; scale: bigint } {
   const fs = points.map((p) => fractionOf(p.value));
+  // Stryker disable next-line ArithmeticOperator: any common multiple of the denominators is a scale; a ten times larger one gives every value ten times larger and the same results
   const places = Math.max(0, ...fs.map((f) => f.den.toString().length - 1));
   const scale = TEN ** big(places);
   return { ys: fs.map((f) => f.num * (scale / f.den)), scale };
@@ -152,6 +153,7 @@ export function seasonalIndex(points: Point[], season: number): Result {
     counts[i % season]++;
   });
   // nearestDouble takes a positive denominator: the sign of the mean goes to the numerator.
+  // Stryker disable next-line EqualityOperator: a sum of 0 has no index and returned above, so `<=` and `<` never differ
   const sign = all < ZERO ? big(-1) : big(1);
   return series(ps.map((p, i) => ({ period: p.period, value: nearestDouble(sign * HUNDRED * sums[i % season] * big(ys.length), sign * big(counts[i % season]) * all) })));
 }

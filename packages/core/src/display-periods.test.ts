@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { dayAfter, displayPeriodsFor, INPUTS_MISSING, isDisplayPeriod, isPartial, latestOfEach, NOT_COMBINED, periodCount, pointName, seriesBy, shownSeries, spanCount, valueOver } from "./display-periods";
+import { dayAfter, displayPeriodsFor, INPUTS_MISSING, isDisplayPeriod, isLonger, isPartial, latestOfEach, NOT_COMBINED, periodCount, pointName, seriesBy, shownSeries, spanCount, valueOver } from "./display-periods";
 import { JANUARY } from "./periods";
 import { canvas, metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -227,5 +227,63 @@ describe("every rule of combining, one by one (spec 0022)", () => {
     expect(isDisplayPeriod("day")).toBe(false);
     expect(isDisplayPeriod(4)).toBe(false);
     expect(pointName({ period: "2026-01-01", held: 2, length: 3, toDate: true }, "quarter", "month", ys, true)).toBe("Q1 26 to date");
+  });
+});
+
+describe("what each rule of combining refuses or leaves out (spec 0022)", () => {
+  const m = metric();
+  const data = canvas([m], { revenue: months("2026-01", [1, 2, 3]) });
+  const own = [1, 2, 3].map((value, i) => ({ period: `2026-0${i + 1}-01`, value, held: 1, length: 1, toDate: false, through: `2026-0${i + 1}-01` }));
+
+  it("shows a Metric by its own period when asked for no longer one, without a reason or targets", () => {
+    expect(isLonger("month", "month")).toBe(false);
+    expect(isLonger("quarter", "month")).toBe(true);
+    expect(shownSeries(m, data, "month")).toEqual({ by: "month", combined: false, points: own, targets: null });
+    expect(shownSeries(m, data, null)).toEqual({ by: "month", combined: false, points: own, targets: null });
+    expect(shownSeries(m, canvas([m], {}), null).points).toEqual([]);
+    // Data without targets at all (an old Snapshot) still combines.
+    expect(shownSeries(m, { ...data, targets: undefined as never }, "quarter", { today: "2026-12-01" }).targets?.line).toEqual([]);
+  });
+
+  it("refuses a shorter period, saying why", () => {
+    expect(seriesBy(m, resolverFrom([m], { revenue: months("2026-01", [1]) }), "week", { yearStart: ys })).toEqual({ ok: false, reason: "A month's value cannot be split into shorter periods.", points: [] });
+  });
+
+  it("counts no periods in a range that ends before it starts, or that no period starts in", () => {
+    expect(periodCount("month", "2026-10-05", "2026-08-10", ys)).toBe(0);
+    expect(periodCount("month", "2026-10-02", "2026-10-20", ys)).toBe(0);
+    expect(periodCount("month", "2026-10-01", "2026-12-31", ys)).toBe(3);
+  });
+
+  it("puts a Derived Metric's spans in time order, those only its inputs have values in included", () => {
+    const a = metric({ id: 1, slug: "a" });
+    const b = metric({ id: 2, slug: "b" });
+    const both = metric({ id: 3, slug: "both", formula: "{a} + {b}", aggregation: "none" });
+    // Its own values start in April, its inputs' in January: Q1 is computed from the inputs too, and comes first.
+    const rr = resolverFrom([a, b, both], { a: months("2025-01", [1, 2, 3, 4, 5, 6]), b: months("2025-01", [10, 20, 30, 40, 50, 60]), both: months("2025-04", [44, 55, 66]) });
+    expect(seriesBy(both, rr, "quarter", { yearStart: ys, today: "2026-01-01" }).points.map((p) => [p.period, p.value, p.held])).toEqual([["2025-01-01", 66, 3], ["2025-04-01", 165, 3]]);
+  });
+
+  it("shows a Derived Metric by its own period when one of its inputs is not shared", () => {
+    const revenue = metric({ id: 1, slug: "revenue" });
+    const margin = metric({ id: 3, slug: "margin", formula: "{revenue} - {cost}", aggregation: "none" });
+    const s = shownSeries(margin, canvas([revenue, margin], { revenue: months("2025-01", [1, 2, 3]), margin: months("2025-01", [1, 2, 3]) }), "quarter");
+    expect(s).toMatchObject({ by: "month", combined: false, reason: INPUTS_MISSING });
+  });
+
+  it("counts only targets on a Metric period's first day, and says which target applies", () => {
+    const sum = metric({ target_min: null, target_max: null });
+    const at = (m: typeof sum, targets: Point[]) => shownSeries(m, canvas([m], { revenue: months("2025-01", [1, 2, 3, 4, 5, 6]) }, { targets: { 1: targets } }), "quarter", { today: "2026-01-01" }).targets;
+    // Three targets in Q1, but one is on the 15th: only two of its months have one, so Q1 has none.
+    expect(at(sum, [...months("2025-01", [10, 10]), { period: "2025-02-15", value: 10 }])).toEqual({ at: {}, line: [], range: false, note: null });
+    expect(at(sum, months("2025-01", [10, 10, 10, 20, 20, 20]))).toEqual({
+      at: { "2025-01-01": { min: 30, max: null }, "2025-04-01": { min: 60, max: null } },
+      line: [{ period: "2025-01-01", value: 30 }, { period: "2025-04-01", value: 60 }],
+      range: false,
+      note: "Target per quarter: the Target Series added up.",
+    });
+    const avg = metric({ aggregation: "average", target_min: 1, target_max: 9 });
+    expect(at(avg, months("2025-01", [10, 10, 10]))?.note).toBe("Target per quarter: the Target Series where every month has one, else the target range.");
+    expect(at(metric({ aggregation: "last" }), months("2025-01", [1, 2, 3, 4, 5, 6]))?.note).toBe("Target per quarter: the Target Series at its last value.");
   });
 });

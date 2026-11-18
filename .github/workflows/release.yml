@@ -25,10 +25,11 @@ jobs:
         run: gh release create "$GITHUB_REF_NAME" --title "Ziffr ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md) on the tagged code, with a
-  # new seed: no image is built or published unless every Aggregation still equals the reference.
+  # new seed, and mutation testing of every calculation module: no image is built or published unless every
+  # calculation still equals its reference and the mutation score is at least 95 %.
   numbers:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 330
     permissions:
       contents: read
     steps:
@@ -41,6 +42,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Calculations against the reference, full strength
         run: pnpm --filter @ziffr/core test:numbers
+      - name: Mutation testing of every calculation module
+        env:
+          NUMBERS_RUNS: "30"
+        run: |
+          start=$(date +%s)
+          status=0
+          pnpm --filter @ziffr/core test:mutation || status=$?
+          node .github/scripts/mutation-summary.mjs packages/core/reports/mutation/mutation.json $(( $(date +%s) - start )) >> "$GITHUB_STEP_SUMMARY"
+          exit $status
 
   # The Docker image and the files to run it (spec 0015): built for Intel and ARM, started once with
   # docker/compose.yml and checked from outside (docker/smoke-test.sh) before it is pushed. Only on a release, never

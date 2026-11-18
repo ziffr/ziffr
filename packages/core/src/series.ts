@@ -15,32 +15,22 @@ export function buildSeries(metrics: Metric[], observations: Observation[]): Rec
     (raw[m.slug] ??= new Map()).set(o.period_start, o.value);
   }
   for (const m of metrics) {
-    if (!m.formula) {
-      bySlug[m.slug] = [...(raw[m.slug] ?? new Map())].map(([period, value]) => ({ period, value })).sort((a, b) => a.period.localeCompare(b.period));
-    }
-  }
-  for (const m of metrics) {
-    if (!m.formula) continue;
-    // Inputs of different periods meet only by chance (a day that starts a month): no series rather than a wrong one.
-    // The page and widgets say why (inputsProblem).
-    if (inputsProblem(m, metrics)) {
-      bySlug[m.slug] = [];
-      continue;
-    }
-    const inputs = formulaInputs(m.formula);
-    const periods = [...new Set(inputs.flatMap((s) => [...(raw[s]?.keys() ?? [])]))].sort();
-    bySlug[m.slug] = periods
-      .map((period) => {
-        const vars: Record<string, number> = {};
-        for (const s of inputs) {
-          const v = raw[s]?.get(period);
-          if (v === undefined) return null;
-          vars[s] = v;
-        }
-        const value = evaluate(m.formula!, vars);
-        return value === null ? null : { period, value };
-      })
-      .filter((p): p is Point => p !== null);
+    bySlug[m.slug] = m.formula ? derivedSeries(m, m.formula, metrics, raw) : [...(raw[m.slug] ?? new Map())].map(([period, value]) => ({ period, value })).sort((a, b) => a.period.localeCompare(b.period));
   }
   return bySlug;
+}
+
+// A Derived Metric's values: one for each period in which every input has one and the formula gives a number.
+function derivedSeries(m: Metric, formula: string, metrics: Metric[], raw: Record<string, Map<string, number>>): Point[] {
+  // Inputs of different periods meet only by chance (a day that starts a month): no series rather than a wrong one.
+  // The page and widgets say why (inputsProblem).
+  if (inputsProblem(m, metrics)) return [];
+  const inputs = formulaInputs(formula);
+  const columns = inputs.map((s) => raw[s] ?? new Map<string, number>());
+  const periods = [...new Set(columns.flatMap((c) => [...c.keys()]))].sort();
+  return periods.flatMap((period) => {
+    // An input with no value in the period is NaN, which evaluate takes as missing: the period then has no value.
+    const value = evaluate(formula, Object.fromEntries(inputs.map((s, i) => [s, columns[i].get(period) ?? NaN])));
+    return value === null ? [] : [{ period, value }];
+  });
 }

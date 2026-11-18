@@ -13,7 +13,8 @@ describe("exact arithmetic", () => {
   it("turns a fraction into the nearest double, ties to even", () => {
     expect(nearestDouble(BigInt(3), BigInt(10))).toBe(0.3);
     expect(nearestDouble(BigInt(-1), BigInt(3))).toBe(-1 / 3);
-    expect(nearestDouble(BigInt(0), BigInt(7))).toBe(0);
+    expect(Object.is(nearestDouble(BigInt(0), BigInt(7)), 0)).toBe(true);
+    expect(nearestDouble(BigInt(-3), BigInt(4))).toBe(-0.75);
     // 2^53 + 1 lies halfway between 2^53 and 2^53 + 2: the even one, 2^53; 2^53 + 3 between + 2 and + 4: + 4.
     expect(nearestDouble(BigInt(2) ** BigInt(53) + BigInt(1), BigInt(1))).toBe(2 ** 53);
     expect(nearestDouble(BigInt(2) ** BigInt(53) + BigInt(3), BigInt(1))).toBe(2 ** 53 + 4);
@@ -22,13 +23,14 @@ describe("exact arithmetic", () => {
     expect(exactTotal([0.1, 0.2], 1)).toBe(0.3);
     expect(exactTotal(Array(1000).fill(0.01), 1)).toBe(10);
     expect(exactTotal([1, 2], 2)).toBe(1.5);
-    expect(exactTotal([1, Infinity], 1)).toBe(Infinity);
+    expect(exactTotal([1, Infinity], 1)).toBeNaN();
   });
   it("keeps fractions in lowest terms and measures them in bits", () => {
     const b = (n: number) => BigInt(n);
     expect(lowestTerms({ num: b(-6), den: b(4) })).toEqual({ num: b(-3), den: b(2) });
     expect(lowestTerms({ num: b(0), den: b(7) })).toEqual({ num: b(0), den: b(1) });
     expect(lowestTerms({ num: b(3), den: b(5) })).toEqual({ num: b(3), den: b(5) });
+    expect(lowestTerms({ num: b(6), den: b(4) })).toEqual({ num: b(3), den: b(2) });
     expect([bitLength(b(0)), bitLength(b(1)), bitLength(b(-255)), bitLength(b(256))]).toEqual([1, 1, 8, 9]);
   });
   it("divides by a negative value", () => {
@@ -41,7 +43,7 @@ describe("exact arithmetic", () => {
     expect(changeBeyond(-1.1, -1, 10)).toBe(false);
     expect(changeBeyond(0.875, 1, 12.5)).toBe(false);
     expect(changeBeyond(0.874, 1, 12.5)).toBe(true);
-    expect(changeBeyond(Infinity, 1, 10)).toBe(true);
+    expect([changeBeyond(Infinity, 1, 10), changeBeyond(1, NaN, 10), changeBeyond(2, 1, Infinity)]).toEqual([false, false, false]);
     expect(changePct(5, -10)).toBe(150);
   });
 });
