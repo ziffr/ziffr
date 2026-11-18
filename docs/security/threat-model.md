@@ -49,6 +49,12 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
    - **Replies and buttons** count only as replies to (or presses on) a sent Delivery's own message, from the account its recipient linked, while that person still belongs to the workspace and Telegram is on there, within 30 days; at most twenty replies per Delivery and ten bot answers a minute per account. **Approve** is taken, as Telegram vouches for who pressed it; an Approval closes only while still open, in one statement, so two presses at once approve once (for every Connector). Someone who left the workspace gets nothing more, also nothing queued before. Updates and sends older than 31 days are deleted by the deliveries job.
    - **Messages** are plain text without a parse mode, so no workspace text becomes formatting or a hidden link. Sends are claimed under locks: 500 a day per workspace, 20 an hour per chat, 300 a day per sender, one a second per chat, 25 a second for the bot. See `docs/guides/telegram.md`.
 
+12. **Strangers on a public Installation (spec 0021, ADR 0010).** With `ZIFFR_TRIAL_DAYS`, anyone may sign in and make one Trial Workspace.
+   - **Who is reached.** A Delivery in a trial is sent for real only to its Owner, checked when it is made and again in each Connector's send before its own settings; others stay in the Outbox. Invitations, invite links, domain joining and join requests are refused. Nothing is sent or taken once the trial has ended.
+   - **How much.** At most 50 real messages a day per trial over all Connectors, 25 Metrics, 2 Access Keys and 2 Feeds with 2 keys each, none working past its end, and `ZIFFR_TRIAL_MAX` live trials; all claimed in the database under locks or row locks. Ask me now asks at most once in ten minutes per Metric.
+   - **Signing in.** Cloudflare Turnstile, checked on the server before a link is sent or a provider's sign-in starts, on top of the sign-in link limits. A trial setting that is set but wrong stops workspaces from being made. With Docker, the proxy lets only Auth's verify, authorize and callback paths through, so the check cannot be gone around. On a hosted Supabase project, Auth's own `/auth/v1/otp` is reachable with the public key and skips both: turn on Supabase's own captcha (Auth, Bot protection, Turnstile) with the same keys.
+   - **The end.** Keys stop at the end; a week later the workspace, its Contacts' and Feeds' person rows, and its Owner with their sign-in are deleted.
+
 ## Threats and how they are met
 
 | Threat | Defence | Tested in |
@@ -116,6 +122,8 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 - **The network address needs `ZIFFR_PROXY_HOPS`.** Without it Ziffr cannot tell a client's own `X-Forwarded-For` from its proxy's, so it ignores the header and only the per-address ceiling (30 links an hour) holds. With a wrong value a client could pick its network address; the per-address limits still hold.
 - **CI actions are pinned by commit** (spec 0009); updating one is a reviewed change of its SHA. gitleaks is pinned and checksummed.
 - **A leaked Feed Key can fill empty past periods without Approval** (spec 0012). Within its Feed's Metrics and daily limit, it can record Imports that no one checks. They are marked as imported and named by the Feed and its key, Locks still hold, and Owners and Admins see the Feed's calls and refusals. We accept this so that connecting history does not raise an Approval for every period.
+- **A trial's Owner can pass on their own reach.** Whoever gets a trial Owner's Telegram start link or Slack code receives that Owner's messages. It takes that person's own action and reaches nobody new against their will (spec 0021).
+- **A trial's Owner is who signed in, nothing more.** Anyone with an email address gets a trial; Turnstile and the limits make many of them costly, not impossible. A trial reaches nobody but them, so what they can do is spend the Installation's limits.
 - **Assistants read workspace text.** An MCP client puts Metric names, descriptions and values into an AI assistant's context, and text written to mislead it could make it misreport numbers or, with a key that may submit, record a value the person did not ask for. Such a value goes through the Metric's rules, names the key, and shows in the Access Log.
 
 ## Open work

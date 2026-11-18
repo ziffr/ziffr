@@ -88,6 +88,19 @@ describe("the end of a trial", () => {
   });
 });
 
+describe("deleting a trial's people", () => {
+  it("keeps an Owner who belongs to another workspace too, with their sign-in", async () => {
+    const t = await trial(-8 * 24);
+    const other = await workspace();
+    cleanups.push(other.cleanup);
+    await db().from("memberships").insert({ workspace_id: other.id, user_id: t.owner, role: "member" });
+    await deleteExpiredTrials();
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).toBeNull();
+    expect((await db().from("profiles").select("id").eq("id", t.owner).maybeSingle()).data).not.toBeNull();
+    expect((await db().auth.admin.getUserById(t.authId)).data.user).not.toBeNull();
+  });
+});
+
 describe("a trial's values as CSV", () => {
   it("has a row per value, every field quoted, and a formula never runs", async () => {
     const t = await trial(48);

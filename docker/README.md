@@ -53,6 +53,9 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_AUTH_PROVIDERS` and `SUPABASE_AUTH_EXTERNAL_*` | Sign-in with Google, Microsoft, GitHub or LinkedIn, as in `.env.example`. The provider's redirect address is `https://<your domain>/auth/v1/callback` |
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
 | `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC |
+| `ZIFFR_TRIAL_DAYS` | Offers Trial Workspaces (spec 0021): anyone may sign in and make one of their own, for this many days (1 to 30). Every Connector works in it, reaching only its Owner; it is deleted a week after it ends. The clock then also cleans trials up hourly and resets the demo nightly. Leave `ZIFFR_DEMO_ONLY` unset and set `ZIFFR_DEMO=1` to offer the demo beside it. See [Offering trials](../docs/guides/self-hosting.md#offering-trials) |
+| `ZIFFR_TRIAL_MAX` | How many trials may run at once; default 200 |
+| `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
 | `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
 | `ZIFFR_HTTP_PORT`, `ZIFFR_HTTPS_PORT`, `ZIFFR_MAIL_PORT` | Other ports on this machine, when 80, 443 or 8025 are taken |
 | `ZIFFR_IMAGE` | Another image than the version `compose.yml` names, such as `ghcr.io/ziffr/ziffr:X.Y.Z` or one you built |
