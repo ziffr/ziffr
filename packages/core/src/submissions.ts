@@ -212,7 +212,19 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const current = periodStart(new Date(), metric.period, ys);
   const imported = Boolean(input.import && feed && !prev && period < current && period >= importFloor(current, metric.period));
   let result: SubmissionResult & { observationId?: number };
-  if (!prev) {
+  if (metric.submission_rule === "add") {
+    // Added up in one statement in the database, not read here and written back: two values arriving together both
+    // count, also in an empty period, and the sum carries no float noise (spec 0022). The reply names what was summed.
+    const { data, error } = await db()
+      .rpc("add_to_observation", { p_metric: metric.id, p_period: period, p_value: value, p_submitter: row.submitter_id, p_source: row.source, p_access_key: row.access_key_id, p_imported: imported })
+      .single<{ observation_id: number; before: number | string | null; after: number | string }>();
+    if (error || !data) throw new Error(`Couldn’t add the value: ${error?.message ?? "no row"}`);
+    const first = data.before === null;
+    const after = Number(data.after);
+    result = first
+      ? { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, observationId: data.observation_id, imported }
+      : { ok: true, outcome: "added", detail: `${fv(Number(data.before))} + ${fv(value)} = ${fv(after)} for ${metric.name}, ${when}.`, observationId: data.observation_id, imported: false };
+  } else if (!prev) {
     const { data } = await db().from("observations").insert({ ...row, value, imported }).select("id").single();
     result = { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, observationId: data?.id, imported };
   } else if (metric.submission_rule === "reject") {
@@ -220,10 +232,6 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   } else if (metric.submission_rule === "overwrite") {
     await db().from("observations").update({ ...row, value, created_at: new Date().toISOString() }).eq("id", prev.id);
     result = { ok: true, outcome: "overwritten", detail: `Replaced ${fv(Number(prev.value))} with ${fv(value)} for ${metric.name}, ${when}.`, observationId: prev.id };
-  } else if (metric.submission_rule === "add") {
-    const sum = Number(prev.value) + value;
-    await db().from("observations").update({ value: sum }).eq("id", prev.id);
-    result = { ok: true, outcome: "added", detail: `${fv(Number(prev.value))} + ${fv(value)} = ${fv(sum)} for ${metric.name}, ${when}.`, observationId: prev.id };
   } else {
     const { data } = await db().from("observations").insert({ ...row, value }).select("id").single();
     result = { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${existing!.length} earlier value(s) for ${metric.name}, ${when}.`, observationId: data?.id };
