@@ -20,20 +20,28 @@ const today = () => new Date().toISOString().slice(0, 10);
 /** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
 export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: string[]; expires_on: string; revoked: boolean; last_used_at: string | null; created_by: string };
 
-/** Creates a key for the actor (a signed-in person, never another key), working through the end of a day (UTC)
- * within a year. Returns the secret, which is shown this once. */
-export async function createAccessKey(actor: Actor, input: { name: string; scopes: Scope[]; expiresOn: string }): Promise<{ id: number; secret: string }> {
+/** What any key the actor makes may hold, checked the same for keys made on the Team page and for assistants
+ * connected by OAuth (spec 0023): never by a key, never in the demo, known scopes only, never more than the role
+ * allows, and an end date within a year. */
+export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknown): { scopes: Scope[]; expires: string } {
   if (actor.key) throw new Forbidden("A key cannot make keys.");
   // Visitors share the demo: a key there would act as a made-up person for anyone who has it.
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
-  const scopes = [...new Set(Array.isArray(input.scopes) ? input.scopes : [])];
+  const scopes = [...new Set(Array.isArray(wanted) ? wanted : [])] as Scope[];
   if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
   // A key never does what its creator's role does not allow (spec 0003); the role is checked again on every call.
   if (scopes.includes("metrics:write") && !can(actor, "create")) throw new Forbidden("Your role cannot create Metrics, so neither can a key of yours.");
   if (scopes.includes("dashboards:write") && !can(actor, "create")) throw new Forbidden("Your role cannot build dashboards, so neither can a key of yours.");
   const latest = new Date(Date.now() + 365 * DAY).toISOString().slice(0, 10);
-  const expires = String(input.expiresOn ?? "");
+  const expires = String(expiresOn ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires <= today() || expires > latest) throw new Error("Pick an end date within a year.");
+  return { scopes, expires };
+}
+
+/** Creates a key for the actor (a signed-in person, never another key), working through the end of a day (UTC)
+ * within a year. Returns the secret, which is shown this once. */
+export async function createAccessKey(actor: Actor, input: { name: string; scopes: Scope[]; expiresOn: string }): Promise<{ id: number; secret: string }> {
+  const { scopes, expires } = checkKeyRequest(actor, input.scopes, input.expiresOn);
   // A taken prefix is all but impossible (48 random bits); one more try covers it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const prefix = randomBytes(6).toString("hex");
@@ -89,11 +97,22 @@ export async function actorForKey(secret: string): Promise<KeyActor | null> {
 export async function actorForSecret(secret: string): Promise<KeyActor | FeedActor | null> {
   const m = /^zk_([0-9a-f]{12})_[A-Za-z0-9_-]{43}$/.exec(String(secret ?? ""));
   if (!m) return null;
-  const { data: k } = await db().from("access_keys").select("id, workspace_id, created_by, secret_hash, scopes, expires_on, revoked_at, feed_id").eq("prefix", m[1]).maybeSingle();
+  const { data: k } = await db().from("access_keys").select(KEY_ROW).eq("prefix", m[1]).maybeSingle();
   if (!k) return null;
   const given = Buffer.from(hash(secret), "hex");
   const stored = Buffer.from(k.secret_hash, "hex");
   if (given.length !== stored.length || !timingSafeEqual(given, stored)) return null;
+  // An assistant's key has no secret anyone was shown; it works only with its OAuth tokens (assistant-connections.ts).
+  if (k.kind !== "program") return null;
+  return actorOfKey(k);
+}
+
+/** What actorOfKey needs of a key's row. */
+export const KEY_ROW = "id, workspace_id, created_by, secret_hash, scopes, expires_on, revoked_at, feed_id, kind";
+
+/** The Actor a found key acts as, or null: the rules every key follows, whatever credential presented it (a secret,
+ * or an assistant's token, spec 0023). Records that it was used. */
+export async function actorOfKey(k: { id: number; workspace_id: string; created_by: string; scopes: string[]; expires_on: string; revoked_at: string | null; feed_id: string | null }): Promise<KeyActor | FeedActor | null> {
   if (k.revoked_at || k.expires_on < today()) return null;
   // The demo has no Access Keys (its made-up people are anyone's); one that got there anyway does nothing.
   if (k.workspace_id === DEMO_WORKSPACE_ID) return null;

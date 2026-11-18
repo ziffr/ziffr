@@ -3,6 +3,8 @@
 // program sends is untrusted (AGENTS.md rule 4): query and body go through the endpoint's zod schema first.
 import { z } from "zod";
 import { actorForSecret } from "@ziffr/core/access-keys";
+import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
+import { calledFromMcp } from "@/lib/mcp-context";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
 import { Forbidden, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
@@ -66,7 +68,8 @@ export function feedRoute<C>(handler: (feed: FeedActor, req: Request, ctx: C) =>
 function guarded<C>(inner: (actor: KeyActor | FeedActor, req: Request, ctx: C) => Promise<Response>) {
   return async (req: Request, ctx: C): Promise<Response> => {
     const secret = bearer(req);
-    const actor = secret ? await actorForSecret(secret) : null;
+    // An assistant's access token counts only on the calls the remote MCP Server makes in this process (spec 0023).
+    const actor = !secret ? null : secret.startsWith("zat_") ? (calledFromMcp() ? await actorForAssistantToken(secret) : null) : await actorForSecret(secret);
     if (!actor) return apiError("unauthorized", "Send a valid Access Key as \"Authorization: Bearer <key>\".", { "www-authenticate": "Bearer" });
     const admitted = await admitCall(actor);
     const res = !admitted.ok
