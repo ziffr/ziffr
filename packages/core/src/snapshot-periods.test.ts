@@ -120,6 +120,33 @@ describe("data as of a day, from data that is missing parts", () => {
     expect(dataAsOfEach(other, new Map([[1, "2026-09-30"]])).series.rev).toEqual([]);
   });
 
+  it("cuts each Metric by its own period and leaves the Metrics it does not cut whole", () => {
+    // A monthly Metric cut in the middle of October keeps September only: October is not complete by the 15th, though
+    // its first day is before it. A daily Metric that is not cut keeps everything.
+    const rev = { id: 1, slug: "rev", period: "month" } as never;
+    const visits = { id: 2, slug: "visits", period: "day" } as never;
+    const data = {
+      metrics: [rev, visits],
+      series: { rev: [{ period: "2026-09-01", value: 1 }, { period: "2026-10-01", value: 2 }], visits: [{ period: "2026-10-20", value: 5 }] },
+      breakdowns: { 1: { "2026-09-01": [], "2026-10-01": [] }, 2: { "2026-10-20": [] } },
+      pending: { 1: ["2026-10-01"], 2: ["2026-10-20"] },
+      locked: { 1: ["2026-09-01", "2026-10-01"], 2: ["2026-10-20"] },
+    } as never;
+    const cut = dataAsOfEach(data, new Map([[1, "2026-10-15"]]));
+    expect(cut.series).toEqual({ rev: [{ period: "2026-09-01", value: 1 }], visits: [{ period: "2026-10-20", value: 5 }] });
+    expect(cut.breakdowns).toEqual({ 1: { "2026-09-01": [] }, 2: { "2026-10-20": [] } });
+    expect(cut.pending).toEqual({ 1: [], 2: ["2026-10-20"] });
+    expect(cut.locked).toEqual({ 1: ["2026-09-01"], 2: ["2026-10-20"] });
+    const all = dataAsOf(data, "2026-10-15");
+    expect([all.breakdowns[1], all.pending[1], all.locked[1]]).toEqual([{ "2026-09-01": [] }, [], ["2026-09-01"]]);
+  });
+
+  it("lists at most MAX_METRIC_PERIODS, however long the span it is given", () => {
+    const twoYears = { kind: "year" as const, start: "2026-01-01", end: "2027-12-31", label: "2026 and 2027" };
+    const days = metricPeriodsIn("day", twoYears, JANUARY);
+    expect([days.length, days[0], days.at(-1)]).toEqual([MAX_METRIC_PERIODS, "2026-01-01", "2027-02-04"]);
+  });
+
   it("cuts a series or period list of a Metric it does not know by days", () => {
     const data = { metrics: [], series: { gone: [{ period: "2026-09-30", value: 1 }, { period: "2026-10-01", value: 2 }] }, breakdowns: { 9: { "2026-10-01": [] } }, pending: { 9: ["2026-09-30", "2026-10-01"] }, locked: {} } as never;
     const cut = dataAsOf(data, "2026-09-30");

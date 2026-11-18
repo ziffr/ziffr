@@ -6,7 +6,7 @@ Every calculation Ziffr does on values, with its rule in plain words, the code t
 
 **How to read a row.** _Code_ names the module and its functions. _Reference_ is a file in `packages/core/src/test/reference/`, written apart from the code and checked by its own hand-worked tests. _Tests_ are files in `packages/core/src/`. "Exact" means the double nearest to the exact decimal result, ties to the even one, never a floating-point neighbour.
 
-**What every module gets.** Each calculation module is held to 100 % of lines and branches by coverage. Mutation testing (Stryker, at least 95 %) follows in the next pull request of #126.
+**What every module gets.** Each calculation module is held to 100 % of lines and branches by coverage. Stryker mutation testing holds it to a score of at least 95 %.
 
 ## Combining periods (Aggregations and Display Periods)
 
@@ -95,3 +95,32 @@ The functions an Analysis Recipe can use (spec 0024), and running a recipe. Each
 Mutation testing changes the code on purpose and expects a test to fail. A change that leaves every result the same cannot fail a test. Such a mutant is left out in the code with a `// Stryker disable next-line <mutator>: <reason>` comment, and listed here as `file` · mutator · reason. The catalogue test fails when a comment has no line here.
 
 <!-- mutants: one line per disabled mutant, "- `src/file.ts` · Mutator · reason" -->
+- `src/exact.ts` · EqualityOperator · The size of a BigInt, `n < 0 ? -n : n`: with `<=`, 0 becomes −0, which for a BigInt is the same number.
+- `src/exact.ts` · EqualityOperator · In `nearestDouble`, a first quotient of exactly 2^53 gives the same double whether or not it is divided again: 2^53 + 1 is no double and rounds back to 2^53.
+- `src/exact.ts` · EqualityOperator · `over` never divides by 0, so testing the divisor with `<=` instead of `<` changes nothing.
+- `src/formula.ts` · Regex · Reading white space one character at a time instead of a run at a time leaves the same tokens, as white space is left out either way.
+- `src/formula.ts` · EqualityOperator · The 8,192-bit bound is a safety limit, not a rule of results: no value Ziffr keeps, in a formula within the bounds, comes to exactly 8,192 bits, so `>=` and `>` give the same.
+- `src/formula.ts` · ConditionalExpression · A numerator past 8,192 bits with a denominator within the bound is a value past the doubles, which `evaluate` gives no value for anyway; checking the numerator keeps the work small, and leaving it out changes no result.
+- `src/format.ts` · EqualityOperator · In `signed`, `v < 0` as `v <= 0` differs only at 0, whose digits hold no 1-9, so no minus is written either way.
+- `src/format.ts` · EqualityOperator · In `compactValue`, `x < 100` as `x <= 100` differs only at exactly 100, where both sides give 100.
+- `src/format.ts` · EqualityOperator · In `compactValue`, `v < 0` as `v <= 0` cannot differ: a value there is at least 10,000 in size, so it is never 0.
+- `src/format.ts` · EqualityOperator · In `formatChange`, `pct > 0` as `pct >= 0` cannot differ: a change of 0 has no 1-9 in its digits and is written "±" before the sign is asked.
+- `src/format.ts` · StringLiteral · `formatPercent` puts "%" on the side "after"; every side but "before" stands after, so an empty side writes the same.
+- `src/parse.ts` · Regex · In `parseBreakdown`, the line pattern without its `^` finds the same first match: a match that starts later in the line also starts at 0, because the lazy label `(.+?)` takes any prefix.
+- `src/numbers/period-words.ts` · EqualityOperator · Two period words never touch, so one never starts at the position where another ends: every pattern ends with a lookahead that forbids a letter or digit right after it, and every pattern starts with a digit or a letter (the words a pattern can start with are checked to start with a letter in `numbers.test.ts`). So `<` and `<=` keep the same words.
+- `src/compare.ts` · ConditionalExpression · Attainment by distance where higher is better: without a lower bound the percentage is null either way, as `pct` gives null for a target that is not a finite number and Number.isFinite(null) is false.
+- `src/compare.ts` · ConditionalExpression · Attainment by distance where lower is better: without an upper bound the percentage is null either way, for the same reason.
+- `src/compare.ts` · EqualityOperator · The difference to a target range: a value exactly on the lower bound is 0 from it, which is what inside the range gives too.
+- `src/compare.ts` · EqualityOperator · The difference to a target range: a value exactly on the upper bound is 0 from it, which is what inside the range gives too.
+- `src/correlation.ts` · EqualityOperator · The sign word of a correlation: an r of 0 is "no clear" before the sign is named, so `r >= 0` and `r > 0` never differ.
+- `src/display-periods.ts` · ConditionalExpression · A Derived Metric's value over a span: `evaluate` gives none for a formula missing an input, so stopping at the first input without a value only saves the work.
+- `src/display-periods.ts` · EqualityOperator · A span to date is cut at the latest value: a latest value on the span's last day cuts it on that day with `<=` and `<` alike.
+- `src/display-periods.ts` · ArrayDeclaration · A widget's targets without a Target Series: targetsBy keeps only targets on a Metric period's first day, so a list holding anything else is the empty list.
+- `src/workflow-rules.ts` · EqualityOperator · An Unusual Value's direction: the change is 0 % only for an unchanged value, and the check takes a step below 0 % as 0 %, so it never calls an unchanged value unusual and `pct > 0` and `pct >= 0` never differ.
+- `src/workflow-rules.ts` · EqualityOperator · A change from 0: the value is not 0 on that line, so `value > 0` and `value >= 0` never differ.
+- `src/workflow-rules.ts` · ConditionalExpression · An Unusual Value without an earlier value: `changeBeyond` is false for one that is not a finite number, so the check that there is one only keeps the types right.
+- `src/compare.ts` · EqualityOperator · Whether a change is good: a change of 0 is neither before the sign is read, so `abs > 0` and `abs >= 0` never differ.
+- `src/recipe-functions.ts` · ArithmeticOperator · The common scale of the values only needs to be a multiple of every denominator: a scale ten times larger makes every value ten times larger and gives the same results.
+- `src/recipe-functions.ts` · EqualityOperator · A seasonal index of values that add up to 0 returns nothing before the sign is read, so `all <= 0` and `all < 0` never differ.
+- `src/recipe-run.ts` · StringLiteral · The kind of a Slot's result is never read: `seriesOf` takes its points.
+- `src/recipe-run.ts` · ArrayDeclaration · A Slot left empty is an empty series; a series holding something that is no value gives the same, as every function leaves out what is not a finite value.

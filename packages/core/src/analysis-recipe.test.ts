@@ -9,6 +9,7 @@ import { runRecipe } from "./recipe-run";
 import { BUILT_IN_RECIPES, RECIPES } from "./built-in-recipes";
 import { correlation, difference, growth, linearTrend, mean, movingAverage, seasonalIndex, share, slope, standardDeviation, zScore } from "./recipe-functions";
 import type { Point } from "./types";
+import { repoFile } from "./test/repo-file";
 
 /** A recipe using steps on steps and two Slots. */
 const EXAMPLE: AnalysisRecipe = {
@@ -88,7 +89,7 @@ describe("checkAnalysisRecipe", () => {
 });
 
 describe("the published schema", () => {
-  const path = new URL("../../../docs/reference/analysis-recipe.schema.json", import.meta.url);
+  const path = repoFile("docs/reference/analysis-recipe.schema.json");
   const generated = `${JSON.stringify(ANALYSIS_RECIPE_SCHEMA, null, 2)}\n`;
   it("is the one the checks run", () => {
     if (process.env.UPDATE_REFERENCE) writeFileSync(path, generated);

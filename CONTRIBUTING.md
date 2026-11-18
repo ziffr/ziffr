@@ -49,7 +49,13 @@ Work bigger than one pull request starts with a spec in `docs/specs/` and is spl
 
 ## Calculations
 
-Every calculation on values is held to an independent reference in `packages/core/src/test/reference/`, for every combination of Period, Display Period, Aggregation and Fiscal Year start, on hand-made and generated series (spec 0022). `pnpm test` runs it on every change; `pnpm --filter @ziffr/core test:numbers` is the full-strength run, which CI's `numbers` job runs when a change touches one of the calculation paths in `.github/calculation-paths.txt`, and which runs every night and before a release. A file that calculates with values belongs in that list. How the tests work, what to do when one fails and how to add a case: `docs/guides/calculation-tests.md`.
+Every calculation on values is listed in the Calculation Catalogue (`docs/reference/calculations.md`) with its rule, its code, its reference and its tests, and is held to an independent reference in `packages/core/src/test/reference/` for every combination of its inputs, on hand-made and generated cases (spec 0022). A new calculation needs four things, or a test fails:
+- its module in `packages/core/calculation-modules.json`, so coverage holds it to 100 % and Stryker mutates it;
+- a row in the catalogue for every function it exports;
+- a reference and tests against it;
+- its paths in `.github/calculation-paths.txt`.
+
+`pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path. Every night and before a release, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
 
 ## Pull requests
 

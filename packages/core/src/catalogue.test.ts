@@ -4,10 +4,11 @@
 // slip in untested.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { repoFile } from "./test/repo-file";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const MODULES: string[] = JSON.parse(read("../calculation-modules.json"));
-const CATALOGUE = read("../../../docs/reference/calculations.md");
+const CATALOGUE = readFileSync(repoFile("docs/reference/calculations.md"), "utf8");
 
 /** Every function a row's Code column names, by module: "`src/compare.ts`: `compare`, `summary`". */
 function catalogued(): Map<string, Set<string>> {
@@ -41,12 +42,14 @@ describe("the Calculation Catalogue", () => {
     for (const module of MODULES) {
       const lines = read(`../${module}`).split("\n");
       lines.forEach((line, i) => {
-        const d = /\/\/ Stryker disable next-line (\w+): (.+)$/.exec(line);
-        if (!d) return;
-        expect(written.has(`${module} ${d[1]}`), `${module}:${i + 1} leaves out ${d[1]}: write it into the catalogue`).toBe(true);
-        expect(d[2].length, `${module}:${i + 1}: give the reason`).toBeGreaterThan(10);
+        if (!line.includes("Stryker disable")) return;
+        // One line at a time, naming each mutator and the reason: "next-line EqualityOperator,Regex: why".
+        const d = /\/\/ Stryker disable next-line ([\w,]+): (.{10,})$/.exec(line);
+        expect(d, `${module}:${i + 1}: disable mutants one line at a time, naming the mutators and the reason`).not.toBeNull();
+        for (const mutator of d![1].split(",")) {
+          expect(written.has(`${module} ${mutator}`), `${module}:${i + 1} leaves out ${mutator}: write it into the catalogue`).toBe(true);
+        }
       });
-      expect(read(`../${module}`), `${module}: disable mutants one line at a time, with a reason`).not.toMatch(/Stryker disable (?!next-line)/);
     }
   });
 });

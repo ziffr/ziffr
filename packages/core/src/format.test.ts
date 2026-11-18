@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compactValue, formatChange, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { metric } from "./test/fixtures";
-import { keptUnit, moneyUnit } from "./units";
+import { isUnitPosition, keptUnit, moneyUnit, UNIT_POSITIONS } from "./units";
 
 const NB = " ";
 const eur: ValueUnit = { unit: "€", unit_position: "after", decimals: 0 };
@@ -105,6 +105,11 @@ describe("formatNumber", () => {
     expect(formatNumber(1234.5, 1, "1.234,5")).toBe("1.234,5");
     expect(formatNumber(1234.5, 1, "1.234,5", { group: false })).toBe("1234,5");
     expect(formatNumber(-1234.5, 2, "1,234.5", { group: false })).toBe("-1234.50");
+    expect(formatNumber(1234567, 0, "1 234,5", {}).split(/\s/)).toEqual(["1", "234", "567"]);
+    expect(formatNumber(-0.004, 2, "1,234.5")).toBe("0.00");
+  });
+  it("writes a dash for no number", () => {
+    for (const v of [null, undefined, Number.NaN, Infinity, -Infinity]) expect(formatNumber(v, 2, "1,234.5")).toBe("–");
   });
   it("writes the same digits in every style, only the marks differ", () => {
     for (const s of NUMBER_STYLES) expect(formatNumber(1234.5, 1, s).replace(/\D/g, "")).toBe("12345");
@@ -125,6 +130,10 @@ describe("units", () => {
     expect(keptUnit({ unit: "", format: "percent" as const })).toMatchObject({ unit: "%", unit_position: "after" });
     expect(keptUnit({ unit: "", format: "number" as const })).toMatchObject({ unit: "", unit_position: "after" });
     expect(keptUnit({ unit: "d", format: "number" as const, unit_position: "before" as const })).toMatchObject({ unit: "d", unit_position: "before" });
+  });
+  it("knows the two sides a unit stands on, and nothing else", () => {
+    expect(UNIT_POSITIONS.map(isUnitPosition)).toEqual([true, true]);
+    for (const bad of ["", "Before", "left", null, undefined, 0]) expect(isUnitPosition(bad)).toBe(false);
   });
 });
 
@@ -147,5 +156,20 @@ describe("format", () => {
     expect(formatDate("2026-11-04")).toBe("4 Nov 2026");
     expect(formatDate(new Date("2026-12-24T09:00:00"))).toBe("24 Dec 2026");
     expect(formatDate("not a date")).toBe("–");
+  });
+  it("reads a calendar day as a day, so one that does not exist is none, and any other text as a timestamp", () => {
+    // A day is read as a calendar day, never rolled over: 29 February 2026 does not exist. Read as a timestamp it
+    // would come out as 1 March (or 28 February west of UTC). Neither depends on the machine's time zone.
+    expect(formatDate("2026-02-29")).toBe("–");
+    expect(formatDate("2026-04-31")).toBe("–");
+    expect(formatDate("2028-02-29")).toBe("29 Feb 2028");
+    // Text that only starts or ends with a day, or names a day in words, is a timestamp. It is written as the day
+    // that instant falls on where the code runs, worked out here from the instant itself.
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const localDay = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    const noonUtc = localDay(new Date(Date.UTC(2026, 10, 4, 12)));
+    expect(formatDate("2026-11-04 12:00 GMT")).toBe(noonUtc);
+    expect(formatDate("Wed, 04 Nov 2026 12:00:00 GMT")).toBe(noonUtc);
+    expect(formatDate("Day 2026-11-04")).toBe(localDay(new Date(2026, 10, 4)));
   });
 });

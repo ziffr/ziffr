@@ -11,6 +11,8 @@ export type RecipeResults = Record<string, Result>;
 /** Applies a checked recipe (checkAnalysisRecipe)'s steps to the series of its Slots, in order (`inputs[i]` fills slot i + 1), and nothing
  * else: a recipe reaches only the Metrics placed in its Slots. A Slot left empty gives empty series. */
 export function runRecipe(r: AnalysisRecipe, inputs: Point[][]): RecipeResults {
+  // A Slot's kind is never read (seriesOf takes its points), and every function leaves out what is not a finite value.
+  // Stryker disable next-line StringLiteral,ArrayDeclaration: the kind of a Slot is never read, and a series of something that is no value is left out like an empty one
   const known = new Map<string, Result>(r.slots.map((_, i) => [`slot${i + 1}`, { kind: "series", points: inputs[i] ?? [] }]));
   // The checks (checkAnalysisRecipe) make sure every input names a Slot or an earlier step that gives a series, and
   // that each function has its parameter and its second series where it takes one.

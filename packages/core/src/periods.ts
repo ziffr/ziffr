@@ -14,7 +14,8 @@ export const JANUARY: YearStart = 1;
 
 /** Whether a value is a month a year can start in. */
 export function isYearStart(v: unknown): v is YearStart {
-  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 12;
+  // Number.isInteger is false for anything that is not a number, so it is the type check too.
+  return Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 12;
 }
 
 /** A stored or sent year start as one, January when it is not a month (an old row, a missing field). */
@@ -54,7 +55,9 @@ export function periodStart(date: Date | string, span: Span, yearStart: YearStar
 
 /** Whether a day (yyyy-mm-dd) is the first day of a span; false for anything that is not a day. */
 export function isPeriodStart(start: unknown, span: Span, yearStart: YearStart): start is string {
-  if (typeof start !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !isValid(parseISO(start))) return false;
+  // No pattern check is needed: a span's first day is written yyyy-mm-dd, so anything else (a time, no dashes) is not
+  // equal to it; an invalid day is caught before periodStart could fail on it.
+  if (typeof start !== "string" || !isValid(parseISO(start))) return false;
   return periodStart(start, span, yearStart) === start;
 }
 

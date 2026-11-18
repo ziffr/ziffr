@@ -22,9 +22,17 @@ function digits(abs: number, decimals: number, style: NumberStyle, group = true)
   return en.replace(/[,.]/g, (c) => (c === "," ? g : marks.decimal));
 }
 
-// The digits and whether a minus goes in front: a value that rounds to zero has none, so −0.4 is written 0.
-function signed(v: number, decimals: number, style: NumberStyle, group = true): { minus: boolean; body: string } {
+// Whether there is a number to write. Number.isFinite is false for null and undefined as well as for NaN and ±∞; as a
+// guard it also tells TypeScript that what passes is a number.
+function isNumber(v: number | null | undefined): v is number {
+  return Number.isFinite(v);
+}
+
+// The digits and whether a minus goes in front: a value that rounds to zero has none, so −0.4 is written 0. Grouped
+// unless `group` is false, as `digits` does.
+function signed(v: number, decimals: number, style: NumberStyle, group?: boolean): { minus: boolean; body: string } {
   const body = digits(Math.abs(v), decimals, style, group);
+  // Stryker disable next-line EqualityOperator: v <= 0 differs only at 0, whose digits have no 1-9, so no minus either way.
   return { minus: v < 0 && /[1-9]/.test(body), body };
 }
 
@@ -39,15 +47,15 @@ function withUnit(m: Pick<ValueUnit, "unit" | "unit_position">, minus: boolean, 
 /** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5"; `group: false` leaves out the
  * group marks, for files a spreadsheet reads. A dash for a value that is not a finite number. */
 export function formatNumber(v: number | null | undefined, decimals: number, style: NumberStyle, opts: { group?: boolean } = {}): string {
-  if (v === null || v === undefined || !Number.isFinite(v)) return "–";
-  const { minus, body } = signed(v, decimals, style, opts.group ?? true);
+  if (!isNumber(v)) return "–";
+  const { minus, body } = signed(v, decimals, style, opts.group);
   return (minus ? "-" : "") + body;
 }
 
 /** A value in the Number Style with its Metric's unit, side and decimals, e.g. "1.200 €" or "$1,200"; a dash when
  * there is none or it is not finite. */
 export function formatValue(m: ValueUnit, v: number | null | undefined, style: NumberStyle): string {
-  if (v === null || v === undefined || !Number.isFinite(v)) return "–";
+  if (!isNumber(v)) return "–";
   const { minus, body } = signed(v, m.decimals, style);
   return withUnit(m, minus, body);
 }
@@ -58,6 +66,7 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
   if (!Number.isFinite(v)) return "–";
   const abs = Math.abs(v);
   if (abs < 10_000) return formatValue(m, v, style);
+  // Stryker disable next-line EqualityOperator: at exactly 100 both sides give 100, so x <= 100 writes the same.
   const short = (x: number) => (x < 100 ? Math.round(x * 10) / 10 : Math.round(x));
   let n = short(abs / 1000);
   let suffix = "k";
@@ -66,26 +75,32 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
     n = short(abs / 1_000_000);
     suffix = "M";
   }
+  // Stryker disable next-line EqualityOperator: here |v| is at least 10,000, so v is never 0 and v <= 0 is the same.
   return withUnit(m, v < 0, digits(n, Number.isInteger(n) ? 0 : 1, style) + suffix);
 }
 
 /** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", "−" or "±"
  * ("+12.0 %", "−3.5 %"); `signed: false` writes the size only, for "up 12.0 %". A dash for none. */
 export function formatChange(pct: number | null | undefined, style: NumberStyle, opts: { signed?: boolean } = {}): string {
-  if (pct === null || pct === undefined || !Number.isFinite(pct)) return "–";
+  if (!isNumber(pct)) return "–";
   const body = digits(Math.abs(pct), 1, style);
+  // Stryker disable next-line EqualityOperator: a change of 0 has no 1-9 in its digits and is "±" before pct > 0 is asked.
   const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : "−";
   return `${sign}${body} %`;
 }
 
 /** A share in percent, such as Attainment or a breakdown row's part of its total, e.g. "96.4 %". */
 export function formatPercent(v: number | null | undefined, style: NumberStyle, decimals = 1): string {
+  // Stryker disable next-line StringLiteral: every side but "before" stands after (withUnit), so "" writes the same.
   return formatValue({ unit: "%", unit_position: "after", decimals }, v, style);
 }
 
 /** A calendar day the one way Ziffr writes it, e.g. "4 Nov 2026", from yyyy-mm-dd, a timestamp or a Date. */
 export function formatDate(d: string | Date) {
-  const date = typeof d === "string" ? (/^\d{4}-\d{2}-\d{2}$/.test(d) ? parseISO(d) : new Date(d)) : d;
+  // A yyyy-mm-dd day is read as that calendar day, not as midnight UTC, which is the day before west of UTC. A Date's
+  // own text never looks like one, so a Date goes to new Date(), which copies it.
+  const text = String(d);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? parseISO(text) : new Date(d);
   return Number.isNaN(date.getTime()) ? "–" : fmtDate(date, "d MMM yyyy");
 }
 
@@ -110,7 +125,7 @@ export const SOURCE_LABEL: Record<SourceId, string> = { slack: "Slack", mail: "M
 /** good | bad | neutral for a value, given the metric's target range. */
 export function health(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined) {
   // A value that is not a number (NaN, ∞) is on no side of a target: neutral, never "good".
-  if (v === null || v === undefined || !Number.isFinite(v)) return "neutral" as const;
+  if (!isNumber(v)) return "neutral" as const;
   if (m.target_min === null && m.target_max === null) return "neutral" as const;
   if (m.target_min !== null && v < Number(m.target_min)) return "bad" as const;
   if (m.target_max !== null && v > Number(m.target_max)) return "bad" as const;
@@ -119,7 +134,7 @@ export function health(m: Pick<Metric, "target_min" | "target_max">, v: number |
 
 /** Where a value sits against its metric's Target Range: below, on or above it; null without a target or value. */
 export function targetStatus(m: Pick<Metric, "target_min" | "target_max">, v: number | null | undefined): "below" | "on" | "above" | null {
-  if (v === null || v === undefined || !Number.isFinite(v) || (m.target_min === null && m.target_max === null)) return null;
+  if (!isNumber(v) || (m.target_min === null && m.target_max === null)) return null;
   if (m.target_min !== null && v < Number(m.target_min)) return "below";
   if (m.target_max !== null && v > Number(m.target_max)) return "above";
   return "on";

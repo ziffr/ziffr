@@ -340,3 +340,70 @@ describe("every branch of a Comparison (spec 0022)", () => {
     expect(summary(m, resolverFrom([m], { revenue: [...months("2026-03", [7]), ...months("2026-01", [5])] }), [], { yearStart: JANUARY, attainmentMethod: "distance" }).period).toBe("2026-03-01");
   });
 });
+
+describe("which Comparisons, and why one is not available (spec 0022)", () => {
+  it("offers a daily Metric every Comparison and a weekly one all but DoD", () => {
+    expect(comparisonsFor("day")).toEqual(["prev", "dod", "wow", "mom", "qoq", "hoh", "yoy"]);
+    expect(comparisonsFor("week")).toEqual(["prev", "wow", "mom", "qoq", "hoh", "yoy"]);
+  });
+
+  it("names the Metric that does not combine, and the span that has too few values", () => {
+    const rate = metric({ slug: "rate", name: "Rate", aggregation: "none" });
+    expect(compare(rate, resolverFrom([rate], { rate: series.revenue }), { yearStart: JANUARY, keys: ["qoq"] })[0]).toEqual({ key: "qoq", label: "QoQ", available: false, reason: "Rate does not combine into longer periods" });
+    // No February: March has no month before it to compare with.
+    const gap = resolverFrom([revenue], { revenue: [...months("2026-01", [1]), ...months("2026-03", [3])] });
+    expect(compare(revenue, gap, { yearStart: JANUARY, keys: ["prev"] })[0]).toMatchObject({ available: false, reason: "No values for the earlier span", currentSpan: "Mar 26", previousSpan: "Feb 26" });
+    // Q1 2026 holds only March, one month of three; Q4 2025 is whole.
+    const thin = resolverFrom([revenue], { revenue: [...months("2025-10", [1, 2, 3]), ...months("2026-03", [4])] });
+    expect(compare(revenue, thin, { yearStart: JANUARY, keys: ["qoq"], full: true })[0]).toMatchObject({ available: false, reason: "Incomplete values for this span" });
+  });
+
+  it("calls a rise good where higher is better, a fall bad, and no change neither", () => {
+    const good = (values: number[], polarity: "higher" | "lower" | "target") => {
+      const m = metric({ polarity });
+      return compare(m, resolverFrom([m], { revenue: months("2026-01", values) }), { yearStart: JANUARY, keys: ["prev"] })[0].good;
+    };
+    expect([good([1, 2], "higher"), good([2, 1], "higher"), good([1, 1], "higher")]).toEqual([true, false, null]);
+    expect([good([1, 2], "lower"), good([2, 1], "lower"), good([1, 2], "target")]).toEqual([false, true, null]);
+  });
+});
+
+describe("the target of a period, and whether a value is on it (spec 0022)", () => {
+  it("takes the Target Series value of that period, as a minimum or, where lower is better, a maximum", () => {
+    const t = [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 250 }];
+    expect(targetFor(revenue, "2026-02-01", t)).toEqual({ min: 250, max: null, fromSeries: true, value: 250 });
+    expect(targetFor(metric({ polarity: "target" }), "2026-02-01", t)).toEqual({ min: 250, max: null, fromSeries: true, value: 250 });
+    expect(targetFor(metric({ polarity: "lower" }), "2026-02-01", t)).toEqual({ min: null, max: 250, fromSeries: true, value: 250 });
+  });
+
+  it("falls back on the range, whose value is the bound that matters", () => {
+    const range = { target_min: 10, target_max: 20 };
+    expect(targetFor(metric({ polarity: "higher", ...range }), "2026-03-01", [])).toEqual({ min: 10, max: 20, fromSeries: false, value: 10 });
+    expect(targetFor(metric({ polarity: "target", ...range }), "2026-03-01")).toEqual({ min: 10, max: 20, fromSeries: false, value: 10 });
+    expect(targetFor(metric({ polarity: "lower", ...range }), "2026-03-01")).toEqual({ min: 10, max: 20, fromSeries: false, value: 20 });
+  });
+
+  it("is on target exactly on the bound, inside a range, and not outside it", () => {
+    const on = (polarity: "higher" | "lower" | "target", value: number, range: { target_min: number | null; target_max: number | null }) => {
+      const m = metric({ polarity, ...range });
+      return summary(m, resolverFrom([m], { revenue: months("2026-01", [value]) }), [], { keys: [], yearStart: JANUARY, attainmentMethod: "distance" }).onTarget;
+    };
+    expect([on("higher", 10, { target_min: 10, target_max: null }), on("lower", 10, { target_min: null, target_max: 10 })]).toEqual([true, true]);
+    expect([on("target", 15, { target_min: 10, target_max: 20 }), on("target", 21, { target_min: 10, target_max: 20 }), on("target", 9, { target_min: 10, target_max: 20 })]).toEqual([true, false, false]);
+    // Below a target of 0 is on target where lower is better: there is no percentage, so the difference decides.
+    expect(on("lower", -5, { target_min: null, target_max: 0 })).toBe(true);
+  });
+
+  it("is not on target just below it, though Attainment rounds to 100 % (bug: it was on target)", () => {
+    // 0.00016999999999999999 is the double just below 0.00017: by ratio 99.99999999999999…%, whose nearest double is
+    // 100. It is still below the target, by 1e-20, so it is not on target.
+    const m = metric({ polarity: "higher", target_min: 0.00017 });
+    const s = summary(m, resolverFrom([m], { revenue: months("2026-01", [0.00016999999999999999]) }), [], { keys: [], yearStart: JANUARY, attainmentMethod: "ratio" });
+    expect(s).toMatchObject({ attainment: 100, gap: -1e-20, onTarget: false });
+  });
+
+  it("has no target, Attainment or difference for a Metric without values", () => {
+    const m = metric();
+    expect(summary(m, () => undefined, [], { keys: [], yearStart: JANUARY, attainmentMethod: "ratio" })).toMatchObject({ value: undefined, period: undefined, target: null, attainment: null, gap: null, onTarget: null });
+  });
+});

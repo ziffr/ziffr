@@ -10,10 +10,12 @@ export function parseBreakdown(text: string, style: NumberStyle): { rows: { labe
   const rows: { label: string; value: number }[] = [];
   let total: number | null = null;
   for (const raw of text.split(/\r?\n|;/)) {
+    // Trimmed first, so a quote after leading spaces still opens the label. An empty line matches nothing below.
     const line = raw.trim();
-    if (!line) continue;
-    // A tab, colon or comma, or spaces, between label and number: "Germany\t1 234,5" is Germany and 1234.5.
-    const m = line.match(/^["']?(.+?)["']?(?:\s*[:\t,]\s*|\s+)["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?$/i) ?? line.match(/^["']?(.+?)["']?[\t,;]\s*["']?([+\-−]?\d[\d.,'’ ]*)["']?$/);
+    // A tab, colon or comma, or spaces, between label and number: "Germany\t1 234,5" is Germany and 1234.5. One
+    // pattern is enough: the lines are already split at ";", and every other separator is one of these.
+    // Stryker disable next-line Regex: without the ^, a match found later in the line would also start at 0, since (.+?) takes any prefix; the first match is the same.
+    const m = line.match(/^["']?(.+?)["']?(?:\s*[:\t,]\s*|\s+)["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?$/i);
     if (!m) continue;
     const label = m[1].trim();
     const value = readNumber(`${m[2].trim()}${m[3]?.toLowerCase() === "k" ? "k" : ""}`, style);

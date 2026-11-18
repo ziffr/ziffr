@@ -14,10 +14,6 @@ export { findPeriodWords, type PeriodWords } from "./numbers/period-words";
 /** The largest value, in size, a number read from text may have; anything larger is a typing slip, not a value. */
 export const LARGEST_VALUE = 1e15;
 
-// Marks that only ever group digits: spaces (plain, no-break, narrow no-break, thin) and apostrophes.
-const SPACE = /[ \u00a0\u202f\u2009]/;
-const APOSTROPHE = /['’]/;
-
 /** One number written in either convention ("1.234,5", "1,234.5", "1 234,5", "1'234.5", "−5", "+5", "2,5k", "1.2M"),
  * as a number; null for anything else, and for a number that is not finite or larger than 10^15 in size. With both
  * marks, or a group that is not three digits, a number reads only one way. Only one mark followed by exactly three
@@ -25,29 +21,26 @@ const APOSTROPHE = /['’]/;
 export function readNumber(text: string, style: NumberStyle): number | null {
   const m = /^([+\-−])?(\d(?:[\d.,'’ \u00a0\u202f\u2009]*\d)?)(?:\s?([kKM]))?$/u.exec(String(text).trim());
   if (!m) return null;
-  // Digit runs and the single marks between them; two marks in a row leave an empty run, which no number has.
-  const parts = m[2].split(/([.,'’ \u00a0\u202f\u2009])/u);
+  // Digit runs and the marks between them. Every kind of space (plain, no-break, narrow no-break, thin) is one mark,
+  // and so is either apostrophe: they only ever group digits. Two marks in a row leave an empty run, which neither a
+  // group of three nor a decimal part (always the last run) is, so the checks below refuse it.
+  const parts = m[2].replace(/[\u00a0\u202f\u2009]/gu, " ").replace(/’/gu, "'").split(/([.,' ])/u);
   const runs = parts.filter((_, i) => i % 2 === 0);
-  const marks = parts.filter((_, i) => i % 2 === 1).map((c) => (SPACE.test(c) ? " " : APOSTROPHE.test(c) ? "'" : c));
-  if (runs.some((r) => r === "")) return null;
+  const marks = parts.filter((_, i) => i % 2 === 1);
   const dots = marks.filter((c) => c === ".").length;
   const commas = marks.filter((c) => c === ",").length;
   const others = marks.length - dots - commas;
   let decimal: number | null = null; // index into marks
-  if (dots && commas) {
-    // Both: the later one is the decimal mark, once and last.
-    const last = marks.length - 1;
-    if (marks[last] !== "." && marks[last] !== ",") return null;
-    if (marks.filter((c) => c === marks[last]).length > 1) return null;
-    decimal = last;
-  } else if (dots + commas === 1) {
+  // Both: the later one is the decimal mark. One that is not last, or a second of it, leaves two kinds of group
+  // marks, which is refused below.
+  if (dots && commas) decimal = marks.length - 1;
+  else if (dots + commas === 1) {
     const at = marks.findIndex((c) => c === "." || c === ",");
-    const after = runs[at + 1];
-    // A group of thousands is three digits after a first group of one to three that does not start with 0.
-    const couldGroup = after.length === 3 && runs[0].length <= 3 && !runs[0].startsWith("0") && at === 0 && others === 0;
-    if (others > 0) decimal = at; // "1 234,5", "1'234.5": the other mark groups, so this one is the decimal
-    else if (!couldGroup) decimal = at;
-    else decimal = marks[at] === NUMBER_STYLE_MARKS[style].decimal ? at : null;
+    // Beside another mark ("1 234,5", "1'234.5") the other one groups, so this one is the decimal. Alone, it can be a
+    // group of thousands: three digits after a first group of one to three that does not start with 0. Then the
+    // Number Style settles it.
+    const couldGroup = others === 0 && runs[1].length === 3 && runs[0].length <= 3 && !runs[0].startsWith("0");
+    decimal = couldGroup && marks[at] !== NUMBER_STYLE_MARKS[style].decimal ? null : at;
   }
   // Every other mark groups, all the same one, in groups of three after a first group of one to three.
   const groupMarks = new Set(marks.filter((_, i) => i !== decimal));
@@ -59,10 +52,12 @@ export function readNumber(text: string, style: NumberStyle): number | null {
   const frac = decimal === null ? "" : runs[decimal + 1];
   // k and M move the decimal point, so 2,5k is exactly 2500 and not 2.5 × 1000 in floating point.
   const shift = m[3] === "M" ? 6 : m[3] ? 3 : 0;
-  const digits = (int + frac).padEnd(int.length + shift, "0");
-  const whole = digits.slice(0, int.length + shift);
-  const part = digits.slice(int.length + shift);
-  const v = Number(`${whole}.${part || "0"}`);
+  const point = int.length + shift;
+  const digits = (int + frac).padEnd(point, "0");
+  const whole = digits.slice(0, point);
+  const part = digits.slice(point);
+  // Nothing after the point is no fraction: "2500." is 2500.
+  const v = Number(`${whole}.${part}`);
   // Too large is decided on the digits as typed: 1,000,000,000,000,000.01 is larger than 10^15, though the double
   // nearest to it is 10^15 itself.
   const ceiling = BigInt(LARGEST_VALUE);
@@ -128,21 +123,23 @@ export type AnswerReading =
  * Prompt's; what is left must hold exactly one number, the value. "we had 2 signups last week" is 2 for last week;
  * "2 signups, 1 churn" asks back. Spec 0022, "Values in sentences". */
 export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
-  const today = typeof ctx.today === "string" ? ctx.today : periodStart(ctx.today, "day", ctx.yearStart);
+  const today = periodStart(ctx.today, "day", ctx.yearStart);
   const current = periodStart(parseISO(today), ctx.period, ctx.yearStart);
   const languages = ctx.languages ?? DEFAULT_ANSWER_LANGUAGES;
   const found = findPeriodWords(text, today, ctx.yearStart, languages, ctx.monthFirst ?? false);
   // A year on its own beside other period words is the value, not a second period: "KW 46: 2050" is 2050 for week
-  // 46 (#126). Alone, a year still names the Fiscal Year ("2026 revenue 4500").
-  const lone = (w: PeriodWords) => w.span === "year" && /^\d{4}$/.test(w.text);
+  // 46 (#126). Alone, a year still names the Fiscal Year ("2026 revenue 4500"). Period words that are four digits
+  // and nothing else are always such a year.
+  const lone = (w: PeriodWords) => /^\d{4}$/.test(w.text);
   const words = found.some((w) => !lone(w)) ? found.filter((w) => !lone(w)) : found;
   // Period words are blanked out, so their digits are never the value.
   let rest = text;
   for (const w of words) rest = rest.slice(0, w.from) + " ".repeat(w.to - w.from) + rest.slice(w.to);
   const numbers = numbersIn(rest, ctx.style);
 
-  // A year on its own is the value when it is the whole answer: "2026" in reply to "How many visitors?".
-  if (words.length === 1 && numbers.length === 0 && /^\d{4}$/.test(words[0].text) && !/[\p{L}\p{N}]/u.test(rest)) {
+  // A year on its own is the value when it is the whole answer: "2026" in reply to "How many visitors?". Nothing
+  // else is left, so there is no other number either.
+  if (words.length === 1 && lone(words[0]) && !/[\p{L}\p{N}]/u.test(rest)) {
     const value = readNumber(words[0].text, ctx.style)!;
     return { ok: true, value, period: ctx.promptPeriod ?? current, named: null };
   }
@@ -164,10 +161,12 @@ export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
     period = first.period;
     // A year written after a week, month, quarter or half-year with only a space between ("KW 46 2050", "November
     // 2025") is its year or the value; with no other number in the answer nothing tells which, so it asks back
-    // rather than guess, also when that year is still to come (#126). "FY 2026" is a year by its word.
-    const attached = numbers.length === 0 && named.span !== "year" && named.span !== "day" ? /^(.*?)(\S+)\s+(\d{4})$/u.exec(named.text) : null;
+    // rather than guess, also when that year is still to come (#126). "FY 2026" is a year by its word, which is the
+    // only way a Fiscal Year is written with a space before its year.
+    // The word before the year is the last one before it: the first match from the left starts where that word does.
+    const attached = numbers.length === 0 && named.span !== "day" ? /(\S+)\s+(\d{4})$/u.exec(named.text) : null;
     const fy = new Set(wordsFor(languages).flatMap((l) => l.byHand.fiscalYear.map((w) => w.toLowerCase())));
-    if (attached && !fy.has(attached[2].toLowerCase())) return { ok: false, reason: "year_or_value", named, year: attached[3] };
+    if (attached && !fy.has(attached[1].toLowerCase())) return { ok: false, reason: "year_or_value", named, year: attached[2] };
     if (ctx.promptPeriod && period !== ctx.promptPeriod) return { ok: false, reason: "other_period", named, period, promptPeriod: ctx.promptPeriod };
     if (!ctx.promptPeriod && period > current) return { ok: false, reason: "future_period", named, period };
   }

@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { checkViewDesign, checkViewDesignValue, VIEW_DESIGN_SCHEMA, VIEW_LIMITS, writeViewDesign, type ViewDesign } from "./view-design";
+import { repoFile } from "./test/repo-file";
 
 /** A design using every kind of part and mark, as a designer might write it. */
 export const EXAMPLE: ViewDesign = {
@@ -187,7 +188,7 @@ describe("writeViewDesign", () => {
 
 describe("the published schema", () => {
   // The schema in docs/reference is generated from VIEW_DESIGN_SCHEMA, never written by hand. UPDATE_REFERENCE=1 writes it.
-  const path = new URL("../../../docs/reference/view-design.schema.json", import.meta.url);
+  const path = repoFile("docs/reference/view-design.schema.json");
   const generated = `${JSON.stringify(VIEW_DESIGN_SCHEMA, null, 2)}\n`;
 
   it("is the one the checks run", () => {
