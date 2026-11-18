@@ -10,6 +10,9 @@ set -euo pipefail
 base="${1:?usage: mutation-pr.sh <base> <budget-seconds>}"
 budget="${2:?usage: mutation-pr.sh <base> <budget-seconds>}"
 cd "$(dirname "$0")/../.."
+# As many generated cases as the nightly mutation run (package.json, test:mutation): the hand-made cases and the
+# references kill most mutants, and every mutant runs its tests again.
+export NUMBERS_RUNS="${NUMBERS_RUNS:-30}"
 modules=$(.github/scripts/mutation-changed.sh "$base")
 if [ -z "$modules" ]; then echo "No calculation module changed: nothing to mutate."; exit 0; fi
 
