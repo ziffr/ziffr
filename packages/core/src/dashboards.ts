@@ -10,7 +10,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { DEFAULT_TEMPLATE, TEMPLATES, templateOf } from "./widget-templates";
 import { designSettings } from "./built-in-designs";
 import { allowedDesign } from "./view-designs";
-import { assertWidgetDesigns, checkedDesignSetting } from "./widget-designs";
+import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
@@ -38,9 +38,21 @@ function settings(s: unknown): WidgetSettings {
   if (v.display !== undefined && !isDisplayPeriod(v.display)) throw new Error("A widget is shown by a week, month, quarter, half-year or year.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
-  // A View Design in a widget, or in a widget on a Free layout, is checked like a file brought in (spec 0024).
+  // A View Design in a widget, in the widget a Free layout starts from, or in a widget on its artboard, is checked like
+  // a file brought in (spec 0024), at every depth.
   if (v.design !== undefined) v.design = checkedDesignSetting(v.design);
-  assertWidgetDesigns((v as { canvas?: { document?: unknown } | null }).canvas?.document);
+  assertSettingsDesigns(v);
+  return v;
+}
+
+/** Settings as a browser sent them: never the widget a Free layout starts from, which only the server sets (when a
+ * widget becomes a Free layout). `keep` is the seed the widget has now; a browser may only clear it (null). */
+function fromBrowser(s: unknown, keep?: WidgetSettings["canvasSeed"]): WidgetSettings {
+  const v = settings(s);
+  const sent = (s as WidgetSettings | null | undefined)?.canvasSeed;
+  delete v.canvasSeed;
+  if (sent !== null && keep) v.canvasSeed = keep;
+  else if (sent === null) v.canvasSeed = null;
   return v;
 }
 
@@ -98,7 +110,7 @@ async function specFrom(actor: Actor, source: DropSource) {
   if (source?.type === "template") return fromTeamTemplate(actor, Number(source.id), source.fills);
   if (source?.type !== "spec" || !(source.template in TEMPLATES)) throw new Forbidden();
   const metricIds = ids(source.metricIds);
-  const s = settings(source.settings ?? TEMPLATES[source.template].settings);
+  const s = fromBrowser(source.settings ?? TEMPLATES[source.template].settings);
   // A widget of a Workspace's View Design draws the design as the Workspace keeps it, never one the browser made up.
   if (source.template === "design") s.design = await allowedDesign(actor, s.design);
   else delete s.design;
@@ -174,7 +186,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   const cur = await editableWidget(actor, id);
   if (patch.template && !(patch.template in TEMPLATES)) throw new Forbidden();
   const metricIds = patch.metricIds ? ids(patch.metricIds) : undefined;
-  const newSettings = patch.settings !== undefined ? settings(patch.settings) : undefined;
+  const newSettings = patch.settings !== undefined ? fromBrowser(patch.settings, cur.settings?.canvasSeed) : undefined;
   // A View Design of the Workspace, or the one the widget has; any other view keeps none (spec 0024).
   const template = patch.template ?? cur.template;
   if (newSettings && template === "design") newSettings.design = await allowedDesign(actor, newSettings.design, cur.settings?.design);

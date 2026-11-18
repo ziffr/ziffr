@@ -7,7 +7,7 @@ import { Forbidden } from "./actor";
 import { auditLog } from "./audit-log";
 import { BUILT_IN_DESIGNS } from "./built-in-designs";
 import { getCanvasData } from "./access";
-import { createDashboard, placeWidget, updateWidget } from "./dashboards";
+import { createDashboard, placeWidget, saveToPool, updateWidget } from "./dashboards";
 import { createDeck, saveDeck } from "./decks";
 import { db } from "./db";
 import { designFile, designOf } from "./design-files";
@@ -108,11 +108,45 @@ describe("a widget drawn by a Workspace's View Design", () => {
     expect((await widgetsOf(dash))[0].settings.design).toBeUndefined();
   });
 
+  it("never takes the widget a Free layout starts from from the browser, and refuses a hostile design nested in one", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const dash = await createDashboard(w.actor(sara), "Layouts");
+    const m = await w.metric(sara);
+    const hostile = { ...mine, parts: [{ mark: "text", content: ["<script>alert(1)</script>"] }] };
+    const seed = (body: unknown) => ({ template: "design" as const, metric_ids: [m.id], settings: { design: { id: null, body } } as never });
+    const artboard = (body: unknown) => ({ document: { store: { "shape:1": { type: "ziffr-widget", props: { template: "design", metricIds: [m.id], settings: JSON.stringify({ design: { id: null, body } }) } } } }, stamp: {} });
+    // Placing, saving to the Pool and changing settings: a hostile seed or artboard design is refused outright.
+    for (const settings of [{ canvasSeed: seed(hostile) }, { canvas: artboard(hostile) }, { canvasSeed: { ...seed(mine), settings: { canvas: artboard(hostile) } as never } }]) {
+      await expect(placeWidget(w.actor(sara), dash, { type: "spec", template: "canvas", metricIds: [], settings })).rejects.toThrow("View Design");
+      await expect(saveToPool(w.actor(sara), { type: "spec", template: "canvas", metricIds: [], settings }, "Mine")).rejects.toThrow("View Design");
+    }
+    // A seed that passes the checks is still not the browser's to set: it is dropped.
+    await placeWidget(w.actor(sara), dash, { type: "spec", template: "canvas", metricIds: [], settings: { canvasSeed: seed(mine) } });
+    const [layout] = await widgetsOf(dash);
+    expect(layout.settings.canvasSeed).toBeUndefined();
+    await updateWidget(w.actor(sara), layout.id, { settings: { canvasSeed: seed(mine) } });
+    expect((await widgetsOf(dash))[0].settings.canvasSeed).toBeUndefined();
+    await expect(updateWidget(w.actor(sara), layout.id, { settings: { canvasSeed: seed(hostile) } })).rejects.toThrow("View Design");
+    // Only the server sets it, from the widget as stored, when the widget becomes a Free layout; the browser may clear it.
+    await placeWidget(w.actor(sara), dash, { type: "spec", template: "line", metricIds: [m.id] });
+    const line = (await widgetsOf(dash)).find((x) => x.template === "line")!;
+    await updateWidget(w.actor(sara), line.id, { template: "canvas" });
+    const made = (await widgetsOf(dash)).find((x) => x.id === line.id)!;
+    expect(made.settings.canvasSeed?.template).toBe("line");
+    await updateWidget(w.actor(sara), line.id, { settings: { ...made.settings, canvasSeed: seed(mine) } });
+    expect((await widgetsOf(dash)).find((x) => x.id === line.id)!.settings.canvasSeed?.template).toBe("line");
+    await updateWidget(w.actor(sara), line.id, { settings: { ...made.settings, canvasSeed: null } });
+    expect((await widgetsOf(dash)).find((x) => x.id === line.id)!.settings.canvasSeed).toBeNull();
+  });
+
   it("refuses a design on a slide that does not pass the checks", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const deck = await createDeck(w.actor(sara), "Board");
     const shape = (body: unknown) => ({ store: { "shape:1": { type: "ziffr-widget", props: { template: "design", metricIds: [], settings: JSON.stringify({ design: { id: null, body } }) } } } });
     await saveDeck(w.actor(sara), deck, shape(mine));
     await expect(saveDeck(w.actor(sara), deck, shape({ ...mine, parts: [{ mark: "iframe" }] }))).rejects.toThrow("View Design");
+    // Also in the widget a Free layout on a slide starts from.
+    const seeded = { store: { "shape:1": { type: "ziffr-widget", props: { template: "canvas", metricIds: [], settings: JSON.stringify({ canvasSeed: { template: "design", metric_ids: [], settings: { design: { id: null, body: { ...mine, name: "<b>" } } } } }) } } } };
+    await expect(saveDeck(w.actor(sara), deck, seeded)).rejects.toThrow("View Design");
   });
 });
