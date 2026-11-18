@@ -6,6 +6,7 @@
 #            them changed since the last nightly run that reached the score;
 #   image    builds, tries and publishes the Docker image, with the compose file and installer on the release (spec 0015).
 # Pressing the button is the maintainer's approval: only the repository's owner may start it, and only from main.
+# Every job checks who started it, since one job can be run again on its own.
 name: Release
 on:
   workflow_dispatch:
@@ -16,6 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
+    if: github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 75
     permissions:
@@ -49,6 +51,7 @@ jobs:
 
   release:
     needs: prepare
+    if: github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -75,6 +78,7 @@ jobs:
   # these same modules, and a calculation path is every file that can change their result (.github/calculation-paths.txt).
   numbers:
     needs: prepare
+    if: github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 330
     permissions:
@@ -98,8 +102,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          base=$(gh run list -R "$GITHUB_REPOSITORY" --workflow numbers.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
-          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null && ! .github/scripts/calculation-paths-touched.sh "$base"; then
+          # Only a scheduled run counts (a run started by hand could be of an edited workflow), and only on a commit main holds.
+          base=$(gh run list -R "$GITHUB_REPOSITORY" --workflow numbers.yml --branch main --event schedule --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ -n "$base" ] && git merge-base --is-ancestor "$base" HEAD 2>/dev/null && ! .github/scripts/calculation-paths-touched.sh "$base"; then
             echo "mutate=false" >> "$GITHUB_OUTPUT"
             echo "Mutation testing left out: no calculation path changed since $base, whose nightly run reached the score." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -121,6 +126,7 @@ jobs:
   # on pull requests: Actions minutes are counted.
   image:
     needs: [prepare, release, numbers]
+    if: github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

@@ -53,8 +53,12 @@ git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.c
 
 // A release merged by an earlier run that stopped before its tag.
 const head = git("rev-parse", "HEAD");
-const merged = /^Release (\d+\.\d+\.\d+) \(#\d+\)$/.exec(git("log", "-1", "--format=%s"))?.[1];
+const [, merged, mergedPr] = /^Release (\d+\.\d+\.\d+) \(#(\d+)\)$/.exec(git("log", "-1", "--format=%s")) ?? [];
 if (merged && !tagged(merged)) {
+  // Only a release this button made: its pull request was opened by the workflow, and every package is at that version.
+  const author = JSON.parse(gh("pr", "view", mergedPr, "--json", "author")).author?.login;
+  if (author !== BOT) throw new Error(`main's latest commit says it is release ${merged}, but #${mergedPr} was not made by the Release button.`);
+  for (const p of PACKAGES) if (JSON.parse(readFileSync(p, "utf8")).version !== merged) throw new Error(`${p} is not at ${merged}.`);
   tag(merged, head);
   process.exit(0);
 }
