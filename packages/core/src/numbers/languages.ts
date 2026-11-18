@@ -1,7 +1,12 @@
-// The words an answer may name its Period with, one file per language (spec 0022; GLOSSARY: Period, Prompt). Pure
-// data in one shape, so the reader in numbers.ts never depends on a language and adding one is adding a file.
+// The words an answer may name its Period with, one file per language (spec 0022; GLOSSARY: Period, Answer Language).
+// Pure data in one shape, so the reader in numbers.ts never depends on a language and adding one is adding a file
+// (docs/guides/answer-languages.md).
 import { de } from "./words/de";
 import { en } from "./words/en";
+import { es } from "./words/es";
+import { fr } from "./words/fr";
+import { it } from "./words/it";
+import { nl } from "./words/nl";
 
 /** The spans "this" and "last" are said of; "this day" and "last day" are "today" and "yesterday". */
 export const RELATIVE_UNITS = ["day", "week", "month", "quarter", "year"] as const;
@@ -38,6 +43,8 @@ export type HandWords = {
   fiscalYear: string[];
   /** What follows a number to make it an ordinal ("3rd", "3."), as in "12th Nov" or "46. KW". */
   ordinal: string[];
+  /** Words between a day, its month and its year ("12 de noviembre de 2026", "12th of November"). */
+  dateWords: string[];
 };
 
 /** The words of one language: what `Intl` knows, then what was added by hand. Every word is written in lower case. */
@@ -53,7 +60,39 @@ export type AnswerWords = {
 };
 
 /** Every language Ziffr reads answers in, by code. */
-export const ANSWER_LANGUAGES: Readonly<Record<string, AnswerWords>> = { en, de };
+export const ANSWER_LANGUAGES: Readonly<Record<string, AnswerWords>> = { en, de, fr, es, it, nl };
 
-/** The languages answers are read in until a Workspace chooses its own: English and German (spec 0022, #109). */
+/** The languages answers are read in when nothing else is known: English and German. */
 export const DEFAULT_ANSWER_LANGUAGES: readonly string[] = ["en", "de"];
+
+// The languages a country's people write in, where Ziffr has words for them; English is added to every Workspace's
+// default. Several for a country with several (Belgium, Switzerland).
+const COUNTRY_LANGUAGES: Readonly<Record<string, readonly string[]>> = {
+  ...Object.fromEntries(["DE", "AT", "LI"].map((c) => [c, ["de"]])),
+  ...Object.fromEntries(["FR", "MC"].map((c) => [c, ["fr"]])),
+  ...Object.fromEntries(["ES", "MX", "AR", "CO", "CL", "PE", "UY", "VE", "EC", "BO", "PY", "CR", "PA", "GT", "DO", "SV", "HN", "NI"].map((c) => [c, ["es"]])),
+  ...Object.fromEntries(["IT", "SM"].map((c) => [c, ["it"]])),
+  NL: ["nl"],
+  BE: ["nl", "fr"],
+  CH: ["de", "fr", "it"],
+  LU: ["fr", "de"],
+};
+
+/** The Answer Languages a Workspace has until an Owner or Admin chooses: English plus its country's languages. */
+export function answerLanguagesForCountry(country: string | null | undefined): string[] {
+  const own = country && Object.hasOwn(COUNTRY_LANGUAGES, country) ? COUNTRY_LANGUAGES[country] : [];
+  return ["en", ...own.filter((c) => c !== "en")];
+}
+
+/** Whether a country writes a date such as "11/12" month first, as the US does; every other country day first. */
+export function monthFirstIn(country: string | null | undefined): boolean {
+  return country === "US";
+}
+
+/** A list of Answer Languages from untrusted input: known codes only, each once, in the registry's order; null when
+ * the input is not such a list or picks none. */
+export function checkAnswerLanguages(input: unknown): string[] | null {
+  if (!Array.isArray(input) || input.length === 0 || input.length > 20 || !input.every((c) => typeof c === "string")) return null;
+  if (!input.every((c) => Object.hasOwn(ANSWER_LANGUAGES, c))) return null;
+  return Object.keys(ANSWER_LANGUAGES).filter((c) => input.includes(c));
+}

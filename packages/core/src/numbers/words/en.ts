@@ -1,4 +1,4 @@
-// English words that name a Period in an answer (spec 0022; GLOSSARY: Period, Prompt): "last week", "October",
+// English words that name a Period in an answer (spec 0022; GLOSSARY: Period, Answer Language): "last week", "October",
 // "Q3", "week 46". The shape is in ../languages.ts.
 import type { AnswerWords } from "../languages";
 
@@ -6,7 +6,7 @@ import type { AnswerWords } from "../languages";
 export const en: AnswerWords = {
   code: "en",
   name: "English",
-  // fromIntl: generated from Intl, do not edit by hand.
+  // fromIntl: generated from Intl by scripts/answer-words.mjs, do not edit by hand.
   fromIntl: {
     relative: {
       day: { this: ["today"], last: ["yesterday"] },
@@ -46,5 +46,6 @@ export const en: AnswerWords = {
     half: { before: ["h", "half"], after: ["half"] },
     fiscalYear: ["fy"],
     ordinal: ["st", "nd", "rd", "th"],
+    dateWords: ["of"],
   },
 };

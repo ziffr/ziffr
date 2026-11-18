@@ -54,6 +54,7 @@ function detailText(e: AuditEvent): string {
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? "from the country"} → ${d.to}`;
+    case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : "from the country"} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";
   }

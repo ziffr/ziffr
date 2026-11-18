@@ -16,7 +16,7 @@ import { approveValue, closeWorkflowPeriod, lockPeriod, saveWorkflow, sendValueB
 import { decideCorrection, submitValue } from "./submissions";
 import { setWorkspaceClock } from "./workspace-clock";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { renameWorkspace, setNumberStyle, setWorkspaceProfile } from "./workspace-settings";
+import { renameWorkspace, setAnswerLanguages, setNumberStyle, setWorkspaceProfile } from "./workspace-settings";
 import { setYearStart } from "./fiscal-year";
 import { workspace } from "./test/db-fixtures";
 import { JANUARY, periodStart } from "./periods";
@@ -66,13 +66,14 @@ describe("recording", () => {
     await setWorkspaceProfile(owner, { industry: "saas", employeeBand: null });
     await setYearStart(owner, 4);
     await setNumberStyle(owner, "1.234,5");
+    await setAnswerLanguages(owner, ["en", "fr"]);
 
     expect(await kinds(w.id)).toEqual([
       "member.role_changed", "invitation.created", "invitation.created", "invitation.revoked", "invitation.accepted",
       "domain_joining.on", "domain_joining.off", "join_request.declined",
       "group.created", "group.renamed", "group.member_added", "group.member_removed", "group.deleted",
       "contact.added", "contact.removed", "workspace.clock_changed", "member.removed",
-      "workspace.renamed", "workspace.profile_changed", "workspace.year_start_changed", "workspace.number_style_changed",
+      "workspace.renamed", "workspace.profile_changed", "workspace.year_start_changed", "workspace.number_style_changed", "workspace.answer_languages_changed",
     ]);
     const rows = await stored(w.id);
     expect(rows[0]).toMatchObject({ actor_id: sara, object_type: "person", object_id: ben, details: { from: "member", to: "admin" } });

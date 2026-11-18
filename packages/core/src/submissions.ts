@@ -6,7 +6,7 @@ import { db } from "./db";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
-import { numberStyleOf } from "./workspace-settings";
+import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
@@ -171,7 +171,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
 
   // 3. What value, for which period? A program names both; a breakdown's total (or the sum of its rows) is the value
   // for the Prompt's or the current period; any other text is read as an answer (numbers.ts, spec 0022).
-  const [style, workspaceYearStart] = await Promise.all([numberStyleOf(workspaceId), yearStartOf(workspaceId)]);
+  const [style, workspaceYearStart, reading] = await Promise.all([numberStyleOf(workspaceId), yearStartOf(workspaceId), answerReadingOf(workspaceId)]);
   // A day, week or month is the same whatever the year start; quarters and years follow the workspace's.
   const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
   const current = periodStart(new Date(), metric.period, ys);
@@ -191,7 +191,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   } else {
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
-    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null });
+    const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null, ...reading });
     if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current) });
     value = answer.value;
     period = answer.period;

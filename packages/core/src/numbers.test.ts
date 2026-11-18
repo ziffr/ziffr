@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANSWER_LANGUAGES, numbersIn, readAnswer, readNumber, type AnswerReading } from "./numbers";
+import { answerLanguagesForCountry, checkAnswerLanguages, monthFirstIn } from "./numbers/languages";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { parseBreakdown } from "./parse";
 import { shiftPeriod, type YearStart } from "./periods";
@@ -81,7 +82,8 @@ describe("readNumber and every caller read a text the same way", () => {
 // asks back, for a weekly, monthly, quarterly and yearly Metric, today 18 Nov 2026 and a Fiscal Year from April.
 // Weeks: this 2026-11-16, last 2026-11-09. Quarters: Q3 FY 2026/27 is 2026-10-01. Years: FY 2026/27 is 2026-04-01.
 type Expect = { value: number; period: string } | { ask: Exclude<AnswerReading, { ok: true }>["reason"] };
-type Sentence = { lang: string; text: string; style?: NumberStyle; prompt?: "last" | "this"; week: Expect; month: Expect; quarter: Expect; year: Expect };
+// Each row is read in English and its own language, as a Workspace whose country speaks it does by default.
+type Sentence = { lang: string; text: string; style?: NumberStyle; prompt?: "last" | "this"; monthFirst?: boolean; week: Expect; month: Expect; quarter: Expect; year: Expect };
 const v = (value: number, period: string) => ({ value, period });
 const ask = (reason: Exclude<AnswerReading, { ok: true }>["reason"]) => ({ ask: reason });
 const NOT = ask("not_a_period_of_metric");
@@ -140,8 +142,42 @@ const SENTENCES: Sentence[] = [
   { lang: "de", text: "KW46/2026: 2", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
   { lang: "en", text: "Q3/26 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
   { lang: "en", text: "May 2026: 7", week: NOT, month: v(7, "2026-05-01"), quarter: NOT, year: NOT },
-  // A date with a slash depends on the country's order of day and month (#118); until then it is two numbers.
-  { lang: "en", text: "12/11: 3", week: ask("several_numbers"), month: ask("several_numbers"), quarter: ask("several_numbers"), year: ask("several_numbers") },
+  // A date with a slash is day first, or month first where the country writes it so (the US).
+  { lang: "en", text: "12/11: 4", week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  { lang: "en", text: "11/12: 4", monthFirst: true, week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  { lang: "en", text: "11/12/2026: 4", monthFirst: true, week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  { lang: "en", text: "10/2026: 5", week: NOT, month: v(5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "en", text: "12th of November: 4", week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  // French.
+  { lang: "fr", text: "la semaine dernière nous avons eu 2 inscriptions", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "fr", text: "semaine 46 : 2", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "fr", text: "T3 : 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
+  { lang: "fr", text: "3e trimestre : 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
+  { lang: "fr", text: "octobre : 12,5", week: NOT, month: v(12.5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "fr", text: "le mois dernier 1 234,5", style: "1 234,5", week: NOT, month: v(1234.5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "fr", text: "aujourd'hui 3", ...now(3) },
+  { lang: "fr", text: "12 novembre : 4", week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  { lang: "fr", text: "décembre 2026 : 5", week: NOT, month: ask("future_period"), quarter: NOT, year: NOT },
+  // Spanish.
+  { lang: "es", text: "la semana pasada tuvimos 2 altas", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "es", text: "T3: 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
+  { lang: "es", text: "el mes pasado 7", week: NOT, month: v(7, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "es", text: "12 de noviembre: 4", week: v(4, "2026-11-09"), month: v(4, "2026-11-01"), quarter: v(4, "2026-10-01"), year: v(4, "2026-04-01") },
+  { lang: "es", text: "octubre de 2026: 5", week: NOT, month: v(5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "es", text: "ayer 340", ...now(340) },
+  // Italian.
+  { lang: "it", text: "la settimana scorsa 2 iscrizioni", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "it", text: "ottobre: 12,5", week: NOT, month: v(12.5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "it", text: "3° trimestre: 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
+  { lang: "it", text: "ieri 340", ...now(340) },
+  // "set" is September in Italian, and an English word: alone it names no month.
+  { lang: "it", text: "we set up 3 meetings", ...now(3) },
+  // Dutch.
+  { lang: "nl", text: "vorige week 2 aanmeldingen", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "nl", text: "week 46: 2", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "nl", text: "Q3 4500", week: NOT, month: NOT, quarter: v(4500, "2026-10-01"), year: NOT },
+  { lang: "nl", text: "oktober: 12,5", week: NOT, month: v(12.5, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "nl", text: "gisteren 340", ...now(340) },
   // A year on its own is the value, not the period.
   { lang: "en", text: "2026", ...now(2026) },
   { lang: "en", text: "Q3", week: NOT, month: NOT, quarter: ask("no_number"), year: NOT },
@@ -153,7 +189,7 @@ describe("readAnswer reads sentences", () => {
       it.each(SENTENCES.map((s) => [s.text, s] as const))("%s", (_, s) => {
         const current = { week: "2026-11-16", month: "2026-11-01", quarter: "2026-10-01", year: "2026-04-01" }[period];
         const promptPeriod = s.prompt === "last" ? shiftPeriod(current, period, -1) : s.prompt === "this" ? current : undefined;
-        const r = readAnswer(s.text, { ...at(period, promptPeriod), style: s.style ?? "1,234.5" });
+        const r = readAnswer(s.text, { ...at(period, promptPeriod), style: s.style ?? "1,234.5", languages: [...new Set(["en", "de", s.lang])], monthFirst: s.monthFirst });
         const e = s[period];
         if ("ask" in e) expect(r.ok ? r : r.reason).toBe(e.ask);
         else expect(r.ok ? { value: r.value, period: r.period } : r).toEqual(e);
@@ -197,5 +233,19 @@ describe("readAnswer reads sentences", () => {
       for (const [word, meaning] of meanings(a)) if (mb.has(word) && mb.get(word) !== meaning) clashes.push(`${a}/${b} "${word}": ${meaning} or ${mb.get(word)}`);
     }
     expect(clashes).toEqual([]);
+  });
+});
+
+describe("Answer Languages", () => {
+  it("default to English plus the country's languages, and take only known ones", () => {
+    expect(answerLanguagesForCountry(null)).toEqual(["en"]);
+    expect(answerLanguagesForCountry("US")).toEqual(["en"]);
+    expect(answerLanguagesForCountry("DE")).toEqual(["en", "de"]);
+    expect(answerLanguagesForCountry("CH")).toEqual(["en", "de", "fr", "it"]);
+    expect(answerLanguagesForCountry("BE")).toEqual(["en", "nl", "fr"]);
+    expect(monthFirstIn("US")).toBe(true);
+    expect(monthFirstIn("GB")).toBe(false);
+    expect(checkAnswerLanguages(["fr", "en", "fr"])).toEqual(["en", "fr"]);
+    for (const bad of [[], ["xx"], ["en", "xx"], "en", null, [1], Array(21).fill("en")]) expect(checkAnswerLanguages(bad)).toBeNull();
   });
 });

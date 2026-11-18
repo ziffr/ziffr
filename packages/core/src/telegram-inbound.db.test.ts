@@ -52,6 +52,8 @@ describe("answers by Telegram", () => {
 
   it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
     const { w, sara, ann, user, m } = await setup();
+    // A workspace in Germany reads answers in English and German (its Answer Languages).
+    await db().from("workspaces").update({ country: "DE" }).eq("id", w.id);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
     const d = await latest(w.id, ann);
     expect(await receiveTelegramUpdate(text(user, "2 Besuche, 1 abgesagt", d.telegram_message_id))).toBe("refused");

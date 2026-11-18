@@ -15,7 +15,8 @@ const B = String.raw`(?<![\p{L}\p{N}]|[\p{N}][.,'’])`;
 const E = String.raw`(?![\p{L}\p{N}]|[.,'’][\p{N}])`;
 // Within a phrase, any run of spaces stands for one.
 const S = String.raw`\s+`;
-const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, S);
+// An apostrophe matches either kind, so "aujourd'hui" typed on a plain keyboard is "aujourd’hui".
+const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, S).replace(/['’]/g, "['’]");
 // Longest first, so "letzten monat" is taken before "monat" could be.
 const alt = (words: string[]) => [...new Set(words.map((w) => w.toLowerCase()))].sort((a, b) => b.length - a.length).map(esc).join("|") || "(?!)";
 
@@ -31,7 +32,7 @@ function day(y: number, m: number, d: number): string | null {
 const fullYear = (y: string) => (y.length === 2 ? 2000 + Number(y) : Number(y));
 
 /** The rules that find period words, built once per set of languages. */
-function rules(langs: AnswerWords[], today: string, yearStart: YearStart): Rule[] {
+function rules(langs: AnswerWords[], today: string, yearStart: YearStart, monthFirst: boolean): Rule[] {
   const t = parseISO(today);
   const ty = t.getFullYear();
   // A month, week, quarter or half-year named without its year is the latest one that has begun: answers are about
@@ -52,6 +53,8 @@ function rules(langs: AnswerWords[], today: string, yearStart: YearStart): Rule[
   // "46. KW" and "3rd quarter" need the ordinal; "in 1 week" names no week.
   const ORDINAL = `(?:${alt(all((l) => l.byHand.ordinal))})`;
   const ORD = `${ORDINAL}?`;
+  // "12 de noviembre de 2026", "12th of November".
+  const JOIN = `(?:\\s+(?:${alt(all((l) => l.byHand.dateWords))}))?`;
   const monthOf = (w: string) => monthIndex.get(w.toLowerCase().replace(/\s+/g, " "))!;
   const YEAR4 = String.raw`(20\d{2})`;
   // A year after a quarter, half or week: "Q3 2026", "Q3/26", "KW 46/2026", "Q3 FY 2026/27".
@@ -95,9 +98,18 @@ function rules(langs: AnswerWords[], today: string, yearStart: YearStart): Rule[
         return { span: "day", start: latest((y) => day(y, mo, d)) };
       },
     },
+    // 12/11, 12/11/2026: day first, or month first where the Workspace's country writes it so (the US). 11/2026 is a month.
+    {
+      re: r(String.raw`(\d{1,2})/(\d{1,2})(?:/(\d{4}|\d{2}))?`),
+      read: (m) => {
+        const [d, mo] = monthFirst ? [Number(m[2]), Number(m[1])] : [Number(m[1]), Number(m[2])];
+        return { span: "day", start: m[3] ? day(fullYear(m[3]), mo, d) : latest((y) => day(y, mo, d)) };
+      },
+    },
+    { re: r(String.raw`(\d{1,2})/(20\d{2})`), read: (m) => ({ span: "month", start: day(Number(m[2]), Number(m[1]), 1) }) },
     // 12 Nov, 12. November 2026, 12th Nov
     {
-      re: r(String.raw`(\d{1,2})${ORD}\s*${MONTH}(?:\s+${YEAR4})?`),
+      re: r(String.raw`(\d{1,2})${ORD}${JOIN}\s*${MONTH}(?:${JOIN}\s+${YEAR4})?`),
       read: (m) => ({ span: "day", start: m[3] ? day(Number(m[3]), monthOf(m[2]), Number(m[1])) : latest((y) => day(y, monthOf(m[2]), Number(m[1]))) }),
     },
     // Nov 12th, November 12, 2026: a month and a bare number after it is a month and a value, not a date.
@@ -110,7 +122,7 @@ function rules(langs: AnswerWords[], today: string, yearStart: YearStart): Rule[
     },
     // October, Oktober 2026, May 2026 ("may" alone is not a month)
     {
-      re: r(String.raw`${MONTH}(?:\s+${YEAR4})?`),
+      re: r(String.raw`${MONTH}(?:${JOIN}\s+${YEAR4})?`),
       read: (m) => {
         if (!m[2] && monthOnlyWithDate.has(m[1].toLowerCase())) return null;
         const mo = monthOf(m[1]);
@@ -156,10 +168,10 @@ export function wordsFor(languages: readonly string[]): AnswerWords[] {
 }
 
 /** Every stretch of `text` that names a period, in the order they stand, none overlapping: where two overlap, the
- * longer one wins ("October 2026" over "2026"). `today` is a yyyy-mm-dd. */
-export function findPeriodWords(text: string, today: string, yearStart: YearStart, languages: readonly string[]): PeriodWords[] {
+ * longer one wins ("October 2026" over "2026"). `today` is a yyyy-mm-dd; `monthFirst` reads "11/12" as 12 November. */
+export function findPeriodWords(text: string, today: string, yearStart: YearStart, languages: readonly string[], monthFirst = false): PeriodWords[] {
   const found: PeriodWords[] = [];
-  for (const rule of rules(wordsFor(languages), today, yearStart)) {
+  for (const rule of rules(wordsFor(languages), today, yearStart, monthFirst)) {
     rule.re.lastIndex = 0;
     for (let m = rule.re.exec(text); m; m = rule.re.exec(text)) {
       const read = rule.read(m);
