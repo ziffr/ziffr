@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
   // The Docker image (spec 0015, docker/Dockerfile) runs a server traced with only the files it needs. Elsewhere
   // `next start` runs from the checkout, which standalone output does not support.
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const, outputFileTracingRoot: path.join(__dirname, "../..") } : {}),
-  // The core ships as TypeScript source inside the monorepo.
-  transpilePackages: ["@ziffr/core"],
+  // The core, the SDK and the MCP Server (served at /mcp) ship as TypeScript source inside the monorepo.
+  transpilePackages: ["@ziffr/core", "@ziffr/mcp", "@ziffr/sdk"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).
   images: { unoptimized: true },
   // The user guide's chapters and the glossary are read from the checkout when a page is asked for; a traced build takes them along.
