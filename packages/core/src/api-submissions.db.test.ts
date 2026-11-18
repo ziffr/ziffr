@@ -35,6 +35,39 @@ describe("submitObservation", () => {
     const { data: rows } = await db().from("breakdown_rows").select("label, value").eq("observation_id", obs!.id);
     expect(rows).toEqual([{ label: "Shop", value: 2 }]);
   });
+  it("keeps every Breakdown row of values with breakdowns sent at the same moment (spec 0022, #126)", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const add = await w.metric(ben, { submission_rule: "add" }); await w.token(add.id, ben);
+    const { key } = await keyFor(w, ben);
+    // Eight values at once into an empty period, each with rows: one is recorded, seven added to it. Every row counts:
+    // labels already there (in any case) are added to, new ones kept, and nothing carries float noise.
+    const sent = Array.from({ length: 8 }, (_, i) => ({ value: 0.3 + i, breakdown: [{ label: i % 2 ? "shop" : "Shop", value: 0.1 }, { label: "Web", value: 0.2 }, { label: `Partner ${i}`, value: i }] }));
+    const results = await Promise.all(sent.map((v) => submitObservation(key, add.slug, v, quiet())));
+    expect(results.every((r) => r.ok)).toBe(true);
+    const { data: obs } = await db().from("observations").select("id, value").eq("metric_id", add.id).single();
+    expect(Number(obs!.value)).toBe(30.4);
+    const { data: rows } = await db().from("breakdown_rows").select("label, value, position").eq("observation_id", obs!.id).order("position");
+    const byLabel = Object.fromEntries((rows ?? []).map((r) => [r.label.toLowerCase(), Number(r.value)]));
+    expect(byLabel).toEqual({ shop: 0.8, web: 1.6, ...Object.fromEntries(sent.map((_, i) => [`partner ${i}`, i])) });
+    expect((rows ?? []).map((r) => r.position)).toEqual(Array.from({ length: 10 }, (_, i) => i));
+
+    // Rejecting a second value at once: one is recorded with its rows, every other one refused.
+    const reject = await w.metric(ben, { submission_rule: "reject" }); await w.token(reject.id, ben);
+    const refused = await Promise.all([1, 2, 3, 4].map((v) => submitObservation(key, reject.slug, { value: v, breakdown: [{ label: "Shop", value: v }] }, quiet())));
+    expect(refused.filter((r) => r.ok)).toHaveLength(1);
+    const { data: one } = await db().from("observations").select("id, value").eq("metric_id", reject.id).single();
+    const { data: oneRows } = await db().from("breakdown_rows").select("value").eq("observation_id", one!.id);
+    expect((oneRows ?? []).map((r) => Number(r.value))).toEqual([Number(one!.value)]);
+
+    // Overwriting at once: one value stays, and its rows are those of one value, never a mix of two.
+    const over = await w.metric(ben, { submission_rule: "overwrite" }); await w.token(over.id, ben);
+    await Promise.all(["A", "B", "C", "D"].map((l) => submitObservation(key, over.slug, { value: 2, breakdown: [{ label: `${l}1`, value: 1 }, { label: `${l}2`, value: 1 }] }, quiet())));
+    const { data: last } = await db().from("observations").select("id").eq("metric_id", over.id).single();
+    const { data: kept } = await db().from("breakdown_rows").select("label").eq("observation_id", last!.id).order("position");
+    const labels = (kept ?? []).map((r) => r.label);
+    expect(labels).toHaveLength(2);
+    expect(labels[1]).toBe(`${labels[0][0]}2`);
+  });
   it("takes a named past period, refuses a future or misaligned one, and a Derived Metric", async () => {
     const w = await ws(); const ben = await w.person("member");
     const m = await w.metric(ben); await w.token(m.id, ben);
