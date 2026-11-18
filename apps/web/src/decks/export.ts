@@ -4,7 +4,8 @@
 // (editable) charts, number widgets text, history tables tables; everything else an image.
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
-import { formatChange, formatValue } from "@ziffr/core/format";
+import { formatValue } from "@ziffr/core/format";
+import { chartFormatCode, chartValue, exportedChange } from "./export-values";
 import type { CanvasData, SlideDesign } from "@ziffr/core/types";
 import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
@@ -15,7 +16,7 @@ import { fillSettings } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
-import { dayAfter, isPartial, pointName, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
+import { dayAfter, pointName, shownSeries, SHOWN_BY, type DisplayPoint } from "@ziffr/core/display-periods";
 
 // Hex values for PowerPoint, which cannot read CSS variables. Set from the deck's theme when an export starts
 // (GLOSSARY: Theme); these defaults mirror Coral.
@@ -222,9 +223,12 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     catGridLine: { style: "none" as const },
     catAxisLineShow: false,
     valAxisLineShow: false,
+    // Labelled with the Metric's decimals and unit, as the app writes them.
+    valAxisLabelFormatCode: chartFormatCode(m),
+    dataLabelFormatCode: chartFormatCode(m),
   };
   const labels = pts.map((p) => name(p, true));
-  const values = pts.map((p) => Math.round(p.value * 100) / 100);
+  const values = pts.map((p) => chartValue(m, p.value));
 
   if (widget.template === "line" && pts.length > 1) {
     slide.addText(title, { ...head, fontSize: 12, bold: true, color: INK, fontFace: FONT, margin: 0 });
@@ -234,16 +238,15 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     slide.addChart(pptx.ChartType.bar, [{ name: m.name, labels, values }], { ...chartOpts, barDir: "col", chartColors: [INK_2], barGapWidthPct: 40 });
   } else if (widget.template === "number") {
     const last = all[all.length - 1];
-    const prev = all[all.length - 2];
     const t = goal(last);
     const off = last && ((t.max !== null && last.value > t.max) || (t.min !== null && last.value < t.min));
-    // A quarter to date against a whole one would read as a drop: no change then.
-    const change = last && prev && prev.value && !last.toDate && !isPartial(last) && !isPartial(prev) ? (last.value - prev.value) / Math.abs(prev.value) : null;
+    // The change the app shows under this widget, from compare(): across a gap or from 0 there is none (spec 0022).
+    const change = exportedChange(m, data, widget.settings);
     slide.addText(
       [
         { text: `${title}\n`, options: { fontSize: 12, bold: true, color: INK } },
         { text: formatValue(m, last?.value, data.numberStyle), options: { fontSize: Math.min(40, Math.max(18, at.h * 9)), bold: true, color: off ? ERROR : INK } },
-        { text: change === null ? "" : `  ${formatChange(change * 100, data.numberStyle)}\n`, options: { fontSize: 12, color: MUTED, fontFace: FONT } },
+        { text: change ? `  ${change}\n` : "\n", options: { fontSize: 12, color: MUTED, fontFace: FONT } },
         { text: last ? name(last) : "No values yet", options: { fontSize: 10, color: MUTED, breakLine: false } },
       ],
       { ...inner, fontFace: FONT, valign: "top", margin: 0 },
@@ -263,12 +266,12 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
     );
     slide.addChart(
       pptx.ChartType.bar,
-      [{ name: m.name, labels: rows.map((r) => r.label), values: rows.map((r) => r.value) }],
+      [{ name: m.name, labels: rows.map((r) => r.label), values: rows.map((r) => chartValue(m, r.value)) }],
       {
         x: inner.x, y: inner.y + 0.66, w: inner.w, h: Math.max(inner.h - 0.66 - 0.28, 0.4),
         barDir: "bar", barGapWidthPct: 35, showLegend: false, showTitle: false,
         chartColors: rows.map((r) => (r.label === b.highlight?.label ? INK_2 : RULE)),
-        showValue: true, dataLabelFontSize: 9, dataLabelColor: INK, dataLabelPosition: "outEnd", dataLabelFontFace: FONT,
+        showValue: true, dataLabelFormatCode: chartFormatCode(m), dataLabelFontSize: 9, dataLabelColor: INK, dataLabelPosition: "outEnd", dataLabelFontFace: FONT,
         valAxisHidden: true, valGridLine: { style: "none" }, catAxisLabelFontSize: 10, catAxisLabelColor: INK, catAxisLabelFontFace: FONT, catAxisLineShow: false,
       },
     );

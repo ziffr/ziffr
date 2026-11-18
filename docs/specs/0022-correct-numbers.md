@@ -89,7 +89,7 @@ Ziffr is only useful if its numbers are right, and today three things can make t
   - **Snapshots and View Links** keep the method they were made with.
   - Both methods are in the Calculation Catalogue, each with its reference, and table tests for every polarity and for targets and values below, at and above zero.
   - **Glossary:** **Attainment** names both methods.
-- **Export.** The deck export takes its changes from `compare()`, as the app does, and rounds to the Metric's decimals. The trial's CSV export writes values in the Number Style and uses `;` as the separator when the decimal mark is a comma.
+- **Export.** The deck export takes its changes from `compare()`, as the app does, and rounds to the Metric's decimals. The trial's CSV export writes values in the Number Style and uses `;` as the separator when the decimal mark is a comma. The change on a slide is the widget's first comparison ("vs prev. +4.2 %"), none where the app says n/a. Chart values are rounded to the Metric's decimals and carry a number format with its unit, but PowerPoint writes a chart's digits in the locale of the computer that opens the file, so charts cannot follow the Number Style. The CSV writes values without group marks and with every decimal stored (up to 6), so a spreadsheet reads them as numbers, and a negative value is not escaped as a formula.
 - **Glossary.** Adds **Number Style**: "How a Workspace writes numbers: how digits are grouped and which mark is the decimal, such as 1,234.5 or 1.234,5. It also settles how an ambiguous number such as 1.500 is read. _Avoid_: Locale, number format, regional settings". Changes **Metric Description**: "unit and which side of the number it stands on, format". Lands with ticket 2.
 
 ## Testing Decisions

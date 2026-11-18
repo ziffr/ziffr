@@ -7,6 +7,9 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { trialEndsAt } from "./trials";
+import { formatNumber } from "./format";
+import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
+import { numberStyleOf } from "./workspace-settings";
 
 /** Days between a trial's end and its deletion: time to download its values. */
 export const TRIAL_GRACE_DAYS = 7;
@@ -121,22 +124,38 @@ export async function endTrialNow(actor: Actor): Promise<void> {
 }
 
 /** A trial's Metrics and values as CSV, for its Owner to keep: one row per value, oldest first per Metric. Every
- * field is quoted, and one that starts like a formula gets a leading apostrophe, so a spreadsheet never runs it. */
+ * field is quoted, and one that starts like a formula gets a leading apostrophe, so a spreadsheet never runs it.
+ * Values are written in the workspace's Number Style, without group marks and as precise as stored, and the fields
+ * are separated by ";" when the decimal mark is a comma, as spreadsheets set to that style expect (spec 0022). */
 export async function trialValuesCsv(actor: Actor): Promise<string> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can download it this way.");
-  const { data: metrics } = await db().from("metrics").select("id, slug, name, period, unit").eq("workspace_id", actor.workspaceId).order("name");
+  const [{ data: metrics }, style] = await Promise.all([
+    db().from("metrics").select("id, slug, name, period, unit").eq("workspace_id", actor.workspaceId).order("name"),
+    numberStyleOf(actor.workspaceId),
+  ]);
+  const sep = NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",";
   const cell = (v: unknown) => {
     const s = String(v ?? "");
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
-  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at"].map(cell).join(",")];
+  // A value is ours, never text someone typed: a minus is a negative number, not a formula.
+  const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
+  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at"].map(cell).join(sep)];
   for (const m of metrics ?? []) {
     for (let from = 0; ; from += 1000) {
       const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", actor.workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
-      for (const r of rows ?? []) lines.push([m.slug, m.name, m.period, r.period_start, r.value, m.unit, r.source, r.created_at].map(cell).join(","));
+      for (const r of rows ?? []) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at)].join(sep));
       if (!rows || rows.length < 1000) break;
     }
   }
   return `${lines.join("\r\n")}\r\n`;
+}
+
+/** A value for a CSV file in a Number Style: its decimal mark, no group marks, and every decimal it was stored with
+ * (at most 6, as the display allows), so a spreadsheet reads it as the number it is. */
+export function csvNumber(v: number, style: NumberStyle): string {
+  if (!Number.isFinite(v)) return "";
+  const decimals = Math.min(6, (String(v).split(".")[1] ?? "").replace(/e.*$/, "").length);
+  return formatNumber(v, decimals, style, { group: false });
 }
