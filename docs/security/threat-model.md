@@ -129,8 +129,14 @@ What Ziffr protects, from whom, and how. Written in the security pass of spec 00
 - **A trial's Owner can pass on their own reach.** Whoever gets a trial Owner's Telegram start link or Slack code receives that Owner's messages. It takes that person's own action and reaches nobody new against their will (spec 0021).
 - **A trial's Owner is who signed in, nothing more.** Anyone with an email address gets a trial; Turnstile and the limits make many of them costly, not impossible. A trial reaches nobody but them, so what they can do is spend the Installation's limits.
 - **Assistants read workspace text.** An MCP client puts Metric names, descriptions and values into an AI assistant's context, and text written to mislead it could make it misreport numbers or, with a key that may submit, record a value the person did not ask for. Such a value goes through the Metric's rules, names the key, and shows in the Access Log.
+- **An assistant's name is its own claim** (spec 0023). Anyone can register an assistant called "Claude" with an https address of their own. The consent screen shows the name as a claim and the host the person returns to, which is the part an impostor cannot fake; for programs on the person's computer, where any program can use any port, it warns that the name proves nothing. Connecting stays the person's decision, with only reading ticked by default.
+- **Holding a connection's token is holding the connection, for an hour.** An access token is a bearer token: until it expires, whoever has it acts as the connection at `/mcp`, as with any Access Key. Disconnecting, revocation, an Owner revoking, or the person leaving stop it at once, since every call checks the key.
+- **Token, revocation and `/mcp` requests are not limited per network address.** Codes and tokens are 256-bit, so guessing is hopeless; a flood of wrong ones costs one lookup each, as with wrong Access Keys on the API. Registration and consent screens are limited.
+- **Origin is checked only when sent.** Assistants call `/mcp` from their servers without an `Origin`. A browser page on another site sends one and is refused, and it would hold no token anyway.
 
 ## Open work
+
+- **Client ID Metadata Documents** for assistant registration (MCP authorization, revision 2025-11-25) are not offered: they make Ziffr fetch an address the client names, which needs protection against server-side request forgery first (ADR 0011).
 
 
 - **Real Connectors.** WhatsApp and ticket systems are still simulated. Making them real needs signed webhooks, an allowlist of the addresses they call, and their own threat review, like email (spec 0004) and Slack (spec 0007) had.

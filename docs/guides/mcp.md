@@ -5,6 +5,26 @@ Ziffr's MCP Server lets an AI assistant read the Metrics a person may see, submi
 - **On your own computer:** `@ziffr/mcp`, started by the assistant (Claude Desktop, Claude Code), with an Access Key you make on the Team page. See [`packages/mcp/README.md`](../../packages/mcp/README.md). Works with any Ziffr, also one without a public address.
 - **At your Ziffr's address:** `https://<your ziffr>/mcp`, for assistants that connect over the internet, such as Claude.ai. You sign in to Ziffr in the window that opens and choose what the assistant may do. Nothing to install, and no secret to paste (spec 0023).
 
+## Connecting Claude.ai
+
+1. Your Ziffr must be reached over https, with `ZIFFR_REMOTE_MCP` not set to `0`. The Connectors page then shows the address, such as `https://ziffr.example.com/mcp`.
+2. In Claude.ai: **Settings → Connectors → Add custom connector**. Give it a name (`Ziffr`) and the address. Leave the advanced OAuth fields (client id and secret) empty: Claude registers itself.
+3. Press **Connect**. A window with Ziffr opens. Sign in if asked, then on **Connect an assistant to Ziffr?** check that it returns you to `claude.ai`, pick the Workspace, what Claude may do and until when, and press **Connect**.
+4. Claude shows Ziffr as connected. In a chat, turn the connector on and ask, for example, "What were orders last month in Ziffr?".
+5. In Ziffr, **Settings → Connected assistants** lists it; **Disconnect** ends it. Removing the connector in Claude stops Claude from using it; disconnect it in Ziffr as well to end the connection there.
+
+Claude's mobile apps use the connectors added on claude.ai. Claude Code can use the address too: `claude mcp add --transport http ziffr https://ziffr.example.com/mcp`, then `/mcp` in Claude Code to sign in; it returns to `http://localhost:<port>/callback`, which Ziffr accepts on any port.
+
+### Trying it before your Ziffr is public
+
+Claude.ai reaches your Ziffr from Anthropic's servers (`160.79.104.0/21`), so `localhost` does not work. Run the app with `ZIFFR_SITE_URL` set to a public https address that forwards to it, such as a tunnel, and `ZIFFR_REMOTE_MCP=1`, then follow the steps above with that address. To check the server without Claude, use the MCP inspector:
+
+```sh
+npx @modelcontextprotocol/inspector                       # opens a browser; pick Streamable HTTP and the /mcp address, then Connect
+npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
+  --header "Authorization: Bearer zk_..." --method tools/list   # with an Access Key, no sign-in
+```
+
 ## The remote server
 
 `/mcp` speaks MCP's Streamable HTTP transport, stateless: each `POST` carries MCP messages and gets JSON back; `GET` and `DELETE` answer 405. Every request needs `Authorization: Bearer <credential>`:

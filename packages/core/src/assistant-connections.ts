@@ -17,6 +17,8 @@ import { trialLimitMessage } from "./trials";
 
 /** How long an access token works, in seconds. */
 export const ACCESS_TOKEN_SECONDS = 3600;
+/** How long a used refresh token is remembered, in days, so that presenting it again ends the connection. */
+export const REUSE_WINDOW_DAYS = 7;
 /** The end date a connection gets unless the person picks another, in days. */
 export const DEFAULT_CONNECTION_DAYS = 90;
 /** Registrations per network address in an hour, and for the Installation as a whole. */
@@ -219,6 +221,10 @@ async function connectionKey(id: number): Promise<KeyRow | null> {
 async function issueTokens(key: KeyRow): Promise<TokenAnswer> {
   const access = secret("zat_"), refresh = secret("zrt_");
   const now = Date.now();
+  // Tidy the connection's own past: access tokens that expired, and used refresh tokens older than a week. A used one
+  // is kept that long so a replay still ends the connection; an assistant refreshes hourly, so a week covers it.
+  await db().from("assistant_tokens").delete().eq("access_key_id", key.id).eq("kind", "access").lt("expires_at", new Date(now).toISOString());
+  await db().from("assistant_tokens").delete().eq("access_key_id", key.id).eq("kind", "refresh").lt("used_at", new Date(now - REUSE_WINDOW_DAYS * 86_400_000).toISOString());
   const { error } = await db().from("assistant_tokens").insert([
     { token_hash: hash(access), access_key_id: key.id, kind: "access", expires_at: new Date(now + ACCESS_TOKEN_SECONDS * 1000).toISOString() },
     { token_hash: hash(refresh), access_key_id: key.id, kind: "refresh", expires_at: `${key.expires_on}T23:59:59.999Z` },
