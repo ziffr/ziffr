@@ -8,6 +8,7 @@ import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedA
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { trialLimitMessage } from "./trials";
 import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
@@ -40,12 +41,15 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
     const { data, error } = await db().from("access_keys").insert({
       workspace_id: actor.workspaceId, created_by: actor.personId, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key",
       prefix, secret_hash: hash(secret), scopes, expires_on: expires,
-    }).select("id").single();
+    }).select("id, expires_on").single();
     if (data) {
       // The name, scopes and end only: never the secret, its hash or its prefix.
-      await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: data.id, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key" }, details: { scopes, expires_on: expires } });
+      await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: data.id, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key" }, details: { scopes, expires_on: data.expires_on } });
       return { id: data.id, secret };
     }
+    // A trial's limit (spec 0021) says which one it is.
+    const limit = trialLimitMessage(error?.code);
+    if (limit) throw new Error(limit);
     if (error?.code !== "23505") break;
   }
   throw new Error("The key could not be created.");

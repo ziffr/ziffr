@@ -13,6 +13,7 @@ import { normalizeMetric } from "./metric-row";
 import { editableMetric } from "./metrics";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { trialLimitMessage } from "./trials";
 import { recordVersion } from "./versions";
 import type { Metric, Period } from "./types";
 import { periodStart, type YearStart } from "./periods";
@@ -69,7 +70,7 @@ export async function createFeed(actor: Actor, name: string): Promise<{ id: stri
   const { error: e2 } = await db().from("feeds").insert({ person_id: id, workspace_id: actor.workspaceId, name: clean, created_by: actor.personId });
   if (e2) {
     await db().from("profiles").delete().eq("id", id);
-    throw new Error("The Feed could not be created.");
+    throw new Error(trialLimitMessage(e2.code) ?? "The Feed could not be created.");
   }
   await audit(actor, { kind: "feed.created", object: { type: "feed", id, name: clean } });
   return { id };
@@ -185,11 +186,13 @@ export async function createFeedKey(actor: Actor, feedId: string, input: { name:
     const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
     const { data, error } = await db().from("access_keys").insert({
       workspace_id: actor.workspaceId, created_by: actor.personId, feed_id: feed.person_id, name, prefix, secret_hash: hash(secret), scopes: [FEED_SCOPE], expires_on: expires,
-    }).select("id").single();
+    }).select("id, expires_on").single();
     if (data) {
-      await audit(actor, { kind: "feed.key_created", object: { type: "feed", id: feed.person_id, name: feed.name }, details: { key: name, expires_on: expires } });
+      await audit(actor, { kind: "feed.key_created", object: { type: "feed", id: feed.person_id, name: feed.name }, details: { key: name, expires_on: data.expires_on } });
       return { id: data.id, secret };
     }
+    const limit = trialLimitMessage(error?.code);
+    if (limit) throw new Error(limit);
     if (error?.code !== "23505") break;
   }
   throw new Error("The key could not be created.");
