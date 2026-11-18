@@ -5,7 +5,12 @@
 set -euo pipefail
 base="origin/${GITHUB_BASE_REF:-main}"
 changed=$(git diff --name-only --diff-filter=ACMRD "$base"...HEAD)
-labels=$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
+# The labels as they are now, not as the event that started the run saw them: `gh pr create --label` adds the label
+# just after the pull request opens, and a label added later counts once the check runs again.
+pr=$(jq -r '.pull_request.number // empty' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
+labels=""
+[ -n "$pr" ] && [ -n "${GH_TOKEN:-}" ] && labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$pr/labels" --jq '.[].name' 2>/dev/null || true)
+[ -z "$labels" ] && labels=$(jq -r '.pull_request.labels[]?.name' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null || true)
 grep -qx "no-release-note" <<<"$labels" && { echo "Label no-release-note set."; exit 0; }
 product=$(grep -vE '^(docs/|\.github/|\.claude/|\.vale/|\.changeset/|[^/]+\.md$)' <<<"$changed" || true)
 [ -z "$product" ] && { echo "Nothing people use or run changed."; exit 0; }
