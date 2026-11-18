@@ -1,4 +1,4 @@
-// German words that name a Period in an answer (spec 0022; GLOSSARY: Period, Prompt): "letzte Woche", "Oktober",
+// German words that name a Period in an answer (spec 0022; GLOSSARY: Period, Answer Language): "letzte Woche", "Oktober",
 // "Q3", "KW 46". The shape is in ../languages.ts.
 import type { AnswerWords } from "../languages";
 
@@ -6,7 +6,7 @@ import type { AnswerWords } from "../languages";
 export const de: AnswerWords = {
   code: "de",
   name: "German",
-  // fromIntl: generated from Intl, do not edit by hand.
+  // fromIntl: generated from Intl by scripts/answer-words.mjs, do not edit by hand.
   fromIntl: {
     relative: {
       day: { this: ["heute"], last: ["gestern"] },
@@ -46,5 +46,6 @@ export const de: AnswerWords = {
     half: { before: ["h", "hj", "halbjahr"], after: ["halbjahr", "hj"] },
     fiscalYear: ["gj", "fy"],
     ordinal: ["."],
+    dateWords: [],
   },
 };

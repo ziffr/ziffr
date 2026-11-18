@@ -34,6 +34,12 @@ export async function setNumberStyle(style: string) {
   revalidatePath("/", "layout");
 }
 
+/** Sets the languages answers are read in (Owners and Admins); the core keeps only languages it has words for. */
+export async function setAnswerLanguages(languages: string[]) {
+  await workspace.setAnswerLanguages(await currentActor(), languages);
+  revalidatePath("/settings/workspace");
+}
+
 /** Sets the Workspace Profile (Owners and Admins); the core checks every field against its list. */
 export async function setWorkspaceProfile(input: Record<string, string | null>) {
   await workspace.setWorkspaceProfile(await currentActor(), input);

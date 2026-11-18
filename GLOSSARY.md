@@ -264,6 +264,10 @@ _Avoid_: Classification, company profile, firmographics, tenant settings
 How a Workspace writes numbers: how digits are grouped and which mark is the decimal, such as 1,234.5 or 1.234,5. It also settles how an ambiguous number such as 1.500 is read.
 _Avoid_: Locale, number format, regional settings
 
+**Answer Language**:
+A language whose words Ziffr understands in an answer, such as "last week" or "letzte Woche" naming the period. A Workspace reads answers in the ones it chooses: English and its country's languages unless an Owner or Admin picks others.
+_Avoid_: Locale, input language
+
 **Workspace Role**:
 What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.
 _Avoid_: Permission level, admin rights

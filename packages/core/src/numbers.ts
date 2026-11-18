@@ -97,8 +97,10 @@ export type AnswerContext = {
   yearStart: YearStart;
   /** The first day of the period the Prompt asked for, when the answer is a reply to one. */
   promptPeriod?: string | null;
-  /** The languages period words are tried in; English and German until a Workspace chooses (#118). */
+  /** The Workspace's Answer Languages, the languages period words are tried in; English and German when not given. */
   languages?: readonly string[];
+  /** Whether a date such as "11/12" puts the month first, as in the US; day first otherwise. */
+  monthFirst?: boolean;
 };
 
 /** What an answer says: a value for a period (`named` holds the words that named it, if any), or why it records
@@ -121,7 +123,7 @@ export type AnswerReading =
 export function readAnswer(text: string, ctx: AnswerContext): AnswerReading {
   const today = typeof ctx.today === "string" ? ctx.today : periodStart(ctx.today, "day", ctx.yearStart);
   const current = periodStart(parseISO(today), ctx.period, ctx.yearStart);
-  const words = findPeriodWords(text, today, ctx.yearStart, ctx.languages ?? DEFAULT_ANSWER_LANGUAGES);
+  const words = findPeriodWords(text, today, ctx.yearStart, ctx.languages ?? DEFAULT_ANSWER_LANGUAGES, ctx.monthFirst ?? false);
   // Period words are blanked out, so their digits are never the value.
   let rest = text;
   for (const w of words) rest = rest.slice(0, w.from) + " ".repeat(w.to - w.from) + rest.slice(w.to);

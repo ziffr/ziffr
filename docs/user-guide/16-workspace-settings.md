@@ -70,7 +70,7 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 ## General
 
-**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style, its Answer Languages and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
 ### Name
 
@@ -102,6 +102,14 @@ Choose **Save** after picking a month. The change shows in the Audit Log. Member
 **Numbers look like** sets the Workspace's **Number Style**. It is one of four: 1,234.5, 1.234,5, 1 234,5 and 1'234.5. Each choice shows a percentage too, such as "1.234,5 (12,5 %)". The style says which mark groups the digits and which mark is the decimal. Ziffr writes every value in it: on every page, in charts, in replies by Slack, Telegram and email, and in decks. It will also use it to read a number that could mean two things, such as 1.500 sent by Slack or email.
 
 Until an Owner or Admin picks a style, it follows the country in the Workspace Profile. A Workspace in Germany writes 1.234,5, in France 1 234,5 and in Switzerland 1'234.5. Without a country it is 1,234.5. The page says where the style comes from. Once you pick one and choose **Save**, it stays, even if the country changes later. The change shows in the Audit Log. Members and Guests see a single line, such as "Numbers look like 1.234,5 (12,5 %)".
+
+### Answer languages
+
+People often answer a Prompt in a sentence, such as "letzte Woche 2" or "la semaine dernière 2". **Answer languages** says which languages' words Ziffr understands there. Ziffr reads those words as the period, never as the value (see [How Ziffr reads a number you send](04-connecting.md#how-ziffr-reads-a-number-you-send)). Tick the languages your people answer in: English, German, French, Spanish, Italian and Dutch. Ziffr tries only the ticked ones, so a word that means one thing in one language and another elsewhere never gets in the way.
+
+Until an Owner or Admin picks languages, the Workspace reads English plus the languages of the country in its Workspace Profile. That is English and German in Germany, and English, German, French and Italian in Switzerland. Without a country, it is English alone. The country also decides how a date such as 11/12 is read: month first in the United States, day first everywhere else. Once you pick languages and choose **Save**, they stay, even if the country changes later. The change shows in the Audit Log. Members and Guests see a single line, such as "Answers are read in English, German".
+
+A word in a language that is not ticked is simply not understood. The rules still hold: if exactly one number is left, it counts for the Prompt's period. If there are several, Ziffr asks back.
 
 ### Workspace Profile
 

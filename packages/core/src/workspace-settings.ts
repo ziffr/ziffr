@@ -1,10 +1,11 @@
-// Workspace settings (spec 0006, tickets #96 and #97; spec 0022, ticket #108; GLOSSARY: Workspace, Workspace Role,
-// Workspace Profile, Number Style): the workspace's name, its Workspace Profile and its Number Style. Owners and Admins
-// change them, never in the demo; every member reads.
+// Workspace settings (spec 0006, tickets #96 and #97; spec 0022, tickets #108 and #118; GLOSSARY: Workspace, Workspace
+// Role, Workspace Profile, Number Style, Answer Language): the workspace's name, its Workspace Profile, its Number Style
+// and its Answer Languages. Owners and Admins change them, never in the demo; every member reads.
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { isNumberStyle, numberStyleForCountry, type NumberStyle } from "./number-style";
+import { ANSWER_LANGUAGES, answerLanguagesForCountry, checkAnswerLanguages, monthFirstIn } from "./numbers/languages";
 import { HIDDEN_CHARACTERS } from "./profile";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { checkProfile, COUNTRIES, type WorkspaceProfile } from "./workspace-profile";
@@ -96,4 +97,46 @@ export async function setNumberStyle(actor: Actor, style: unknown): Promise<Numb
   // One of the four keys, or null for a style that followed the country: nothing a person typed.
   await audit(actor, { kind: "workspace.number_style_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.style : null, to: style } });
   return style;
+}
+
+/** A workspace's Answer Languages and where they come from: `chosen` once an Owner or Admin picked them; until then
+ * they follow `fromCountry`, the Workspace Profile's country (English plus its languages), and are English alone
+ * without one. */
+export type WorkspaceAnswerLanguages = { languages: string[]; chosen: boolean; fromCountry: string | null };
+
+async function answerLanguagesIn(workspaceId: string): Promise<WorkspaceAnswerLanguages & { country: string | null }> {
+  const { data } = await db().from("workspaces").select("answer_languages, country").eq("id", workspaceId).maybeSingle();
+  const country = typeof data?.country === "string" && (COUNTRIES as readonly string[]).includes(data.country) ? data.country : null;
+  // A stored code Ziffr no longer has words for is left out; with none left, the country decides again.
+  const stored = Array.isArray(data?.answer_languages) ? (data.answer_languages as unknown[]).filter((c): c is string => typeof c === "string" && Object.hasOwn(ANSWER_LANGUAGES, c)) : [];
+  if (stored.length) return { languages: stored, chosen: true, fromCountry: null, country };
+  return { languages: answerLanguagesForCountry(country), chosen: false, fromCountry: country, country };
+}
+
+/** How answers in a workspace are read: its Answer Languages, and whether a date such as "11/12" puts the month first
+ * (from its country). For code that has already checked who may see it. */
+export async function answerReadingOf(workspaceId: string): Promise<{ languages: string[]; monthFirst: boolean }> {
+  const a = await answerLanguagesIn(workspaceId);
+  return { languages: a.languages, monthFirst: monthFirstIn(a.country) };
+}
+
+/** The actor's workspace's Answer Languages and whether they were chosen or follow the country, for any member. */
+export async function workspaceAnswerLanguages(actor: Pick<Actor, "workspaceId">): Promise<WorkspaceAnswerLanguages> {
+  const { languages, chosen, fromCountry } = await answerLanguagesIn(actor.workspaceId);
+  return { languages, chosen, fromCountry };
+}
+
+/** Sets the languages answers are read in, for Owners and Admins; audited. Only languages Ziffr has words for, at
+ * least one. Once set they no longer follow the country. */
+export async function setAnswerLanguages(actor: Actor, input: unknown): Promise<string[]> {
+  assertManages(actor, "Answer Languages");
+  const languages = checkAnswerLanguages(input);
+  if (!languages) throw new Error("Pick at least one of the Answer Languages from the list.");
+  const before = await answerLanguagesIn(actor.workspaceId);
+  if (before.chosen && before.languages.join() === languages.join()) return languages;
+  const { error } = await db().from("workspaces").update({ answer_languages: languages }).eq("id", actor.workspaceId);
+  if (error) throw new Error("The Answer Languages could not be saved.");
+  // Codes from the list only, or null for languages that followed the country: nothing a person typed.
+  await audit(actor, { kind: "workspace.answer_languages_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.languages : null, to: languages } });
+  return languages;
 }

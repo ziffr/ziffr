@@ -26,7 +26,7 @@ Ziffr reads every number the same way, whichever way it came in: a reply, the fo
 - **Either way of writing works.** `1,5` and `1.5` are both one and a half; `1.234,5`, `1,234.5`, `1 234,5` and `1'234.5` are all the same number. You may add a sign (`-5`, `+5`) or `k` and `M` (`2,5k` is 2,500).
 - **One case depends on your Workspace.** A single dot or comma followed by exactly three digits, such as `1.500`, could be either. Ziffr reads it the way your Workspace writes numbers (its Number Style, see [Workspace settings](16-workspace-settings.md)): fifteen hundred where you write `1.234,5`, one and a half where you write `1,234.5`.
 
-You can answer in a sentence. Ziffr first takes out the words that name a period and reads them as the period, never as the value: "today", "yesterday", "last week", "this month", "October", "Q3", "week 46", "KW 46", "2026", "FY 2026/27", and dates such as "12.11." or "2026-11-12". English and German words are understood. Then exactly one number must be left, and that is the value.
+You can answer in a sentence. Ziffr first takes out the words that name a period and reads them as the period, never as the value: "today", "yesterday", "last week", "this month", "October", "Q3", "week 46", "KW 46", "2026", "FY 2026/27", and dates such as "12.11.", "12/11" or "2026-11-12". Ziffr understands the words of your Workspace's Answer Languages: English, German, French, Spanish, Italian or Dutch ([Workspace settings](16-workspace-settings.md#answer-languages)). Then exactly one number must be left, and that is the value.
 
 | You write | Ziffr records |
 | --- | --- |
