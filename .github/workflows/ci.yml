@@ -6,6 +6,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The Release button starts CI on its release branch by name: a pull request it opens starts no run of its own.
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
