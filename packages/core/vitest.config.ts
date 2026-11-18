@@ -8,6 +8,7 @@ export const CALCULATION_MODULES = [
   "src/display-periods.ts", "src/periods.ts", "src/snapshot-periods.ts", "src/compare.ts", "src/exact.ts",
   "src/format.ts", "src/workflow-rules.ts", "src/attainment-method.ts", "src/units.ts", "src/number-style.ts", "src/formula.ts", "src/series.ts",
   "src/numbers.ts", "src/numbers/period-words.ts", "src/numbers/languages.ts", "src/parse.ts",
+  "src/correlation.ts", "src/forecast.ts", "src/export-values.ts",
 ];
 
 export default defineConfig({

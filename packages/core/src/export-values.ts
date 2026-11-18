@@ -1,9 +1,11 @@
-// The numbers a deck export writes (spec 0022, ticket #114; GLOSSARY: Comparison, Number Style): the same change
+// The numbers the deck and CSV exports write (spec 0022, ticket #114; GLOSSARY: Comparison, Number Style): the same change
 // the app shows under a widget, taken from compare(), and chart values rounded to the Metric's decimals. Pure, so it
 // is tested without PowerPoint.
-import { COMPARE_LABEL, compare, resolverFrom, type CompareKey } from "@ziffr/core/compare";
-import { formatChange } from "@ziffr/core/format";
-import type { CanvasData, Metric, WidgetSettings } from "@ziffr/core/types";
+import { COMPARE_LABEL, compare, resolverFrom, type CompareKey } from "./compare";
+import { scaled } from "./exact";
+import { formatChange, formatNumber } from "./format";
+import type { NumberStyle } from "./number-style";
+import type { CanvasData, Metric, WidgetSettings } from "./types";
 
 // The comparison strip's default and its short label for "prev", so the slide reads like the widget.
 const DEFAULT_KEYS: CompareKey[] = ["prev", "yoy"];
@@ -21,8 +23,18 @@ export function exportedChange(m: Metric, data: CanvasData, settings: Pick<Widge
 
 /** A value for a PowerPoint chart: rounded to the Metric's decimals, as the app writes it. */
 export function chartValue(m: Pick<Metric, "decimals">, v: number): number {
-  const f = 10 ** Math.min(6, Math.max(0, m.decimals));
-  return Math.round(v * f) / f || 0;
+  // Rounded as the display rounds (half away from zero, on the value's text), not by Math.round on v × 10^d: that
+  // made 1.005 at two decimals 1 and −0.125 −0.12, where the app shows 1.01 and −0.13 (#126).
+  if (!Number.isFinite(v)) return 0;
+  return Number(formatNumber(v, Math.min(6, Math.max(0, m.decimals)), "1,234.5", { group: false }));
+}
+
+/** A value for a CSV file in a Number Style: its decimal mark, no group marks, and every decimal it was stored with
+ * (at most 6, as the display allows), so a spreadsheet reads it as the number it is. Empty for no number. */
+export function csvNumber(v: number, style: NumberStyle): string {
+  if (!Number.isFinite(v)) return "";
+  // The decimals of its exact text: 1.5e-7 has eight (written 0.000000), not the one "1.5e-7" seems to have (#126).
+  return formatNumber(v, Math.min(6, scaled(v).places), style, { group: false });
 }
 
 /** The number format PowerPoint labels a chart's values with: the Metric's decimals and its unit on its side, such

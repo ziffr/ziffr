@@ -7,8 +7,8 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { trialEndsAt } from "./trials";
-import { formatNumber } from "./format";
-import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
+import { csvNumber } from "./export-values";
+import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 
 /** Days between a trial's end and its deletion: time to download its values. */
@@ -150,12 +150,4 @@ export async function trialValuesCsv(actor: Actor): Promise<string> {
     }
   }
   return `${lines.join("\r\n")}\r\n`;
-}
-
-/** A value for a CSV file in a Number Style: its decimal mark, no group marks, and every decimal it was stored with
- * (at most 6, as the display allows), so a spreadsheet reads it as the number it is. */
-export function csvNumber(v: number, style: NumberStyle): string {
-  if (!Number.isFinite(v)) return "";
-  const decimals = Math.min(6, (String(v).split(".")[1] ?? "").replace(/e.*$/, "").length);
-  return formatNumber(v, decimals, style, { group: false });
 }

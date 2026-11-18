@@ -5,7 +5,7 @@
 import { getArrowInfo, renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import { format } from "date-fns";
 import { formatValue } from "@ziffr/core/format";
-import { chartFormatCode, chartValue, exportedChange } from "./export-values";
+import { chartFormatCode, chartValue, exportedChange } from "@ziffr/core/export-values";
 import type { CanvasData, SlideDesign } from "@ziffr/core/types";
 import { masterGeometry } from "./master";
 import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";

@@ -5,7 +5,7 @@ import { MessageSquarePlus, MousePointerClick, X } from "lucide-react";
 import { MetricChart } from "@/views/metric-chart";
 import { createAction } from "@/app/actions";
 import { formatValue } from "@ziffr/core/format";
-import type { ForecastPoint } from "@/analyses/forecast";
+import type { ForecastPoint } from "@ziffr/core/forecast";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric, Point, Profile } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";

@@ -4,7 +4,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, 
 import { compactValue, formatValue } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { MetricDescription, Point } from "@ziffr/core/types";
-import type { ForecastPoint } from "@/analyses/forecast";
+import type { ForecastPoint } from "@ziffr/core/forecast";
 import { periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number };
