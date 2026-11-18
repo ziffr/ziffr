@@ -1,6 +1,6 @@
 # 0023 Remote MCP Server: Claude.ai and other web assistants connect to Ziffr
 
-**Status:** in progress. **Tracking issue:** #137 (label `tracking`); tickets #138 to #142 carry `spec:0023`. Starts after spec 0022.
+**Status:** done. **Tracking issue:** #137 (label `tracking`); tickets #138 to #142 carry `spec:0023`. Starts after spec 0022.
 
 ## Problem Statement
 
@@ -35,7 +35,7 @@ Every Ziffr Installation serves its MCP Server at an address of its own, `https:
   - only hashes of codes and tokens are stored; a code works once, for ten minutes.
 
   Supabase Auth's own OAuth server was checked in ticket 1 and is not used (ADR 0011): its tokens are the person's whole session, it has no custom scopes, no revocation endpoint and no audience. Ziffr's own endpoints are built on the core.
-- **The consent screen** is a Ziffr page. It needs the person signed in, and shows the client's name as it registered and its redirect address. It lets the person pick one Workspace and the scopes (the Access Key scopes `metrics:read`, `values:submit`, `metrics:write`, `dashboards:read`, `dashboards:write`, never more than their role allows, as for Access Keys) and the end date (90 days by default). The client's name is untrusted text: it is shown as given, marked as "says it is".
+- **The consent screen** is a Ziffr page. An error in the request is shown there and never redirected to the assistant on its own, since anyone can register a redirect address (RFC 9700, 4.11.2). It needs the person signed in, and shows the client's name as it registered and its redirect address. It lets the person pick one Workspace and the scopes (the Access Key scopes `metrics:read`, `values:submit`, `metrics:write`, `dashboards:read`, `dashboards:write`, never more than their role allows, as for Access Keys) and the end date (90 days by default). The client's name is untrusted text: it is shown as given, marked as "says it is".
 - **A connection is an Access Key.** What a confirmed connection holds is stored as an Access Key of kind `assistant`: bound to the person and one Workspace, with its scopes and end date, hashed tokens only, the same Access Log. So every rule that limits Access Keys holds for connections without a second implementation: ending with the person's membership, Owners revoking, the API limits. Access tokens live one hour; the refresh token carries the connection.
 - **Settings.** **Connected assistants** in the person's settings lists their connections (client name, Workspace, scopes, made, last used, ends) with **Disconnect**. The Workspace's Access Keys page shows connections next to keys for Owners and Admins. Connecting and disconnecting are audited.
 - **A setting for self-hosters.** `ZIFFR_REMOTE_MCP` (on by default where `ZIFFR_SITE_URL` is https, off otherwise) turns the endpoint and the OAuth routes on. The shared demo offers no connections. A Trial Workspace may connect one assistant, which ends with the trial (spec 0021).
@@ -48,6 +48,8 @@ Every Ziffr Installation serves its MCP Server at an address of its own, `https:
 - Same tools both ways: the tool list of the local and the remote server is equal.
 - A conformance run with the MCP inspector against a running Installation, and a real connection from Claude.ai through the dev tunnel, before the spec is done.
 - A security review of the whole spec against the threat model before it is done.
+
+How these were met (ticket #142): the OAuth flow, the endpoint and the shared tool list are database tests (`assistant-connections.db.test.ts`, `apps/web/src/app/mcp/route.db.test.ts`, `apps/web/src/app/oauth/oauth.db.test.ts`). The MCP inspector's CLI ran against a running app with an Access Key and with an access token from a real consent in the browser. The security review is in the pull requests of #141 and #142 and in the threat model. **The real connection from Claude.ai needs the owner's Claude account and the dev tunnel, so it is left to the owner**, with the steps in `docs/guides/mcp.md` (Connecting Claude.ai); if it shows a problem, it is fixed in a ticket of its own.
 
 ## Tickets
 

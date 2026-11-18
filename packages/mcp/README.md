@@ -27,7 +27,7 @@ claude mcp add ziffr --env ZIFFR_URL=https://ziffr.example.com --env ZIFFR_ACCES
 }
 ```
 
-**Without installing anything:** a Ziffr reached over https also serves this server at `https://<your ziffr>/mcp` (Streamable HTTP), with the same tools. A client that sends a fixed header can use it with the key:
+**Without installing anything:** a Ziffr reached over https also serves this server at `https://<your ziffr>/mcp` (Streamable HTTP), with the same tools. Claude.ai and other web assistants connect to it and sign in to Ziffr, with no key to paste ([docs/guides/mcp.md](https://github.com/ziffr/ziffr/blob/main/docs/guides/mcp.md)). A client that sends a fixed header can use it with the key:
 
 ```sh
 claude mcp add --transport http ziffr https://ziffr.example.com/mcp --header "Authorization: Bearer zk_..."

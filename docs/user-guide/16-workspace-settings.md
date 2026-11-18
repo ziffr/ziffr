@@ -261,7 +261,12 @@ Telegram can read what its bots send and receive, so numbers and questions sent 
 
 ### Claude and other AI assistants
 
-This box shows how to connect an AI assistant, such as Claude Code or Claude Desktop, through the **MCP Server**, filled in with this Ziffr's address. Make an **Access Key** first (see [Access Keys](#access-keys)) and paste it in place of `zk_...`. The assistant then reads the Metrics the key may read, records values and starts Metrics, as far as the key allows. The box is not shown in the demo, which has no Access Keys.
+This box shows how to connect an AI assistant through the **MCP Server**, filled in with this Ziffr's address. There are two ways:
+
+- **Claude.ai and other assistants on the web:** add a custom connector in the assistant with the address the box shows, ending in `/mcp`, and press Connect. Ziffr opens: sign in, pick the Workspace, what the assistant may do and until when, and confirm (see [Connecting an assistant](17-your-settings.md#connecting-an-assistant)). This part is shown only when this Ziffr offers it, usually when it is reached over https.
+- **Claude Code and Claude Desktop:** make an **Access Key** first (see [Access Keys](#access-keys)) and paste it in place of `zk_...` in the command or settings shown.
+
+Either way the assistant reads the Metrics you may read, records values, starts Metrics and builds dashboards, as far as you allowed. The box is not shown in the demo, which has no Access Keys.
 
 ### Connected systems
 

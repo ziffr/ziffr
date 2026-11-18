@@ -196,6 +196,23 @@ describe("the token endpoint", () => {
   });
 });
 
+describe("tidying a connection's tokens (ticket #142)", () => {
+  it("forgets expired access tokens and used refresh tokens after a week, keeping recent ones for replay detection", async () => {
+    const s = await setup();
+    const one = await exchange(s, (await consent(s)).code);
+    const two = await refresh(s, one);
+    const sha = (t: string) => createHash("sha256").update(t).digest("hex");
+    await db().from("assistant_tokens").update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq("token_hash", sha(one.access_token));
+    await db().from("assistant_tokens").update({ used_at: new Date(Date.now() - 8 * 86400000).toISOString() }).eq("token_hash", sha(one.refresh_token));
+    const three = await refresh(s, two);
+    const { data } = await db().from("assistant_tokens").select("token_hash").in("token_hash", [one.access_token, one.refresh_token, two.refresh_token, three.access_token].map(sha));
+    // The expired access token and the old used refresh token are gone; the refresh token used just now stays.
+    expect(new Set(data?.map((r) => r.token_hash))).toEqual(new Set([sha(two.refresh_token), sha(three.access_token)]));
+    await refused(refresh(s, two), "invalid_grant");
+    expect(await actorForAssistantToken(three.access_token)).toBeNull();
+  });
+});
+
 describe("a connection is an Access Key", () => {
   it("ends with revocation, by either token, and ignores another client's request", async () => {
     const s = await setup();
