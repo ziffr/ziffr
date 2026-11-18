@@ -80,7 +80,7 @@ The four Submission Rules:
 | --- | --- | --- |
 | **Reject a second value** | It is refused; the first value is final. | Numbers that must not change once given. |
 | **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Snapshots, where the latest report wins. |
-| **Add up all values** | It is added to the first. | Counts reported in pieces: "3 deals", then "2 more". |
+| **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
 
 **Target**

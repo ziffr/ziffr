@@ -76,6 +76,29 @@ describe("values that arrive", () => {
     expect((await valuesOf(add.id)).map((v) => v.value)).toEqual([7]);
   });
 
+  it("adds up values sent at the same moment without losing one, and without float noise (spec 0022)", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const add = await w.metric(sara, { submission_rule: "add", decimals: 2 }); const ta = await w.token(add.id, sara);
+    // Two values into an empty period at once: one is recorded, the other added to it, never two rows.
+    const first = await Promise.all([0.1, 0.2].map((v) => submitValue({ source: "web_form", sender: ta, text: String(v) }, effects())));
+    expect(first.map((r) => r.outcome).sort()).toEqual(["added", "recorded"]);
+    expect(await valuesOf(add.id)).toMatchObject([{ value: 0.3 }]);
+    // Five more at once: every one counts, and each reply names the sum it made.
+    const more = await Promise.all([1, 2, 3, 4, 5].map((v) => submitValue({ source: "web_form", sender: ta, text: String(v) }, effects())));
+    expect(more.every((r) => r.outcome === "added")).toBe(true);
+    expect(await valuesOf(add.id)).toMatchObject([{ value: 15.3 }]);
+    expect(more.map((r) => r.detail).filter((d) => d.includes("= 15.30"))).toHaveLength(1);
+    // The version history holds every value the observation had, in order, and each reply matches one step of it.
+    const { data: hist } = await db().from("observation_history").select("value").eq("metric_id", add.id).order("id");
+    const steps = (hist ?? []).map((h) => Number(h.value));
+    expect(steps).toHaveLength(6);
+    expect(steps[0]).toBeCloseTo(first.find((r) => r.outcome === "recorded")!.detail.startsWith("0.10") ? 0.1 : 0.2, 9);
+    for (const r of more) {
+      const [, before] = r.detail.match(/^([\d.]+) \+/) ?? [];
+      expect(steps.map((s) => s.toFixed(2))).toContain(before);
+    }
+  });
+
   it("turns a value for a locked period into a proposed Correction for the owner", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); const code = await w.token(m.id, ben);
