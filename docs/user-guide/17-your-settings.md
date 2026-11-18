@@ -92,6 +92,8 @@ The top bar is on every page once you are in a Workspace.
 
 On a phone the bar keeps the Ziffr name, the Actions icon and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (Your profile, Your Deliveries). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
+Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same top bar. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
+
 ## Your profile
 
 Open it from the menu under your name, or from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.

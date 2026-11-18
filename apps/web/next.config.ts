@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       ],
+    }, {
+      // The service worker (#143): always asked of the server, so a fixed worker reaches everyone at once.
+      source: "/sw.js",
+      headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
     }];
   },
   // Master logos and backgrounds travel as data URLs in server actions (prototype; Storage later).
