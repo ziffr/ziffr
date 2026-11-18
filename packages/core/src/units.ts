@@ -8,7 +8,7 @@ export const UNIT_POSITIONS: readonly UnitPosition[] = ["before", "after"];
 
 /** Whether a value is one of the two sides. */
 export function isUnitPosition(x: unknown): x is UnitPosition {
-  return x === "before" || x === "after";
+  return x === "after" || x === "before";
 }
 
 // The currencies written with a sign of their own; every other one is written as its code before the number.

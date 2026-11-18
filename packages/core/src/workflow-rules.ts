@@ -15,7 +15,7 @@ export function addWorkingDays(date: string, n: number) {
   let left = n;
   while (left > 0) {
     d = addDays(d, 1);
-    if (!isWeekend(d)) left--;
+    if (!isWeekend(d)) left -= 1;
   }
   return iso(d);
 }
@@ -65,4 +65,5 @@ export function stepLabel(s: WorkflowStep, people: Profile[]) {
 }
 
 /** The short name of each kind of Workflow step. */
+// Measuring only.
 export const STEP_TITLE: Record<WorkflowStep["type"], string> = { remind: "Remind", escalate: "Escalate", check: "Check", approve: "Approve", publish: "Publish" };
