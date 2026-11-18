@@ -271,6 +271,15 @@ describe("every form the readers know (#126)", () => {
     // Two marks in a row, a mixed number ending in a space group, two kinds of group marks, a decimal mark not last.
     for (const t of ["1..5", "1,234.567 8", "1'234 567", "1,5 000"]) for (const style of NUMBER_STYLES) expect(readNumber(t, style), `${t} in ${style}`).toBeNull();
   });
+  it("decides too large on the digits as typed, not on the double nearest to them", () => {
+    // 10^15 and a cent rounds to the double 10^15, yet it is larger than the largest value (found by a generated test).
+    expect(readNumber("1000000000000000", "1,234.5")).toBe(1e15);
+    expect(readNumber("1000000000000000.00", "1,234.5")).toBe(1e15);
+    expect(readNumber("1000000000000000.01", "1,234.5")).toBeNull();
+    expect(readNumber("1,000,000,000,000,000.009", "1,234.5")).toBeNull();
+    expect(readNumber("1000000000000001", "1,234.5")).toBeNull();
+  });
+
   it("takes today as a Date too", () => {
     expect(readAnswer("3", { style: "1,234.5", today: new Date(2026, 10, 18), period: "week", yearStart: 1 })).toEqual({ ok: true, value: 3, period: "2026-11-16", named: null });
   });
