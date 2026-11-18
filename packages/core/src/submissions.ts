@@ -262,6 +262,10 @@ function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearSt
       return { outcome: "rejected_no_value", detail: `Couldn’t read ${listed([a.text])} as a number. Nothing was recorded.` };
     case "several_numbers":
       return { outcome: "rejected_several_numbers", detail: `Found several numbers: ${listed(a.numbers)}. Nothing was recorded: send the value for ${metric.name} alone.` };
+    case "year_or_value": {
+      const period = a.named.text.slice(0, -a.year.length).trim();
+      return { outcome: "rejected_several_numbers", detail: `${listed([a.year])} after ${listed([period])} could be its year or the value. Nothing was recorded: send the value with the period, such as “${period}: ${a.year}”, or the period with the value, such as “${a.named.text}: 12”.` };
+    }
     case "several_periods":
       return { outcome: "rejected_several_periods", detail: `Found several periods: ${listed(a.named.map((w) => w.text))}. Nothing was recorded: name one, or send the value alone for ${forNow}.` };
     case "no_such_period":

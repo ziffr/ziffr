@@ -14,7 +14,7 @@
 # The references, the tests that hold the code to them, and how they run.
 ^packages/core/src/test/reference/
 ^packages/core/src/aggregations[^/]*\.test\.ts$
-^packages/core/src/(display-periods|periods|snapshot-periods|compare|changes|writing|exact|format|workflow-rules|attainment-method|derived|formula)\.test\.ts$
+^packages/core/src/(display-periods|periods|snapshot-periods|compare|changes|writing|exact|format|workflow-rules|attainment-method|derived|formula|numbers)\.test\.ts$
 ^packages/core/(package\.json|vitest\.config\.ts)$
 ^\.github/calculation-paths\.txt$
 ^\.github/scripts/calculation-paths-touched\.sh$

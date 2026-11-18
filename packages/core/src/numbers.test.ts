@@ -1,5 +1,9 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { ANSWER_LANGUAGES, numbersIn, readAnswer, readNumber, type AnswerReading } from "./numbers";
+import { runs, valueText } from "./test/reference/check";
+import { exactOf, isNearestDouble, roundedText } from "./test/reference/exact";
+import { referenceNumber } from "./test/reference/write";
+import { ANSWER_LANGUAGES, findPeriodWords, numbersIn, readAnswer, readNumber, type AnswerReading } from "./numbers";
 import { answerLanguagesForCountry, checkAnswerLanguages, monthFirstIn } from "./numbers/languages";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { parseBreakdown } from "./parse";
@@ -127,6 +131,18 @@ const SENTENCES: Sentence[] = [
   { lang: "en", text: "2027: 5", week: NOT, month: NOT, quarter: NOT, year: ask("future_period") },
   // A month named without a year is the latest that has begun: December is last December.
   { lang: "en", text: "December: 5", week: NOT, month: v(5, "2025-12-01"), quarter: NOT, year: NOT },
+  // A year (#126): on its own beside another period it is the value; written right after a period with nothing else
+  // in the answer it could be its year or the value, so it asks back; with another number it is the period's year.
+  { lang: "en", text: "KW 46: 2050", week: v(2050, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "en", text: "2050 visits in KW 46", week: v(2050, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "de", text: "Oktober 2026: 2026", week: NOT, month: v(2026, "2026-10-01"), quarter: NOT, year: NOT },
+  { lang: "en", text: "KW 46 2050 visits", week: ask("year_or_value"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "en", text: "week 46 2025", week: ask("year_or_value"), month: NOT, quarter: NOT, year: NOT },
+  { lang: "en", text: "November 2025", week: NOT, month: ask("year_or_value"), quarter: NOT, year: NOT },
+  { lang: "en", text: "Q3 2026", week: NOT, month: NOT, quarter: ask("year_or_value"), year: NOT },
+  { lang: "en", text: "Q3 FY 2026", week: NOT, month: NOT, quarter: ask("no_number"), year: NOT },
+  { lang: "en", text: "Nov 2025 4500", week: NOT, month: v(4500, "2025-11-01"), quarter: NOT, year: NOT },
+  { lang: "en", text: "2026 revenue 4500", week: NOT, month: NOT, quarter: NOT, year: v(4500, "2026-04-01") },
   // Two periods, or one that does not exist.
   { lang: "en", text: "last week or yesterday 3", week: ask("several_periods"), month: ask("several_periods"), quarter: ask("several_periods"), year: ask("several_periods") },
   { lang: "en", text: "last week (week 46): 2", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
@@ -247,5 +263,56 @@ describe("Answer Languages", () => {
     expect(monthFirstIn("GB")).toBe(false);
     expect(checkAnswerLanguages(["fr", "en", "fr"])).toEqual(["en", "fr"]);
     for (const bad of [[], ["xx"], ["en", "xx"], "en", null, [1], Array(21).fill("en")]) expect(checkAnswerLanguages(bad)).toBeNull();
+  });
+});
+
+describe("every form the readers know (#126)", () => {
+  it("refuses numbers whose marks cannot be read one way", () => {
+    // Two marks in a row, a mixed number ending in a space group, two kinds of group marks, a decimal mark not last.
+    for (const t of ["1..5", "1,234.567 8", "1'234 567", "1,5 000"]) for (const style of NUMBER_STYLES) expect(readNumber(t, style), `${t} in ${style}`).toBeNull();
+  });
+  it("takes today as a Date too", () => {
+    expect(readAnswer("3", { style: "1,234.5", today: new Date(2026, 10, 18), period: "week", yearStart: 1 })).toEqual({ ok: true, value: 3, period: "2026-11-16", named: null });
+  });
+  it("finds no period in a day or a Fiscal Year that does not exist", () => {
+    const ctx = { style: "1,234.5" as const, today: "2026-11-18", period: "month" as const, yearStart: 1 as const };
+    expect(readAnswer("31.02.2026: 4", ctx)).toMatchObject({ ok: false, reason: "no_such_period", named: { text: "31.02.2026", start: null } });
+    expect(readAnswer("FY 2026/28: 4", ctx)).toMatchObject({ ok: false, reason: "no_such_period", named: { text: "FY 2026/28", start: null } });
+  });
+  it("names half-years, ISO weeks, dates with years and the latest quarter that has begun", () => {
+    const found = (t: string, today = "2026-11-18") => findPeriodWords(t, today, 1, ["en", "de"]).map((w) => [w.text, w.span, w.start]);
+    expect(found("H2 2026")).toEqual([["H2 2026", "half", "2026-07-01"]]);
+    expect(found("Q2", "2026-02-10")).toEqual([["Q2", "quarter", "2025-04-01"]]);
+    expect(found("2026-W46")).toEqual([["2026-W46", "week", "2026-11-09"]]);
+    expect(found("12 November 2026")).toEqual([["12 November 2026", "day", "2026-11-12"]]);
+    expect(found("November 12, 2026")).toEqual([["November 12, 2026", "day", "2026-11-12"]]);
+    // "2026/27" is a Fiscal Year only when the second year is the next one: "2026/12" is the year and a number.
+    expect(found("2026/27")).toEqual([["2026/27", "year", "2026-01-01"]]);
+    expect(found("2026/12")).toEqual([["2026", "year", "2026-01-01"]]);
+  });
+  it("skips empty lines of a breakdown and takes its total", () => {
+    expect(parseBreakdown("A 1\n\nB 2\nTotal 3", "1,234.5")).toEqual({ rows: [{ label: "A", value: 1 }, { label: "B", value: 2 }], total: 3 });
+  });
+});
+
+describe("reading what Ziffr writes", () => {
+  const { numRuns, seed } = runs();
+  it(`reads every number written in a Number Style back in that style, exactly (${numRuns * 5} values, seed ${seed})`, () => {
+    fc.assert(
+      fc.property(valueText, fc.integer({ min: 0, max: 6 }), fc.constantFrom(...NUMBER_STYLES), fc.boolean(), fc.constantFrom("", "+", "−"), (text, decimals, style, group, sign) => {
+        // Written by the reference writer, not by format.ts: digits rounded to `decimals`, grouped or not.
+        const written = referenceNumber(text, decimals, style, group);
+        const rounded = exactOf(roundedText(exactOf(text), decimals));
+        const sized = rounded.num < 0n ? -rounded.num : rounded.num;
+        const big = sized > 10n ** 15n * rounded.den;
+        // A sign typed in front: "+" changes nothing, "−" (the minus sign) negates, as "-" does.
+        const typed = sign && !written.startsWith("-") ? `${sign}${written}` : written;
+        const negate = sign === "−" && !written.startsWith("-");
+        const read = readNumber(typed, style);
+        if (big) expect(read, typed).toBeNull();
+        else expect(read !== null && isNearestDouble(negate ? -read : read, rounded), `${typed} in ${style} read as ${read}`).toBe(true);
+      }),
+      { numRuns: numRuns * 5, seed },
+    );
   });
 });
