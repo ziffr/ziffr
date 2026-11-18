@@ -10,15 +10,18 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
+    "test:numbers": "NUMBERS_RUNS=${NUMBERS_RUNS:-1000} NUMBERS_SEED=${NUMBERS_SEED:-random} vitest run src/aggregations src/test/reference",
     "lint": "eslint",
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "^9.39.5",
     "eslint-plugin-jsdoc": "^65.4.5",
+    "fast-check": "^4.10.2",
     "typescript": "^5",
     "typescript-eslint": "^8.72.2",
     "vitest": "^4.1.12"

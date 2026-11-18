@@ -60,6 +60,37 @@ jobs:
         if: github.event_name == 'pull_request'
         run: .github/scripts/migrations-add-only.sh
 
+  # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md): every Aggregation, Display
+  # Period and Fiscal Year start against the reference on at least 1,000 generated series each, with a new seed.
+  # Runs beside the other jobs when a change touches a calculation path (.github/calculation-paths.txt); otherwise
+  # its steps are skipped and the job still succeeds, so it can be a required check.
+  numbers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Does this change touch a calculation path?
+        id: changes
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^1' }}
+        run: |
+          base="$BASE"
+          if .github/scripts/calculation-paths-touched.sh "$base"; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        if: steps.changes.outputs.run == 'true'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.changes.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.changes.outputs.run == 'true'
+      - name: Calculations against the reference, full strength
+        if: steps.changes.outputs.run == 'true'
+        run: pnpm --filter @ziffr/core test:numbers
+
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions).
   # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).
   core-db:

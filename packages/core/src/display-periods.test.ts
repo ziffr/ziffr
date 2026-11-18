@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compare, resolverFrom } from "./compare";
-import { dayAfter, displayPeriodsFor, INPUTS_MISSING, isPartial, NOT_COMBINED, periodCount, pointName, seriesBy, shownSeries } from "./display-periods";
+import { dayAfter, displayPeriodsFor, INPUTS_MISSING, isDisplayPeriod, isPartial, latestOfEach, NOT_COMBINED, periodCount, pointName, seriesBy, shownSeries, spanCount, valueOver } from "./display-periods";
 import { JANUARY } from "./periods";
 import { canvas, metric, months } from "./test/fixtures";
 import type { Point } from "./types";
@@ -166,5 +166,66 @@ describe("pointName", () => {
     expect(isPartial(q(3, false))).toBe(false);
     // A past quarter with two of three months, from seriesBy itself.
     expect(isPartial(by("sum", "quarter", "2026-05-01").points.at(-1)!)).toBe(true);
+  });
+});
+
+describe("every rule of combining, one by one (spec 0022)", () => {
+  const m = metric();
+  const r = resolverFrom([m], { revenue: months("2026-01", [1, 2, 3]) });
+
+  it("reads nothing for a Metric it does not know, or one it has no series for", () => {
+    expect(valueOver("unknown", "2026-01-01", "2026-03-01", r, 3)).toBeUndefined();
+    expect(seriesBy(m, () => undefined, "quarter", { yearStart: ys, today: "2026-12-01" })).toEqual({ ok: true, points: [] });
+    expect(shownSeries(m, canvas([m], {}), "quarter", { today: "2026-12-01" }).points).toEqual([]);
+  });
+
+  it("does not combine a span of values whose Aggregation is none", () => {
+    const rate = metric({ aggregation: "none" });
+    const rr = resolverFrom([rate], { revenue: months("2026-01", [1, 2, 3]) });
+    expect(valueOver("revenue", "2026-01-01", "2026-03-01", rr, 3)).toBeUndefined();
+    // One period alone is its own value, whatever the Aggregation (a Comparison with the period before).
+    expect(valueOver("revenue", "2026-02-01", "2026-02-01", rr, 1)).toBe(2);
+  });
+
+  it("gives a Derived Metric no value where an input has none, or where its formula has none", () => {
+    const a = metric({ id: 1, slug: "a" });
+    const b = metric({ id: 2, slug: "b" });
+    const ratio = metric({ id: 3, slug: "ratio", formula: "{a} / {b}", aggregation: "none" });
+    const rr = resolverFrom([a, b, ratio], { a: months("2026-01", [1, 2, 3]), b: months("2026-01", [0, 0, 0]), ratio: months("2026-01", [1, 1, 1]) });
+    // Dividing by a quarter of 0 has no value.
+    expect(valueOver("ratio", "2026-01-01", "2026-03-01", rr, 3)).toBeUndefined();
+    const short = resolverFrom([a, b, ratio], { a: months("2026-01", [1]), b: months("2026-01", [1, 1, 1]), ratio: months("2026-01", [1, 1, 1]) });
+    expect(valueOver("ratio", "2026-01-01", "2026-03-01", short, 3)).toBeUndefined();
+    // An input the data does not hold: seriesBy reads it as having no values, so no span has one.
+    const missing = resolverFrom([ratio], { ratio: months("2026-01", [1, 1, 1]) });
+    expect(seriesBy(ratio, missing, "quarter", { yearStart: ys, today: "2026-12-01" })).toEqual({ ok: true, points: [] });
+    // The input is a Metric of the data without a series yet.
+    expect(shownSeries(ratio, canvas([a, b, ratio], { ratio: months("2026-01", [1, 1, 1]) }), "quarter", { today: "2026-12-01" })).toMatchObject({ combined: true, points: [] });
+  });
+
+  it("adds values written with an exponent, and large sums to the nearest double, ties to even", () => {
+    const big = (values: number[]) => seriesBy(m, resolverFrom([m], { revenue: months("2026-01", values) }), "quarter", { yearStart: ys, today: "2026-12-01" }).points[0].value;
+    // 1e21 is written "1e+21"; 1e21 + 1 has no double of its own, the nearest is 1e21.
+    expect(big([1e21, 1, 0])).toBe(1e21);
+    expect(big([1e-7, 2e-7, 0])).toBe(3e-7);
+    // 2^52 + (2^52 + 3) is 2^53 + 3, halfway between 2^53 + 2 and 2^53 + 4: the even one, 2^53 + 4.
+    expect(big([2 ** 52, 2 ** 52 + 3, 0])).toBe(2 ** 53 + 4);
+    // 2^52 + (2^52 + 1) is 2^53 + 1, halfway between 2^53 and 2^53 + 2: the even one, 2^53.
+    expect(big([2 ** 52, 2 ** 52 + 1, 0])).toBe(2 ** 53);
+    expect(big([-0.1, -0.2, 0])).toBe(-0.3);
+  });
+
+  it("keeps the latest value of a period given twice, oldest period first", () => {
+    expect(latestOfEach([{ period: "2026-02-01", value: 1 }, { period: "2026-01-01", value: 2 }, { period: "2026-02-01", value: 3 }])).toEqual([{ period: "2026-01-01", value: 2 }, { period: "2026-02-01", value: 3 }]);
+    expect(shownSeries(m, canvas([m], { revenue: [{ period: "2026-02-01", value: 1 }, { period: "2026-01-01", value: 2 }] }), null).points.map((p) => p.period)).toEqual(["2026-01-01", "2026-02-01"]);
+  });
+
+  it("names counts and checks what a browser sends as a Display Period", () => {
+    expect(spanCount(1, "month")).toBe("1 month");
+    expect(spanCount(3, "week")).toBe("3 weeks");
+    expect(isDisplayPeriod("half")).toBe(true);
+    expect(isDisplayPeriod("day")).toBe(false);
+    expect(isDisplayPeriod(4)).toBe(false);
+    expect(pointName({ period: "2026-01-01", held: 2, length: 3, toDate: true }, "quarter", "month", ys, true)).toBe("Q1 26 to date");
   });
 });

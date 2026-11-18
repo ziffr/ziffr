@@ -224,3 +224,54 @@ describe("quarterly and yearly Metrics", () => {
   });
 });
 
+
+describe("every branch of a Comparison (spec 0022)", () => {
+  it("compares as of a day, leaving later values out", () => {
+    const m = metric();
+    const [prev] = compare(m, resolverFrom([m], { revenue: months("2026-01", [1, 2, 3, 4]) }), { yearStart: JANUARY, keys: ["prev"], asOf: "2026-02-01" });
+    expect(prev).toMatchObject({ current: 2, previous: 1 });
+  });
+
+  it("says the current span is incomplete when only the earlier one has values", () => {
+    const m = metric({ period: "day" });
+    // January to the 5th holds one of its five days, too few; December to the 5th holds all five.
+    const days = Array.from({ length: 31 }, (_, i) => ({ period: `2025-12-${String(i + 1).padStart(2, "0")}`, value: 1 }));
+    const [mom] = compare(m, resolverFrom([m], { revenue: [...days, { period: "2026-01-05", value: 1 }] }), { yearStart: JANUARY, keys: ["mom"] });
+    expect(mom).toMatchObject({ available: false, reason: "Incomplete values for this span" });
+  });
+
+  it("says why a Derived Metric with an input set to none is not compared to date", () => {
+    const revenue = metric({ id: 1, slug: "revenue" });
+    const stock = metric({ id: 2, slug: "stock", aggregation: "none" });
+    const per = metric({ id: 3, slug: "per", formula: "{revenue} / {stock}", aggregation: "none" });
+    const r = resolverFrom([revenue, stock, per], { revenue: months("2026-01", [1, 2]), stock: months("2026-01", [1, 1]), per: months("2026-01", [1, 2]) });
+    for (const full of [false, true]) expect(compare(per, r, { yearStart: JANUARY, keys: ["qoq"], full })[0]).toMatchObject({ available: false, reason: expect.stringMatching(/Aggregation none/) });
+    // A Metric the data does not hold has no values.
+    expect(compare(per, () => undefined, { yearStart: JANUARY, keys: ["prev"] })[0]).toMatchObject({ available: false, reason: "No values yet" });
+    expect(summary(per, () => undefined, [], { yearStart: JANUARY }).value).toBeUndefined();
+  });
+
+  it("reads a Target Series and a range for a Metric where lower is better", () => {
+    const m = metric({ polarity: "lower", target_min: null, target_max: 10 });
+    expect(targetFor(m, "2026-01-01", [{ period: "2026-01-01", value: 8 }])).toMatchObject({ min: null, max: 8, fromSeries: true, value: 8 });
+    expect(attainment({ ...m, target_max: null }, 5, { min: null, max: null })).toBeNull();
+    expect(targetGap({ ...m, target_max: null }, 5, { min: null, max: null })).toBeNull();
+  });
+
+  it("sums up a Metric without values, without targets, and on target by the difference", () => {
+    const m = metric();
+    expect(summary(m, resolverFrom([m], {}), undefined, { yearStart: JANUARY })).toMatchObject({ value: undefined, target: null, attainment: null, gap: null, onTarget: null });
+    const z = metric({ polarity: "higher", target_min: 0 });
+    expect(summary(z, resolverFrom([z], { revenue: months("2026-01", [2]) }), undefined, { yearStart: JANUARY })).toMatchObject({ attainment: null, gap: 2, onTarget: true });
+    const low = metric({ polarity: "lower", target_min: null, target_max: 0 });
+    expect(summary(low, resolverFrom([low], { revenue: months("2026-01", [2]) }), [], { yearStart: JANUARY })).toMatchObject({ gap: 2, onTarget: false });
+    // A target of exactly 0: on target only at 0.
+    const band = metric({ polarity: "target", target_min: 0, target_max: null });
+    expect(summary(band, resolverFrom([band], { revenue: months("2026-01", [-1]) }), [], { yearStart: JANUARY })).toMatchObject({ attainment: null, gap: -1, onTarget: false });
+    // A Metric with no range: neither on target nor off it.
+    const none = metric({ target_min: null });
+    expect(summary(none, resolverFrom([none], { revenue: months("2026-01", [2]) }), [], { yearStart: JANUARY }).onTarget).toBeNull();
+    // The latest period is the latest, whatever order the values came in.
+    expect(summary(m, resolverFrom([m], { revenue: [...months("2026-03", [7]), ...months("2026-01", [5])] }), [], { yearStart: JANUARY }).period).toBe("2026-03-01");
+  });
+});

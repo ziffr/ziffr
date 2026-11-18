@@ -1,6 +1,6 @@
 // The comparison engine (GLOSSARY: Comparison, Attainment, Aggregation). Pure: no server or React code,
 // so dashboards, decks, the Metric page, History and the PowerPoint export all compute the same numbers.
-import { combines, seriesBy, valueOver, type DisplayPoint, type Resolver } from "./display-periods";
+import { combines, latestOfEach, seriesBy, valueOver, type DisplayPoint, type Resolver } from "./display-periods";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { Metric, Period, Point } from "./types";
 import { formatPercent } from "./format";
@@ -52,7 +52,8 @@ function spanLabel(start: string, end: string, p: Period, ys: YearStart) {
  * Quarters, halves and years start from `yearStart`, the workspace's. */
 export function compare(metric: Metric, resolve: Resolver, opts: { keys?: CompareKey[]; full?: boolean; asOf?: string; yearStart: YearStart }): Comparison[] {
   const r = resolve(metric.slug);
-  const pts = (r?.points ?? []).filter((p) => !opts.asOf || p.period <= opts.asOf);
+  // The latest value of each period, oldest first: the latest period is the last one whatever order the points came in.
+  const pts = latestOfEach(r?.points ?? []).filter((p) => !opts.asOf || p.period <= opts.asOf);
   const keys = opts.keys ?? comparisonsFor(metric.period);
   const last = pts[pts.length - 1];
   if (!last) return keys.map((key) => ({ key, label: COMPARE_LABEL[key], available: false, reason: "No values yet" }));
@@ -72,7 +73,9 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
       cur = [last.period, last.period];
       prev = [p, p];
     } else if (key === "yoy") {
-      const p = shiftPeriod(last.period, "year", -1);
+      // A week a year earlier is the one 52 weeks before: it starts on a Monday too, and most of its days fall on the
+      // same dates (the same day a year back is rarely a Monday, and no weekly value starts on it).
+      const p = P === "week" ? shiftPeriod(last.period, "week", -52) : shiftPeriod(last.period, "year", -1);
       cur = [last.period, last.period];
       prev = [p, p];
     } else {
@@ -85,7 +88,7 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
         // Last complete span vs the one before: the span the latest period ends is complete, one ending later is not.
         const complete = periodEnd(gStart, g) <= periodEnd(last.period, P);
         s = complete ? gStart : shiftPeriod(gStart, g, -1);
-        cur = [s, shiftPeriod(shiftPeriod(s, g, 1), P, -1)];
+        cur = [firstIn(s), lastBy(periodEnd(s, g))];
         const r = seriesBy(metric, resolve, g, { yearStart: ys, today: shiftPeriod(last.period, P, 1) });
         if (!r.ok) return { ...base, available: false, reason: r.reason };
         points = r.points;
@@ -93,19 +96,29 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
         // To date: the current span so far vs the span before up to the same point.
         // Calendar-aligned: 1 Jul to 12 Nov compares with 1 Jan to 12 May, not a day count.
         s = gStart;
-        cur = [gStart, last.period];
+        cur = [firstIn(gStart), last.period];
         const r = seriesBy(metric, resolve, g, { yearStart: ys, alignTo: last.period });
         if (!r.ok) return { ...base, available: false, reason: r.reason };
         points = r.points;
       }
       const ps = shiftPeriod(s, g, -1);
-      prev = [ps, opts.full ? shiftPeriod(s, P, -1) : shiftPeriod(last.period, g, -1)];
+      prev = [firstIn(ps), lastBy(opts.full ? periodEnd(ps, g) : shiftPeriod(last.period, g, -1))];
       const at = (start: string) => points.find((p) => p.period === start)?.value;
       return result(base, at(s), at(ps), cur, prev);
     }
 
     return result(base, valueOver(metric.slug, cur[0], cur[1], resolve, 1), valueOver(metric.slug, prev[0], prev[1], resolve, 1), cur, prev);
   });
+
+  // A span named by the Metric periods it counts: from the first that starts in it to the one its cut falls in, so a
+  // weekly Metric's month reads "Week of 2 Nov to Week of 30 Nov", never a week starting on the 1st.
+  function firstIn(start: string): string {
+    const p = periodStart(start, P, ys);
+    return p === start ? p : shiftPeriod(p, P, 1);
+  }
+  function lastBy(day: string): string {
+    return periodStart(day, P, ys);
+  }
 
   function result(base: { key: CompareKey; label: string }, current: number | undefined, previous: number | undefined, cur: [string, string], prev: [string, string]): Comparison {
     if (current === undefined || previous === undefined) {
@@ -165,7 +178,7 @@ export function attainmentText(a: number, style: NumberStyle, digits = 0): strin
 
 /** Everything a widget's comparison strip needs, for the latest period. */
 export function summary(metric: Metric, resolve: Resolver, targets: Point[] | undefined, opts: { keys?: CompareKey[]; full?: boolean; yearStart: YearStart }) {
-  const pts = resolve(metric.slug)?.points ?? [];
+  const pts = latestOfEach(resolve(metric.slug)?.points ?? []);
   const last = pts[pts.length - 1];
   const t = last ? targetFor(metric, last.period, targets ?? []) : null;
   const att = last && t ? attainment(metric, last.value, t) : null;
@@ -183,11 +196,5 @@ export function summary(metric: Metric, resolve: Resolver, targets: Point[] | un
   };
 }
 
-/** A resolver over a canvas's data. */
-export function resolverFrom(metrics: Metric[], series: Record<string, Point[]>): Resolver {
-  const bySlug = new Map(metrics.map((m) => [m.slug, m]));
-  return (slug) => {
-    const metric = bySlug.get(slug);
-    return metric ? { metric, points: series[slug] ?? [] } : undefined;
-  };
-}
+/** A resolver over a canvas's data (kept here, where callers have always found it). */
+export { resolverFrom } from "./display-periods";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPeriodStart, isYearStart, JANUARY, periodEnd, periodLabel, periodsBetween, periodStart, periodStartsIn, shiftPeriod, toYearStart, type YearStart } from "./periods";
+import { isPeriodStart, isYearStart, JANUARY, monthName, periodEnd, periodLabel, periodsBetween, periodStart, periodStartsIn, shiftPeriod, toYearStart, type YearStart } from "./periods";
 
 const APRIL: YearStart = 4;
 const OCTOBER: YearStart = 10;
@@ -100,5 +100,12 @@ describe("periods", () => {
     expect(toYearStart("7")).toBe(7);
     expect(toYearStart(13)).toBe(JANUARY);
     expect(toYearStart(null)).toBe(JANUARY);
+  });
+});
+
+describe("month names", () => {
+  it("names the month a year starts in", () => {
+    expect(monthName(1)).toBe("January");
+    expect(monthName(4)).toBe("April");
   });
 });
