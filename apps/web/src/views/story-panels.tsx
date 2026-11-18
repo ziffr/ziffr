@@ -33,7 +33,7 @@ export function measureSeries(m: Metric, data: CanvasData, panel: Panel): Bar[] 
   for (const p of combined) {
     let v: number | null | undefined = null;
     if (measure === "value") v = p.value;
-    else if (measure === "attainment") v = attainment(m, p.value, targetFor(m, p.period, data.targets[m.id]));
+    else if (measure === "attainment") v = attainment(m, p.value, targetFor(m, p.period, data.targets[m.id]), data.attainmentMethod);
     else {
       const c = compare(m, resolve, { yearStart: data.yearStart, keys: [measure === "pct-prev" ? "prev" : "yoy"], asOf: p.period })[0];
       v = c.available ? c.pct : null;

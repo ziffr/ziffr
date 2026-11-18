@@ -21,6 +21,7 @@ import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
+import { isAttainmentMethod } from "./attainment-method";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -34,6 +35,8 @@ export type MetricInput = {
   name: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null; sources?: string[]; submitters?: string[];
   fromCatalogId?: number | null;
+  /** "ratio" or "distance" for an Attainment method of its own; anything else follows the Workspace. */
+  attainmentMethod?: string | null;
   /** The Workflow its values take; must be one of the workspace's. */
   workflowId?: number | null;
   /** The Metric this one duplicates; the actor must see it. */
@@ -49,6 +52,8 @@ export type MetricEffects = {
 };
 
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+// An Attainment method of the Metric's own, or null to follow the Workspace: nothing else is stored.
+const methodOrNull = (v: unknown) => (isAttainmentMethod(v) ? v : null);
 const numOrNull = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -109,6 +114,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     polarity: pick(input.polarity, POLARITIES, "higher"),
     aggregation: pick(input.aggregation, AGGREGATIONS, "sum"),
     target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
+    attainment_method: methodOrNull(input.attainmentMethod),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
     from_catalog_id: original ? null : numOrNull(input.fromCatalogId),
     workflow_id: workflowId,
@@ -158,6 +164,7 @@ export async function metricDraftFrom(actor: Actor, metricId: number): Promise<M
     name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, unit_position: m.unit_position, format: m.format, decimals: m.decimals, period: m.period,
     submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
     target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
+    attainment_method: methodOrNull(m.attainment_method),
     sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))].filter((s) => !feeds.has(s)), duplicateOf: m.id,
   };
 }
@@ -329,10 +336,12 @@ export async function setMetricSources(actor: Actor, metricId: number, sources: 
 export type MetricDetails = {
   name?: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
+  /** "ratio" or "distance" for an Attainment method of its own; null (or anything else) follows the Workspace. */
+  attainmentMethod?: string | null;
 };
 
 /** Changes a Metric's description, for its owner and its Editors: name, description, unit and its side, format, decimals, Polarity, Submission
- * Rule, Aggregation, the target range, and the period while it has no values yet (later its values would sit in the
+ * Rule, Aggregation, the target range, the Attainment method, and the period while it has no values yet (later its values would sit in the
  * wrong periods). The slug stays, so links and programs keep finding it. Each change is a Version. */
 export async function updateMetricDetails(actor: Actor, metricId: number, patch: MetricDetails): Promise<void> {
   const ws = actor.workspaceId;
@@ -354,6 +363,7 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   if (p.aggregation !== undefined) update.aggregation = pick(p.aggregation, AGGREGATIONS, m.aggregation);
   if (p.targetMin !== undefined) update.target_min = numOrNull(p.targetMin);
   if (p.targetMax !== undefined) update.target_max = numOrNull(p.targetMax);
+  if (p.attainmentMethod !== undefined) update.attainment_method = methodOrNull(p.attainmentMethod);
   const lo = (update.target_min ?? m.target_min) as number | null;
   const hi = (update.target_max ?? m.target_max) as number | null;
   if (lo !== null && hi !== null && Number(lo) > Number(hi)) throw new Error("The lower target is above the upper one.");

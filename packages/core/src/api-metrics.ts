@@ -32,6 +32,7 @@ export type ApiMetricInput = {
   aggregation?: string;
   target_min?: number | null;
   target_max?: number | null;
+  attainment_method?: string | null;
   submit?: boolean;
 };
 
@@ -47,7 +48,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
     name: String(input?.name ?? ""),
     description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
-    targetMin: input.target_min, targetMax: input.target_max,
+    targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
     // As in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
     sources: ["web_form", "mail", "slack", "telegram", "api"],
     submitters: input.submit ? [actor.personId] : [],

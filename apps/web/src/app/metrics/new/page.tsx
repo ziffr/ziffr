@@ -4,8 +4,9 @@ import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
 import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
 import { Forbidden } from "@ziffr/core/actor";
-import { getNumberStyle, getProfiles } from "@/lib/data";
+import { getNumberStyle, getProfiles, getAttainmentMethod } from "@/lib/data";
 import { moneyUnit } from "@ziffr/core/units";
+import { AttainmentMethodField } from "../attainment-method-field";
 import { UnitFields } from "../unit-fields";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
@@ -44,6 +45,7 @@ const BLANK: MetricDescription = {
   target_min: null,
   target_max: null,
   sources: ["web_form", "mail", "slack", "telegram", "api"],
+  attainment_method: null,
 };
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
@@ -78,10 +80,10 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
   // A new Metric takes values every way Ziffr knows (web form, email, Slack), so each submitter can use what suits
   // them; a duplicate keeps its original's. The owner can narrow it here or later on the Metric's Settings tab.
-  const [people, viewer, demo, profile, numberStyle] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle()]);
+  const [people, viewer, demo, profile, numberStyle, attainmentMethod] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle(), getAttainmentMethod()]);
   // A new money Metric starts with the unit of the Workspace Profile's currency (spec 0022), one from the catalog too.
   const money = moneyUnit(profile.currency);
-  const d: MetricDescription = copy ?? (picked ? { ...picked, ...(picked.format === "currency" ? money : {}), sources: BLANK.sources } : BLANK);
+  const d: MetricDescription = copy ?? (picked ? { ...picked, ...(picked.format === "currency" ? money : {}), sources: BLANK.sources, attainment_method: null } : BLANK);
   return (
     <>
       {copy
@@ -166,6 +168,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               </F>
               <F label="Target from"><Input name="target_min" type="number" step="any" defaultValue={d.target_min ?? ""} /></F>
               <F label="Target to"><Input name="target_max" type="number" step="any" defaultValue={d.target_max ?? ""} /></F>
+              <AttainmentMethodField id="new-attainment" value={d.attainment_method} workspaceMethod={attainmentMethod} className="sm:col-span-3" />
             </div>
           </Section>
         </div>

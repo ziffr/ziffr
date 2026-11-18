@@ -17,6 +17,8 @@ import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
+import { keptMethod } from "./attainment-method";
+import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import type { CanvasData, Widget } from "./types";
 
@@ -69,6 +71,7 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     locked: pick(full.locked, ids),
     yearStart: full.yearStart,
     numberStyle: full.numberStyle,
+    attainmentMethod: full.attainmentMethod,
     ...(full.today ? { today: full.today } : {}),
   };
 }
@@ -153,10 +156,11 @@ export async function openViewLink(token: string): Promise<ViewPayload | null> {
     const frozen = link.frozen as ViewPayload;
     // A quarter it showed as "to date" stays so: counted as of the day the link was made (spec 0018).
     // Its numbers are written in the workspace's Number Style now, and a Metric kept before units had a side shows
-    // the unit its format used to add (spec 0022).
+    // the unit its format used to add (spec 0022). Its Attainment keeps the methods it was made with (#130).
     const ws = String(link.workspace_id);
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
-    return { ...frozen, data: { ...frozen.data, metrics: frozen.data.metrics.map(keptUnit), yearStart, numberStyle, today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
+    const metrics = frozen.data.metrics.map((m) => normalizeMetric(keptUnit(m)));
+    return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
   if (link.snapshot_id) {

@@ -5,6 +5,7 @@ import { periodEnd, periodLabel, periodStart, shiftPeriod, type Span, type YearS
 import type { Metric, Period, Point } from "./types";
 import { formatPercent } from "./format";
 import type { NumberStyle } from "./number-style";
+import { methodFor, type AttainmentMethod } from "./attainment-method";
 
 /** Which Comparison: the previous period, a calendar span to date (day, week, month, quarter, half) or the year before. */
 export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
@@ -138,27 +139,49 @@ export function targetFor(metric: Metric, period: string, targets: Point[] = [])
   return { min: metric.target_min, max: metric.target_max, fromSeries: false, value: metric.polarity === "lower" ? metric.target_max : metric.target_min };
 }
 
-/** Attainment in %, higher always better (GLOSSARY: Attainment). It is measured by the distance to the target, in
- * steps of the target's own size: 100 % on target, 150 % half a target better, 50 % half a target short. That holds
- * for targets below zero too, where a ratio of value to target turns around. A target of 0 has no size to measure
- * by, so there is no percentage (null; `targetGap` gives the difference instead), and null for a value that is not
- * a number. */
-export function attainment(metric: Metric, value: number, t: { min: number | null; max: number | null }): number | null {
+/** Attainment in %, higher always better (GLOSSARY: Attainment), computed by the Metric's own method or, without
+ * one, by `workspaceMethod`, the Workspace's default. Required, so a caller that forgets it does not compile. Null
+ * where the method has no percentage that means anything (`targetGap` gives the difference instead), without a
+ * target, and for a value that is not a number. */
+export function attainment(metric: Metric, value: number, t: { min: number | null; max: number | null }, workspaceMethod: AttainmentMethod): number | null {
   const min = t.min === null ? null : Number(t.min);
   const max = t.max === null ? null : Number(t.max);
   if (!Number.isFinite(value)) return null;
+  return methodFor(metric, workspaceMethod) === "ratio" ? byRatio(metric.polarity, value, min, max) : byDistance(metric.polarity, value, min, max);
+}
+
+/** Attainment by distance: 100 % plus how far the value is from the target, in steps of the target's own size: 100 %
+ * on target, 150 % half a target better, 50 % half a target short. That holds for targets below zero too, where a
+ * ratio turns around. A target of 0 has no size to measure by, so there is no percentage. */
+function byDistance(polarity: Metric["polarity"], value: number, min: number | null, max: number | null): number | null {
   // `ahead` is how far the value is on the good side of `target`, negative when it falls short.
   const pct = (target: number, ahead: number) => (target === 0 || !Number.isFinite(target) ? null : 100 + (ahead / Math.abs(target)) * 100);
-  if (metric.polarity === "higher") return min === null ? null : pct(min, value - min);
-  if (metric.polarity === "lower") return max === null ? null : pct(max, max - value);
+  if (polarity === "higher") return min === null ? null : pct(min, value - min);
+  if (polarity === "lower") return max === null ? null : pct(max, max - value);
   if (min === null && max === null) return null;
   if (min !== null && value < min) return pct(min, value - min);
   if (max !== null && value > max) return pct(max, max - value);
   return 100;
 }
 
+/** Attainment by ratio, as Ziffr computed it up to 0.9.0: value ÷ target, target ÷ value for "lower is better", and
+ * for a range the bound the value is outside of, 100 % inside it. A ratio means something only against a positive
+ * target, so a target at or below zero has no percentage, and neither has a value at or below zero for "lower is
+ * better" (target ÷ 0 is no number, and a negative ratio would call the best value the worst). */
+function byRatio(polarity: Metric["polarity"], value: number, min: number | null, max: number | null): number | null {
+  const usable = (target: number | null): target is number => target !== null && Number.isFinite(target) && target > 0;
+  if (polarity === "higher") return usable(min) ? (value / min) * 100 : null;
+  if (polarity === "lower") return usable(max) && value > 0 ? (max / value) * 100 : null;
+  if (min === null && max === null) return null;
+  if (min !== null && value < min) return usable(min) ? (value / min) * 100 : null;
+  // Above a positive upper bound the value is positive too, so the ratio is between 0 and 100 %.
+  if (max !== null && value > max) return usable(max) ? (max / value) * 100 : null;
+  return 100;
+}
+
 /** How far a value is from its target, in the Metric's unit: positive above it, negative below, 0 inside a range;
- * null without a target. What a widget shows where Attainment has no percentage (a target of 0). */
+ * null without a target. What a widget shows where Attainment has no percentage (a target of 0; by ratio also a target
+ * below 0, or a value at or below 0 for "lower is better"). */
 export function targetGap(metric: Metric, value: number, t: { min: number | null; max: number | null }): number | null {
   const min = t.min === null ? null : Number(t.min);
   const max = t.max === null ? null : Number(t.max);
@@ -177,17 +200,19 @@ export function attainmentText(a: number, style: NumberStyle, digits = 0): strin
 }
 
 /** Everything a widget's comparison strip needs, for the latest period. */
-export function summary(metric: Metric, resolve: Resolver, targets: Point[] | undefined, opts: { keys?: CompareKey[]; full?: boolean; yearStart: YearStart }) {
+export function summary(metric: Metric, resolve: Resolver, targets: Point[] | undefined, opts: { keys?: CompareKey[]; full?: boolean; yearStart: YearStart; attainmentMethod: AttainmentMethod }) {
   const pts = latestOfEach(resolve(metric.slug)?.points ?? []);
   const last = pts[pts.length - 1];
   const t = last ? targetFor(metric, last.period, targets ?? []) : null;
-  const att = last && t ? attainment(metric, last.value, t) : null;
+  const att = last && t ? attainment(metric, last.value, t, opts.attainmentMethod) : null;
   const gap = last && t ? targetGap(metric, last.value, t) : null;
   return {
     value: last?.value,
     period: last?.period,
     target: t,
     attainment: att,
+    /** How `attainment` was computed, for the tooltip that names it. */
+    method: methodFor(metric, opts.attainmentMethod),
     /** The difference to the target, shown where Attainment has no percentage. */
     gap,
     /** Whether the latest value is on target, from Attainment or, without one, from the difference; null without a target. */

@@ -23,6 +23,8 @@ import { localTime } from "./workspace-clock";
 import type { CanvasData, Widget, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { keptUnit } from "./units";
+import { keptMethod } from "./attainment-method";
+import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { dayAfter } from "./display-periods";
 
@@ -223,8 +225,11 @@ export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, 
   const ids = new Set(data.metrics.map((m) => m.id).filter((m) => visible.has(m)));
   // Quarters are drawn from the workspace's year start now: a Snapshot taken under another keeps its values, and
   // Comparisons are computed, so they follow (spec 0017). Its numbers are written in the Number Style of now, and a
-  // Metric kept before units had a side shows the unit its format used to add (spec 0022).
-  return { widgets: shown, data: shownData({ ...data, metrics: data.metrics.map(keptUnit), yearStart, numberStyle }, ids, themeId), hidden: widgets.length - shown.length };
+  // Metric kept before units had a side shows the unit its format used to add (spec 0022). Attainment is not only
+  // written but computed differently by each method, so it keeps the Workspace's method and each Metric's own as they
+  // were when it was taken; one taken before there was a choice keeps Ratio (#130).
+  const kept = { ...data, metrics: data.metrics.map((m) => normalizeMetric(keptUnit(m))), yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
+  return { widgets: shown, data: shownData(kept, ids, themeId), hidden: widgets.length - shown.length };
 }
 
 /** What a View Link to a Snapshot shows (#178), read from the Snapshot each time it is opened: what it kept and the

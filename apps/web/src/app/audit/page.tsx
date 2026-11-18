@@ -55,6 +55,7 @@ function detailText(e: AuditEvent): string {
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? "from the country"} → ${d.to}`;
     case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : "from the country"} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
+    case "workspace.attainment_method_changed": return `${d.from} → ${d.to}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";
   }

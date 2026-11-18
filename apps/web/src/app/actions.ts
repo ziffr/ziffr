@@ -42,7 +42,7 @@ export async function createMetric(form: FormData) {
     name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
-    targetMin: num("target_min"), targetMax: num("target_max"), fromCatalogId: num("from_catalog_id"),
+    targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), fromCatalogId: num("from_catalog_id"),
     workflowId: num("workflow_id"), duplicateOf: num("duplicate_of"),
     sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
   });

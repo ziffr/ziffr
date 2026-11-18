@@ -20,6 +20,8 @@ export type Metric = {
   aggregation: "sum" | "average" | "last" | "none";
   target_min: number | null;
   target_max: number | null;
+  /** How its Attainment is computed: by ratio or by distance to the target; null follows the workspace's default. */
+  attainment_method: "ratio" | "distance" | null;
   /** A Derived Metric: computed from others, takes no values. */
   derived: boolean;
 };
@@ -62,6 +64,7 @@ export type NewMetric = {
   aggregation?: Metric["aggregation"];
   target_min?: number | null;
   target_max?: number | null;
+  attainment_method?: Metric["attainment_method"];
   submit?: boolean;
 };
 

@@ -16,16 +16,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { Metric, Period, Polarity, SubmissionRule, UnitPosition } from "@ziffr/core/types";
 import { UnitFields } from "../unit-fields";
+import { AttainmentMethodField } from "../attainment-method-field";
+import type { AttainmentMethod } from "@ziffr/core/attainment-method";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "@ziffr/core/number-style";
 import { readNumber } from "@ziffr/core/numbers";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
-type M = Pick<Metric, "id" | "name" | "description" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula">;
+type M = Pick<Metric, "id" | "name" | "description" | "unit" | "unit_position" | "format" | "decimals" | "period" | "submission_rule" | "polarity" | "aggregation" | "target_min" | "target_max" | "formula" | "attainment_method">;
 
 /** "Edit details…" with the Metric's description as a form. `fixed` keeps the period as it is, and says why: the
  * Metric has values, or targets or projections by period. */
-export function EditDetails({ metric, fixed, money, numberStyle }: { metric: M; fixed: "values" | "series" | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle }) {
+export function EditDetails({ metric, fixed, money, numberStyle, attainmentMethod }: { metric: M; fixed: "values" | "series" | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; attainmentMethod: AttainmentMethod }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -56,6 +58,7 @@ export function EditDetails({ metric, fixed, money, numberStyle }: { metric: M; 
                   format: String(f.get("format")), decimals: Number(f.get("decimals")), period: String(f.get("period") ?? metric.period),
                   submissionRule: metric.formula ? undefined : String(f.get("submission_rule")), polarity: String(f.get("polarity")),
                   aggregation: String(f.get("aggregation")), targetMin: num(f.get("target_min")), targetMax: num(f.get("target_max")),
+                  attainmentMethod: String(f.get("attainment_method") ?? ""),
                 });
                 toast.success("Saved");
                 setOpen(false);
@@ -91,6 +94,7 @@ export function EditDetails({ metric, fixed, money, numberStyle }: { metric: M; 
           <div><Label htmlFor="ed-tmin">Target from</Label><Input id="ed-tmin" name="target_min" inputMode="decimal" defaultValue={shown(metric.target_min)} placeholder="no lower target" /></div>
           <div><Label htmlFor="ed-tmax">Target up to</Label><Input id="ed-tmax" name="target_max" inputMode="decimal" defaultValue={shown(metric.target_max)} placeholder="no upper target" /></div>
           <p className="text-xs text-muted-foreground sm:col-span-2">This range applies to every period without its own target; targets for single periods are on the Targets tab.</p>
+          <AttainmentMethodField id="ed-attainment" value={metric.attainment_method} workspaceMethod={attainmentMethod} className="sm:col-span-2" />
           {!metric.formula && (
             <div className="sm:col-span-2">
               <Label htmlFor="ed-rule">A second value for a period</Label>
