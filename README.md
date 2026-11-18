@@ -19,7 +19,7 @@ Ziffr is in its `0.x` releases: used and tested, but names and settings may stil
 - **Asking without leaving.** Questions and tasks on a value, answered in a Thread or by replying to the email, with Corrections the Metric owner accepts.
 - **Seeing the numbers.** Drag-and-drop dashboards of Widgets and Findings, read as a grid or top to bottom, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
 - **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
-- **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK and a local MCP server.
+- **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK ([`@ziffr/sdk`](https://www.npmjs.com/package/@ziffr/sdk)) and a local MCP server ([`@ziffr/mcp`](https://www.npmjs.com/package/@ziffr/mcp)). Feeds send values from your own systems with [`@ziffr/feed-kit`](https://www.npmjs.com/package/@ziffr/feed-kit) and [`@ziffr/feed-sql`](https://www.npmjs.com/package/@ziffr/feed-sql).
 
 | | |
 | --- | --- |
@@ -63,7 +63,6 @@ docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN 
 - Analyses, Views and Sources are built in; the seams for plugging in others are marked in `apps/web/src/analyses`, `views` and `sources`.
 - Clustering and impact analysis are shown as "coming soon".
 - The slide editor uses tldraw, which needs a license from tldraw for production use.
-- `@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` are ready to publish to npm but not published yet.
 
 ## Working on Ziffr
 
