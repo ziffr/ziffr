@@ -9,7 +9,8 @@
 //      release run (.github/workflows/release.yml); that run waits for the maintainer's approval in the `release`
 //      environment.
 // Run again after an interruption, it carries on where it stopped: an open release pull request, a merged release
-// without its tag, or a tag not pushed yet. `--yes` skips the question.
+// without its tag, or a tag not pushed yet. It takes only a release pull request it could have made itself (see
+// releasePullRequest). `--yes` answers its questions; the checks on the pull request still apply.
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -77,9 +78,35 @@ async function prepare() {
   return version;
 }
 
-/** Waits for the release pull request's required checks and merges it. */
+/** The only files a release commit may change. */
+const RELEASE_FILES = (f) => f === "CHANGELOG.md" || f.startsWith(".changeset/") || PACKAGES.includes(f) || DOCKER.includes(f);
+
+/** The release pull request of `version`, refused unless it is exactly what `prepare` makes: on a branch of this
+ * repository (not a fork), opened by the person running this, holding one commit "Release X.Y.Z" that changes only
+ * the release files. Anyone can open a pull request on a public repository with a branch named release/v…; without
+ * this check, resuming would merge, tag and publish theirs with the maintainer's rights. */
+function releasePullRequest(version) {
+  const branch = `release/v${version}`;
+  const me = run("gh", ["api", "user", "--jq", ".login"]);
+  const pr = JSON.parse(gh("pr", "view", branch, "--json", "number,url,author,isCrossRepository,headRefName,headRefOid,commits,files,state"));
+  const why = [];
+  if (pr.state !== "OPEN") why.push(`it is ${pr.state.toLowerCase()}`);
+  if (pr.isCrossRepository) why.push("it comes from a fork");
+  if (pr.author?.login !== me) why.push(`it was opened by ${pr.author?.login}, not by you (${me})`);
+  if (pr.headRefName !== branch) why.push(`its branch is ${pr.headRefName}`);
+  if (pr.commits.length !== 1 || pr.commits[0].messageHeadline !== `Release ${version}`) why.push(`it does not hold exactly one commit "Release ${version}"`);
+  const other = pr.files.map((f) => f.path).filter((f) => !RELEASE_FILES(f));
+  if (other.length) why.push(`it changes files a release does not: ${other.slice(0, 5).join(", ")}`);
+  if (why.length) throw new Error(`Refusing the pull request ${pr.url}: ${why.join("; ")}. Close it, and run pnpm release again.`);
+  return pr;
+}
+
+/** Waits for the release pull request's required checks and merges exactly the commit they passed on. */
 async function mergeWhenGreen(version) {
   const branch = `release/v${version}`;
+  const pr = releasePullRequest(version);
+  console.log(`\n${pr.url}: one commit "Release ${version}", changing ${pr.files.length} release files.`);
+  if (!(await ask(`Merge it once its checks pass?`))) throw new Error("Not merged.");
   step(`Waiting for the checks of the release pull request (a few minutes)`);
   // A new pull request has no checks for a moment, and watching it then ends at once.
   for (let i = 0; i < 30; i++) {
@@ -93,8 +120,11 @@ async function mergeWhenGreen(version) {
   } catch {
     throw new Error(`A required check of the release pull request failed: see \`gh pr checks ${branch} -R ${REPO}\`. Fix it on main, then run pnpm release again.`);
   }
+  // Checked again after the wait, and bound to the commit that was checked, so nothing pushed meanwhile goes in.
+  const checked = releasePullRequest(version);
+  if (checked.headRefOid !== pr.headRefOid) throw new Error("The release pull request changed while its checks ran. Run pnpm release again.");
   step("Merging the release pull request");
-  gh("pr", "merge", branch, "--squash", "--delete-branch");
+  gh("pr", "merge", branch, "--squash", "--delete-branch", "--match-head-commit", pr.headRefOid, "--subject", `Release ${version}`);
 }
 
 /** Step 3: tags main's merged release commit and pushes the tag. */
@@ -105,6 +135,8 @@ function tagAndPush(version) {
   if (!new RegExp(`^Release ${version.replace(/\./g, "\\.")}( \\(#\\d+\\))?$`).test(subject))
     throw new Error(`main's latest commit is "${subject}", not the release of ${version}.`);
   for (const p of PACKAGES) if (JSON.parse(readFileSync(p, "utf8")).version !== version) throw new Error(`${p} is not at ${version}.`);
+  const other = git("show", "--name-only", "--format=", "HEAD").split("\n").filter((f) => f && !RELEASE_FILES(f));
+  if (other.length) throw new Error(`main's release commit changes files a release does not (${other.slice(0, 5).join(", ")}): not tagging it.`);
   if (!git("tag", "--list", `v${version}`)) {
     step(`Tagging v${version}`);
     git("tag", "-a", `v${version}`, "-m", `Ziffr ${version}`);
