@@ -26,6 +26,9 @@ export default {
   tempDirName: ".stryker-tmp",
   cleanTempDir: "always",
   timeoutMS: 60_000,
+  // How many test processes run at once. Stryker's default, one per core less one, left a 4-core GitHub runner no
+  // headroom: it stopped answering an hour into the release of 0.10.0. The workflows set 2; a laptop keeps the default.
+  ...(process.env.STRYKER_CONCURRENCY ? { concurrency: Number(process.env.STRYKER_CONCURRENCY) } : {}),
   // The first run of every test, before any mutant, takes about 10 minutes on a laptop: the generated tests are many.
   dryRunTimeoutMinutes: 45,
 };

@@ -114,6 +114,7 @@ jobs:
         if: steps.since.outputs.mutate == 'true'
         env:
           NUMBERS_RUNS: "30"
+          STRYKER_CONCURRENCY: "2"
         run: |
           start=$(date +%s)
           status=0

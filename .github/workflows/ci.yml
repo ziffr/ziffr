@@ -57,6 +57,8 @@ jobs:
         run: node .github/scripts/guide-touched.mjs
       - name: Changes people use or run come with a release note
         if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: .github/scripts/release-note-present.sh
       - name: Migrations are only added, never changed
         if: github.event_name == 'pull_request'
