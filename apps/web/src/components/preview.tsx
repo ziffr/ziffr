@@ -5,6 +5,7 @@
 // Preview needs no Share check and sends nothing to the browser that the page did not have (spec 0011).
 import { useMemo } from "react";
 import { sampleCanvasData, sampleDashboard, sampleTeamWidget, sampleWidget, type SampleWidget } from "@ziffr/core/sample-data";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { CanvasData, DashboardTemplate, TemplateId, WidgetTemplate } from "@ziffr/core/types";
 import { TEMPLATES } from "@/views/templates";
 import { cn } from "@/lib/utils";
@@ -58,8 +59,8 @@ export function Preview({ widget, data, size, width = 280, sample, className }: 
 }
 
 /** A built-in or team Widget Template's Preview, drawn with Sample Data. */
-export function TemplatePreview({ template, viewer, width, className }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; width?: number; className?: string }) {
-  const data = useMemo(() => sampleCanvasData(viewer), [viewer]);
+export function TemplatePreview({ template, viewer, numberStyle, width, className }: { template: TemplateId | Pick<WidgetTemplate, "view" | "body" | "slots" | "w" | "h">; viewer: string; numberStyle: NumberStyle; width?: number; className?: string }) {
+  const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
   const { widget, size } = useMemo((): { widget: SampleWidget; size: { w: number; h: number } } => {
     if (typeof template === "string") return { widget: sampleWidget(template), size: TEMPLATES[template].size };
     return { widget: sampleTeamWidget(template), size: { w: template.w, h: template.h } };
@@ -69,8 +70,8 @@ export function TemplatePreview({ template, viewer, width, className }: { templa
 
 /** A Dashboard Template's Preview (spec 0014, #191): its widgets where they sit on the 12-column grid, drawn with
  * Sample Data and scaled to `width`. Like a template's Preview, it shows none of the workspace's numbers. */
-export function DashboardTemplatePreview({ template, viewer, width = 520, className }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; width?: number; className?: string }) {
-  const data = useMemo(() => sampleCanvasData(viewer), [viewer]);
+export function DashboardTemplatePreview({ template, viewer, numberStyle, width = 520, className }: { template: { slots: DashboardTemplate["slots"]; body: DashboardTemplate["body"] }; viewer: string; numberStyle: NumberStyle; width?: number; className?: string }) {
+  const data = useMemo(() => sampleCanvasData(viewer, numberStyle), [viewer, numberStyle]);
   const widgets = useMemo(() => sampleDashboard(template), [template]);
   const natural = { width: cellsToPixels({ w: 12, h: 1 }).width, height: Math.max(1, ...widgets.map((w) => w.y + w.h)) * (ROW + GAP) - GAP };
   const scale = Math.min(1, width / natural.width);

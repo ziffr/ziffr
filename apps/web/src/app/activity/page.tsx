@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { currentActor } from "@/lib/viewer";
-import { getProfiles, getYearStart } from "@/lib/data";
+import { getNumberStyle, getProfiles, getYearStart } from "@/lib/data";
 import { activityView } from "@ziffr/core/page-data";
 import { formatValue } from "@ziffr/core/format";
 import { PageHeader } from "@/components/page-header";
@@ -14,7 +14,7 @@ const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard",
 export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
   // The core passes only versions and replaced values the person may see, and what labels them.
-  const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart] = await Promise.all([getProfiles(), activityView(await currentActor()), getYearStart()]);
+  const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart, numberStyle] = await Promise.all([getProfiles(), activityView(await currentActor()), getYearStart(), getNumberStyle()]);
   const dash = new Map(dashboards.map((d) => [d.id, d]));
   const name = (id: string | null) => people.find((p) => p.id === id)?.name ?? "Someone";
 
@@ -33,7 +33,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     ...superseded
       .map((x) => {
         const m = metrics.find((y) => y.id === x.metric_id)!;
-        return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, yearStart, true)}: ${formatValue(m, Number(x.value))} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };
+        return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, yearStart, true)}: ${formatValue(m, Number(x.value), numberStyle)} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };
       }),
   ]
     .filter((i) => !sp.who || i.who === sp.who)

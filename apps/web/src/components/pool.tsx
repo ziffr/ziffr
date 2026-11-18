@@ -92,8 +92,8 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
   };
   const info = (s: Shown) => ({ shown: s, open: inline === s.key, onToggle: () => { hide(); setInline((k) => (k === s.key ? null : s.key)); } });
 
-  const builtinShown = (t: TemplateDef): Shown => ({ key: `b${t.id}`, name: t.label, blurb: t.blurb, draw: () => <TemplatePreview template={t.id} viewer={data.viewer} width={260} /> });
-  const teamShown = (t: WidgetTemplate): Shown => ({ key: `t${t.id}`, name: t.name, blurb: t.description, draw: () => <TemplatePreview template={t} viewer={data.viewer} width={260} /> });
+  const builtinShown = (t: TemplateDef): Shown => ({ key: `b${t.id}`, name: t.label, blurb: t.blurb, draw: () => <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
+  const teamShown = (t: WidgetTemplate): Shown => ({ key: `t${t.id}`, name: t.name, blurb: t.description, draw: () => <TemplatePreview template={t} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
   // A saved widget is the viewer's own: its Preview draws their data, never more than placing it would show.
   const savedShown = (w: Widget): Shown => ({ key: `w${w.id}`, name: w.title ?? TEMPLATES[w.template].label, blurb: TEMPLATES[w.template].label, draw: () => <Preview widget={w} data={data} size={{ w: w.w, h: w.h }} width={260} /> });
   // A metric's Preview is the widget a drop would place, from the series the Pool already fetches on pointing.

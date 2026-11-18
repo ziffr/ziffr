@@ -19,6 +19,8 @@ import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
 import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
+import { moneyUnit, UNIT_POSITIONS } from "./units";
+import { workspaceProfile } from "./workspace-settings";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -29,7 +31,7 @@ const SOURCES: SourceId[] = ["slack", "mail", "web_form", "api", "telegram"];
 
 /** A new Metric as described in the form, before it is checked. */
 export type MetricInput = {
-  name: string; description?: string; unit?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
+  name: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null; sources?: string[]; submitters?: string[];
   fromCatalogId?: number | null;
   /** The Workflow its values take; must be one of the workspace's. */
@@ -91,11 +93,16 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   let slug = slugify(name) || "metric";
   const { data: clash } = await db().from("metrics").select("id").eq("slug", slug).eq("workspace_id", actor.workspaceId);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
+  const format = pick(input.format, FORMATS, "number");
+  // A unit left out (a program may) is the one the form proposes: the workspace's currency for money, % for a percent.
+  const unit = input.unit !== undefined ? { unit: String(input.unit ?? "").slice(0, 20), unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") }
+    : format === "currency" ? moneyUnit((await workspaceProfile(actor)).currency)
+    : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
   const { data: metric, error } = await db().from("metrics").insert({
     slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId,
     description: String(input.description ?? "").slice(0, 2000),
-    unit: String(input.unit ?? "").slice(0, 20),
-    format: pick(input.format, FORMATS, "number"),
+    ...unit,
+    format,
     decimals: Math.min(6, Math.max(0, Math.round(Number(input.decimals) || 0))),
     period: pick(input.period, PERIODS, "month"),
     submission_rule: pick(input.submissionRule, RULES, "overwrite"),
@@ -148,7 +155,7 @@ export async function metricDraftFrom(actor: Actor, metricId: number): Promise<M
   const feeds = await feedIdsAmong((tokens ?? []).map((t) => t.submitter_id as string));
   return {
     original: m.name,
-    name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, format: m.format, decimals: m.decimals, period: m.period,
+    name: `${m.name} (copy)`.slice(0, 120), description: m.description, unit: m.unit, unit_position: m.unit_position, format: m.format, decimals: m.decimals, period: m.period,
     submission_rule: m.submission_rule, polarity: m.polarity, aggregation: m.aggregation,
     target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     sources: m.sources, workflow: workflow ? { id: workflow.id as number, name: workflow.name as string } : null, submitters: [...new Set((tokens ?? []).map((t) => t.submitter_id as string))].filter((s) => !feeds.has(s)), duplicateOf: m.id,
@@ -320,11 +327,11 @@ export async function setMetricSources(actor: Actor, metricId: number, sources: 
 
 /** The parts of a Metric's description its owner may change later. Each one left out stays as it is. */
 export type MetricDetails = {
-  name?: string; description?: string; unit?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
+  name?: string; description?: string; unit?: string; unitPosition?: string; format?: string; decimals?: number; period?: string; submissionRule?: string;
   polarity?: string; aggregation?: string; targetMin?: number | null; targetMax?: number | null;
 };
 
-/** Changes a Metric's description, for its owner and its Editors: name, description, unit, format, decimals, Polarity, Submission
+/** Changes a Metric's description, for its owner and its Editors: name, description, unit and its side, format, decimals, Polarity, Submission
  * Rule, Aggregation, the target range, and the period while it has no values yet (later its values would sit in the
  * wrong periods). The slug stays, so links and programs keep finding it. Each change is a Version. */
 export async function updateMetricDetails(actor: Actor, metricId: number, patch: MetricDetails): Promise<void> {
@@ -339,6 +346,7 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   }
   if (p.description !== undefined) update.description = String(p.description ?? "").slice(0, 2000);
   if (p.unit !== undefined) update.unit = String(p.unit ?? "").slice(0, 20);
+  if (p.unitPosition !== undefined) update.unit_position = pick(p.unitPosition, UNIT_POSITIONS, m.unit_position);
   if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);
   if (p.decimals !== undefined) update.decimals = Math.min(6, Math.max(0, Math.round(Number(p.decimals) || 0)));
   if (p.submissionRule !== undefined) update.submission_rule = pick(p.submissionRule, RULES, m.submission_rule);

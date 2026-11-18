@@ -10,7 +10,8 @@ import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
-import type { ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
+import type { Format, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
+import { keptUnit } from "./units";
 import { saveWorkflow } from "./workflows";
 import { restorableWords, snapshotAccess } from "./snapshots";
 
@@ -174,8 +175,10 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       break;
     }
     case "metric": {
-      const fields = ["name", "description", "unit", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "sources", "aggregation", "formula"];
-      await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in s).map((f) => [f, s[f]]))).eq("id", id).eq("workspace_id", ws);
+      const fields = ["name", "description", "unit", "unit_position", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "sources", "aggregation", "formula"];
+      // A version from before units had a side gets the unit its format used to add, so it shows as it did then.
+      const kept: Record<string, unknown> = "format" in s && "unit" in s && !("unit_position" in s) ? keptUnit({ ...s, unit: String(s.unit ?? ""), format: s.format as Format }) : s;
+      await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]))).eq("id", id).eq("workspace_id", ws);
       break;
     }
   }

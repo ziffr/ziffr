@@ -20,7 +20,7 @@ import { periodLabel, periodStart, periodStartsIn, shiftPeriod, type YearStart }
 
 type Kind = "target" | "projection";
 type Row = { key: string; period: string; value: string; saved?: number };
-type M = Pick<Metric, "id" | "period" | "format" | "decimals" | "unit">;
+type M = Pick<Metric, "id" | "period" | "format" | "decimals" | "unit" | "unit_position">;
 
 // A value in a cell is written with the Number Style's decimal mark, so it reads back as the same number ("1.234" is
 // 1234 in a Workspace that writes 1.234,5; "1,234" is 1.234 there).
@@ -97,8 +97,8 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
           {periods.map((p) => (
             <tr key={p} className="border-t border-border">
               <td className="py-1.5">{periodLabel(p, metric.period, yearStart)}</td>
-              <td className="fig py-1.5 text-right">{formatValue(metric, targets.find((x) => x.period === p)?.value ?? null)}</td>
-              <td className="fig py-1.5 text-right">{formatValue(metric, projections.find((x) => x.period === p)?.value ?? null)}</td>
+              <td className="fig py-1.5 text-right">{formatValue(metric, targets.find((x) => x.period === p)?.value ?? null, numberStyle)}</td>
+              <td className="fig py-1.5 text-right">{formatValue(metric, projections.find((x) => x.period === p)?.value ?? null, numberStyle)}</td>
             </tr>
           ))}
         </tbody>
@@ -178,7 +178,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
               <p className="text-xs text-muted-foreground">{preview.rows.length} row{preview.rows.length === 1 ? "" : "s"} read{preview.skipped.length ? `, ${preview.skipped.length} line${preview.skipped.length === 1 ? "" : "s"} skipped` : ""}. Rows for a period already in the table replace it there.</p>
               {preview.rows.length > 0 && (
                 <ul className="mt-1 max-h-40 overflow-y-auto text-xs">
-                  {preview.rows.map((p) => <li key={p.period} className="flex justify-between border-t border-border py-1"><span>{periodLabel(p.period, metric.period, yearStart)}</span><span className="fig">{formatValue(metric, p.value)}</span></li>)}
+                  {preview.rows.map((p) => <li key={p.period} className="flex justify-between border-t border-border py-1"><span>{periodLabel(p.period, metric.period, yearStart)}</span><span className="fig">{formatValue(metric, p.value, numberStyle)}</span></li>)}
                 </ul>
               )}
               {preview.skipped.length > 0 && <p className="mt-1 text-xs text-destructive">Skipped: {preview.skipped.slice(0, 3).map((s) => `“${s}”`).join(", ")}{preview.skipped.length > 3 ? " …" : ""}</p>}

@@ -12,7 +12,7 @@ const values = startingValues(TODAY, JANUARY, 1);
 const of = (slug: string) => values.filter((v) => v.slug === slug);
 const metricOf = (slug: string): Metric => {
   const m = STARTING_METRICS.find((x) => x.slug === slug)!;
-  return { id: 1, slug, name: m.name, description: "", unit: m.unit, format: m.format, decimals: m.decimals, period: m.period, submission_rule: m.submissionRule, polarity: m.polarity, aggregation: m.aggregation, target_min: null, target_max: null, sources: [], owner_id: "o", formula: m.formula ?? null, from_catalog_id: null, created_at: "2024-01-01" } as Metric;
+  return { id: 1, slug, name: m.name, description: "", unit: m.unit, unit_position: "after", format: m.format, decimals: m.decimals, period: m.period, submission_rule: m.submissionRule, polarity: m.polarity, aggregation: m.aggregation, target_min: null, target_max: null, sources: [], owner_id: "o", formula: m.formula ?? null, from_catalog_id: null, created_at: "2024-01-01" } as Metric;
 };
 const resolver: Resolver = (slug) => ({ metric: metricOf(slug), points: of(slug).map((v) => ({ period: v.period, value: v.value })) });
 

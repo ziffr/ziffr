@@ -1,12 +1,13 @@
 // Every comparison for a metric, with spans, values and changes (GLOSSARY: Comparison, Attainment).
-import { formatValue } from "@ziffr/core/format";
+import { formatChange, formatValue } from "@ziffr/core/format";
 import { attainmentText, comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 /** A metric's latest value, its target and attainment, and every comparison that fits its period. */
-export function CompareTable({ metric, resolve, targets, full, compact, yearStart }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean; yearStart: YearStart }) {
+export function CompareTable({ metric, resolve, targets, full, compact, yearStart, numberStyle: style }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean; yearStart: YearStart; numberStyle: NumberStyle }) {
   const s = summary(metric, resolve, targets, { keys: comparisonsFor(metric.period), full, yearStart });
   if (s.value === undefined) return <p className="text-sm text-muted-foreground">No values yet.</p>;
   // Changes carry a sign, not a colour: colour is kept for on or off target (see target-chip).
@@ -14,9 +15,9 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
   return (
     <div className={compact ? "text-xs" : "text-sm"}>
       <dl className="mb-3 grid grid-cols-3 gap-3">
-        <div><dt className="text-xs text-muted-foreground">Value, {periodLabel(s.period!, metric.period, yearStart, true)}</dt><dd className="fig font-medium">{formatValue(metric, s.value)}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value) : "–"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap)} vs target`) : "–"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Value, {periodLabel(s.period!, metric.period, yearStart, true)}</dt><dd className="fig font-medium">{formatValue(metric, s.value, style)}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value, style) : "–"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, style, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap, style)} vs target`) : "–"}</dd></div>
       </dl>
       <table className="w-full">
         <thead className="text-left text-xs text-muted-foreground">
@@ -27,10 +28,10 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
             <tr key={c.key} className="border-t border-border align-top">
               <td className="py-1.5 font-medium">{c.label}</td>
               <td className="py-1.5 text-muted-foreground">
-                {c.available ? <>{c.currentSpan} <span className="fig text-foreground">{formatValue(metric, c.current)}</span><br />vs {c.previousSpan} <span className="fig text-foreground">{formatValue(metric, c.previous)}</span></> : c.reason}
+                {c.available ? <>{c.currentSpan} <span className="fig text-foreground">{formatValue(metric, c.current, style)}</span><br />vs {c.previousSpan} <span className="fig text-foreground">{formatValue(metric, c.previous, style)}</span></> : c.reason}
               </td>
-              <td className="fig py-1.5 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs)}` : "–"}</td>
-              <td className="fig py-1.5 text-right">{c.available && c.pct !== null && c.pct !== undefined ? `${sign(c.pct)}${c.pct.toFixed(1)}%` : "–"}</td>
+              <td className="fig py-1.5 text-right">{c.available ? `${sign(c.abs!)}${formatValue(metric, c.abs, style)}` : "–"}</td>
+              <td className="fig py-1.5 text-right">{c.available ? formatChange(c.pct, style) : "–"}</td>
             </tr>
           ))}
         </tbody>

@@ -1,4 +1,7 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
+import type { NumberStyle } from "./number-style";
+
+/** How often a metric has a value: a day, an ISO week, a month, or a quarter or year of the Fiscal Year. */
 export type Period = "day" | "week" | "month" | "quarter" | "year";
 /** The month a workspace's Fiscal Year starts in, 1 (January) to 12 (December); periods.ts works with it. */
 export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
@@ -6,8 +9,11 @@ export type YearStart = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export type SubmissionRule = "reject" | "overwrite" | "add" | "keep_both";
 /** Whether higher, lower or a range of values is good. */
 export type Polarity = "higher" | "lower" | "target";
-/** How a metric's values are written. */
+/** What kind of number a metric counts: `percent` values are stored as 12.5, not 0.125; `currency` picks the money
+ * wording. It adds no sign of its own: the unit does (spec 0022). */
 export type Format = "number" | "currency" | "percent";
+/** Which side of the number a metric's unit stands on: "$1,200" before, "1.200 €" after (GLOSSARY: Metric Description). */
+export type UnitPosition = "before" | "after";
 /** Where values can arrive from (GLOSSARY: Source). "api" is a program with an Access Key; a Metric takes it where it
  * takes its personal form link, since both use the Submitter's own Token. */
 export type SourceId = "slack" | "mail" | "web_form" | "api" | "telegram";
@@ -34,6 +40,7 @@ export type MetricDescription = {
   aggregation: Aggregation;
   description: string;
   unit: string;
+  unit_position: UnitPosition;
   format: Format;
   decimals: number;
   period: Period;
@@ -284,6 +291,9 @@ export type CanvasData = {
   /** The month the workspace's year starts in (GLOSSARY: Fiscal Year): where every quarter, half-year and year that
    * is drawn or compared begins. Always the workspace's own now, also for a Snapshot taken under another. */
   yearStart: YearStart;
+  /** How the workspace writes numbers (GLOSSARY: Number Style). Like `yearStart`, always the workspace's own now, also
+   * for a Snapshot or a frozen View Link made before it changed. */
+  numberStyle: NumberStyle;
   /** The day a widget shown by a Display Period counts "to date" from (yyyy-mm-dd): the day after a Snapshot's
    * period, or the day a frozen View Link was made, so they keep what they showed. Absent: the current day. */
   today?: string;

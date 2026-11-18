@@ -2,6 +2,7 @@
 // Starting a dashboard (GLOSSARY: Dashboard, Dashboard Template, Slot): empty, or from a Dashboard Template whose Slots
 // are filled with the viewer's own Metrics. The core checks every Metric again; this only offers what the page sent.
 import { useState, useTransition } from "react";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
@@ -19,13 +20,15 @@ import { WhenVisible } from "./template-browser";
 type Choice = { id: number; name: string };
 
 /** The dialog for a new dashboard: a name, and either nothing or a template with its Slots filled. */
-export function NewDashboardDialog({ open, onOpenChange, templates, metrics, viewer = "" }: {
+export function NewDashboardDialog({ open, onOpenChange, templates, metrics, viewer = "", numberStyle }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templates: DashboardTemplateSummary[];
   metrics: Choice[];
   /** Who looks: Sample Data needs a viewer, though it draws nobody's numbers. */
   viewer?: string;
+  /** How the workspace writes numbers, for the Previews. */
+  numberStyle: NumberStyle;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -56,7 +59,7 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
       <li key={String(id)}>
         <label className={cn("flex h-full cursor-pointer flex-col gap-2 rounded-[var(--radius-stock)] border p-2.5 text-sm hover:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring", picked === id ? "border-[var(--color-ink)] bg-muted" : "border-input")}>
           <WhenVisible className="flex h-32 items-start justify-center overflow-hidden rounded-[var(--radius-input)] bg-[var(--color-paper-2)] p-1.5">
-            {() => (x ? <DashboardTemplatePreview template={x} viewer={viewer} width={212} /> : <span className="m-auto text-xs text-muted-foreground">Nothing yet</span>)}
+            {() => (x ? <DashboardTemplatePreview template={x} viewer={viewer} numberStyle={numberStyle} width={212} /> : <span className="m-auto text-xs text-muted-foreground">Nothing yet</span>)}
           </WhenVisible>
           <span className="flex items-start gap-2">
             <input type="radio" name="template" checked={picked === id} onChange={() => pick(id)} className="mt-0.5 accent-[var(--color-ink)]" />
@@ -126,12 +129,12 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
 }
 
 /** A button that opens the dialog, for pages without one of their own. */
-export function NewDashboardButton({ templates, metrics, label = "New dashboard", variant = "default" }: { templates: DashboardTemplateSummary[]; metrics: Choice[]; label?: string; variant?: "default" | "outline" }) {
+export function NewDashboardButton({ templates, metrics, numberStyle, label = "New dashboard", variant = "default" }: { templates: DashboardTemplateSummary[]; metrics: Choice[]; numberStyle: NumberStyle; label?: string; variant?: "default" | "outline" }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button type="button" variant={variant} onClick={() => setOpen(true)}>{label}</Button>
-      {open && <NewDashboardDialog open onOpenChange={setOpen} templates={templates} metrics={metrics} />}
+      {open && <NewDashboardDialog open onOpenChange={setOpen} templates={templates} metrics={metrics} numberStyle={numberStyle} />}
     </>
   );
 }

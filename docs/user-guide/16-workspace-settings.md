@@ -99,7 +99,7 @@ Choose **Save** after picking a month. The change shows in the Audit Log. Member
 
 ### Number style
 
-**Numbers look like** sets the Workspace's **Number Style**. It is one of four: 1,234.5, 1.234,5, 1 234,5 and 1'234.5. Each choice shows a percentage too, such as "1.234,5 (12,5 %)". The style says which mark groups the digits and which mark is the decimal. Ziffr will write values in it. It will also use it to read a number that could mean two things, such as 1.500 sent by Slack or email.
+**Numbers look like** sets the Workspace's **Number Style**. It is one of four: 1,234.5, 1.234,5, 1 234,5 and 1'234.5. Each choice shows a percentage too, such as "1.234,5 (12,5 %)". The style says which mark groups the digits and which mark is the decimal. Ziffr writes every value in it: on every page, in charts, in replies by Slack, Telegram and email, and in decks. It will also use it to read a number that could mean two things, such as 1.500 sent by Slack or email.
 
 Until an Owner or Admin picks a style, it follows the country in the Workspace Profile. A Workspace in Germany writes 1.234,5, in France 1 234,5 and in Switzerland 1'234.5. Without a country it is 1,234.5. The page says where the style comes from. Once you pick one and choose **Save**, it stays, even if the country changes later. The change shows in the Audit Log. Members and Guests see a single line, such as "Numbers look like 1.234,5 (12,5 %)".
 

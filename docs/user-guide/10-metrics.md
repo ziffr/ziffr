@@ -13,7 +13,9 @@ The same rule holds on every Metric screen, and on dashboards too:
 - **Green and red only say whether a value is on target.** A small label next to a value reads "On target" (green), "Below target" or "Above target" (red). When a Metric has no target, there is no label. A Widget that shows a Metric by quarter or year judges each quarter against that quarter's target; point at the label to see which target applies (see **Show by** in the Dashboards chapter).
 - **Arrows and signs show which way a value changed**, such as ↗ +4.2 %. They are never coloured, because a rise is good for revenue and bad for cost.
 
-The Metrics list repeats this in one line above the table. Under a widget on a dashboard, the same comparisons appear as a short line: the **Attainment** ("92% of target"), then for example "vs prev. ↗ +4.2%" and "YoY ↘ −1.0%", or "n/a" when a comparison cannot be made. Point at an entry to see both values it compares.
+The Metrics list repeats this in one line above the table. Under a widget on a dashboard, the same comparisons appear as a short line: the **Attainment** ("92 % of target"), then for example "vs prev. ↗ +4.2 %" and "YoY ↘ −1.0 %", or "n/a" when a comparison cannot be made. Point at an entry to see both values it compares. Every percentage change in Ziffr is written this one way: one decimal, a sign, a space and "%".
+
+Every value is written in the Workspace's **Number Style** (see the Workspace settings chapter), with its Metric's unit on the side the Metric says: "118,941 €" in a Workspace that writes 1,234.5, "118.941 €" in one that writes 1.234,5, "$1,200" for a Metric whose unit stands before the number. Chart labels shorten values from 10,000 on, such as "12.3k", "126k €" or "$1.2M".
 
 ## The Metrics list
 
@@ -60,9 +62,10 @@ The form has three parts. The panel on the right says that you become the **Owne
 | --- | --- |
 | **Name** | What everyone will call it, such as "Customer satisfaction". Required. |
 | **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
-| **Format** | **Number**, **Currency (€)** or **Percent**. Sets how values are written. |
-| **Unit** | A word written after a number, such as "kg" or "deals". It shows only with the Number format. |
-| **Decimals** | How many digits after the decimal point, from 0 to 4. |
+| **Format** | **Number**, **Money** or **Percent**. Choosing **Money** fills in the unit of the Workspace Profile's currency: "€" after the number for euros, "$" before it for dollars, otherwise the currency's code before it, such as "CHF ". You can change it. A Percent Metric's values are numbers such as 12.5, not 0.125. |
+| **Unit** | What stands next to the number, such as "€", "$", "d", "pc" or "%". Any text up to 20 characters; leave it empty for plain numbers. |
+| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
+| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under these fields shows how a value will read, in the Workspace's Number Style. |
 
 **How do values arrive?**
 
@@ -209,7 +212,7 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 | Field | Notes |
 | --- | --- |
 | **Name**, **Description** | As on the new metric form. Links to the Metric keep working when its name changes. |
-| **Format**, **Unit**, **Decimals** | Decimals here go up to 6. |
+| **Format**, **Unit**, **Stands**, **Decimals** | As on the new metric form; decimals here go up to 6. |
 | **Period** | Fixed once the Metric has values: "duplicate the Metric for another period". |
 | **Which way is good** | The Polarity. |
 | **Aggregation** | Sum, Average, Last value or Does not combine. |

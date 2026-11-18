@@ -4,7 +4,8 @@
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { User } from "lucide-react";
-import { compactValue, formatValue, SOURCE_LABEL } from "@ziffr/core/format";
+import { compactValue, formatChange, formatPercent, formatValue, SOURCE_LABEL } from "@ziffr/core/format";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import { countryCode } from "@/lib/countries";
 import type { BreakdownRow, CanvasData, Metric, Panel, Widget } from "@ziffr/core/types";
 import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBars, resolveAnchor } from "./story-panels";
@@ -49,7 +50,7 @@ export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
         const first = steps[0], end = steps[steps.length - 1];
         const driver = steps.filter((x) => x.kind !== "total").sort((a, b) => Math.abs(b.end - b.start) - Math.abs(a.end - a.start))[0];
         return {
-          headline: first && end ? `${pm.name}: ${compactValue(pm, first.end)} to ${compactValue(pm, end.end)}${driver ? `, most of it from ${driver.label}` : ""}` : `${pm.name} has no breakdown yet`,
+          headline: first && end ? `${pm.name}: ${compactValue(pm, first.end, data.numberStyle)} to ${compactValue(pm, end.end, data.numberStyle)}${driver ? `, most of it from ${driver.label}` : ""}` : `${pm.name} has no breakdown yet`,
           subline: panel.bridge?.mode === "variance" ? `Change in ${pm.name.toLowerCase()} by row` : `${pm.name}, from ${first?.label ?? "start"} to ${end?.label ?? "end"}`,
           source: pSource,
         };
@@ -59,7 +60,7 @@ export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
       const measure = panel.measure ?? "value";
       const how = measure === "value" ? "" : ` ${MEASURE_LABEL[measure].toLowerCase()}`;
       return {
-        headline: lastRow ? (measure === "value" ? `${pm.name}: ${compactValue(pm, lastRow.value)} in ${lastRow.label}` : `${pm.name} ${lastRow.value >= 0 ? "up" : "down"} ${Math.abs(lastRow.value).toFixed(1)} %${measure === "pct-yoy" ? " on the previous year" : measure === "pct-prev" ? " on the previous period" : ""} in ${lastRow.label}`) : `${names}`,
+        headline: lastRow ? (measure === "value" ? `${pm.name}: ${compactValue(pm, lastRow.value, data.numberStyle)} in ${lastRow.label}` : `${pm.name} ${lastRow.value >= 0 ? "up" : "down"} ${formatChange(lastRow.value, data.numberStyle, { signed: false })}${measure === "pct-yoy" ? " on the previous year" : measure === "pct-prev" ? " on the previous period" : ""} in ${lastRow.label}`) : `${names}`,
         subline: `${panel.metricIds.length > 1 ? names : pm.name}${how}`,
         source: pSource,
       };
@@ -82,7 +83,7 @@ export function storyDefaults(widget: W, data: CanvasData, m: Metric) {
       const ch = first && last && first.value ? ((last.value - first.value) / Math.abs(first.value)) * 100 : 0;
       const span = pts.length > 1 ? `${pts.length - 1} ${m.period}s` : "";
       return {
-        headline: last ? `${m.name} ${ch >= 0 ? "rose" : "fell"} ${Math.abs(ch).toFixed(0)} % in ${span}` : `${m.name} has no values yet`,
+        headline: last ? `${m.name} ${ch >= 0 ? "rose" : "fell"} ${formatPercent(Math.abs(ch), data.numberStyle, 0)} in ${span}` : `${m.name} has no values yet`,
         subline: last ? `${m.name}, ${periodLabel(first.period, m.period, data.yearStart, true)} to ${periodLabel(last.period, m.period, data.yearStart, true)}` : "",
         source: `Source: ${m.name} in Ziffr, reported via ${via}`,
       };
@@ -107,9 +108,9 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
         {empty ? (
           <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
         ) : widget.template === "ranked" ? (
-          <Ranked rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.additive ? b.sum : null} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
+          <Ranked numberStyle={data.numberStyle} rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.additive ? b.sum : null} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
         ) : widget.template === "share" ? (
-          <Share rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.sum} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
+          <Share numberStyle={data.numberStyle} rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.sum} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
         ) : widget.template === "pictogram" ? (
           <Pictogram rows={b.rows} highlight={b.highlight} sum={b.sum} />
         ) : (
@@ -128,7 +129,7 @@ function Flag({ label }: { label: string }) {
   return <img src={`/flags/${code}.svg`} alt="" className="h-3 w-4 shrink-0 rounded-[2px] object-cover shadow-[0_0_0_0.5px_var(--color-rule-2)]" />;
 }
 
-function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number | null; onRowContext?: (label: string) => void; annotations?: Annotation[] }) {
+function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyle }: { numberStyle: NumberStyle; rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number | null; onRowContext?: (label: string) => void; annotations?: Annotation[] }) {
   const max = Math.max(...rows.map((r) => r.value), 0) || 1;
   // Annotations attach to rows: a ring outlines the row, a callout or note follows its value.
   const marks = new Map<string, Annotation[]>();
@@ -145,7 +146,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: 
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
             <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
-              {compactValue(m, r.value)}
+              {compactValue(m, r.value, numberStyle)}
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
             </span>
             {marks.get(r.label)?.filter((a) => a.text && a.kind !== "ring").map((a, i) => (
@@ -158,7 +159,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations }: { rows: 
   );
 }
 
-function Share({ rows, m, highlight, sum, onRowContext }: { rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number; onRowContext?: (label: string) => void }) {
+function Share({ rows, m, highlight, sum, onRowContext, numberStyle }: { numberStyle: NumberStyle; rows: BreakdownRow[]; m: Metric; highlight?: string; sum: number; onRowContext?: (label: string) => void }) {
   const tones = ["var(--color-data)", "var(--color-data-2)", "var(--color-data-3)", "var(--color-data-4)", "var(--color-rule)"];
   const ordered = [...rows].sort((a, b) => (a.label === highlight ? -1 : b.label === highlight ? 1 : b.value - a.value));
   return (
@@ -176,7 +177,7 @@ function Share({ rows, m, highlight, sum, onRowContext }: { rows: BreakdownRow[]
           </li>
         ))}
       </ul>
-      <p className="sr-only">{m.name} total {formatValue(m, sum)}</p>
+      <p className="sr-only">{m.name} total {formatValue(m, sum, numberStyle)}</p>
     </div>
   );
 }
@@ -227,7 +228,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
           Plot.ruleY([Math.min(...pts.map((p) => p.value))], { stroke: "var(--color-rule)" }),
           Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2, curve: "monotone-x" }),
           Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 }),
-          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value), dx: 8, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
+          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value, data.numberStyle), dx: 8, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
           Plot.ruleX(callouts, { x: (c) => c.point!.date, stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
           Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
           Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
@@ -268,8 +269,8 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
               render={(m, domain) =>
                 panel.type === "period-bars" ? <PeriodBars m={m} data={data} panel={panel} domain={domain} />
                 : panel.type === "bridge" ? <Bridge m={m} data={data} panel={panel} />
-                : panel.type === "ranked" ? <Ranked rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} annotations={panel.annotations} />
-                : panel.type === "share" ? <Share rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).sum} />
+                : panel.type === "ranked" ? <Ranked numberStyle={data.numberStyle} rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).additive ? storyBreakdown(single(panel, m), data, m).sum : null} annotations={panel.annotations} />
+                : panel.type === "share" ? <Share numberStyle={data.numberStyle} rows={storyBreakdown(single(panel, m), data, m).rows} m={m} highlight={storyBreakdown(single(panel, m), data, m).highlight?.label} sum={storyBreakdown(single(panel, m), data, m).sum} />
                 : panel.type === "pictogram" ? <Pictogram rows={storyBreakdown(single(panel, m), data, m).rows} highlight={storyBreakdown(single(panel, m), data, m).highlight} sum={storyBreakdown(single(panel, m), data, m).sum} />
                 : <StoryLine widget={single(panel, m)} data={data} m={m} />
               }

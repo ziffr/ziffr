@@ -4,7 +4,8 @@
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { attainment, compare, resolverFrom, targetFor } from "@ziffr/core/compare";
-import { compactValue, formatValue } from "@ziffr/core/format";
+import { compactValue, formatChange, formatPercent } from "@ziffr/core/format";
+import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
 
@@ -77,8 +78,9 @@ function annotationMarks(anns: Annotation[] | undefined, items: { label: string;
 }
 
 const isPct = (panel: Panel) => (panel.measure ?? "value") !== "value";
-const fmt = (m: Metric, panel: Panel, v: number, signed = false) =>
-  isPct(panel) ? `${signed && v > 0 ? "+" : ""}${v.toFixed(1)} %` : `${signed && v > 0 ? "+" : ""}${compactValue(m, v)}`;
+// A percentage measure is a change, written the one way changes are; a value is shortened like a chart label.
+const fmt = (m: Metric, panel: Panel, v: number, style: NumberStyle, signed = false) =>
+  isPct(panel) ? (signed ? formatChange(v, style) : formatPercent(v, style)) : `${signed && v > 0 ? "+" : ""}${compactValue(m, v, style)}`;
 
 function usePlot(draw: (width: number, height: number) => Element | null, deps: unknown[]) {
   const box = useRef<HTMLDivElement>(null);
@@ -124,7 +126,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
             [rows.filter((r) => r.value >= 0 && hl(r)), -9, 700],
             [rows.filter((r) => r.value < 0 && hl(r)), 11, 700],
           ].map(([subset, dy, weight]) =>
-            Plot.text(subset as Bar[], { x: "label", y: "value", text: (r: Bar) => fmt(m, panel, r.value, isPct(panel)), dy: dy as number, fill: "var(--color-print)", fontWeight: weight as number }),
+            Plot.text(subset as Bar[], { x: "label", y: "value", text: (r: Bar) => fmt(m, panel, r.value, data.numberStyle, isPct(panel)), dy: dy as number, fill: "var(--color-print)", fontWeight: weight as number }),
           ),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 38, text: "label", fill: "var(--color-accent-2)" })] : []),
           ...annotationMarks(panel.annotations, rows.map((r) => ({ ...r, top: Math.max(0, r.value) })), Math.max(...rows.map((r) => Math.abs(r.value)), 1)),
@@ -134,7 +136,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   );
   return (
     <figure className="flex h-full min-w-0 flex-col">
-      <div ref={box} className="min-h-0 flex-1" role="img" aria-label={`${m.name}, ${MEASURE_LABEL[panel.measure ?? "value"]}: ${rows.map((r) => `${r.label} ${fmt(m, panel, r.value)}${r.projected ? " (projection)" : ""}`).join(", ")}`} />
+      <div ref={box} className="min-h-0 flex-1" role="img" aria-label={`${m.name}, ${MEASURE_LABEL[panel.measure ?? "value"]}: ${rows.map((r) => `${r.label} ${fmt(m, panel, r.value, data.numberStyle)}${r.projected ? " (projection)" : ""}`).join(", ")}`} />
       {rows.some((r) => r.projected) && <figcaption className="text-[11px] text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
     </figure>
   );
@@ -143,7 +145,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
 function refValue(m: Metric, data: CanvasData, panel: Panel, rows: { value: number }[]) {
   const r = panel.refLine;
   if (!r) return null;
-  if (r.kind === "constant" && r.value !== undefined) return { value: r.value, label: r.label ?? fmt(m, panel, r.value) };
+  if (r.kind === "constant" && r.value !== undefined) return { value: r.value, label: r.label ?? fmt(m, panel, r.value, data.numberStyle) };
   if (r.kind === "average" && rows.length) {
     const v = rows.reduce((a, x) => a + x.value, 0) / rows.length;
     return { value: v, label: r.label ?? "Average" };
@@ -209,7 +211,7 @@ export function bridgeSteps(m: Metric, data: CanvasData, panel: Panel): { steps:
 
 function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel }) {
   const { steps, note } = bridgeSteps(m, data, panel);
-  const ref = panel.refLine?.kind === "constant" && panel.refLine.value !== undefined ? { value: panel.refLine.value, label: panel.refLine.label ?? compactValue(m, panel.refLine.value) } : null;
+  const ref = panel.refLine?.kind === "constant" && panel.refLine.value !== undefined ? { value: panel.refLine.value, label: panel.refLine.label ?? compactValue(m, panel.refLine.value, data.numberStyle) } : null;
   const fill = (s: Step) => (s.kind === "down" ? "var(--color-error)" : s.kind === "up" ? "var(--color-success)" : s.key === "e" ? "var(--color-data)" : "var(--color-rule-2)");
   // A variance bridge zooms to the band where the steps happen (totals are cut at the bottom, as in finance);
   // a bridge of one breakdown's rows starts at zero, like the CFO's walk from gross to net.
@@ -233,7 +235,7 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
           Plot.tickY(connectors, { x: "label", y: "y", stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
           Plot.text(steps, {
             x: "label", y: (x: Step) => Math.max(x.start, x.end), dy: -10,
-            text: (x: Step) => (x.kind === "total" ? compactValue(m, x.end) : `${x.end - x.start > 0 ? "+" : "−"}${compactValue(m, Math.abs(x.end - x.start))}`),
+            text: (x: Step) => (x.kind === "total" ? compactValue(m, x.end, data.numberStyle) : `${x.end - x.start > 0 ? "+" : "−"}${compactValue(m, Math.abs(x.end - x.start), data.numberStyle)}`),
             fill: (x: Step) => (x.kind === "down" ? "var(--color-error)" : "var(--color-print)"), fontWeight: 700, fontSize: 13,
           }),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 42, text: "label", fill: "var(--color-accent-2)" })] : []),
@@ -247,7 +249,7 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
     [JSON.stringify(steps), ref?.value, variance, JSON.stringify(panel.annotations)],
   );
   if (note) return <p className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">{note}</p>;
-  return <div ref={box} className="h-full min-w-0" role="img" aria-label={`${m.name} bridge: ${steps.map((s) => `${s.label} ${compactValue(m, s.end - (s.kind === "total" ? 0 : s.start))}`).join(", ")}`} />;
+  return <div ref={box} className="h-full min-w-0" role="img" aria-label={`${m.name} bridge: ${steps.map((s) => `${s.label} ${compactValue(m, s.end - (s.kind === "total" ? 0 : s.start), data.numberStyle)}`).join(", ")}`} />;
 }
 
 /** One panel, repeated per metric as small multiples; titles name the metric when there are several. */
@@ -272,4 +274,3 @@ export function PanelView({ panel, data, render }: { panel: Panel; data: CanvasD
 }
 
 export { PeriodBars, Bridge };
-export const formatMeasure = (m: Metric, panel: Panel, v: number) => (isPct(panel) ? `${v.toFixed(1)} %` : formatValue(m, v));

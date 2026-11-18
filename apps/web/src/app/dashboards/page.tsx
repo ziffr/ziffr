@@ -2,7 +2,7 @@
 // first, then those shared with them, and which one is their Home. The core decides what is listed.
 import Link from "next/link";
 import { Home, LayoutDashboard } from "lucide-react";
-import { getProfileMap } from "@/lib/data";
+import { getNumberStyle, getProfileMap } from "@/lib/data";
 import { currentActor } from "@/lib/viewer";
 import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { can } from "@ziffr/core/actor";
@@ -16,7 +16,7 @@ import { NewDashboardButton } from "@/components/new-dashboard-dialog";
 
 export default async function DashboardsPage() {
   const actor = await currentActor();
-  const [dashboards, people, choices] = await Promise.all([switchableDashboards(actor), getProfileMap(), dashboardTemplateChoices(actor)]);
+  const [dashboards, people, choices, numberStyle] = await Promise.all([switchableDashboards(actor), getProfileMap(), dashboardTemplateChoices(actor), getNumberStyle()]);
   const home = await homeDashboard(actor, dashboards);
   const mine = dashboards.filter((d) => d.role === "owner");
   const shared = dashboards.filter((d) => d.role !== "owner");
@@ -41,7 +41,7 @@ export default async function DashboardsPage() {
           </form>
         )}
         {can(actor, "create") && (
-          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} label="From a template…" variant="outline" />
+          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} numberStyle={numberStyle} label="From a template…" variant="outline" />
         )}
       </PageHeader>
       {!dashboards.length ? (

@@ -39,7 +39,7 @@ export async function resetDemo() {
 export async function createMetric(form: FormData) {
   const num = (k: string) => (form.get(k) === null || form.get(k) === "" ? null : Number(form.get(k)));
   const { slug } = await coreCreateMetric(await currentActor(), {
-    name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""),
+    name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
     targetMin: num("target_min"), targetMax: num("target_max"), fromCatalogId: num("from_catalog_id"),

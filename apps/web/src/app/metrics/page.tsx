@@ -4,7 +4,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Sparkline } from "@/views/sparkline";
-import { getAllSeries, getProfileMap, getYearStart } from "@/lib/data";
+import { getAllSeries, getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
 import { viewerId } from "@/lib/viewer";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
@@ -13,7 +13,7 @@ import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 
 export default async function MetricsPage() {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
-  const [{ metrics: all, series }, people, viewer, yearStart] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart()]);
+  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
   const visible = await visibleMetricIds(viewer, all);
   const metrics = all.filter((m) => visible.has(m.id));
   return (
@@ -62,18 +62,18 @@ export default async function MetricsPage() {
                       <div className="mt-0.5 text-xs text-muted-foreground">
                         {PERIOD_LABEL[m.period]}, {m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
                       </div>
-                      <div className="fig mt-0.5 text-xs text-[var(--color-ink-2)] sm:hidden">Target {targetText(m)}</div>
+                      <div className="fig mt-0.5 text-xs text-[var(--color-ink-2)] sm:hidden">Target {targetText(m, numberStyle)}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value) : "–"}</div>
+                      <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
                       <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
-                        <TargetChip metric={m} value={last?.value} />
+                        <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
                         {last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)]"><Change pct={change} /></td>
+                    <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)]"><Change numberStyle={numberStyle} pct={change} /></td>
                     <td className="hidden w-32 px-4 py-3 md:table-cell">{pts.length > 1 && <Sparkline points={pts.slice(-30)} height={28} tone={tone} />}</td>
-                    <td className="fig hidden px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{targetText(m)}</td>
+                    <td className="fig hidden px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{targetText(m, numberStyle)}</td>
                     <td className="hidden px-4 py-3 lg:table-cell"><Person p={people[m.owner_id]} /></td>
                   </tr>
                 );

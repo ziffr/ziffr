@@ -196,7 +196,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     value = answer.value;
     period = answer.period;
   }
-  const fv = (v: number) => formatValue(metric, v);
+  // The reply writes values the way the workspace does, so a misreading shows at once.
+  const fv = (v: number) => formatValue(metric, v, style);
   const when = midSentence(periodLabel(period, metric.period, ys));
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).

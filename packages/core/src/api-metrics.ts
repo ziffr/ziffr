@@ -23,6 +23,7 @@ export type ApiMetricInput = {
   name: string;
   description?: string;
   unit?: string;
+  unit_position?: string;
   format?: string;
   decimals?: number;
   period?: string;
@@ -44,7 +45,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   const keyName = actor.key ? await nameOf(actor) : null;
   const { id } = await createMetric(creator, {
     name: String(input?.name ?? ""),
-    description: input.description, unit: input.unit, format: input.format, decimals: input.decimals, period: input.period,
+    description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
     targetMin: input.target_min, targetMax: input.target_max,
     // As in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.

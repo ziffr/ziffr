@@ -22,6 +22,8 @@ import { widgetMetricIds } from "./widget-metrics";
 import { localTime } from "./workspace-clock";
 import type { CanvasData, Widget, WidgetSettings } from "./types";
 import { yearStartOf } from "./fiscal-year";
+import { keptUnit } from "./units";
+import { numberStyleOf } from "./workspace-settings";
 import { dayAfter } from "./display-periods";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
@@ -214,14 +216,15 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
  * the Metrics they may see now, as on the live dashboard. A widget that draws any other Metric stays out whole: its
  * title and settings can name it. `hidden` counts the widgets left out. */
 export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
-  const [seen, yearStart] = await Promise.all([visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)), yearStartOf(actor.workspaceId)]);
+  const [seen, yearStart, numberStyle] = await Promise.all([visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)), yearStartOf(actor.workspaceId), numberStyleOf(actor.workspaceId)]);
   // A View Link also keeps to the Metrics agreed when it was made.
   const visible = allowed ? new Set([...seen].filter((m) => allowed.includes(m))) : seen;
   const shown = widgets.filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).every((m) => visible.has(m)));
   const ids = new Set(data.metrics.map((m) => m.id).filter((m) => visible.has(m)));
   // Quarters are drawn from the workspace's year start now: a Snapshot taken under another keeps its values, and
-  // Comparisons are computed, so they follow (spec 0017).
-  return { widgets: shown, data: shownData({ ...data, yearStart }, ids, themeId), hidden: widgets.length - shown.length };
+  // Comparisons are computed, so they follow (spec 0017). Its numbers are written in the Number Style of now, and a
+  // Metric kept before units had a side shows the unit its format used to add (spec 0022).
+  return { widgets: shown, data: shownData({ ...data, metrics: data.metrics.map(keptUnit), yearStart, numberStyle }, ids, themeId), hidden: widgets.length - shown.length };
 }
 
 /** What a View Link to a Snapshot shows (#178), read from the Snapshot each time it is opened: what it kept and the

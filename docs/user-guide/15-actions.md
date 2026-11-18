@@ -75,7 +75,7 @@ Choose a row to open the Action.
 
 ### What the Action shows
 
-At the top you see the status, whether it is a Question or Task, the Due Date, the Metric (a link to its page), the period, the Breakdown row if there is one, and the value. If the value was corrected, the old value is shown crossed out next to it. Below that is who asked whom and when, the question or task itself, and a small chart around the period with the period marked.
+At the top you see the status, whether it is a Question or Task, the Due Date, the Metric (a link to its page), the period, the Breakdown row if there is one, and the value, written in the Workspace's Number Style with the Metric's unit. If the value was corrected, the old value is shown crossed out next to it. Below that is who asked whom and when, the question or task itself, and a small chart around the period with the period marked.
 
 **Sent through connectors** lists each time Ziffr sent this Action or a reply to someone: what kind of message, to whom, through which Connector and when. The **Outbox** link there shows all of them (see [Workspace settings](16-workspace-settings.md)).
 

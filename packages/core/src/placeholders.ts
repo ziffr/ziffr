@@ -2,7 +2,7 @@
 // so a headline written once stays true next month and works for any metric a template is used with.
 // Pure: no server or React code.
 import { compare, resolverFrom, targetFor } from "./compare";
-import { compactValue } from "./format";
+import { compactValue, formatChange } from "./format";
 import type { CanvasData, Metric, Widget, WidgetSettings } from "./types";
 import { periodLabel } from "./periods";
 
@@ -32,12 +32,12 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
   switch (key) {
     case "metric": return m.name;
     case "period": return last ? periodLabel(last.period, m.period, data.yearStart) : undefined;
-    case "latest": return last ? compactValue(m, last.value) : undefined;
+    case "latest": return last ? compactValue(m, last.value, data.numberStyle) : undefined;
     case "change yoy":
     case "change prev": {
       const c = compare(m, resolverFrom(data.metrics, data.series), { yearStart: data.yearStart, keys: [key === "change yoy" ? "yoy" : "prev"] })[0];
       if (!c?.available || c.pct === null || c.pct === undefined) return undefined;
-      return `${c.pct > 0 ? "up" : c.pct < 0 ? "down" : "flat at"} ${Math.abs(c.pct).toFixed(1)} %`;
+      return `${c.pct > 0 ? "up" : c.pct < 0 ? "down" : "flat at"} ${formatChange(c.pct, data.numberStyle, { signed: false })}`;
     }
     case "top row": {
       const byPeriod = data.breakdowns[m.id] ?? {};
@@ -47,7 +47,7 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
     case "target": {
       if (!last) return undefined;
       const t = targetFor(m, last.period, data.targets[m.id]);
-      return t.value === null || t.value === undefined ? undefined : compactValue(m, t.value);
+      return t.value === null || t.value === undefined ? undefined : compactValue(m, t.value, data.numberStyle);
     }
   }
 }

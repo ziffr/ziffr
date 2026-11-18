@@ -110,10 +110,10 @@ function Corrections({ snapshot: s }: { snapshot: OpenSnapshot }) {
         {s.corrections.map((c) => {
           const m = metric(c.metricId);
           if (!m) return null;
-          const now = c.now === null ? "removed since" : `now ${formatValue(m, c.now)}`;
+          const now = c.now === null ? "removed since" : `now ${formatValue(m, c.now, s.data.numberStyle)}`;
           return (
-            <li key={`${c.metricId}:${c.period}`} title={`${m.name}, ${periodLabel(c.period, m.period, s.data.yearStart)}: ${formatValue(m, c.was)} here, ${now}`}>
-              {m.name}, {periodLabel(c.period, m.period, s.data.yearStart)}: <span className="font-medium text-foreground">{formatValue(m, c.was)}</span> ({now})
+            <li key={`${c.metricId}:${c.period}`} title={`${m.name}, ${periodLabel(c.period, m.period, s.data.yearStart)}: ${formatValue(m, c.was, s.data.numberStyle)} here, ${now}`}>
+              {m.name}, {periodLabel(c.period, m.period, s.data.yearStart)}: <span className="font-medium text-foreground">{formatValue(m, c.was, s.data.numberStyle)}</span> ({now})
             </li>
           );
         })}

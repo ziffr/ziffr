@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { getAllSeries, getBreakdowns, getLastValues, getProfiles, getSeriesValues, getNumberStyle, getYearStart } from "@/lib/data";
+import { getAllSeries, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
@@ -19,7 +19,7 @@ import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
-import { formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
+import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS, forecast } from "@/analyses/forecast";
 import { comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
@@ -42,6 +42,8 @@ import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { Change, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
+import { moneyUnit } from "@ziffr/core/units";
+import { workspaceProfile } from "@ziffr/core/workspace-settings";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -89,7 +91,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     );
   }
   const actor = await currentActor();
-  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
@@ -100,6 +102,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     feedChoices(actor),
     // Ask me now is for the owner who also submits it (spec 0021).
     canAskNow(actor, metric.id),
+    // Its currency is the unit Edit details proposes when the Metric becomes a money one (spec 0022).
+    workspaceProfile(actor),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -160,13 +164,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
-          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value) : "–"}<TargetChip metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
+          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
-          <Change pct={change} size="size-5" />
+          <Change numberStyle={numberStyle} pct={change} size="size-5" />
         </Stat>
-        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, yearStart)}. Other periods without one use ${targetText(metric).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
-          <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value) : targetText(metric)}</span>
+        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, yearStart)}. Other periods without one use ${targetText(metric, numberStyle).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
+          <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value, numberStyle) : targetText(metric, numberStyle)}</span>
         </Stat>
       </div>
 
@@ -188,7 +192,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values` : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values` : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -199,7 +203,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
-              <CompareTable metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
+              <CompareTable numberStyle={numberStyle} metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
             </section>
 
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -235,8 +239,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                                 {r.label}
                               </span>
                             </td>
-                            <td className="fig py-2 text-right">{formatValue(metric, r.value)}</td>
-                            {bdAdds && <td className="fig py-2 text-right text-muted-foreground">{((r.value / bdSum) * 100).toFixed(1)} %</td>}
+                            <td className="fig py-2 text-right">{formatValue(metric, r.value, numberStyle)}</td>
+                            {bdAdds && <td className="fig py-2 text-right text-muted-foreground">{formatPercent((r.value / bdSum) * 100, numberStyle)}</td>}
                           </tr>
                         );
                       })}
@@ -244,7 +248,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   </table>
                   {bdTotal !== null && !bdAdds && (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      These rows don’t add up to the total ({formatValue(metric, bdTotal)}); the total stays the metric’s value{metric.format === "percent" ? ", as rates don’t add up" : ""}.
+                      These rows don’t add up to the total ({formatValue(metric, bdTotal, numberStyle)}); the total stays the metric’s value{metric.format === "percent" ? ", as rates don’t add up" : ""}.
                     </p>
                   )}
                 </>
@@ -270,9 +274,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <h3 className="text-sm font-medium">Forecast</h3>
               {fc ? (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod)} per {metric.period}. Next {fc.points.length === 1 ? metric.period : `${fc.points.length} ${metric.period}s`}:{" "}
-                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, yearStart)}
-                  {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo)} and {formatValue(metric, fc.points[fc.points.length - 1].hi)}). Shown dashed on the chart.
+                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod, numberStyle)} per {metric.period}. Next {fc.points.length === 1 ? metric.period : `${fc.points.length} ${metric.period}s`}:{" "}
+                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value, numberStyle)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, yearStart)}
+                  {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo, numberStyle)} and {formatValue(metric, fc.points[fc.points.length - 1].hi, numberStyle)}). Shown dashed on the chart.
                 </p>
               ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least {FORECAST_MIN_POINTS} values{points.length ? `; ${points.length} so far` : ""}.{metric.period === "year" ? ` A yearly Metric has one after ${FORECAST_MIN_POINTS} years.` : ""}</p>}
             </div>
@@ -281,12 +285,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {partner ? (
                 <>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {partner.result.r.toFixed(2)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}).{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
+                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {formatNumber(partner.result.r, 2, numberStyle)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}).{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {correlations.slice(0, 5).map((c) => (
                       <Link key={c.metric.id} href={at({ vs: c.metric.slug })} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
-                        {c.metric.name} <span className="fig text-muted-foreground">{c.result.r.toFixed(2)}</span>
+                        {c.metric.name} <span className="fig text-muted-foreground">{formatNumber(c.result.r, 2, numberStyle)}</span>
                       </Link>
                     ))}
                   </div>
@@ -298,7 +302,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {partner && (
             <div className="mt-4">
               <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}</p>
-              <ScatterView x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
+              <ScatterView numberStyle={numberStyle} x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}
         </section>
@@ -308,7 +312,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <section className="stock max-w-2xl rounded-[var(--radius-card)] p-5">
           <h2 className="font-medium">Targets and projections</h2>
           <p className="mt-1 mb-4 text-sm text-muted-foreground">
-            The target range ({targetText(metric).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
+            The target range ({targetText(metric, numberStyle).toLowerCase()}, {POLARITY_LABEL[metric.polarity].toLowerCase()}) applies to every period. A period with its own target here, such as a monthly budget, uses that one instead. Projections are values expected for future periods; they never count as real values.
           </p>
           {metric.formula ? <p className="text-sm text-muted-foreground">A derived metric takes its targets from its formula&rsquo;s metrics.</p> : (
             <TargetsEditor metric={metric} targets={tSeries} projections={pSeries} canEdit={canEdit} yearStart={yearStart} numberStyle={numberStyle} />
@@ -332,8 +336,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                       <tr key={o.id} className="border-t">
                         <td className="py-2">{periodLabel(o.period_start, metric.period, yearStart)}</td>
                         <td className="py-2 text-right">
-                          <span className="fig">{formatValue(metric, o.value)}</span>
-                          {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value)}</span> corrected</span>}
+                          <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
+                          {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}
                           {o.imported && <span className="block text-xs text-muted-foreground" title="A Feed's value for a past period, recorded without the Unusual Value check">imported</span>}
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
@@ -370,14 +374,14 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {canEdit && <EditDetails metric={metric} numberStyle={numberStyle} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
+              {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
-              <Row k="Target">{targetText(metric)}</Row>
+              <Row k="Target">{targetText(metric, numberStyle)}</Row>
               {metric.formula ? (
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (

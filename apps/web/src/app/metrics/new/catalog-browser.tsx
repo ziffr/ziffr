@@ -7,7 +7,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { POLARITY_LABEL, targetText } from "@ziffr/core/format";
-import type { CatalogMetric } from "@ziffr/core/types";
+import type { NumberStyle } from "@ziffr/core/number-style";
+import type { CatalogMetric, UnitPosition } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 
@@ -21,7 +22,7 @@ const suits = (c: CatalogMetric, fit: CatalogFit) =>
 
 /** The catalog as a searchable list of cards, grouped by category; with a Workspace Profile, a filter for the
  * Metrics written for its industry. */
-export function CatalogBrowser({ items, fit }: { items: CatalogMetric[]; fit?: CatalogFit | null }) {
+export function CatalogBrowser({ items, fit, money, numberStyle }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const suited = useMemo(() => (fit ? items.filter((c) => suits(c, fit)) : []), [items, fit]);
@@ -67,7 +68,7 @@ export function CatalogBrowser({ items, fit }: { items: CatalogMetric[]; fit?: C
                     <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)]">
                       <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) })}</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, ...(c.format === "currency" ? money : {}), target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) }, numberStyle)}</span>
                     </div>
                   </Link>
                 ))}

@@ -44,6 +44,8 @@ Steps that are done stay in the list, crossed out. The demo has no checklist. Se
 
 A dashboard shows its name as a large heading. Below it, a line says whose it is: "Yours", or "Anna shared this with you as Editor" (or "as Viewer"). If the dashboard has an introduction, it follows.
 
+Every Widget writes its values in the Workspace's **Number Style** with each Metric's unit, such as "118.941 €" or "$1,200". Chart axes and labels shorten values from 10,000 on, such as "12.3k", "126k €" or "1.2M", and changes read like "+4.2 %". Snapshots, View Links and Previews write numbers the same way, in the style the Workspace has now.
+
 ### Switching dashboards
 
 The dashboard's name is also a button. Press it to open the switcher:

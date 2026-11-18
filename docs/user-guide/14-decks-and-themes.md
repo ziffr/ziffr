@@ -117,7 +117,7 @@ Choose **Export PowerPoint**. Your browser downloads a file named after the deck
 
 - Text, shapes and arrows become normal PowerPoint objects you can edit.
 - Line and bar Widgets, and Findings with ranked bars, become real PowerPoint charts you can edit.
-- Number Widgets become text, and history tables become tables.
+- Number Widgets become text, and history tables become tables. Values are written as in Ziffr, in the Workspace's Number Style with the Metric's unit, and changes like "+4.2 %".
 - A Widget shown by quarter or year (**Show by**, see the Dashboards chapter) exports the same quarters or years, with the one still running labelled "to date", and a past one that lacks some of its values labelled "only 2 of 3 months" (shown without a change against it).
 - Gauges, analyses and everything else go in as pictures.
 - The Theme's background, logo, footer and slide number are set up once for the whole file, so changing them in PowerPoint changes every slide.

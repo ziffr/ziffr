@@ -13,6 +13,8 @@ export type Metric = {
   period: Period;
   format: "number" | "currency" | "percent";
   unit: string;
+  /** Which side of the value the unit stands on: before ($1,200) or after (1,200 €). */
+  unit_position: "before" | "after";
   decimals: number;
   polarity: "higher" | "lower" | "target";
   aggregation: "sum" | "average" | "last" | "none";
@@ -51,6 +53,7 @@ export type NewMetric = {
   name: string;
   description?: string;
   unit?: string;
+  unit_position?: Metric["unit_position"];
   format?: Metric["format"];
   decimals?: number;
   period?: Metric["period"];
