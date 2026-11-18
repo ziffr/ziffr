@@ -6,6 +6,7 @@ import type { Metric, Period, Point } from "./types";
 import { formatPercent } from "./format";
 import type { NumberStyle } from "./number-style";
 import { methodFor, type AttainmentMethod } from "./attainment-method";
+import { changePct, difference, distancePct, percentOf } from "./exact";
 
 /** Which Comparison: the previous period, a calendar span to date (day, week, month, quarter, half) or the year before. */
 export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
@@ -125,8 +126,9 @@ export function compare(metric: Metric, resolve: Resolver, opts: { keys?: Compar
     if (current === undefined || previous === undefined) {
       return { ...base, available: false, reason: previous === undefined ? "No values for the earlier span" : "Incomplete values for this span", currentSpan: spanLabel(cur[0], cur[1], P, ys), previousSpan: spanLabel(prev[0], prev[1], P, ys) };
     }
-    const abs = current - previous;
-    const pct = previous !== 0 ? (abs / Math.abs(previous)) * 100 : null;
+    // Exact on the values' text, as the aggregations are (spec 0022): 0.3 against 0.1 is a change of 0.2 and +200 %.
+    const abs = difference(current, previous);
+    const pct = changePct(current, previous);
     const good = metric.polarity === "target" || abs === 0 ? null : (abs > 0) === (metric.polarity === "higher");
     return { ...base, available: true, current, previous, abs, pct, good, currentSpan: spanLabel(cur[0], cur[1], P, ys), previousSpan: spanLabel(prev[0], prev[1], P, ys) };
   }
@@ -154,13 +156,14 @@ export function attainment(metric: Metric, value: number, t: { min: number | nul
  * on target, 150 % half a target better, 50 % half a target short. That holds for targets below zero too, where a
  * ratio turns around. A target of 0 has no size to measure by, so there is no percentage. */
 function byDistance(polarity: Metric["polarity"], value: number, min: number | null, max: number | null): number | null {
-  // `ahead` is how far the value is on the good side of `target`, negative when it falls short.
-  const pct = (target: number, ahead: number) => (target === 0 || !Number.isFinite(target) ? null : 100 + (ahead / Math.abs(target)) * 100);
-  if (polarity === "higher") return min === null ? null : pct(min, value - min);
-  if (polarity === "lower") return max === null ? null : pct(max, max - value);
+  // `ahead` is a − b: how far the value is on the good side of `target`, negative when it falls short. Exact
+  // (exact.ts), so 0.3 against at most 0.2 is 50 % and not 49.99…%.
+  const pct = (target: number, a: number, b: number) => (target === 0 || !Number.isFinite(target) ? null : distancePct(a, b, target));
+  if (polarity === "higher") return min === null ? null : pct(min, value, min);
+  if (polarity === "lower") return max === null ? null : pct(max, max, value);
   if (min === null && max === null) return null;
-  if (min !== null && value < min) return pct(min, value - min);
-  if (max !== null && value > max) return pct(max, max - value);
+  if (min !== null && value < min) return pct(min, value, min);
+  if (max !== null && value > max) return pct(max, max, value);
   return 100;
 }
 
@@ -170,12 +173,13 @@ function byDistance(polarity: Metric["polarity"], value: number, min: number | n
  * better" (target ÷ 0 is no number, and a negative ratio would call the best value the worst). */
 function byRatio(polarity: Metric["polarity"], value: number, min: number | null, max: number | null): number | null {
   const usable = (target: number | null): target is number => target !== null && Number.isFinite(target) && target > 0;
-  if (polarity === "higher") return usable(min) ? (value / min) * 100 : null;
-  if (polarity === "lower") return usable(max) && value > 0 ? (max / value) * 100 : null;
+  // Exact (exact.ts): 0.1 against at least 0.3 is the double nearest to a third, from the values' text.
+  if (polarity === "higher") return usable(min) ? percentOf(value, min) : null;
+  if (polarity === "lower") return usable(max) && value > 0 ? percentOf(max, value) : null;
   if (min === null && max === null) return null;
-  if (min !== null && value < min) return usable(min) ? (value / min) * 100 : null;
+  if (min !== null && value < min) return usable(min) ? percentOf(value, min) : null;
   // Above a positive upper bound the value is positive too, so the ratio is between 0 and 100 %.
-  if (max !== null && value > max) return usable(max) ? (max / value) * 100 : null;
+  if (max !== null && value > max) return usable(max) ? percentOf(max, value) : null;
   return 100;
 }
 
@@ -186,10 +190,10 @@ export function targetGap(metric: Metric, value: number, t: { min: number | null
   const min = t.min === null ? null : Number(t.min);
   const max = t.max === null ? null : Number(t.max);
   if (!Number.isFinite(value)) return null;
-  if (metric.polarity === "higher") return min === null ? null : value - min;
-  if (metric.polarity === "lower") return max === null ? null : value - max;
-  if (min !== null && value < min) return value - min;
-  if (max !== null && value > max) return value - max;
+  if (metric.polarity === "higher") return min === null ? null : difference(value, min);
+  if (metric.polarity === "lower") return max === null ? null : difference(value, max);
+  if (min !== null && value < min) return difference(value, min);
+  if (max !== null && value > max) return difference(value, max);
   return min === null && max === null ? null : 0;
 }
 

@@ -1,0 +1,104 @@
+// Exact arithmetic on values (spec 0022, "Exact results"; GLOSSARY: Aggregation, Comparison, Attainment). A value is
+// read from its shortest text, the way it came from the database, as a fraction of two BigInts; sums, differences,
+// changes and Attainment are worked out on those without loss, and only the result becomes a double, the one nearest
+// to it. Adding or dividing doubles gives 0.30000000000000004 for 0.1 + 0.2 and 0.19999999999999998 for 0.3 − 0.1;
+// this gives 0.3 and 0.2. Pure, so the browser computes the same numbers.
+//
+// BigInt(…) rather than literals such as 10n: the app's TypeScript targets a version before BigInt literals.
+const [ZERO, ONE, TWO, TEN, HUNDRED] = [BigInt(0), BigInt(1), BigInt(2), BigInt(10), BigInt(100)];
+const TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/;
+
+/** A number held exactly as `num / den`, `den` positive. */
+export type Fraction = { num: bigint; den: bigint };
+
+/** A finite value as digits and how many of them are decimals: 1.25 is 125 and 2, 1e-7 is 1 and 7. */
+export function scaled(v: number): { digits: bigint; places: number } {
+  const [, sign, whole, decimals = "", exp = "0"] = TEXT.exec(String(v))!;
+  const places = decimals.length - Number(exp);
+  const digits = BigInt(`${sign}${whole}${decimals}`);
+  return places >= 0 ? { digits, places } : { digits: digits * TEN ** BigInt(-places), places: 0 };
+}
+
+/** A finite value exactly as its shortest text says: 0.1 is 1/10, not the double nearest to it. */
+export function fractionOf(v: number): Fraction {
+  const { digits, places } = scaled(v);
+  return { num: digits, den: TEN ** BigInt(places) };
+}
+
+const bitLength = (n: bigint) => n.toString(2).length;
+const TWO_53 = TWO ** BigInt(53);
+
+/** The double nearest to num / den (den positive), ties to even: the quotient is taken to 53 bits with the
+ * remainder deciding the last one, then scaled by a power of two, which is exact. Values Ziffr keeps are far from
+ * the edges of the double range, so no result is subnormal or infinite. */
+export function nearestDouble(num: bigint, den: bigint): number {
+  if (num === ZERO) return 0;
+  const negative = num < ZERO;
+  const a = negative ? -num : num;
+  // A first guess for the power of two that brings the quotient to 53 bits; one more when it lands on 54.
+  let e = bitLength(a) - bitLength(den) - 53;
+  const divide = (shift: number) => {
+    const [top, by] = shift < 0 ? [a << BigInt(-shift), den] : [a, den << BigInt(shift)];
+    return [top / by, top % by, by];
+  };
+  let [q, r, d] = divide(e);
+  if (q >= TWO_53) [q, r, d] = divide(++e);
+  if (TWO * r > d || (TWO * r === d && (q & ONE) === ONE)) q++;
+  const x = Number(q) * 2 ** e;
+  return negative ? -x : x;
+}
+
+/** The sum of the values divided by `count`, as the double nearest to the exact result. A value that is not finite
+ * has no exact sum: the result is then what adding doubles gives (NaN or an infinity), which shows as no value. */
+export function exactTotal(values: readonly number[], count: number): number {
+  if (!values.every((v) => Number.isFinite(v))) return values.reduce((a, v) => a + v, 0) / count;
+  const parts = values.map(scaled);
+  const places = Math.max(...parts.map((p) => p.places));
+  const sum = parts.reduce((a, p) => a + p.digits * TEN ** BigInt(places - p.places), ZERO);
+  return nearestDouble(sum, TEN ** BigInt(places) * BigInt(count));
+}
+
+// a − b and a ÷ b on fractions, the denominator kept positive.
+const minus = (a: Fraction, b: Fraction): Fraction => ({ num: a.num * b.den - b.num * a.den, den: a.den * b.den });
+const over = (a: Fraction, b: Fraction): Fraction => (b.num < ZERO ? { num: -a.num * b.den, den: a.den * -b.num } : { num: a.num * b.den, den: a.den * b.num });
+const times100 = (a: Fraction): Fraction => ({ num: a.num * HUNDRED, den: a.den });
+const plus100 = (a: Fraction): Fraction => ({ num: a.num + HUNDRED * a.den, den: a.den });
+const nearest = (a: Fraction) => nearestDouble(a.num, a.den);
+const finite = (...vs: number[]) => vs.every((v) => Number.isFinite(v));
+
+/** a − b, exactly on the values' text, as the nearest double: 0.3 − 0.1 is 0.2. Not finite in, not finite out. */
+export function difference(a: number, b: number): number {
+  return finite(a, b) ? nearest(minus(fractionOf(a), fractionOf(b))) : a - b;
+}
+
+/** The change from `previous` to `current` in % of the size of `previous`, (current − previous) ÷ |previous| × 100,
+ * exactly, as the nearest double: from −10 to −5 is +50 %. Null from 0, where no share means anything. */
+export function changePct(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  if (!finite(current, previous)) return ((current - previous) / Math.abs(previous)) * 100;
+  const p = fractionOf(previous);
+  return nearest(times100(over(minus(fractionOf(current), p), { num: p.num < ZERO ? -p.num : p.num, den: p.den })));
+}
+
+/** a ÷ b × 100, exactly, as the nearest double: 0.1 of 0.3 is 33.333333333333336 %, 1 of 3 the same. `b` is not 0. */
+export function percentOf(a: number, b: number): number {
+  return finite(a, b) ? nearest(times100(over(fractionOf(a), fractionOf(b)))) : (a / b) * 100;
+}
+
+/** 100 % plus `ahead` in steps of |`size`|, 100 + ahead ÷ |size| × 100, exactly, as the nearest double, with `ahead`
+ * itself the exact difference `a − b`: 0.1 over 0.2 is 50 %, not 49.99…. `size` is not 0. */
+export function distancePct(a: number, b: number, size: number): number {
+  if (!finite(a, b, size)) return 100 + ((a - b) / Math.abs(size)) * 100;
+  const s = fractionOf(size);
+  return nearest(plus100(times100(over(minus(fractionOf(a), fractionOf(b)), { num: s.num < ZERO ? -s.num : s.num, den: s.den }))));
+}
+
+/** Whether the change from `previous` to `current` is larger in size than `limit` % of the size of `previous`, decided
+ * exactly: a change of exactly the limit is not larger, however the doubles round. `previous` is not 0. */
+export function changeBeyond(current: number, previous: number, limit: number): boolean {
+  if (!finite(current, previous, limit)) return Math.abs(((current - previous) / Math.abs(previous)) * 100) > limit;
+  const [d, p, l] = [minus(fractionOf(current), fractionOf(previous)), fractionOf(previous), fractionOf(limit)];
+  const size = (x: bigint) => (x < ZERO ? -x : x);
+  // |d| × 100 > l × |p|, with every denominator multiplied out.
+  return size(d.num) * HUNDRED * l.den * p.den > l.num * size(p.num) * d.den;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWorkingDays, dueDate, unusualReasons, workingPeriod } from "./workflow-rules";
+import { addWorkingDays, dueDate, STEP_TITLE, stepLabel, unusualReasons, workingPeriod } from "./workflow-rules";
 import { metric } from "./test/fixtures";
 import { JANUARY, periodEnd } from "./periods";
 
@@ -50,5 +50,33 @@ describe("workflow rules", () => {
     expect(unusualReasons(metric(), 10, -10, "2026-09-01", step, JANUARY, "1,234.5")).toEqual(["up 200.0 % on September 2026"]);
     expect(unusualReasons(metric(), -11, -10, "2026-09-01", step, JANUARY, "1,234.5")).toEqual([]);
     expect(unusualReasons(metric(), 5, undefined, undefined, step, JANUARY, "1,234.5")).toEqual([]);
+  });
+});
+
+describe("a Workflow step in words", () => {
+  const people = [{ id: "sara", name: "Sara Lind" }, { id: "ben", name: "Ben Ito" }] as Parameters<typeof stepLabel>[1];
+  it("names each kind of step as the editor shows it", () => {
+    expect(stepLabel({ type: "remind", daysBefore: 1 }, people)).toBe("Remind the submitter 1 day before the due date");
+    expect(stepLabel({ type: "remind", daysBefore: 3 }, people)).toBe("Remind the submitter 3 days before the due date");
+    expect(stepLabel({ type: "escalate", to: "stand-in", daysAfter: 0 }, people)).toBe("On the due date, if still missing: ask the stand-in");
+    expect(stepLabel({ type: "escalate", to: "owner", daysAfter: 1 }, people)).toBe("1 day after the due date, if still missing: tell the metric owner");
+    expect(stepLabel({ type: "escalate", to: "owner", daysAfter: 2 }, people)).toBe("2 days after the due date, if still missing: tell the metric owner");
+    expect(stepLabel({ type: "check", changePct: 20, outsideTarget: true }, people)).toBe("Unusual if it changes more than 20 % or falls outside the target");
+    expect(stepLabel({ type: "check", changePct: 20, outsideTarget: false }, people)).toBe("Unusual if it changes more than 20 %");
+    expect(stepLabel({ type: "approve", approvers: ["sara", "ben", "gone"] }, people)).toBe("Unusual values approved by Sara, then Ben, then gone");
+    expect(stepLabel({ type: "approve", approvers: [] }, people)).toBe("Approval, nobody chosen yet");
+    expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
+    expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");
+    expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "publish"]);
+  });
+  it("adds no working days for none", () => {
+    expect(addWorkingDays("2026-10-30", 0)).toBe("2026-10-30");
+    expect(dueDate("2026-10-01", "month", { dueWorkingDays: -2, steps: [] })).toBe("2026-10-31");
+  });
+  it("says why a value is unusual, from 0 and against the target", () => {
+    const check = { type: "check" as const, changePct: 10, outsideTarget: true };
+    expect(unusualReasons(metric(), -3, 0, "2026-01-01", check, JANUARY, "1,234.5", { min: 0, max: 10 })).toEqual(["down from 0 on January 2026", "below target"]);
+    expect(unusualReasons(metric(), 0, 0, "2026-01-01", check, JANUARY, "1,234.5", { min: null, max: -1 })).toEqual(["above target"]);
+    expect(unusualReasons(metric(), 5, 0, "2026-01-01", { ...check, outsideTarget: false }, JANUARY, "1,234.5", { min: 10, max: null })).toEqual(["up from 0 on January 2026"]);
   });
 });

@@ -4,7 +4,10 @@ import { defineConfig } from "vitest/config";
 // Coverage (spec 0022): every line and branch of the calculation modules runs in a test. Coverage only shows that code
 // ran; the references (src/test/reference) show that it is right. The other calculation modules join the list as
 // they reach 100 % (#126): numbers, formula, format, parse, correlation, workflow-rules and the forecast.
-export const CALCULATION_MODULES = ["src/display-periods.ts", "src/periods.ts", "src/snapshot-periods.ts", "src/compare.ts"];
+export const CALCULATION_MODULES = [
+  "src/display-periods.ts", "src/periods.ts", "src/snapshot-periods.ts", "src/compare.ts", "src/exact.ts",
+  "src/format.ts", "src/workflow-rules.ts", "src/attainment-method.ts", "src/units.ts", "src/number-style.ts",
+];
 
 export default defineConfig({
   test: {

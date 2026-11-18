@@ -123,6 +123,7 @@ describe("units", () => {
     const old = { unit: "", format: "currency" as const, decimals: 0 };
     expect(formatValue(keptUnit(old), 1200, "1,234.5")).toBe("1,200 €");
     expect(keptUnit({ unit: "", format: "percent" as const })).toMatchObject({ unit: "%", unit_position: "after" });
+    expect(keptUnit({ unit: "", format: "number" as const })).toMatchObject({ unit: "", unit_position: "after" });
     expect(keptUnit({ unit: "d", format: "number" as const, unit_position: "before" as const })).toMatchObject({ unit: "d", unit_position: "before" });
   });
 });
@@ -131,6 +132,8 @@ describe("format", () => {
   it("writes a target in the style", () => {
     expect(targetText(metric({ target_min: 1000, target_max: 2000 }), "1.234,5")).toBe("1.000 € – 2.000 €");
     expect(targetText(metric({ target_min: null, target_max: null }), "1,234.5")).toBe("No target");
+    expect(targetText(metric({ target_min: 1000, target_max: null }), "1,234.5")).toBe("≥ 1,000 €");
+    expect(targetText(metric({ target_min: null, target_max: 5 }), "1,234.5")).toBe("≤ 5 €");
   });
   it("places a value against the target range", () => {
     const m = { target_min: 100, target_max: 200 };
