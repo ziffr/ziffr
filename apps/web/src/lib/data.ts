@@ -7,7 +7,7 @@ import { currentWorkspaceId } from "./viewer";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
 import { yearStartOf } from "@ziffr/core/fiscal-year";
-import { numberStyleOf } from "@ziffr/core/workspace-settings";
+import { attainmentMethodOf, numberStyleOf } from "@ziffr/core/workspace-settings";
 import type { Metric, Profile } from "@ziffr/core/types";
 
 /** The people of a Workspace, members then Contacts; it lives in the core (see peopleIn there). */
@@ -33,6 +33,9 @@ export const getYearStart = cache(async () => yearStartOf(await currentWorkspace
 
 /** How the current workspace writes numbers (GLOSSARY: Number Style): pass it to everything that reads or writes one. */
 export const getNumberStyle = cache(async () => numberStyleOf(await currentWorkspaceId()));
+
+/** How the current workspace computes Attainment for Metrics without a method of their own (GLOSSARY: Attainment). */
+export const getAttainmentMethod = cache(async () => attainmentMethodOf(await currentWorkspaceId()));
 
 /** The current workspace's Metrics. */
 export const getMetrics = cache(async () => data.getMetrics(await currentWorkspaceId()));

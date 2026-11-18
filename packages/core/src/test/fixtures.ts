@@ -6,7 +6,7 @@ export function metric(over: Partial<Metric> = {}): Metric {
   return {
     id: 1, slug: "revenue", name: "Revenue", owner_id: "sara", formula: null, from_catalog_id: null, created_at: "2026-01-01",
     description: "", unit: "€", unit_position: "after", format: "currency", decimals: 0, period: "month", submission_rule: "overwrite",
-    polarity: "higher", target_min: 100, target_max: null, sources: ["web_form"], aggregation: "sum",
+    polarity: "higher", target_min: 100, target_max: null, sources: ["web_form"], aggregation: "sum", attainment_method: null,
     ...over,
   };
 }
@@ -24,6 +24,6 @@ export function months(start: string, values: number[]): Point[] {
 export function canvas(metrics: Metric[], series: Record<string, Point[]>, over: Partial<CanvasData> = {}): CanvasData {
   return {
     viewer: "sara", metrics, series, people: [], openActions: {}, submitters: {}, targets: {}, projections: {}, breakdowns: {},
-    templates: [], themes: [], canEditThemes: false, groups: [], pending: {}, locked: {}, yearStart: 1, numberStyle: "1,234.5", ...over,
+    templates: [], themes: [], canEditThemes: false, groups: [], pending: {}, locked: {}, yearStart: 1, numberStyle: "1,234.5", attainmentMethod: "ratio", ...over,
   };
 }

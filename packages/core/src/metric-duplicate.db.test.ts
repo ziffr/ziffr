@@ -22,7 +22,7 @@ async function original() {
   const workflowId = await saveWorkflow(w.actor(sara), null, "Monthly close", config as never);
   const m = await w.metric(sara, {
     name: "Cash", description: "Money in the bank at month end.", unit: "EUR", format: "currency", decimals: 2, period: "month",
-    submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, sources: ["mail", "web_form"], workflow_id: workflowId,
+    submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"], workflow_id: workflowId,
   });
   await w.token(m.id, cleo);
   // A stand-in's Token covers one absence; it is not one of the Metric's Submitters.
@@ -37,7 +37,7 @@ describe("metricDraftFrom", () => {
     const { w, sara, cleo, m, workflowId } = await original();
     expect(await metricDraftFrom(w.actor(sara), m.id)).toEqual({
       original: "Cash", name: "Cash (copy)", description: "Money in the bank at month end.", unit: "EUR", unit_position: "after", format: "currency", decimals: 2, period: "month",
-      submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, sources: ["mail", "web_form"],
+      submission_rule: "reject", polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"],
       workflow: { id: workflowId, name: "Monthly close" }, submitters: [cleo], duplicateOf: m.id,
     });
   });
@@ -73,7 +73,7 @@ describe("createMetric as a duplicate", () => {
     const { data: row } = await db().from("metrics").select("*").eq("id", copy.id).single();
     expect(row).toMatchObject({
       workspace_id: w.id, owner_id: dan, name: "Cash (copy)", slug: "cash-copy", unit: "EUR", format: "currency", decimals: 2, submission_rule: "reject",
-      polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, sources: ["mail", "web_form"], workflow_id: workflowId, from_catalog_id: null, formula: null,
+      polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"], workflow_id: workflowId, from_catalog_id: null, formula: null,
     });
     const [{ data: obs }, { data: shares }, { data: series }, { data: tokens }, { data: versions }] = await Promise.all([
       db().from("observations").select("id").eq("metric_id", copy.id),

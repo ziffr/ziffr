@@ -1,7 +1,9 @@
-// Workspace settings (spec 0006, tickets #96 and #97; spec 0022, tickets #108 and #118; GLOSSARY: Workspace, Workspace
-// Role, Workspace Profile, Number Style, Answer Language): the workspace's name, its Workspace Profile, its Number Style
-// and its Answer Languages. Owners and Admins change them, never in the demo; every member reads.
+// Workspace settings (spec 0006, tickets #96 and #97; spec 0022, tickets #108, #118 and #130; GLOSSARY: Workspace,
+// Workspace Role, Workspace Profile, Number Style, Answer Language, Attainment): the workspace's name, its Workspace
+// Profile, its Number Style, its Answer Languages and its Attainment method. Owners and Admins change them, never in
+// the demo; every member reads.
 import { Forbidden, type Actor } from "./actor";
+import { DEFAULT_ATTAINMENT_METHOD, isAttainmentMethod, type AttainmentMethod } from "./attainment-method";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { isNumberStyle, numberStyleForCountry, type NumberStyle } from "./number-style";
@@ -139,4 +141,30 @@ export async function setAnswerLanguages(actor: Actor, input: unknown): Promise<
   // Codes from the list only, or null for languages that followed the country: nothing a person typed.
   await audit(actor, { kind: "workspace.answer_languages_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.languages : null, to: languages } });
   return languages;
+}
+
+/** The Attainment method of a workspace (GLOSSARY: Attainment), for code that has already checked who may see it:
+ * what Metrics without one of their own are computed with. */
+export async function attainmentMethodOf(workspaceId: string): Promise<AttainmentMethod> {
+  const { data } = await db().from("workspaces").select("attainment_method").eq("id", workspaceId).maybeSingle();
+  return isAttainmentMethod(data?.attainment_method) ? data.attainment_method : DEFAULT_ATTAINMENT_METHOD;
+}
+
+/** The actor's workspace's Attainment method, for any member (a Guest too: every Attainment they see uses it). */
+export async function workspaceAttainmentMethod(actor: Pick<Actor, "workspaceId">): Promise<AttainmentMethod> {
+  return attainmentMethodOf(actor.workspaceId);
+}
+
+/** Sets the workspace's Attainment method, for Owners and Admins; audited. Metrics with a method of their own keep
+ * it; Snapshots and frozen View Links keep the one they were made with. */
+export async function setAttainmentMethod(actor: Actor, method: unknown): Promise<AttainmentMethod> {
+  assertManages(actor, "Attainment method");
+  if (!isAttainmentMethod(method)) throw new Error("Pick an Attainment method from the list: ratio or distance.");
+  const before = await attainmentMethodOf(actor.workspaceId);
+  if (before === method) return method;
+  const { error } = await db().from("workspaces").update({ attainment_method: method }).eq("id", actor.workspaceId);
+  if (error) throw new Error("The Attainment method could not be saved.");
+  // Two keys, nothing a person typed.
+  await audit(actor, { kind: "workspace.attainment_method_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before, to: method } });
+  return method;
 }

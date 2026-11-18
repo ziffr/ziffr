@@ -39,7 +39,7 @@ Several Metrics can share one Workflow, and its owner can close a period for all
 
 ## Good and bad are defined, not guessed
 
-Each Metric has a **Target Range**, the band its values should stay within, and a **Polarity**: whether higher is better (revenue), lower is better (cost), or closer to the target is better (stock level). From that, Ziffr colours values green or red, works out **Attainment** (how far a value reaches its target, as a percentage where higher is always better), and spots Unusual Values.
+Each Metric has a **Target Range**, the band its values should stay within, and a **Polarity**: whether higher is better (revenue), lower is better (cost), or closer to the target is better (stock level). From that, Ziffr colours values green or red, works out **Attainment** (how far a value reaches its target, as a percentage where higher is always better, by ratio or by distance to the target), and spots Unusual Values.
 
 A **Comparison** sets the latest value against an earlier span: the previous period, or the same time last week, month, quarter or year, both as a difference and in percent.
 

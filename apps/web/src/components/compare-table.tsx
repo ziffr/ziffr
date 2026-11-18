@@ -2,13 +2,14 @@
 import { formatChange, formatValue } from "@ziffr/core/format";
 import { attainmentText, comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
 import type { NumberStyle } from "@ziffr/core/number-style";
+import { attainmentMethodNote, type AttainmentMethod } from "@ziffr/core/attainment-method";
 import type { Metric, Point } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 /** A metric's latest value, its target and attainment, and every comparison that fits its period. */
-export function CompareTable({ metric, resolve, targets, full, compact, yearStart, numberStyle: style }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean; yearStart: YearStart; numberStyle: NumberStyle }) {
-  const s = summary(metric, resolve, targets, { keys: comparisonsFor(metric.period), full, yearStart });
+export function CompareTable({ metric, resolve, targets, full, compact, yearStart, numberStyle: style, attainmentMethod }: { metric: Metric; resolve: Resolver; targets?: Point[]; full?: boolean; compact?: boolean; yearStart: YearStart; numberStyle: NumberStyle; attainmentMethod: AttainmentMethod }) {
+  const s = summary(metric, resolve, targets, { keys: comparisonsFor(metric.period), full, yearStart, attainmentMethod });
   if (s.value === undefined) return <p className="text-sm text-muted-foreground">No values yet.</p>;
   // Changes carry a sign, not a colour: colour is kept for on or off target (see target-chip).
   const sign = (n: number) => (n > 0 ? "+" : "");
@@ -17,7 +18,7 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
       <dl className="mb-3 grid grid-cols-3 gap-3">
         <div><dt className="text-xs text-muted-foreground">Value, {periodLabel(s.period!, metric.period, yearStart, true)}</dt><dd className="fig font-medium">{formatValue(metric, s.value, style)}</dd></div>
         <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value, style) : "–"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, style, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap, style)} vs target`) : "–"}</dd></div>
+        <div title={attainmentMethodNote(s.method)}><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, style, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap, style)} vs target`) : "–"}</dd></div>
       </dl>
       <table className="w-full">
         <thead className="text-left text-xs text-muted-foreground">

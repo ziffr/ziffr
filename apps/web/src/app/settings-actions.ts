@@ -40,6 +40,13 @@ export async function setAnswerLanguages(languages: string[]) {
   revalidatePath("/settings/workspace");
 }
 
+/** Sets the workspace's Attainment method (Owners and Admins); the core checks it is ratio or distance. */
+export async function setAttainmentMethod(method: string) {
+  await workspace.setAttainmentMethod(await currentActor(), method);
+  // Every Attainment of a Metric without a method of its own changes.
+  revalidatePath("/", "layout");
+}
+
 /** Sets the Workspace Profile (Owners and Admins); the core checks every field against its list. */
 export async function setWorkspaceProfile(input: Record<string, string | null>) {
   await workspace.setWorkspaceProfile(await currentActor(), input);

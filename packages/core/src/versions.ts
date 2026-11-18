@@ -56,7 +56,7 @@ export async function snapshotOf(type: VersionType, id: number): Promise<Record<
     return data;
   }
   if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
-  const { data } = await db().from("metrics").select("name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula").eq("id", id).single();
+  const { data } = await db().from("metrics").select("name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, attainment_method, sources, aggregation, formula").eq("id", id).single();
   return data;
 }
 

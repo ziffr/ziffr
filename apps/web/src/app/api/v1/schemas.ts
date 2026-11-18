@@ -16,6 +16,7 @@ export const ApiMetric = z.object({
   aggregation: z.enum(["sum", "average", "last", "none"]).describe("How values combine over longer spans."),
   target_min: z.number().nullable().describe("The low end of its target, if any."),
   target_max: z.number().nullable().describe("The high end of its target, if any."),
+  attainment_method: z.enum(["ratio", "distance"]).nullable().describe("How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default."),
   derived: z.boolean().describe("A Derived Metric: computed from others, takes no values."),
 });
 
@@ -60,6 +61,7 @@ export const CreateMetric = z.object({
   aggregation: z.enum(["sum", "average", "last", "none"]).optional().describe("Default sum."),
   target_min: z.number().nullable().optional(),
   target_max: z.number().nullable().optional(),
+  attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default."),
   submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
 }).strict();
 

@@ -111,6 +111,12 @@ Until an Owner or Admin picks languages, the Workspace reads English plus the la
 
 A word in a language that is not ticked is simply not understood. The rules still hold: if exactly one number is left, it counts for the Prompt's period. If there are several, Ziffr asks back.
 
+### Attainment
+
+**Attainment is computed** sets how the percentage of target is worked out for every Metric that has no method of its own. **By ratio** divides the value by the target, or the target by the value when lower is better. **By distance** counts the distance to the target in steps of the target's size. They agree for "higher is better" with a target above 0, and differ for "lower is better" and around 0: 5 against a target of at most 10 is 200 % by ratio and 150 % by distance. [Metrics](10-metrics.md#comparisons) explains both.
+
+Every Workspace computes by ratio until an Owner or Admin changes it, as Ziffr did up to version 0.9.0. A Metric can still choose its own method under **Edit details…**. Snapshots and frozen View Links keep the method they were made with, so their numbers do not change. Choose **Save** after picking one. The change shows in the Audit Log. Members and Guests see a single line, such as "Attainment is computed by ratio".
+
 ### Workspace Profile
 
 The **Workspace Profile** says what kind of business this is, so Ziffr can suggest the Metrics such teams track. Each part is picked from a list; **Not set** leaves it open.
@@ -128,7 +134,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### In the demo
 
-In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, and it writes numbers as 1,234.5.
+In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, it writes numbers as 1,234.5, and it computes Attainment by ratio.
 
 ## Members and Groups
 

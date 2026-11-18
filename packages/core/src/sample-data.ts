@@ -1,6 +1,7 @@
 // GLOSSARY: Sample Data. Made-up Metrics that a Preview of a Widget Template draws, because a template has no
 // metrics of its own. Never a workspace's data: built here from a fixed seed, so every viewer, every test and every
 // render sees the same numbers, and a Preview needs no Share check and fetches nothing (spec 0011).
+import { DEFAULT_ATTAINMENT_METHOD } from "./attainment-method";
 import type { NumberStyle } from "./number-style";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { fromDashboardTemplate, fromTemplate } from "./team-templates";
@@ -19,11 +20,11 @@ type Shape = { slug: string; desc: Omit<MetricDescription, "period" | "sources" 
 // Five Metrics are enough for every built-in template: a correlation needs two that move together, a matrix and
 // Drivers need several, and the Finding templates need one with a Breakdown (the first).
 const SHAPES: Shape[] = [
-  { slug: "revenue", desc: { name: "Revenue", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "higher", target_min: null, target_max: null }, start: 82000, growth: 0.025, noise: 0.05, target: 1.02, breakdown: ["North", "South", "West", "East", "Online"] },
-  { slug: "orders", desc: { name: "Orders", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null }, start: 1150, growth: 0.022, noise: 0.03 },
-  { slug: "customers", desc: { name: "Active customers", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null }, start: 640, growth: 0.015, noise: 0.02, target: 1.01 },
-  { slug: "churn", desc: { name: "Churn rate", unit: "%", unit_position: "after", format: "percent", decimals: 1, polarity: "lower", target_min: null, target_max: 2.5 }, start: 3.4, growth: -0.012, noise: 0.08 },
-  { slug: "cost", desc: { name: "Operating cost", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "lower", target_min: null, target_max: null }, start: 61000, growth: 0.012, noise: 0.04 },
+  { slug: "revenue", desc: { name: "Revenue", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 82000, growth: 0.025, noise: 0.05, target: 1.02, breakdown: ["North", "South", "West", "East", "Online"] },
+  { slug: "orders", desc: { name: "Orders", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 1150, growth: 0.022, noise: 0.03 },
+  { slug: "customers", desc: { name: "Active customers", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 640, growth: 0.015, noise: 0.02, target: 1.01 },
+  { slug: "churn", desc: { name: "Churn rate", unit: "%", unit_position: "after", format: "percent", decimals: 1, polarity: "lower", target_min: null, target_max: 2.5, attainment_method: null }, start: 3.4, growth: -0.012, noise: 0.08 },
+  { slug: "cost", desc: { name: "Operating cost", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "lower", target_min: null, target_max: null, attainment_method: null }, start: 61000, growth: 0.012, noise: 0.04 },
 ];
 
 // mulberry32: a tiny seeded generator, so the made-up numbers are the same on every call.
@@ -126,6 +127,8 @@ export function sampleCanvasData(viewer: string, numberStyle: NumberStyle, perio
     yearStart: JANUARY,
     // Written the way the workspace looking at it writes numbers.
     numberStyle,
+    // Sample Data has no targets to attain; the default keeps the type whole.
+    attainmentMethod: DEFAULT_ATTAINMENT_METHOD,
   };
 }
 

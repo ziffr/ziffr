@@ -36,6 +36,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | `items[].aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
 | `items[].target_min` | number or null | yes | The low end of its target, if any. |
 | `items[].target_max` | number or null | yes | The high end of its target, if any. |
+| `items[].attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `items[].derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
 
@@ -76,6 +77,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | no | Default sum. |
 | `target_min` | number or null | no |  |
 | `target_max` | number or null | no |  |
+| `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default. |
 | `submit` | boolean | no | Make the key's creator its Submitter, so the key can submit values to it at once. |
 
 **Answer** (201)
@@ -94,6 +96,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 
 **Errors**
@@ -134,6 +137,7 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 
 **Errors**

@@ -175,7 +175,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       break;
     }
     case "metric": {
-      const fields = ["name", "description", "unit", "unit_position", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "sources", "aggregation", "formula"];
+      const fields = ["name", "description", "unit", "unit_position", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "attainment_method", "sources", "aggregation", "formula"];
       // A version from before units had a side gets the unit its format used to add, so it shows as it did then.
       const kept: Record<string, unknown> = "format" in s && "unit" in s && !("unit_position" in s) ? keptUnit({ ...s, unit: String(s.unit ?? ""), format: s.format as Format }) : s;
       await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]))).eq("id", id).eq("workspace_id", ws);

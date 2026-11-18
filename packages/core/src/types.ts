@@ -1,5 +1,6 @@
 /** The shapes of Ziffr's domain objects, shared by the core, the web app, the API and the MCP server (GLOSSARY.md). */
 import type { NumberStyle } from "./number-style";
+import type { AttainmentMethod } from "./attainment-method";
 
 /** How often a metric has a value: a day, an ISO week, a month, or a quarter or year of the Fiscal Year. */
 export type Period = "day" | "week" | "month" | "quarter" | "year";
@@ -49,6 +50,8 @@ export type MetricDescription = {
   target_min: number | null;
   target_max: number | null;
   sources: SourceId[];
+  /** How its Attainment is computed (GLOSSARY: Attainment); null follows the Workspace's default. */
+  attainment_method: AttainmentMethod | null;
 };
 
 /** A metric with its owner and, for a Derived Metric, its formula. */
@@ -62,7 +65,8 @@ export type Metric = MetricDescription & {
 };
 
 /** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */
-export type CatalogMetric = MetricDescription & {
+// The catalog has no Attainment method of its own: a Metric made from it follows the Workspace.
+export type CatalogMetric = Omit<MetricDescription, "attainment_method"> & {
   id: number;
   category: string;
   /** Kinds of business it suits, as lowercase keys such as "saas" or "manufacturing"; null means any. */
@@ -294,6 +298,9 @@ export type CanvasData = {
   /** How the workspace writes numbers (GLOSSARY: Number Style). Like `yearStart`, always the workspace's own now, also
    * for a Snapshot or a frozen View Link made before it changed. */
   numberStyle: NumberStyle;
+  /** The Workspace's default Attainment method (GLOSSARY: Attainment), for Metrics without one of their own. Unlike
+   * `numberStyle`, a Snapshot and a frozen View Link keep the one they were made with, so their numbers stay. */
+  attainmentMethod: AttainmentMethod;
   /** The day a widget shown by a Display Period counts "to date" from (yyyy-mm-dd): the day after a Snapshot's
    * period, or the day a frozen View Link was made, so they keep what they showed. Absent: the current day. */
   today?: string;

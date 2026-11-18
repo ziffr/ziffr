@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
-import { getAllSeries, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
+import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
+import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
@@ -62,7 +63,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
   // Links inside a tab keep the tab; everything else about the page is in its own parameter.
   const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
-  const [{ metrics, series }, people, viewer, demo, yearStart, numberStyle] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle()]);
+  const [{ metrics, series }, people, viewer, demo, yearStart, numberStyle, attainmentMethod] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle(), getAttainmentMethod()]);
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -203,7 +204,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <Link href={at({ full: "1" })} scroll={false} aria-current={sp.full ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2 py-1 no-underline", sp.full ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Full periods</Link>
                 </nav>
               </div>
-              <CompareTable numberStyle={numberStyle} metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
+              <CompareTable numberStyle={numberStyle} attainmentMethod={attainmentMethod} metric={metric} resolve={resolverFrom(metrics, series)} targets={tSeries} full={Boolean(sp.full)} yearStart={yearStart} />
             </section>
 
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -374,7 +375,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
-              {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
+              {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
@@ -382,6 +383,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
               <Row k="Target">{targetText(metric, numberStyle)}</Row>
+              <Row k="Attainment">{ATTAINMENT_METHOD_LABEL[methodFor(metric, attainmentMethod)]}{metric.attainment_method ? "" : ", as the workspace"}</Row>
               {metric.formula ? (
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (

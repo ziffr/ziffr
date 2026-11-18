@@ -9,7 +9,7 @@ import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
-import { numberStyleOf } from "./workspace-settings";
+import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 
 /** The Groups of a workspace with their members, Everyone filled in. */
 export async function getGroups(ws: string): Promise<(Group & { workspace_id: string })[]> {
@@ -152,7 +152,7 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
  * `seriesOf` every visible Metric's series is sent; pages pass the ones they show, and fetch more with canvasSeries. */
 export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf?: SeriesOf } = {}): Promise<CanvasData> {
-  const [metrics, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }, yearStart, numberStyle] = await Promise.all([
+  const [metrics, people, actions, { data: tokens }, { data: templates }, { data: themes }, { data: me }, groups, { data: states }, yearStart, numberStyle, attainmentMethod] = await Promise.all([
     getMetrics(ws), peopleIn(ws),
     // Only the Actions still open, with the columns that decide who may read them: the canvas only counts them.
     allRows<Pick<Action, "id" | "metric_id" | "status" | "asker_id" | "assignee_id" | "read_group_id"> & { workspace_id: string }>((from, to) =>
@@ -167,6 +167,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     db().from("period_states").select("metric_id, period_start, state").eq("workspace_id", ws).in("state", ["approval", "locked"]),
     yearStartOf(ws),
     numberStyleOf(ws),
+    attainmentMethodOf(ws),
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
@@ -194,6 +195,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     locked: byMetric(states, "locked", ids),
     yearStart,
     numberStyle,
+    attainmentMethod,
     submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }

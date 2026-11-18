@@ -93,6 +93,7 @@ The four Submission Rules:
 | **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
 | **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
 | **Target to** | The upper end. Leave it empty for no upper end. |
+| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
 
 After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Everyone who submits it has already been sent a form link and a first request for the value.
 
@@ -141,7 +142,12 @@ See [Actions](15-actions.md) for what happens next. With no values yet, the char
 
 The **Comparisons** box sets the latest value against earlier spans.
 
-At the top it shows the **Value** of the latest period, its **Target** ("(series)" when it comes from the Target Series) and its **Attainment**: how far the value reaches its target, as a percentage where higher is always better. Attainment is green from 100 % up, red below. It counts the distance to the target in steps of the target's size: with a target of at least 10, a value of 5 is 50 %; with a target of at most 10, a value of 5 is 150 %; with a target of at least −10, a value of −5 is 150 %. A target of 0 has no percentage, so the difference to it is shown instead, such as "+3 vs target".
+At the top it shows the **Value** of the latest period, its **Target** ("(series)" when it comes from the Target Series) and its **Attainment**: how far the value reaches its target, as a percentage where higher is always better. Attainment is green from 100 % up, red below. It is computed one of two ways, set for the Workspace on **Workspace → General** and changed for one Metric under **Edit details…**. Point at the Attainment to see which:
+
+- **By ratio** divides the value by the target, or the target by the value when lower is better. With a target of at least 10, a value of 5 is 50 %; with a target of at most 10, a value of 5 is 200 %. A ratio means nothing for a target at or below 0, or for a value at or below 0 when lower is better, so there the difference to the target is shown instead, such as "+3 vs target". This is how Ziffr computed Attainment up to version 0.9.0, and what every Workspace uses until an Owner or Admin changes it.
+- **By distance** counts the distance to the target in steps of the target's size. With a target of at least 10, a value of 5 is 50 %; with a target of at most 10, a value of 5 is 150 %; with a target of at least −10, a value of −5 is 150 %. Only a target of 0 has no percentage.
+
+For "higher is better" with a target above 0, the two give the same number.
 
 Below is one row per **Comparison** that fits the Metric's period: "vs previous period", DoD, WoW, MoM, QoQ, HoH and YoY (a monthly Metric has no DoD or WoW, a quarterly one has "vs previous period", QoQ, HoH and YoY, and a yearly one only YoY, which is its previous period). Quarters and half-years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, QoQ in May compares April and May with January and February. Each row shows the two spans with their values, the change, and the change in percent. When a comparison cannot be made, the row says why, such as "No values for the earlier span", or that the Metric does not combine into longer periods (its Aggregation is "Does not combine").
 
@@ -217,6 +223,7 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 | **Which way is good** | The Polarity. |
 | **Aggregation** | Sum, Average, Last value or Does not combine. |
 | **Target from**, **Target up to** | The Target Range, for every period without its own target. The lower end may not be above the upper one. A value Ziffr cannot read as a number is not saved, and Ziffr says so. |
+| **Attainment** | **As the workspace**, **By ratio** or **By distance**. Snapshots taken earlier keep the method they were taken with. |
 | **A second value for a period** | The Submission Rule. Not shown for a Derived Metric. |
 
 **Save** keeps the change as a new **Version**.

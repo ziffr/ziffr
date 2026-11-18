@@ -200,6 +200,8 @@ Views show a strip of **Comparisons** under the value. **Comparisons** lets you 
 - **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year. A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
 - **Full periods instead of to date**: for spans longer than the Metric's period, Ziffr normally compares the span so far with the same stretch before (month to date against the same days last month). Tick this to compare whole periods instead.
 
+When the Metric has a target, the strip starts with its **Attainment**, such as "92 % of target". Point at it to see the target and the method it is computed with, by ratio or by distance (see [Metrics](10-metrics.md#comparisons)). The table in **History** shows the same number. A Snapshot keeps the method it was taken with.
+
 ### Show by
 
 A Widget shows a Metric in its own period: a monthly Metric as months. **Show by** shows it by a longer **Display Period** instead: week, month, quarter, half-year or year, as far as it is longer than the Metric's own. A monthly Metric can be shown by quarter, half-year or year; a daily one also by week or month. A tick marks the current choice; **(its own)** goes back to the Metric's period.
@@ -285,7 +287,7 @@ A **Panel** is one chart inside a composed Finding. **Add panel** adds one (peri
 | --- | --- |
 | Panel type | **Period bars**, **Bridge**, **Annotated line**, **Ranked bars (breakdown)**, **Part of the whole (breakdown)** or **7 in 10 (breakdown)**. |
 | **Choose metrics** | Tick the Metrics it draws. Several Metrics are drawn side by side as small multiples, one small chart each. |
-| **Measure** | For period bars and annotated lines: the **Measure** drawn: **Value**, **Change vs previous period, %**, **Change vs previous year, %** or **Attainment of target, %**. |
+| **Measure** | For period bars and annotated lines: the **Measure** drawn: **Value**, **Change vs previous period, %**, **Change vs previous year, %** or **Attainment of target, %** (by the Metric's method, as in the strip). |
 | Periods | For period bars and annotated lines: how many periods to show, from 2 to 36. |
 | **Highlight the last period** / **Highlight projections** | For period bars: which bars stand out. |
 | **Include projections** | For period bars: also draws **Projections** after the last actual period. |
