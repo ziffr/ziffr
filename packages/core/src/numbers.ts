@@ -60,8 +60,14 @@ export function readNumber(text: string, style: NumberStyle): number | null {
   // k and M move the decimal point, so 2,5k is exactly 2500 and not 2.5 × 1000 in floating point.
   const shift = m[3] === "M" ? 6 : m[3] ? 3 : 0;
   const digits = (int + frac).padEnd(int.length + shift, "0");
-  const v = Number(`${digits.slice(0, int.length + shift)}.${digits.slice(int.length + shift) || "0"}`);
-  if (!Number.isFinite(v) || Math.abs(v) > LARGEST_VALUE) return null;
+  const whole = digits.slice(0, int.length + shift);
+  const part = digits.slice(int.length + shift);
+  const v = Number(`${whole}.${part || "0"}`);
+  // Too large is decided on the digits as typed: 1,000,000,000,000,000.01 is larger than 10^15, though the double
+  // nearest to it is 10^15 itself.
+  const ceiling = BigInt(LARGEST_VALUE);
+  const size = BigInt(whole);
+  if (!Number.isFinite(v) || size > ceiling || (size === ceiling && /[1-9]/.test(part))) return null;
   const signed = m[1] && m[1] !== "+" ? -v : v;
   return signed === 0 ? 0 : signed;
 }
