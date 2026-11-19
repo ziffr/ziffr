@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
 import { checkedMailHost } from "./mail-hosts";
-import { savedOnPage, settingsInEffect, type Settings } from "./settings-in-effect";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
@@ -94,15 +94,18 @@ export function smtpOptions(address: string): { host: string; port: number; secu
 let transporter: { key: string; t: Transporter } | null = null;
 
 /** Sends through the SMTP server of these settings; the transport is made again only when the server changes. A
- * server saved on the Installation Settings page is resolved and checked at every send, and the connection goes to
- * the address that was checked, with TLS checking the name; one from the environment is used as it is. */
+ * server that is not the environment's own (`ZIFFR_SMTP_URL` or its default) is resolved and checked at every send,
+ * and the connection goes to the address that was checked, with TLS checking the name. */
 export function smtpTransportWith(settings: Settings): MailTransport {
   return async (mail) => {
     const url = settings.ZIFFR_SMTP_URL!;
     const options = smtpOptions(url);
     if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
     let connect: Parameters<typeof nodemailer.createTransport>[0] = options;
-    if (await savedOnPage("ZIFFR_SMTP_URL", url)) {
+    // Decided by where the address came from, never by a second lookup that could fail open: only the one the
+    // environment sets (or its default, Docker's Mailpit) is used as it is; every other one is checked.
+    const fromEnvironment = [process.env.ZIFFR_SMTP_URL, process.env.ZIFFR_SMTP_URL_DEFAULT].some((v) => typeof v === "string" && v.trim() !== "" && v === url);
+    if (!fromEnvironment) {
       const pinned = await checkedMailHost(options.host);
       connect = { ...options, host: pinned.address, ...(pinned.servername ? { tls: { servername: pinned.servername } } : {}) };
     }

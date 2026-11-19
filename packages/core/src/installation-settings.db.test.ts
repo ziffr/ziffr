@@ -7,7 +7,7 @@ import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
 import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR } from "./installation-settings";
-import { inboundOn, mailOn, smtpOptions } from "./mail";
+import { inboundOn, mailOn, smtpOptions, smtpTransportWith } from "./mail";
 import { mailHostResolver } from "./mail-hosts";
 import { openSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect } from "./settings-in-effect";
@@ -301,6 +301,29 @@ describe("a mail server saved on the page, resolved", () => {
     expect(again.messages).toHaveLength(1);
   });
 
+  it("checks every mail server the environment did not set, whatever the table says", async () => {
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    const mail = { to: "x@example.test", subject: "s", text: "t" };
+    const from = { ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" };
+    // Nothing stored and nothing in the environment: a private address handed in is refused, not trusted.
+    await expect(smtpTransportWith({ ZIFFR_SMTP_URL: SMTP, ...from })(mail)).rejects.toMatchObject({ code: "EPRIVATEHOST" });
+    // The environment names another server: the one handed in is still checked.
+    process.env.ZIFFR_SMTP_URL = "smtp://smtp.example.test:587";
+    await expect(smtpTransportWith({ ZIFFR_SMTP_URL: SMTP, ...from })(mail)).rejects.toMatchObject({ code: "EPRIVATEHOST" });
+    // Reading the table fails: still checked.
+    delete process.env.ZIFFR_SMTP_URL;
+    vi.spyOn(db(), "from").mockImplementation(() => { throw new Error("down"); });
+    forgetStoredSettings();
+    await expect(smtpTransportWith({ ZIFFR_SMTP_URL: SMTP, ...from })(mail)).rejects.toMatchObject({ code: "EPRIVATEHOST" });
+    vi.restoreAllMocks();
+    // Docker's Mailpit default is the environment's own: used without a lookup.
+    let asked = false;
+    mailHostResolver.lookup = async () => { asked = true; return []; };
+    process.env.ZIFFR_SMTP_URL_DEFAULT = SMTP;
+    await smtpTransportWith({ ZIFFR_SMTP_URL: SMTP, ...from })(mail);
+    expect(asked).toBe(false);
+  });
+
   it("leaves a mail server from the environment as it is", async () => {
     delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
     const a = await admin();
@@ -332,7 +355,7 @@ describe("the mail server's address", () => {
     for (const host of ["127.0.0.1", "localhost", "mail:1025", "10.0.0.5", "172.20.1.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "[::1]", "[fd00::1]", "[fe80::1]", "[::ffff:127.0.0.1]", "relay.localhost"]) {
       await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: `smtp://${host}` }), host).rejects.toThrow(/ZIFFR_ALLOW_PRIVATE_MAIL_HOST/);
     }
-    for (const host of ["smtp.example.test", "8.8.8.8", "172.32.0.1", "[2001:db8::1]"]) expect(privateMailHost(host.replace(/^\[|\]$/g, "")), host).toBe(false);
+    for (const host of ["smtp.example.test", "8.8.8.8", "172.32.0.1", "[2606:4700:4700::1111]"]) expect(privateMailHost(host.replace(/^\[|\]$/g, "")), host).toBe(false);
     process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST = "1";
     await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://mail:1025" });
     expect((await settingsInEffect()).ZIFFR_SMTP_URL).toBe("smtp://mail:1025");

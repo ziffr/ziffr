@@ -3,7 +3,7 @@
 // name as written and on every address it resolves to, and the connection is then made to the address that was
 // checked, so a name that changes its answer between the check and the connection (DNS rebinding) reaches nothing new.
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { BlockList, isIP, isIPv4, isIPv6 } from "node:net";
 
 /** The name lookup the checks use; tests put their own answers in. */
 export const mailHostResolver = {
@@ -25,35 +25,65 @@ export class MailHostError extends Error {
 /** Whether the server allows mail servers inside its own network to be saved on the page. */
 export const privateMailHostsAllowed = () => process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST === "1";
 
-// An IPv4 address as its four numbers, or null.
-function ipv4(host: string): number[] | null {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (!m) return null;
-  const parts = m.slice(1).map(Number);
-  return parts.every((n) => n <= 255) ? parts : null;
+// Every IPv4 range that is not global unicast. Kept apart from the IPv6 list: a BlockList holding ::ffff:0:0/96
+// matches every IPv4 address checked against it, so the IPv4 inside IPv6 is unwrapped by hand instead.
+const DENIED_V4 = new BlockList();
+for (const [net, bits] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
+  ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24],
+  ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) DENIED_V4.addSubnet(net, bits, "ipv4");
+
+// IPv6 ranges inside global unicast (2000::/3) that are no place for a mail server: documentation and Teredo, which
+// hides an IPv4 address. Everything outside 2000::/3 is refused anyway (loopback, ::, fc00::/7, fe80::/10, ff00::/8).
+const DENIED_V6 = new BlockList();
+for (const [net, bits] of [["2001:db8::", 32], ["2001::", 32], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]] as const) DENIED_V6.addSubnet(net, bits, "ipv6");
+
+/** An IPv6 address as its 16 bytes, a trailing dotted IPv4 included; null for anything else. */
+function v6Bytes(ip: string): number[] | null {
+  if (!isIPv6(ip)) return null;
+  let text = ip;
+  const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(text)?.[1];
+  if (dotted) {
+    const [a, b, c, d] = dotted.split(".").map(Number);
+    text = text.slice(0, -dotted.length) + `${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [head, tail] = text.includes("::") ? text.split("::") : [text, null];
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === null ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.length !== 8) return null;
+  return groups.flatMap((g) => { const n = parseInt(g || "0", 16); return [n >> 8, n & 255]; });
 }
 
-const privateV4 = ([a, b]: number[]) =>
-  a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+/** The IPv4 address an IPv6 address carries: mapped (::ffff:0:0/96), translated (::ffff:0:0:0/96), compatible
+ * (::/96), NAT64 (64:ff9b::/96) or 6to4 (2002::/16); null when it carries none. */
+export function innerIPv4(ip: string): string | null {
+  const b = v6Bytes(ip);
+  if (!b) return null;
+  const zero = (from: number, to: number) => b.slice(from, to).every((x) => x === 0);
+  const v4 = (at: number) => b.slice(at, at + 4).join(".");
+  if (zero(0, 10) && b[10] === 0xff && b[11] === 0xff) return v4(12);
+  if (zero(0, 8) && b[8] === 0xff && b[9] === 0xff && b[10] === 0 && b[11] === 0) return v4(12);
+  if (zero(0, 12)) return v4(12);
+  if (b[0] === 0x00 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b && zero(4, 12)) return v4(12);
+  if (b[0] === 0x20 && b[1] === 0x02) return v4(2);
+  return null;
+}
 
-/** Whether an IP address is inside a private network: loopback, RFC 1918, CGNAT, link-local, unspecified, fc00::/7,
- * fe80::/10, or IPv4 inside IPv6 that is one of those. False for anything that is not an IP address. */
+/** Whether an IP address is anything but global unicast: every range reserved, private, shared, local, for
+ * documentation or benchmarks, multicast or broadcast, and IPv4 inside IPv6 that is one of those. True for anything
+ * that is not an IP address, so whatever cannot be judged is refused. */
 export function privateAddress(raw: string): boolean {
-  const ip = String(raw).toLowerCase().replace(/^\[|\]$/g, "");
-  const v4 = ipv4(ip);
-  if (v4) return privateV4(v4);
-  if (!ip.includes(":")) return false;
-  if (ip === "::" || ip === "::1") return true;
-  if (/^f[cd][0-9a-f]{0,2}:/.test(ip) || /^fe[89ab][0-9a-f]?:/.test(ip)) return true;
-  // IPv4 mapped into IPv6, written with dots or as URL writes it (::ffff:7f00:1).
-  const mapped = /^::ffff:(.+)$/.exec(ip)?.[1];
-  if (mapped) {
-    const dotted = ipv4(mapped);
-    if (dotted) return privateV4(dotted);
-    const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mapped);
-    if (hex) { const hi = parseInt(hex[1], 16); return privateV4([hi >> 8, hi & 255]); }
-  }
-  return false;
+  const ip = String(raw).toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  if (isIPv4(ip)) return DENIED_V4.check(ip, "ipv4");
+  if (!isIPv6(ip)) return true;
+  const inner = innerIPv4(ip);
+  if (inner !== null) return DENIED_V4.check(inner, "ipv4");
+  const b = v6Bytes(ip)!;
+  // Global unicast is 2000::/3 only.
+  if ((b[0] & 0xe0) !== 0x20) return true;
+  return DENIED_V6.check(ip, "ipv6");
 }
 
 /** Whether a mail server host, as written, is inside the server's own network: a private IP address (see

@@ -61,12 +61,6 @@ export async function storedSettings(): Promise<Omit<Stored, "at">> {
   return cache;
 }
 
-/** Whether this value of a setting is the one saved on the page and in effect (the environment does not set it). */
-export async function savedOnPage(name: string, value: string | undefined): Promise<boolean> {
-  if (isSet(process.env[name]) || value === undefined) return false;
-  return (await storedSettings()).values.get(name) === value;
-}
-
 /** The settings in effect: the environment, with each Installation Setting it leaves unset taken from the page,
  * else from its default. Server only: the result holds secrets. */
 export async function settingsInEffect(env: Settings = process.env): Promise<Settings> {
