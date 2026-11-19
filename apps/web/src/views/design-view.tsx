@@ -32,7 +32,7 @@ type Props = {
 export type DesignValues = ReturnType<typeof designValues>;
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-export function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;

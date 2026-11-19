@@ -27,6 +27,21 @@ export const MAIL_PER_SENDER_PER_DAY = 300;
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
 export const FORM_LINK = "[your personal form link]";
 
+/** Marks a queued Delivery failed for good: what never goes out, whatever the limits. One no longer queued stays as it is. */
+export async function failForGood(id: number, why: string) {
+  await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
+  return "failed" as const;
+}
+
+/** A Delivery's text with the recipient's personal form link put in where FORM_LINK stands, only as it is sent, so the
+ * body the Outbox shows its sender never holds the link. Without the token, the link is the site's front page. */
+export async function withFormLink(body: string, d: { workspace_id: string; form_token_id: number | null }, siteUrl: string) {
+  if (!body.includes(FORM_LINK)) return body;
+  const { data: token } = d.form_token_id ? await db().from("tokens").select("code").eq("id", d.form_token_id).eq("workspace_id", d.workspace_id).maybeSingle() : { data: null };
+  const site = siteUrl.replace(/\/+$/, "");
+  return body.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
+}
+
 /** The kinds of Delivery a person can stop by email with one click: asking for values and reminding. */
 export const OPT_OUT_KINDS = ["prompt", "reminder"];
 
@@ -179,10 +194,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!claimed) return "skipped";
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
-  const never = async (why: string) => {
-    await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
-    return "failed" as const;
-  };
+  const never = (why: string) => failForGood(id, why);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
@@ -215,11 +227,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     return "failed" as const;
   };
   let unsubscribe: string | undefined;
-  let text = String(claimed.body);
-  if (text.includes(FORM_LINK)) {
-    const { data: token } = claimed.form_token_id ? await db().from("tokens").select("code").eq("id", claimed.form_token_id).eq("workspace_id", claimed.workspace_id).maybeSingle() : { data: null };
-    text = text.split(FORM_LINK).join(token ? `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/submit/${token.code}` : `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/`);
-  }
+  let text = await withFormLink(String(claimed.body), claimed, String(settings.ZIFFR_SITE_URL));
   if (stoppable) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);

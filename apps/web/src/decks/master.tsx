@@ -6,8 +6,8 @@ import { createContext, useContext } from "react";
 import { FrameShapeUtil, HTMLContainer, useEditor, useValue, type SvgExportContext, type TLFrameShape } from "tldraw";
 import type { SlideDesign } from "@ziffr/core/types";
 
-export const MARGIN_X = 48;
-export const MARGIN_Y = 36;
+const MARGIN_X = 48;
+const MARGIN_Y = 36;
 const FOOTER_PX = 15;
 
 export const DeckMaster = createContext<SlideDesign | null>(null);

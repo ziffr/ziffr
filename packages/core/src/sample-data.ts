@@ -5,6 +5,7 @@ import { DEFAULT_ATTAINMENT_METHOD } from "./attainment-method";
 import type { NumberStyle } from "./number-style";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { fromDashboardTemplate, fromTemplate } from "./team-templates";
+import { seeded } from "./trial-starting-values";
 import { TEMPLATES } from "./widget-templates";
 import type { BreakdownRow, CanvasData, DashboardTemplateBody, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
 
@@ -26,18 +27,6 @@ const SHAPES: Shape[] = [
   { slug: "churn", desc: { name: "Churn rate", unit: "%", unit_position: "after", format: "percent", decimals: 1, polarity: "lower", target_min: null, target_max: 2.5, attainment_method: null }, start: 3.4, growth: -0.012, noise: 0.08 },
   { slug: "cost", desc: { name: "Operating cost", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "lower", target_min: null, target_max: null, attainment_method: null }, start: 61000, growth: 0.012, noise: 0.04 },
 ];
-
-// mulberry32: a tiny seeded generator, so the made-up numbers are the same on every call.
-function seeded(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** The periods a sample series covers, oldest first, as yyyy-mm-dd; quarters and years of the calendar year. */
 export function samplePeriods(period: Period = "month"): string[] {

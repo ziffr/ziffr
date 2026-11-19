@@ -17,6 +17,7 @@
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "devDependencies": {
+    "@stryker-mutator/api": "10.1.1",
     "@stryker-mutator/core": "10.1.1",
     "@stryker-mutator/vitest-runner": "10.1.1",
     "@types/node": "^20",

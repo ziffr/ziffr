@@ -43,7 +43,7 @@ function bearer(req: Request): string | null {
 /** Whether the request's Origin, if it sent one, is Ziffr's own. Browsers send Origin; Claude.ai's servers and the
  * inspector's proxy do not. A page on another site holds no token anyway, and no CORS header is ever sent, so this
  * is the transport's guard against DNS rebinding and a second wall, not the only one. */
-export function originAllowed(req: Request): boolean {
+function originAllowed(req: Request): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return true;
   const own = new Set([new URL(req.url).origin]);
@@ -52,11 +52,11 @@ export function originAllowed(req: Request): boolean {
 }
 
 /** Where this resource's metadata is (RFC 9728, 3.1): the well-known address with /mcp's path. */
-export const resourceMetadataUrl = () => `${SITE_URL}/.well-known/oauth-protected-resource/mcp`;
+const resourceMetadataUrl = () => `${SITE_URL}/.well-known/oauth-protected-resource/mcp`;
 
 /** The challenge a 401 carries (RFC 9728, 5.1): where to find out how to sign in. No `scope`, so a client asks for
  * every scope and the person picks on the consent screen, with only reading ticked. */
-export function challenge(): Record<string, string> {
+function challenge(): Record<string, string> {
   return { "www-authenticate": `Bearer resource_metadata="${resourceMetadataUrl()}"` };
 }
 

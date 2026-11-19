@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { createKey, revokeKey } from "@/app/key-actions";
 import type { AccessKeyInfo } from "@ziffr/core/access-keys";
 import type { AccessLogEntry } from "@ziffr/core/access-log";
+import { RecentCalls } from "@/components/recent-calls";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
@@ -17,7 +18,6 @@ const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "va
 const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 /** The keys the viewer may see with their recent calls (the Access Log), a form to make one, and the new secret once.
  * Admins see every key but may revoke only their own; Owners may revoke any (the core checks this again). */
@@ -47,19 +47,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
               {!k.revoked && (isOwner || k.created_by === viewer) && (
                 <button type="button" aria-label={`Revoke ${k.name}`} disabled={pending} onClick={() => run(() => revokeKey(k.id), k.kind === "assistant" ? "Assistant disconnected" : "Key revoked")} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
               )}
-              <details className="w-full text-xs">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">{logs[k.id]?.length ? `Recent calls (last ${when(logs[k.id][0].at)})` : "No calls yet"}</summary>
-                {!!logs[k.id]?.length && (
-                  <table className="mt-2 w-full max-w-xl">
-                    <thead className="text-left text-muted-foreground"><tr><th className="font-normal">When</th><th className="font-normal">Call</th><th className="font-normal">Result</th></tr></thead>
-                    <tbody>
-                      {logs[k.id].map((c, i) => (
-                        <tr key={i}><td className="pr-3">{when(c.at)}</td><td className="pr-3 font-mono">{c.method} {c.route}</td><td className={c.status >= 400 ? "text-destructive" : undefined}>{c.status}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </details>
+              <RecentCalls calls={logs[k.id]} />
             </li>
           ))}
         </ul>

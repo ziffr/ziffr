@@ -20,7 +20,7 @@ type Endpoint = {
 };
 
 /** Every version 1 endpoint, in the order the reference lists them. */
-export const ENDPOINTS: Endpoint[] = [
+const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/metrics", scope: "metrics:read", query: S.pageQuery, ok: { status: 200, name: "MetricList", schema: S.MetricList },
     summary: "List Metrics", description: "The Metrics the key's creator sees, oldest first, a page at a time.",
@@ -160,7 +160,7 @@ export const ENDPOINTS: Endpoint[] = [
     summary: "List Groups", description: "The workspace's Groups: id and name.",
   },
   {
-    method: "get", path: "/dashboards", scope: "dashboards:read", query: S.dashboardsQuery, ok: { status: 200, name: "DashboardList", schema: S.DashboardList },
+    method: "get", path: "/dashboards", scope: "dashboards:read", query: S.pageQuery, ok: { status: 200, name: "DashboardList", schema: S.DashboardList },
     summary: "List dashboards", description: "The dashboards the key's creator sees, by id, with their role on each and the link to open it.",
   },
   {

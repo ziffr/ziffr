@@ -4,11 +4,11 @@
 import { createDashboardWithKey, listDashboardsWithKey } from "@ziffr/core/api-dashboards";
 import { json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
 import { build, withUrl } from "@/lib/api-build";
-import { ApiDashboard, CreateDashboard, DashboardList, dashboardsQuery } from "../schemas";
+import { ApiDashboard, CreateDashboard, DashboardList, pageQuery } from "../schemas";
 
 /** Lists the visible dashboards. */
 export const GET = keyRoute("dashboards:read", async (actor, req) => {
-  const { limit, cursor } = dashboardsQuery.parse(query(req));
+  const { limit, cursor } = pageQuery.parse(query(req));
   const page = await listDashboardsWithKey(actor, { after: cursor, limit });
   return json(DashboardList.parse({ items: page.items.map((d) => withUrl(req, d)), next: toCursor(page.next) }));
 });

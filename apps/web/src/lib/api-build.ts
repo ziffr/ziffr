@@ -3,8 +3,8 @@
 import { Forbidden, type KeyActor } from "@ziffr/core/actor";
 import { admitBuild, CHANGES_PER_DAY, DASHBOARDS_PER_DAY, Unusable, type ApiDashboard, type ApiDashboardSummary } from "@ziffr/core/api-dashboards";
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
-import { ApiError, errorBody, json } from "@/lib/api";
-import { IdempotencyKey } from "@/app/api/v1/schemas";
+import { errorBody } from "@/lib/api";
+import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
 
 /** A dashboard with its link made absolute for this server, instead of its path. */
 export function withUrl<T extends ApiDashboardSummary | ApiDashboard>(req: Request, d: T): Omit<T, "path"> & { url: string } {
@@ -23,8 +23,7 @@ function refusal(e: unknown): StoredAnswer | null {
 /** Runs a build call within the key's daily limit. Creating calls take an optional Idempotency-Key; the hashed body
  * names the endpoint, so the same key text reused elsewhere is a conflict, never a replay of another answer. */
 export async function build(actor: KeyActor, req: Request, what: "create" | "change", endpoint: string, input: unknown, run: () => Promise<{ status: number; body: unknown }>): Promise<Response> {
-  const idem = what === "create" ? req.headers.get("idempotency-key") : null;
-  if (idem !== null && !IdempotencyKey.safeParse(idem).success) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
+  const idem = what === "create" ? idempotencyKey(req) : null;
   let retryAfter: number | null = null;
   const answer = async (): Promise<StoredAnswer> => {
     const admitted = await admitBuild(actor, what);
@@ -42,11 +41,5 @@ export async function build(actor: KeyActor, req: Request, what: "create" | "cha
     }
   };
   const result = idem === null ? await answer() : await once(actor, idem, { endpoint, ...(input as object) }, answer);
-  if ("conflict" in result) {
-    return json(errorBody("conflict", result.conflict === "in_progress" ? "A creation with this Idempotency-Key is still running." : "This Idempotency-Key was used with another body.").body, 409);
-  }
-  const headers: Record<string, string> = {};
-  if (retryAfter !== null) headers["retry-after"] = String(retryAfter);
-  if ("replayed" in result && result.replayed) headers["idempotent-replayed"] = "true";
-  return json(result.body, result.status, headers);
+  return idempotentAnswer(result, "creation", retryAfter);
 }

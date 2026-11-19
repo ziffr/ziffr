@@ -16,7 +16,7 @@ const HEADERS = { "content-type": "application/json; charset=utf-8", "cache-cont
 export const oauthJson = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { ...HEADERS, ...headers } });
 
 /** An OAuth error answer: `{ error, error_description }`. */
-export const oauthError = (e: OAuthError) => oauthJson({ error: e.error, error_description: e.message }, e.status, e.status === 429 ? { "retry-after": "3600" } : {});
+const oauthError = (e: OAuthError) => oauthJson({ error: e.error, error_description: e.message }, e.status, e.status === 429 ? { "retry-after": "3600" } : {});
 
 /** Wraps an OAuth endpoint: 404 while the remote MCP Server is off; OAuthError becomes its answer, anything else a
  * 500 without details. */

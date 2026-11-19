@@ -44,19 +44,22 @@ export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknow
  * within a year. Returns the secret, which is shown this once. */
 export async function createAccessKey(actor: Actor, input: { name: string; scopes: Scope[]; expiresOn: string }): Promise<{ id: number; secret: string }> {
   const { scopes, expires } = checkKeyRequest(actor, input.scopes, input.expiresOn);
+  const name = String(input.name ?? "").trim().slice(0, 80) || "Unnamed key";
+  const key = await insertKey({ workspace_id: actor.workspaceId, created_by: actor.personId, name, scopes, expires_on: expires });
+  // The name, scopes and end only: never the secret, its hash or its prefix.
+  await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: key.id, name }, details: { scopes, expires_on: key.expires_on } });
+  return { id: key.id, secret: key.secret };
+}
+
+/** Stores a new key, an Access Key or a Feed Key, with a fresh secret of which only the hash is kept. Returns its
+ * id and end, and the secret, for the caller to show once. The caller has checked who may make it. */
+export async function insertKey(row: { workspace_id: string; created_by: string; feed_id?: string; name: string; scopes: string[]; expires_on: string }) {
   // A taken prefix is all but impossible (48 random bits); one more try covers it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const prefix = randomBytes(6).toString("hex");
     const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
-    const { data, error } = await db().from("access_keys").insert({
-      workspace_id: actor.workspaceId, created_by: actor.personId, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key",
-      prefix, secret_hash: hash(secret), scopes, expires_on: expires,
-    }).select("id, expires_on").single();
-    if (data) {
-      // The name, scopes and end only: never the secret, its hash or its prefix.
-      await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: data.id, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key" }, details: { scopes, expires_on: data.expires_on } });
-      return { id: data.id, secret };
-    }
+    const { data, error } = await db().from("access_keys").insert({ ...row, prefix, secret_hash: hash(secret) }).select("id, expires_on").single();
+    if (data) return { id: data.id as number, expires_on: data.expires_on as string, secret };
     // A trial's limit (spec 0021) says which one it is.
     const limit = trialLimitMessage(error?.code);
     if (limit) throw new Error(limit);

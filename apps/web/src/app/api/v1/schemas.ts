@@ -3,10 +3,10 @@
 import { z } from "zod";
 
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
-export const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
+const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
 
-/** A Metric as a program sees it (GLOSSARY: Metric, Metric Description). */
-export const ApiMetric = z.object({
+/** A Metric as a program sees it, and what GET /api/v1/metrics/{slug} answers (GLOSSARY: Metric, Metric Description). */
+export const MetricDescription = z.object({
   slug: z.string().describe("Stable id in paths; survives renames of the name."),
   name: z.string(),
   description: z.string(),
@@ -25,22 +25,19 @@ export const ApiMetric = z.object({
 });
 
 /** One page of a list; `next` is the cursor for the following page, null on the last. */
-export const pageOf = <T extends z.ZodType>(item: T) => z.object({
+const pageOf = <T extends z.ZodType>(item: T) => z.object({
   items: z.array(item).describe("This page, at most `limit` long."),
   next: z.string().nullable().describe("Pass as `cursor` for the next page; null on the last page."),
 });
 
 /** GET /api/v1/metrics answers this. */
-export const MetricList = pageOf(ApiMetric);
-
-/** GET /api/v1/metrics/{slug} answers this. */
-export const MetricDescription = ApiMetric;
+export const MetricList = pageOf(MetricDescription);
 
 /** A Breakdown row (GLOSSARY: Breakdown): one labelled part of a value. */
-export const BreakdownRow = z.object({ label: z.string().describe("What the part is, such as a shop or a channel."), value: z.number() });
+const BreakdownRow = z.object({ label: z.string().describe("What the part is, such as a shop or a channel."), value: z.number() });
 
 /** A Metric's value for one period (GLOSSARY: Observation). */
-export const ApiObservation = z.object({
+const ApiObservation = z.object({
   period: z.string().describe("The period's first day, YYYY-MM-DD."),
   value: z.number().describe("The value shown for the period: the latest when the Metric keeps several."),
   state: z.enum(["recorded", "awaiting_approval", "locked"]).describe("recorded, waiting for Approval, or locked (no more values)."),
@@ -88,7 +85,7 @@ export const UpdateMetric = z.object({
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
 
 /** One period's value of a Target Series or a Projection (GLOSSARY: Target Series, Projection). */
-export const ApiSeriesValue = z.object({ period: z.string().describe("The period's first day, YYYY-MM-DD."), value: z.number() });
+const ApiSeriesValue = z.object({ period: z.string().describe("The period's first day, YYYY-MM-DD."), value: z.number() });
 
 /** GET /api/v1/metrics/{slug}/target-series and /projections answer this: every period that has one, oldest first. */
 export const SeriesList = z.object({ items: z.array(ApiSeriesValue) });
@@ -126,7 +123,7 @@ export const UpdateUnusualValueCheck = z.object({
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
 
 /** One of a Metric's Submitters (GLOSSARY: Submitter): id, name and kind, never contact details. */
-export const ApiSubmitter = z.object({ id: z.string(), name: z.string(), kind: z.enum(["person", "contact", "feed"]) });
+const ApiSubmitter = z.object({ id: z.string(), name: z.string(), kind: z.enum(["person", "contact", "feed"]) });
 
 /** GET /api/v1/metrics/{slug}/submitters answers this. */
 export const SubmitterList = z.object({ items: z.array(ApiSubmitter) });
@@ -159,13 +156,13 @@ export const SubmissionAnswer = z.object({
 });
 
 /** A person or Contact (GLOSSARY: Contact): id and name only, never contact details. */
-export const ApiPerson = z.object({ id: z.string().describe("Stable id, as in an observation's submitter."), name: z.string(), contact: z.boolean().describe("A Contact: known to the workspace, no sign-in, only submits values.") });
+const ApiPerson = z.object({ id: z.string().describe("Stable id, as in an observation's submitter."), name: z.string(), contact: z.boolean().describe("A Contact: known to the workspace, no sign-in, only submits values.") });
 
 /** GET /api/v1/people answers this. */
 export const PersonList = pageOf(ApiPerson);
 
 /** A Group (GLOSSARY: Group): id and name. */
-export const ApiGroup = z.object({ id: z.number().int().describe("Stable id."), name: z.string(), everyone: z.boolean().describe("The Group of everyone in the workspace except Guests.") });
+const ApiGroup = z.object({ id: z.number().int().describe("Stable id."), name: z.string(), everyone: z.boolean().describe("The Group of everyone in the workspace except Guests.") });
 
 /** GET /api/v1/groups answers this. */
 export const GroupList = pageOf(ApiGroup);
@@ -188,7 +185,7 @@ export const pageQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{1,15})$/).t
 export const textPageQuery = z.object({ limit, cursor: cursorOf(/^v1:([A-Za-z0-9_-]{1,64})$/) });
 
 /** A period's first day, as the API writes periods. */
-export const periodDate = periodDateOf();
+const periodDate = periodDateOf();
 
 /** A day as YYYY-MM-DD; a function so shapes defined above it can use it. */
 function periodDateOf() {
@@ -217,7 +214,7 @@ export const DeletedMetric = z.object({ deleted: z.string(), values: z.number().
 // Feeds (spec 0012, GLOSSARY: Feed, Feed Key, Import): what a Feed Key reads and sends.
 
 /** A Metric as its Feed sees it: what to fetch and which periods already have a value, never a value. */
-export const FeedMetric = z.object({
+const FeedMetric = z.object({
   slug: z.string().describe("Name it in a batch item's `metric`."),
   name: z.string(),
   period: z.enum(["day", "week", "month", "quarter", "year"]).describe("How often it has a value; quarters and years start from `year_start_month`."),
@@ -242,7 +239,7 @@ export const ApiWorkspace = z.object({
 });
 
 /** A batch item: one value for one Metric and period. */
-export const FeedItem = z.object({
+const FeedItem = z.object({
   metric: slugParam.describe("The Metric's slug, as GET /feed lists it."),
   period: periodDate.optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
   value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
@@ -253,7 +250,7 @@ export const FeedItem = z.object({
 export const FeedBatch = z.object({ items: z.array(FeedItem).min(1).max(500).describe("1 to 500 values; each is taken or refused on its own.") }).strict();
 
 /** What became of one item, in the order sent. Its words never hold an earlier value: a Feed may not read values. */
-export const FeedItemResult = z.object({
+const FeedItemResult = z.object({
   metric: z.string(),
   period: z.string().nullable().describe("The period it was meant for, YYYY-MM-DD; null when the Metric was not found."),
   status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused."),
@@ -269,13 +266,13 @@ export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).descr
 // number; nothing a program sends is used before it matches these.
 
 /** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
-export const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
+const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
 
 /** A Display Period (GLOSSARY): what a widget can show a Metric by. */
 const DisplayPeriodSchema = z.enum(["week", "month", "quarter", "half", "year"]);
 
 /** The few settings a key may set on a widget. */
-export const KeySettings = z.object({
+const KeySettings = z.object({
   window: z.number().int().min(1).max(120).optional().describe("Periods shown."),
   showTarget: z.boolean().optional().describe("Draw the target band."),
   showForecast: z.boolean().optional().describe("Draw a forecast (line)."),
@@ -286,7 +283,7 @@ export const KeySettings = z.object({
 const slugList = z.array(z.string().min(1).max(100)).max(50);
 
 /** A Finding's words (GLOSSARY: Finding, Placeholder): plain text, with Placeholders such as {metric} or {change yoy}. */
-export const FindingWords = z.object({
+const FindingWords = z.object({
   kicker: z.string().max(200).optional().describe("The small line above the headline."),
   headline: z.string().max(200).optional().describe("States the finding, such as \"Churn doubled after the price change\"."),
   subline: z.string().max(200).optional(),
@@ -295,7 +292,7 @@ export const FindingWords = z.object({
 });
 
 /** A dashboard in a list. */
-export const ApiDashboardSummary = z.object({
+const ApiDashboardSummary = z.object({
   id: z.number().int().describe("Stable id."),
   name: z.string(),
   role: z.enum(["owner", "editor", "viewer"]).describe("The key's creator's role on it; only an owner or editor can change it."),
@@ -321,9 +318,6 @@ export const ApiDashboard = ApiDashboardSummary.extend({
 
 /** GET /dashboards answers this. */
 export const DashboardList = pageOf(ApiDashboardSummary);
-
-/** Paging of GET /dashboards. */
-export const dashboardsQuery = pageQuery;
 
 /** A dashboard's, widget's or Finding's id in the path. */
 export const idParam = z.coerce.number().int().positive().max(2 ** 31 - 1);
@@ -375,7 +369,7 @@ export const UpdateFinding = FindingWords.strict();
 export const RemovedWidget = z.object({ removed: z.number().int() });
 
 /** A template a key can build with. */
-export const ApiTemplate = z.object({
+const ApiTemplate = z.object({
   id: z.union([z.string(), z.number().int()]).describe("A view's or built-in Dashboard Template's text id, or a team template's number."),
   kind: z.enum(["view", "widget", "dashboard"]).describe("A built-in view, a team Widget Template, or a Dashboard Template."),
   name: z.string(),
