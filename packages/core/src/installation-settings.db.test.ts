@@ -22,7 +22,8 @@ let savedAdmins: Record<string, unknown>[] = [];
 let savedSettings: Record<string, unknown>[] = [];
 const cleanups: (() => Promise<void>)[] = [];
 const realLookup = mailHostResolver.lookup;
-/** Answers the tests give for names: *.example.test is a public address unless a test says otherwise. */
+/** Answers the tests give for names: *.example.test is a public address unless a test says otherwise, and any other
+ * name is not found. No test asks the machine's own DNS. */
 let answers: Record<string, string[]> = {};
 
 beforeAll(async () => {
@@ -39,8 +40,7 @@ afterAll(async () => {
 beforeEach(async () => {
   answers = {};
   mailHostResolver.lookup = async (host) => {
-    const given = answers[host] ?? (host.endsWith(".example.test") ? ["93.184.216.34"] : null);
-    if (!given) return realLookup(host);
+    const given = answers[host] ?? (host.endsWith(".example.test") ? ["93.184.216.34"] : []);
     if (!given.length) throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
     return given.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }));
   };
@@ -371,6 +371,8 @@ describe("the mail server's address", () => {
     }
     for (const host of ["smtp.example.test", "8.8.8.8", "172.32.0.1", "[2606:4700:4700::1111]"]) expect(privateMailHost(host.replace(/^\[|\]$/g, "")), host).toBe(false);
     process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST = "1";
+    // A Docker service on the stack's own network, as a mail relay there would be.
+    answers["mail"] = ["172.18.0.5"];
     await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://mail:1025" });
     expect((await settingsInEffect()).ZIFFR_SMTP_URL).toBe("smtp://mail:1025");
   });
