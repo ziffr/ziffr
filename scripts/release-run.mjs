@@ -105,15 +105,12 @@ gh("workflow", "run", "ci.yml", "--ref", branch);
 for (let i = 0; ; i++) {
   if (i > 180) throw new Error(`The checks of ${url} did not finish within an hour.`);
   await pause(20_000);
-  let checks;
-  try {
-    checks = JSON.parse(gh("pr", "checks", number, "--json", "name,bucket,link"));
-  } catch {
-    continue; // none reported yet
-  }
-  const failed = checks.filter((c) => c.bucket === "fail" || c.bucket === "cancel");
-  if (failed.length) throw new Error(`A check of ${url} failed: ${failed.map((c) => `${c.name} ${c.link}`).join(", ")}. Fix it on main and press Release again.`);
-  if (REQUIRED.every((name) => checks.some((c) => c.name === name && c.bucket === "pass"))) break;
+  // Not `gh pr checks`: it exits 1 once a check fails and 8 while one runs, also with --json, so a failure looked
+  // like "nothing reported yet" and the run waited out the hour. `gh pr view` exits 0 whatever the checks say.
+  const checks = (JSON.parse(gh("pr", "view", number, "--json", "statusCheckRollup")).statusCheckRollup ?? []).filter((c) => c.__typename === "CheckRun");
+  const failed = checks.filter((c) => c.status === "COMPLETED" && !["SUCCESS", "NEUTRAL", "SKIPPED"].includes(c.conclusion));
+  if (failed.length) throw new Error(`A check of ${url} failed: ${failed.map((c) => `${c.name} ${c.detailsUrl}`).join(", ")}. Fix it on main and press Release again.`);
+  if (REQUIRED.every((name) => checks.some((c) => c.name === name && c.conclusion === "SUCCESS"))) break;
 }
 gh("pr", "merge", number, "--squash", "--delete-branch", "--match-head-commit", sha, "--subject", `Release ${version} (#${number})`);
 let mergeSha = "";

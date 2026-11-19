@@ -57,6 +57,18 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
+/** The Breakdown the page shows: the period asked for in `bp` if it has one, else the latest, and whether its rows add up. */
+function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[]>, bp: string | undefined, all: { period: string; value: number }[]) {
+  const bdPeriods = Object.keys(byPeriod).sort();
+  const bdPeriod = bp && byPeriod[bp] ? bp : bdPeriods[bdPeriods.length - 1];
+  const bdRows = bdPeriod ? [...byPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
+  const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
+  const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
+  // Rows that add up to nothing have no shares: 0 of 0 would show as "NaN %".
+  const bdAdds = bdTotal !== null && bdSum !== 0 && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
+  return { bdPeriods, bdPeriod, bdRows, bdSum, bdTotal, bdAdds };
+}
+
 /** One metric: its latest value, chart and comparisons, and tabs for analyses, targets, history and settings. */
 export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string }> }) {
   const { slug } = await params;
@@ -114,13 +126,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const { targets, projections } = await getSeriesValues([metric.id]);
   const tSeries = targets[metric.id] ?? [];
   const pSeries = projections[metric.id] ?? [];
-  const bdPeriods = Object.keys(bdByPeriod).sort();
-  const bdPeriod = sp.bp && bdByPeriod[sp.bp] ? sp.bp : bdPeriods[bdPeriods.length - 1];
-  const bdRows = bdPeriod ? [...bdByPeriod[bdPeriod]].sort((a, b) => b.value - a.value) : [];
-  const bdSum = bdRows.reduce((a, r) => a + r.value, 0);
-  const bdTotal = all.find((p) => p.period === bdPeriod)?.value ?? null;
-  // Rows that add up to nothing have no shares: 0 of 0 would show as "NaN %".
-  const bdAdds = bdTotal !== null && bdSum !== 0 && Math.abs(bdSum - bdTotal) <= Math.abs(bdTotal) * 0.02;
+  const { bdPeriods, bdPeriod, bdRows, bdSum, bdTotal, bdAdds } = breakdownShown(bdByPeriod, sp.bp, all);
   // Tables on this page read like the chart: oldest on top, newest at the bottom.
   const obs = (await getLastValues(metric.id, 12)).reverse();
   // Feeds are Submitters but nobody's colleague: the names of only those this page shows, as its Submitters or as
