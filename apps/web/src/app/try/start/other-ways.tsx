@@ -6,18 +6,44 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, KeyRound } from "lucide-react";
+import { Copy, Download, KeyRound } from "lucide-react";
+import { N8N_WORKFLOW_FILE, n8nFeedWorkflow } from "@ziffr/core/n8n-workflow";
 import type { GuideFeedKey, GuideFeedKeyResult } from "@ziffr/core/trial-guide";
 import { Button } from "@/components/ui/button";
 import { makeN8nKey } from "./actions";
 
 /** A line of text to copy, with its button. */
 function CopyLine({ text, label }: { text: string; label: string }) {
-  const copy = () => navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`), () => toast.message(text));
+  // A failed copy never repeats the text in a toast: for a key that would be the secret once more.
+  const copy = () => navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`), () => toast.error("Copying did not work: select the text instead."));
   return (
     <div className="mt-2 flex items-start gap-2">
       <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre rounded-[var(--radius-input)] border border-border bg-muted/40 px-2 py-1.5 text-xs">{text}</code>
       <Button type="button" variant="outline" size="sm" onClick={copy} aria-label={`Copy ${label.toLowerCase()}`}><Copy /> Copy</Button>
+    </div>
+  );
+}
+
+/** The ready n8n workflow with this Ziffr's address, the Metric and the key just made, built here in the browser from
+ * what the card already shows: nothing new is fetched or stored. */
+function N8nWorkflow({ siteUrl, metricSlug, feedKey }: { siteUrl: string; metricSlug: string; feedKey: string }) {
+  const json = JSON.stringify(n8nFeedWorkflow({ siteUrl, metricSlug, feedKey }), null, 2);
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: N8N_WORKFLOW_FILE });
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const copy = () => navigator.clipboard?.writeText(json).then(() => toast.success("Workflow copied"), () => toast.error("Copying did not work: download it instead."));
+  return (
+    <div className="mt-4">
+      <p className="font-medium">A ready n8n workflow</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={download}><Download /> Download the n8n workflow</Button>
+        <Button type="button" variant="outline" size="sm" onClick={copy}><Copy /> Copy it</Button>
+      </div>
+      <p className="mt-2">In n8n: open a new workflow, press Ctrl/Cmd+V or ⋯ → Import from file, then Execute workflow. The number appears in Ziffr.</p>
+      <p className="mt-1 text-xs text-muted-foreground">The key sits in the request&apos;s header so it works at once. For real use, keep it in an n8n credential (Header Auth) instead.</p>
     </div>
   );
 }
@@ -43,7 +69,9 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey }: {
   const endpoint = `${siteUrl}/api/v1/feed/observations`;
   const shown = secret ?? "<your key>";
   const body = JSON.stringify({ items: [{ metric: metric.slug, value: 3 }] });
-  const curl = `curl -X POST ${endpoint} -H "Authorization: Bearer ${shown}" -H "Content-Type: application/json" -d '${body}'`;
+  // The key comes from a variable, so it stays out of the shell's history and the process list.
+  const exportKey = `export ZIFFR_KEY='${shown}'`;
+  const curl = `curl -X POST ${endpoint} -H "Authorization: Bearer $ZIFFR_KEY" -H "Content-Type: application/json" -d '${body}'`;
   const question = `How many ${metric.name.toLowerCase()} did I record this week?`;
 
   return (
@@ -81,6 +109,7 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey }: {
             <div className="mt-3">
               <p className="font-medium">Your Feed Key, shown this once. Copy it now:</p>
               <CopyLine text={secret} label="Key" />
+              <N8nWorkflow siteUrl={siteUrl} metricSlug={metric.slug} feedKey={secret} />
             </div>
           )}
           {key && (
@@ -91,7 +120,8 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey }: {
                 <li>Authentication: Header Auth, name <code className="text-xs">Authorization</code>, value <code className="text-xs">Bearer {shown}</code></li>
                 <li>Body (JSON): <code className="text-xs">{body}</code></li>
               </ul>
-              <p className="mt-3 font-medium">Or try it at once in a terminal:</p>
+              <p className="mt-3 font-medium">Or try it at once in a terminal: set the key, then send a value.</p>
+              <CopyLine text={exportKey} label="Line" />
               <CopyLine text={curl} label="Command" />
             </>
           )}

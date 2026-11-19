@@ -7,7 +7,7 @@ import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { actorForSecret } from "./access-keys";
-import { submitFeedObservations } from "./feeds";
+import { addFeedToMetric, createFeed, createFeedKey, submitFeedObservations } from "./feeds";
 import { askTrialGuide, makeGuideFeedKey, dailyWay, finishTrialGuide, saveTrialGuide, trialGuide, trialGuidePending, trialGuideValue } from "./trial-guide";
 
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
@@ -151,5 +151,21 @@ describe("the Trial Guide", () => {
     await expect(makeGuideFeedKey({ ...owner, role: "admin", personId: `t-${randomUUID()}` })).rejects.toBeInstanceOf(Forbidden);
     const { count } = await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", owner.workspaceId);
     expect(count).toBe(0);
+  });
+
+  it("never takes over or revokes a Feed the Owner made themselves", async () => {
+    const owner = await newTrial();
+    const g = (await trialGuide(owner))!;
+    const own = await createFeed(owner, "My script");
+    await addFeedToMetric(owner, g.testMetric!.id, own.id);
+    const lastDay = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const ownKey = await createFeedKey(owner, own.id, { name: "script", expiresOn: lastDay });
+    expect((await trialGuide(owner))!.feedKey).toBeNull();
+    const made = await makeGuideFeedKey(owner, true);
+    expect(made.made).toBe(true);
+    // The Owner's own key still works, and the guide made a Feed of its own.
+    expect(await actorForSecret(ownKey.secret)).not.toBeNull();
+    const { count } = await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", owner.workspaceId);
+    expect(count).toBe(2);
   });
 });
