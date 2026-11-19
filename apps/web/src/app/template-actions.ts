@@ -3,6 +3,7 @@
 // (@ziffr/core/templates). Everyone uses them, only the creator changes them.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
+import { attempt } from "@/lib/action-result";
 import * as templates from "@ziffr/core/templates";
 import type { Choices } from "@ziffr/core/team-templates";
 import type { SlideShape } from "@ziffr/core/types";
@@ -11,26 +12,34 @@ const done = () => revalidatePath("/", "layout");
 
 /** Saves a slide of the viewer's own deck as a team slide layout. */
 export async function saveSlideLayout(input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
-  const id = await templates.saveSlideLayout(await currentActor(), input);
-  done();
-  return id;
+  return attempt(async () => {
+    const id = await templates.saveSlideLayout(await currentActor(), input);
+    done();
+    return id;
+  });
 }
 
 /** Saves a widget as a team template, new or replacing one of the viewer's own. */
 export async function saveTemplate(input: { widgetId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
-  const id = await templates.saveTemplate(await currentActor(), input);
-  done();
-  return id;
+  return attempt(async () => {
+    const id = await templates.saveTemplate(await currentActor(), input);
+    done();
+    return id;
+  });
 }
 
 /** Renames a template the viewer created. */
 export async function renameTemplate(id: number, name: string, description: string) {
-  await templates.renameTemplate(await currentActor(), Number(id), String(name ?? ""), String(description ?? ""));
-  done();
+  return attempt(async () => {
+    await templates.renameTemplate(await currentActor(), Number(id), String(name ?? ""), String(description ?? ""));
+    done();
+  });
 }
 
 /** Deletes a template the viewer created. */
 export async function deleteTemplate(id: number) {
-  await templates.deleteTemplate(await currentActor(), Number(id));
-  done();
+  return attempt(async () => {
+    await templates.deleteTemplate(await currentActor(), Number(id));
+    done();
+  });
 }

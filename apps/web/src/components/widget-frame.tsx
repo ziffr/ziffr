@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
+import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
 import { CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
@@ -103,23 +105,25 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
     if (!fills) return;
     start(async () => {
       try {
-        await applyTemplate(widget.id!, t.id, fills);
+        unwrap(await applyTemplate(widget.id!, t.id, fills));
       } catch (err) {
-        toast.error("Template not applied", { description: (err as Error).message });
+        toast.error("Template not applied", { description: shown(err) });
       }
     });
   };
   // The option under the pointer or focus in Change view, drawn beside the menu (spec 0011).
   const [look, setLook] = useState<{ kind: "builtin"; id: TemplateId } | { kind: "team"; t: WidgetTemplate } | null>(null);
-  const restyle = (template: TemplateId) => widget.id && start(() => updateWidget(widget.id!, { template }));
-  const setCompare = (keys: CompareKey[]) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, compare: keys } }));
+  // A change the core refuses says why; nothing else on the widget would.
+  const change = (patch: Parameters<typeof updateWidget>[1]) => start(async () => { told(await updateWidget(widget.id!, patch), "Not changed"); });
+  const restyle = (template: TemplateId) => widget.id && change({ template });
+  const setCompare = (keys: CompareKey[]) => widget.id && change({ settings: { ...widget.settings, compare: keys } });
   const setDisplay = (display: DisplayPeriod | undefined) => {
     if (!widget.id) return;
     const { display: _old, ...rest } = widget.settings;
     void _old;
-    start(() => updateWidget(widget.id!, { settings: display ? { ...rest, display } : rest }));
+    change({ settings: display ? { ...rest, display } : rest });
   };
-  const toggle = (key: keyof WidgetSettings) => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, [key]: !widget.settings[key] } }));
+  const toggle = (key: keyof WidgetSettings) => widget.id && change({ settings: { ...widget.settings, [key]: !widget.settings[key] } });
 
   // One item list, rendered both as right-click menu and ⋯ menu.
   const items = (K: typeof CM | typeof DM) => (
@@ -184,7 +188,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               );
             })}
             <K.Separator />
-            <K.Item onClick={() => widget.id && start(() => updateWidget(widget.id!, { settings: { ...widget.settings, fullPeriods: !widget.settings.fullPeriods } }))}>
+            <K.Item onClick={() => widget.id && change({ settings: { ...widget.settings, fullPeriods: !widget.settings.fullPeriods } })}>
               <Check aria-hidden className={widget.settings.fullPeriods ? "" : "invisible"} /> Full periods instead of to date
             </K.Item>
           </K.SubContent>
@@ -213,7 +217,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       <K.Item
         onClick={() => {
           const name = window.prompt("Save to your widgets as:", title ?? "My widget");
-          if (name) start(async () => { await saveToPool(source, name); toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
         }}
       >
         <BookmarkPlus /> Save as Widget
@@ -230,7 +234,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
           <K.SubContent>
             {targets.map((d) => (
-              <K.Item key={d.id} onClick={() => start(async () => { await placeWidget(d.id, source); toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
+              <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
             ))}
           </K.SubContent>
         </K.Sub>
@@ -239,7 +243,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {editable && widget.id && (
         <>
           <K.Separator />
-          <K.Item onClick={() => start(() => removeWidget(widget.id!))} className="text-destructive"><Trash2 /> Remove from dashboard</K.Item>
+          <K.Item onClick={() => start(async () => { told(await removeWidget(widget.id!), "Not removed"); })} className="text-destructive"><Trash2 /> Remove from dashboard</K.Item>
         </>
       )}
     </>
@@ -295,10 +299,10 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               onCancel={() => setLayoutOpen(false)}
               onSave={(settings, metricIds) => start(async () => {
                 try {
-                  await updateWidget(widget.id!, { settings, metricIds });
+                  unwrap(await updateWidget(widget.id!, { settings, metricIds }));
                   setLayoutOpen(false);
                 } catch (err) {
-                  toast.error("Layout not saved", { description: (err as Error).message });
+                  toast.error("Layout not saved", { description: shown(err) });
                 }
               })}
             />
@@ -314,7 +318,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               widget={widget}
               data={data}
               m={m}
-              onSave={(settings) => start(async () => { await updateWidget(widget.id!, { settings }); setPanel(null); })}
+              onSave={(settings) => start(async () => { if (told(await updateWidget(widget.id!, { settings }), "Not saved")) return; setPanel(null); })}
             />
           )}
           {panel === "ask" && m && (
@@ -431,6 +435,7 @@ function AskPanel({ kind, setKind, metric, data, initialPeriod, row, onDone }: {
         e.preventDefault();
         start(async () => {
           const id = await assignInPlace({ metricId: metric.id, period, assigneeId: assignee!, kind, text, due: kind === "task" ? due : null, breakdownLabel: row, via: via || null, readGroupId: readers ? Number(readers) : null });
+          if (told(id, kind === "task" ? "No Task assigned" : "No Question asked")) return;
           onDone(id, others.find((p) => p.id === assignee)?.name.split(" ")[0] ?? "");
         });
       }}

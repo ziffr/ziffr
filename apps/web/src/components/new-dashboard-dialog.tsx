@@ -6,6 +6,7 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,11 +46,11 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
   const ready = name.trim().length > 0 && (!t || fillsComplete(t.slots, fills));
   const make = () => start(async () => {
     try {
-      const id = t ? await createFromDashboardTemplate(t.id, name, fills) : await createDashboardNamed(name);
+      const id = unwrap(t ? await createFromDashboardTemplate(t.id, name, fills) : await createDashboardNamed(name));
       onOpenChange(false);
       router.push(`/dashboards/${id}`);
     } catch (e) {
-      toast.error("Not done", { description: (e as Error).message });
+      toast.error("Not done", { description: shown(e) });
     }
   });
   // Each choice is a card with a Preview drawn from Sample Data (#191), drawn once it scrolls into view.

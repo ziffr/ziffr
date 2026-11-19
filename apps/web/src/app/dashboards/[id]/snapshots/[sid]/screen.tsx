@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { ArrowRight, Camera, Check, Eye, Link2, Pencil, Presentation, Trash2 } from "lucide-react";
 import { deleteSnapshot, editSnapshotWords, showSnapshot } from "@/app/snapshot-actions";
 import { makeDeckFromSnapshot } from "@/app/convert-actions";
@@ -47,9 +48,9 @@ export function SnapshotScreen({ snapshot: s, takenBy, canCreate = false, viewLi
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => {
-    try { await f(); if (ok) toast.success(ok); router.refresh(); } catch (err) {
+    try { unwrap(await f()); if (ok) toast.success(ok); router.refresh(); } catch (err) {
       if ((err as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw err;
-      toast.error("Not done", { description: (err as Error).message });
+      toast.error("Not done", { description: shown(err) });
     }
   });
 

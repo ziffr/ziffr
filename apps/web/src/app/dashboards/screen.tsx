@@ -35,6 +35,7 @@ import type { SnapshotSummary } from "@ziffr/core/snapshots";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 
 type Props = {
   data: CanvasData;
@@ -84,6 +85,10 @@ export function DashboardScreen(props: Props) {
 function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
+  // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
+  const act = (f: () => Promise<unknown>, ok?: string) => start(async () => {
+    try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); }
+  });
   const { width, containerRef, mounted } = useContainerWidth();
   const editable = current?.role === "owner" || current?.role === "editor";
   // A dashboard opens to look at; its owner and Editors switch into editing on purpose. An empty one they may change
@@ -111,14 +116,14 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const persist = (l: Layout) => {
     const items = l.filter((it) => it.i !== "__dropping-elem__").map(({ i, x, y, w, h }) => ({ i, x, y, w, h }));
     setLayout(items);
-    if (current && changing) start(() => saveLayout(current.id, items));
+    if (current && changing) act(() => saveLayout(current.id, items));
   };
   const slotFill = useSlotFill(data);
   /** Templates ask for their slots first, then land like any other drop. */
   const place = async (s: DropSource, pos?: { x: number; y: number }) => {
     if (!current) return;
     const c = await slotFill.complete(s);
-    if (c) start(() => placeWidget(current.id, c, pos));
+    if (c) act(() => placeWidget(current.id, c, pos));
   };
   const add = (s: DropSource) => place(s);
 
@@ -177,7 +182,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
                 menu={canCreate ? [
-                  { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => start(() => makeDeck(current.id)) },
+                  { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => act(() => makeDeck(current.id)) },
                   ...(editable && widgets.length ? [{ label: "Save as template", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true) }] : []),
                 ] : undefined}
               >
@@ -185,7 +190,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   type="button"
                   aria-pressed={current.id === homeId}
                   title={current.id === homeId ? "Ziffr opens on this dashboard" : "Open Ziffr on this dashboard"}
-                  onClick={() => start(async () => { await setHome(current.id); toast.success(`${current.name} is your home`); router.refresh(); })}
+                  onClick={() => act(async () => { unwrap(await setHome(current.id)); toast.success(`${current.name} is your home`); router.refresh(); })}
                   disabled={current.id === homeId}
                   className={buttonVariants({ variant: "outline" })}
                 >
@@ -258,7 +263,7 @@ function DashboardText({ id, name: savedName, intro: savedIntro }: { id: number;
   const [pending, start] = useTransition();
   const changed = name !== savedName || intro !== savedIntro;
   const save = () => start(async () => {
-    try { await saveDashboardText(id, { name, intro }); toast.success("Saved"); router.refresh(); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+    try { unwrap(await saveDashboardText(id, { name, intro })); toast.success("Saved"); router.refresh(); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
   });
   return (
     <div className="mt-3 max-w-3xl space-y-2">

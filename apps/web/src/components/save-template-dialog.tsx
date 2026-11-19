@@ -3,6 +3,7 @@
 // become slots; notes tied to one period or row can follow a rule instead, or are left out.
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,11 +81,11 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
             e.preventDefault();
             start(async () => {
               try {
-                await submit({ name, description, labels, choices, replaceId });
+                unwrap(await submit({ name, description, labels, choices, replaceId }));
                 toast.success(replaceId ? `${noun[0].toUpperCase()}${noun.slice(1)} replaced` : `${noun[0].toUpperCase()}${noun.slice(1)} saved`, { description: kind === "slide" ? "Find it under + Slide in any deck." : "Find it under Templates in the Pool, or in Change view." });
                 onClose();
               } catch (err) {
-                toast.error(`${noun[0].toUpperCase()}${noun.slice(1)} not saved`, { description: (err as Error).message });
+                toast.error(`${noun[0].toUpperCase()}${noun.slice(1)} not saved`, { description: shown(err) });
               }
             });
           }}

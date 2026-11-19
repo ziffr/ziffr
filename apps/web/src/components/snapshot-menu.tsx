@@ -4,6 +4,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Camera, ChevronDown, Repeat } from "lucide-react";
 import { setAutoSnapshots, takeSnapshot } from "@/app/snapshot-actions";
 import { Input } from "@/components/ui/input";
@@ -89,10 +90,10 @@ function TakeDialog({ dashboardId, yearStart, onClose }: { dashboardId: number; 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={pending} onClick={() => run(async () => {
-            try { await takeSnapshot(dashboardId, kind, start); } catch (err) {
+            try { unwrap(await takeSnapshot(dashboardId, kind, start)); } catch (err) {
               // A redirect after taking it is not a failure.
               if ((err as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw err;
-              toast.error("No Snapshot taken", { description: (err as Error).message });
+              toast.error("No Snapshot taken", { description: shown(err) });
             }
           })}>Take Snapshot</Button>
         </div>
@@ -129,8 +130,8 @@ function AutoDialog({ dashboardId, auto, onClose }: { dashboardId: number; auto:
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={pending} onClick={() => run(async () => {
-            try { await setAutoSnapshots(dashboardId, kind || null, Number(wait)); toast.success(kind ? `A Snapshot of every ${every(kind as SnapshotPeriodKind)} is taken by itself` : "Snapshots are taken by hand only"); onClose(); router.refresh(); }
-            catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+            try { unwrap(await setAutoSnapshots(dashboardId, kind || null, Number(wait))); toast.success(kind ? `A Snapshot of every ${every(kind as SnapshotPeriodKind)} is taken by itself` : "Snapshots are taken by hand only"); onClose(); router.refresh(); }
+            catch (err) { toast.error("Not saved", { description: shown(err) }); }
           })}>Save</Button>
         </div>
       </DialogContent>

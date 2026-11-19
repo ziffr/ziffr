@@ -2,6 +2,7 @@
 // Access Keys (GLOSSARY: Access Key) in the workspace settings (spec 0006): a person's own keys, and for Owners every key of the workspace.
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
   const [scopes, setScopes] = useState<Scope[]>(["metrics:read"]);
   const [expires, setExpires] = useState(inDays(90));
   const [secret, setSecret] = useState<string | null>(null);
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   return (
     <section aria-labelledby="keys-heading" className="space-y-3 border-t border-border pt-6">
       <div>
@@ -63,7 +64,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
           ))}
         </ul>
       )}
-      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(await createKey({ name, scopes, expiresOn: expires })); setName(""); }, "Key created"); }}>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(unwrap(await createKey({ name, scopes, expiresOn: expires }))); setName(""); }, "Key created"); }}>
         <label className="text-xs text-muted-foreground">Name<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Shop export" className="mt-1 w-48" /></label>
         {/* A key may create Metrics or build dashboards only if its creator may (Guests may not); the core refuses it too. */}
         {(Object.keys(SCOPE_LABEL) as Scope[]).filter((s) => canCreate || !CREATING_SCOPES.includes(s)).map((s) => (

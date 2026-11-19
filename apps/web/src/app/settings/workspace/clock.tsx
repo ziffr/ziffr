@@ -3,6 +3,7 @@
 // counted in and the hour its Workflows run each morning. Owners and Admins change it; others see it.
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { setWorkspaceClock } from "@/app/team-actions";
 
@@ -26,7 +27,7 @@ export function WorkspaceClock({ timeZone, runHour, canEdit }: { timeZone: strin
         <p className="text-sm text-muted-foreground">Which day it is for this team, and the hour its Workflows ask, remind and escalate each morning.</p>
       </div>
       {canEdit ? (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); start(async () => { try { await setWorkspaceClock({ timeZone: zone, runHour: hour }); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); } }); }}>
+        <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); start(async () => { try { unwrap(await setWorkspaceClock({ timeZone: zone, runHour: hour })); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } }); }}>
           <label className="text-xs text-muted-foreground">Time zone
             <select value={zone} onChange={(e) => setZone(e.target.value)} className={`${field} mt-1 block`}>{(zones.includes(zone) ? zones : [zone, ...zones]).map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}</select>
           </label>

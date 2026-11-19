@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Copy, GitBranch, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,8 +55,8 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
       ]
     : [];
 
-  const act = (f: () => Promise<unknown>, ok: string) => start(async () => {
-    try { await f(); toast.success(ok); router.refresh(); } catch (err) { toast.error("Not done", { description: (err as Error).message }); }
+  const act = (f: () => Promise<unknown>, ok?: string) => start(async () => {
+    try { unwrap(await f()); if (ok) toast.success(ok); router.refresh(); } catch (err) { toast.error("Not done", { description: shown(err) }); }
   });
 
   return (
@@ -142,9 +143,9 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
           )}
           <div className="flex flex-wrap gap-1 border-t border-border pt-3">
             {can && !current.is_default && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(() => setDefaultTheme(current.id), `${current.name} is now the team default`)}><Star aria-hidden /> Make team default</Button>}
-            {can && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => start(async () => { const id = await duplicateTheme(current.id); router.push(`/themes?id=${id}`); })}><Copy aria-hidden /> Duplicate</Button>}
+            {can && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(async () => { const id = unwrap(await duplicateTheme(current.id)); router.push(`/themes?id=${id}`); })}><Copy aria-hidden /> Duplicate</Button>}
             <Button type="button" variant="ghost" size="sm" onClick={() => setVersions(true)}><GitBranch aria-hidden /> Versions</Button>
-            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete the theme ${current.name}?`, description: "Dashboards and decks that use it switch to the team default.", confirmLabel: "Delete theme" })) start(async () => { await deleteTheme(current.id); router.push("/themes"); }); }}><Trash2 aria-hidden /> Delete</Button>}
+            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete the theme ${current.name}?`, description: "Dashboards and decks that use it switch to the team default.", confirmLabel: "Delete theme" })) act(async () => { unwrap(await deleteTheme(current.id)); router.push("/themes"); }); }}><Trash2 aria-hidden /> Delete</Button>}
           </div>
         </form>
 

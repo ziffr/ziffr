@@ -2,6 +2,8 @@
 // The slide part of a Theme (GLOSSARY: Theme): what every slide of a deck shows, previewed at slide size.
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+// The browser's own words for an image it will not take, shown as a refusal.
+import { Refused, shown } from "@/lib/action-error";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { MasterArt } from "@/decks/master";
 import { SLIDE_H, SLIDE_W } from "@/decks/layouts";
@@ -35,8 +37,8 @@ export function SlidePreview({ design }: { design: SlideDesign }) {
 
 function readImage(file: File, max: number): Promise<{ url: string; ratio: number }> {
   return new Promise((resolve, reject) => {
-    if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) return reject(new Error("Use a PNG, JPEG, WebP or SVG image."));
-    if (file.size > max) return reject(new Error(`Use an image under ${Math.round(max / 1_000_000)} MB.`));
+    if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) return reject(new Refused("Use a PNG, JPEG, WebP or SVG image."));
+    if (file.size > max) return reject(new Refused(`Use an image under ${Math.round(max / 1_000_000)} MB.`));
     const r = new FileReader();
     r.onload = () => {
       const url = String(r.result);
@@ -45,7 +47,7 @@ function readImage(file: File, max: number): Promise<{ url: string; ratio: numbe
       img.onerror = () => resolve({ url, ratio: 3 });
       img.src = url;
     };
-    r.onerror = () => reject(new Error("Could not read the file."));
+    r.onerror = () => reject(new Refused("Could not read the file."));
     r.readAsDataURL(file);
   });
 }
@@ -60,7 +62,7 @@ export function SlidesEditor({ s, onChange }: { s: ThemeSlides; onChange: (s: Th
       const { url, ratio } = await readImage(f, kind === "logo" ? 1_000_000 : 2_000_000);
       onChange(kind === "logo" ? { ...s, logo: url, logo_ratio: ratio } : { ...s, background_image: url });
     } catch (err) {
-      toast.error("Image not added", { description: (err as Error).message });
+      toast.error("Image not added", { description: shown(err) });
     }
   };
   return (

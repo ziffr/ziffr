@@ -3,6 +3,7 @@
 // with its Workspace, what it may do, when it was made, last used and ends, and Disconnect.
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { disconnectAssistant } from "@/app/assistant-actions";
 import type { MyConnection } from "@ziffr/core/assistant-connections";
@@ -16,7 +17,7 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle:
 export function Connections({ connections, address }: { connections: MyConnection[]; address: string | null }) {
   const [pending, start] = useTransition();
   const disconnect = (c: MyConnection) => start(async () => {
-    try { await disconnectAssistant(c.id); toast.success(`${c.name} disconnected`); } catch (e) { toast.error("Not done", { description: (e as Error).message }); }
+    try { unwrap(await disconnectAssistant(c.id)); toast.success(`${c.name} disconnected`); } catch (e) { toast.error("Not done", { description: shown(e) }); }
   });
   return (
     <section className="space-y-3">

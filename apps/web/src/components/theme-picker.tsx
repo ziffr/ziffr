@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { Palette } from "lucide-react";
+import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import type { Theme } from "@ziffr/core/types";
 
+/** `onChange` saves the pick; a refusal it answers is shown in a toast. */
 export function ThemePicker({ themes, value, onChange, disabled }: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown>; disabled?: boolean }) {
   const [pending, start] = useTransition();
   const def = themes.find((t) => t.is_default);
@@ -16,7 +19,7 @@ export function ThemePicker({ themes, value, onChange, disabled }: { themes: The
         <select
           value={value ?? ""}
           disabled={disabled || pending}
-          onChange={(e) => { const v = e.target.value ? Number(e.target.value) : null; start(async () => { await onChange(v); }); }}
+          onChange={(e) => { const v = e.target.value ? Number(e.target.value) : null; start(async () => { try { unwrap(await onChange(v)); } catch (err) { toast.error("Theme not changed", { description: shown(err) }); } }); }}
           className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2"
         >
           <option value="">{def ? `${def.name} (team default)` : "Team default"}</option>

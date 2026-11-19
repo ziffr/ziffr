@@ -267,7 +267,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
         {editor && <GroupButtons editor={editor} />}
-        <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); await setDeckTheme(deck.id, id); }} />
+        <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); return setDeckTheme(deck.id, id); }} />
         <WhoCanSee type="deck" id={deck.id} people={data.people} />
         {sharing && <ViewLinks type="deck" id={deck.id} />}
         {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}

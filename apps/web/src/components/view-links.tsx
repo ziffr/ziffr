@@ -2,6 +2,8 @@
 // View Links (GLOSSARY: View Link): the owner makes a link for someone outside, with an end date, live or frozen.
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
+import { told } from "@/lib/action-toast";
 import { Copy, Link2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -51,7 +53,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
             <DialogDescription>For someone outside the team, such as a board member or an investor. They see this {type} and nothing else, cannot change or ask anything, and no login is needed.</DialogDescription>
             <form
               className="space-y-3 text-sm"
-              onSubmit={(e) => { e.preventDefault(); start(async () => { try { const t = await createViewLink(type, id, input()); setLabel(""); await load(); copy(t); } catch (err) { toast.error("No link made", { description: (err as Error).message }); } }); }}
+              onSubmit={(e) => { e.preventDefault(); start(async () => { try { const t = unwrap(await createViewLink(type, id, input())); setLabel(""); await load(); copy(t); } catch (err) { toast.error("No link made", { description: shown(err) }); } }); }}
             >
               <div className="grid grid-cols-[minmax(0,1fr)_10rem] gap-2">
                 <label className="block"><span className="mb-1 block text-xs font-medium">For</span><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Advisory board, Q4" /></label>
@@ -84,7 +86,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
                       <span className="block text-xs text-muted-foreground">{l.snapshotLabel ? `Snapshot of ${l.snapshotLabel}` : l.frozen ? "Frozen numbers" : "Live numbers"},{l.revoked ? "revoked" : `until ${formatDate(l.expires_at)}`}</span>
                     </span>
                     {!ended && <Button size="sm" variant="ghost" onClick={() => copy(l.token)}><Copy aria-hidden /> Copy</Button>}
-                    {!ended && <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => start(async () => { await revokeViewLink(l.id); await load(); toast.success("Link revoked"); })}>Revoke</Button>}
+                    {!ended && <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => start(async () => { if (told(await revokeViewLink(l.id), "Not revoked")) return; await load(); toast.success("Link revoked"); })}>Revoke</Button>}
                   </li>
                 );
               })}

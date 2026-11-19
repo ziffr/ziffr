@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: { people: Profile[]; contacts: Profile[]; groups: Group[]; canEdit: boolean; viewer: string; away: { user_id: string; starts: string; ends: string }[] }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const { confirm, dialog } = useConfirm();
 
   return (
@@ -64,7 +65,7 @@ export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: 
         </table>
       </div>
       {canEdit ? (
-        <form className="flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { await createGroup(name); setName(""); }, "Group created"); }}>
+        <form className="flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { unwrap(await createGroup(name)); setName(""); }, "Group created"); }}>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New group, e.g. Finance" aria-label="New group name" />
           <Button type="submit" variant="outline" disabled={pending || !name.trim()}><Plus aria-hidden /> Add</Button>
         </form>
@@ -81,7 +82,7 @@ function Contacts({ contacts, canEdit }: { contacts: Profile[]; canEdit: boolean
   const [pending, start] = useTransition();
   const empty = { name: "", email: "", slackHandle: "", phone: "" };
   const [form, setForm] = useState(empty);
-  const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { await f(); toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { unwrap(await f()); toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const { confirm, dialog } = useConfirm();
   const field = (key: keyof typeof empty, label: string, placeholder: string, type = "text") => (
     <label className="block text-xs text-muted-foreground">
@@ -114,7 +115,7 @@ function Contacts({ contacts, canEdit }: { contacts: Profile[]; canEdit: boolean
         <p className="text-sm text-muted-foreground">No contacts yet.</p>
       )}
       {canEdit && (
-        <form className="grid max-w-2xl gap-2 sm:grid-cols-4" onSubmit={(e) => { e.preventDefault(); run(async () => { await addContact(form); setForm(empty); }, "Contact added"); }}>
+        <form className="grid max-w-2xl gap-2 sm:grid-cols-4" onSubmit={(e) => { e.preventDefault(); run(async () => { unwrap(await addContact(form)); setForm(empty); }, "Contact added"); }}>
           {field("name", "Name", "e.g. Cleo Brandt")}
           {field("email", "Email", "cleo@example.com", "email")}
           {field("slackHandle", "Slack handle", "@cleo")}
@@ -131,7 +132,7 @@ export function AwayDates({ userId, current, can }: { userId: string; current?: 
   const [starts, setStarts] = useState(current?.starts ?? "");
   const [ends, setEnds] = useState(current?.ends ?? "");
   const [pending, start] = useTransition();
-  const save = (s: string, e: string) => start(async () => { try { await setAway(userId, s || null, e || null); if (s && e) toast.success("Away dates saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); } });
+  const save = (s: string, e: string) => start(async () => { try { unwrap(await setAway(userId, s || null, e || null)); if (s && e) toast.success("Away dates saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } });
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-1.5 text-xs disabled:opacity-60";
   return (
     <span className="flex items-center gap-1 text-xs text-muted-foreground">
