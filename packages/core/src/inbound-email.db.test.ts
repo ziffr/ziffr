@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
-import { newText, parseInbound, receiveEmail, senderVerified } from "./inbound-email";
+import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderVerified, type InboundEmail } from "./inbound-email";
 import { connectorsView } from "./page-data";
 import { ask } from "./questions";
 import type { SubmissionEffects } from "./submissions";
@@ -167,5 +167,21 @@ describe("replies by email", () => {
     } finally {
       delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
     }
+  });
+});
+
+describe("a flood of mail", () => {
+  const unknownFrom = (from: string, verified: boolean, n: number): InboundEmail => ({ tokens: ["x".repeat(31) + String(n % 10)], from, text: "1", messageId: null, automatic: false, verified });
+  it("takes at most INBOUND_PER_SENDER messages an hour from one sender, before any reply token is looked up", async () => {
+    const from = address("flood");
+    for (let i = 0; i < INBOUND_PER_SENDER; i++) expect(await receiveEmail(unknownFrom(from, false, i))).toBe("unknown_token");
+    expect(await receiveEmail(unknownFrom(from, false, 99))).toBe("limited");
+    // Mail the provider vouched for, from that same address, has a bucket of its own: a forged flood in someone's name
+    // never uses up theirs.
+    expect(await receiveEmail(unknownFrom(from, true, 1))).toBe("unknown_token");
+    // Mail without a sender counts against nobody.
+    expect(await receiveEmail({ ...unknownFrom(from, false, 2), from: null })).toBe("wrong_sender");
+    // Nor does it hold back anyone else.
+    expect(await receiveEmail(unknownFrom(address("other"), false, 1))).toBe("unknown_token");
   });
 });
