@@ -4,6 +4,7 @@
 // may do and until when. Approving makes an Access Key of the kind assistant. A request from an unknown assistant or
 // to an address it did not register, or any other error, is shown here and never redirected.
 import { headers } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { checkAuthorizationRequest, claimOAuthRequest, DEFAULT_CONNECTION_DAYS, OAuthError, type AuthorizationRequest } from "@ziffr/core/assistant-connections";
 import { networkAddress } from "@ziffr/core/sign-in-limits";
@@ -45,7 +46,17 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
     return <Message title="This connection cannot go on">{e.message}</Message>;
   }
   const personId = await viewerId();
-  const [workspaces, current] = await Promise.all([myWorkspaces(personId), currentWorkspaceId()]);
+  // Someone with no workspace yet would otherwise be sent on to start one, and this request would be lost on the way.
+  // Say so instead: the assistant starts a fresh request once they have one.
+  const workspaces = await myWorkspaces(personId);
+  if (!workspaces.length) {
+    return (
+      <Message title="Start a workspace first">
+        An assistant connects to one of your workspaces, and you have none here yet. <Link href="/welcome" className="underline">Start a workspace</Link>, then press Connect in your assistant again.
+      </Message>
+    );
+  }
+  const current = await currentWorkspaceId();
   const target = new URL(request.redirectUri);
   return (
     <ConsentForm
