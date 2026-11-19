@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 import { createFeed, createFeedKey, deleteFeed, renameFeed, revokeFeedKey } from "@/app/feed-actions";
 import type { FeedInfo } from "@ziffr/core/feeds";
 import type { AccessLogEntry } from "@ziffr/core/access-log";
+import { callTime, RecentCalls } from "@/components/recent-calls";
 import { formatDate } from "@ziffr/core/format";
 
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 /** The workspace's Feeds and a form to make one. */
 export function Feeds({ feeds, logs }: { feeds: FeedInfo[]; logs: Record<number, AccessLogEntry[]> }) {
@@ -58,7 +58,7 @@ function FeedCard({ feed: f, logs, pending, run }: { feed: FeedInfo; logs: Recor
             <Button size="sm" variant="ghost" type="button" onClick={() => setRenaming(null)}>Cancel</Button>
           </form>
         )}
-        <span className="text-muted-foreground">{f.last_call ? `last call ${when(f.last_call)}` : "no calls yet"}</span>
+        <span className="text-muted-foreground">{f.last_call ? `last call ${callTime(f.last_call)}` : "no calls yet"}</span>
         <span className="text-muted-foreground">last 24 hours: {f.recorded_today} recorded{f.refused_today ? <>, <span className="text-destructive">{f.refused_today} refused</span></> : null}</span>
         <button type="button" disabled={pending} onClick={() => { if (confirm(`Delete the Feed “${f.name}”? Its keys stop at once; its values stay.`)) run(() => deleteFeed(f.id), "Feed deleted"); }} aria-label={`Delete ${f.name}`} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
       </div>
@@ -73,19 +73,7 @@ function FeedCard({ feed: f, logs, pending, run }: { feed: FeedInfo; logs: Recor
               {!k.revoked && (
                 <button type="button" aria-label={`Revoke ${k.name}`} disabled={pending} onClick={() => run(() => revokeFeedKey(k.id), "Key revoked")} className="ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
               )}
-              <details className="w-full text-xs">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">{logs[k.id]?.length ? `Recent calls (last ${when(logs[k.id][0].at)})` : "No calls yet"}</summary>
-                {!!logs[k.id]?.length && (
-                  <table className="mt-2 w-full max-w-xl">
-                    <thead className="text-left text-muted-foreground"><tr><th className="font-normal">When</th><th className="font-normal">Call</th><th className="font-normal">Result</th></tr></thead>
-                    <tbody>
-                      {logs[k.id].map((c, i) => (
-                        <tr key={i}><td className="pr-3">{when(c.at)}</td><td className="pr-3 font-mono">{c.method} {c.route}</td><td className={c.status >= 400 ? "text-destructive" : undefined}>{c.status}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </details>
+              <RecentCalls calls={logs[k.id]} />
             </li>
           ))}
         </ul>

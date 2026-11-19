@@ -3,8 +3,9 @@
 // form or Slack, with an optional Idempotency-Key and at most 1,000 values a day per key.
 import { admitValues, once, submitObservation, VALUES_PER_DAY, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listObservations } from "@ziffr/core/api";
-import { ApiError, errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
-import { IdempotencyKey, ObservationList, observationsQuery, slugParam, SubmissionAnswer, SubmitObservation } from "../../../schemas";
+import { errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
+import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
+import { ObservationList, observationsQuery, slugParam, SubmissionAnswer, SubmitObservation } from "../../../schemas";
 
 type Ctx = { params: Promise<{ slug: string }> };
 
@@ -20,8 +21,7 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
  * Idempotency-Key with another body. */
 export const POST = keyRoute("values:submit", async (actor, req, ctx: Ctx) => {
   const slug = slugParam.parse((await ctx.params).slug);
-  const idem = req.headers.get("idempotency-key");
-  if (idem !== null && !IdempotencyKey.safeParse(idem).success) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
+  const idem = idempotencyKey(req);
   const input = SubmitObservation.parse(await jsonBody(req));
   let retryAfter: number | null = null;
   const answer = async (): Promise<StoredAnswer> => {
@@ -37,13 +37,6 @@ export const POST = keyRoute("values:submit", async (actor, req, ctx: Ctx) => {
     return errorBody("unprocessable", r.detail);
   };
   const result = idem === null ? await answer() : await once(actor, idem, { slug, ...input }, answer);
-  if ("conflict" in result) {
-    return json(errorBody("conflict", result.conflict === "in_progress" ? "A submission with this Idempotency-Key is still running." : "This Idempotency-Key was used with another body.").body, 409);
-  }
-  const headers: Record<string, string> = {};
-  if (retryAfter !== null) headers["retry-after"] = String(retryAfter);
-  if ("replayed" in result && result.replayed) headers["idempotent-replayed"] = "true";
   // Counted towards the daily limit only when a value was taken now, not when a stored answer is replayed.
-  else if (result.status === 201) headers["x-ziffr-submitted"] = "1";
-  return json(result.body, result.status, headers);
+  return idempotentAnswer(result, "submission", retryAfter, "status" in result && result.status === 201 ? { "x-ziffr-submitted": "1" } : {});
 });

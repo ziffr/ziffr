@@ -5,21 +5,12 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
-import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows, uploadSeries as coreUploadSeries } from "@ziffr/core/metrics";
+import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
 export async function saveSeriesRows(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
   return attempt(async () => {
     const r = await coreSaveSeriesRows(await currentActor(), Number(metricId), kind, rows, String(note ?? ""));
-    revalidatePath("/", "layout");
-    return r;
-  });
-}
-
-/** The Metric's owner or an Editor uploads a Target Series or Projection, one "period value" line each. */
-export async function uploadSeries(metricId: number, kind: "target" | "projection", text: string, note: string) {
-  return attempt(async () => {
-    const r = await coreUploadSeries(await currentActor(), Number(metricId), kind, String(text ?? ""), String(note ?? ""));
     revalidatePath("/", "layout");
     return r;
   });

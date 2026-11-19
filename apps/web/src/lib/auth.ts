@@ -62,7 +62,7 @@ const PROVES_EMAIL = new Set(["email", "google"]);
 
 /** The account's address if it is proven: confirmed, and from a way of signing in that proves it. The one rule for
  * claiming a person, accepting an email Invitation and Domain Joining; null otherwise. */
-export function provenEmail(user: { email?: string | null; email_confirmed_at?: string | null; app_metadata?: Record<string, unknown> }): string | null {
+function provenEmail(user: { email?: string | null; email_confirmed_at?: string | null; app_metadata?: Record<string, unknown> }): string | null {
   const provider = String(user.app_metadata?.provider ?? "");
   return user.email && user.email_confirmed_at && PROVES_EMAIL.has(provider) ? user.email.toLowerCase() : null;
 }

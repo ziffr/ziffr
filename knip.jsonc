@@ -1,0 +1,23 @@
+// knip (#177, CONTRIBUTING "Code health"): no unused file, export, type or dependency. `pnpm health` runs it, and CI
+// fails on any finding. Something kept on purpose is listed here, with the reason.
+{
+  "$schema": "https://unpkg.com/knip@6.45.1/schema.json",
+  "workspaces": {
+    ".": {
+      // Scripts people and workflows run by path, and the self-hosting image's steps (docker/Dockerfile).
+      "entry": ["scripts/*.mjs", ".github/scripts/*.mjs", "docker/*.mjs"],
+      // scripts/code-health.mjs runs each package's own ESLint, from inside that package.
+      "ignoreBinaries": ["eslint"]
+    },
+    "apps/web": {
+      // The service worker is served from public/ and registered by its address, not imported.
+      "entry": ["public/sw.js"],
+      // The UI kit (shadcn): its components export every part, used or not, so a new screen can take them as they are.
+      "ignore": ["src/components/ui/**"],
+      // eslint-config-next is loaded by name through FlatCompat (eslint.config.mjs); flag-icons is the source of the
+      // flags copied into public/flags (NOTICE), kept so its version and licence stay on record.
+      "ignoreDependencies": ["eslint-config-next", "flag-icons"]
+    },
+    "packages/*": {}
+  }
+}

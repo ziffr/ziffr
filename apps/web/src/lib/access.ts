@@ -6,9 +6,7 @@ import { cache } from "react";
 import * as access from "@ziffr/core/access";
 import type { Metric } from "@ziffr/core/types";
 
-export type { DashboardAccess, DeckAccess, ObjectType, Audience } from "@ziffr/core/access";
-/** Who may read a Thread; pure, in the core. */
-export const threadReader = access.threadReader;
+export type { DashboardAccess, ObjectType } from "@ziffr/core/access";
 /** Every Metric drawn on a deck; pure, in the core. */
 export { deckMetricIds } from "@ziffr/core/visibility";
 
@@ -20,7 +18,7 @@ export const getGroups = cache(async () => access.getGroups(await ws()));
 /** Shares as stored, for the Share dialog. */
 export const getRawShares = cache(async () => access.getRawShares(await ws()));
 /** Shares per person, Groups expanded. */
-export const getShares = cache(async () => access.getShares(await ws()));
+const getShares = cache(async () => access.getShares(await ws()));
 /** The Actions this viewer may read. */
 export const readableActions = async (viewer: string, filter?: { metricId?: number }) => access.readableActions(await ws(), viewer, filter);
 /** Dashboards the viewer owns or that were shared with them. */
@@ -33,5 +31,3 @@ export const visibleMetricIds = async (viewer: string, metrics: Metric[]) => acc
 export const getCanvasData = async (viewer: string, seriesOf?: access.SeriesOf) => access.getCanvasData(await ws(), viewer, { seriesOf });
 /** What sharing these Metrics would show each person or Group that they cannot see on their own. */
 export const revealedBy = async (metricIds: number[], ownerId: string) => access.revealedBy(await ws(), metricIds, ownerId);
-/** Everyone who can see something, and why. */
-export const audience = async (type: access.ObjectType, id: number, viewer: string) => access.audience(await ws(), type, id, viewer);

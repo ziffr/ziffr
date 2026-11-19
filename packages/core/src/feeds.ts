@@ -6,7 +6,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { FEED_SCOPE, Forbidden, type Actor, type FeedActor } from "./actor";
-import { hash } from "./access-keys";
+import { insertKey } from "./internal/key-store";
 import { REFUSED } from "./api-submissions";
 import { audit } from "./audit-log";
 import { normalizeMetric } from "./metric-row";
@@ -181,21 +181,9 @@ export async function createFeedKey(actor: Actor, feedId: string, input: { name:
   const expires = String(input?.expiresOn ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires <= today() || expires > latest) throw new Error("Pick an end date within a year.");
   const name = cleanName(input?.name) || `${feed.name} key`;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const prefix = randomBytes(6).toString("hex");
-    const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
-    const { data, error } = await db().from("access_keys").insert({
-      workspace_id: actor.workspaceId, created_by: actor.personId, feed_id: feed.person_id, name, prefix, secret_hash: hash(secret), scopes: [FEED_SCOPE], expires_on: expires,
-    }).select("id, expires_on").single();
-    if (data) {
-      await audit(actor, { kind: "feed.key_created", object: { type: "feed", id: feed.person_id, name: feed.name }, details: { key: name, expires_on: data.expires_on } });
-      return { id: data.id, secret };
-    }
-    const limit = trialLimitMessage(error?.code);
-    if (limit) throw new Error(limit);
-    if (error?.code !== "23505") break;
-  }
-  throw new Error("The key could not be created.");
+  const key = await insertKey({ workspace_id: actor.workspaceId, created_by: actor.personId, feed_id: feed.person_id, name, scopes: [FEED_SCOPE], expires_on: expires });
+  await audit(actor, { kind: "feed.key_created", object: { type: "feed", id: feed.person_id, name: feed.name }, details: { key: name, expires_on: key.expires_on } });
+  return { id: key.id, secret: key.secret };
 }
 
 /** Revokes a Feed Key (Owners and Admins); it stops at once. */

@@ -1,0 +1,8 @@
+{
+  "path": ["apps", "packages"],
+  "format": ["typescript", "tsx"],
+  "ignore": ["**/node_modules/**", "**/.next/**", "**/.next-*/**", "**/dist/**", "**/coverage/**", "**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+  "minTokens": 50,
+  "minLines": 5,
+  "gitignore": true
+}

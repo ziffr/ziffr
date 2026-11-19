@@ -57,6 +57,17 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 
 `pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path. Every night and before a release, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
 
+## Code health
+
+Three checks keep the code from growing what nobody needs. `pnpm health` runs the first two, `pnpm lint` the third, and CI's `check` job and `pnpm ci:local` run both. Each fails on a new finding, never on an old one:
+- **Nothing unused.** [knip](https://knip.dev) finds files, exports, types and dependencies nothing uses, and dependencies used but not listed (`knip.jsonc`). Remove what it finds. An exported server action is a way into the app even when no screen calls it, so an unused one goes. Something kept on purpose, such as the UI kit's parts, goes in `knip.jsonc` with the reason.
+- **No more duplication.** [jscpd](https://github.com/kucherenko/jscpd) measures copied code in TypeScript and TSX, tests and docs left out (`.jscpd.json`). Neither format may have a higher share of copied lines than its ceiling in `scripts/code-health.mjs`. Above it, the script lists the clones: merge the new copy into a function both places call. When two pieces only look alike, say so in the pull request and leave them.
+- **No more complexity.** ESLint's `complexity` and `max-lines-per-function` hold every function to the ceilings in `eslint.code-health.mjs`, today's worst. `pnpm health:worst` lists the most complex and longest functions.
+
+A ceiling only goes down. When the worst one gets better, lower the number in the same pull request.
+
+Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks for a simplification pass over the whole code base: merge duplicates, shrink the most complex functions, remove dead paths. Spec 0022's verification is its safety net, as for any change: the references, mutation testing, the same number everywhere. A change that alters any number fails.
+
 ## Pull requests
 
 - One concern per pull request; small is better.

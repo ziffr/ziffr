@@ -69,8 +69,8 @@ export const TEST_METRIC = {
 /** One value to record: a past period is an Import, the current one an ordinary value. */
 export type StartingValue = { slug: string; period: string; value: number; imported: boolean; breakdown?: { label: string; value: number }[] };
 
-// mulberry32: a tiny seeded generator, the same numbers for the same seed.
-function seeded(seed: number) {
+/** mulberry32: a tiny seeded generator of numbers from 0 to 1, the same numbers for the same seed (Sample Data uses it too). */
+export function seeded(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;

@@ -39,7 +39,7 @@ export function useConfirm() {
 }
 
 /** The dialog itself; most callers use `useConfirm` instead. */
-export function ConfirmDialog({ title, description, confirmLabel, destructive = true, onAnswer }: ConfirmOptions & { onAnswer: (ok: boolean) => void }) {
+function ConfirmDialog({ title, description, confirmLabel, destructive = true, onAnswer }: ConfirmOptions & { onAnswer: (ok: boolean) => void }) {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onAnswer(false); }}>
       <DialogContent role="alertdialog" showCloseButton={false} className="sm:max-w-md">

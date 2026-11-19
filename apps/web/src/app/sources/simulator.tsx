@@ -138,7 +138,7 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
   rejected_not_a_period: { label: "Asked back: not one of the metric's periods", ok: false },
 };
 
-export function Outcome({ entry, metricName }: { entry: IntakeEntry; metricName?: string }) {
+function Outcome({ entry, metricName }: { entry: IntakeEntry; metricName?: string }) {
   const o = OUTCOME[entry.outcome] ?? { label: entry.outcome, ok: false };
   return (
     <div className={cn("mt-1 rounded-md border px-2 py-1 text-xs", o.ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5")}>

@@ -12,7 +12,6 @@ import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { DesignView } from "./design-view";
 import { DesignBoundary } from "./design-boundary";
 
-export { ApprovalMark } from "./approval-mark";
 
 // tldraw is browser-only; free layouts load it on demand.
 const LayoutView = dynamic(() => import("@/canvas/layout-view"), { ssr: false });

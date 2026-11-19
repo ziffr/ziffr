@@ -1,6 +1,6 @@
 "use server";
 // Decks (GLOSSARY: Deck, Share): thin calls into the core (@ziffr/core/decks). A deck's owner and its Editors change
-// it; Viewers only present it; only the owner deletes it.
+// it; Viewers only present it.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
@@ -23,13 +23,6 @@ export async function saveDeck(id: number, document: unknown) {
 export async function renameDeck(id: number, name: string) {
   await decks.renameDeck(await currentActor(), Number(id), String(name ?? ""));
   revalidatePath("/decks");
-}
-
-/** Deletes a deck. */
-export async function deleteDeck(id: number) {
-  await decks.deleteDeck(await currentActor(), Number(id));
-  revalidatePath("/decks");
-  redirect("/decks");
 }
 
 /** The deck's own footer; null uses the theme's. */

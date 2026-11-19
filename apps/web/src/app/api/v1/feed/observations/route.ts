@@ -4,8 +4,9 @@
 // One batch runs at a time per Feed; the claim is one locked database step, so parallel requests cannot pass it.
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { claimFeedBatch, FEED_VALUES_PER_DAY, finishFeedBatch, submitFeedObservations } from "@ziffr/core/feeds";
-import { ApiError, errorBody, feedRoute, json, jsonBody } from "@/lib/api";
-import { FeedBatch, FeedBatchAnswer, IdempotencyKey } from "../../schemas";
+import { errorBody, feedRoute, jsonBody } from "@/lib/api";
+import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
+import { FeedBatch, FeedBatchAnswer } from "../../schemas";
 
 /** A batch of 500 values with Breakdowns fits in this. */
 const MAX_BATCH_BODY = 1024 * 1024;
@@ -13,8 +14,7 @@ const MAX_BATCH_BODY = 1024 * 1024;
 /** Records a batch. 200 with a result per item; 409 for a reused Idempotency-Key with another body; 429 when the day's
  * limit would be crossed. */
 export const POST = feedRoute(async (feed, req) => {
-  const idem = req.headers.get("idempotency-key");
-  if (idem !== null && !IdempotencyKey.safeParse(idem).success) throw new ApiError("invalid_request", "Idempotency-Key: 1 to 200 visible ASCII characters.");
+  const idem = idempotencyKey(req);
   const { items } = FeedBatch.parse(await jsonBody(req, MAX_BATCH_BODY));
   let retryAfter: number | null = null;
   let taken = 0;
@@ -38,13 +38,6 @@ export const POST = feedRoute(async (feed, req) => {
     }
   };
   const result = idem === null ? await answer() : await once(feed, idem, { endpoint: "feed_batch", items }, answer);
-  if ("conflict" in result) {
-    return json(errorBody("conflict", result.conflict === "in_progress" ? "A batch with this Idempotency-Key is still running." : "This Idempotency-Key was used with another body.").body, 409);
-  }
-  const headers: Record<string, string> = {};
-  if (retryAfter !== null) headers["retry-after"] = String(retryAfter);
-  if ("replayed" in result && result.replayed) headers["idempotent-replayed"] = "true";
   // Counted towards the day's limit only for values taken now, not when a stored answer is replayed.
-  else if (taken) headers["x-ziffr-submitted"] = String(taken);
-  return json(result.body, result.status, headers);
+  return idempotentAnswer(result, "batch", retryAfter, taken ? { "x-ziffr-submitted": String(taken) } : {});
 });

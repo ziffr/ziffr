@@ -3,7 +3,8 @@
 // queued, claimed in the database within limits, retried by the job. Only to the Slack user a member or Contact of
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
-import { FORM_LINK, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
+import { failForGood, withFormLink } from "./internal/delivery-send";
+import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
@@ -46,10 +47,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     .eq("id", id).eq("connector", "slack").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!d) return "skipped";
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
-  const never = async (why: string) => {
-    await db().from("deliveries").update({ mail_state: "failed", last_error: why }).eq("id", id).eq("mail_state", "queued");
-    return "failed" as const;
-  };
+  const never = (why: string) => failForGood(id, why);
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
@@ -80,13 +78,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   if (error) throw new Error("The Slack message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
   if (claim !== "ok") return "skipped";
-  let text = String(d.body);
-  // A Prompt's personal form link goes only into the message, never into the body the Outbox shows its sender.
-  if (text.includes(FORM_LINK)) {
-    const { data: token } = d.form_token_id ? await db().from("tokens").select("code").eq("id", d.form_token_id).eq("workspace_id", d.workspace_id).maybeSingle() : { data: null };
-    const site = String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "");
-    text = text.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
-  }
+  const text = await withFormLink(String(d.body), d, String(process.env.ZIFFR_SITE_URL));
   const actions = await buttons(d);
   const blocks = [{ type: "section", text: { type: "mrkdwn", text: text.slice(0, 2900) } }, ...(actions.length ? [{ type: "actions", block_id: "ziffr", elements: actions }] : [])];
   try {

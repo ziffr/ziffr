@@ -18,7 +18,7 @@ const ROW = 36;
 const GAP = 16;
 
 /** The size in pixels a widget of `w` × `h` grid cells has on a dashboard. */
-export function cellsToPixels(size: { w: number; h: number }) {
+function cellsToPixels(size: { w: number; h: number }) {
   return { width: size.w * COL + (size.w - 1) * GAP, height: size.h * ROW + (size.h - 1) * GAP };
 }
 

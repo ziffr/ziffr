@@ -2,19 +2,20 @@
 // and ending on a set day. A key acts as its creator, with the creator's current role, and can do no more than its
 // scopes allow; it stops when it ends, when it is revoked, or when its creator is no longer a member. Only a hash of
 // the secret is stored; the secret is shown once.
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
+import { hash, insertKey } from "./internal/key-store";
 import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { trialEnded, trialLimitMessage } from "./trials";
+import { trialEnded } from "./trials";
 import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
 const DAY = 86_400_000;
-/** The stored form of a secret: its SHA-256, never the secret. */
-export const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
+/** The stored form of a secret: its SHA-256, never the secret (kept with the key store). */
+export { hash };
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
@@ -44,26 +45,13 @@ export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknow
  * within a year. Returns the secret, which is shown this once. */
 export async function createAccessKey(actor: Actor, input: { name: string; scopes: Scope[]; expiresOn: string }): Promise<{ id: number; secret: string }> {
   const { scopes, expires } = checkKeyRequest(actor, input.scopes, input.expiresOn);
-  // A taken prefix is all but impossible (48 random bits); one more try covers it.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const prefix = randomBytes(6).toString("hex");
-    const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
-    const { data, error } = await db().from("access_keys").insert({
-      workspace_id: actor.workspaceId, created_by: actor.personId, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key",
-      prefix, secret_hash: hash(secret), scopes, expires_on: expires,
-    }).select("id, expires_on").single();
-    if (data) {
-      // The name, scopes and end only: never the secret, its hash or its prefix.
-      await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: data.id, name: String(input.name ?? "").trim().slice(0, 80) || "Unnamed key" }, details: { scopes, expires_on: data.expires_on } });
-      return { id: data.id, secret };
-    }
-    // A trial's limit (spec 0021) says which one it is.
-    const limit = trialLimitMessage(error?.code);
-    if (limit) throw new Error(limit);
-    if (error?.code !== "23505") break;
-  }
-  throw new Error("The key could not be created.");
+  const name = String(input.name ?? "").trim().slice(0, 80) || "Unnamed key";
+  const key = await insertKey({ workspace_id: actor.workspaceId, created_by: actor.personId, name, scopes, expires_on: expires });
+  // The name, scopes and end only: never the secret, its hash or its prefix.
+  await audit(actor, { kind: "access_key.created", object: { type: "access_key", id: key.id, name }, details: { scopes, expires_on: key.expires_on } });
+  return { id: key.id, secret: key.secret };
 }
+
 
 /** The keys the actor may see: their own, or every key of the workspace for Owners and Admins (who see a key and its
  * Access Log, but only Owners may revoke another person's key). */
