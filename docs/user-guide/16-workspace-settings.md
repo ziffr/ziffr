@@ -341,7 +341,7 @@ In a **Trial Workspace**, at most two Access Keys work at a time, and none works
 | **Read metrics** | The program may read the Metrics you may see |
 | **Submit values** | It may send in values where you may |
 | **Create metrics** | It may create Metrics owned by you, and delete a Metric you own. Not offered to Guests. |
-| **Change metrics** | It may change the Target Range, Target Series and Projections of the Metrics you own or edit, and the Unusual Value check of the Workflows you own. Not offered to Guests. |
+| **Change metrics** | It may change the Target Range, Target Series, Projections, Sources and Submitters of the Metrics you own or edit, and the Unusual Value check of the Workflows you own. Not offered to Guests. |
 | **Read dashboards** | It may read the dashboards you may see |
 | **Build dashboards** | It may build dashboards as you. Not offered to Guests. |
 | **Until** | The last day the key works, through the end of that day in UTC. At most a year ahead. |

@@ -22,9 +22,17 @@ export type Metric = {
   target_max: number | null;
   /** How its Attainment is computed: by ratio or by distance to the target; null follows the workspace's default. */
   attainment_method: "ratio" | "distance" | null;
+  /** Its Sources: the ways values may arrive. The personal form link works apart from them. */
+  sources: Source[];
   /** A Derived Metric: computed from others, takes no values. */
   derived: boolean;
 };
+
+/** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
+export type Source = "web_form" | "mail" | "slack" | "telegram" | "api";
+
+/** One of a Metric's Submitters: a person, a Contact or a Feed, by id and name. */
+export type Submitter = { id: string; name: string; kind: "person" | "contact" | "feed" };
 
 /** One labelled part of a value (GLOSSARY: Breakdown). */
 export type BreakdownRow = { label: string; value: number };
@@ -66,11 +74,17 @@ export type NewMetric = {
   target_max?: number | null;
   attainment_method?: Metric["attainment_method"];
   submit?: boolean;
+  /** Its Sources; left out, every one. */
+  sources?: Source[];
+  /** Who submits: ids from `people` and `feeds`, at most 20; each gets a first Prompt. Needs scope metrics:edit too. */
+  submitters?: string[];
 };
 
 /** What `metrics.update` may change of a Metric (scope metrics:edit): its Polarity, Target Range and Attainment method.
  * Each part left out stays; null clears an end of the Target Range or the Metric's own method. */
 export type MetricPatch = {
+  /** Its Sources, all of them: the ones left out are turned off. */
+  sources?: Source[];
   polarity?: "higher" | "lower" | "target";
   target_min?: number | null;
   target_max?: number | null;
@@ -239,6 +253,12 @@ export class Ziffr {
     /** Changes a Metric's Polarity, Target Range or Attainment method (scope metrics:edit), when
      * the key's creator owns it or is its Editor. Answers the Metric as it is now. */
     update: async (slug: string, patch: MetricPatch): Promise<Metric> => (await this.request<Metric>("PATCH", `/metrics/${encodeURIComponent(slug)}`, undefined, patch)).body,
+    /** Who submits to a Metric (scope metrics:read). */
+    submitters: async (slug: string): Promise<Submitter[]> => (await this.get<{ items: Submitter[] }>(`/metrics/${encodeURIComponent(slug)}/submitters`)).items,
+    /** Adds and removes up to 20 Submitters each (scope metrics:edit), when the key's creator owns the Metric or is its
+     * Editor. Each person added gets a first Prompt. Answers who submits now. */
+    setSubmitters: async (slug: string, change: { add?: string[]; remove?: string[] }): Promise<{ items: Submitter[]; added: number; removed: number }> =>
+      (await this.request<{ items: Submitter[]; added: number; removed: number }>("POST", `/metrics/${encodeURIComponent(slug)}/submitters`, undefined, change)).body,
     /** What makes a value unusual in the Metric's Workflow (scope metrics:read). */
     unusualValueCheck: (slug: string) => this.get<UnusualValueCheck>(`/metrics/${encodeURIComponent(slug)}/unusual-value-check`),
     /** Changes the check step of the Metric's Workflow, and so of every Metric sharing it (scope metrics:edit); only
@@ -280,6 +300,9 @@ export class Ziffr {
     /** Everyone, page by page. */
     all: () => this.every<Person>((cursor) => this.people.list({ cursor, limit: 100 })),
   };
+
+  /** The workspace's live Feeds by id and name, to name one as a Submitter (scope metrics:edit). */
+  feeds = async (): Promise<{ id: string; name: string }[]> => (await this.get<{ items: { id: string; name: string }[] }>("/feeds")).items;
 
   /** The workspace's Groups. */
   readonly groups = {

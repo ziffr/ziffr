@@ -153,7 +153,7 @@ In the assistant, add a connector with your Ziffr's address followed by `/mcp`, 
 | **says it is "…"** | The name the assistant gave itself. Any program can give itself any name, so check that you started this from that assistant just now. |
 | **you go back to …** | Where Ziffr sends you after you answer. For an assistant on your own computer, a note says that any program there could claim its name. |
 | **Workspace** | The one Workspace the assistant works in. |
-| **It may** | What it may do: read metrics and their values, submit values, create metrics, change metrics (targets, Target Series, Projections and the Unusual Value check), read dashboards, build dashboards. Only reading is ticked to begin with. Guests cannot let it create anything. |
+| **It may** | What it may do: read metrics and their values, submit values, create metrics, change metrics (targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them), read dashboards, build dashboards. Only reading is ticked to begin with. Guests cannot let it create anything. |
 | **Until** | The last day it works, 90 days from now unless you pick another, at most a year. |
 | **Connect** / **Cancel** | Connect makes the connection and sends you back to the assistant; Cancel tells the assistant no. |
 
@@ -176,6 +176,7 @@ Ziffr offers the assistant a few **Starters**, ready-made requests you pick inst
 | **Record values** (`record_values`) | Takes a sentence such as "3 coffees today, 12 signups this week", shows which Metric and period each number would go to, and records them once you agree. |
 | **Build a dashboard** (`build_dashboard`) | Proposes one dashboard on a topic you name, from your Metrics and the team's Dashboard Templates, and builds it only once you agree. You get its link. |
 | **Explain a Metric** (`explain_metric`) | Explains one Metric: what it measures, its values over time and where it is heading. It only reads. |
+| **Start tracking** (`start_tracking`) | Sets up a new Metric with you: its name, how often, its unit and target, how its values come in and who sends them. It shows you the whole Metric and creates it once you agree. |
 | **Set targets** (`set_targets`) | Takes a sentence such as "budget 5000 a month for revenue in 2027", shows which Metric gets which Target Range, Target Series or Projection for which periods, and sets them once you agree. It can also change when a value counts as unusual. |
 
 Where to find them:
@@ -190,20 +191,20 @@ A Starter is only words for the assistant. It can do nothing you could not ask f
 You do not need a Starter. Some examples:
 
 - **Reading:** "What was revenue in March?", "Which Metrics are below their target this month?", "How did weekly signups develop over the last quarter, compared with a year ago?"
-- **Recording:** "Record 42 orders for this month.", "I sold 3 coffees today and 5 yesterday.", "Start tracking weekly signups."
+- **Recording:** "Record 42 orders for this month.", "I sold 3 coffees today and 5 yesterday.", "Start tracking weekly signups; Ann sends them by Slack.", "Let the CRM Feed send in orders too."
 - **Targets:** "Revenue should stay between 40,000 and 60,000 a month.", "Flag orders as unusual when they change more than 25 %.", "Our budget for signups is 500 in January, 550 in February and 600 in March.", "Our forecast says 70,000 revenue next quarter: add it as a Projection."
 - **Dashboards:** "Make a dashboard for sales from the one-metric template.", "Add a line of churn to my Customers dashboard."
 
 #### What the assistant may do, if you let it
 
 - **Submit values:** record values for the Metrics you submit to. A value follows the Metric's rules like yours: it may wait for an Approval, or be refused in a locked period.
-- **Create metrics:** create Metrics owned by you. It can also delete a Metric you own, with all its values, when you ask and confirm the Metric's name. That cannot be undone, so leave this unticked unless you need it.
-- **Change metrics:** change the **Target Range** (the range a value should be in), the Polarity and the Attainment method, the **Target Series** and the **Projections** of the Metrics you own or are an Editor of. A Projection is only for the current period or a later one. It can also change when a value counts as an **Unusual Value**, in the check of a Workflow you own. That Workflow may be shared by several Metrics, and the change applies to all of them: the assistant tells you which Workflow and how many Metrics before it changes anything.
+- **Create metrics:** create Metrics owned by you. Before it creates one, it asks you how the values should come in (the Metric's **Sources**: web form, email, Slack, Telegram or programs) and who sends them (its **Submitters**), unless you already said. It can also delete a Metric you own, with all its values, when you ask and confirm the Metric's name. That cannot be undone, so leave this unticked unless you need it.
+- **Change metrics:** change the **Target Range** (the range a value should be in), the Polarity and the Attainment method, the **Target Series** and the **Projections** of the Metrics you own or are an Editor of. A Projection is only for the current period or a later one. It can also change when a value counts as an **Unusual Value**, in the check of a Workflow you own. That Workflow may be shared by several Metrics, and the change applies to all of them: the assistant tells you which Workflow and how many Metrics before it changes anything. It can also change a Metric's Sources and add or remove its Submitters, up to 20 at a time. Each person it adds is asked for the value at once, the way they chose to be asked, so it names them to you first. Nobody is asked this way more than once a day for a Metric, or five times a day in all.
 - **Build dashboards:** make dashboards, and change the dashboards you may change yourself, not only the ones it made. Every change is in the dashboard's history under its name, so you can restore what came before.
 
 #### What the assistant cannot do
 
 - It sees no more than you do, and only what you let it when you connected it: if you ticked only reading, it cannot record, change or build anything, whatever it tries. As a Guest, you cannot let it create or change anything.
-- It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period, Workflow or Submitters, adds or removes a Workflow's steps, or changes settings.
+- It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period or Workflow, adds or removes a Workflow's steps, or changes settings.
 - Everything it does shows in the Access Log.
 - It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.

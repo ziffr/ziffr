@@ -44,6 +44,8 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | `metrics.create({ name, period, unit, submit, ... }, { idempotencyKey })` | `POST /api/v1/metrics` |
 | `metrics.update(slug, { target_min, target_max, polarity, attainment_method })` | `PATCH /api/v1/metrics/{slug}` |
 | `targetSeries.list(slug)`, `targetSeries.set(slug, [{ period, value }])` | `GET`, `POST /api/v1/metrics/{slug}/target-series` (value null removes a period) |
+| `metrics.submitters(slug)`, `metrics.setSubmitters(slug, { add, remove })` | `GET`, `POST /api/v1/metrics/{slug}/submitters` (people and Contacts from `people`, Feeds from `feeds()`) |
+| `feeds()` | `GET /api/v1/feeds`: live Feeds to name as Submitters |
 | `metrics.unusualValueCheck(slug)`, `metrics.setUnusualValueCheck(slug, { change_pct, outside_target })` | `GET`, `PATCH /api/v1/metrics/{slug}/unusual-value-check`: the check step of the Metric's Workflow, shared by its Metrics |
 | `projections.list(slug)`, `projections.set(slug, [{ period, value }])` | `GET`, `POST /api/v1/metrics/{slug}/projections` (the current period or later) |
 | `observations.list(slug, { from, to, limit, cursor })`, `observations.all(slug, { from, to })` | `GET /api/v1/metrics/{slug}/observations` |

@@ -318,6 +318,49 @@ async function upsertSeries(metricId: number, kind: "target" | "projection", row
   return ok.length;
 }
 
+/** Most Submitters one change adds or removes: each one added gets a first Prompt, so a change never floods people. */
+export const SUBMITTERS_PER_CHANGE = 20;
+
+/** Person ids as a browser or a program sends them: strings, each once, at most SUBMITTERS_PER_CHANGE. */
+function submitterIds(ids: unknown): string[] {
+  if (!Array.isArray(ids) || ids.length > SUBMITTERS_PER_CHANGE || !ids.every((x) => typeof x === "string" && x.length > 0 && x.length <= 64)) {
+    throw new Error(`Name 1 to ${SUBMITTERS_PER_CHANGE} people.`);
+  }
+  return [...new Set(ids as string[])];
+}
+
+/** Makes people Submitters of a Metric, for its owner and its Editors (GLOSSARY: Submitter): Members, Guests or
+ * Contacts of the workspace, each with a Token and a first Prompt, as when a Metric is created with them. Someone who
+ * already submits is left alone. Feeds are added with addFeedToMetric. Returns who was added. */
+export async function addSubmitters(actor: Actor, metricId: number, personIds: unknown, effects: MetricEffects = metricEffects): Promise<string[]> {
+  const m = await editableMetric(actor, metricId, "who submits");
+  if (m.formula) throw new Error("A Derived Metric is computed; it takes no values.");
+  const ids = submitterIds(personIds);
+  await assertSubmittersIn(actor, ids);
+  const { data: has } = await db().from("tokens").select("submitter_id").eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("submitter_id", ids).is("stands_in_for", null);
+  const already = new Set((has ?? []).map((t) => t.submitter_id as string));
+  const added = ids.filter((id) => !already.has(id));
+  if (!added.length) return [];
+  // A Token code opens the submission form without signing in: random, never derived from names.
+  const { error } = await db().from("tokens").insert(added.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: m.id, submitter_id: s })));
+  if (error) throw new Error("The Submitters could not be added.");
+  for (const s of added) await effects.promptSubmitter(m.id, s, actor.personId);
+  await recordVersion("metric", m.id, actor.personId, { message: added.length === 1 ? "Added a Submitter" : `Added ${added.length} Submitters` });
+  return added;
+}
+
+/** Stops people submitting to a Metric, for its owner and its Editors: their Tokens go, and those of anyone standing
+ * in for them on it. Their earlier values stay. Returns who was removed. */
+export async function removeSubmitters(actor: Actor, metricId: number, personIds: unknown): Promise<string[]> {
+  const m = await editableMetric(actor, metricId, "who submits");
+  const ids = submitterIds(personIds);
+  const { data: gone } = await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("submitter_id", ids).is("stands_in_for", null).select("submitter_id");
+  await db().from("tokens").delete().eq("metric_id", m.id).eq("workspace_id", actor.workspaceId).in("stands_in_for", ids);
+  const removed = [...new Set((gone ?? []).map((t) => t.submitter_id as string))];
+  if (removed.length) await recordVersion("metric", m.id, actor.personId, { message: removed.length === 1 ? "Removed a Submitter" : `Removed ${removed.length} Submitters` });
+  return removed;
+}
+
 /** The ways values of a Metric may arrive (its Sources), for its owner and its Editors: any of web form, email, Slack and the API (programs and Feeds), at least
  * one. A Derived Metric has none (it is computed). Values arriving another way are refused from then on. */
 export async function setMetricSources(actor: Actor, metricId: number, sources: unknown): Promise<SourceId[]> {

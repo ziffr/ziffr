@@ -28,9 +28,10 @@ export const ENDPOINTS: Endpoint[] = [
   {
     method: "post", path: "/metrics", scope: "metrics:write", body: S.CreateMetric, idempotent: true, ok: { status: 201, name: "Metric", schema: S.MetricDescription },
     summary: "Create a Metric",
-    description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. Each key may create 50 Metrics in any 24 hours.",
+    description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well. Each key may create 50 Metrics in any 24 hours.",
     errors: [
-      { status: 403, description: "Or the key's creator's role may not create Metrics (Guests)." },
+      { status: 403, description: "Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit." },
+      { status: 422, description: "A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
     ],
   },
@@ -49,11 +50,11 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     method: "patch", path: "/metrics/{slug}", scope: "metrics:edit", body: S.UpdateMetric, ok: { status: 200, name: "Metric", schema: S.MetricDescription },
-    summary: "Change a Metric's Target Range",
-    description: "Changes a Metric's Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.",
+    summary: "Change a Metric's Target Range or Sources",
+    description: "Changes a Metric's Sources (all of them: the ones left out are turned off), Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.",
     errors: [
       { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
-      { status: 422, description: "The lower target is above the upper one; nothing was changed." },
+      { status: 422, description: "The lower target is above the upper one, or Sources for a Derived Metric; nothing was changed." },
     ],
   },
   {
@@ -98,6 +99,23 @@ export const ENDPOINTS: Endpoint[] = [
       { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
       { status: 422, description: "A period that is not one of the Metric's period starts, or one that is over; nothing was written." },
     ],
+  },
+  {
+    method: "get", path: "/metrics/{slug}/submitters", scope: "metrics:read", ok: { status: 200, name: "SubmitterList", schema: S.SubmitterList },
+    summary: "List a Metric's Submitters", description: "Who sends in the Metric's values: people, Contacts and Feeds, by id, name and kind. Never contact details, and not their Stand-ins.",
+  },
+  {
+    method: "post", path: "/metrics/{slug}/submitters", scope: "metrics:edit", body: S.ChangeSubmitters, ok: { status: 200, name: "SubmittersChanged", schema: S.SubmittersChanged },
+    summary: "Change a Metric's Submitters",
+    description: "Adds and removes up to 20 Submitters each, as the key's creator, only when they own the Metric or are its Editor, as on its page. A person or Contact added gets a Token and a first Prompt, unless already asked for this Metric in the last 24 hours or five times that day; a Feed added turns the API Source on. Removing one ends their Token and their Stand-ins' on it; earlier values stay. Everything is checked first.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
+      { status: 422, description: "An id that is not one of the workspace's people, Contacts or Feeds, or a Derived Metric; nothing was changed." },
+    ],
+  },
+  {
+    method: "get", path: "/feeds", scope: "metrics:edit", ok: { status: 200, name: "FeedList", schema: S.FeedList },
+    summary: "List Feeds", description: "The workspace's live Feeds by id and name, to name one as a Submitter. Not /feed, which a Feed Key uses.",
   },
   {
     method: "get", path: "/metrics/{slug}/unusual-value-check", scope: "metrics:read", ok: { status: 200, name: "UnusualValueCheck", schema: S.UnusualValueCheck },

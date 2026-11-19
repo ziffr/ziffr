@@ -9,7 +9,9 @@
 import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
 import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
-import { createMetric, deleteMetric, metricEffects, removeSeriesRows, saveSeriesRows, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
+import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, metricEffects, removeSeriesRows, removeSubmitters, saveSeriesRows, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
+import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
+import { peopleIn } from "./submissions";
 import { yearStartFor } from "./fiscal-year";
 import { withVersionNote } from "./versions";
 import { setWorkflowCheck } from "./workflows";
@@ -19,7 +21,7 @@ import { normalizeMetric } from "./metric-row";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { getMetrics, getSeriesValues } from "./workspace-data";
 import { visibleMetricIds } from "./access";
-import type { Metric } from "./types";
+import type { Metric, SourceId } from "./types";
 
 /** Metrics one key may create in any 24 hours; the database enforces it (migration 20261116090000). */
 export const METRICS_PER_DAY = 50;
@@ -43,28 +45,87 @@ export type ApiMetricInput = {
   target_max?: number | null;
   attainment_method?: string | null;
   submit?: boolean;
+  /** Its Sources; left out, every one, as in the form. */
+  sources?: string[];
+  /** Who submits: ids of people, Contacts or Feeds (list_people, list_feeds). Needs metrics:edit as well, since each
+   * gets a first Prompt. */
+  submitters?: string[];
 };
 
+/** First Prompts a key may set off for one person in 24 hours, over all Metrics: a Submitter added through a key is
+ * asked at once only within this, so a looping program cannot flood anyone (from Ziffr's own address, with a Metric
+ * name the program chose). Beyond it they are still a Submitter, asked when their Workflow next asks. */
+export const FIRST_PROMPTS_PER_PERSON_PER_DAY = 5;
+
+/** The first Prompt for a Submitter a key added: only when the database grants a claim (claim_first_prompt), which
+ * is refused when this person was asked for this Metric in the last 24 hours (adding and removing them again asks
+ * nobody twice) or was claimed FIRST_PROMPTS_PER_PERSON_PER_DAY times in this workspace. Check and reservation are one
+ * step under a lock, so parallel calls cannot each pass. */
+function keyPrompts(workspaceId: string, effects: MetricEffects): MetricEffects["promptSubmitter"] {
+  return async (metricId, submitterId, by) => {
+    const { data, error } = await db().rpc("claim_first_prompt", { p_workspace: workspaceId, p_submitter: submitterId, p_metric: metricId, p_limit: FIRST_PROMPTS_PER_PERSON_PER_DAY });
+    if (error) throw new Error("The first Prompt could not be checked.");
+    if (data === true) await effects.promptSubmitter(metricId, submitterId, by);
+  };
+}
+
+/** Every Source a Metric may have, in the order the app shows them. */
+export const SOURCE_IDS: SourceId[] = ["web_form", "mail", "slack", "telegram", "api"];
+
+/** Sources a program sent: known ones, each once, at least one. */
+function sourcesFrom(sources: unknown): SourceId[] {
+  const chosen = Array.isArray(sources) ? [...new Set(sources.filter((s): s is SourceId => SOURCE_IDS.includes(s as SourceId)))] : [];
+  if (!chosen.length || chosen.length !== new Set(sources as unknown[]).size) throw new MetricChangeRefused(`Name 1 to ${SOURCE_IDS.length} Sources from ${SOURCE_IDS.join(", ")}.`);
+  return chosen;
+}
+
+/** Submitter ids split into the workspace's live Feeds and people, checked before anything changes: people must be
+ * Members, Guests or Contacts of the workspace, and an id that is neither is refused without saying which it is not. */
+async function splitSubmitters(creator: Actor, ids: unknown): Promise<{ people: string[]; feeds: string[] }> {
+  if (!Array.isArray(ids) || ids.length > SUBMITTERS_PER_CHANGE || !ids.every((x) => typeof x === "string" && x.length > 0 && x.length <= 64)) {
+    throw new MetricChangeRefused(`Name at most ${SUBMITTERS_PER_CHANGE} Submitters by their ids.`);
+  }
+  const wanted = [...new Set(ids as string[])];
+  if (!wanted.length) return { people: [], feeds: [] };
+  const { data } = await db().from("feeds").select("person_id").eq("workspace_id", creator.workspaceId).is("deleted_at", null).in("person_id", wanted);
+  const feedIds = new Set((data ?? []).map((f) => f.person_id as string));
+  const people = wanted.filter((id) => !feedIds.has(id));
+  try {
+    await assertSubmittersIn(creator, people);
+  } catch {
+    throw new MetricChangeRefused("Submitters must be people, Contacts or Feeds of this workspace, by the ids list_people and list_feeds give.");
+  }
+  return { people, feeds: [...feedIds] };
+}
+
 /** Creates a Metric owned by the key's creator (scope metrics:write) and returns it as programs see it. Refused when
- * the creator's current role may not create (Guests), and in the demo. */
+ * the creator's current role may not create (Guests), and in the demo. With `submitters`, the key needs metrics:edit
+ * too: each one gets a first Prompt, so naming others reaches people. Everything is checked before the Metric exists. */
 export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMetricInput, effects: MetricEffects = metricEffects): Promise<ApiMetric> {
   assertScope(actor, "metrics:write");
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   // The key's creator, with their role as it is now (actorForKey reads it on every call).
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
+  const sources = input.sources === undefined ? SOURCE_IDS : sourcesFrom(input.sources);
+  const named = input.submitters ?? [];
+  if (named.length) assertScope(actor, "metrics:edit");
+  const { people, feeds } = await splitSubmitters(creator, named);
   const keyName = actor.key ? await nameOf(actor) : null;
   const { id } = await createMetric(creator, {
     name: String(input?.name ?? ""),
     description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format, decimals: input.decimals, period: input.period,
     submissionRule: input.submission_rule, polarity: input.polarity, aggregation: input.aggregation,
     targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
-    // As in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
-    sources: ["web_form", "mail", "slack", "telegram", "api"],
-    submitters: input.submit ? [actor.personId] : [],
+    // Left out, as in the form: every way Ziffr knows, the API among them, so the key can submit to it at once.
+    sources,
+    submitters: [...new Set([...(input.submit ? [actor.personId] : []), ...people])],
   }, {
     ...effects,
+    promptSubmitter: keyPrompts(actor.workspaceId, effects),
     recordCreated: (metricId, by) => effects.recordCreated(metricId, by, keyName ? `Created through the API (key “${keyName}”)` : "Created through the API"),
   }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
+  // A Feed is added as on the Metric's page, which turns the API Source on, since a Feed sends nothing else.
+  for (const f of feeds) await addFeedToMetric(creator, id, f);
   const { data } = await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single();
   return toApi(normalizeMetric(data) as Metric);
 }
@@ -94,6 +155,8 @@ export class MetricChangeRefused extends Error {
 /** What a program may change of a Metric's description (PATCH /metrics/{slug}): its Polarity, Target Range and
  * Attainment method. Each part left out stays. */
 export type ApiMetricPatch = {
+  /** Its Sources, all of them: the ones left out are turned off. */
+  sources?: string[];
   polarity?: "higher" | "lower" | "target";
   target_min?: number | null;
   target_max?: number | null;
@@ -127,8 +190,13 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   for (const v of [p.target_min, p.target_max]) if (v !== undefined && v !== null && !inRange(v)) throw new MetricChangeRefused(`A target must be a number between -${SERIES_VALUE_MAX} and ${SERIES_VALUE_MAX}.`);
   // Only these parts, whatever else the patch holds: never a name, a description, a unit or a period.
   const details = { polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method };
+  const sources = p.sources === undefined ? undefined : sourcesFrom(p.sources);
+  if (sources && metric.formula) throw new MetricChangeRefused("A Derived Metric is computed; values do not arrive for it.");
   const keyName = actor.key ? await nameOf(actor) : null;
-  await withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", () => updateMetricDetails(creator, metric.id as number, details));
+  await withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
+    await updateMetricDetails(creator, metric.id as number, details);
+    if (sources) await setMetricSources(creator, metric.id as number, sources);
+  });
   const { data } = await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single();
   return toApi(normalizeMetric(data) as Metric);
 }
@@ -252,6 +320,66 @@ export async function setUnusualValueCheckWithKey(actor: Actor | KeyActor, slug:
     () => setWorkflowCheck(creator, wf.id, { changePct: pct, outsideTarget: change?.outside_target }, wf.updated_at));
   if (!done) throw new MetricChangeRefused(`The Workflow “${wf.name}” changed meanwhile. Read its check again and retry.`);
   return (await checkOf(actor, slug)).answer;
+}
+
+/** One of a Metric's Submitters as programs see it: id, name and kind; never contact details. */
+export type ApiSubmitter = { id: string; name: string; kind: "person" | "contact" | "feed" };
+
+/** Who submits to a visible Metric (scope metrics:read), as its page shows them: not their stand-ins. */
+export async function listSubmittersWithKey(actor: Actor | KeyActor, slug: string): Promise<ApiSubmitter[]> {
+  assertScope(actor, "metrics:read");
+  const metrics = await getMetrics(actor.workspaceId);
+  const metric = metrics.find((x) => x.slug === String(slug));
+  if (!metric || !(await visibleMetricIds(actor.workspaceId, actor.personId, metrics)).has(metric.id)) throw new Forbidden();
+  const { data: tokens } = await db().from("tokens").select("submitter_id").eq("metric_id", metric.id).eq("workspace_id", actor.workspaceId).is("stands_in_for", null);
+  const ids = [...new Set((tokens ?? []).map((t) => t.submitter_id as string))];
+  if (!ids.length) return [];
+  // Loaded without contact details, so none can reach a program.
+  const [people, { data: feeds }] = await Promise.all([peopleIn(actor.workspaceId), db().from("feeds").select("person_id, name").eq("workspace_id", actor.workspaceId).in("person_id", ids)]);
+  const feedName = new Map((feeds ?? []).map((f) => [f.person_id as string, f.name as string]));
+  const person = new Map(people.map((p) => [p.id, p]));
+  return ids.flatMap((id): ApiSubmitter[] => {
+    if (feedName.has(id)) return [{ id, name: feedName.get(id)!, kind: "feed" }];
+    const p = person.get(id);
+    // Someone no longer in the workspace is left out, as on the Metric's page.
+    return p ? [{ id, name: p.name, kind: p.contact ? "contact" : "person" }] : [];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Adds and removes Submitters of a Metric for a key with metrics:edit, as its creator: only when they own the Metric
+ * or are its Editor, as on its page. People and Contacts get a Token and a first Prompt; a Feed is added as on the
+ * Metric's page, turning the API Source on. At most SUBMITTERS_PER_CHANGE each way, all checked first. */
+export async function setSubmittersWithKey(actor: Actor | KeyActor, slug: string, change: { add?: string[]; remove?: string[] }, effects: MetricEffects = metricEffects): Promise<{ submitters: ApiSubmitter[]; added: number; removed: number }> {
+  const { creator, metric } = await changeableByKey(actor, slug);
+  const add = await splitSubmitters(creator, change?.add ?? []);
+  const rm = Array.isArray(change?.remove) ? change.remove : [];
+  if (rm.length > SUBMITTERS_PER_CHANGE || !rm.every((x) => typeof x === "string" && x.length > 0 && x.length <= 64)) throw new MetricChangeRefused(`Name at most ${SUBMITTERS_PER_CHANGE} Submitters to remove.`);
+  if (!add.people.length && !add.feeds.length && !rm.length) throw new MetricChangeRefused("Name Submitters to add or remove.");
+  if (metric.formula && (add.people.length || add.feeds.length)) throw new MetricChangeRefused("A Derived Metric is computed; it takes no values.");
+  // Only Feeds that submit to it now: removing one that does not changes nothing and counts nothing.
+  const current = new Set((await listSubmittersWithKey(creator, slug)).filter((x) => x.kind === "feed").map((x) => x.id));
+  const rmFeeds = new Set(rm.filter((x) => current.has(x)));
+  const keyName = actor.key ? await nameOf(actor) : null;
+  let added = 0; let removed = 0;
+  await withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
+    const id = metric.id as number;
+    // Additions first: they are what can still fail (a Feed deleted meanwhile), and then nothing was removed yet.
+    if (add.people.length) added += (await addSubmitters(creator, id, add.people, { ...effects, promptSubmitter: keyPrompts(actor.workspaceId, effects) })).length;
+    for (const f of add.feeds) { await addFeedToMetric(creator, id, f); added++; }
+    const rmPeople = [...new Set(rm.filter((x) => !rmFeeds.has(x)))];
+    if (rmPeople.length) removed += (await removeSubmitters(creator, id, rmPeople)).length;
+    for (const f of rmFeeds) { await removeFeedFromMetric(creator, id, f); removed++; }
+  });
+  return { submitters: await listSubmittersWithKey(creator, slug), added, removed };
+}
+
+/** The workspace's live Feeds by id and name, for naming one as a Submitter (scope metrics:edit): what the Metric page
+ * offers anyone who may change a Metric, nothing more, and nothing for a Guest's key. */
+export async function listFeedsWithKey(actor: Actor | KeyActor): Promise<{ id: string; name: string }[]> {
+  assertScope(actor, "metrics:edit");
+  if (actor.role === "guest") return [];
+  const { data } = await db().from("feeds").select("person_id, name").eq("workspace_id", actor.workspaceId).is("deleted_at", null).order("name");
+  return (data ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
 }
 
 async function nameOf(actor: KeyActor): Promise<string | null> {

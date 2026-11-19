@@ -5,12 +5,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { actorForKey, checkKeyRequest, createAccessKey } from "./access-keys";
-import { admitMetric, createMetricWithKey, listSeriesWithKey, MetricChangeRefused, METRICS_PER_DAY, setSeriesWithKey, setUnusualValueCheckWithKey, TooManyMetrics, unusualValueCheckWithKey, updateMetricWithKey } from "./api-metrics";
+import { admitMetric, createMetricWithKey, listFeedsWithKey, listSeriesWithKey, listSubmittersWithKey, setSubmittersWithKey, MetricChangeRefused, METRICS_PER_DAY, setSeriesWithKey, setUnusualValueCheckWithKey, TooManyMetrics, unusualValueCheckWithKey, updateMetricWithKey } from "./api-metrics";
 import { submitObservation } from "./api-submissions";
 import { db } from "./db";
 import { metricEffects, type MetricEffects } from "./metrics";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { saveWorkflow, setMetricWorkflow, setWorkflowCheck } from "./workflows";
+import { createFeed, deleteFeed } from "./feeds";
+import { share } from "./sharing";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -168,3 +170,82 @@ describe("the Unusual Value check with a key", () => {
     expect(() => checkKeyRequest({ personId: "g", workspaceId: "w", role: "guest" }, ["metrics:read", "metrics:edit"], new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10))).toThrow(/cannot change Metrics/);
   });
 });
+
+describe("Sources and Submitters with a key", () => {
+  it("creates a Metric with its Sources and Submitters, checked before it exists, naming others only with metrics:edit", async () => {
+    const w = await ws(); const ben = await w.person("member"); const sara = await w.person("owner"); const ann = await w.person("member");
+    const contact = await w.contact({ email: "field@example.test" });
+    const { id: crm } = await createFeed(w.actor(sara, "owner"), "CRM");
+    const effects = fx();
+    const { key: creating } = await keyFor(w, ben, "member", ["metrics:read", "metrics:write"]);
+    const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:write", "metrics:edit"]);
+
+    // Only its Sources: fine with metrics:write. Naming others needs metrics:edit too.
+    expect(await createMetricWithKey(creating, { name: "Visits", sources: ["web_form", "mail"] }, effects)).toMatchObject({ sources: ["web_form", "mail"] });
+    await expect(createMetricWithKey(creating, { name: "Calls", submitters: [ann] }, effects)).rejects.toThrow(/may not metrics edit/);
+    // Unknown Sources, and people of no workspace of Ben's, are refused before anything is made.
+    await expect(createMetricWithKey(key, { name: "Calls", sources: ["fax"] }, effects)).rejects.toBeInstanceOf(MetricChangeRefused);
+    const other = await ws(); const stranger = await other.person("member");
+    await expect(createMetricWithKey(key, { name: "Calls", submitters: [stranger] }, effects)).rejects.toBeInstanceOf(MetricChangeRefused);
+    await expect(createMetricWithKey(key, { name: "Calls", submitters: Array.from({ length: 21 }, (_, i) => `x${i}`) }, effects)).rejects.toBeInstanceOf(MetricChangeRefused);
+    expect((await db().from("metrics").select("id").eq("workspace_id", w.id).eq("name", "Calls")).data).toEqual([]);
+
+    const calls = await createMetricWithKey(key, { name: "Calls", sources: ["slack"], submitters: [ann, contact, crm], submit: true }, effects);
+    // The Feed turned the API Source on, as on the Metric's page; the people got a first Prompt, the Feed none.
+    expect(calls.sources.sort()).toEqual(["api", "slack"]);
+    expect(effects.promptSubmitter).toHaveBeenCalledTimes(3);
+    expect((await listSubmittersWithKey(key, calls.slug)).map((x) => x.kind).sort()).toEqual(["contact", "feed", "person", "person"]);
+    expect(await listFeedsWithKey(key)).toEqual([{ id: crm, name: "CRM" }]);
+    await expect(listFeedsWithKey(creating)).rejects.toThrow(/may not metrics edit/);
+  });
+
+  it("adds and removes Submitters only for the Metric's owner and Editors, never as a Guest", async () => {
+    const w = await ws(); const ben = await w.person("member"); const sara = await w.person("owner"); const ann = await w.person("member");
+    const { id: crm } = await createFeed(w.actor(sara, "owner"), "CRM");
+    const mine = await w.metric(ben, { name: "Orders" });
+    const viewed = await w.metric(sara, { name: "Payroll" });
+    await share(w.actor(sara), "metric", viewed.id, ben, "viewer");
+    const effects = fx();
+    const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:edit"]);
+    const { key: creating } = await keyFor(w, ben, "member", ["metrics:read", "metrics:write"]);
+
+    await expect(setSubmittersWithKey(creating, mine.slug, { add: [ann] }, effects)).rejects.toThrow(/may not metrics edit/);
+    await expect(setSubmittersWithKey(key, viewed.slug, { add: [ann] }, effects)).rejects.toThrow(/owner and its Editors/);
+    const r = await setSubmittersWithKey(key, mine.slug, { add: [ann, crm, ann] }, effects);
+    expect(r).toMatchObject({ added: 2, removed: 0 });
+    expect(effects.promptSubmitter).toHaveBeenCalledTimes(1);
+    // Adding again changes nothing and prompts nobody twice.
+    expect(await setSubmittersWithKey(key, mine.slug, { add: [ann] }, effects)).toMatchObject({ added: 0 });
+    expect(effects.promptSubmitter).toHaveBeenCalledTimes(1);
+    const back = await setSubmittersWithKey(key, mine.slug, { remove: [ann, crm, sara] }, effects);
+    expect(back).toMatchObject({ added: 0, removed: 2, submitters: [] });
+    // Added again within a day, after a Prompt went out: a Submitter again, but not asked twice.
+    await db().from("prompts").insert({ workspace_id: w.id, metric_id: mine.id, submitter_id: ann, source: "web_form", text: "x", period_start: "2026-11-01" });
+    expect(await setSubmittersWithKey(key, mine.slug, { add: [ann] }, effects)).toMatchObject({ added: 1 });
+    expect(effects.promptSubmitter).toHaveBeenCalledTimes(1);
+    await setSubmittersWithKey(key, mine.slug, { remove: [ann] }, effects);
+    // A deleted Feed cannot be named again.
+    await deleteFeed(w.actor(sara, "owner"), crm);
+    await expect(setSubmittersWithKey(key, mine.slug, { add: [crm] }, effects)).rejects.toBeInstanceOf(MetricChangeRefused);
+    await expect(setSubmittersWithKey({ ...key, role: "guest" }, mine.slug, { add: [ann] }, effects)).rejects.toThrow(/may not change Metrics/);
+    // Sources through the same Metric patch as targets.
+    expect((await updateMetricWithKey(key, mine.slug, { sources: ["mail"] })).sources).toEqual(["mail"]);
+    await expect(updateMetricWithKey(key, mine.slug, { sources: [] })).rejects.toBeInstanceOf(MetricChangeRefused);
+  });
+
+  it("asks one person at most five times a day through keys, and once per Metric, also for parallel calls", async () => {
+    const w = await ws(); const ben = await w.person("member"); const ann = await w.person("member");
+    const effects = fx();
+    const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:edit"]);
+    const metrics = await Promise.all(Array.from({ length: 8 }, (_, i) => w.metric(ben, { name: `Count ${i}` })));
+    // Eight Metrics at once, each naming Ann: each call passes on its own, but only five first Prompts go out.
+    const results = await Promise.all(metrics.map((m) => setSubmittersWithKey(key, m.slug, { add: [ann] }, effects)));
+    expect(results.every((r) => r.added === 1)).toBe(true);
+    expect(effects.promptSubmitter).toHaveBeenCalledTimes(5);
+    // The same Metric claimed in parallel: one claim wins.
+    const other = await ws(); const bea = await other.person("member"); const m = await other.metric(bea, { name: "Once" });
+    const claims = await Promise.all(Array.from({ length: 6 }, () => db().rpc("claim_first_prompt", { p_workspace: other.id, p_submitter: bea, p_metric: m.id, p_limit: 5 })));
+    expect(claims.map((c) => c.data).filter(Boolean)).toHaveLength(1);
+  });
+});
+

@@ -37,6 +37,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | `items[].target_min` | number or null | yes | The low end of its target, if any. |
 | `items[].target_max` | number or null | yes | The high end of its target, if any. |
 | `items[].attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `items[].sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `items[].derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
 
@@ -53,7 +54,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 
 `POST /metrics` · scope `metrics:write`
 
-Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. Each key may create 50 Metrics in any 24 hours.
+Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well. Each key may create 50 Metrics in any 24 hours.
 
 **Parameters**
 
@@ -79,6 +80,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `target_max` | number or null | no |  |
 | `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default. |
 | `submit` | boolean | no | Make the key's creator its Submitter, so the key can submit values to it at once. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, the ways values may arrive; left out, every one. |
+| `submitters` | array of string, at most 64 characters (at most 20) | no | Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well. |
 
 **Answer** (201)
 
@@ -97,15 +100,17 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 
 **Errors**
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests).
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first creation is still running.
+- 422: A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -138,6 +143,7 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 
 **Errors**
@@ -179,11 +185,11 @@ Deletes a Metric the key's creator owns, with its values, targets, questions and
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## Change a Metric's Target Range
+## Change a Metric's Target Range or Sources
 
 `PATCH /metrics/{slug}` · scope `metrics:edit`
 
-Changes a Metric's Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.
+Changes a Metric's Sources (all of them: the ones left out are turned off), Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.
 
 **Parameters**
 
@@ -195,6 +201,7 @@ Changes a Metric's Polarity, Target Range or Attainment method as the key's crea
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, all of them: the ones left out are turned off. Not for a Derived Metric. |
 | `polarity` | `"higher"`, `"lower"`, `"target"` | no | Whether higher or lower values are better, or a range (target). |
 | `target_min` | number, -1000000000000000 to 1000000000000000 or null | no | The low end of its Target Range; null for none. |
 | `target_max` | number, -1000000000000000 to 1000000000000000 or null | no | The high end of its Target Range; null for none. |
@@ -217,6 +224,7 @@ Changes a Metric's Polarity, Target Range or Attainment method as the key's crea
 | `target_min` | number or null | yes | The low end of its target, if any. |
 | `target_max` | number or null | yes | The high end of its target, if any. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 
 **Errors**
@@ -225,7 +233,7 @@ Changes a Metric's Polarity, Target Range or Attainment method as the key's crea
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
 - 404: `not_found`: nothing here the key's creator may see.
-- 422: The lower target is above the upper one; nothing was changed.
+- 422: The lower target is above the upper one, or Sources for a Derived Metric; nothing was changed.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -440,6 +448,99 @@ Sets or removes 1 to 500 periods of the current period or later: a number sets t
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
 - 404: `not_found`: nothing here the key's creator may see.
 - 422: A period that is not one of the Metric's period starts, or one that is over; nothing was written.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List a Metric's Submitters
+
+`GET /metrics/{slug}/submitters` · scope `metrics:read`
+
+Who sends in the Metric's values: people, Contacts and Feeds, by id, name and kind. Never contact details, and not their Stand-ins.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].id` | string | yes |  |
+| `items[].name` | string | yes |  |
+| `items[].kind` | `"person"`, `"contact"`, `"feed"` | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a Metric's Submitters
+
+`POST /metrics/{slug}/submitters` · scope `metrics:edit`
+
+Adds and removes up to 20 Submitters each, as the key's creator, only when they own the Metric or are its Editor, as on its page. A person or Contact added gets a Token and a first Prompt, unless already asked for this Metric in the last 24 hours or five times that day; a Feed added turns the API Source on. Removing one ends their Token and their Stand-ins' on it; earlier values stay. Everything is checked first.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `add` | array of string, at most 64 characters (at most 20) | no | Ids from GET /people or GET /feeds. Each person or Contact added gets a first Prompt; a Feed turns the API Source on. |
+| `remove` | array of string, at most 64 characters (at most 20) | no | Ids of current Submitters. Their earlier values stay. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes | Its Submitters now. |
+| `items[].id` | string | yes |  |
+| `items[].name` | string | yes |  |
+| `items[].kind` | `"person"`, `"contact"`, `"feed"` | yes |  |
+| `added` | integer | yes |  |
+| `removed` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: An id that is not one of the workspace's people, Contacts or Feeds, or a Derived Metric; nothing was changed.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List Feeds
+
+`GET /feeds` · scope `metrics:edit`
+
+The workspace's live Feeds by id and name, to name one as a Submitter. Not /feed, which a Feed Key uses.
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].id` | string | yes |  |
+| `items[].name` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 

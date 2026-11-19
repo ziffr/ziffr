@@ -1,8 +1,8 @@
 // /api/v1/metrics. GET (spec 0002): the Metrics the key's creator sees, a page at a time (scope metrics:read).
 // POST (spec 0003): creates a Metric owned by the key's creator (scope metrics:write), with an optional
-// Idempotency-Key and at most 50 a day per key.
+// Idempotency-Key and at most 50 a day per key; its Sources, and its Submitters with metrics:edit too (ticket #217).
 import { Forbidden } from "@ziffr/core/actor";
-import { admitMetric, createMetricWithKey, METRICS_PER_DAY, TooManyMetrics } from "@ziffr/core/api-metrics";
+import { admitMetric, createMetricWithKey, MetricChangeRefused, METRICS_PER_DAY, TooManyMetrics } from "@ziffr/core/api-metrics";
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listMetrics } from "@ziffr/core/api";
 import { ApiError, errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
@@ -39,6 +39,8 @@ export const POST = keyRoute("metrics:write", async (actor, req) => {
       }
       // There is no Metric to hide here: a refusal is about the key's creator, so it is said (403), not "not found".
       if (e instanceof Forbidden) return errorBody("forbidden", e.message === "Forbidden" ? "The key's creator may not create Metrics." : e.message);
+      // A Source or Submitter refused: checked before the Metric exists, so nothing was created.
+      if (e instanceof MetricChangeRefused) return errorBody("unprocessable", e.message);
       throw e;
     }
   };

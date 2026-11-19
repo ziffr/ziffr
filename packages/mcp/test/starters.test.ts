@@ -40,6 +40,7 @@ describe("Starters", () => {
       build_dashboard: [{ name: "topic", required: false }],
       explain_metric: [{ name: "metric", required: false }],
       set_targets: [{ name: "text", required: false }],
+      start_tracking: [{ name: "what", required: false }],
     });
     expect(client.getInstructions()).toContain("what_can_i_do");
   });
@@ -70,6 +71,9 @@ describe("Starters", () => {
     const targets = textOf(await client.getPrompt({ name: "set_targets", arguments: { text: "budget 5000 a month for revenue in 2027" } }));
     expect(targets).toContain("\"budget 5000 a month for revenue in 2027\"");
     expect(targets).toMatch(/Change only after I confirm/);
+    const tracking = textOf(await client.getPrompt({ name: "start_tracking", arguments: { what: "weekly signups" } }));
+    expect(tracking).toContain("\"weekly signups\"");
+    expect(tracking).toMatch(/Sources[^]*Submitters[^]*create_metric only after I confirm/);
     // Every Starter ends with the safety lines; an emoji keeps its joiner.
     for (const name of STARTER_NAMES) expect(textOf(await client.getPrompt({ name }))).toMatch(/Change nothing in Ziffr unless I ask for it[^]*Never invent a number[^]*$/);
     expect(textOf(await client.getPrompt({ name: "build_dashboard", arguments: { topic: "team \u{1F468}\u200D\u{1F469}" } }))).toContain("team \u{1F468}\u200D\u{1F469}");
@@ -84,6 +88,7 @@ describe("Starters", () => {
       ["build_dashboard", "topic", STARTER_ARGUMENT_MAX.topic],
       ["explain_metric", "metric", STARTER_ARGUMENT_MAX.metric],
       ["set_targets", "text", STARTER_ARGUMENT_MAX.targets],
+      ["start_tracking", "what", STARTER_ARGUMENT_MAX.tracking],
     ];
     for (const [name, arg, max] of cases) {
       await expect(client.getPrompt({ name, arguments: { [arg]: "x".repeat(max) } })).resolves.toBeDefined();
