@@ -1,7 +1,8 @@
 "use client";
 // The Trial Guide's steps (ticket 193; GLOSSARY: Trial Guide, Test Metric): one at a time, with where you are, Back
-// and Skip on each. Every move is kept by the core, so reopening the guide continues at the step reached. While it
-// waits for the answer, it asks the core for the Test Metric's latest value every few seconds.
+// and Skip on each, and Skip the guide to leave it for good. Every move is kept by the core, so reopening the guide
+// continues at the step reached. While it waits for the answer, it asks the core for the Test Metric's latest value
+// every few seconds. Daily Prompts go by one way (dailyWay); Ask me now here uses every way picked, once.
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,15 +10,19 @@ import { toast } from "sonner";
 import { CheckCircle2, Circle, Send } from "lucide-react";
 import type { AskNowResult } from "@ziffr/core/ask-now";
 import type { GuideAsked, GuideStep, GuideValue, GuideWay, TrialGuide } from "@ziffr/core/trial-guide";
+import { dailyWay, type DailyWay } from "@ziffr/core/trial-guide-ways";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WayLine } from "@/components/way-state";
-import { askGuide, guideValue, moveGuide } from "./actions";
+import { askGuide, guideValue, moveGuide, skipGuide } from "./actions";
 
 const STEPS: { id: GuideStep; label: string }[] = [
   { id: "welcome", label: "Welcome" }, { id: "where", label: "Where" }, { id: "connect", label: "Connect" },
   { id: "ask", label: "Ask me now" }, { id: "done", label: "Done" },
 ];
+
+/** Each daily way as a sentence names it. */
+const DAILY_LABEL: Record<DailyWay, string> = { telegram: "Telegram", slack: "Slack", email: "email" };
 
 /** How often the ask step looks for the answer. */
 const POLL_MS = 3000;
@@ -42,27 +47,31 @@ export function Guide({ guide, askEveryMinutes }: { guide: TrialGuide; askEveryM
 
   return (
     <div className="mx-auto max-w-xl">
-      <ol className="mb-8 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Steps">
-        {STEPS.map((s, i) => (
-          <li key={s.id} aria-current={i === at ? "step" : undefined}
-            className={i === at ? "font-semibold text-foreground" : i < at ? "text-foreground" : "text-muted-foreground"}>
-            {i + 1}. {s.label}
-          </li>
-        ))}
-      </ol>
+      <div className="mb-8 flex flex-wrap items-baseline justify-between gap-2">
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Steps">
+          {STEPS.map((s, i) => (
+            <li key={s.id} aria-current={i === at ? "step" : undefined}
+              className={i === at ? "font-semibold text-foreground" : i < at ? "text-foreground" : "text-muted-foreground"}>
+              {i + 1}. {s.label}
+            </li>
+          ))}
+        </ol>
+        {/* Leaves the guide for good: it then opens only from the trial's bar. */}
+        {step !== "done" && <button type="button" className="text-xs text-muted-foreground underline" disabled={pending} onClick={() => start(async () => { const r = await skipGuide(); if (r?.error) toast.error(r.error); })}>Skip the guide</button>}
+      </div>
 
       {step === "welcome" && <Welcome guide={guide} />}
       {step === "where" && <Where guide={guide} ways={ways} setWays={setWays} />}
       {step === "connect" && <Connect guide={guide} ways={ways} />}
       {step === "ask" && <Ask guide={guide} ways={ways} askEveryMinutes={askEveryMinutes} onArrived={() => go("done")} />}
-      {step === "done" && <Done guide={guide} />}
+      {step === "done" && <Done guide={guide} ways={ways} />}
 
       <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-border pt-5">
         {at > 0 && <Button variant="ghost" onClick={back} disabled={pending}>Back</Button>}
         <span className="flex-1" />
         {step !== "done" && <Button variant="ghost" onClick={() => next()} disabled={pending}>Skip</Button>}
         {step === "welcome" && <Button onClick={() => next()} disabled={pending}>Start</Button>}
-        {step === "where" && <Button onClick={() => next(ways)} disabled={pending || !ways.length}>Next</Button>}
+        {step === "where" && <Button onClick={() => next(ways)} disabled={pending}>Next</Button>}
         {step === "connect" && <Button onClick={() => next()} disabled={pending}>Next</Button>}
         {step === "done" && <Link href="/" className="text-sm underline">Leave the guide</Link>}
       </div>
@@ -90,10 +99,20 @@ function Where({ guide, ways, setWays }: { guide: TrialGuide; ways: GuideWay[]; 
   return (
     <section>
       <h1 className="text-[length:var(--text-2xl)] leading-tight">Where should Ziffr ask you?</h1>
-      <p className="mt-3 text-muted-foreground">Pick one or more of the ways marked Real. The others say why they do not work here.</p>
+      <p className="mt-3 text-muted-foreground">
+        Ziffr asks you once a day, by one way: the first you pick of Telegram, Slack and email. Ask me now in this guide uses every way you pick, once. The others say why they do not work here.
+      </p>
+      <p className="mt-3 text-sm font-medium" aria-live="polite">From tomorrow Ziffr asks you by {DAILY_LABEL[dailyWay(ways)]}.</p>
       <ul className="mt-5 space-y-3">
         {guide.choices.map((c) => {
           const way = c.way as GuideWay;
+          // The form link is in every request, so it is not a way to pick.
+          if (c.way === "web-form") return (
+            <li key={c.way} className="stock rounded-[var(--radius-card)] p-3 text-sm">
+              <div className="flex items-center gap-2 font-semibold"><CheckCircle2 aria-label="Always" className="size-4 text-[var(--color-success)]" />Web form</div>
+              <p className="mt-1 pl-6 text-xs text-muted-foreground">Always there: every request carries your personal form link, which works without signing in.</p>
+            </li>
+          );
           const pickable = c.state === "real" && c.way !== "whatsapp";
           return (
             <li key={c.way} className="stock rounded-[var(--radius-card)] p-3 text-sm">
@@ -114,7 +133,7 @@ function Where({ guide, ways, setWays }: { guide: TrialGuide; ways: GuideWay[]; 
 function Connect({ guide, ways }: { guide: TrialGuide; ways: GuideWay[] }) {
   const router = useRouter();
   const HOW: Record<GuideWay, { done: string; todo: string }> = {
-    email: { done: `Nothing to do: Ziffr writes to ${guide.email || "the address you signed in with"}.`, todo: "This Ziffr cannot send email, so the request waits in the Outbox." },
+    email: { done: `Nothing to do: Ziffr writes to ${guide.email || "the address you signed in with"}.${guide.replies ? " Answer by its form link, or just reply with the number." : ""}`, todo: "This Ziffr cannot send email, so the request waits in the Outbox." },
     "web-form": { done: "Nothing to do: every request carries a personal form link that works without signing in.", todo: "" },
     slack: { done: "Connected: Ziffr finds you in your Slack workspace by your email address.", todo: "Connect your Slack workspace with Add to Slack on the Connectors page." },
     telegram: { done: "Linked: the bot writes to your Telegram.", todo: "Press Connect Telegram on the Connectors page and start the bot, then come back." },
@@ -123,9 +142,9 @@ function Connect({ guide, ways }: { guide: TrialGuide; ways: GuideWay[] }) {
   return (
     <section>
       <h1 className="text-[length:var(--text-2xl)] leading-tight">Connect</h1>
-      {!ways.length && <p className="mt-3 text-muted-foreground">You picked no way, so Ziffr asks you by email.</p>}
+      {!ways.some((w) => w !== "web-form") && <p className="mt-3 text-muted-foreground">You picked no way, so Ziffr asks you by email.</p>}
       <ul className="mt-5 space-y-3">
-        {ways.map((w) => {
+        {[...ways.filter((w) => w !== "web-form"), "web-form" as const].map((w) => {
           const ok = guide.ready[w];
           return (
             <li key={w} className="stock rounded-[var(--radius-card)] p-3 text-sm">
@@ -185,7 +204,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
   const where = (s: AskNowResult) => {
     if (s.state === "failed") return <>{s.label} did not take it{s.note ? `: ${s.note}` : "."} Answer by your form instead.</>;
     if (s.state === "outbox") return <>It stayed in Ziffr{s.note ? ` (${s.note})` : ""}: <Link href="/connectors" className="underline">open the Outbox</Link> and answer it there.</>;
-    if (s.connector === "email") return <>Look in the inbox of {guide.email || "the address you signed in with"} for &ldquo;What&rsquo;s the number for {guide.testMetric!.name} today?&rdquo;, also in spam, and answer by the form link in it.</>;
+    if (s.connector === "email") return <>Look in the inbox of {guide.email || "the address you signed in with"} for &ldquo;What&rsquo;s the number for {guide.testMetric!.name} today?&rdquo;, also in spam, and answer by the form link in it{guide.replies ? ", or just reply with the number" : ""}.</>;
     if (s.connector === "slack") return <>Look in Slack for a direct message from Ziffr and answer in its thread.</>;
     if (s.connector === "telegram") return <>Look in Telegram for the bot&rsquo;s message and reply with the number.</>;
     return <>Look for it in {s.label}.</>;
@@ -209,7 +228,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
           ))}
         </ul>
       )}
-      {sent && sent.formCode && (ways.includes("web-form") || sent.results.every((x) => x.state === "failed")) && (
+      {sent && sent.formCode && (
         <p className="mt-3 text-sm">Or answer right here: <a href={`/submit/${sent.formCode}`} target="_blank" rel="noreferrer" className="underline">open your form</a> (it opens in a new tab).</p>
       )}
       {sent && !value && <p className="mt-5 text-sm text-muted-foreground" aria-live="polite">Waiting for your answer…</p>}
@@ -238,7 +257,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
 }
 
 /** Where the value shows up and what to do next. */
-function Done({ guide }: { guide: TrialGuide }) {
+function Done({ guide, ways }: { guide: TrialGuide; ways: GuideWay[] }) {
   const [value, setValue] = useState<GuideValue | null>(null);
   useEffect(() => { guideValue().then(setValue).catch(() => {}); }, []);
   return (
@@ -246,8 +265,9 @@ function Done({ guide }: { guide: TrialGuide }) {
       <h1 className="text-[length:var(--text-2xl)] leading-tight">{value ? "Your first value is in" : "That is the guide"}</h1>
       {value && guide.testMetric && <p className="mt-3 text-[length:var(--text-2xl)] font-semibold">{value.value} {guide.testMetric.unit}</p>}
       <p className="mt-3 text-muted-foreground">
-        {guide.testMetric?.name ?? "The Metric"} is asked again tomorrow. The trial&apos;s other Metrics have made-up history, so their dashboard shows something at once.
+        From tomorrow Ziffr asks you for {guide.testMetric?.name ?? "it"} once a day by {DAILY_LABEL[dailyWay(ways)]}, with your form link in every request. <Link href="/settings/deliveries" className="underline">Change where Ziffr asks you</Link> in Your Deliveries.
       </p>
+      <p className="mt-3 text-muted-foreground">The trial&apos;s other Metrics have made-up history, so their dashboard shows something at once.</p>
       <ul className="mt-5 space-y-2 text-sm">
         {guide.testMetric && <li><Link href={`/metrics/${guide.testMetric.slug}`} className="underline">Open {guide.testMetric.name}</Link></li>}
         <li><Link href="/dashboards" className="underline">See the dashboards</Link></li>

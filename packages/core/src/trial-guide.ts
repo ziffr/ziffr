@@ -10,6 +10,9 @@ import { setPreference } from "./questions";
 import { myTelegramLink } from "./telegram-people";
 import { trialEndsAt } from "./trials";
 import { whatWorksHere, type WayState } from "./what-works-here";
+import { dailyWay, type DailyWay } from "./trial-guide-ways";
+
+export { DAILY_WAYS, dailyWay, type DailyWay } from "./trial-guide-ways";
 
 /** The guide's steps, in order. */
 export const GUIDE_STEPS = ["welcome", "where", "connect", "ask", "done"] as const;
@@ -32,6 +35,10 @@ export type TrialGuide = {
   choices: WayState[];
   /** Whether each way needs nothing more from the Owner before it can ask them. */
   ready: Record<GuideWay, boolean>;
+  /** The one way the daily Prompts go by from now on. */
+  daily: DailyWay;
+  /** Whether replying to an email with the number records it here. */
+  replies: boolean;
   email: string;
   testMetric: { id: number; name: string; unit: string; slug: string } | null;
 };
@@ -65,6 +72,8 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
   return {
     step: (GUIDE_STEPS as readonly string[]).includes(ws?.trial_guide_step) ? ws!.trial_guide_step as GuideStep : "welcome",
     ways: ((ws?.trial_guide_ways ?? []) as string[]).filter(isWay),
+    daily: dailyWay((ws?.trial_guide_ways ?? []) as string[]),
+    replies: state("email-replies") === "real",
     choices,
     // Slack is real here only once the workspace is connected, and it finds the Owner by their address; Telegram
     // needs the Owner's own chat linked as well.
@@ -75,7 +84,8 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
 }
 
 /** Moves the guide to a step and, when given, keeps the ways picked. Only real ways can be picked; the first picked
- * of Telegram, Slack and email also becomes where the Owner's own Prompts go from now on. */
+ * of Telegram, Slack and email (else email) becomes the one way the Owner's own Prompts go by from now on. Reaching
+ * Done finishes the guide, so it no longer opens by itself. */
 export async function saveTrialGuide(actor: Actor, step: GuideStep, ways?: GuideWay[]): Promise<void> {
   await assertGuideOwner(actor);
   if (!(GUIDE_STEPS as readonly string[]).includes(step)) throw new Forbidden();
@@ -86,11 +96,28 @@ export async function saveTrialGuide(actor: Actor, step: GuideStep, ways?: Guide
     const picked = GUIDE_WAYS.filter((w) => ways.includes(w));
     if (picked.some((w) => here.find((x) => x.way === w)?.state !== "real")) throw new Error("Only a way that really works here can be picked.");
     update.trial_guide_ways = picked;
-    const messenger = (["telegram", "slack", "email"] as const).find((w) => picked.includes(w));
-    if (messenger) await setPreference(actor, actor.personId, "reminder", messenger);
+    await setPreference(actor, actor.personId, "reminder", dailyWay(picked));
   }
   const { error } = await db().from("workspaces").update(update).eq("id", actor.workspaceId);
   if (error) throw new Error("The guide could not be saved.");
+  if (step === "done") await finishTrialGuide(actor);
+}
+
+/** Finishes the guide (Done reached, or Skip the guide): from then on it opens only from the trial's bar. */
+export async function finishTrialGuide(actor: Actor): Promise<void> {
+  await assertGuideOwner(actor);
+  await db().from("workspaces").update({ trial_guide_finished_at: new Date().toISOString() })
+    .eq("id", actor.workspaceId).is("trial_guide_finished_at", null);
+}
+
+/** Whether the actor's home and Try it should lead to the guide: they are the Owner of a running trial made with a
+ * guide (a step is kept) that is neither finished nor skipped. Never throws; false for everyone else. */
+export async function trialGuidePending(actor: Actor): Promise<boolean> {
+  if (actor.role !== "owner") return false;
+  const { data } = await db().from("workspaces").select("trial_ends_at, trial_guide_step, trial_guide_finished_at").eq("id", actor.workspaceId).maybeSingle();
+  if (!data?.trial_ends_at || new Date(data.trial_ends_at as string).getTime() <= Date.now()) return false;
+  // A guide at Done counts as finished too (guides that reached it before finishing was kept).
+  return Boolean(data.trial_guide_step) && data.trial_guide_step !== "done" && !data.trial_guide_finished_at;
 }
 
 /** What asking gave: one result per way, and the Owner's own form link code for the Test Metric, the same one every

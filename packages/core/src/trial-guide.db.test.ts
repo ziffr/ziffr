@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
-import { askTrialGuide, saveTrialGuide, trialGuide, trialGuideValue } from "./trial-guide";
+import { askTrialGuide, dailyWay, finishTrialGuide, saveTrialGuide, trialGuide, trialGuidePending, trialGuideValue } from "./trial-guide";
 
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
@@ -53,9 +53,36 @@ describe("the Trial Guide", () => {
     await expect(saveTrialGuide(owner, "nowhere" as never)).rejects.toBeInstanceOf(Forbidden);
     Object.assign(process.env, MAIL);
     await saveTrialGuide(owner, "connect", ["web-form", "email"]);
-    expect((await trialGuide(owner))!.ways).toEqual(["email", "web-form"]);
+    expect((await trialGuide(owner))!).toMatchObject({ ways: ["email", "web-form"], daily: "email" });
     const { data: pref } = await db().from("delivery_preferences").select("connector").eq("workspace_id", owner.workspaceId).eq("user_id", owner.personId).eq("kind", "reminder");
     expect(pref).toEqual([{ connector: "email" }]);
+  });
+
+  it("asks daily by one way: the first picked of Telegram, Slack and email, else email", () => {
+    expect(dailyWay(["email", "telegram", "slack"])).toBe("telegram");
+    expect(dailyWay(["email", "slack"])).toBe("slack");
+    expect(dailyWay(["web-form"])).toBe("email");
+    expect(dailyWay([])).toBe("email");
+  });
+
+  it("leads home and Try it to the guide until it is finished or skipped", async () => {
+    const owner = await newTrial();
+    expect(await trialGuidePending(owner)).toBe(true);
+    expect(await trialGuidePending({ ...owner, role: "admin" })).toBe(false);
+    await saveTrialGuide(owner, "connect");
+    expect(await trialGuidePending(owner)).toBe(true);
+    // Skip the guide.
+    await finishTrialGuide(owner);
+    expect(await trialGuidePending(owner)).toBe(false);
+    // Reopened from the bar it still works, and going back does not make it pending again.
+    await saveTrialGuide(owner, "where");
+    expect(await trialGuidePending(owner)).toBe(false);
+
+    const other = await newTrial();
+    await saveTrialGuide(other, "done");
+    expect(await trialGuidePending(other)).toBe(false);
+    const { data } = await db().from("workspaces").select("trial_guide_finished_at").eq("id", other.workspaceId).single();
+    expect(data!.trial_guide_finished_at).not.toBeNull();
   });
 
   it("is the Owner's alone, and only in a trial", async () => {
@@ -63,6 +90,7 @@ describe("the Trial Guide", () => {
     const other: Actor = { ...owner, personId: `t-${randomUUID()}`, role: "admin" };
     expect(await trialGuide(other)).toBeNull();
     await expect(saveTrialGuide(other, "done")).rejects.toBeInstanceOf(Forbidden);
+    await expect(finishTrialGuide(other)).rejects.toBeInstanceOf(Forbidden);
     await expect(trialGuideValue(other)).rejects.toBeInstanceOf(Forbidden);
     await expect(askTrialGuide(other)).rejects.toBeInstanceOf(Forbidden);
     // Once the trial has ended, nobody has a guide.
