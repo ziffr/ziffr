@@ -16,6 +16,7 @@ import { settingsInEffect } from "./settings-in-effect";
 import { callTelegram, telegramEnabled, telegramOn, telegramPolling, telegramWebhookSecret } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
+import { isTelegramTestCode, takeTelegramTestAnswer, takeTelegramTestStart } from "./installation-telegram-test";
 import { trialEnded } from "./trials";
 
 /** Largest update taken, in bytes; real ones are far smaller. */
@@ -31,7 +32,7 @@ const REPLY_DAYS = 30;
 export type TelegramOutcome =
   | "linked" | "refused" | "unlinked" | "blocked" | "hint" | "duplicate" | "too_many" | "ignored"
   | "recorded" | "form_link" | "replied" | "corrected" | "empty" | "unknown_message" | "expired" | "wrong_user"
-  | "approved" | "stopped";
+  | "approved" | "stopped" | "test_started" | "test_refused" | "test_answered" | "test_hint";
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {});
@@ -62,7 +63,9 @@ const MAX_ANSWERS_PER_SECOND = 5;
 
 /** Whether the bot already answered this account ten times in the last minute, or everyone five times this second. */
 async function quiet(userId: number): Promise<boolean> {
-  const answered = ["hint", "linked", "refused", "unlinked"];
+  // Every outcome the bot answers counts, the Installation's test included: a flood of wrong test codes must not
+  // make it talk without limit.
+  const answered = ["hint", "linked", "refused", "unlinked", "test_started", "test_refused", "test_hint", "test_answered"];
   const [{ count: mine }, { count: all }] = await Promise.all([
     db().from("telegram_updates").select("update_id", { count: "exact", head: true }).eq("telegram_user_id", userId).in("outcome", answered).gt("received_at", new Date(Date.now() - 60_000).toISOString()),
     db().from("telegram_updates").select("update_id", { count: "exact", head: true }).in("outcome", answered).gt("received_at", new Date(Date.now() - 1000).toISOString()),
@@ -114,6 +117,12 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
       if (!silent) await telegramSay(chatId, "Hello! To get Ziffr messages here, choose “Connect Telegram” in Ziffr: on the Connectors page, or on your personal form.");
       return none("hint");
     }
+    // The Installation Settings page's round trip test: a code of its own shape, never a Workspace link. It is
+    // handled here and goes no further, so a test code can never connect anyone.
+    if (isTelegramTestCode(start[1])) {
+      const started = await takeTelegramTestStart({ code: start[1], userId, chatId, say: (t) => (silent ? Promise.resolve() : telegramSay(chatId, t)) });
+      return none(started ? "test_started" : "test_refused");
+    }
     // A code still links when the bot keeps quiet: a flood by others must not stop someone linking.
     const result = await linkTelegramByCode({ code: start[1], userId, chatId, chatType: chat.type });
     if (!silent) {
@@ -135,6 +144,9 @@ async function handle(u: Obj, userId: number | null, effects: { submission?: Sub
     await telegramSay(chatId, "To answer, reply to the message you are answering: swipe it to the left, or press and hold it and choose Reply.", Number(msg.message_id) || undefined);
     return none("hint");
   }
+  // A reply to the round trip test's message is the test's answer, never a Delivery's.
+  const test = await takeTelegramTestAnswer({ userId, chatId, repliedTo, text, say: async (t) => { if (!(await quiet(userId))) await telegramSay(chatId, t, Number(msg.message_id) || undefined); } });
+  if (test) return none(test === "answered" ? "test_answered" : "test_hint");
   return reply(userId, chatId, repliedTo, Number(msg.message_id) || undefined, text, effects);
 }
 

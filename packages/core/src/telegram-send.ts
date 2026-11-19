@@ -4,6 +4,7 @@
 // retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
 import { db } from "./db";
 import { FORM_LINK, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
+import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
@@ -125,6 +126,8 @@ export async function sendWaitingTelegram(limit = 50): Promise<{ sent: number; f
   const old = new Date(Date.now() - 31 * 86_400_000).toISOString();
   await db().from("telegram_updates").delete().lt("received_at", old);
   await db().from("telegram_sends").delete().lt("sent_at", old);
+  // The Installation Settings page's Telegram tests keep a chat only while they wait.
+  await forgetStaleTelegramTests();
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "telegram").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
   const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: MAX_ATTEMPTS });

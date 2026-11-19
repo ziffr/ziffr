@@ -52,6 +52,8 @@ Ziffr asks Telegram about the token first and saves nothing Telegram refuses. Th
 
 If Telegram could not be told where to send answers, the token is saved anyway and the page says why. This Ziffr's address must start with `https://`, or the server must fetch answers itself (polling, for a laptop). **Check Telegram** asks Telegram again, tells it where to send answers again, and shows Telegram's last error about reaching this Ziffr, if there was one in the last hour.
 
+**Test Telegram** checks the whole way, like the test email does for mail. It shows **Open the bot in Telegram**, a link that works once, for ten minutes. Open it and tap **Start**: the bot sends "Ziffr test from …: reply to this message with any number to finish." Reply to that message with any number, such as 1. The bot answers "Telegram works", and the page shows "Tested just now: message sent, answer received". While you do this, the page says what it is waiting for: "No Start yet" means the link was not opened; "Sent, no answer yet" means Ziffr reached Telegram but your answer has not come back, so Telegram may not reach this Ziffr: try **Check Telegram**. The test connects you to no Workspace and changes nobody's Deliveries. You can run it five times an hour.
+
 **Remove** takes the token off the page and tells Telegram to stop sending answers here; Workspaces then reach nobody by Telegram. Saving another token does the same for the bot before it. Like the mail server, the token is a secret: once saved, the page shows only that it is saved and its last four characters.
 
 ## Slack

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Forbidden } from "@ziffr/core/actor";
 import * as admins from "@ziffr/core/installation-admins";
 import * as settings from "@ziffr/core/installation-settings";
+import * as telegramTest from "@ziffr/core/installation-telegram-test";
 import { installationActor } from "@/lib/installation";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
@@ -63,4 +64,27 @@ export async function checkTelegram(): Promise<Result> {
 /** Sends a test email to your own address with the mail settings in effect. */
 export async function sendTestEmail(): Promise<Result> {
   return run(async (a) => `Sent to ${(await settings.sendTestEmail(a)).to}. Look in that inbox.`);
+}
+
+/** Starts the Telegram round trip test: answers the link that opens the bot with a one-time code. */
+export async function startTelegramTest(): Promise<{ error: string } | { url: string }> {
+  const actor = await installationActor();
+  if (!actor) return { error: "Sign in first." };
+  try {
+    return await telegramTest.startTelegramTest(actor);
+  } catch (e) {
+    if (e instanceof Forbidden) return { error: "Not found." };
+    return { error: e instanceof Error ? e.message : "That did not work. Try again." };
+  }
+}
+
+/** Where the actor's latest Telegram test stands, while the page waits for it. */
+export async function telegramTestStatus(): Promise<telegramTest.TelegramTestStatus | { error: string }> {
+  const actor = await installationActor();
+  if (!actor) return { error: "Sign in first." };
+  try {
+    return await telegramTest.telegramTestStatus(actor);
+  } catch {
+    return { error: "Not found." };
+  }
 }

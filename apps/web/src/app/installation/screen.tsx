@@ -2,13 +2,14 @@
 // The Installation settings page (spec 0025; GLOSSARY: Installation Settings, Installation Admin): one section per
 // thing the Installation talks to, its Installation Admins and what was changed. It gets no secret value from the
 // server, only whether one is set and at most its last four characters; the core checks every change again.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
-import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInstallationSettings, sendTestEmail } from "@/app/installation-actions";
+import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInstallationSettings, sendTestEmail, startTelegramTest, telegramTestStatus } from "@/app/installation-actions";
+import type { TelegramTestStatus } from "@ziffr/core/installation-telegram-test";
 import type { InstallationAdminRow, InstallationEvent } from "@ziffr/core/installation-admins";
 import type { InstallationSettingsView, SectionView, SettingView, SlackSetupView } from "@ziffr/core/installation-settings";
 
@@ -20,6 +21,7 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.set": "set",
   "setting.removed": "removed",
   "setting.test_email": "sent a test email with",
+  "setting.test_telegram": "tested Telegram with",
 };
 
 type Result = { error: string } | { ok: true; message?: string; warning?: string };
@@ -214,6 +216,7 @@ function SectionForm({ section, canSeal }: { section: SectionView; canSeal: bool
             </Button>
           )}
         </div>
+        {section.id === "telegram" && section.working && <TelegramTest disabled={pending || Object.keys(changes).length > 0} />}
       </form>
     </div>
   );
@@ -239,6 +242,55 @@ function Field({ setting: s, value, disabled, onChange, onRemove }: { setting: S
         </div>
       )}
       <p className="text-xs text-muted-foreground">{from}{s.unreadable ? " The saved value no longer opens with this server's ZIFFR_SECRETS_KEY: save it again." : ""}</p>
+    </div>
+  );
+}
+
+/** What the page says about the latest Telegram test while it waits, and once it is done. */
+function testWords(s: TelegramTestStatus): string {
+  switch (s.state) {
+    case "waiting_start": return "No Start yet: open the link and tap Start in Telegram.";
+    case "sent": return "Sent, no answer yet: reply to the bot's message with a number. If your answer does not arrive, Telegram may not reach this Ziffr: try Check Telegram.";
+    case "send_failed": return "Telegram got the Start, but Ziffr could not send the test message. Try Check Telegram, then test again.";
+    case "expired": return "This test ran out after ten minutes. Start a new one.";
+    default: return "";
+  }
+}
+
+/** Test Telegram: a link that opens the bot with a one-time code, then where the test stands, asked every few
+ * seconds while it waits. The test connects nobody to any Workspace. */
+function TelegramTest({ disabled }: { disabled: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<TelegramTestStatus | null>(null);
+  const [pending, start] = useTransition();
+  const waiting = status?.state === "waiting_start" || status?.state === "sent";
+  useEffect(() => {
+    let on = true;
+    telegramTestStatus().then((s) => { if (on && !("error" in s)) setStatus(s); });
+    return () => { on = false; };
+  }, []);
+  useEffect(() => {
+    if (!url || !waiting) return;
+    const timer = setInterval(() => { telegramTestStatus().then((s) => { if (!("error" in s)) setStatus(s); }); }, 3000);
+    return () => clearInterval(timer);
+  }, [url, waiting]);
+  return (
+    <div className="max-w-xl space-y-2 rounded-[var(--radius-input)] border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" disabled={disabled || pending}
+          onClick={() => start(async () => {
+            const r = await startTelegramTest();
+            if ("error" in r) { toast.error("Not done", { description: r.error }); return; }
+            setUrl(r.url);
+            setStatus({ state: "waiting_start", at: new Date().toISOString() });
+          })}>
+          Test Telegram
+        </Button>
+        {url && waiting && <a href={url} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "default" })}>Open the bot in Telegram</a>}
+      </div>
+      <p className="text-xs text-muted-foreground">Sends you a message from the bot and waits for your reply, so you know Ziffr reaches Telegram and Telegram reaches Ziffr. It connects you to no Workspace.</p>
+      {status?.state === "done" && status.at && <p role="status" className="text-sm">Tested <RelativeTime at={status.at} />: message sent, answer received.</p>}
+      {url && status && status.state !== "done" && status.state !== "none" && <p role="status" aria-live="polite" className="text-sm">{testWords(status)}</p>}
     </div>
   );
 }
