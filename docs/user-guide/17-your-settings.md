@@ -19,6 +19,8 @@ On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** to
 | **Continue with** Google, Microsoft, GitHub or LinkedIn | Shown only for the ways of signing in your Ziffr has set up. Signs you in with that account. |
 | **Try the demo** | Opens the demo without an account, where your Ziffr offers it |
 
+If the link cannot be sent, the page says why under the button, such as **The link could not be sent. Try again.** or that the check against bots did not pass.
+
 After you ask for a link, the page says "Check your inbox". If a link has been used already or does not work, the page says so: ask for a new one. If you ask for many links in a short time, Ziffr asks you to wait a minute.
 
 Your address counts as proven when you signed in with the email link or a provider that proves it, such as Google. A proven address is what an email Invitation and Domain Joining check.
