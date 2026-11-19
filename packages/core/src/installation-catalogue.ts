@@ -15,7 +15,7 @@ export type SettingsSection = { id: SettingsSectionId; title: string; purpose: s
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "mail", title: "Mail", purpose: "Sign-in links aside, every email Ziffr sends: requests for values, reminders, replies and invitations.", ready: true },
   { id: "replies", title: "Replies by email", purpose: "People answer a request for a value by replying to its email.", ready: false },
-  { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram.", ready: false },
+  { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram. Each Workspace turns it on for itself.", ready: true },
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: false },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page.", ready: false },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace, for how long and how many at once.", ready: false },
@@ -34,6 +34,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "Signs what the provider forwards to Ziffr; 32 characters or more." },
   { name: "ZIFFR_INBOUND_AUTHSERV_ID", section: "replies", label: "Provider that vouches for senders", secret: false, placeholder: "mx.example.com",
     help: "The name your provider writes in Authentication-Results; with it, only vouched-for senders are taken." },
+  { name: "ZIFFR_TELEGRAM_BOT_TOKEN", section: "telegram", label: "Bot token", secret: true, placeholder: "1234567890:AA…",
+    help: "Make a bot with @BotFather in Telegram (/newbot) and paste the token it gives you. Ziffr checks it with Telegram and tells Telegram where to send answers." },
 ];
 
 /** The setting of this name, or undefined for any name the page does not know. */

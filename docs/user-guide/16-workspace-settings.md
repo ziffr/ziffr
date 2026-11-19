@@ -247,7 +247,7 @@ A Slack workspace can be connected to one Ziffr Workspace only.
 
 ### Telegram
 
-The Telegram box appears when this Ziffr has a Telegram bot (never in the demo). It names the bot, such as @acme_ziffr_bot, and says whether Telegram is on in this Workspace. It is off until an Owner or Admin turns it on.
+The Telegram box appears when this Ziffr has a Telegram bot (never in the demo). Whoever runs this Ziffr sets the bot up, in the server's settings or on the [Installation settings](18-installation-settings.md) page; if Telegram does not accept its token, the box says so and points them there. It names the bot, such as @acme_ziffr_bot, and says whether Telegram is on in this Workspace. It is off until an Owner or Admin turns it on.
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |

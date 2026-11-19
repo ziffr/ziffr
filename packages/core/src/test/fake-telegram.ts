@@ -5,8 +5,12 @@
 import { createServer, type Server } from "node:http";
 import { forgetTelegramBot } from "../telegram-connection";
 
-/** One call the fake received: the method, its JSON body, and whether it came with the right token. */
-export type FakeTelegramCall = { method: string; params: Record<string, unknown>; tokenOk: boolean };
+/** One call the fake received: the method, its JSON body, whether it came with a token the fake knows, and the bot's
+ * numeric id from that token (never the token itself). */
+export type FakeTelegramCall = { method: string; params: Record<string, unknown>; tokenOk: boolean; botId: string };
+
+/** A second made-up bot the fake also knows, for a token replaced on the Installation Settings page. */
+export const OTHER_BOT_TOKEN = "7000000002:AAF-other-test-token-for-ziffr-telegram";
 
 /** The settings that turn Telegram on for a test, pointing at the fake. */
 export const TELEGRAM_SETTINGS = {
@@ -21,6 +25,9 @@ export async function fakeTelegram(over: Partial<Record<keyof typeof TELEGRAM_SE
   const calls: FakeTelegramCall[] = [];
   const fails: Record<string, { code: number; retryAfter?: number; times: number }> = {};
   let messageId = 1000;
+  // Where each bot's webhook points, by the bot's id, and an error Telegram reports about reaching it.
+  const webhook: Record<string, string> = {};
+  let lastError: string | null = null;
   const bot = { id: 7000000001, is_bot: true, first_name: "Ziffr", username: "ziffr_test_bot" };
   const server: Server = createServer((req, res) => {
     let body = "";
@@ -30,8 +37,9 @@ export async function fakeTelegram(over: Partial<Record<keyof typeof TELEGRAM_SE
       const method = m?.[2] ?? "";
       let params: Record<string, unknown> = {};
       try { params = body ? JSON.parse(body) : {}; } catch { params = {}; }
-      const tokenOk = m?.[1] === settings.ZIFFR_TELEGRAM_BOT_TOKEN;
-      calls.push({ method, params, tokenOk });
+      const botId = String(m?.[1] ?? "").split(":")[0];
+      const tokenOk = m?.[1] === settings.ZIFFR_TELEGRAM_BOT_TOKEN || m?.[1] === OTHER_BOT_TOKEN;
+      calls.push({ method, params, tokenOk, botId });
       const send = (status: number, json: Record<string, unknown>) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(json)); };
       if (!tokenOk) return send(401, { ok: false, error_code: 401, description: "Unauthorized" });
       const f = fails[method];
@@ -40,8 +48,10 @@ export async function fakeTelegram(over: Partial<Record<keyof typeof TELEGRAM_SE
         return send(f.code, { ok: false, error_code: f.code, description: "Fake failure", ...(f.retryAfter ? { parameters: { retry_after: f.retryAfter } } : {}) });
       }
       switch (method) {
-        case "getMe": return send(200, { ok: true, result: bot });
-        case "setWebhook": case "deleteWebhook": return send(200, { ok: true, result: true });
+        case "getMe": return send(200, { ok: true, result: botId === "7000000002" ? { ...bot, id: 7000000002, username: "ziffr_other_bot" } : bot });
+        case "getWebhookInfo": return send(200, { ok: true, result: { url: webhook[botId] ?? "", pending_update_count: 0, ...(lastError ? { last_error_date: Math.floor(Date.now() / 1000), last_error_message: lastError } : {}) } });
+        case "setWebhook": webhook[botId] = String(params.url ?? ""); return send(200, { ok: true, result: true });
+        case "deleteWebhook": delete webhook[botId]; return send(200, { ok: true, result: true });
         case "sendMessage": return send(200, { ok: true, result: { message_id: messageId++, chat: { id: params.chat_id, type: "private" }, date: Math.floor(Date.now() / 1000), text: params.text } });
         case "answerCallbackQuery": return send(200, { ok: true, result: true });
         case "getUpdates": return send(200, { ok: true, result: [] });
@@ -59,6 +69,10 @@ export async function fakeTelegram(over: Partial<Record<keyof typeof TELEGRAM_SE
     bot,
     /** Calls of one method. */
     of: (method: string) => calls.filter((c) => c.method === method),
+    /** Where each bot's webhook points now, by the bot's numeric id. */
+    webhook,
+    /** Makes getWebhookInfo report this error about reaching the webhook. */
+    reportError: (message: string | null) => { lastError = message; },
     /** The next `times` calls of a method fail with this HTTP code (and for 429, `retry_after`). */
     fail: (method: string, how: { code: number; retryAfter?: number }, times = 1) => { fails[method] = { ...how, times }; },
     stop: async () => {

@@ -1,9 +1,11 @@
 // The Telegram Bot API (spec 0016; GLOSSARY: Connector). Every call Ziffr makes to Telegram goes through here, to
 // https://api.telegram.org or the self-hoster's ZIFFR_TELEGRAM_API_URL (a Bot API server of their own), never to an
 // address taken from data. The bot token is part of every request's path, so no address and no error text that
-// could carry it is ever logged or kept: an error keeps only Telegram's numeric code.
+// could carry it is ever logged or kept: an error keeps only Telegram's numeric code. The token is the one in effect
+// (spec 0025): the environment's, else the one an Installation Admin saved on the Installation Settings page.
 import { createHmac } from "node:crypto";
 import { secretsKey } from "./secrets";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 
 /** Telegram's answer to one method call: `result` when it worked. */
 export type TelegramAnswer = { ok: boolean; result?: unknown; error_code?: number; parameters?: { retry_after?: number } };
@@ -17,18 +19,22 @@ export class TelegramError extends Error {
 }
 
 /** The bot token from @BotFather: the bot's numeric id, a colon, and a secret part. */
-const TOKEN = /^\d{5,15}:[A-Za-z0-9_-]{30,64}$/;
+export const TELEGRAM_TOKEN = /^\d{5,15}:[A-Za-z0-9_-]{30,64}$/;
+const TOKEN = TELEGRAM_TOKEN;
 
-/** The bot token, when one is set and looks like one; null otherwise. */
-export function telegramToken(env: Record<string, string | undefined> = process.env): string | null {
+/** The bot token of these settings, when one is set and looks like one; null otherwise. Pass the settings in effect. */
+export function telegramToken(env: Settings): string | null {
   const t = (env.ZIFFR_TELEGRAM_BOT_TOKEN ?? "").trim();
   return TOKEN.test(t) ? t : null;
 }
 
-/** Whether this Ziffr talks to Telegram: a bot token, and the key the webhook's secret is derived from. */
-export function telegramEnabled(env: Record<string, string | undefined> = process.env): boolean {
+/** Whether these settings talk to Telegram: a bot token, and the key the webhook's secret is derived from. */
+export function telegramEnabled(env: Settings): boolean {
   return Boolean(telegramToken(env)) && Boolean(secretsKey(env));
 }
+
+/** Whether this Ziffr talks to Telegram now, by the settings in effect. */
+export const telegramOn = async (): Promise<boolean> => telegramEnabled(await settingsInEffect());
 
 /** Whether updates are fetched by polling (`pnpm telegram:poll`, for a laptop) instead of a webhook. */
 export const telegramPolling = (env: Record<string, string | undefined> = process.env) => env.ZIFFR_TELEGRAM_POLLING === "1";
@@ -44,17 +50,18 @@ export function telegramApiBase(env: Record<string, string | undefined> = proces
 /** The secret Telegram sends with every webhook request (X-Telegram-Bot-Api-Secret-Token): derived from the bot token
  * and ZIFFR_SECRETS_KEY, so it changes when either does and is never stored. 64 hex characters, inside Telegram's
  * allowed set. Null without both. */
-export function telegramWebhookSecret(env: Record<string, string | undefined> = process.env): string | null {
+export function telegramWebhookSecret(env: Settings): string | null {
   const token = telegramToken(env);
   const key = secretsKey(env);
   if (!token || !key) return null;
   return createHmac("sha256", key).update(`telegram-webhook:${token}`).digest("hex");
 }
 
-/** Calls one Bot API method with a JSON body. Throws a TelegramError for `ok: false`, a 429 or a failed request;
- * waits at most ten seconds (more for long polling, `waitSeconds`). */
-export async function callTelegram<T = unknown>(method: string, params: Record<string, unknown> = {}, waitSeconds = 0): Promise<T> {
-  const token = telegramToken();
+/** Calls one Bot API method with a JSON body, with the bot token in effect unless another is given (a token being
+ * checked before it is saved). Throws a TelegramError for `ok: false`, a 429 or a failed request; waits at most ten
+ * seconds (more for long polling, `waitSeconds`). */
+export async function callTelegram<T = unknown>(method: string, params: Record<string, unknown> = {}, waitSeconds = 0, withToken?: string): Promise<T> {
+  const token = withToken !== undefined ? (TOKEN.test(withToken) ? withToken : null) : telegramToken(await settingsInEffect());
   if (!token) throw new TelegramError("not_configured");
   if (!/^[a-zA-Z]+$/.test(method)) throw new TelegramError("bad_method");
   let res: Response;
