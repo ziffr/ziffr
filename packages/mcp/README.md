@@ -44,6 +44,7 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 | `list_metrics` | Read metrics | Every Metric the key may read: slug, name, period, unit, format, Target Range, Sources |
 | `get_metric` | Read metrics | One Metric's description and its values for a range of periods (at most the 500 newest) |
 | `get_workspace` | Read metrics | The month the workspace's fiscal year starts in, where quarterly and yearly Metrics' periods begin |
+| `my_schedule` | Read metrics | What the key's creator has to do, overdue first, then by day: values due by their Due Dates, Approvals waiting for them, their Tasks and Questions, each with its link; this week unless `from` and `to` (at most 90 days apart) say otherwise |
 | `list_people` | Read metrics | The workspace's people and Contacts by id and name, to say who submitted a value or name a Submitter |
 | `list_target_series`, `list_projections` | Read metrics | A Metric's Target Series (targets for single periods, such as a monthly budget) and its Projections |
 | `get_unusual_value_check` | Read metrics | When a value counts as an Unusual Value in the Metric's Workflow, and how many Metrics share that Workflow |
@@ -75,6 +76,7 @@ A Starter needs no scope itself; the tools it leads to do.
 | Prompt | Argument (optional) | Needs, to change anything | What the assistant is asked to do |
 | --- | --- | --- | --- |
 | `what_can_i_do` | | none | Call `get_workspace` and `list_metrics`, then explain what it can read, record and build with this access |
+| `my_week` | | none | "What do I have to do in Ziffr this week?": call `my_schedule`, then list what is overdue, what is due each day and what has no date, one line each with its link; reads only |
 | `weekly_review` | `period`, at most 60 characters | none | Metrics that moved notably, values missing for the last period, anything unusual; reads only, ends with a summary and links |
 | `record_values` | `text`, at most 1,000 characters | Submit values | Match each number to a Metric, confirm the list with the user, then `submit_value` and report what was recorded or refused |
 | `build_dashboard` | `topic`, at most 200 characters | Build dashboards | Check `list_templates`, propose one dashboard, build it only once the user agrees, give its url |

@@ -386,3 +386,42 @@ export const TemplateList = z.object({ items: z.array(ApiTemplate) });
 
 /** Which templates GET /templates lists. */
 export const templatesQuery = z.object({ kind: z.enum(["view", "widget", "dashboard"]).optional() });
+
+/** The span GET /schedule covers (GLOSSARY: Schedule): days, both included; this week when left out. */
+export const scheduleQuery = z.object({
+  from: periodDate.optional().describe("The first day, YYYY-MM-DD. Default: Monday of this week in the workspace's time zone."),
+  to: periodDate.optional().describe("The last day, YYYY-MM-DD, at most 90 days after `from` and 366 days after today. Default: Sunday of this week."),
+});
+
+/** One duty in a Schedule. */
+const ScheduleEntry = z.object({
+  kind: z.enum(["value_due", "approval", "task", "question"]).describe("A value to submit, an Approval waiting, a Task or a Question assigned to the person."),
+  date: z.string().nullable().describe("The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question."),
+  overdue: z.boolean(),
+  overdue_working_days: z.number().int().min(0).describe("Working days (Saturdays and Sundays skipped) it is late; 0 when it is not."),
+  metric: z.object({ slug: z.string(), name: z.string() }).describe("The Metric it is about."),
+  period: z.object({ start: z.string().describe("The period's first day."), name: z.string().describe("Such as \"October 2026\".") }),
+  action_id: z.number().int().nullable().describe("The Approval's, Task's or Question's id; null for a value due."),
+  text: z.string().nullable().describe("A Task's or Question's words; null for a value due and an Approval."),
+  escalation: z.boolean().describe("A Question the Workflow asked because a value is missing (GLOSSARY: Escalation)."),
+  standing_in_for: z.string().nullable().describe("The name of the colleague the person stands in for while they are Away, or null."),
+  no_due_date: z.boolean().describe("A value of a Metric without a Workflow: dated the first working day after its period ends."),
+  remind_days_before: z.number().int().nullable().describe("How many days before the Due Date Ziffr reminds, or null."),
+  url: z.string().describe("Where it is done in Ziffr; needs a sign-in."),
+});
+
+const SCHEDULE_EXAMPLE = {
+  today: "2026-11-19",
+  overdue: [{ kind: "value_due", date: "2026-11-04", overdue: true, overdue_working_days: 11, metric: { slug: "revenue", name: "Revenue" }, period: { start: "2026-10-01", name: "October 2026" }, action_id: null, text: null, escalation: false, standing_in_for: null, no_due_date: false, remind_days_before: 2, url: "https://ziffr.example/schedule/submit/revenue" }],
+  days: [{ date: "2026-11-20", entries: [{ kind: "task", date: "2026-11-20", overdue: false, overdue_working_days: 0, metric: { slug: "shipping-cost", name: "Shipping cost" }, period: { start: "2026-10-01", name: "October 2026" }, action_id: 42, text: "Renegotiate the shipping rate", escalation: false, standing_in_for: null, no_due_date: false, remind_days_before: null, url: "https://ziffr.example/actions/42" }] }],
+  undated: [],
+};
+
+/** GET /schedule answers this: overdue entries first (of the last 90 days, whatever the span), the span's days that
+ * have entries, and the undated Tasks and Questions. */
+export const ScheduleAnswer = z.object({
+  today: z.string().describe("Today in the workspace's time zone."),
+  overdue: z.array(ScheduleEntry).describe("Everything late, of the last 90 days whatever the span, the most late first."),
+  days: z.array(z.object({ date: z.string(), entries: z.array(ScheduleEntry) })).describe("The span's days that have something, in order."),
+  undated: z.array(ScheduleEntry).describe("Tasks without a due date and Questions other than Escalations."),
+}).meta({ examples: [SCHEDULE_EXAMPLE] });

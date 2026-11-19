@@ -37,7 +37,7 @@ describe("@ziffr/mcp against the app", () => {
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric", "get_unusual_value_check", "get_workspace",
-      "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_submitters", "list_target_series", "list_templates", "remove_widget", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
+      "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_submitters", "list_target_series", "list_templates", "my_schedule", "remove_widget", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
       "submit_value", "update_dashboard", "update_finding", "update_metric", "update_widget",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
@@ -52,6 +52,10 @@ describe("@ziffr/mcp against the app", () => {
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
     expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1 } });
+    // Orders is new: no period of it ended yet, so nothing is due.
+    const schedule = await client.callTool({ name: "my_schedule", arguments: {} });
+    expect(schedule.isError).toBeFalsy();
+    expect(schedule.structuredContent).toMatchObject({ today: expect.any(String), overdue: [], undated: [] });
   });
   it("creates a Metric and submits its first value", async () => {
     const { client } = await connect(["metrics:read", "values:submit", "metrics:write"]);

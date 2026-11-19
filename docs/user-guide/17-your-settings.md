@@ -172,6 +172,7 @@ Ziffr offers the assistant a few **Starters**, ready-made requests you pick inst
 | Starter | What the assistant does | Box it needs to change anything |
 | --- | --- | --- |
 | **What can I do here?** (`what_can_i_do`) | Looks at your Workspace and explains what it can read, record and build for you, with your Metrics as examples. | none, it only reads |
+| **What do I have to do this week?** (`my_week`) | Lists what you have to do in Ziffr this week: values due, Approvals waiting for you, your Tasks and Questions, what is overdue first, each with its link. You can also just ask "What do I have to do in Ziffr this week?" or name other days. It only reads. | none, it only reads |
 | **Weekly review** (`weekly_review`) | Tells you which Metrics moved notably, which values are still missing for the last period and anything unusual. You can name the period, such as "last week". It only reads. | none, it only reads |
 | **Record values** (`record_values`) | Takes a sentence such as "3 coffees today, 12 signups this week", shows which Metric and period each number would go to, and records them once you agree. | Submit values |
 | **Build a dashboard** (`build_dashboard`) | Proposes one dashboard on a topic you name, from your Metrics and the team's Dashboard Templates, and builds it only once you agree. You get its link. | Build dashboards |

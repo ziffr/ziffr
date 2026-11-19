@@ -20,6 +20,7 @@ import * as submitters from "@/app/api/v1/metrics/[slug]/submitters/route";
 import * as targetSeries from "@/app/api/v1/metrics/[slug]/target-series/route";
 import * as unusualValueCheck from "@/app/api/v1/metrics/[slug]/unusual-value-check/route";
 import * as people from "@/app/api/v1/people/route";
+import * as scheduleRoute from "@/app/api/v1/schedule/route";
 import * as templates from "@/app/api/v1/templates/route";
 import * as workspace from "@/app/api/v1/workspace/route";
 import * as rest from "@/app/api/v1/[...rest]/route";
@@ -47,6 +48,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["metrics/[slug]/target-series", targetSeries],
   ["metrics/[slug]/unusual-value-check", unusualValueCheck],
   ["people", people],
+  ["schedule", scheduleRoute],
   ["templates", templates],
   ["workspace", workspace],
 ];
