@@ -57,14 +57,19 @@ export async function simulateMessage(input: { source: SourceId; sender: string;
   return r;
 }
 
-export async function submitWebForm(code: string, form: FormData) {
+/** What the form shows after a submission: the core's own words, handed back by the action, never through the URL. */
+export type WebFormResult = { ok: boolean; detail: string } | null;
+
+/** A personal form link submits a value (or a Breakdown). The result comes back to the form itself rather than in a
+ * redirect's query string, so the page only ever shows text Ziffr wrote (ticket 183). */
+export async function submitWebForm(code: string, _previous: WebFormResult, form: FormData): Promise<WebFormResult> {
   // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line.
   const value = String(form.get("value") ?? "").trim();
   const breakdown = String(form.get("breakdown") ?? "").trim();
   const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
   const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000) });
   revalidatePath("/", "layout");
-  redirect(`/submit/${code}?outcome=${encodeURIComponent(r.outcome)}&detail=${encodeURIComponent(r.detail)}`);
+  return { ok: !r.outcome.startsWith("rejected"), detail: r.detail };
 }
 
 /** Asks a member about a value. */
