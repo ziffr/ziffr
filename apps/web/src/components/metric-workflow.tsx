@@ -1,6 +1,7 @@
 "use client";
 // A metric's Workflow on its page (GLOSSARY: Workflow, Stand-in, Lock): which one, where the last period is,
 // who stands in for whom, and locking by hand.
+import { shown, unwrap } from "@/lib/action-error";
 import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
   const [pending, start] = useTransition();
   const wf = workflows.find((w) => w.id === workflowId);
   const name = (id: string | null) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "nobody";
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const field = "h-8 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-70";
   return (
     <section className="stock rounded-[var(--radius-card)] p-5 text-sm">

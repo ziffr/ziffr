@@ -3,6 +3,7 @@
 // owner, in a dialog on the Settings tab. The core checks the owner and every field, refuses a new period once the
 // Metric has values, and keeps each change as a Version. The target range is read in the Workspace's Number Style by
 // the core's one reader, and a number it cannot read is refused rather than dropped.
+import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -53,18 +54,19 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
             const f = new FormData(e.currentTarget);
             start(async () => {
               try {
-                await updateMetricDetails(metric.id, {
+                const r = await updateMetricDetails(metric.id, {
                   name: String(f.get("name") ?? ""), description: String(f.get("description") ?? ""), unit: String(f.get("unit") ?? ""), unitPosition: String(f.get("unit_position") ?? "after"),
                   format: String(f.get("format")), decimals: Number(f.get("decimals")), period: String(f.get("period") ?? metric.period),
                   submissionRule: metric.formula ? undefined : String(f.get("submission_rule")), polarity: String(f.get("polarity")),
                   aggregation: String(f.get("aggregation")), targetMin: num(f.get("target_min")), targetMax: num(f.get("target_max")),
                   attainmentMethod: String(f.get("attainment_method") ?? ""),
                 });
+                if (isActionError(r)) { toast.error("Not saved", { description: r.error }); return; }
                 toast.success("Saved");
                 setOpen(false);
                 router.refresh();
-              } catch (err) {
-                toast.error("Not saved", { description: (err as Error).message });
+              } catch {
+                toast.error("Not saved", { description: UNEXPECTED });
               }
             });
           }}

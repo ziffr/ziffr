@@ -2,6 +2,7 @@
 // Feeds (GLOSSARY: Feed, Feed Key) in the workspace settings (spec 0012): each Feed with its keys, the Metrics it
 // submits to and how it is doing, a form to make one, and a new key's secret once. Owners and Admins only; the core
 // checks again.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
@@ -19,7 +20,7 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle:
 export function Feeds({ feeds, logs }: { feeds: FeedInfo[]; logs: Record<number, AccessLogEntry[]> }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   return (
     <section aria-labelledby="feeds-heading" className="space-y-4 border-t border-border pt-6">
       <div>
@@ -32,7 +33,7 @@ export function Feeds({ feeds, logs }: { feeds: FeedInfo[]; logs: Record<number,
       <ul className="space-y-3">
         {feeds.map((f) => <FeedCard key={f.id} feed={f} logs={logs} pending={pending} run={run} />)}
       </ul>
-      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { await createFeed(name); setName(""); }, "Feed created"); }}>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { unwrap(await createFeed(name)); setName(""); }, "Feed created"); }}>
         <label className="text-xs text-muted-foreground">New Feed<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. HubSpot" maxLength={80} className="mt-1 w-56" /></label>
         <Button type="submit" variant="outline" disabled={pending || !name.trim()}>Create Feed</Button>
       </form>
@@ -51,7 +52,7 @@ function FeedCard({ feed: f, logs, pending, run }: { feed: FeedInfo; logs: Recor
         {renaming === null ? (
           <button type="button" className="font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring" onClick={() => setRenaming(f.name)} aria-label={`Rename ${f.name}`}>{f.name}</button>
         ) : (
-          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { await renameFeed(f.id, renaming); setRenaming(null); }, "Renamed"); }}>
+          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { unwrap(await renameFeed(f.id, renaming)); setRenaming(null); }, "Renamed"); }}>
             <Input value={renaming} onChange={(e) => setRenaming(e.target.value)} maxLength={80} aria-label="Feed name" className="h-8 w-48" autoFocus />
             <Button size="sm" type="submit" disabled={pending || !renaming.trim()}>Save</Button>
             <Button size="sm" variant="ghost" type="button" onClick={() => setRenaming(null)}>Cancel</Button>
@@ -89,7 +90,7 @@ function FeedCard({ feed: f, logs, pending, run }: { feed: FeedInfo; logs: Recor
           ))}
         </ul>
       )}
-      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(await createFeedKey(f.id, { name: keyName, expiresOn: expires })); setKeyName(""); }, "Key created"); }}>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(unwrap(await createFeedKey(f.id, { name: keyName, expiresOn: expires }))); setKeyName(""); }, "Key created"); }}>
         <label className="text-xs text-muted-foreground">Key name<Input value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="e.g. Nightly run" maxLength={80} className="mt-1 w-48" /></label>
         <label className="text-xs text-muted-foreground">Until<Input type="date" value={expires} min={inDays(1)} max={inDays(365)} onChange={(e) => setExpires(e.target.value)} className="mt-1" /></label>
         <Button type="submit" variant="outline" disabled={pending}>Create Feed Key</Button>

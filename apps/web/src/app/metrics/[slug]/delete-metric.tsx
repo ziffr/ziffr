@@ -1,6 +1,7 @@
 "use client";
 // Deleting a Metric (GLOSSARY: Metric, Audit Log): for its owner, who types its name to confirm. The core refuses while
 // anything uses it and records the deletion in the Audit Log.
+import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,10 +29,11 @@ export function DeleteMetric({ metricId, name }: { metricId: number; name: strin
             start(async () => {
               try {
                 const r = await deleteMetric(metricId, typed);
+                if (isActionError(r)) { toast.error("Not deleted", { description: r.error }); return; }
                 toast.success(`${name} deleted`, { description: `${r.values} values went with it.` });
                 router.push("/metrics");
-              } catch (err) {
-                toast.error("Not deleted", { description: (err as Error).message });
+              } catch {
+                toast.error("Not deleted", { description: UNEXPECTED });
               }
             });
           }}

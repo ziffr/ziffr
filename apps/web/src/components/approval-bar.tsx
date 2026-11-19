@@ -1,6 +1,7 @@
 "use client";
 // The approver's choices on an approval task (GLOSSARY: Approval). The same works by replying
 // "approve" or "send back: …" through Slack, email or WhatsApp.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -15,7 +16,7 @@ export function ApprovalBar({ actionId }: { actionId: number }) {
   const [comment, setComment] = useState("");
   const [pending, start] = useTransition();
   const run = (f: () => Promise<unknown>, ok: (r: unknown) => string) => start(async () => {
-    try { const r = await f(); toast.success(ok(r)); router.refresh(); } catch (err) { toast.error("Not done", { description: (err as Error).message }); }
+    try { const r = unwrap(await f()); toast.success(ok(r)); router.refresh(); } catch (err) { toast.error("Not done", { description: shown(err) }); }
   });
   return (
     <div className="mt-4 rounded-[var(--radius-input)] border border-[var(--color-accent-2)] p-3 text-sm">

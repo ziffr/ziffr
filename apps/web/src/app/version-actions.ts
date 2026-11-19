@@ -1,6 +1,7 @@
 "use server";
 // Version history (GLOSSARY: Version): thin calls into the core (@ziffr/core/version-history), which decides who may
 // see and restore what.
+import { isActionError } from "@/lib/action-error";
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import * as history from "@ziffr/core/version-history";
@@ -23,7 +24,9 @@ export async function restoreVersion(versionId: number) {
     // A Workflow is restored through the same save as editing it, so its checks apply (the core's saveWorkflow, as the restorer).
     restoreWorkflow: async (id, name, config) => {
       const { saveWorkflow } = await import("./workflow-actions");
-      await saveWorkflow(id, name, config as WorkflowConfig);
+      // A refusal comes back as words; the restore stops with them.
+      const r = await saveWorkflow(id, name, config as WorkflowConfig);
+      if (isActionError(r)) throw new Error(r.error);
     },
   });
   revalidatePath("/", "layout");

@@ -1,6 +1,7 @@
 "use client";
 // How values of a Metric may arrive (GLOSSARY: Source): its owner ticks any of the web form, email, Slack and the API, and a
 // submitter may then send a value whichever way suits them. The core checks the owner and the list.
+import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -30,11 +31,12 @@ export function SourcesEditor({ metricId, sources }: { metricId: number; sources
       {changed && (
         <Button size="sm" disabled={pending || !chosen.length} onClick={() => start(async () => {
           try {
-            await setMetricSources(metricId, chosen);
+            const r = await setMetricSources(metricId, chosen);
+            if (isActionError(r)) { toast.error("Not saved", { description: r.error }); return; }
             toast.success("Saved");
             router.refresh();
-          } catch (err) {
-            toast.error("Not saved", { description: (err as Error).message });
+          } catch {
+            toast.error("Not saved", { description: UNEXPECTED });
           }
         })}>Save</Button>
       )}
