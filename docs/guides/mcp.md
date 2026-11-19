@@ -1,6 +1,6 @@
 # Ziffr's MCP Server
 
-Ziffr's MCP Server lets an AI assistant read the Metrics a person may see, submit values and build dashboards, with exactly that person's rights and no more (GLOSSARY: MCP Server). There are two ways to reach it, with the same tools:
+Ziffr's MCP Server lets an AI assistant read the Metrics a person may see, submit values and build dashboards, with exactly that person's rights and no more (GLOSSARY: MCP Server). There are two ways to reach it, with the same tools and Starters:
 
 - **On your own computer:** `@ziffr/mcp`, started by the assistant (Claude Desktop, Claude Code), with an Access Key you make on the Team page. See [`packages/mcp/README.md`](../../packages/mcp/README.md). Works with any Ziffr, also one without a public address.
 - **At your Ziffr's address:** `https://<your ziffr>/mcp`, for assistants that connect over the internet, such as Claude.ai. You sign in to Ziffr in the window that opens and choose what the assistant may do. Nothing to install, and no secret to paste (spec 0023).
@@ -24,6 +24,14 @@ npx @modelcontextprotocol/inspector                       # opens a browser; pic
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
   --header "Authorization: Bearer zk_..." --method tools/list   # with an Access Key, no sign-in
 ```
+
+## Starters
+
+Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `weekly_review`, `record_values`, `build_dashboard` and `explain_metric`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
+
+- They are registered in `createServer` (`packages/mcp/src/server.ts`), so `/mcp` gets them with the tools; `apps/web/src/app/mcp/route.db.test.ts` checks that both servers list and fill them in alike.
+- A Starter calls nothing itself. `prompts/get` returns one user message; the assistant then uses the tools, with the credential's scopes, like for any request.
+- Arguments come from the client, so treat them like workspace text: each is limited in length (refused with `InvalidParams` when longer), flattened to one line and quoted with `JSON.stringify` inside the text, followed by what to take from it. Quoting makes injected instructions harder to follow, not impossible: the credential's scopes are the limit, so a Starter that changes something always asks the user to confirm first. Keep it that way when you add one, and end its text with the shared safety lines.
 
 ## The remote server
 
