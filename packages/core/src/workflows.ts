@@ -30,7 +30,7 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
     else if (s.type === "escalate") steps.push({ type: "escalate", to: s.to === "owner" ? "owner" : "stand-in", daysAfter: int(s.daysAfter, 0, 30) });
     else if (s.type === "check" && !steps.some((x) => x.type === "check")) steps.push({ type: "check", changePct: int(s.changePct, 1, 1000), outsideTarget: Boolean(s.outsideTarget) });
-    else if (s.type === "approve" && !steps.some((x) => x.type === "approve")) steps.push({ type: "approve", approvers: [...new Set((Array.isArray(s.approvers) ? s.approvers : []).map(String).filter((a) => ids.has(a)))].slice(0, 3) });
+    else if (s.type === "approve" && !steps.some((x) => x.type === "approve")) steps.push({ type: "approve", approvers: [...new Set((Array.isArray(s.approvers) ? s.approvers : []).map(String).filter((a) => ids.has(a)))].slice(0, 3), values: s.values === "every" ? "every" : "unusual" });
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
   const pub = steps.filter((s) => s.type === "publish");

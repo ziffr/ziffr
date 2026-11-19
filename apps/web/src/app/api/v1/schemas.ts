@@ -152,7 +152,7 @@ export const SubmitObservation = z.object({
 
 /** POST /api/v1/metrics/{slug}/observations answers this when the value was taken. */
 export const SubmissionAnswer = z.object({
-  status: z.enum(["recorded", "awaiting_approval"]).describe("recorded, or waiting for Approval as an Unusual Value."),
+  status: z.enum(["recorded", "awaiting_approval"]).describe("recorded, or waiting for Approval: as an Unusual Value, or because its Workflow approves every value."),
   period: z.string().describe("The period it was recorded for, YYYY-MM-DD."),
   value: z.number().describe("The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent."),
   detail: z.string().describe("What happened, in words. For a key that may not read metrics, without earlier values."),
@@ -256,8 +256,8 @@ export const FeedBatch = z.object({ items: z.array(FeedItem).min(1).max(500).des
 export const FeedItemResult = z.object({
   metric: z.string(),
   period: z.string().nullable().describe("The period it was meant for, YYYY-MM-DD; null when the Metric was not found."),
-  status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval as an Unusual Value; locked (it went to the Metric's owner as a proposed Correction); or refused."),
-  imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check."),
+  status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused."),
+  imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check. Under a Workflow that approves every value, one for the period it is closing or later still waits for Approval."),
   code: z.string().optional().describe("Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token."),
   detail: z.string(),
 });

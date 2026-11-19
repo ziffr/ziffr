@@ -64,6 +64,8 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "check", changePct: 20, outsideTarget: true }, people)).toBe("Unusual if it changes more than 20 % or falls outside the target");
     expect(stepLabel({ type: "check", changePct: 20, outsideTarget: false }, people)).toBe("Unusual if it changes more than 20 %");
     expect(stepLabel({ type: "approve", approvers: ["sara", "ben", "gone"] }, people)).toBe("Unusual values approved by Sara, then Ben, then gone");
+    expect(stepLabel({ type: "approve", approvers: ["sara", "ben"], values: "unusual" }, people)).toBe("Unusual values approved by Sara, then Ben");
+    expect(stepLabel({ type: "approve", approvers: ["sara", "ben"], values: "every" }, people)).toBe("Every value approved by Sara, then Ben");
     expect(stepLabel({ type: "approve", approvers: [] }, people)).toBe("Approval, nobody chosen yet");
     expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
     expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");

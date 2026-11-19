@@ -135,7 +135,7 @@ A value that changes more than a set share against the period before, or falls o
 _Avoid_: Outlier, anomaly
 
 **Approval**:
-Confirming an Unusual Value, by each Approver in order. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet.
+Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet.
 _Avoid_: Sign-off, review, verification
 
 **Lock**:
