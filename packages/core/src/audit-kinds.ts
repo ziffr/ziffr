@@ -51,6 +51,9 @@ export const AUDIT_KINDS = {
   "workflow.run_now": "ran today's Workflow steps now",
   "approval.given": "approved a value of",
   "approval.sent_back": "sent back a value of",
+  "approval.skipped": "counted without Approval, as nobody else could approve it, a value of",
+  "self_check.confirmed": "confirmed, as its submitter, a value of",
+  "self_check.corrected": "corrected, as its submitter, a value of",
   "correction.accepted": "accepted a Correction to",
   "correction.declined": "declined a Correction to",
   "workspace.clock_changed": "changed the workspace's time zone or run hour",
@@ -79,7 +82,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
   share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", calendar_link: "Calendar Links", assistant: "Assistants", feed: "Feeds", view_design: "View Designs", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
-  workflow: "Workflow runs", approval: "Approvals", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
+  workflow: "Workflow runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */

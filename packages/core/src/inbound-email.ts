@@ -179,9 +179,10 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   return outcome;
 }
 
+// A Self-check decides whether a value counts just as an Approval does, so it needs a verified sender too.
 async function isApproval(ws: string, actionId: number): Promise<boolean> {
   const { data } = await db().from("actions").select("purpose").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
-  return data?.purpose === "approval";
+  return data?.purpose === "approval" || data?.purpose === "self_check";
 }
 
 type DeliveryRow = { id: number; workspace_id: string; recipient_id: string; kind: string; action_id: number | null; prompt_id: number | null };

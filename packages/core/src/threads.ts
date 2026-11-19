@@ -13,7 +13,8 @@ export async function participants(ws: string, actionId: number) {
 }
 
 /** Adds a reply and tells the others, through each one's Connector. On an approval task, "approve" or
- * "send back: …" from the approver decide it, from Ziffr or from Slack, email or WhatsApp. */
+ * "send back: …" from the approver decide it, from Ziffr or from Slack, email or WhatsApp. On a Self-check,
+ * "confirm" or "Correction: <value>" from the submitter it is for decide it the same way. */
 export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null) {
   const a = await participants(ws, actionId);
   if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
@@ -22,6 +23,11 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     if (/^\s*approved?\b/i.test(body)) { await approve(ws, actionId, authorId); return; }
     const back = body.match(/^\s*send back\s*:?\s*([\s\S]*)$/i);
     if (back) { await sendBack(ws, actionId, authorId, back[1].trim()); return; }
+  }
+  if (a.purpose === "self_check" && a.assignee_id === authorId && a.status === "open") {
+    const { confirmSelfCheck, correctSelfCheck } = await import("./workflow-engine");
+    if (correction !== null) { await correctSelfCheck(ws, actionId, authorId, correction); return; }
+    if (/^\s*(confirm(ed)?|yes)\b/i.test(body)) { await confirmSelfCheck(ws, actionId, authorId); return; }
   }
   await insertSealed("thread_messages", ws, [{
     action_id: actionId,

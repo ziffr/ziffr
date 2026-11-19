@@ -423,7 +423,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new and deleted Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals, Corrections, the Workspace's name, time, fiscal year and profile, Slack, Snapshots taken, shown and deleted, exports and sign-ins.
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new and deleted Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, Slack, Snapshots taken, shown and deleted, exports and sign-ins.
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 

@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ThreadMessage } from "@ziffr/core/types";
 import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { ApprovalBar } from "@/components/approval-bar";
+import { SelfCheckBar } from "@/components/self-check-bar";
 import { periodLabel } from "@ziffr/core/periods";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +59,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
         </div>
         {window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={m} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
         {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
+        {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}
         {sent.length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground">
             <summary className="cursor-pointer">Sent {sent.length} time{sent.length === 1 ? "" : "s"} through connectors</summary>
@@ -113,7 +115,8 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
               </label>
             )}
             <div className="ml-auto flex gap-2">
-              {isAssignee && a.kind === "task" && a.status === "open" && <AnsweredButton action={markTaskDone.bind(null, a.id)} variant="outline">Mark done</AnsweredButton>}
+              {/* An Approval or Self-check is decided by its own buttons: marking it done would leave the value waiting. */}
+              {isAssignee && a.kind === "task" && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check" && <AnsweredButton action={markTaskDone.bind(null, a.id)} variant="outline">Mark done</AnsweredButton>}
               {isAsker && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
               <Button type="submit">Reply</Button>
             </div>

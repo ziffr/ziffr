@@ -1,5 +1,5 @@
 "use server";
-// Workflows (GLOSSARY: Workflow, Stand-in, Away, Approval, Lock): thin calls into the core (@ziffr/core/workflows).
+// Workflows (GLOSSARY: Workflow, Stand-in, Away, Approval, Self-check, Lock): thin calls into the core (@ziffr/core/workflows).
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
@@ -55,6 +55,24 @@ export async function runTodayNow() {
 export async function approveValue(actionId: number) {
   return attempt(async () => {
     const r = await wf.approveValue(await currentActor(), Number(actionId));
+    done();
+    return r;
+  });
+}
+
+/** The submitter confirms their own value in a Self-check. */
+export async function confirmOwnValue(actionId: number) {
+  return attempt(async () => {
+    const r = await wf.confirmOwnValue(await currentActor(), Number(actionId));
+    done();
+    return r;
+  });
+}
+
+/** The submitter corrects their own value in a Self-check. */
+export async function correctOwnValue(actionId: number, value: number) {
+  return attempt(async () => {
+    const r = await wf.correctOwnValue(await currentActor(), Number(actionId), Number(value));
     done();
     return r;
   });

@@ -27,7 +27,7 @@ const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
   remind: { type: "remind", daysBefore: 2 },
   escalate: { type: "escalate", to: "stand-in", daysAfter: 0 },
   check: { type: "check", changePct: 30, outsideTarget: true },
-  approve: { type: "approve", approvers: [], values: "unusual" },
+  approve: { type: "approve", approvers: [], values: "unusual", nobodyElse: "self-check" },
   publish: { type: "publish", lock: true },
 };
 const STATE_LABEL: Record<PeriodState["state"], string> = { asked: "Asked, waiting", submitted: "In, not approved yet", approval: "Waiting for approval", published: "Published", locked: "Published and locked" };
@@ -232,9 +232,17 @@ function StepFields({ s, people, submitters, onChange }: { s: WorkflowStep; peop
           ))}
           {s.approvers.length < 3 && <button type="button" onClick={() => onChange({ ...s, approvers: [...s.approvers, people[0]?.id ?? ""] })} className="underline">Add approver</button>}
           <span>Nobody approves their own value; the next one does.</span>
+          <label className="flex basis-full flex-wrap items-center gap-1.5">
+            <span>When nobody else can approve</span>
+            <select aria-label="When nobody else can approve" value={s.nobodyElse === "count" ? "count" : "self-check"} onChange={(e) => onChange({ ...s, nobodyElse: e.target.value === "count" ? "count" : "self-check" })} className={field}>
+              <option value="self-check">let the submitter check it</option>
+              <option value="count">count it without approval</option>
+            </select>
+            <span className="text-xs text-muted-foreground">{s.nobodyElse === "count" ? "Such a value counts at once, with a note that nobody else could approve it." : "The submitter gets a task to confirm or correct it, recorded as confirmed by the submitter, not as approved."}</span>
+          </label>
           {s.approvers.length > 0 && s.approvers.every((a) => submitters.has(a)) && (
             <span role="note" className="basis-full text-[var(--color-ink)]">
-              {s.approvers.length === 1 ? "The only Approver" : "Every Approver"} also submits a Metric on this Workflow: their own values go to the Metric Owner, or the Workflow&apos;s owner, for Approval instead, and wait if that is them too. Add another Approver.
+              {s.approvers.length === 1 ? "The only Approver" : "Every Approver"} also submits a Metric on this Workflow: their own values go to the Metric Owner, or the Workflow&apos;s owner, for Approval instead. If that is them too, {s.nobodyElse === "count" ? "the value counts without approval" : "they check it themselves"}. Add another Approver for four eyes.
             </span>
           )}
         </>

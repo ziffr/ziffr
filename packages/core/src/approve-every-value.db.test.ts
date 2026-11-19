@@ -53,8 +53,8 @@ describe("the Approve step's choice", () => {
     const step = await stepOf(every.workflowId);
     expect(step).toMatchObject({ values: "every" });
     const people = [{ id: every.ada, name: "Ada Lovelace" }, { id: every.bo, name: "Bo Diddley" }] as never;
-    expect(stepLabel(step, people)).toBe("Every value approved by Ada, then Bo");
-    expect(stepLabel({ type: "approve", approvers: [every.ada] }, people)).toBe("Unusual values approved by Ada");
+    expect(stepLabel(step, people)).toBe("Every value approved by Ada, then Bo; when nobody else can, the submitter checks it");
+    expect(stepLabel({ type: "approve", approvers: [every.ada] }, people)).toBe("Unusual values approved by Ada; when nobody else can, the submitter checks it");
     // Anything else a browser sends is taken as the default.
     await saveWorkflow(every.w.actor(every.sara), every.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [every.ada], values: "all" as never }] });
     expect(await stepOf(every.workflowId)).toMatchObject({ values: "unusual" });
@@ -159,7 +159,7 @@ describe("the Approve step's choice", () => {
     expect((await approvalTasks(m.id)).filter((t) => t.status === "open")).toMatchObject([{ assignee_id: bo }]);
   });
 
-  it("sends an unusual value from the sole Approver to the Metric Owner, and keeps it waiting when nobody else is left", async () => {
+  it("sends an unusual value from the sole Approver to the Metric Owner, and lets its submitter check it when nobody else is left", async () => {
     const { w, sara, ada, m, workflowId } = await setup("unusual");
     await saveWorkflow(w.actor(sara), workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "check", changePct: 50, outsideTarget: false }, { type: "approve", approvers: [ada], values: "unusual" }, { type: "publish", lock: false }] });
     await w.token(m.id, ada);
@@ -167,13 +167,14 @@ describe("the Approve step's choice", () => {
     await onValue(m.id, monthsAgo(1), ada);
     await w.value(m.id, thisMonth(), 400, ada);
     expect((await onValue(m.id, thisMonth(), ada))[0]).toMatch(new RegExp(`approval asked from ${sara}$`));
-    // Sara owns the Metric and the Workflow and is the only Approver: her own value waits, it is never published.
+    // Sara owns the Metric and the Workflow and is the only Approver: her own value waits for her Self-check, never
+    // for an Approval and never published by itself.
     const solo = await setup("every");
     await saveWorkflow(solo.w.actor(solo.sara), solo.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [solo.sara], values: "every" }, { type: "publish", lock: false }] });
     await solo.w.token(solo.m.id, solo.sara);
     await solo.w.value(solo.m.id, thisMonth(), 100, solo.sara);
-    expect(await onValue(solo.m.id, thisMonth(), solo.sara)).toEqual(["waits for approval: nobody but the submitter can approve it"]);
-    expect(await getState(solo.m.id, thisMonth())).toMatchObject({ state: "approval", approval_action_id: null, note: expect.stringMatching(/nobody but its submitter/) });
+    expect(await onValue(solo.m.id, thisMonth(), solo.sara)).toEqual(["nobody else can approve it: its submitter checks it"]);
+    expect(await getState(solo.m.id, thisMonth())).toMatchObject({ state: "approval", approval_action_id: expect.any(Number), note: expect.stringMatching(/submitter to check it/) });
     expect(await approvalTasks(solo.m.id)).toEqual([]);
   });
 
@@ -193,7 +194,7 @@ describe("the Approve step's choice", () => {
     await setMetricWorkflow(w.actor(ada, "admin"), own.id, workflowId);
     await w.token(own.id, ada);
     await w.value(own.id, thisMonth(), 100, ada);
-    expect(await onValue(own.id, thisMonth(), ada)).toEqual(["waits for approval: nobody but the submitter can approve it"]);
+    expect(await onValue(own.id, thisMonth(), ada)).toEqual(["nobody else can approve it: its submitter checks it"]);
     expect(await approvalTasks(own.id)).toEqual([]);
   });
 });

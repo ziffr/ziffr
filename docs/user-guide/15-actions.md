@@ -79,7 +79,7 @@ At the top you see the status, whether it is a Question or Task, the Due Date, t
 
 **Sent through connectors** lists each time Ziffr sent this Action or a reply to someone: what kind of message, to whom, through which Connector and when. The **Outbox** link there shows all of them (see [Workspace settings](16-workspace-settings.md)).
 
-Some Tasks come from a Workflow: they ask the Approver to approve an Unusual Value. The Approver sees **Approve** and **Send back** on them. See [Workflows](11-workflows.md).
+Some Tasks come from a Workflow: they ask the Approver to approve an Unusual Value, or every value where the Workflow says so. The Approver sees **Approve** and **Send back** on them. When nobody but you could approve your own value, the Task asks you to check it instead, with **Confirm** and **Correct**. Neither kind has **Mark done**: their own buttons decide the value. See [Workflows](11-workflows.md).
 
 ### Replying
 
@@ -92,7 +92,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 | The text box | Your reply. For the Assignee it starts as "Explain what happened…". |
 | **Propose a correction** | A new value for the period, if the value is wrong. Shown when the period has a value. See [Corrections](#corrections). |
 | **Reply** | Sends your reply. The other person hears about it through their Connector. |
-| **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. If the Task is no longer open or no longer yours, the reason shows next to the button. |
+| **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. If the Task is no longer open or no longer yours, the reason shows next to the button. Not on a Task that asks for Approval or for checking your own value. |
 | **Close Action** | For the asker: ends the Action. The Assignee hears that it was closed. |
 
 ### From open to closed
@@ -122,7 +122,7 @@ Whoever proposed the Correction hears what the owner decided. Each decision is n
 
 Each new Action, reply, proposed Correction and closed Task reaches the person as a **Delivery**: by email, on Slack, by Telegram or through another Connector, as they chose under **Your Deliveries** (see [Your settings](17-your-settings.md)).
 
-People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check. On Slack and Telegram, the message also has an **Approve** button, which only the Approver it went to can use.
+People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check. On a Task that asks you to check your own value, reply "confirm", or "Correction:" and the right number. On Slack and Telegram, the message also has an **Approve** button, which only the Approver it went to can use.
 
 In the demo, to answer as someone else, switch **View as** in the top bar to that person, as the Action page reminds you.
 

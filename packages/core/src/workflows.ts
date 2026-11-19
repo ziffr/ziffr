@@ -1,11 +1,11 @@
-// Workflows (GLOSSARY: Workflow, Stand-in, Away, Approval, Lock): defining them, giving a Metric one, running them,
-// approving or sending back values, locking periods, stand-ins and away dates. Every function takes the Actor first
+// Workflows (GLOSSARY: Workflow, Stand-in, Away, Approval, Self-check, Lock): defining them, giving a Metric one,
+// running them, approving or sending back values, checking one's own, locking periods, stand-ins and away dates. Every function takes the Actor first
 // and works only inside the actor's Workspace.
 import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { assertMembersIn } from "./sharing";
 import { assertSubmittersIn } from "./metrics";
-import { approve, closePeriod, runWorkflows, sendBack, setLock } from "./workflow-engine";
+import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, runWorkflows, sendBack, setLock } from "./workflow-engine";
 import { claimDay, runClaimedDay, type RunCounts } from "./scheduled-runs";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { localTime, workspaceClock } from "./workspace-clock";
@@ -30,7 +30,7 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
     else if (s.type === "escalate") steps.push({ type: "escalate", to: s.to === "owner" ? "owner" : "stand-in", daysAfter: int(s.daysAfter, 0, 30) });
     else if (s.type === "check" && !steps.some((x) => x.type === "check")) steps.push({ type: "check", changePct: int(s.changePct, 1, 1000), outsideTarget: Boolean(s.outsideTarget) });
-    else if (s.type === "approve" && !steps.some((x) => x.type === "approve")) steps.push({ type: "approve", approvers: [...new Set((Array.isArray(s.approvers) ? s.approvers : []).map(String).filter((a) => ids.has(a)))].slice(0, 3), values: s.values === "every" ? "every" : "unusual" });
+    else if (s.type === "approve" && !steps.some((x) => x.type === "approve")) steps.push({ type: "approve", approvers: [...new Set((Array.isArray(s.approvers) ? s.approvers : []).map(String).filter((a) => ids.has(a)))].slice(0, 3), values: s.values === "every" ? "every" : "unusual", nobodyElse: s.nobodyElse === "count" ? "count" : "self-check" });
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
   const pub = steps.filter((s) => s.type === "publish");
@@ -138,6 +138,16 @@ export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
 /** The approver approves a value waiting for them. */
 export async function approveValue(actor: Actor, actionId: number): Promise<string> {
   return approve(actor.workspaceId, Number(actionId), actor.personId);
+}
+
+/** The submitter confirms their own value in a Self-check (GLOSSARY: Self-check). */
+export async function confirmOwnValue(actor: Actor, actionId: number): Promise<string> {
+  return confirmSelfCheck(actor.workspaceId, Number(actionId), actor.personId);
+}
+
+/** The submitter corrects their own value in a Self-check; the number is checked in the engine. */
+export async function correctOwnValue(actor: Actor, actionId: number, value: number): Promise<string> {
+  return correctSelfCheck(actor.workspaceId, Number(actionId), actor.personId, Number(value));
 }
 
 /** The approver sends a value back with what to check. */

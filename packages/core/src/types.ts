@@ -137,7 +137,7 @@ export type Action = {
   /** null: everyone may read the thread; else only this Group (and the people on it). */
   read_group_id: number | null;
   /** Approval requests and escalations are Actions the Workflow creates. */
-  purpose?: "approval" | "escalation" | null;
+  purpose?: "approval" | "escalation" | "self_check" | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
@@ -420,11 +420,14 @@ export type WorkflowStep =
   | { type: "escalate"; to: "stand-in" | "owner"; daysAfter: number }
   | { type: "check"; changePct: number; outsideTarget: boolean }
   // Which values wait for the Approvers: Unusual Values only (the default, also for steps stored before the choice
-  // existed) or every value. Imports never wait.
-  | { type: "approve"; approvers: string[]; values?: ApprovalScope }
+  // existed) or every value. Imports never wait. What happens when nobody but the submitter could approve: a
+  // Self-check (the default, also for steps stored before the choice existed) or counting it without Approval.
+  | { type: "approve"; approvers: string[]; values?: ApprovalScope; nobodyElse?: NobodyElse }
   | { type: "publish"; lock: boolean };
 /** Which values an Approve step holds back for Approval: only Unusual Values, or every value. */
 export type ApprovalScope = "unusual" | "every";
+/** What an Approve step does with a value nobody but its submitter could approve (GLOSSARY: Self-check). */
+export type NobodyElse = "self-check" | "count";
 /** A Workflow's Due Date and its steps. */
 export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
 /** A named, reusable path a metric's value takes each period (GLOSSARY: Workflow). */

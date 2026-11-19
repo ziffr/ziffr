@@ -59,7 +59,7 @@ export function stepLabel(s: WorkflowStep, people: Profile[]) {
     case "remind": return `Remind the submitter ${s.daysBefore} day${s.daysBefore === 1 ? "" : "s"} before the due date`;
     case "escalate": return `${s.daysAfter ? `${s.daysAfter} day${s.daysAfter === 1 ? "" : "s"} after` : "On"} the due date, if still missing: ${s.to === "stand-in" ? "ask the stand-in" : "tell the metric owner"}`;
     case "check": return `Unusual if it changes more than ${s.changePct} %${s.outsideTarget ? " or falls outside the target" : ""}`;
-    case "approve": return s.approvers.length ? `${s.values === "every" ? "Every value" : "Unusual values"} approved by ${s.approvers.map(name).join(", then ")}` : "Approval, nobody chosen yet";
+    case "approve": return s.approvers.length ? `${s.values === "every" ? "Every value" : "Unusual values"} approved by ${s.approvers.map(name).join(", then ")}; when nobody else can, ${s.nobodyElse === "count" ? "it counts without approval" : "the submitter checks it"}` : "Approval, nobody chosen yet";
     case "publish": return s.lock ? "Publish and lock the period" : "Publish";
   }
 }
