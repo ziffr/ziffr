@@ -1,5 +1,6 @@
 // What a new Trial Workspace starts with (spec 0021, GLOSSARY: Trial Workspace): its starting Metrics with history up
-// to today, a Workflow that asks its Owner, Target Series and a dashboard that shows every period and aggregation.
+// to today, the Test Metric the Trial Guide asks for (ticket 193), a Workflow that asks its Owner, Target Series and a
+// dashboard that shows every period and aggregation.
 // Made with the core's own operations where a person could do the same, so a trial is no different from a workspace
 // someone filled by hand. The history is written in one go as Imports, which is what a Feed's past values are.
 import { db } from "./db";
@@ -13,7 +14,7 @@ import { setPreference } from "./questions";
 import type { PreferenceKind } from "./connectors/types";
 import { yearStartFor } from "./fiscal-year";
 import { checkFormula } from "./formula";
-import { STARTING_METRICS, startingTargets, startingValues } from "./trial-starting-values";
+import { STARTING_METRICS, TEST_METRIC, startingTargets, startingValues } from "./trial-starting-values";
 import type { WidgetSettings } from "./types";
 
 // Making the Metrics sends no first Prompt: a new trial's Owner must not get thirteen messages at once. They ask for
@@ -50,6 +51,15 @@ export async function seedTrialWorkspace(actor: Actor, now: Date = new Date(), s
     ids[m.slug] = id;
     slugs[m.slug] = slug;
   }
+  // The Test Metric the Trial Guide asks for: no history, by hand only (no API), kept with the workspace by id so the
+  // guide finds it even after the Owner renames it.
+  const test = await createMetric(actor, {
+    ...TEST_METRIC, targetMin: null, targetMax: null,
+    sources: ["web_form", "mail", "slack", "telegram"], submitters: [actor.personId], workflowId,
+  }, quiet);
+  ids.test = test.id;
+  await db().from("workspaces").update({ trial_test_metric_id: test.id, trial_guide_step: "welcome" }).eq("id", actor.workspaceId);
+
   // The core has no operation for a formula yet (the demo's are seeded in SQL). A formula names Metrics by slug, so
   // the starting ones' keys become the slugs createMetric gave them. Checked like any formula written (spec 0022).
   const made = STARTING_METRICS.map((x) => ({ slug: slugs[x.slug], name: x.name, period: x.period, aggregation: x.aggregation, formula: x.formula ?? null }));

@@ -1,5 +1,5 @@
-// The bar of a Trial Workspace (spec 0021, ticket 9): on every page, how long the trial has left, with Try it, the
-// download of its values and the way to end it now; and the screen that replaces the app once it has ended.
+// The bar of a Trial Workspace (spec 0021, ticket 9): on every page, how long the trial has left, with the Trial Guide
+// (ticket 193), Try it and the download of its values; and the screen that replaces the app once it has ended.
 import Link from "next/link";
 import { EndTrialButton } from "./end-trial-button";
 
@@ -8,6 +8,7 @@ export function TrialBar({ daysLeft, endsAt }: { daysLeft: number; endsAt: strin
   return (
     <p className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 text-xs text-muted-foreground sm:px-6">
       <span>Your trial ends {daysLeft <= 1 ? "within a day" : `in ${daysLeft} days`}, on {endsAt.slice(0, 10)}.</span>
+      <Link href="/try/start" className="underline underline-offset-2 hover:text-foreground">Trial guide</Link>
       <Link href="/try" className="underline underline-offset-2 hover:text-foreground">Try it</Link>
       <a href="/try/download" className="underline underline-offset-2 hover:text-foreground">Download your values</a>
     </p>

@@ -10,6 +10,7 @@ import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WayLine } from "@/components/way-state";
 import { trialEndsAt } from "@ziffr/core/trials";
+import { trialGuidePending } from "@ziffr/core/trial-guide";
 import { waysTried, whatWorksHere, type Way } from "@ziffr/core/what-works-here";
 import { EndTrialButton } from "@/components/end-trial-button";
 
@@ -41,6 +42,8 @@ export default async function TryItPage() {
   const actor = await currentActor();
   const ends = await trialEndsAt(actor.workspaceId);
   if (!ends) redirect("/");
+  // Until the Trial Guide is finished or skipped, it is where a new trial starts (ticket 193).
+  if (await trialGuidePending(actor)) redirect("/try/start");
   const [ways, tried] = await Promise.all([whatWorksHere(actor), waysTried(actor)]);
   const done = ways.filter((w) => tried[w.way]).length;
   return (
