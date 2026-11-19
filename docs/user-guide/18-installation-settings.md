@@ -40,14 +40,28 @@ The mail server is a secret. Once saved, the page never shows it again, only tha
 
 Sign-in links are sent by the sign-in service, which still takes its mail server from the server's settings.
 
+## Telegram
+
+Ziffr asks for values and takes the answers by Telegram once it has a bot. One bot serves the whole Installation; each Workspace then turns Telegram on for itself on its Connectors page.
+
+1. In Telegram, open **@BotFather**, send `/newbot`, and give the bot a name and a username ending in `bot`.
+2. Copy the **token** BotFather sends, such as `7000000001:AAF…`. Whoever has it can send and read as the bot, so keep it to yourself.
+3. Paste it under **Bot token** and choose **Save**.
+
+Ziffr asks Telegram about the token first and saves nothing Telegram refuses. Then it tells Telegram where to send answers, and the page names the bot: "Saved: @acme_ziffr_bot". "Working" next to the title and "Bot @acme_ziffr_bot" below it mean Workspaces can turn Telegram on.
+
+If Telegram could not be told where to send answers, the token is saved anyway and the page says why. This Ziffr's address must start with `https://`, or the server must fetch answers itself (polling, for a laptop). **Check Telegram** asks Telegram again, tells it where to send answers again, and shows Telegram's last error about reaching this Ziffr, if there was one in the last hour.
+
+**Remove** takes the token off the page and tells Telegram to stop sending answers here; Workspaces then reach nobody by Telegram. Saving another token does the same for the bot before it. Like the mail server, the token is a secret: once saved, the page shows only that it is saved and its last four characters.
+
 ## Set on the server
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
 
 ## Sections still to come
 
-Replies by email, Telegram, Slack, the check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
+Replies by email, Slack, the check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting, and test emails. It names the setting, never its value.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server or the Telegram bot token, and test emails. It names the setting, never its value.

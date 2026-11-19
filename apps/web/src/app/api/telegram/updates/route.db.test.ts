@@ -16,7 +16,7 @@ let next = Date.now() * 100 + 50;
 describe("POST /api/telegram/updates", () => {
   it("answers a bare 404 without the secret or with a wrong one", async () => {
     const body = JSON.stringify({ update_id: ++next, message: { text: "/start" } });
-    for (const secret of [null, "wrong", `${telegramWebhookSecret()}x`]) {
+    for (const secret of [null, "wrong", `${telegramWebhookSecret(process.env)}x`]) {
       const res = await post(body, secret);
       expect(res.status).toBe(404);
       expect(await res.text()).toBe("");
@@ -24,17 +24,17 @@ describe("POST /api/telegram/updates", () => {
   });
 
   it("refuses more than 64 KB, and what is not JSON", async () => {
-    expect((await post("x".repeat(65 * 1024), telegramWebhookSecret())).status).toBe(413);
-    expect((await post("{}", telegramWebhookSecret(), { "content-length": String(70 * 1024) })).status).toBe(413);
-    expect((await post("not json", telegramWebhookSecret())).status).toBe(400);
+    expect((await post("x".repeat(65 * 1024), telegramWebhookSecret(process.env))).status).toBe(413);
+    expect((await post("{}", telegramWebhookSecret(process.env), { "content-length": String(70 * 1024) })).status).toBe(413);
+    expect((await post("not json", telegramWebhookSecret(process.env))).status).toBe(400);
   });
 
   it("takes an update with the secret, once", async () => {
     const update = { update_id: ++next, message: { message_id: 1, from: { id: next, is_bot: false }, chat: { id: next, type: "private" }, date: 0, text: "/start" } };
     const before = tg.of("sendMessage").length;
-    expect((await post(JSON.stringify(update), telegramWebhookSecret())).status).toBe(200);
+    expect((await post(JSON.stringify(update), telegramWebhookSecret(process.env))).status).toBe(200);
     // The bare /start gets its hint once; Telegram sending the same update again changes nothing.
-    expect((await post(JSON.stringify(update), telegramWebhookSecret())).status).toBe(200);
+    expect((await post(JSON.stringify(update), telegramWebhookSecret(process.env))).status).toBe(200);
     expect(tg.of("sendMessage").slice(before).map((c) => c.params.chat_id)).toEqual([update.message.chat.id]);
   });
 });

@@ -12,9 +12,11 @@ Every Ziffr installation uses a bot of its own.
 
 Optional, in BotFather: `/setdescription` and `/setuserpic`, so people recognise the bot when they connect.
 
-## 2. Settings
+## 2. Give Ziffr the token
 
-Set these where Ziffr runs:
+**On the page (easiest).** An Installation Admin opens **Installation settings** (`/installation`), pastes the token under **Telegram** and chooses **Save**. Ziffr asks Telegram whether the token is a bot's (getMe) and stores nothing Telegram refuses. It then tells Telegram where to send answers (setWebhook) and shows the bot's name, such as "Saved: @acme_ziffr_bot". If Telegram cannot be told, the token is still saved and the page says so; **Check Telegram** tries again and shows Telegram's last error about reaching this Ziffr. **Remove** tells Telegram to stop sending here (deleteWebhook). Replacing the token does the same for the old bot. The token is sealed with `ZIFFR_SECRETS_KEY` and never shown again. No restart is needed. See [Installation settings](../user-guide/18-installation-settings.md).
+
+**Or in the server's settings**, which win over the page:
 
 ```sh
 ZIFFR_SITE_URL=https://ziffr.example.com
@@ -22,7 +24,7 @@ ZIFFR_TELEGRAM_BOT_TOKEN=<the token from BotFather>
 ZIFFR_SECRETS_KEY=$(openssl rand -base64 32)
 ```
 
-`ZIFFR_SITE_URL` must be https and reachable from the internet: Telegram sends every answer to `https://ziffr.example.com/api/telegram/updates`. `ZIFFR_SECRETS_KEY` is the key Slack uses too; keep it if it is set already. Ziffr derives the secret Telegram sends with each answer from it and the token, so a request without that secret is refused, and changing either means turning Telegram on again (step 3) so Telegram learns the new one.
+`ZIFFR_SITE_URL` must be https and reachable from the internet: Telegram sends every answer to `https://ziffr.example.com/api/telegram/updates`. `ZIFFR_SECRETS_KEY` is the key Slack uses too; keep it if it is set already. Ziffr derives the secret Telegram sends with each answer from it and the token, so a request without that secret is refused, and changing either means telling Telegram the new one: saving the token on the page, **Check Telegram** there, or turning Telegram on again in a workspace (step 3).
 
 With Docker Compose, put the token in the `.env` next to `compose.yml` (see [docker/README.md](../../docker/README.md)); `ZIFFR_SITE_URL` comes from `ZIFFR_DOMAIN` there.
 

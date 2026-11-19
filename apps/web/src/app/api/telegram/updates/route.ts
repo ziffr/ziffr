@@ -3,13 +3,13 @@
 // else gets a bare 404 or 413. Each update is claimed by its update_id in the core, so Telegram's retries change
 // nothing. Telegram learns only that it arrived.
 import { MAX_TELEGRAM_BYTES, receiveTelegramUpdate, telegramSecretOk } from "@ziffr/core/telegram-inbound";
-import { telegramEnabled } from "@ziffr/core/telegram-api";
+import { telegramOn } from "@ziffr/core/telegram-api";
 
 const answer = (status: number) => new Response(null, { status, headers: { "cache-control": "no-store" } });
 
 /** Takes one update. */
 export async function POST(req: Request) {
-  if (!telegramEnabled() || !telegramSecretOk(req.headers.get("x-telegram-bot-api-secret-token"))) return answer(404);
+  if (!(await telegramOn()) || !(await telegramSecretOk(req.headers.get("x-telegram-bot-api-secret-token")))) return answer(404);
   const declared = req.headers.get("content-length");
   if (declared !== null && (!/^\d{1,10}$/.test(declared) || Number(declared) > MAX_TELEGRAM_BYTES)) return answer(413);
   const parts: Uint8Array[] = [];

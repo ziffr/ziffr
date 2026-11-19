@@ -8,16 +8,18 @@ import * as admins from "@ziffr/core/installation-admins";
 import * as settings from "@ziffr/core/installation-settings";
 import { installationActor } from "@/lib/installation";
 
-/** What an action answers: nothing on success, else what went wrong in the page's words. */
-type Result = { error: string } | { ok: true; message?: string };
+/** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
+ * problem that did not stop it. */
+type Result = { error: string } | { ok: true; message?: string; warning?: string };
 
-async function run(f: (actor: admins.InstallationActor) => Promise<string | void>): Promise<Result> {
+async function run(f: (actor: admins.InstallationActor) => Promise<string | void | { notice: string | null; warning: string | null }>): Promise<Result> {
   const actor = await installationActor();
   if (!actor) return { error: "Sign in first." };
   try {
-    const message = await f(actor);
+    const said = await f(actor);
     revalidatePath("/installation");
-    return message ? { ok: true, message } : { ok: true };
+    if (said && typeof said === "object") return { ok: true, ...(said.notice ? { message: said.notice } : {}), ...(said.warning ? { warning: said.warning } : {}) };
+    return said ? { ok: true, message: said } : { ok: true };
   } catch (e) {
     // Not an Installation Admin: the same answer as for a page that is not there.
     if (e instanceof Forbidden) return { error: "Not found." };
@@ -48,6 +50,14 @@ export async function removeInstallationAdmin(personId: string): Promise<Result>
 /** Saves the settings of one section: text sets one, null removes it. */
 export async function saveInstallationSettings(section: string, values: Record<string, string | null>): Promise<Result> {
   return run((a) => settings.saveInstallationSettings(a, String(section ?? ""), values));
+}
+
+/** Asks Telegram about the bot in effect and registers its webhook again. */
+export async function checkTelegram(): Promise<Result> {
+  return run(async (a) => {
+    const r = await settings.checkTelegram(a);
+    return r.ok ? r.message : { notice: null, warning: r.message };
+  });
 }
 
 /** Sends a test email to your own address with the mail settings in effect. */

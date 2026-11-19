@@ -59,7 +59,7 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
     !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox.")
       : slackOn ? way("slack", "real", trial ? "Direct messages to you in your Slack workspace." : "Direct messages in your Slack workspace.", toOwner)
         : way("slack", "off", "Not connected yet: an Owner or Admin connects a Slack workspace on the Connectors page."),
-    !telegramEnabled(env) ? way("telegram", "simulated", "This Ziffr has no Telegram bot, so Telegram messages stay in the Outbox.")
+    !telegramEnabled(env) ? way("telegram", "simulated", "This Ziffr has no Telegram bot, so Telegram messages stay in the Outbox. Whoever runs it can add one on its Installation settings page.")
       : telegramOn ? way("telegram", "real", "Messages from the bot once you connect your Telegram on the Connectors page.", toOwner)
         : way("telegram", "off", "Turned off: an Owner or Admin turns Telegram on on the Connectors page."),
     way("web-form", "real", "Every request for a value has a personal form link that works without signing in."),

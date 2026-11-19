@@ -29,7 +29,7 @@ export function TelegramPanel({ connection, linked, stopped }: { connection: Tel
         </p>
       )}
       {!bot ? (
-        <p className="mt-2 text-muted-foreground">Telegram does not accept this Ziffr&rsquo;s bot token. Whoever runs Ziffr should check <code>ZIFFR_TELEGRAM_BOT_TOKEN</code>.</p>
+        <p className="mt-2 text-muted-foreground">Telegram does not accept this Ziffr&rsquo;s bot token. Whoever runs this Ziffr can check it on its Installation settings page.</p>
       ) : enabled ? (
         <p className="mt-2 text-muted-foreground">On in this workspace. Messages by Telegram come from <span className="font-medium text-foreground">@{bot.username}</span>; people connect their own Telegram to get them.</p>
       ) : (

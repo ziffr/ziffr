@@ -12,7 +12,8 @@ import { routeReply, type RepliedDelivery } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { TELEGRAM_BUTTONS } from "./telegram-send";
 import { approve } from "./workflow-engine";
-import { callTelegram, telegramEnabled, telegramPolling, telegramWebhookSecret } from "./telegram-api";
+import { settingsInEffect } from "./settings-in-effect";
+import { callTelegram, telegramEnabled, telegramOn, telegramPolling, telegramWebhookSecret } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, isTelegramId, linkTelegramByCode, personOfTelegramUser } from "./telegram-people";
 import { trialEnded } from "./trials";
@@ -36,9 +37,10 @@ type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {});
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
-/** Whether a webhook request carries the secret this Ziffr registered, compared in constant time. */
-export function telegramSecretOk(given: string | null): boolean {
-  const wanted = telegramWebhookSecret();
+/** Whether a webhook request carries the secret this Ziffr registered (from the bot token in effect), compared in
+ * constant time. */
+export async function telegramSecretOk(given: string | null): Promise<boolean> {
+  const wanted = telegramWebhookSecret(await settingsInEffect());
   if (!wanted || !given) return false;
   const a = Buffer.from(given);
   const b = Buffer.from(wanted);
@@ -70,7 +72,7 @@ async function quiet(userId: number): Promise<boolean> {
 
 /** Takes one update, already known to come from Telegram (the webhook's secret, or polling with the bot token). */
 export async function receiveTelegramUpdate(update: unknown, effects: { submission?: SubmissionEffects } = {}): Promise<TelegramOutcome> {
-  if (!telegramEnabled()) return "ignored";
+  if (!(await telegramOn())) return "ignored";
   const u = obj(update);
   const updateId = u.update_id;
   if (typeof updateId !== "number" || !Number.isSafeInteger(updateId) || updateId < 0) return "ignored";
@@ -220,7 +222,8 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
 /** One round of polling (ZIFFR_TELEGRAM_POLLING=1, for a laptop): asks Telegram for what came after the last update
  * handled, and handles it. Telegram allows polling only without a webhook, so the first round takes it away. */
 export async function pollTelegramOnce(waitSeconds = 0): Promise<{ handled: number }> {
-  if (!telegramEnabled() || !telegramPolling()) return { handled: 0 };
+  const settings = await settingsInEffect();
+  if (!telegramEnabled(settings) || !telegramPolling(settings)) return { handled: 0 };
   const { data: last } = await db().from("telegram_updates").select("update_id").order("update_id", { ascending: false }).limit(1).maybeSingle();
   const offset = last ? Number(last.update_id) + 1 : undefined;
   let updates: unknown[];

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
-import { addInstallationAdmin, removeInstallationAdmin, saveInstallationSettings, sendTestEmail } from "@/app/installation-actions";
+import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInstallationSettings, sendTestEmail } from "@/app/installation-actions";
 import type { InstallationAdminRow, InstallationEvent } from "@ziffr/core/installation-admins";
 import type { InstallationSettingsView, SectionView, SettingView } from "@ziffr/core/installation-settings";
 
@@ -22,13 +22,14 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.test_email": "sent a test email with",
 };
 
-type Result = { error: string } | { ok: true; message?: string };
+type Result = { error: string } | { ok: true; message?: string; warning?: string };
 
-/** Runs an action and says how it went; true when it worked. */
+/** Runs an action and says how it went; true when it worked, also when part of it needs attention. */
 async function report(p: Promise<Result>, done: string): Promise<boolean> {
   const r = await p;
   if ("error" in r) { toast.error("Not done", { description: r.error }); return false; }
-  toast.success(r.message ?? done);
+  if (r.warning) toast.warning(r.message ?? done, { description: r.warning, duration: 15_000 });
+  else toast.success(r.message ?? done);
   return true;
 }
 
@@ -131,6 +132,7 @@ function Section({ section, canSeal }: { section: SectionView; canSeal: boolean 
         <Standing section={section} />
       </div>
       <p className="max-w-[62ch] text-sm text-muted-foreground">{section.purpose}</p>
+      {section.detail && <p className="text-sm">{section.detail}</p>}
       {section.ready
         ? <SectionForm section={section} canSeal={canSeal} />
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
@@ -171,6 +173,13 @@ function SectionForm({ section, canSeal }: { section: SectionView; canSeal: bool
               title={Object.keys(changes).length ? "Save first" : undefined}
               onClick={() => start(async () => { await report(sendTestEmail(), "Sent."); router.refresh(); })}>
               Send a test email to yourself
+            </Button>
+          )}
+          {section.id === "telegram" && section.settings.some((x) => x.source !== "none") && (
+            <Button type="button" variant="outline" disabled={pending || Object.keys(changes).length > 0}
+              title={Object.keys(changes).length ? "Save first" : undefined}
+              onClick={() => start(async () => { await report(checkTelegram(), "Telegram answers."); router.refresh(); })}>
+              Check Telegram
             </Button>
           )}
         </div>

@@ -9,6 +9,8 @@ import { db } from "./db";
 import { headerSafe, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
+import { botUsername, forgetTelegramBot, registerTelegramWebhook, telegramBot } from "./telegram-connection";
+import { callTelegram, TELEGRAM_TOKEN, TelegramError, telegramEnabled, telegramPolling, telegramToken } from "./telegram-api";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -16,7 +18,11 @@ import { forgetStoredSettings, settingContext, settingSources, settingsInEffect,
 export type SettingView = SettingDefinition & { source: SettingSource; value: string | null; hint: string | null; unreadable: boolean };
 
 /** One section with its settings and whether it works with the settings in effect. */
-export type SectionView = { id: SettingsSectionId; title: string; purpose: string; ready: boolean; working: boolean; settings: SettingView[] };
+export type SectionView = { id: SettingsSectionId; title: string; purpose: string; ready: boolean; working: boolean; detail: string | null; settings: SettingView[] };
+
+/** What a save tells the page: a line to show, and a problem that did not stop the save (Telegram not told where to
+ * send answers, an old bot not let go). */
+export type SaveOutcome = { notice: string | null; warning: string | null };
 
 /** Everything the Installation Settings page shows, for an Installation Admin. */
 export type InstallationSettingsView = { sections: SectionView[]; canSeal: boolean; siteUrl: string | null };
@@ -76,13 +82,19 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   },
   ZIFFR_INBOUND_DOMAIN: (v) => (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(v) ? null : "The domain for replies looks like in.ziffr.example.com."),
   ZIFFR_INBOUND_SECRET: (v) => (/^\S{32,200}$/.test(v) ? null : "The signing secret has 32 to 200 characters, without spaces."),
+  ZIFFR_TELEGRAM_BOT_TOKEN: (v) => (TELEGRAM_TOKEN.test(v) ? null : "A bot token looks like 1234567890:AA… : the numbers, a colon, and the rest, as @BotFather wrote it."),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
 /** Whether a section works with these settings, for the dot next to its title. */
-function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): boolean {
-  if (id === "mail") return mailEnabled(settings);
-  return false;
+async function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): Promise<{ working: boolean; detail: string | null }> {
+  if (id === "mail") return { working: mailEnabled(settings), detail: null };
+  if (id === "telegram") {
+    if (!telegramEnabled(settings)) return { working: false, detail: telegramToken(settings) ? "Needs ZIFFR_SECRETS_KEY on the server." : null };
+    const bot = await telegramBot();
+    return bot ? { working: true, detail: `Bot @${bot.username}` } : { working: false, detail: "Telegram does not accept this token, or cannot be reached." };
+  }
+  return { working: false, detail: null };
 }
 
 /** The Installation Settings page's view: each section with its settings, where each value comes from, and no
@@ -98,7 +110,7 @@ export async function installationSettingsView(actor: InstallationActor): Promis
     return { ...s, source, value: s.secret ? null : raw, hint, unreadable: stored.unreadable.has(s.name) };
   };
   return {
-    sections: SETTINGS_SECTIONS.map((sec) => ({ ...sec, working: sectionWorks(sec.id, settings), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) })),
+    sections: await Promise.all(SETTINGS_SECTIONS.map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
     canSeal: secretsKey() !== null,
     siteUrl: process.env.ZIFFR_SITE_URL ?? null,
   };
@@ -107,7 +119,7 @@ export async function installationSettingsView(actor: InstallationActor): Promis
 /** Saves settings of one section: a text sets one, null removes it, a name left out stays as it is. Refuses names of
  * other sections, settings the server sets, values that fail their check, and a secret without ZIFFR_SECRETS_KEY.
  * Nothing is stored unless every value passes. Installation Admins only. */
-export async function saveInstallationSettings(actor: InstallationActor, section: string, input: Record<string, string | null>): Promise<void> {
+export async function saveInstallationSettings(actor: InstallationActor, section: string, input: Record<string, string | null>): Promise<SaveOutcome> {
   await assertInstallationAdmin(actor);
   const sec = SETTINGS_SECTIONS.find((s) => s.id === section);
   if (!sec?.ready) throw new Error("This section cannot be set up here yet.");
@@ -138,6 +150,21 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     }
     changes.push({ def, value });
   }
+  // Telegram: a new token is asked of Telegram before it is stored, so a wrong one never replaces a working one.
+  const telegram = changes.find((c) => c.def.name === "ZIFFR_TELEGRAM_BOT_TOKEN");
+  let username: string | null = null;
+  if (telegram?.value) {
+    try {
+      username = await botUsername(telegram.value);
+    } catch (e) {
+      throw new Error(e instanceof TelegramError && /^error_40[14]$/.test(e.code) ? "Telegram does not accept this token. Copy it again from @BotFather." : "Telegram could not be reached. Try again in a moment.");
+    }
+    if (!username) throw new Error("Telegram does not accept this token as a bot's. Copy it again from @BotFather.");
+  }
+  // The bot saved before, if any: let go of its webhook, so it stops sending here once it is replaced or removed.
+  // Read fresh, not from the few seconds' cache: a save a moment ago may have replaced it.
+  if (telegram) forgetStoredSettings();
+  const before = telegram ? (await storedSettings()).values.get("ZIFFR_TELEGRAM_BOT_TOKEN") ?? null : null;
   for (const { def, value } of changes) {
     if (value === null) {
       const { error } = await db().from("installation_settings").delete().eq("name", def.name);
@@ -151,6 +178,64 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   }
   forgetStoredSettings();
   for (const { def, value } of changes) await recordInstallationEvent(actor.personId, value === null ? "setting.removed" : "setting.set", def.name);
+  if (!telegram) return { notice: null, warning: null };
+  forgetTelegramBot();
+  let warning: string | null = null;
+  if (before && before !== telegram.value) {
+    try {
+      await callTelegram("deleteWebhook", { drop_pending_updates: false }, 0, before);
+    } catch {
+      warning = "The bot saved before could not be told to stop sending here. Its messages will be refused.";
+    }
+  }
+  if (!telegram.value) {
+    // A default token (ZIFFR_TELEGRAM_BOT_TOKEN_DEFAULT) takes over: Telegram must learn to send its answers here.
+    const left = await settingsInEffect();
+    if (!telegramToken(left)) return { notice: "Telegram removed. Workspaces no longer reach anyone by Telegram.", warning };
+    try {
+      await registerTelegramWebhook(left);
+      return { notice: "Removed from the page. The Installation's default bot is used again.", warning };
+    } catch {
+      return { notice: "Removed from the page. The Installation's default bot is used again.", warning: "Telegram was not told to send the default bot's answers here. Try Check Telegram." };
+    }
+  }
+  try {
+    const how = await registerTelegramWebhook(await settingsInEffect());
+    return {
+      notice: how === "polling" ? `Saved: @${username}. Answers are fetched by polling (ZIFFR_TELEGRAM_POLLING).` : `Saved: @${username}. Telegram now sends answers to this Ziffr.`,
+      warning,
+    };
+  } catch (e) {
+    const why = e instanceof TelegramError ? "Telegram refused to send answers here. Try Check Telegram in a moment." : e instanceof Error ? e.message : "It did not work.";
+    return { notice: `Saved: @${username}.`, warning: `Telegram was not told where to send answers. ${why}` };
+  }
+}
+
+/** Asks Telegram about the bot in effect, registers the webhook again, and says how it stands, for an Installation
+ * Admin: the bot's name, where Telegram sends answers, and Telegram's last delivery error, if any. */
+export async function checkTelegram(actor: InstallationActor): Promise<{ message: string; ok: boolean }> {
+  await assertInstallationAdmin(actor);
+  const settings = await settingsInEffect();
+  const token = telegramToken(settings);
+  if (!token) return { ok: false, message: "No bot token is set." };
+  if (!telegramEnabled(settings)) return { ok: false, message: "Telegram needs ZIFFR_SECRETS_KEY on the server." };
+  forgetTelegramBot();
+  let name: string | null;
+  try { name = await botUsername(token); } catch { return { ok: false, message: "Telegram could not be reached, or does not accept the token." }; }
+  if (!name) return { ok: false, message: "Telegram does not accept the token as a bot's." };
+  try {
+    if ((await registerTelegramWebhook(settings)) === "polling" || telegramPolling(settings)) return { ok: true, message: `@${name} answers. Updates are fetched by polling.` };
+  } catch (e) {
+    return { ok: false, message: `@${name} answers, but Telegram was not told where to send answers. ${e instanceof TelegramError ? "Try again in a moment." : e instanceof Error ? e.message : ""}`.trim() };
+  }
+  try {
+    const info = await callTelegram<{ url?: string; pending_update_count?: number; last_error_date?: number; last_error_message?: string }>("getWebhookInfo", {}, 0, token);
+    // Telegram's own words about reaching this Ziffr, on one line; they name our address at most, never the token.
+    const last = info?.last_error_date && Date.now() / 1000 - info.last_error_date < 3600 && info.last_error_message ? ` Telegram's last error: ${String(info.last_error_message).replace(/\s+/g, " ").slice(0, 160)}.` : "";
+    return { ok: !last, message: `@${name} answers, and Telegram sends answers to this Ziffr.${last}` };
+  } catch {
+    return { ok: true, message: `@${name} answers, and Telegram was told where to send answers.` };
+  }
 }
 
 /** Sends a test email to the acting Installation Admin's own address with the mail settings in effect, and answers

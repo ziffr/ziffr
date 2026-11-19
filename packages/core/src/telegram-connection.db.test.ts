@@ -27,7 +27,7 @@ describe("Telegram per workspace", () => {
     const hook = tg.of("setWebhook").at(-1)!;
     expect(hook.params).toEqual({
       url: "https://ziffr.example.test/api/telegram/updates",
-      secret_token: telegramWebhookSecret(),
+      secret_token: telegramWebhookSecret(process.env),
       allowed_updates: ["message", "callback_query", "my_chat_member"],
       max_connections: 10,
     });
