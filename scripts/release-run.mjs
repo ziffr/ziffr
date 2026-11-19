@@ -105,12 +105,16 @@ gh("workflow", "run", "ci.yml", "--ref", branch);
 for (let i = 0; ; i++) {
   if (i > 180) throw new Error(`The checks of ${url} did not finish within an hour.`);
   await pause(20_000);
-  // Not `gh pr checks`: it exits 1 once a check fails and 8 while one runs, also with --json, so a failure looked
-  // like "nothing reported yet" and the run waited out the hour. `gh pr view` exits 0 whatever the checks say.
-  const checks = (JSON.parse(gh("pr", "view", number, "--json", "statusCheckRollup")).statusCheckRollup ?? []).filter((c) => c.__typename === "CheckRun");
-  const failed = checks.filter((c) => c.status === "COMPLETED" && !["SUCCESS", "NEUTRAL", "SKIPPED"].includes(c.conclusion));
-  if (failed.length) throw new Error(`A check of ${url} failed: ${failed.map((c) => `${c.name} ${c.detailsUrl}`).join(", ")}. Fix it on main and press Release again.`);
-  if (REQUIRED.every((name) => checks.some((c) => c.name === name && c.conclusion === "SUCCESS"))) break;
+  // The commit's own check runs, the newest of each required name: the CI run started above is a workflow_dispatch
+  // run, which the ruleset counts. The pull request's own pull_request runs (which a bot's PR may not even start, or
+  // which wait for approval) are other runs of the same names and must not decide; neither may `gh pr checks`, which
+  // exits non-zero while a check runs or after one failed.
+  const runs = JSON.parse(gh("api", `repos/${process.env.GITHUB_REPOSITORY}/commits/${sha}/check-runs?per_page=100`, "--jq", "[.check_runs[] | {name, status, conclusion, url: .html_url, at: .started_at}]"));
+  const latest = new Map();
+  for (const r of runs.filter((r) => REQUIRED.includes(r.name)).sort((a, b) => String(a.at).localeCompare(String(b.at)))) latest.set(r.name, r);
+  const failed = [...latest.values()].filter((r) => r.status === "completed" && !["success", "neutral", "skipped"].includes(r.conclusion));
+  if (failed.length) throw new Error(`A check of ${url} failed: ${failed.map((r) => `${r.name} ${r.url}`).join(", ")}. Fix it on main and press Release again.`);
+  if (REQUIRED.every((name) => latest.get(name)?.conclusion === "success")) break;
 }
 gh("pr", "merge", number, "--squash", "--delete-branch", "--match-head-commit", sha, "--subject", `Release ${version} (#${number})`);
 let mergeSha = "";
