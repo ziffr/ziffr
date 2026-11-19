@@ -41,6 +41,9 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
         <div className="mt-3">
           {state?.state === "locked" ? (
             <Button size="sm" variant="outline" disabled={pending} onClick={() => { const r = window.prompt(`Why unlock ${periodLabel(period, metric.period, yearStart)}? It shows in the history.`); if (r) run(() => lockPeriod(metric.id, period, false, r), "Unlocked"); }}><LockOpen aria-hidden /> Unlock {periodLabel(period, metric.period, yearStart, true)}</Button>
+          ) : state?.state === "approval" || state?.state === "submitted" ? (
+            // A Lock never stands in for an Approval (the core refuses it too): say why there is no Lock button.
+            <p className="text-muted-foreground">{periodLabel(period, metric.period, yearStart)} can be locked once its value is approved.</p>
           ) : (
             <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => lockPeriod(metric.id, period, true), "Locked")}><Lock aria-hidden /> Lock {periodLabel(period, metric.period, yearStart, true)}</Button>
           )}

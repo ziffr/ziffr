@@ -92,7 +92,7 @@ If the panel says that nothing has run by the clock yet, whoever runs Ziffr for 
 
 ### Close the period
 
-**Close the period** locks the last ended period for every Metric on this Workflow that has a value for it, all at once. Metrics still missing their value are left open. Ziffr asks you to confirm first: late values and corrections then need Approval, and only a Metric's owner can unlock it. A message says how many Metrics were locked.
+**Close the period** locks the last ended period for every Metric on this Workflow that has a value for it, all at once. Metrics still missing their value are left open, and so are values still waiting for Approval or sent back: closing a period approves nothing. Ziffr asks you to confirm first: late values and corrections then need Approval, and only a Metric's owner can unlock it. A message says how many Metrics were locked.
 
 Only the Workflow's owner sees this button, and only while Metrics use the Workflow.
 
@@ -105,7 +105,7 @@ Each Metric's page has a **Workflow** box on its **Settings** tab (see [The Metr
 | **Workflow** | Chooses which Workflow the Metric's values take, or **None: values publish as they come**. | The Metric Owner |
 | The status line | The last ended period, its Due Date and where its value is, such as "asked, waiting for the value", "in, not approved yet", "waiting for approval", "published" or "published and locked". With a note when there is one. | Nobody: it follows the Workflow |
 | **Open …** | Opens the Workflow on the Workflows page. | Everyone |
-| **Lock …** / **Unlock …** | Locks or unlocks the last ended period by hand (see [Locks](#locks)). | The Metric Owner |
+| **Lock …** / **Unlock …** | Locks or unlocks the last ended period by hand (see [Locks](#locks)). While its value waits for Approval or was sent back, the box says it can be locked once the value is approved instead. | The Metric Owner |
 | **Stand-ins** | For each Submitter, the person asked instead while they are **Away**, or when an Escalate step asks the Stand-in. Choose a member or a Contact, or **Nobody**. | The Metric Owner |
 
 Choosing a different Stand-in takes effect at once: the person who stood in before can no longer send values for that Submitter. People enter their own Away dates under **Your Deliveries** (see [Your settings](17-your-settings.md)); while someone is Away, their Prompts go to their Stand-in.
