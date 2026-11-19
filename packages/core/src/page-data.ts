@@ -19,6 +19,7 @@ import type { Action, Metric, Period, Widget } from "./types";
 import { periodStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
 import { numberStyleOf } from "./workspace-settings";
+import { ensureWorkspaceKey } from "./workspace-keys";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
 const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role === "admin";
@@ -271,6 +272,13 @@ export async function createWorkspace(personId: string, name: string): Promise<s
   // On an Installation that offers trials, every workspace is a Trial Workspace (spec 0021).
   const trials = trialSettings();
   const ws = trials ? { id: await createTrialWorkspace(personId, title, trials) } : await plainWorkspace(personId, title);
+  // Its Workspace Key before anything is written to it (spec 0028). A key that cannot be made now is made when first
+  // needed, so the workspace is not refused for it.
+  try {
+    await ensureWorkspaceKey(ws.id);
+  } catch (e) {
+    console.error("The Workspace Key could not be made yet:", (e as Error).message);
+  }
   // Never a copy of another workspace's Theme (logo, footer).
   await db().from("themes").insert({ ...STARTER_THEME, owner_id: personId, is_default: true, workspace_id: ws.id });
   if (trials) {
