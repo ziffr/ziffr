@@ -3,14 +3,17 @@
 // accepts only a dashboard they may open, and only for themselves.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
+import { attempt } from "@/lib/action-result";
 import { setHomeDashboard } from "@ziffr/core/home";
 import { createDashboard } from "@ziffr/core/dashboards";
 import { redirect } from "next/navigation";
 
 /** Makes this dashboard the person's Home. */
 export async function setHome(dashboardId: number) {
-  await setHomeDashboard(await currentActor(), Number(dashboardId));
-  revalidatePath("/", "layout");
+  return attempt(async () => {
+    await setHomeDashboard(await currentActor(), Number(dashboardId));
+    revalidatePath("/", "layout");
+  });
 }
 
 /** Starts a new dashboard from the dashboards list and opens it (in edit mode, being empty). */

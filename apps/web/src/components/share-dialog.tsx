@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { Share2 } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
+import { told } from "@/lib/action-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoles((r) => ({ ...r, [p.id]: v }));
-                  start(() => setShare(objectType, objectId, p.id, (v || null) as never));
+                  start(async () => { told(await setShare(objectType, objectId, p.id, (v || null) as never), "Not shared"); });
                 }}
                 className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
               >
@@ -72,7 +73,7 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
                     onChange={(e) => {
                       const v = e.target.value;
                       setGroupRoles((r) => ({ ...r, [g.id]: v }));
-                      start(() => setGroupShare(objectType, objectId, g.id, (v || null) as never));
+                      start(async () => { told(await setGroupShare(objectType, objectId, g.id, (v || null) as never), "Not shared"); });
                     }}
                     className={select}
                   >

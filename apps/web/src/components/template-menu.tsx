@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { told } from "@/lib/action-toast";
 import { GitBranch, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -31,7 +32,7 @@ export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boole
                 const name = window.prompt("Template name:", t.name);
                 if (name === null) return;
                 const description = window.prompt("What it is for:", t.description) ?? t.description;
-                start(() => renameTemplate(t.id, name, description));
+                start(async () => { told(await renameTemplate(t.id, name, description), "Not renamed"); });
               }}
             >
               <PencilLine /> Rename…
@@ -45,7 +46,7 @@ export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boole
                 className="text-destructive"
                 onClick={async () => {
                   if (!(await confirm({ title: `Delete the template “${t.name}”?`, description: "Widgets made from it stay as they are. Nobody can start a new widget from it.", confirmLabel: "Delete template" }))) return;
-                  start(async () => { await deleteTemplate(t.id); toast.success("Template deleted"); });
+                  start(async () => { if (told(await deleteTemplate(t.id), "Not deleted")) return; toast.success("Template deleted"); });
                 }}
               >
                 <Trash2 /> Delete

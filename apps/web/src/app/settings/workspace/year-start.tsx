@@ -1,6 +1,7 @@
 "use client";
 // The workspace's year start (spec 0017, ticket #39; GLOSSARY: Fiscal Year): where its quarters, half-years and years
 // begin. The core says which months it may move to and checks the month again on the server.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ export function YearStartForm({ yearStart, allowed, why, canEdit, today }: { yea
   // What the choice means, in the names Ziffr will use: this year and its quarter now.
   const example = `This year is ${periodLabel(periodStart(today, "year", m), "year", m)}; this quarter is ${periodLabel(periodStart(today, "quarter", m), "quarter", m)}.`;
   const save = () => start(async () => {
-    try { await setYearStart(m); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+    try { unwrap(await setYearStart(m)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
   });
   return (
     <section aria-labelledby="year-heading" className="space-y-3 border-t border-border pt-6">

@@ -8,6 +8,7 @@ import { ChevronDown, CircleHelp, Inbox, LogOut, Menu, Plus, X } from "lucide-re
 import { NavLink } from "@/components/nav-link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, switchWorkspace } from "@/app/auth-actions";
+import { told } from "@/lib/action-toast";
 import { cn } from "@/lib/utils";
 
 /** A link in a menu. */
@@ -116,7 +117,7 @@ function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; accoun
           {account.workspaces.length > 1 && (
             <label className="flex items-center gap-1.5">
               <span className="text-muted-foreground">Workspace</span>
-              <select value={account.current} disabled={pending} onChange={(e) => start(() => switchWorkspace(e.target.value))} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
+              <select value={account.current} disabled={pending} onChange={(e) => start(async () => { told(await switchWorkspace(e.target.value)); })} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
                 {account.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </label>
@@ -145,7 +146,7 @@ function AccountMenu({ account }: { account: Account }) {
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={account.current} onValueChange={(id) => { if (id !== account.current) start(() => switchWorkspace(String(id))); }}>
+              <DropdownMenuRadioGroup value={account.current} onValueChange={(id) => { if (id !== account.current) start(async () => { told(await switchWorkspace(String(id))); }); }}>
                 {account.workspaces.map((w) => <DropdownMenuRadioItem key={w.id} value={w.id}>{w.name}</DropdownMenuRadioItem>)}
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>

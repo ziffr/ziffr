@@ -3,6 +3,8 @@
 import { RelativeTime } from "@/components/relative-time";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
+import { told } from "@/lib/action-toast";
 import { History, RotateCcw, Tag } from "lucide-react";
 import { listVersions, nameVersion, restoreVersion, saveNamedVersion } from "@/app/version-actions";
 import { Button } from "@/components/ui/button";
@@ -33,7 +35,7 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
           onSubmit={(e) => {
             e.preventDefault();
             start(async () => {
-              await saveNamedVersion(type, id, name);
+              if (told(await saveNamedVersion(type, id, name), "Not saved")) return;
               setName("");
               toast.success("Named version saved");
               await load();
@@ -66,12 +68,12 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
                       disabled={pending}
                       onClick={() => start(async () => {
                         try {
-                          await restoreVersion(v.id);
+                          unwrap(await restoreVersion(v.id));
                           toast.success(`Restored version ${v.version}`, { description: "Restoring adds a new version, so nothing is lost." });
                           await load();
                           onRestored?.();
                         } catch (err) {
-                          toast.error("Not restored", { description: (err as Error).message });
+                          toast.error("Not restored", { description: shown(err) });
                         }
                       })}
                       className="inline-flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-1.5 text-xs hover:bg-muted"
@@ -80,7 +82,7 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
                     </button>
                   )}
                   {naming === v.id ? (
-                    <form className="flex flex-1 gap-1" onSubmit={(e) => { e.preventDefault(); const n = String(new FormData(e.currentTarget).get("n") ?? ""); start(async () => { await nameVersion(v.id, n); setNaming(null); await load(); }); }}>
+                    <form className="flex flex-1 gap-1" onSubmit={(e) => { e.preventDefault(); const n = String(new FormData(e.currentTarget).get("n") ?? ""); start(async () => { if (told(await nameVersion(v.id, n), "Not named")) return; setNaming(null); await load(); }); }}>
                       <Input name="n" defaultValue={v.name ?? ""} autoFocus aria-label="Name" className="h-8 text-xs" />
                       <Button type="submit" size="sm">Save</Button>
                     </form>

@@ -5,6 +5,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,16 +25,16 @@ export function SaveDashboardTemplateDialog({ dashboardId, dashboardName, metric
   useEffect(() => {
     draftDashboardTemplate(dashboardId)
       // Labels start empty: the whole team reads them, and a Metric's name may be one not everyone may see.
-      .then((d) => { setDraft(d); setLabels(d.slots.map(() => "")); })
+      .then((r) => { const d = unwrap(r); setDraft(d); setLabels(d.slots.map(() => "")); })
       .catch(() => setFailed("You can save a dashboard as a template when you may change it and see every Metric on it."));
   }, [dashboardId]);
   const save = () => start(async () => {
     try {
-      await saveAsDashboardTemplate({ dashboardId, name, description, labels });
+      unwrap(await saveAsDashboardTemplate({ dashboardId, name, description, labels }));
       toast.success("Template saved", { description: "Anyone in the workspace can start a dashboard from it." });
       onClose();
     } catch (e) {
-      toast.error("Not saved", { description: (e as Error).message });
+      toast.error("Not saved", { description: shown(e) });
     }
   });
   return (

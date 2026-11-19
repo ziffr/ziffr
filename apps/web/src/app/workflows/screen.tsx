@@ -1,6 +1,7 @@
 "use client";
 // Workflows (GLOSSARY: Workflow): a vertical timeline you build from a few kinds of step, the metrics on it
 // and where each one's value is this period.
+import { shown, unwrap } from "@/lib/action-error";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -51,7 +52,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
   const onIt = metrics.filter((m) => current && m.workflow_id === current.id);
   // Who submits to the Metrics on this Workflow, for the Approve step's warning.
   const submitters = new Set(tokens.filter((t) => onIt.some((m) => m.id === t.metric_id)).map((t) => t.submitter_id));
-  const run = (f: () => Promise<unknown>) => start(async () => { try { await f(); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>) => start(async () => { try { await f(); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const { confirm, dialog } = useConfirm();
 
   return (
@@ -64,7 +65,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
             <span className="block text-xs font-normal text-muted-foreground">by {first(w.owner_id)}, {metrics.filter((m) => m.workflow_id === w.id).length} metrics</span>
           </Link>
         ))}
-        <Button variant="ghost" className="w-full justify-start" disabled={pending} onClick={() => run(async () => { const id = await saveWorkflow(null, "New workflow", BLANK); router.push(`/workflows?id=${id}`); })}><Plus aria-hidden /> New workflow</Button>
+        <Button variant="ghost" className="w-full justify-start" disabled={pending} onClick={() => run(async () => { const id = unwrap(await saveWorkflow(null, "New workflow", BLANK)); router.push(`/workflows?id=${id}`); })}><Plus aria-hidden /> New workflow</Button>
       </nav>
 
       {current && (
@@ -109,8 +110,8 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button disabled={pending} onClick={() => run(async () => { await saveWorkflow(current.id, name, cfg); toast.success("Workflow saved"); router.refresh(); })}>Save workflow</Button>
-                {onIt.length === 0 && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete ${current.name}?`, description: "No metric uses this workflow. It goes away for everyone, with its steps.", confirmLabel: "Delete workflow" })) run(async () => { await deleteWorkflow(current.id); router.push("/workflows"); }); }}><Trash2 aria-hidden /> Delete</Button>}
+                <Button disabled={pending} onClick={() => run(async () => { unwrap(await saveWorkflow(current.id, name, cfg)); toast.success("Workflow saved"); router.refresh(); })}>Save workflow</Button>
+                {onIt.length === 0 && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete ${current.name}?`, description: "No metric uses this workflow. It goes away for everyone, with its steps.", confirmLabel: "Delete workflow" })) run(async () => { unwrap(await deleteWorkflow(current.id)); router.push("/workflows"); }); }}><Trash2 aria-hidden /> Delete</Button>}
               </div>
             )}
             {!canEdit && <p className="mt-4 pl-12 text-sm text-muted-foreground">{first(current.owner_id)} owns this workflow; only they change it.</p>}
@@ -141,7 +142,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
             </div>
             <div className="space-y-2 border-t border-border pt-4">
               {schedule ? (
-                <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = await runTodayNow(); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
+                <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = unwrap(await runTodayNow()); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
               ) : (
                 <DemoControls hint="In a real workspace Workflows run by themselves every morning. Here you pick the day and run them.">
                   <div className="space-y-2">
@@ -149,13 +150,13 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                       <span className="mb-1 block font-medium">Pretend today is</span>
                       <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); router.replace(`/workflows?id=${current.id}&asOf=${e.target.value}`); }} />
                     </label>
-                    <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = await runWorkflowsNow(day); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
+                    <Button variant="outline" className="w-full" disabled={pending} onClick={() => run(async () => { const l = unwrap(await runWorkflowsNow(day)); setLog(l); toast.success(l.length ? `${l.length} step${l.length === 1 ? "" : "s"} run` : "Nothing to do on that day"); router.refresh(); })}><Play aria-hidden /> Run workflows</Button>
                   </div>
                 </DemoControls>
               )}
               {log && log.length > 0 && <ul className="space-y-0.5 rounded-[var(--radius-input)] bg-muted p-2 text-xs">{log.map((l, i) => <li key={i}>{l}</li>)}</ul>}
               {current.owner_id === viewer && onIt.length > 0 && (
-                <Button variant="outline" className="w-full" disabled={pending} onClick={async () => { if (await confirm({ title: `Close the period on ${current.name}?`, description: "Every metric on it that has a value for the last period is locked. Late values and corrections then need approval, and only a metric's owner can unlock it.", confirmLabel: "Lock the period" })) run(async () => { const n = await closeWorkflowPeriod(current.id, day); toast.success(`${n} metric${n === 1 ? "" : "s"} locked`); router.refresh(); }); }}><Lock aria-hidden /> Close the period</Button>
+                <Button variant="outline" className="w-full" disabled={pending} onClick={async () => { if (await confirm({ title: `Close the period on ${current.name}?`, description: "Every metric on it that has a value for the last period is locked. Late values and corrections then need approval, and only a metric's owner can unlock it.", confirmLabel: "Lock the period" })) run(async () => { const n = unwrap(await closeWorkflowPeriod(current.id, day)); toast.success(`${n} metric${n === 1 ? "" : "s"} locked`); router.refresh(); }); }}><Lock aria-hidden /> Close the period</Button>
               )}
             </div>
           </aside>

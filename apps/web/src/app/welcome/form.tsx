@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createWorkspace } from "@/app/auth-actions";
+import { UNEXPECTED } from "@/lib/action-error";
 
 /** Names and creates a person's first workspace. */
 export function WelcomeForm() {
@@ -10,7 +11,7 @@ export function WelcomeForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <form className="mt-8 space-y-3" onSubmit={(e) => { e.preventDefault(); start(async () => { try { const r = await createWorkspace(name); if (r?.error) setError(r.error); } catch (err) { setError((err as Error).message); } }); }}>
+    <form className="mt-8 space-y-3" onSubmit={(e) => { e.preventDefault(); start(async () => { try { const r = await createWorkspace(name); if (r?.error) setError(r.error); } catch { setError(UNEXPECTED); } }); }}>
       <label className="block text-sm">
         <span className="mb-1 block font-medium">Name of the workspace</span>
         <Input required placeholder="Your name, your team or your company" value={name} onChange={(e) => setName(e.target.value)} />

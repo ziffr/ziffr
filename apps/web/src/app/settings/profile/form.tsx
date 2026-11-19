@@ -1,5 +1,6 @@
 "use client";
 // Your name and colour, your email and signing out (spec 0006, ticket #94). The core checks the name and colour again.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, LogOut } from "lucide-react";
@@ -16,7 +17,7 @@ export function ProfileForm({ name, color, colors, email, demo }: { name: string
   const [c, setC] = useState(color);
   const changed = n.trim() !== name || c !== color;
   const save = () => start(async () => {
-    try { await updateMyProfile({ name: n, color: c }); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+    try { unwrap(await updateMyProfile({ name: n, color: c })); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
   });
   return (
     <div className="max-w-xl space-y-8">

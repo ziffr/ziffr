@@ -2,6 +2,7 @@
 // Telegram on a personal form page (spec 0016, ticket #25): the person whose form it is, often a Contact without a
 // login, connects their own Telegram with a one-time link. The form code is the credential, so it cannot disconnect
 // (that would let anyone holding a forwarded link move the messages to their own account): /stop in Telegram does.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { telegramFormLinkStart } from "@/app/connector-actions";
@@ -11,7 +12,7 @@ export function TelegramConnect({ code, linked }: { code: string; linked: boolea
   const [pending, start] = useTransition();
   const [link, setLink] = useState<{ url: string; minutes: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const run = (f: () => Promise<void>) => start(async () => { try { setError(null); await f(); } catch (err) { setError((err as Error).message); } });
+  const run = (f: () => Promise<void>) => start(async () => { try { setError(null); await f(); } catch (err) { setError(shown(err)); } });
   return (
     <div className="mt-4 rounded-2xl border bg-background p-4 text-sm">
       {linked ? (
@@ -26,7 +27,7 @@ export function TelegramConnect({ code, linked }: { code: string; linked: boolea
       ) : (
         <p className="flex flex-wrap items-center justify-between gap-2">
           <span>Get these requests in Telegram, and answer them there.</span>
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setLink(await telegramFormLinkStart(code)))}>Connect Telegram</Button>
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setLink(unwrap(await telegramFormLinkStart(code))))}>Connect Telegram</Button>
         </p>
       )}
       {error && <p role="alert" className="mt-2 text-destructive">{error}</p>}

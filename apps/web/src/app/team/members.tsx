@@ -3,6 +3,7 @@
 // invitations by email or link, requests to join by company domain. Only Owners and Admins see the controls.
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { shown, unwrap } from "@/lib/action-error";
 import { Link2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +39,7 @@ export function Members(props: {
   const [link, setLink] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [successor, setSuccessor] = useState("");
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const grantable = ROLES.filter((r) => isOwner || r.id !== "owner");
   return (
     <section aria-labelledby="members-heading" className="space-y-4">
@@ -61,7 +62,7 @@ export function Members(props: {
                     <option value="">Who takes over?</option>
                     {members.filter((x) => x.id !== m.id && x.role !== "guest").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </select>
-                  <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { await removeMemberWithHandover(m.id, successor); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")}>Remove</Button>
+                  <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { unwrap(await removeMemberWithHandover(m.id, successor)); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")}>Remove</Button>
                   <Button size="sm" variant="ghost" onClick={() => setLeaving(null)}>Cancel</Button>
                 </span>
               ) : (
@@ -73,14 +74,14 @@ export function Members(props: {
       </ul>
       {canEdit && (
         <div className="space-y-3">
-          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { setLink(await inviteMember({ email, role, contactPersonId: contact || null })); setEmail(""); }, props.mailOn ? "Invitation made and emailed" : "Invitation made"); }}>
+          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { setLink(unwrap(await inviteMember({ email, role, contactPersonId: contact || null }))); setEmail(""); }, props.mailOn ? "Invitation made and emailed" : "Invitation made"); }}>
             <label className="text-xs text-muted-foreground">Invite by email<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1 w-64" /></label>
             <label className="text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} className={`${field} mt-1 block`}>{grantable.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
             {props.contacts.length > 0 && (
               <label className="text-xs text-muted-foreground">who is the Contact<select value={contact} onChange={(e) => setContact(e.target.value)} className={`${field} mt-1 block`}><option value="">nobody yet</option>{props.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             )}
             <Button type="submit" variant="outline" disabled={pending}>Invite</Button>
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink(await createInviteLink("member")), "Link made")}><Link2 aria-hidden /> Link for Members</Button>
+            <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink(unwrap(await createInviteLink("member"))), "Link made")}><Link2 aria-hidden /> Link for Members</Button>
           </form>
           {link && (
             <p className="text-sm">{props.mailOn ? "Emailed. You can also send this link yourself:" : "Send this link:"} <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>

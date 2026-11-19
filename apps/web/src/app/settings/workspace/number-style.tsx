@@ -1,6 +1,7 @@
 "use client";
 // The workspace's Number Style (spec 0022, ticket #108; GLOSSARY: Number Style): how it writes numbers. Until an
 // Owner or Admin picks one it follows the Workspace Profile's country; the core checks the pick again on the server.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export function NumberStyleForm({ style, chosen, country, canEdit }: { style: Nu
   const [s, setS] = useState<NumberStyle>(style);
   const source = chosen ? null : country ? `From the Workspace's country, ${country}, until an Owner or Admin picks a style.` : "The default, until an Owner or Admin picks a style or sets the Workspace's country.";
   const save = () => start(async () => {
-    try { await setNumberStyle(s); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+    try { unwrap(await setNumberStyle(s)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
   });
   return (
     <section aria-labelledby="number-style-heading" className="space-y-3 border-t border-border pt-6">

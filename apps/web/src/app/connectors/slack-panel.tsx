@@ -2,6 +2,7 @@
 // The Slack connection on the Connectors page (spec 0007; GLOSSARY: Connector). Owners and Admins connect or
 // disconnect the workspace's Slack; everyone sees how Slack knows them, and can link their Slack account with a code.
 // It gets the Slack workspace's name only, never its token.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
@@ -16,7 +17,7 @@ export function SlackPanel({ connection, link, stopped, notice }: { connection: 
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
   const [code, setCode] = useState<{ code: string; minutes: number } | null>(null);
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const team = connection.team;
   return (
     <section aria-labelledby="slack-h" className="stock mb-12 rounded-[var(--radius-card)] p-4 text-sm">
@@ -45,7 +46,7 @@ export function SlackPanel({ connection, link, stopped, notice }: { connection: 
             <p className="mt-2">Send the Ziffr app on Slack this message within {code.minutes} minutes: <code className="rounded bg-[var(--muted)] px-1.5 py-0.5 select-all">link {code.code}</code></p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setCode(await slackLinkCode()))}>Link my Slack account</Button>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setCode(unwrap(await slackLinkCode())))}>Link my Slack account</Button>
               {link && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => unlinkSlack(), "Slack forgot you here")}>Forget me on Slack</Button>}
             </div>
           )}

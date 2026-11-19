@@ -1,6 +1,7 @@
 "use client";
 // Target Series and Projections on a metric's page (GLOSSARY: Target Series, Projection): a table its owner edits
 // row by row or fills by pasting two spreadsheet columns, with a preview before anything changes. Others read it.
+import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -63,11 +64,12 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
   const save = () => start(async () => {
     try {
       const r = await saveSeriesRows(metric.id, kind, changed.map((x) => ({ period: x.period, value: read(x.value)! })), note);
+      if (isActionError(r)) { toast.error("Not saved", { description: r.error }); return; }
       toast.success(`${r.saved} ${r.saved === 1 ? word : `${word}s`} saved`);
       setList((all) => all.map((x) => (read(x.value) !== null && x.period ? { ...x, saved: read(x.value)! } : x)));
       router.refresh();
-    } catch (err) {
-      toast.error("Not saved", { description: (err as Error).message });
+    } catch {
+      toast.error("Not saved", { description: UNEXPECTED });
     }
   });
 
@@ -77,12 +79,13 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
     if (!(await confirm({ title: `Remove the ${word} for ${label}?`, description: `The chart and the target box no longer use it. You can add it again later.`, confirmLabel: `Remove ${word}` }))) return;
     start(async () => {
       try {
-        await removeSeriesRows(metric.id, kind, [r.period]);
+        const done = await removeSeriesRows(metric.id, kind, [r.period]);
+        if (isActionError(done)) { toast.error("Not removed", { description: done.error }); return; }
         setList((all) => all.filter((x) => x.key !== r.key));
         toast.success(`${label} removed`);
         router.refresh();
-      } catch (err) {
-        toast.error("Not removed", { description: (err as Error).message });
+      } catch {
+        toast.error("Not removed", { description: UNEXPECTED });
       }
     });
   };

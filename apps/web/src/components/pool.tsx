@@ -10,6 +10,7 @@ import { sampleDesignWidget } from "@ziffr/core/design-files";
 import { TemplateMenu } from "./template-menu";
 import { setDrag } from "@/lib/drag";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
+import { told } from "@/lib/action-toast";
 import { DEFAULT_TEMPLATE, TEMPLATES, designTemplate, type TemplateDef, templateOf } from "@/views/templates";
 import type { CanvasData, Widget, WidgetTemplate } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -139,7 +140,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
                     <span className="block truncate">{w.title}</span>
                     <span className="block text-xs text-muted-foreground">{templateOf(w).label}</span>
                   </span>
-                  <button title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(() => deleteSavedWidget(w.id))} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted focus-visible:opacity-100"><X className="size-3.5" /></button>
+                  <button title="Delete saved widget" aria-label={`Delete ${w.title}`} onClick={() => start(async () => { told(await deleteSavedWidget(w.id)); })} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted focus-visible:opacity-100"><X className="size-3.5" /></button>
                 </Item>
               );
             })}

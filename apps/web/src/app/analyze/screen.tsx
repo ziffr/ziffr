@@ -5,6 +5,7 @@ import { FlaskConical, Lock, Play, Trash2, Wand2, X } from "lucide-react";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
 import { canvasAdd, canvasRemove, canvasSet, type DropSource } from "@/app/canvas-actions";
+import { told } from "@/lib/action-toast";
 import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES } from "@/views/templates";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
@@ -37,12 +38,12 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
     });
 
   const drop = (s: DropSource | null) => {
-    if (s?.type === "metric") start(() => canvasAdd([s.id]));
+    if (s?.type === "metric") start(async () => { told(await canvasAdd([s.id])); });
   };
 
   const recipe = (ids: number[], template: TemplateId) =>
     start(async () => {
-      await canvasSet(ids);
+      if (told(await canvasSet(ids))) return;
       run(template, ids);
     });
 
@@ -99,7 +100,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <FlaskConical className="size-4 text-primary" /> Analysis canvas
             <span className="fig font-normal text-muted-foreground">{n}</span><span className="font-normal text-muted-foreground">metric{n === 1 ? "" : "s"}</span>
-            {n > 0 && <button onClick={() => { setResults([]); start(() => canvasSet([])); }} className="ml-auto flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
+            {n > 0 && <button onClick={() => { setResults([]); start(async () => { told(await canvasSet([])); }); }} className="ml-auto flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
           </div>
           {n === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Drop metrics here. One metric → forecast. Two → correlation. More → drivers and a matrix.</p>
@@ -110,7 +111,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
                   {i === 0 && n > 1 && <span className="rounded-[var(--radius-input)] border border-foreground px-1 text-xs font-medium">Target</span>}
                   {m.name}
                   <span className="text-xs text-muted-foreground">{PERIOD_LABEL[m.period].toLowerCase()}</span>
-                  <button onClick={() => start(() => canvasRemove(m.id))} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
+                  <button onClick={() => start(async () => { told(await canvasRemove(m.id)); })} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
                 </span>
               ))}
             </div>
