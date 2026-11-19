@@ -68,7 +68,7 @@ describe("/mcp", () => {
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual((await local.listResourceTemplates()).resourceTemplates);
     expect(client.getServerVersion()).toEqual(local.getServerVersion());
     // The Starters too, filled in and refused the same way.
-    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "weekly_review", "record_values", "build_dashboard", "explain_metric"]);
+    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "weekly_review", "record_values", "build_dashboard", "explain_metric", "set_targets"]);
     expect((await client.listPrompts()).prompts).toEqual((await local.listPrompts()).prompts);
     const args = { name: "record_values", arguments: { text: "3 coffees today" } };
     expect(await client.getPrompt(args)).toEqual(await local.getPrompt(args));
@@ -99,11 +99,33 @@ describe("/mcp", () => {
       ["create_metric", { name: "X" }],
       ["list_dashboards", {}],
       ["create_dashboard", { name: "X" }],
+      ["update_metric", { slug: orders.slug, target_min: 1 }],
+      ["set_target_series", { slug: orders.slug, items: [{ period: "2027-01-01", value: 1 }] }],
+      ["set_projections", { slug: orders.slug, items: [{ period: "2099-01-01", value: 1 }] }],
+      ["set_unusual_value_check", { slug: orders.slug, change_pct: 10 }],
     ] as const) {
       const r = await client.callTool({ name, arguments: args });
       expect(r.isError, name).toBe(true);
       expect(text(r), name).toContain("forbidden");
     }
+  });
+
+  it("changes a Target Range, Target Series and Projections through the API, for the creator's own Metrics only", async () => {
+    const { key, orders, hidden } = await setup(["metrics:read", "metrics:edit"]);
+    const client = await remote(key.secret);
+    expect(json(await client.callTool({ name: "update_metric", arguments: { slug: orders.slug, target_min: 10, target_max: 20 } })).metric).toMatchObject({ target_min: 10, target_max: 20 });
+    expect(json(await client.callTool({ name: "set_target_series", arguments: { slug: orders.slug, items: [{ period: "2027-01-01", value: 15 }, { period: "2027-02-01", value: 16 }] } }))).toEqual({ saved: 2, removed: 0 });
+    expect(json(await client.callTool({ name: "set_target_series", arguments: { slug: orders.slug, items: [{ period: "2027-02-01", value: null }] } }))).toEqual({ saved: 0, removed: 1 });
+    expect(json(await client.callTool({ name: "list_target_series", arguments: { slug: orders.slug } }))).toEqual({ target_series: [{ period: "2027-01-01", value: 15 }] });
+    expect(json(await client.callTool({ name: "set_projections", arguments: { slug: orders.slug, items: [{ period: "2099-01-01", value: 30 }] } }))).toEqual({ saved: 1, removed: 0 });
+    expect(json(await client.callTool({ name: "list_projections", arguments: { slug: orders.slug } }))).toEqual({ projections: [{ period: "2099-01-01", value: 30 }] });
+    // A period that is over, and a Metric the creator does not see: the API's refusals, as text the assistant reads.
+    const over = await client.callTool({ name: "set_projections", arguments: { slug: orders.slug, items: [{ period: "2020-01-01", value: 1 }] } });
+    expect(over.isError).toBe(true);
+    expect(text(over)).toMatch(/unprocessable.*is over/);
+    expect(json(await client.callTool({ name: "get_unusual_value_check", arguments: { slug: orders.slug } }))).toEqual({ workflow: null, check: null });
+    const hiddenOne = await client.callTool({ name: "set_target_series", arguments: { slug: hidden.slug, items: [{ period: "2027-01-01", value: 1 }] } });
+    expect(text(hiddenOne)).toContain("not_found");
   });
 
   it("answers 401 with a challenge without a valid credential, and reaches nothing for an ended one", async () => {

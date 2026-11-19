@@ -2,12 +2,14 @@
 // may not see, of another workspace, or missing answers 404 alike (the core's Forbidden).
 // DELETE /api/v1/metrics/{slug}?confirm=<its exact name>: deletes it as the key's creator (scope metrics:write), only
 // when they own it and nothing uses it, as in the app; the Audit Log names the key.
+// PATCH /api/v1/metrics/{slug} (ticket #211; GLOSSARY: Target Range): changes its Polarity, Target Range or Attainment
+// method as the key's creator (scope metrics:edit), only when they own it or are its Editor.
 import { getMetric } from "@ziffr/core/api";
-import { deleteMetricWithKey } from "@ziffr/core/api-metrics";
+import { deleteMetricWithKey, MetricChangeRefused, updateMetricWithKey } from "@ziffr/core/api-metrics";
 import { MetricKept } from "@ziffr/core/metrics";
 import { Forbidden } from "@ziffr/core/actor";
-import { ApiError, apiError, json, keyRoute } from "@/lib/api";
-import { DeletedMetric, deleteMetricQuery, MetricDescription, slugParam } from "../../schemas";
+import { ApiError, apiError, json, jsonBody, keyRoute } from "@/lib/api";
+import { DeletedMetric, deleteMetricQuery, MetricDescription, slugParam, UpdateMetric } from "../../schemas";
 
 type Ctx = { params: Promise<{ slug: string }> };
 
@@ -30,6 +32,21 @@ export const DELETE = keyRoute("metrics:write", async (actor, req, ctx: Ctx) => 
     if (e instanceof Forbidden) { if (e.message === "Forbidden") throw e; return apiError("forbidden", e.message); }
     // In use, or the name does not match: nothing was deleted, and the reason is said. Anything else stays a 500.
     if (e instanceof MetricKept) return apiError("unprocessable", e.message);
+    throw e;
+  }
+});
+
+/** Changes parts of one Metric's description. 200 with the Metric; 403 when the creator sees it but may not change it,
+ * or their role may not create; 422 when the change is refused, such as a lower target above the upper one. */
+export const PATCH = keyRoute("metrics:edit", async (actor, req, ctx: Ctx) => {
+  const slug = slugParam.parse((await ctx.params).slug);
+  const patch = UpdateMetric.parse(await jsonBody(req));
+  try {
+    return json(MetricDescription.parse(await updateMetricWithKey(actor, slug, patch)));
+  } catch (e) {
+    // Without a reason: missing or hidden (404). With one: seen, but not theirs to change.
+    if (e instanceof Forbidden) { if (e.message === "Forbidden") throw e; return apiError("forbidden", e.message); }
+    if (e instanceof MetricChangeRefused) return apiError("unprocessable", e.message);
     throw e;
   }
 });

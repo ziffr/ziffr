@@ -9,7 +9,7 @@ import type { MyConnection } from "@ziffr/core/assistant-connections";
 import type { Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 /** The person's connections; the core checks each Disconnect again. */

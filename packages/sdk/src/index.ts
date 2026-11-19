@@ -68,6 +68,30 @@ export type NewMetric = {
   submit?: boolean;
 };
 
+/** What `metrics.update` may change of a Metric (scope metrics:edit): its Polarity, Target Range and Attainment method.
+ * Each part left out stays; null clears an end of the Target Range or the Metric's own method. */
+export type MetricPatch = {
+  polarity?: "higher" | "lower" | "target";
+  target_min?: number | null;
+  target_max?: number | null;
+  attainment_method?: "ratio" | "distance" | null;
+};
+
+/** A Metric's Unusual Value check: the check step of its Workflow, which several Metrics may share. */
+export type UnusualValueCheck = {
+  workflow: { name: string; yours: boolean; metrics: number } | null;
+  check: { change_pct: number; outside_target: boolean } | null;
+};
+
+/** One period's value of a Target Series or a Projection: the period's first day and the value. */
+export type SeriesValue = { period: string; value: number };
+
+/** One period to set in a Target Series or Projections: a number sets it, null removes it. */
+export type SeriesItem = { period: string; value: number | null };
+
+/** Most periods one call sets or removes in a Target Series or Projections. */
+export const SERIES_ITEMS_MAX = 500;
+
 /** What a submission sends. */
 export type SubmitValue = { value: number; period?: string; breakdown?: BreakdownRow[] };
 
@@ -212,7 +236,24 @@ export class Ziffr {
      * (ZiffrError 422) while another Metric's formula, a widget, a deck or a working View Link uses it. */
     delete: async (slug: string, confirmName: string): Promise<{ deleted: string; values: number }> =>
       (await this.request<{ deleted: string; values: number }>("DELETE", `/metrics/${encodeURIComponent(slug)}`, { confirm: confirmName })).body,
+    /** Changes a Metric's Polarity, Target Range or Attainment method (scope metrics:edit), when
+     * the key's creator owns it or is its Editor. Answers the Metric as it is now. */
+    update: async (slug: string, patch: MetricPatch): Promise<Metric> => (await this.request<Metric>("PATCH", `/metrics/${encodeURIComponent(slug)}`, undefined, patch)).body,
+    /** What makes a value unusual in the Metric's Workflow (scope metrics:read). */
+    unusualValueCheck: (slug: string) => this.get<UnusualValueCheck>(`/metrics/${encodeURIComponent(slug)}/unusual-value-check`),
+    /** Changes the check step of the Metric's Workflow, and so of every Metric sharing it (scope metrics:edit); only
+     * when the key's creator owns the Workflow. */
+    setUnusualValueCheck: async (slug: string, change: { change_pct?: number; outside_target?: boolean }): Promise<UnusualValueCheck> =>
+      (await this.request<UnusualValueCheck>("PATCH", `/metrics/${encodeURIComponent(slug)}/unusual-value-check`, undefined, change)).body,
   };
+
+  /** A Metric's Target Series: target values for single periods, such as a monthly budget. Where a period has none,
+   * the Metric's Target Range applies. */
+  readonly targetSeries = this.series("target-series");
+
+  /** A Metric's Projections: values for the current period or later ones, from an outside forecast, always shown as
+   * projections. */
+  readonly projections = this.series("projections");
 
   /** A Metric's values. */
   readonly observations = {
@@ -302,6 +343,20 @@ export class Ziffr {
     /** The built-in views, the team's Widget Templates and the Dashboard Templates, or one kind of them. */
     all: async (options: { kind?: Template["kind"] } = {}): Promise<Template[]> => (await this.get<{ items: Template[] }>("/templates", options)).items,
   };
+
+  /** Reading (scope metrics:read) and setting (scope metrics:edit) one kind of series, the same for both. */
+  private series(path: "target-series" | "projections") {
+    return {
+      /** Every period that has a value, oldest first. */
+      list: async (slug: string): Promise<SeriesValue[]> => (await this.get<{ items: SeriesValue[] }>(`/metrics/${encodeURIComponent(slug)}/${path}`)).items,
+      /** Sets or removes 1 to SERIES_ITEMS_MAX periods (their first days): a number sets one, null removes it. Every
+       * item is checked first: a refused one (ZiffrError 422) writes none. Safe to repeat. */
+      set: async (slug: string, items: SeriesItem[]): Promise<{ saved: number; removed: number }> => {
+        if (!items.length || items.length > SERIES_ITEMS_MAX) throw new Error(`Send 1 to ${SERIES_ITEMS_MAX} items.`);
+        return (await this.request<{ saved: number; removed: number }>("POST", `/metrics/${encodeURIComponent(slug)}/${path}`, undefined, { items })).body;
+      },
+    };
+  }
 
   private async get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
     return (await this.request<T>("GET", path, query)).body;

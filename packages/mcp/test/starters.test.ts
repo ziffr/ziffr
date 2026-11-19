@@ -39,6 +39,7 @@ describe("Starters", () => {
       record_values: [{ name: "text", required: false }],
       build_dashboard: [{ name: "topic", required: false }],
       explain_metric: [{ name: "metric", required: false }],
+      set_targets: [{ name: "text", required: false }],
     });
     expect(client.getInstructions()).toContain("what_can_i_do");
   });
@@ -65,7 +66,10 @@ describe("Starters", () => {
     expect(textOf(await client.getPrompt({ name: "weekly_review" }))).toMatch(/last full period/);
     expect(textOf(await client.getPrompt({ name: "record_values" }))).toMatch(/Ask me which numbers/);
     expect(textOf(await client.getPrompt({ name: "explain_metric", arguments: { metric: "  " } }))).toMatch(/Ask me which one/);
-    expect(textOf(await client.getPrompt({ name: "what_can_i_do" }))).toMatch(/get_workspace and list_metrics/);
+    expect(textOf(await client.getPrompt({ name: "what_can_i_do" }))).toMatch(/get_workspace and list_metrics[^]*set_target_series[^]*set_projections/);
+    const targets = textOf(await client.getPrompt({ name: "set_targets", arguments: { text: "budget 5000 a month for revenue in 2027" } }));
+    expect(targets).toContain("\"budget 5000 a month for revenue in 2027\"");
+    expect(targets).toMatch(/Change only after I confirm/);
     // Every Starter ends with the safety lines; an emoji keeps its joiner.
     for (const name of STARTER_NAMES) expect(textOf(await client.getPrompt({ name }))).toMatch(/Change nothing in Ziffr unless I ask for it[^]*Never invent a number[^]*$/);
     expect(textOf(await client.getPrompt({ name: "build_dashboard", arguments: { topic: "team \u{1F468}\u200D\u{1F469}" } }))).toContain("team \u{1F468}\u200D\u{1F469}");
@@ -79,6 +83,7 @@ describe("Starters", () => {
       ["record_values", "text", STARTER_ARGUMENT_MAX.text],
       ["build_dashboard", "topic", STARTER_ARGUMENT_MAX.topic],
       ["explain_metric", "metric", STARTER_ARGUMENT_MAX.metric],
+      ["set_targets", "text", STARTER_ARGUMENT_MAX.targets],
     ];
     for (const [name, arg, max] of cases) {
       await expect(client.getPrompt({ name, arguments: { [arg]: "x".repeat(max) } })).resolves.toBeDefined();

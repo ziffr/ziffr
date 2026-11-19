@@ -2,7 +2,7 @@
 
 # Ziffr API, version 1
 
-Read the Metrics an Access Key's creator sees and submit values, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
+Read the Metrics an Access Key's creator sees and submit values, set their targets and Projections, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.
 
 Every path is under `/api/v1`. The machine-readable description is at `/api/v1/openapi.json`. To make a first call, see [the API guide](../guides/api.md).
 
@@ -179,6 +179,56 @@ Deletes a Metric the key's creator owns, with its values, targets, questions and
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Change a Metric's Target Range
+
+`PATCH /metrics/{slug}` · scope `metrics:edit`
+
+Changes a Metric's Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | no | Whether higher or lower values are better, or a range (target). |
+| `target_min` | number, -1000000000000000 to 1000000000000000 or null | no | The low end of its Target Range; null for none. |
+| `target_max` | number, -1000000000000000 to 1000000000000000 or null | no | The high end of its Target Range; null for none. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; null follows the workspace's default. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `slug` | string | yes | Stable id in paths; survives renames of the name. |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
+| `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
+| `unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
+| `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
+| `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
+| `target_min` | number or null | yes | The low end of its target, if any. |
+| `target_max` | number or null | yes | The high end of its target, if any. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: The lower target is above the upper one; nothing was changed.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List a Metric's values
 
 `GET /metrics/{slug}/observations` · scope `metrics:read`
@@ -258,6 +308,202 @@ Records a value for the current period, or the one named, through the Metric's S
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first submission is still running.
 - 422: `locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric or the period refused it.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List a Metric's Target Series
+
+`GET /metrics/{slug}/target-series` · scope `metrics:read`
+
+Target values for single periods, such as a monthly budget; where a period has none, the Target Range applies. Every period that has one, oldest first.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `items[].value` | number | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Set a Metric's Target Series
+
+`POST /metrics/{slug}/target-series` · scope `metrics:edit`
+
+Sets or removes 1 to 500 periods: a number sets the period's value, null removes it. Each period is its first day. Every item is checked before anything is written, as the key's creator, only when they own the Metric or are its Editor.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
+| `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
+| `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `saved` | integer | yes | Periods set. |
+| `removed` | integer | yes | Periods removed; a period without a value counts none. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A period that is not one of the Metric's period starts; nothing was written.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List a Metric's Projections
+
+`GET /metrics/{slug}/projections` · scope `metrics:read`
+
+Values for periods not over yet, from an outside forecast, always shown as projections and never as values. Every period that has one, oldest first.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `items[].value` | number | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Set a Metric's Projections
+
+`POST /metrics/{slug}/projections` · scope `metrics:edit`
+
+Sets or removes 1 to 500 periods of the current period or later: a number sets the period's value, null removes it. Each period is its first day. Every item is checked before anything is written, as the key's creator, only when they own the Metric or are its Editor.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
+| `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
+| `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `saved` | integer | yes | Periods set. |
+| `removed` | integer | yes | Periods removed; a period without a value counts none. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A period that is not one of the Metric's period starts, or one that is over; nothing was written.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Describe a Metric's Unusual Value check
+
+`GET /metrics/{slug}/unusual-value-check` · scope `metrics:read`
+
+What makes a value unusual in the Metric's Workflow: a change beyond a per cent on the period before, and whether a value outside the Target Range is too. With the Workflow's name, whether the key's creator owns it, and how many Metrics they see share it.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `workflow` | object or null | yes | null: the Metric has no Workflow, so nothing checks its values. |
+| `check` | object or null | yes | null: the Workflow has no check step. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a Metric's Unusual Value check
+
+`PATCH /metrics/{slug}/unusual-value-check` · scope `metrics:edit`
+
+Changes the check step of the Metric's Workflow. It changes the Workflow, so every Metric that shares it. Only the Workflow's owner may, as in the Workflow editor; its history names the key. Steps are added or removed only in Ziffr.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `change_pct` | integer, 1 to 1000 | no | Unusual beyond this change in per cent, 1 to 1,000. |
+| `outside_target` | boolean | no | Whether a value outside the Target Range is unusual too. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `workflow` | object or null | yes | null: the Metric has no Workflow, so nothing checks its values. |
+| `check` | object or null | yes | null: the Workflow has no check step. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator does not own the Workflow, or their role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: The Metric has no Workflow, or its Workflow has no check step.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 

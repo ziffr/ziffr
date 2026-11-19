@@ -11,7 +11,9 @@ import type { AccessLogEntry } from "@ziffr/core/access-log";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+/** What a scope covers, where its label alone does not say. */
+const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections and the Unusual Value check of the Metrics you own or edit" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -29,7 +31,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
     <section aria-labelledby="keys-heading" className="space-y-3 border-t border-border pt-6">
       <div>
         <h2 id="keys-heading" className="font-medium">Access Keys</h2>
-        <p className="text-sm text-muted-foreground">For programs and assistants that read metrics, submit values, create metrics or build dashboards for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
+        <p className="text-sm text-muted-foreground">For programs and assistants that read metrics, submit values, create or change metrics or build dashboards for you, in this workspace only, through the end of the day you pick (UTC). A key sees no more than you do.</p>
       </div>
       {keys.length > 0 && (
         <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
@@ -68,6 +70,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
           <label key={s} className="flex items-center gap-1.5 text-sm">
             <input type="checkbox" checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="size-4 accent-[var(--color-ink)]" />
             {SCOPE_LABEL[s]}
+            {SCOPE_HINT[s] && <span className="text-xs text-muted-foreground">({SCOPE_HINT[s]})</span>}
           </label>
         ))}
         <label className="text-xs text-muted-foreground">Until<Input type="date" value={expires} min={inDays(1)} max={inDays(365)} onChange={(e) => setExpires(e.target.value)} className="mt-1" /></label>
