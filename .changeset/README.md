@@ -14,4 +14,4 @@ People can now sign in with an email link.
 - Always name `@ziffr/web`: it stands for the product, including the core and the database.
 - Write for the people who use or run Ziffr, in one or two plain sentences. Start notes for self-hosters with "Self-hosters:" and for developers with "Developers:".
 
-`pnpm release` turns these files into a section of `CHANGELOG.md` and removes them.
+The Release button turns these files into a section of `CHANGELOG.md` and removes them.

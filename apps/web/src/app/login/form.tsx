@@ -25,7 +25,12 @@ export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?:
           e.preventDefault();
           setError(null);
           // An answer works once: after a refusal the check is drawn again for the next try.
-          start(async () => { try { await sendSignInLink(email, next, check ?? undefined); setSent(true); } catch (err) { setError((err as Error).message); setCheck(null); setRound((r) => r + 1); } });
+          start(async () => {
+            const result = await sendSignInLink(email, next, check ?? undefined).catch(() => ({ error: "The link could not be sent. Try again." }));
+            if (!result) return setSent(true);
+            // A check answer counts once: a new one for the next try.
+            setError(result.error); setCheck(null); setRound((r) => r + 1);
+          });
         }}
       >
         <label className="block text-sm">
@@ -39,7 +44,7 @@ export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?:
       {providers.length > 0 && (
         <div className="space-y-2 border-t border-border pt-6">
           {providers.map((p) => (
-            <Button key={p.id} variant="outline" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)} onClick={() => start(async () => { try { await signInWith(p.id, next, check ?? undefined); } catch (err) { setError((err as Error).message); } })}>
+            <Button key={p.id} variant="outline" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)} onClick={() => start(async () => { const result = await signInWith(p.id, next, check ?? undefined); if (result) { setError(result.error); setCheck(null); setRound((r) => r + 1); } })}>
               Continue with {p.label}
             </Button>
           ))}

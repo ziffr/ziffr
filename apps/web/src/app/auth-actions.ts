@@ -16,38 +16,42 @@ import { turnstilePassed } from "@/lib/turnstile";
 
 const TOO_MANY = "Too many links asked for. Wait a minute and try again.";
 const DEMO_ONLY = "Signing in is off here: this Ziffr is a public demo.";
+const BOT_CHECK = "The check against bots did not pass. Try it again.";
+
+// Both return what went wrong instead of throwing it: a production build replaces a thrown message with a generic
+// one ("An error occurred in the Server Components render"), and the person would never learn why.
 
 /** Sends a sign-in link to the address; the same message whether or not an account exists. */
-export async function sendSignInLink(email: string, next?: string, check?: string) {
+export async function sendSignInLink(email: string, next?: string, check?: string): Promise<{ error: string } | void> {
   // The login page shows no form in a demo-only Ziffr; this holds for a call made without it. Auth refuses new
   // accounts there too (GOTRUE_DISABLE_SIGNUP, docker/init.mjs).
-  if (demoOnly()) throw new Error(DEMO_ONLY);
+  if (demoOnly()) return { error: DEMO_ONLY };
   const address = String(email ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("Enter a valid email address.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return { error: "Enter a valid email address." };
   // The check against bots, where it is set up (spec 0021): verified with Cloudflare before anything is counted or sent.
   const place = networkAddress(await headers());
-  if (!(await turnstilePassed(check, place))) throw new Error("The check against bots did not pass. Try it again.");
+  if (!(await turnstilePassed(check, place))) return { error: BOT_CHECK };
   // Ziffr's own limit first (spec 0009), with the message a Supabase limit gives: the same whether or not the
   // address has an account.
-  if (!(await claimSignInLink(address, place))) throw new Error(TOO_MANY);
+  if (!(await claimSignInLink(address, place))) return { error: TOO_MANY };
   const { error } = await (await authClient()).auth.signInWithOtp({
     email: address,
     options: { emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
-  if (error) throw new Error(error.status === 429 ? TOO_MANY : "The link could not be sent. Try again.");
+  if (error) return { error: error.status === 429 ? TOO_MANY : "The link could not be sent. Try again." };
 }
 
 /** Starts signing in with a provider; only providers that are set up are accepted. */
-export async function signInWith(provider: Provider, next?: string, check?: string) {
-  if (demoOnly()) throw new Error(DEMO_ONLY);
+export async function signInWith(provider: Provider, next?: string, check?: string): Promise<{ error: string } | void> {
+  if (demoOnly()) return { error: DEMO_ONLY };
   // The same check against bots as for a link (spec 0021): a provider account makes a trial too.
-  if (!(await turnstilePassed(check, networkAddress(await headers())))) throw new Error("The check against bots did not pass. Try it again.");
-  if (!enabledProviders().includes(provider)) throw new Error("This way of signing in is not set up.");
+  if (!(await turnstilePassed(check, networkAddress(await headers())))) return { error: BOT_CHECK };
+  if (!enabledProviders().includes(provider)) return { error: "This way of signing in is not set up." };
   const { data, error } = await (await authClient()).auth.signInWithOAuth({
     provider,
     options: { redirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(safeNext(next))}` },
   });
-  if (error || !data.url) throw new Error("Could not start signing in. Try again.");
+  if (error || !data.url) return { error: "Could not start signing in. Try again." };
   redirect(forBrowser(data.url));
 }
 
