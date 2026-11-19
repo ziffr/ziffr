@@ -90,6 +90,8 @@ describe("who may see and change Installation Settings", () => {
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/not a setting of this section/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_DB_PASSWORD: "x" })).rejects.toThrow(/not a setting of this section/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "http://example.test" })).rejects.toThrow(/smtps:\/\//);
+    // Options in the query would let the page switch on logging of every email, or a proxy.
+    await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://smtp.example.test:587?logger=true&debug=true" })).rejects.toThrow(/no \?options/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "two@example.test, three@example.test" })).rejects.toThrow(/one email address/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "x".repeat(2000) })).rejects.toThrow(/too long/);
     await expect(saveInstallationSettings(a, "replies", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/cannot be set up here yet/);

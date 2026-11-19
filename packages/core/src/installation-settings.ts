@@ -30,6 +30,8 @@ const CHECKS: Record<string, (v: string) => string | null> = {
     try { url = new URL(v); } catch { return "The mail server looks like smtps://user:password@smtp.example.com:465."; }
     if (url.protocol !== "smtp:" && url.protocol !== "smtps:") return "The mail server starts with smtps:// or smtp://.";
     if (!url.hostname) return "The mail server needs a host name.";
+    // Nodemailer reads options from the query (a logger, a proxy, no TLS checks): from the page, only the server.
+    if (url.search || url.hash || v.includes("?") || v.includes("#")) return "The mail server takes no ?options: only user, password, host and port.";
     return null;
   },
   ZIFFR_MAIL_FROM: (v) => {
