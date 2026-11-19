@@ -9,9 +9,16 @@ import { chaptersToUpdate, readChapters } from "../../scripts/guide-screens.mjs"
 const base = `origin/${process.env.GITHUB_BASE_REF || "main"}`;
 let labels = [];
 try {
-  labels = (JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8")).pull_request?.labels ?? []).map((l) => l.name);
+  const pr = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8")).pull_request;
+  labels = (pr?.labels ?? []).map((l) => l.name);
+  // The labels as they are now, not as they were when the run started: a re-run keeps its first event, so a label
+  // added since would not count (the release-note check reads them the same way).
+  if (pr?.number && process.env.GH_TOKEN) {
+    const now = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/issues/${pr.number}/labels`, "--jq", ".[].name"], { encoding: "utf8" });
+    labels = now.split("\n").filter(Boolean);
+  }
 } catch {
-  // Locally there is no pull request, so no label.
+  // Locally there is no pull request, so no label; if GitHub cannot be asked, the event's labels count.
 }
 if (labels.includes("no-guide-change")) {
   console.log("Label no-guide-change set.");

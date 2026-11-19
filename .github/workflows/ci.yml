@@ -54,6 +54,8 @@ jobs:
         run: .github/scripts/docs-touched.sh
       - name: Changed screens come with their user guide chapter
         if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/guide-touched.mjs
       - name: Changes people use or run come with a release note
         if: github.event_name == 'pull_request'
