@@ -16,3 +16,5 @@ swap:
   deputy: Stand-in
   dashboard tile: widget
   chart card: widget
+  superadmin: Installation Admin
+  system administrator: Installation Admin
