@@ -9,7 +9,7 @@
 import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
 import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
-import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, metricEffects, removeSeriesRows, removeSubmitters, saveSeriesRows, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
+import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { peopleIn } from "./submissions";
 import { yearStartFor } from "./fiscal-year";
@@ -252,8 +252,14 @@ export async function setSeriesWithKey(actor: Actor | KeyActor, slug: string, ki
   const note = keyName ? `Through the API (key “${keyName}”)` : "Through the API";
   const saves = [...last].filter(([, v]) => v !== null).map(([period, value]) => ({ period, value: value as number }));
   const removes = [...last].filter(([, v]) => v === null).map(([period]) => period);
-  const saved = saves.length ? (await saveSeriesRows(creator, metric.id as number, kind, saves, note)).saved : 0;
-  const removed = removes.length ? (await removeSeriesRows(creator, metric.id as number, kind, removes)).removed : 0;
+  // The same right as on the Metric's page; then saves and removals are one database call, so a failure in either
+  // leaves nothing written (ticket #215).
+  await editableMetric(creator, metric.id as number, "targets and projections");
+  const { data, error } = await db().rpc("set_series_values", { p_metric: metric.id, p_kind: kind, p_saves: saves, p_removes: removes, p_note: note });
+  if (error) throw new Error("The series could not be saved.");
+  const row = (Array.isArray(data) ? data[0] : data) as { saved: number; removed: number } | null;
+  const saved = Number(row?.saved ?? 0);
+  const removed = Number(row?.removed ?? 0);
   return { saved, removed };
 }
 
