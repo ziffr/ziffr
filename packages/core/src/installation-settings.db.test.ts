@@ -2,12 +2,13 @@
 // change them, sealing (no secret readable in the table or returned to the page), precedence (environment, then the
 // page, then the default), and that mail saved on the page is what the queue and "What works here" then use.
 import { randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
 import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR } from "./installation-settings";
 import { inboundOn, mailOn, smtpOptions } from "./mail";
+import { mailHostResolver } from "./mail-hosts";
 import { openSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect } from "./settings-in-effect";
 import { workspace } from "./test/db-fixtures";
@@ -20,6 +21,9 @@ const savedEnv: Record<string, string | undefined> = {};
 let savedAdmins: Record<string, unknown>[] = [];
 let savedSettings: Record<string, unknown>[] = [];
 const cleanups: (() => Promise<void>)[] = [];
+const realLookup = mailHostResolver.lookup;
+/** Answers the tests give for names: *.example.test is a public address unless a test says otherwise. */
+let answers: Record<string, string[]> = {};
 
 beforeAll(async () => {
   savedAdmins = (await db().from("installation_admins").select("*")).data ?? [];
@@ -33,6 +37,13 @@ afterAll(async () => {
   forgetStoredSettings();
 });
 beforeEach(async () => {
+  answers = {};
+  mailHostResolver.lookup = async (host) => {
+    const given = answers[host] ?? (host.endsWith(".example.test") ? ["93.184.216.34"] : null);
+    if (!given) return realLookup(host);
+    if (!given.length) throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+    return given.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }));
+  };
   for (const k of KEYS) { savedEnv[k] = process.env[k]; delete process.env[k]; }
   process.env.ZIFFR_SITE_URL = "https://ziffr.example.test";
   // A fixed test key: 32 bytes, base64.
@@ -44,6 +55,8 @@ beforeEach(async () => {
   forgetStoredSettings();
 });
 afterEach(async () => {
+  mailHostResolver.lookup = realLookup;
+  vi.restoreAllMocks();
   for (const k of KEYS) if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k];
   for (const c of cleanups.splice(0)) await c();
   forgetStoredSettings();
@@ -224,6 +237,79 @@ describe("the test email", () => {
     const b = await person();
     await db().from("installation_admins").insert({ person_id: b.personId, added_by: a.personId });
     await expect(sendTestEmail(b, async () => ({ messageId: "x" }))).resolves.toEqual({ to: b.email });
+  });
+});
+
+describe("the test email's limit, in one locked step", () => {
+  it("lets exactly ten of many parallel test emails through", async () => {
+    const a = await admin();
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    const results = await Promise.allSettled(Array.from({ length: 15 }, () => sendTestEmail(a, async () => ({ messageId: "x" }))));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(TEST_EMAILS_PER_HOUR);
+    const { count } = await db().from("installation_audit_events").select("id", { count: "exact", head: true }).eq("actor_id", a.personId).eq("kind", "setting.test_email");
+    expect(count).toBe(TEST_EMAILS_PER_HOUR);
+  });
+
+  it("refuses when the count cannot be taken", async () => {
+    const a = await admin();
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    const sent: string[] = [];
+    vi.spyOn(db(), "rpc").mockResolvedValueOnce({ data: null, error: { message: "down", code: "57P01" } } as never);
+    await expect(sendTestEmail(a, async (m) => { sent.push(m.to); return { messageId: "x" }; })).rejects.toThrow(/At most/);
+    expect(sent).toEqual([]);
+    // The public roles cannot call it.
+    const { createClient } = await import("@supabase/supabase-js");
+    if (process.env.SUPABASE_ANON_KEY) {
+      const { error } = await createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false } })
+        .rpc("claim_installation_test_email", { p_person: a.personId, p_actor_name: "x", p_limit: 100 });
+      expect(error).not.toBeNull();
+    }
+  });
+});
+
+describe("a mail server saved on the page, resolved", () => {
+  it("is refused on save when any address of its name is private, or it has none", async () => {
+    const a = await admin();
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    answers["inside.example.test"] = ["10.0.0.8"];
+    answers["split.example.test"] = ["93.184.216.34", "fd00::25"];
+    answers["mapped.example.test"] = ["::ffff:127.0.0.1"];
+    answers["meta.example.test"] = ["169.254.169.254"];
+    answers["gone.example.test"] = [];
+    for (const host of ["inside", "split", "mapped", "meta"]) {
+      await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: `smtp://${host}.example.test` }), host).rejects.toThrow(/ZIFFR_ALLOW_PRIVATE_MAIL_HOST/);
+    }
+    await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://gone.example.test" })).rejects.toThrow(/could not be found/);
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtps://smtp.example.test:465" });
+    expect((await db().from("installation_settings").select("name")).data).toEqual([{ name: "ZIFFR_SMTP_URL" }]);
+  });
+
+  it("connects to the address it checked at send time, and refuses one that has turned private", async () => {
+    const a = await admin();
+    // A name nothing but this test knows, pointing at the local Mailpit: if the email arrives, the connection went to
+    // the checked address, not to a lookup of its own.
+    const port = new URL(SMTP).port;
+    answers["mailpit.example.test"] = ["127.0.0.1"];
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: `smtp://mailpit.example.test:${port}`, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    expect(await sendTestEmail(a)).toEqual({ to: a.email });
+    const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${a.email}"`)}`)).json() as { messages: unknown[] };
+    expect(messages).toHaveLength(1);
+    // The same name, now answering a private address, without the server's permission: refused, nothing sent.
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    await expect(sendTestEmail(a)).rejects.toThrow(TEST_EMAIL_ERRORS.reach);
+    const again = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${a.email}"`)}`)).json() as { messages: unknown[] };
+    expect(again.messages).toHaveLength(1);
+  });
+
+  it("leaves a mail server from the environment as it is", async () => {
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    const a = await admin();
+    process.env.ZIFFR_SMTP_URL = SMTP;
+    process.env.ZIFFR_MAIL_FROM = "Ziffr <ziffr@example.test>";
+    let asked = false;
+    mailHostResolver.lookup = async () => { asked = true; return []; };
+    expect(await sendTestEmail(a)).toEqual({ to: a.email });
+    expect(asked).toBe(false);
   });
 });
 

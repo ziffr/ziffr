@@ -7,6 +7,7 @@ import { assertInstallationAdmin, recordInstallationEvent, type InstallationActo
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
 import { headerSafe, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
+import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
@@ -35,39 +36,8 @@ export const TEST_EMAIL_ERRORS = {
   other: "It did not work.",
 } as const;
 
-// An IPv4 address as its four numbers, or null.
-function ipv4(host: string): number[] | null {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (!m) return null;
-  const parts = m.slice(1).map(Number);
-  return parts.every((n) => n <= 255) ? parts : null;
-}
-
-const privateV4 = ([a, b]: number[]) =>
-  a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
-
-/** Whether a mail server host is inside the server's own network as written: loopback, private (RFC 1918, CGNAT,
- * fc00::/7), link-local, unspecified, or a bare name without a dot (such as `mail` or `localhost`). Only what is
- * written is judged; a public name that resolves to a private address is not caught here. */
-export function privateMailHost(raw: string): boolean {
-  const host = String(raw).toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
-  if (host.includes(":")) {
-    if (host === "::" || host === "::1") return true;
-    if (/^f[cd][0-9a-f]{0,2}:/.test(host) || /^fe[89ab][0-9a-f]?:/.test(host)) return true;
-    // IPv4 mapped into IPv6, as written or as URL writes it (::ffff:7f00:1).
-    const mapped = /^::ffff:(.+)$/.exec(host)?.[1];
-    if (mapped) {
-      const dotted = ipv4(mapped);
-      if (dotted) return privateV4(dotted);
-      const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mapped);
-      if (hex) { const hi = parseInt(hex[1], 16); return privateV4([hi >> 8, hi & 255]); }
-    }
-    return false;
-  }
-  const v4 = ipv4(host);
-  if (v4) return privateV4(v4);
-  return !host.includes(".") || host.endsWith(".localhost");
-}
+/** Whether a mail server host is inside the server's own network as written (see mail-hosts.ts). */
+export { privateMailHost } from "./mail-hosts";
 
 /** Which of the fixed answers a failed send gets. */
 function testEmailError(e: unknown): string {
@@ -76,7 +46,7 @@ function testEmailError(e: unknown): string {
   const response = Number(err?.responseCode ?? 0);
   if (code === "EAUTH" || response === 530 || response === 534 || response === 535) return TEST_EMAIL_ERRORS.login;
   if (code === "EENVELOPE" || (response >= 550 && response <= 554)) return TEST_EMAIL_ERRORS.envelope;
-  if (["ECONNECTION", "ECONNREFUSED", "ETIMEDOUT", "ESOCKET", "EDNS", "ENOTFOUND", "EHOSTUNREACH", "ENETUNREACH", "ETLS", "EBADADDRESS"].includes(code)) return TEST_EMAIL_ERRORS.reach;
+  if (["ECONNECTION", "ECONNREFUSED", "ETIMEDOUT", "ESOCKET", "EDNS", "ENOTFOUND", "EHOSTUNREACH", "ENETUNREACH", "ETLS", "EBADADDRESS", "EPRIVATEHOST"].includes(code)) return TEST_EMAIL_ERRORS.reach;
   return TEST_EMAIL_ERRORS.other;
 }
 
@@ -93,7 +63,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
     const options = smtpOptions(v);
     if (!options) return "The mail server's user or password is not written correctly: encode / as %2F, @ as %40.";
     // The page must not reach into the server's own network unless the person running it allows that.
-    if (privateMailHost(options.host) && process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST !== "1") {
+    if (privateMailHost(options.host) && !privateMailHostsAllowed()) {
       return "That mail server is inside this server's own network. To use one there, set ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1 on the server.";
     }
     return null;
@@ -156,6 +126,16 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     const problem = CHECKS[name]?.(value);
     if (problem) throw new Error(problem);
     if (def.secret && !secretsKey()) throw new Error("Secret settings are sealed with ZIFFR_SECRETS_KEY, which this server does not have. Set it on the server first.");
+    // The name as written passed; every address it resolves to must too. Sends check again and connect only to the
+    // address they checked (mail.ts), so a name that changes its answer later reaches nothing new.
+    if (name === "ZIFFR_SMTP_URL") {
+      try {
+        await checkedMailHost(smtpOptions(value)!.host);
+      } catch (e) {
+        if (e instanceof MailHostError && e.code === "EPRIVATEHOST") throw new Error("That mail server is inside this server's own network. To use one there, set ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1 on the server.");
+        throw new Error("That mail server's name could not be found. Check its spelling.");
+      }
+    }
     changes.push({ def, value });
   }
   for (const { def, value } of changes) {
@@ -181,14 +161,13 @@ export async function sendTestEmail(actor: InstallationActor, transport?: MailTr
   const settings = await settingsInEffect();
   if (!settings.ZIFFR_SMTP_URL) throw new Error("Set the mail server first.");
   if (!mailEnabled(settings)) throw new Error("Set a sender that is one email address (and ZIFFR_SITE_URL on the server) first.");
-  const { data: me } = await db().from("profiles").select("email").eq("id", actor.personId).maybeSingle();
+  const { data: me } = await db().from("profiles").select("email, name").eq("id", actor.personId).maybeSingle();
   const to = (me?.email as string | null) ?? null;
   if (!isAddress(to)) throw new Error("Your account has no proven email address to send the test to.");
-  // Counted from the Installation's audit, where every attempt is recorded before it is made.
-  const { count } = await db().from("installation_audit_events").select("id", { count: "exact", head: true })
-    .eq("actor_id", actor.personId).eq("kind", "setting.test_email").gt("at", new Date(Date.now() - 3_600_000).toISOString());
-  if ((count ?? 0) >= TEST_EMAILS_PER_HOUR) throw new Error(`At most ${TEST_EMAILS_PER_HOUR} test emails an hour. Try again later.`);
-  await recordInstallationEvent(actor.personId, "setting.test_email", "ZIFFR_SMTP_URL");
+  // Counted and recorded in one locked step in the Installation's audit. Any failure there is a refusal: the limit
+  // never opens because the database did not answer.
+  const { data: claimed, error } = await db().rpc("claim_installation_test_email", { p_person: actor.personId, p_actor_name: String(me?.name ?? "Someone"), p_limit: TEST_EMAILS_PER_HOUR });
+  if (error || claimed !== true) throw new Error(`At most ${TEST_EMAILS_PER_HOUR} test emails an hour. Try again later.`);
   try {
     await (transport ?? smtpTransportWith(settings))({
       to, subject: "Ziffr: test email",

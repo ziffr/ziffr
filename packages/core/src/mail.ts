@@ -6,7 +6,8 @@
 import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { checkedMailHost } from "./mail-hosts";
+import { savedOnPage, settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
@@ -90,17 +91,25 @@ export function smtpOptions(address: string): { host: string; port: number; secu
   return { host, port, secure, ...(user ? { auth: { user, pass } } : {}) };
 }
 
-let transporter: { url: string; t: Transporter } | null = null;
+let transporter: { key: string; t: Transporter } | null = null;
 
-/** Sends through the SMTP server of these settings; the transport is made again only when the server changes. */
+/** Sends through the SMTP server of these settings; the transport is made again only when the server changes. A
+ * server saved on the Installation Settings page is resolved and checked at every send, and the connection goes to
+ * the address that was checked, with TLS checking the name; one from the environment is used as it is. */
 export function smtpTransportWith(settings: Settings): MailTransport {
   return async (mail) => {
     const url = settings.ZIFFR_SMTP_URL!;
-    if (transporter?.url !== url) {
+    const options = smtpOptions(url);
+    if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
+    let connect: Parameters<typeof nodemailer.createTransport>[0] = options;
+    if (await savedOnPage("ZIFFR_SMTP_URL", url)) {
+      const pinned = await checkedMailHost(options.host);
+      connect = { ...options, host: pinned.address, ...(pinned.servername ? { tls: { servername: pinned.servername } } : {}) };
+    }
+    const key = `${url}\n${(connect as { host: string }).host}`;
+    if (transporter?.key !== key) {
       transporter?.t.close();
-      const options = smtpOptions(url);
-      if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
-      transporter = { url, t: nodemailer.createTransport(options) };
+      transporter = { key, t: nodemailer.createTransport(connect) };
     }
     const from = settings.ZIFFR_MAIL_FROM!;
     const name = from.match(/^\s*([^<]+?)\s*</)?.[1];
