@@ -32,7 +32,8 @@ describe("a new Trial Workspace's starting Metrics", () => {
   it("are made with their history, a Breakdown, a Target Series and a Derived Metric", async () => {
     const t = await newTrial();
     const { data: metrics } = await db().from("metrics").select("id, slug, name, period, aggregation, formula, workflow_id, owner_id, sources").eq("workspace_id", t.id);
-    expect(metrics).toHaveLength(STARTING_METRICS.length);
+    // The starting Metrics and the Test Metric.
+    expect(metrics).toHaveLength(STARTING_METRICS.length + 1);
     expect(new Set(metrics!.map((m) => m.period))).toEqual(new Set(["day", "week", "month", "quarter", "year"]));
     expect(new Set(metrics!.map((m) => m.aggregation))).toEqual(new Set(["sum", "average", "last", "none"]));
     expect(metrics!.every((m) => m.owner_id === t.owner)).toBe(true);
@@ -52,6 +53,18 @@ describe("a new Trial Workspace's starting Metrics", () => {
     expect(rows).toBeGreaterThan(50);
     const { count: targets } = await db().from("series_values").select("metric_id", { count: "exact", head: true }).eq("metric_id", revenue.id).eq("kind", "target");
     expect(targets).toBeGreaterThan(10);
+  });
+
+  it("include the Test Metric the Trial Guide asks for: daily, by hand, without history", async () => {
+    const t = await newTrial();
+    const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_guide_step").eq("id", t.id).single();
+    expect(ws!.trial_guide_step).toBe("welcome");
+    const { data: m } = await db().from("metrics").select("id, name, unit, period, sources, owner_id, workflow_id").eq("id", ws!.trial_test_metric_id).single();
+    expect(m).toMatchObject({ name: "Cups of coffee", unit: "cups", period: "day", owner_id: t.owner });
+    expect(m!.workflow_id).not.toBeNull();
+    expect(m!.sources).not.toContain("api");
+    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m!.id);
+    expect(count).toBe(0);
   });
 
   it("are asked of the Owner by one Workflow, and making them sends nothing", async () => {

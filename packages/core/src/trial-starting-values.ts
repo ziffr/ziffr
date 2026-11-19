@@ -59,6 +59,13 @@ export const STARTING_METRICS: StartingMetric[] = [
   { slug: "emissions", name: "CO₂ emissions", description: "Tonnes of CO₂ from transport and offices per year.", period: "year", aggregation: "sum", submissionRule: "overwrite", format: "number", unit: "t", decimals: 0, polarity: "lower", history: 4, start: 410, growth: -0.06, noise: 0.03 },
 ];
 
+/** The Test Metric (GLOSSARY: Test Metric): asked daily of the Owner, without history, answered by hand. The Trial
+ * Guide asks for it, so the first value a new trial records is the Owner's own, not a made-up one. */
+export const TEST_METRIC = {
+  name: "Cups of coffee", description: "Cups of coffee you had today. Ziffr asks for it so you can see how asking works.",
+  unit: "cups", format: "number", decimals: 0, period: "day", submissionRule: "overwrite", polarity: "higher", aggregation: "sum",
+} as const;
+
 /** One value to record: a past period is an Import, the current one an ordinary value. */
 export type StartingValue = { slug: string; period: string; value: number; imported: boolean; breakdown?: { label: string; value: number }[] };
 

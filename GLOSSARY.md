@@ -264,6 +264,14 @@ _Avoid_: Tenant, organisation, account, company
 A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and it is deleted a set number of days after it was made. On such an Installation every Workspace is one. It starts with made-up Metrics and values of its own, so its dashboard shows something at once; unlike Sample Data, they are the workspace's and can be changed.
 _Avoid_: Sandbox, test workspace, free trial
 
+**Trial Guide**:
+The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, and its first value arriving. Each step can be skipped, and reopening it continues at the step reached. Try it stays as the reference of every way.
+_Avoid_: Wizard, onboarding, tour
+
+**Test Metric**:
+The Metric a Trial Workspace has for the Trial Guide to ask for: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own.
+_Avoid_: Demo metric, sample metric
+
 **Installation**:
 One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo and whether it offers Trial Workspaces.
 _Avoid_: Instance, deployment, server, tenant
