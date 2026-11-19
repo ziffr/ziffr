@@ -1,10 +1,8 @@
 // GET /api/v1/schedule over HTTP (spec 0027, ticket #241; GLOSSARY: Schedule): a key that may read metrics gets its
 // creator's Schedule with links into Ziffr, one that may only submit values or a Feed Key gets 403, a span the core
 // refuses is 400, and every call is in the Access Log. The answer matches the OpenAPI document's schema.
-import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
-import { db } from "@ziffr/core/db";
 import { createFeed, createFeedKey } from "@ziffr/core/feeds";
 import { accessLogOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { ScheduleAnswer } from "../schemas";
@@ -21,9 +19,9 @@ describe("GET /api/v1/schedule", () => {
     const sara = await w.person("owner"); const ben = await w.person("member");
     // A Metric of long ago without a Workflow: last period, without a value, is overdue or due today.
     const m = await w.metric(sara, { name: "Revenue", created_at: "2025-01-01T00:00:00Z" });
-    await db().from("tokens").insert({ code: `tk-test-${randomUUID()}`, metric_id: m.id, submitter_id: ben, created_at: "2025-01-01T00:00:00Z" });
+    await w.token(m.id, ben, { created_at: "2025-01-01T00:00:00Z" });
     const today = inDays(0);
-    const { data: task } = await db().from("actions").insert({ metric_id: m.id, period_start: "2026-01-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Renegotiate the shipping rate", due_date: today, workspace_id: w.id }).select("id").single();
+    const task = await w.action({ metric_id: m.id, period_start: "2026-01-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Renegotiate the shipping rate", due_date: today });
     const { id, secret } = await createAccessKey(w.actor(ben, "member"), { name: "Read", scopes: ["metrics:read"], expiresOn: inDays(30) });
     const res = await get(secret, `?from=${today}&to=${today}`);
     expect(res.status).toBe(200);
@@ -31,7 +29,7 @@ describe("GET /api/v1/schedule", () => {
     expect(ScheduleAnswer.parse(body)).toEqual(body);
     const all = [...body.overdue, ...body.days.flatMap((d: { entries: unknown[] }) => d.entries)];
     expect(all).toContainEqual(expect.objectContaining({ kind: "value_due", metric: { slug: m.slug, name: "Revenue" }, no_due_date: true, url: `http://ziffr.test/schedule/submit/${m.slug}` }));
-    expect(all).toContainEqual(expect.objectContaining({ kind: "task", date: today, action_id: task!.id, text: "Renegotiate the shipping rate", url: `http://ziffr.test/actions/${task!.id}` }));
+    expect(all).toContainEqual(expect.objectContaining({ kind: "task", date: today, action_id: task, text: "Renegotiate the shipping rate", url: `http://ziffr.test/actions/${task}` }));
     expect(await accessLogOf(id)).toEqual([{ method: "GET", route: "/api/v1/schedule", status: 200, submitted: 0 }]);
   });
 

@@ -31,10 +31,15 @@ export async function workspace(name = "Test") {
     }).select("*").single());
     return data as { id: number; slug: string; owner_id: string };
   };
-  const token = async (metricId: number, submitter: string) => {
+  const token = async (metricId: number, submitter: string, over: Record<string, unknown> = {}) => {
     const code = `tk-test-${randomUUID()}`;
-    await must(db().from("tokens").insert({ code, metric_id: metricId, submitter_id: submitter }));
+    await must(db().from("tokens").insert({ code, metric_id: metricId, submitter_id: submitter, ...over }));
     return code;
+  };
+  /** An Action as the core stores it (a question unless `kind` says otherwise); returns its id. */
+  const action = async (row: { metric_id: number; period_start: string; asker_id: string; assignee_id: string } & Record<string, unknown>) => {
+    const { data } = await must(db().from("actions").insert({ question: "Why?", kind: "question", workspace_id: id, ...row }).select("id").single());
+    return (data as { id: number }).id;
   };
   const value = async (metricId: number, period: string, v: number, submitter: string | null = null) => {
     const { data } = await must(db().from("observations").insert({ metric_id: metricId, period_start: period, value: v, submitter_id: submitter, source: "api", workspace_id: id }).select("id").single());
@@ -55,7 +60,7 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, value, lock, trial, setRole, actor, cleanup };
+  return { id, person, contact, metric, token, action, value, lock, trial, setRole, actor, cleanup };
 }
 
 /** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */
