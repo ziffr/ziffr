@@ -17,7 +17,7 @@ Every one of these would have to move into a browser holding the key, or stop. A
 
 - A **stolen database dump or backup**, or a disk, without the Installation's key: Workspace data in it is ciphertext.
 - A **read-only SQL leak** (a query that returns rows it should not, a reporting tool pointed at the database): it returns ciphertext.
-- **Deletion:** once a Workspace's key is destroyed, its data cannot be read from the live database, its replicas or any copy made afterwards. Old backups are the hard part; spec 0028 says honestly how far this goes and puts the choice to make it complete as its first open question.
+- **Deletion:** once a Workspace's key is destroyed, its data cannot be read from the live database, its replicas or any copy made afterwards. Backups taken before the deletion still open until they expire, so the promise is "unreadable in backups after the retention period", and nothing stronger. Making old backups unreadable by cryptography too (Installation key epochs) is left for when a customer needs it (spec 0028).
 
 It does not protect against a compromised app server, a malicious operator of the Installation, or a memory dump of a running Ziffr: they hold the key while they work. Running Ziffr on your own servers is the answer for that, and it always will be (ADR 0002 keeps that possible).
 
