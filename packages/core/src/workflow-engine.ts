@@ -139,18 +139,24 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
+/** Whether a person of the Metric's workspace sees it now (Shares and Groups, as everywhere else). */
+async function seesMetric(ctx: Ctx, person: string): Promise<boolean> {
+  return (await visibleMetricIds(ctx.ws, person, await getMetrics(ctx.ws))).has(ctx.m.id);
+}
+
 /** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. When that leaves
  * nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner, but
  * only someone who sees the Metric: the Approval task shows its value. With nobody else at all, it waits (onValue),
  * so a value never counts unapproved because its submitter is an Approver. A step that names nobody holds nothing back. */
 async function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): Promise<string[]> {
   if (!step?.approvers.length) return [];
+  // Named Approvers are chosen by the Workflow's owner for this purpose; only the fallback must already see the Metric.
   const named = step.approvers.filter((a) => a !== from);
   if (named.length) return named;
   for (const candidate of [ctx.m.owner_id, ctx.wf.owner_id]) {
     if (!candidate || candidate === from) continue;
     // Only someone of this workspace who sees the Metric now (Shares and Groups as everywhere else).
-    if ((await visibleMetricIds(ctx.ws, candidate, await getMetrics(ctx.ws))).has(ctx.m.id)) return [candidate];
+    if (await seesMetric(ctx, candidate)) return [candidate];
   }
   return [];
 }
@@ -184,11 +190,12 @@ export async function onValue(metricId: number, period: string, submitterId: str
     const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
-  const approvers = await approversFor(ctx, approve, submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
   const every = approve?.values === "every" && (!opts.imported || !(await beforeWorkingPeriod(ctx, period)));
+  // Asked only when a value needs Approval: who sees the Metric is not cheap to work out.
+  const approvers = reasons.length || every ? await approversFor(ctx, approve, submitterId) : [];
   // Approval is needed, but the submitter is the only person who could give it: the value waits, never published
   // unapproved; the note says why, on the Workflow and the Metric's pages.
   if ((reasons.length || every) && approve?.approvers.length && !approvers.length) {
@@ -229,6 +236,11 @@ export async function approve(ws: string, actionId: number, by: string) {
   const state = await getState(a.metric_id, a.period_start);
   const ctx = await metricCtx(a.metric_id, a.period_start);
   if (!ctx || state?.state !== "approval" || state.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
+  // Whoever holds the task now (a successor's tasks are handed over when someone leaves) must not be the one the
+  // value is from.
+  const value = await latestValue(a.metric_id, a.period_start);
+  const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
+  if (by === from) throw new Error("Nobody approves their own value. Ask someone else to approve it.");
   // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
   // press) approve once, and the second is refused like an approval that is done.
   const { data: closed } = await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId).eq("status", "open").select("id");
@@ -236,10 +248,8 @@ export async function approve(ws: string, actionId: number, by: string) {
   await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Approved.", workspace_id: ws });
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
-  const value = await latestValue(a.metric_id, a.period_start);
   // The same people, in the same order, as when the round started: skipping the one the round is about (also when
   // it began with an accepted Correction), not whoever submitted the latest value.
-  const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
   const approvers = await approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from);
   const next = (state.approval_step ?? 0) + 1;
   if (next < approvers.length) {
@@ -270,10 +280,16 @@ export async function setLock(ws: string, metricId: number, period: string, lock
   const { data: m } = await db().from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
   if (!m || m.owner_id !== by) throw new Error("Only the metric owner locks or unlocks a period.");
   if (!lock && !reason?.trim()) throw new Error("Say why it is unlocked.");
+  // A Lock never stands in for an Approval: a value waiting for one, or sent back, is neither locked nor, by unlocking,
+  // published.
+  const current = await getState(metricId, period);
+  if (lock && (current?.state === "approval" || current?.state === "submitted")) throw new Error("This value waits for Approval, or was sent back: it can be locked once it is approved.");
+  if (!lock && current?.state !== "locked") throw new Error("Only a locked period can be unlocked.");
   await setState(metricId, period, { state: lock ? "locked" : "published", note: lock ? null : `Unlocked by ${by} on ${format(new Date(), "d MMM yyyy")}: ${reason}` });
 }
 
-/** Closes a period for every metric of a workflow that has a value: they lock. Returns how many. */
+/** Closes a period for every metric of a workflow that has a value: they lock, except values still waiting for
+ * Approval or sent back. Returns how many locked. */
 export async function closePeriod(ws: string, workflowId: number, asOf: string, by: string) {
   const { data: wf } = await db().from("workflows").select("owner_id").eq("id", workflowId).eq("workspace_id", ws).maybeSingle();
   if (!wf || wf.owner_id !== by) throw new Error("Only the workflow's owner closes a period.");
@@ -283,6 +299,9 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
     const m = normalizeMetric(row) as Metric;
     const period = workingPeriod(asOf, m.period as Period, yearStart);
     if (!(await latestValue(m.id, period))) continue;
+    // A value still waiting for Approval, or sent back, stays open: closing the period approves nothing.
+    const st = await getState(m.id, period);
+    if (st?.state === "approval" || st?.state === "submitted") continue;
     await setState(m.id, period, { state: "locked", approval_step: null, note: `Closed with the period by ${by}` });
     n++;
   }
