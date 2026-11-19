@@ -22,6 +22,8 @@ The editor has three parts: a row of buttons at the top, a side panel on the lef
 
 Changes save by themselves a moment after you make them. Next to the deck's name you see **Saved**, **Saving…** or **Unsaved changes**. To rename the deck, click its name at the top and type. On a narrow screen the buttons move to a second line before the name is cut short.
 
+The panel of colours, sizes and fonts opens at the top right of the canvas only while something is selected or a drawing tool such as the rectangle is chosen; with nothing selected the slide stays clear.
+
 ### The buttons at the top
 
 | Option | What it does |
