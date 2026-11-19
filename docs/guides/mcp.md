@@ -27,7 +27,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 ## Tools and scopes
 
-Both servers list the same 28 tools, 7 Starters and one resource template (`ziffr://metrics/{slug}`). The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards `dashboards:write`. To compare a running server with the table:
+Both servers list the same 29 tools, 8 Starters and one resource template (`ziffr://metrics/{slug}`). The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading, also `my_schedule`, needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards `dashboards:write`. To compare a running server with the table:
 
 ```sh
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
@@ -36,7 +36,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 ## Starters
 
-Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
+Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
 
 - They are registered in `createServer` (`packages/mcp/src/server.ts`), so `/mcp` gets them with the tools; `apps/web/src/app/mcp/route.db.test.ts` checks that both servers list and fill them in alike.
 - A Starter calls nothing itself. `prompts/get` returns one user message; the assistant then uses the tools, with the credential's scopes, like for any request.

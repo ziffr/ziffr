@@ -35,6 +35,7 @@ describe("Starters", () => {
     const args = Object.fromEntries(prompts.map((p) => [p.name, (p.arguments ?? []).map((x) => ({ name: x.name, required: x.required }))]));
     expect(args).toEqual({
       what_can_i_do: [],
+      my_week: [],
       weekly_review: [{ name: "period", required: false }],
       record_values: [{ name: "text", required: false }],
       build_dashboard: [{ name: "topic", required: false }],
@@ -67,6 +68,7 @@ describe("Starters", () => {
     expect(textOf(await client.getPrompt({ name: "weekly_review" }))).toMatch(/last full period/);
     expect(textOf(await client.getPrompt({ name: "record_values" }))).toMatch(/Ask me which numbers/);
     expect(textOf(await client.getPrompt({ name: "explain_metric", arguments: { metric: "  " } }))).toMatch(/Ask me which one/);
+    expect(textOf(await client.getPrompt({ name: "my_week" }))).toMatch(/What do I have to do in Ziffr this week\?[^]*Call my_schedule without dates/);
     expect(textOf(await client.getPrompt({ name: "what_can_i_do" }))).toMatch(/get_workspace and list_metrics[^]*set_target_series[^]*set_projections/);
     const targets = textOf(await client.getPrompt({ name: "set_targets", arguments: { text: "budget 5000 a month for revenue in 2027" } }));
     expect(targets).toContain("\"budget 5000 a month for revenue in 2027\"");

@@ -716,6 +716,90 @@ The month the workspace's fiscal year starts in, which every quarterly and yearl
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## What the key's creator has to do
+
+`GET /schedule` · scope `metrics:read`
+
+The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `from` | query | string | no | The first day, YYYY-MM-DD. Default: Monday of this week in the workspace's time zone. |
+| `to` | query | string | no | The last day, YYYY-MM-DD, at most 90 days after `from` and 366 days after today. Default: Sunday of this week. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `today` | string | yes | Today in the workspace's time zone. |
+| `overdue` | array of object | yes | Everything late, of the last 90 days whatever the span, the most late first. |
+| `overdue[].kind` | `"value_due"`, `"approval"`, `"task"`, `"question"` | yes | A value to submit, an Approval waiting, a Task or a Question assigned to the person. |
+| `overdue[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
+| `overdue[].overdue` | boolean | yes |  |
+| `overdue[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
+| `overdue[].metric` | object | yes | The Metric it is about. |
+| `overdue[].metric.slug` | string | yes |  |
+| `overdue[].metric.name` | string | yes |  |
+| `overdue[].period` | object | yes |  |
+| `overdue[].period.start` | string | yes | The period's first day. |
+| `overdue[].period.name` | string | yes | Such as "October 2026". |
+| `overdue[].action_id` | integer or null | yes | The Approval's, Task's or Question's id; null for a value due. |
+| `overdue[].text` | string or null | yes | A Task's or Question's words; null for a value due and an Approval. |
+| `overdue[].escalation` | boolean | yes | A Question the Workflow asked because a value is missing (GLOSSARY: Escalation). |
+| `overdue[].standing_in_for` | string or null | yes | The name of the colleague the person stands in for while they are Away, or null. |
+| `overdue[].no_due_date` | boolean | yes | A value of a Metric without a Workflow: dated the first working day after its period ends. |
+| `overdue[].remind_days_before` | integer or null | yes | How many days before the Due Date Ziffr reminds, or null. |
+| `overdue[].url` | string | yes | Where it is done in Ziffr; needs a sign-in. |
+| `days` | array of object | yes | The span's days that have something, in order. |
+| `days[].date` | string | yes |  |
+| `days[].entries` | array of object | yes |  |
+| `days[].entries[].kind` | `"value_due"`, `"approval"`, `"task"`, `"question"` | yes | A value to submit, an Approval waiting, a Task or a Question assigned to the person. |
+| `days[].entries[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
+| `days[].entries[].overdue` | boolean | yes |  |
+| `days[].entries[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
+| `days[].entries[].metric` | object | yes | The Metric it is about. |
+| `days[].entries[].metric.slug` | string | yes |  |
+| `days[].entries[].metric.name` | string | yes |  |
+| `days[].entries[].period` | object | yes |  |
+| `days[].entries[].period.start` | string | yes | The period's first day. |
+| `days[].entries[].period.name` | string | yes | Such as "October 2026". |
+| `days[].entries[].action_id` | integer or null | yes | The Approval's, Task's or Question's id; null for a value due. |
+| `days[].entries[].text` | string or null | yes | A Task's or Question's words; null for a value due and an Approval. |
+| `days[].entries[].escalation` | boolean | yes | A Question the Workflow asked because a value is missing (GLOSSARY: Escalation). |
+| `days[].entries[].standing_in_for` | string or null | yes | The name of the colleague the person stands in for while they are Away, or null. |
+| `days[].entries[].no_due_date` | boolean | yes | A value of a Metric without a Workflow: dated the first working day after its period ends. |
+| `days[].entries[].remind_days_before` | integer or null | yes | How many days before the Due Date Ziffr reminds, or null. |
+| `days[].entries[].url` | string | yes | Where it is done in Ziffr; needs a sign-in. |
+| `undated` | array of object | yes | Tasks without a due date and Questions other than Escalations. |
+| `undated[].kind` | `"value_due"`, `"approval"`, `"task"`, `"question"` | yes | A value to submit, an Approval waiting, a Task or a Question assigned to the person. |
+| `undated[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
+| `undated[].overdue` | boolean | yes |  |
+| `undated[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
+| `undated[].metric` | object | yes | The Metric it is about. |
+| `undated[].metric.slug` | string | yes |  |
+| `undated[].metric.name` | string | yes |  |
+| `undated[].period` | object | yes |  |
+| `undated[].period.start` | string | yes | The period's first day. |
+| `undated[].period.name` | string | yes | Such as "October 2026". |
+| `undated[].action_id` | integer or null | yes | The Approval's, Task's or Question's id; null for a value due. |
+| `undated[].text` | string or null | yes | A Task's or Question's words; null for a value due and an Approval. |
+| `undated[].escalation` | boolean | yes | A Question the Workflow asked because a value is missing (GLOSSARY: Escalation). |
+| `undated[].standing_in_for` | string or null | yes | The name of the colleague the person stands in for while they are Away, or null. |
+| `undated[].no_due_date` | boolean | yes | A value of a Metric without a Workflow: dated the first working day after its period ends. |
+| `undated[].remind_days_before` | integer or null | yes | How many days before the Due Date Ziffr reminds, or null. |
+| `undated[].url` | string | yes | Where it is done in Ziffr; needs a sign-in. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match. Or `from` is after `to`, they are more than 90 days apart, or `to` is more than 366 days ahead.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List people
 
 `GET /people` · scope `metrics:read`

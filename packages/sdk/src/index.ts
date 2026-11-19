@@ -129,6 +129,36 @@ export type FeedOverview = { name: string; year_start_month: number; metrics: Pa
 /** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12. */
 export type Workspace = { year_start_month: number };
 
+/** One duty in a Schedule: a value to submit, an Approval waiting, or a Task or Question assigned to the person. */
+export type ScheduleEntry = {
+  kind: "value_due" | "approval" | "task" | "question";
+  /** The day it falls on (YYYY-MM-DD); null for an undated Task or Question. */
+  date: string | null;
+  overdue: boolean;
+  /** Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. */
+  overdue_working_days: number;
+  metric: { slug: string; name: string };
+  period: { start: string; name: string };
+  /** The Approval's, Task's or Question's id; null for a value due. */
+  action_id: number | null;
+  /** A Task's or Question's words; null for a value due and an Approval. */
+  text: string | null;
+  /** A Question the Workflow asked because a value is missing. */
+  escalation: boolean;
+  /** The name of the colleague the person stands in for while they are Away. */
+  standing_in_for: string | null;
+  /** A value of a Metric without a Workflow, dated the first working day after its period ends. */
+  no_due_date: boolean;
+  /** How many days before the Due Date Ziffr reminds, or null. */
+  remind_days_before: number | null;
+  /** Where it is done in Ziffr; needs a sign-in. */
+  url: string;
+};
+
+/** What GET /schedule answers: overdue first (the last 90 days, whatever the span), the span's days that have
+ * entries, and the undated Tasks and Questions. */
+export type Schedule = { today: string; overdue: ScheduleEntry[]; days: { date: string; entries: ScheduleEntry[] }[]; undated: ScheduleEntry[] };
+
 /** One value in a Feed's batch; `period` is the period's first day, the current period if left out. */
 export type FeedItem = { metric: string; period?: string; value: number; breakdown?: BreakdownRow[] };
 
@@ -292,6 +322,10 @@ export class Ziffr {
 
   /** The month the workspace's fiscal year starts in (1 is January): where quarterly and yearly Metrics' periods start. */
   workspace = (): Promise<Workspace> => this.get<Workspace>("/workspace");
+
+  /** What the key's creator has to do, by day (scope metrics:read). `from` and `to` are days, YYYY-MM-DD, at most 90
+   * days apart; this week when left out. */
+  schedule = (span: { from?: string; to?: string } = {}): Promise<Schedule> => this.get<Schedule>("/schedule", span);
 
   /** The workspace's people and Contacts. */
   readonly people = {

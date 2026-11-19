@@ -152,6 +152,12 @@ const ENDPOINTS: Endpoint[] = [
     description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.",
   },
   {
+    method: "get", path: "/schedule", scope: "metrics:read", query: S.scheduleQuery, ok: { status: 200, name: "Schedule", schema: S.ScheduleAnswer },
+    summary: "What the key's creator has to do",
+    description: "The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's.",
+    errors: [{ status: 400, description: "Or `from` is after `to`, they are more than 90 days apart, or `to` is more than 366 days ahead." }],
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },

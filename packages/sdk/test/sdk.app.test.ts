@@ -37,6 +37,8 @@ describe("@ziffr/sdk against the app", () => {
     expect((await ziffr.groups.list()).items).toEqual([expect.objectContaining({ everyone: true })]);
     // Where the workspace's quarters and years start: January unless an Owner set another month.
     expect(await ziffr.workspace()).toEqual({ year_start_month: 1 });
+    // What the key's creator has to do: nothing yet in a workspace made a moment ago.
+    expect(await ziffr.schedule()).toMatchObject({ today: expect.any(String), overdue: [], days: [], undated: [] });
   });
   it("submits with an idempotency key by default, and replays one given twice", async () => {
     const { orders, ziffr } = await setup();

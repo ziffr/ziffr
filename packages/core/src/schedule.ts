@@ -63,6 +63,9 @@ const plusDays = (day: string, n: number) => iso(addDays(parseISO(day), n));
 const isDay = (v: unknown): v is string => typeof v === "string" && DAY.test(v) && isValid(parseISO(v)) && iso(parseISO(v)) === v;
 const KIND_ORDER: Record<ScheduleKind, number> = { value_due: 0, approval: 1, task: 2, question: 3 };
 
+/** A span a Schedule cannot cover, with the sentence that says what to change (the API answers 400 with it). */
+export class SpanRefused extends Error {}
+
 /** Working days after `from` up to and including `to` (0 when `to` is not later). */
 export function workingDaysBetween(from: string, to: string): number {
   let n = 0;
@@ -73,10 +76,10 @@ export function workingDaysBetween(from: string, to: string): number {
 /** A span checked: real days, `from` not after `to`, at most MAX_SCHEDULE_DAYS apart, `to` at most MAX_SCHEDULE_AHEAD
  * days after today. Refuses anything else with a sentence that says what to change. */
 export function checkSpan(span: { from: unknown; to: unknown }, today: string): { from: string; to: string } {
-  if (!isDay(span.from) || !isDay(span.to)) throw new Error("Give from and to as days, written YYYY-MM-DD.");
-  if (span.to < span.from) throw new Error("from must not be after to.");
-  if (differenceInCalendarDays(parseISO(span.to), parseISO(span.from)) > MAX_SCHEDULE_DAYS) throw new Error(`from and to may be at most ${MAX_SCHEDULE_DAYS} days apart.`);
-  if (span.to > plusDays(today, MAX_SCHEDULE_AHEAD)) throw new Error(`to may be at most ${MAX_SCHEDULE_AHEAD} days ahead.`);
+  if (!isDay(span.from) || !isDay(span.to)) throw new SpanRefused("Give from and to as days, written YYYY-MM-DD.");
+  if (span.to < span.from) throw new SpanRefused("from must not be after to.");
+  if (differenceInCalendarDays(parseISO(span.to), parseISO(span.from)) > MAX_SCHEDULE_DAYS) throw new SpanRefused(`from and to may be at most ${MAX_SCHEDULE_DAYS} days apart.`);
+  if (span.to > plusDays(today, MAX_SCHEDULE_AHEAD)) throw new SpanRefused(`to may be at most ${MAX_SCHEDULE_AHEAD} days ahead.`);
   return { from: span.from, to: span.to };
 }
 
