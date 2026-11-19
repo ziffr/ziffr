@@ -328,6 +328,10 @@ _Avoid_: Service account, bot token, connector key
 The program that lets an AI assistant read a workspace's metrics and submit values through the API, with an access key. It runs on the person's own computer, or at the Installation's own address `/mcp` for assistants that connect over the internet, and sees no more than the key does.
 _Avoid_: AI integration, plugin, connector (a Connector is how Ziffr reaches people)
 
+**Starter**:
+A ready-made request the MCP Server offers an assistant, which a person picks instead of writing it themselves, such as a weekly review of the Metrics, recording values from a sentence, or proposing a dashboard. It is only words for the assistant: it reaches Ziffr through the same tools and access key, so it can do nothing the person could not ask for. MCP calls it a prompt. Not a Dashboard Template, which a dashboard is built from.
+_Avoid_: Prompt (a Prompt asks a submitter for a value), template, preset, recipe
+
 **Access Log**:
 The record of every call a program made with an access key: when, what it asked for, and whether it worked. Owners and Admins see it for every key in their workspace, a person for their own keys.
 _Avoid_: Audit trail, request log, API history

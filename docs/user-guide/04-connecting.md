@@ -60,7 +60,7 @@ A Feed is never sent Prompts. If a Feed's value is missing after the Due Date, t
 
 ### An AI assistant
 
-The **MCP Server** lets an AI assistant on your own computer read the Metrics you may see and send in values, using an Access Key you create. The assistant sees no more than the key allows.
+The **MCP Server** lets an AI assistant read the Metrics you may see, send in values and build dashboards. An assistant on the internet, such as Claude.ai, connects by your Ziffr's address and you approve it ([Connecting an assistant](17-your-settings.md#connecting-an-assistant)); one on your own computer uses an Access Key you create. The assistant sees no more than you allow. What to ask it, and the ready-made requests it offers, are in [Working with an assistant](17-your-settings.md#working-with-an-assistant).
 
 ## How Ziffr reaches people
 

@@ -67,6 +67,12 @@ describe("/mcp", () => {
     expect((await client.listTools()).tools).toEqual((await local.listTools()).tools);
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual((await local.listResourceTemplates()).resourceTemplates);
     expect(client.getServerVersion()).toEqual(local.getServerVersion());
+    // The Starters too, filled in and refused the same way.
+    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "weekly_review", "record_values", "build_dashboard", "explain_metric"]);
+    expect((await client.listPrompts()).prompts).toEqual((await local.listPrompts()).prompts);
+    const args = { name: "record_values", arguments: { text: "3 coffees today" } };
+    expect(await client.getPrompt(args)).toEqual(await local.getPrompt(args));
+    await expect(client.getPrompt({ name: "explain_metric", arguments: { metric: "x".repeat(121) } })).rejects.toThrow(/Invalid arguments/);
   });
 
   it("reads and submits through the API, logged in the key's Access Log", async () => {

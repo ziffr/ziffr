@@ -160,3 +160,43 @@ In the assistant, add a connector with your Ziffr's address followed by `/mcp`, 
 Without a Workspace of your own, the page says so: start one, then press Connect in the assistant again.
 
 A connection acts as you, with your current Workspace Role, and sees no more than you do. What it does shows in the Access Log on the **Access Keys** page. A Trial Workspace can have one connected assistant at a time. The demo has none.
+
+### Working with an assistant
+
+Once Ziffr is connected, as in [Connecting an assistant](#connecting-an-assistant) or with an Access Key on your own computer ([An AI assistant](04-connecting.md#an-ai-assistant)), you ask the assistant in your own words. It looks things up in Ziffr and answers.
+
+#### Ready-made requests
+
+Ziffr offers the assistant a few **Starters**, ready-made requests you pick instead of writing them:
+
+| Starter | What the assistant does |
+| --- | --- |
+| **What can I do here?** (`what_can_i_do`) | Looks at your Workspace and explains what it can read, record and build for you, with your Metrics as examples. |
+| **Weekly review** (`weekly_review`) | Tells you which Metrics moved notably, which values are still missing for the last period and anything unusual. You can name the period, such as "last week". It only reads. |
+| **Record values** (`record_values`) | Takes a sentence such as "3 coffees today, 12 signups this week", shows which Metric and period each number would go to, and records them once you agree. |
+| **Build a dashboard** (`build_dashboard`) | Proposes one dashboard on a topic you name, from your Metrics and the team's Dashboard Templates, and builds it only once you agree. You get its link. |
+| **Explain a Metric** (`explain_metric`) | Explains one Metric: what it measures, its values over time and where it is heading. It only reads. |
+
+Where to find them:
+
+- **Claude.ai** and the Claude apps: press **+** in the message box and look under the connector's name, such as **Ziffr**. Pick a Starter, fill in what it asks for if you like, and send. Left empty, the assistant asks you.
+- **Claude Code:** type `/` and look for the commands marked **(MCP)**, such as `/ziffr:weekly_review`; you can also type `/mcp__ziffr__weekly_review`. `ziffr` is the name you gave the server when you added it. You can add a one-word answer after a space, such as `/mcp__ziffr__weekly_review 2026-03`. Claude Code reads each word as an answer of its own, so for anything longer, such as the numbers for **Record values**, start the command without anything after it and tell the assistant when it asks.
+
+A Starter is only words for the assistant. It can do nothing you could not ask for yourself, and the ones that record or build show you their plan and wait for your yes.
+
+#### What you can ask
+
+You do not need a Starter. Some examples:
+
+- **Reading:** "What was revenue in March?", "Which Metrics are below their target this month?", "How did weekly signups develop over the last quarter, compared with a year ago?"
+- **Recording:** "Record 42 orders for this month.", "I sold 3 coffees today and 5 yesterday.", "Start tracking weekly signups."
+- **Dashboards:** "Make a dashboard for sales from the one-metric template.", "Add a line of churn to my Customers dashboard."
+
+#### What the assistant cannot do
+
+- It sees no more than you do, and only what you let it when you connected it: if you ticked only reading, it cannot record or build anything, whatever it tries.
+- It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, or changes settings. A value it records follows the Metric's rules like yours: it may wait for an Approval, or be refused in a locked period.
+- If you let it build dashboards, it can change the dashboards you may change yourself, not only the ones it made. Every change is in the dashboard's history under its name, so you can restore what came before.
+- If you let it create metrics, it can also delete a Metric you own, with all its values, when you ask and confirm the Metric's name. That cannot be undone, so leave creating metrics unticked unless you need it.
+- Everything it does shows in the Access Log.
+- It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.
