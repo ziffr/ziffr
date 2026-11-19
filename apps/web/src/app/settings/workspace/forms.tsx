@@ -1,6 +1,7 @@
 "use client";
 // The workspace's name and its Workspace Profile (spec 0006, tickets #96 and #97; GLOSSARY: Workspace Profile). The
 // lists come from the core, which checks every value again on the server.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
 
 const field = "mt-1 block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm font-normal disabled:opacity-70";
 const save = async (f: () => Promise<unknown>) => {
-  try { await f(); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+  try { unwrap(await f()); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
 };
 
 /** The workspace's name, with a form for Owners and Admins. */

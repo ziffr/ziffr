@@ -212,7 +212,11 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       p_access_key: row.access_key_id, p_imported: mayImport, p_rows: (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value })),
     })
     .single<{ observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number }>();
-  if (error || !data) throw new Error(`Couldn’t record the value: ${error?.message ?? "no row"}`);
+  // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
+  if (error || !data) {
+    console.error("record_observation failed:", error?.message ?? "no row");
+    throw new Error("The value could not be recorded. Try again in a moment.");
+  }
   const imported = mayImport && data.outcome === "recorded";
   const before = data.before === null ? null : Number(data.before);
   const result: SubmissionResult = (() => {

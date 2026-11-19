@@ -48,14 +48,22 @@ export async function getObservations(ws: string, metricIds?: number[]): Promise
  * both included), ordered by Metric, then period. One answer from the database, so no row limit cuts it. */
 export async function getLatestObservations(ws: string, filter: { metricIds?: number[]; from?: string | null; to?: string | null } = {}): Promise<Observation[]> {
   const { data, error } = await db().rpc("latest_observations", { p_workspace: ws, p_metric_ids: filter.metricIds ?? null, p_from: filter.from ?? null, p_to: filter.to ?? null });
-  if (error) throw new Error(`Values could not be read: ${error.message}`);
+  if (error) {
+    // The database's words stay in the server log; a person gets a sentence of Ziffr's own.
+    console.error("Values could not be read:", error.message);
+    throw new Error("Values could not be read. Try again in a moment.");
+  }
   return ((data ?? []) as Record<string, unknown>[]).map(toObservation);
 }
 
 /** The latest value of each of a Metric's last `points` periods, for lists with a trend line. */
 export async function getRecentObservations(ws: string, points: number, metricIds?: number[]): Promise<Observation[]> {
   const { data, error } = await db().rpc("recent_observations", { p_workspace: ws, p_points: Math.max(0, Math.trunc(points)), p_metric_ids: metricIds ?? null });
-  if (error) throw new Error(`Values could not be read: ${error.message}`);
+  if (error) {
+    // The database's words stay in the server log; a person gets a sentence of Ziffr's own.
+    console.error("Values could not be read:", error.message);
+    throw new Error("Values could not be read. Try again in a moment.");
+  }
   return ((data ?? []) as Record<string, unknown>[]).map(toObservation);
 }
 
@@ -158,7 +166,11 @@ export async function getBreakdowns(ws: string, metricIds: number[], window: { f
   const ids = metricIds.filter(Number.isInteger);
   if (!ids.length) return {};
   const { data, error } = await db().rpc("latest_breakdowns", { p_workspace: ws, p_metric_ids: ids, p_from: window.from ?? null, p_to: window.to ?? null });
-  if (error) throw new Error(`Breakdowns could not be read: ${error.message}`);
+  if (error) {
+    // The database's words stay in the server log; a person gets a sentence of Ziffr's own.
+    console.error("Breakdowns could not be read:", error.message);
+    throw new Error("Breakdowns could not be read. Try again in a moment.");
+  }
   const out: Record<number, Record<string, BreakdownRow[]>> = {};
   for (const r of (data ?? []) as { metric_id: number; period_start: string; rows: { label: string; value: unknown }[] }[]) {
     (out[r.metric_id] ??= {})[r.period_start] = r.rows.map((b) => ({ label: b.label, value: Number(b.value) }));

@@ -1,6 +1,7 @@
 "use client";
 // The workspace's Attainment method (spec 0022, ticket #130; GLOSSARY: Attainment): how the percentage of target is
 // computed for Metrics without a method of their own. Owners and Admins change it; the core checks the pick again.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ export function AttainmentMethodForm({ method, canEdit }: { method: AttainmentMe
   const [pending, start] = useTransition();
   const [m, setM] = useState<AttainmentMethod>(method);
   const save = () => start(async () => {
-    try { await setAttainmentMethod(m); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); }
+    try { unwrap(await setAttainmentMethod(m)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); }
   });
   return (
     <section aria-labelledby="attainment-heading" className="space-y-3 border-t border-border pt-6">

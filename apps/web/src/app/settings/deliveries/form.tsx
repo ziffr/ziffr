@@ -54,7 +54,7 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email }: { 
             type="checkbox"
             checked={!stopped}
             disabled={pending || (!email && !stopped)}
-            onChange={(e) => { const on = e.target.checked; start(async () => { try { await setEmailReminders(on); setStopped(!on); toast.success(on ? "You get them by email again" : "Stopped by email"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); } }); }}
+            onChange={(e) => { const on = e.target.checked; start(async () => { try { unwrap(await setEmailReminders(on)); setStopped(!on); toast.success(on ? "You get them by email again" : "Stopped by email"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } }); }}
             className="mt-0.5 size-4 accent-[var(--color-ink)]"
           />
           <span>
