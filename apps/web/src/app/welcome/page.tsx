@@ -15,7 +15,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
   const who = await signedIn();
   const joinable = who ? await joinableWorkspaces(who) : [];
   // On a Ziffr that offers trials (spec 0021), every workspace is a trial: say what that means before it is made.
-  const trial = whatThisZiffrOffers().trial;
+  const trial = (await whatThisZiffrOffers()).trial;
   if (trial) {
     return (
       <div className="mx-auto mt-16 max-w-sm">

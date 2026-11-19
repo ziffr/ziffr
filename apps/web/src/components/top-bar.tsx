@@ -30,8 +30,12 @@ const YOU: NavItem[] = [
 
 const iconButton = "flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
 
-/** The signed-in person; null in the demo, where `demo` holds its controls instead. */
-export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string };
+/** The signed-in person; null in the demo, where `demo` holds its controls instead. `installationAdmin` adds the
+ * Installation settings to their menu (spec 0025); the page checks again. */
+export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string; installationAdmin?: boolean };
+
+/** The Installation's page, for Installation Admins only. */
+const INSTALLATION: NavItem = { href: "/installation", label: "Installation settings" };
 
 /** The link to the user guide: Ziffr's own /guide, or a team's own page in a new tab (ZIFFR_USER_GUIDE_URL). */
 export function GuideLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
@@ -104,7 +108,7 @@ function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; accoun
       <div className="grid gap-4 sm:grid-cols-3">
         {group("Main", MAIN)}
         {group("Workspace", workspace)}
-        {account && group(account.name, YOU)}
+        {account && group(account.name, account.installationAdmin ? [...YOU, INSTALLATION] : YOU)}
       </div>
       <GuideLink href={guide} className="mt-3 inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 text-sm hover:bg-muted"><CircleHelp aria-hidden className="size-4" /> User guide</GuideLink>
       {account && (
@@ -154,6 +158,7 @@ function AccountMenu({ account }: { account: Account }) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {YOU.map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
+          {account.installationAdmin && <DropdownMenuItem render={<Link href={INSTALLATION.href} />}>{INSTALLATION.label}</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => start(() => signOut())}><LogOut aria-hidden /> Sign out</DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

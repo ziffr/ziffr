@@ -7,6 +7,7 @@ import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { askForMissingValues } from "./questions";
 import { headerSafe, initialMailState, isAddress, MAX_ATTEMPTS, sendDelivery, sendWaiting, type MailTransport } from "./mail";
+import { settingsInEffect } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
@@ -77,18 +78,18 @@ describe("sending email", () => {
     expect(await inbox((await db().from("profiles").select("email").eq("id", ann).single()).data!.email)).toHaveLength(1);
   });
   it("sends nothing without settings, in the demo, or by another Connector, and only to the workspace's own people", async () => {
-    expect(initialMailState("email", "any")).toBe("queued");
-    expect(initialMailState("slack", "any")).toBe("outbox");
-    expect(initialMailState("email", DEMO_WORKSPACE_ID)).toBe("outbox");
+    expect(initialMailState("email", "any", await settingsInEffect())).toBe("queued");
+    expect(initialMailState("slack", "any", await settingsInEffect())).toBe("outbox");
+    expect(initialMailState("email", DEMO_WORKSPACE_ID, await settingsInEffect())).toBe("outbox");
     delete process.env.ZIFFR_SMTP_URL;
-    expect(initialMailState("email", "any")).toBe("outbox");
+    expect(initialMailState("email", "any", await settingsInEffect())).toBe("outbox");
     process.env.ZIFFR_SMTP_URL = SETTINGS.ZIFFR_SMTP_URL;
     process.env.ZIFFR_MAIL_FROM = "not an address";
-    expect(initialMailState("email", "any")).toBe("outbox");
+    expect(initialMailState("email", "any", await settingsInEffect())).toBe("outbox");
     process.env.ZIFFR_MAIL_FROM = SETTINGS.ZIFFR_MAIL_FROM;
     // Without the site's address its links would lead nowhere.
     delete process.env.ZIFFR_SITE_URL;
-    expect(initialMailState("email", "any")).toBe("outbox");
+    expect(initialMailState("email", "any", await settingsInEffect())).toBe("outbox");
     process.env.ZIFFR_SITE_URL = SETTINGS.ZIFFR_SITE_URL;
     // Someone of another workspace, though their address is known: not sent.
     const w = await ws(); const other = await ws(); const sara = await w.person("owner", { email: address("sara") });

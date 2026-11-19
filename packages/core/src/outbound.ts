@@ -5,6 +5,7 @@
 import { initialMailState, sendDelivery, sendWaiting } from "./mail";
 import { sendSlackDelivery, sendWaitingSlack, slackSends } from "./slack-send";
 import { sendTelegramDelivery, sendWaitingTelegram, telegramSends } from "./telegram-send";
+import { settingsInEffect } from "./settings-in-effect";
 import { trialHoldsBack } from "./trials";
 
 /** The state a new Delivery starts in: queued when it will really be sent, else it stays in the Outbox. In a Trial
@@ -13,7 +14,7 @@ export async function initialDeliveryState(connector: string, workspaceId: strin
   if (await trialHoldsBack(workspaceId, recipientId)) return "outbox";
   if (connector === "slack") return (await slackSends(workspaceId)) ? "queued" : "outbox";
   if (connector === "telegram") return (await telegramSends(workspaceId)) ? "queued" : "outbox";
-  return initialMailState(connector, workspaceId);
+  return initialMailState(connector, workspaceId, await settingsInEffect());
 }
 
 /** Sends a new Delivery at once if it is queued, by its Connector; a failure waits for the retry job and never fails

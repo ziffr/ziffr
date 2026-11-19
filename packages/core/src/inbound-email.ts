@@ -3,9 +3,11 @@
 // within 30 days, once. Then it goes the way a simulated reply always went (reply-routing.ts, shared with Slack): a
 // Prompt's answer through submitValue (source mail), a reply about a question or task into its Thread, a
 // "Correction:" line as a proposed Correction.
+import { createHmac, timingSafeEqual } from "node:crypto";
 import PostalMime from "postal-mime";
 import { db } from "./db";
-import { addressIn, headerSafe, isAddress, mailEnabled, sendMail, type MailTransport } from "./mail";
+import { addressIn, headerSafe, isAddress, mailOn, sendMail, type MailTransport } from "./mail";
+import { settingsInEffect } from "./settings-in-effect";
 import { routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -62,7 +64,7 @@ export function authResults(value: string): string[] {
  * sends, so on its own it proves nothing: only the topmost Authentication-Results header counts, and only when it is
  * by the provider named in ZIFFR_INBOUND_AUTHSERV_ID (it adds it above all others), with DMARC passed for the
  * From address's domain, or DKIM passed for that very domain. False when the setting is not there. */
-export function senderVerified(headers: { key: string; value: string }[], from: string | null, authservId = process.env.ZIFFR_INBOUND_AUTHSERV_ID): boolean {
+export function senderVerified(headers: { key: string; value: string }[], from: string | null, authservId: string | undefined): boolean {
   if (!authservId || !from) return false;
   const fromDomain = from.split("@")[1] ?? "";
   // Only the topmost one: the receiving provider adds its own above everything the sender wrote, and a sender can
@@ -79,10 +81,23 @@ export function senderVerified(headers: { key: string; value: string }[], from: 
   });
 }
 
+/** Whether a forwarded body was signed a moment ago (within five minutes) with ZIFFR_INBOUND_SECRET of the settings
+ * in effect: `sha256=<hex>` of the HMAC-SHA256 of "<timestamp>.<body>", compared in constant time. */
+export async function inboundSigned(timestamp: string, signature: string, body: Uint8Array): Promise<boolean> {
+  const sig = /^sha256=([0-9a-f]{64})$/i.exec(signature)?.[1];
+  if (!/^\d{9,11}$/.test(timestamp) || !sig || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const secret = (await settingsInEffect()).ZIFFR_INBOUND_SECRET;
+  if (!secret) return false;
+  const mac = createHmac("sha256", secret).update(`${timestamp}.`).update(body).digest();
+  const given = Buffer.from(sig, "hex");
+  return given.length === mac.length && timingSafeEqual(given, mac);
+}
+
 /** Reads a raw message (RFC 5322). Throws for anything that cannot be parsed. */
 export async function parseInbound(raw: ArrayBuffer | Uint8Array | string): Promise<InboundEmail> {
   const email = await PostalMime.parse(raw, { maxNestingDepth: 20 });
-  const domain = String(process.env.ZIFFR_INBOUND_DOMAIN ?? "").toLowerCase();
+  const settings = await settingsInEffect();
+  const domain = String(settings.ZIFFR_INBOUND_DOMAIN ?? "").toLowerCase();
   const recipients = [...(email.to ?? []), ...(email.cc ?? [])].flatMap((a) => ("group" in a && a.group ? a.group : [a])).map((m) => ("address" in m ? m.address : "") ?? "");
   if (email.deliveredTo) recipients.push(email.deliveredTo);
   // The token's letters keep their case (it is base64url); only the domain is compared without it.
@@ -95,7 +110,7 @@ export async function parseInbound(raw: ArrayBuffer | Uint8Array | string): Prom
   // RFC 3834 and the usual markers of auto-replies: answering those would start a loop.
   const automatic = (header("auto-submitted") !== "" && header("auto-submitted") !== "no") || /^(auto_reply|bulk|junk|list)$/.test(header("precedence")) || header("x-autoreply") !== "" || header("x-autorespond") !== "";
   const text = newText(email.text ?? stripHtml(email.html ?? ""));
-  const verified = senderVerified(email.headers.map((h) => ({ key: h.key, value: h.value })), from);
+  const verified = senderVerified(email.headers.map((h) => ({ key: h.key, value: h.value })), from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
   return { tokens, from, text, messageId: email.messageId ? headerSafe(email.messageId).slice(0, 300) : null, automatic, verified };
 }
 
@@ -148,7 +163,7 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   // A From header can be forged by anyone holding the email (a forwarded copy). With a provider named to vouch for
   // senders, nothing unvouched is taken; without one, Approvals, which change what is published, are only given in
   // Ziffr, never by email.
-  if (!email.verified && (process.env.ZIFFR_INBOUND_AUTHSERV_ID || (d.action_id && (await isApproval(d.workspace_id, d.action_id))))) return log(d, "unverified");
+  if (!email.verified && ((await settingsInEffect()).ZIFFR_INBOUND_AUTHSERV_ID || (d.action_id && (await isApproval(d.workspace_id, d.action_id))))) return log(d, "unverified");
   // The Installation's total counts only mail that got this far, naming a real reply address for its own recipient:
   // junk to made-up addresses cannot use up what real replies need.
   if (!(await claimInbound("total", INBOUND_TOTAL))) return log(d, "limited");
@@ -182,7 +197,7 @@ async function log(d: DeliveryRow, outcome: InboundOutcome): Promise<InboundOutc
 
 /** A short answer to the person who wrote, from Ziffr's own address (no reply address: it needs no answer). */
 async function answer(to: string, subject: string, text: string, transport?: MailTransport) {
-  if (!mailEnabled()) return;
+  if (!(await mailOn())) return;
   try {
     await sendMail({ to, subject, text }, transport);
   } catch {

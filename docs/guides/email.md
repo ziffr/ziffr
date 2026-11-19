@@ -2,6 +2,8 @@
 
 Ziffr can send real email and take replies to it ([spec 0004](../specs/0004-real-email.md)). Prompts asking for a number, reminders, questions, tasks and replies in Threads go out through your SMTP server. A reply records the number, answers in the Thread or proposes a Correction. Without the settings below nothing is sent: messages stay in the Outbox, as before. The demo never sends email.
 
+An Installation Admin can also set the mail server and the sender on the Installation settings page (`/installation`) instead of in the environment, and send a test email from there; a value in the environment wins ([self-hosting](self-hosting.md#installation-settings)).
+
 ## Sending
 
 Set three things where Ziffr runs:

@@ -3,7 +3,7 @@
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { myDeliverySettings } from "@ziffr/core/profile";
-import { mailEnabled } from "@ziffr/core/mail";
+import { mailOn } from "@ziffr/core/mail";
 import { PageHeader } from "@/components/page-header";
 import { DeliveriesForm } from "./form";
 
@@ -13,7 +13,7 @@ export default async function DeliveriesPage() {
   return (
     <>
       <PageHeader title="Your Deliveries" sub="Where Ziffr sends you questions, tasks, reminders and replies, and when someone else is asked instead." />
-      <DeliveriesForm viewer={actor.personId} mine={mine.mine} team={mine.team} optedOut={mine.optedOut} away={mine.away} email={!demo && mailEnabled()} />
+      <DeliveriesForm viewer={actor.personId} mine={mine.mine} team={mine.team} optedOut={mine.optedOut} away={mine.away} email={!demo && (await mailOn())} />
     </>
   );
 }

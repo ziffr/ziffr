@@ -8,6 +8,7 @@ import { db } from "./db";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
 import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
@@ -18,7 +19,7 @@ export const linkTo = (path: string) => `${(process.env.ZIFFR_SITE_URL ?? "").re
 
 /** Whether a reply to a message by this Connector comes back into Ziffr. Real email does once inbound mail is set up
  * (spec 0004, ticket #73); until then a sent email says to answer in Ziffr, so no reply is lost. */
-const repliesReturn = (via: ConnectorId, workspaceId: string) => via !== "email" || initialMailState(via, workspaceId) === "outbox" || inboundEnabled();
+const repliesReturn = (via: ConnectorId, workspaceId: string, settings: Settings) => via !== "email" || initialMailState(via, workspaceId, settings) === "outbox" || inboundEnabled(settings);
 
 /** The ticket, email thread or chat a whole Action lives in on the other side. */
 export const refFor = (actionId: number) => `ZIF-${actionId}`;
@@ -57,7 +58,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     kind: input.kind,
     action: { id: a.id, kind: a.kind, question: a.question, metric: metric.name, period: periodLabel(a.period_start, metric.period, await yearStartFor(a.workspace_id, metric.period)), due: a.due_date },
     sender, recipient, text: input.text, correction: input.correction == null ? null : String(input.correction),
-    link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id),
+    link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id, await settingsInEffect()),
   });
   const mail_state = await initialDeliveryState(via, a.workspace_id, recipient.id);
   const { data: d } = await db().from("deliveries").insert({
@@ -106,7 +107,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers
   const c = CONNECTORS[via];
   // Answering in place only where the connector receives values and the metric accepts them from there.
-  const answerHere = Boolean(c.sourceId && c.capabilities.includes("values") && (metric.sources as string[]).includes(c.sourceId)) && repliesReturn(via, metric.workspace_id);
+  const answerHere = Boolean(c.sourceId && c.capabilities.includes("values") && (metric.sources as string[]).includes(c.sourceId)) && repliesReturn(via, metric.workspace_id, await settingsInEffect());
   const ys = await yearStartFor(metric.workspace_id, metric.period as Period);
   const current = periodStart(new Date(), metric.period as Period, ys);
   const period = input.period ?? current;

@@ -49,7 +49,8 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | Setting | What it is |
 | --- | --- |
 | `ZIFFR_DOMAIN` | The domain people reach Ziffr at, such as `ziffr.example.com`. Empty: `http://localhost` |
-| `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Your mail server, as `'smtps://user:password@smtp.example.com:465'`, and the sender, as `'Ziffr <ziffr@example.com>'`. Used for sign-in links too. Put them in single quotes. Without them, emails go to Mailpit ([email](../docs/guides/email.md)) |
+| `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Your mail server, as `'smtps://user:password@smtp.example.com:465'`, and the sender, as `'Ziffr <ziffr@example.com>'`. Used for sign-in links too. Put them in single quotes. Without them, emails go to Mailpit ([email](../docs/guides/email.md)), unless an Installation Admin sets a mail server on the Installation settings page; sign-in links always use these |
+| `ZIFFR_INSTALLATION_ADMINS` | Addresses of the people who run this Installation, separated by commas; they open `/installation` without the setup code from `docker compose logs app` ([Installation settings](../docs/guides/self-hosting.md#installation-settings)) |
 | `ZIFFR_AUTH_PROVIDERS` and `SUPABASE_AUTH_EXTERNAL_*` | Sign-in with Google, Microsoft, GitHub or LinkedIn, as in `.env.example`. The provider's redirect address is `https://<your domain>/auth/v1/callback` |
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
 | `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC |

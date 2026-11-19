@@ -11,6 +11,7 @@ import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
 import { ResetButton } from "@/components/reset-button";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
+import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { Toaster } from "@/components/ui/sonner";
@@ -73,6 +74,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
+  const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
+  // Only the real person behind the session, never a demo visitor.
+  const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
   return (
     <html lang="en">
       <head>
@@ -87,7 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           workspace={workspaceLinks(role)}
           open={open}
           guide={guideHref()}
-          account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId }}
+          account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin }}
           demo={demo ? (
             <>
               <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
@@ -101,7 +105,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {demo && (
           <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">
             Messages in the demo are simulated: nothing is sent, and you answer them yourself in the Outbox.
-            {whatThisZiffrOffers().trial && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
+            {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
           </p>
         )}
         {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} />}

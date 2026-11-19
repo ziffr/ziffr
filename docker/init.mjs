@@ -120,8 +120,10 @@ const files = {
     SUPABASE_ANON_KEY: kept.anonKey,
     SUPABASE_SERVICE_ROLE_KEY: kept.serviceRoleKey,
     ZIFFR_SITE_URL: siteUrl,
-    ZIFFR_SMTP_URL: smtpUrl,
-    ZIFFR_MAIL_FROM: mailFrom,
+    // Mailpit and a sender on the domain are only defaults (spec 0025): a mail server saved on the Installation
+    // settings page wins over them, while one given in the settings file wins over the page.
+    ...(set(env.ZIFFR_SMTP_URL) ? { ZIFFR_SMTP_URL: smtpUrl } : { ZIFFR_SMTP_URL_DEFAULT: smtpUrl }),
+    ...(set(env.ZIFFR_MAIL_FROM) ? { ZIFFR_MAIL_FROM: mailFrom } : { ZIFFR_MAIL_FROM_DEFAULT: mailFrom }),
     ZIFFR_JOB_SECRET: jobSecret,
     ZIFFR_SECRETS_KEY: set(env.ZIFFR_SECRETS_KEY) ? env.ZIFFR_SECRETS_KEY : kept.secretsKey,
     // Caddy adds one hop; another proxy in front of it (ZIFFR_SITE_URL without ZIFFR_DOMAIN) adds its own.

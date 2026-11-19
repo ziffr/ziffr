@@ -276,6 +276,14 @@ _Avoid_: Demo metric, sample metric
 One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo and whether it offers Trial Workspaces.
 _Avoid_: Instance, deployment, server, tenant
 
+**Installation Admin**:
+A person who runs an Installation as a whole: they open its Installation Settings and add or remove other Installation Admins, never the last one. It is not a Workspace Role: an Owner of every Workspace is not one, and being one shows no Workspace's data. The first one claims the Installation with a one-time setup code that Ziffr writes to its server log while it has none; the server's settings can also name them by address.
+_Avoid_: Superadmin, root, system administrator
+
+**Installation Settings**:
+What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
+_Avoid_: Admin settings, system settings, global config
+
 **Installed app**:
 Ziffr added to a phone's home screen or a computer's dock from the browser, so it opens in a window of its own. It is the same Ziffr as in the browser, needs a connection and keeps no Workspace data on the device; there is no native app. Not an Installation, which is a running Ziffr on a server.
 _Avoid_: PWA, native app, mobile app, offline mode

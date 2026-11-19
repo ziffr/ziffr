@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   }
   const sp = await searchParams;
   // A Ziffr that offers trials (spec 0021) shows them next to the demo, with what each can and cannot do.
-  const offers = whatThisZiffrOffers();
+  const offers = await whatThisZiffrOffers();
   if (offers.trial) {
     return (
       <div className="mx-auto mt-12 max-w-4xl">

@@ -1,10 +1,13 @@
 // Sending email (spec 0004, ticket #71; GLOSSARY: Delivery, Connector). The Email Connector has always worded each
-// Delivery; this sends it as plain text through SMTP (ZIFFR_SMTP_URL, from ZIFFR_MAIL_FROM). Only to a member or
-// Contact of the Delivery's workspace, at the address that workspace keeps, never in the demo, and nothing at all
-// without settings. Addresses are looked up when sending and never stored with the Delivery.
+// Delivery; this sends it as plain text through SMTP (ZIFFR_SMTP_URL, from ZIFFR_MAIL_FROM, as the settings in
+// effect have them: the environment, else the Installation Settings page). Only to a member or Contact of the
+// Delivery's workspace, at the address that workspace keeps, never in the demo, and nothing at all without settings.
+// Addresses are looked up when sending and never stored with the Delivery.
 import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
+import { checkedMailHost } from "./mail-hosts";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
@@ -55,9 +58,9 @@ export function mailboxKey(address: string): string {
   return `${gmail ? base.replace(/\./g, "") : base}@${gmail ? "gmail.com" : domain}`;
 }
 
-/** Whether this Ziffr sends email: the SMTP server, a sender that is one plain address, and ZIFFR_SITE_URL, since an
- * email whose links lead nowhere is worse than none. */
-export function mailEnabled(env: Record<string, string | undefined> = process.env): boolean {
+/** Whether these settings send email: the SMTP server, a sender that is one plain address, and ZIFFR_SITE_URL, since
+ * an email whose links lead nowhere is worse than none. Pass the settings in effect (or use mailOn). */
+export function mailEnabled(env: Settings): boolean {
   return Boolean(env.ZIFFR_SMTP_URL) && isAddress(fromAddress(env)) && /^https?:\/\/[^\s/]+/.test(env.ZIFFR_SITE_URL ?? "");
 }
 
@@ -67,46 +70,93 @@ function fromAddress(env: Record<string, string | undefined>): string {
   return raw.match(/<([^>]+)>\s*$/)?.[1] ?? raw.trim();
 }
 
-let transporter: { url: string; t: Transporter } | null = null;
+/** Whether this Ziffr sends email now, by the settings in effect. */
+export const mailOn = async (): Promise<boolean> => mailEnabled(await settingsInEffect());
 
-/** The SMTP transport from the settings, made once. */
-export const smtpTransport: MailTransport = async (mail) => {
-  const url = process.env.ZIFFR_SMTP_URL!;
-  if (transporter?.url !== url) transporter = { url, t: nodemailer.createTransport(url) };
-  const from = process.env.ZIFFR_MAIL_FROM!;
-  const name = from.match(/^\s*([^<]+?)\s*</)?.[1];
-  const info = await transporter.t.sendMail({
-    from: name ? { name: headerSafe(name), address: fromAddress(process.env) } : fromAddress(process.env),
-    to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
-    // Automated mail: no out-of-office replies to it (RFC 3834). One-click unsubscribe where it applies (RFC 8058).
-    headers: {
-      "Auto-Submitted": "auto-generated",
-      ...(mail.unsubscribe ? { "List-Unsubscribe": `<${mail.unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
-    },
-  });
-  return { messageId: String(info.messageId ?? "") };
-};
+/** The SMTP connection a mail server address names, built field by field: host, port, TLS from `smtps:`, and the
+ * user and password decoded. Nothing else in the address becomes an option, so a query such as `?logger=true` or
+ * `?tls.rejectUnauthorized=false` does nothing, wherever the address comes from. Null for anything that is not an
+ * smtp: or smtps: address with a host. */
+export function smtpOptions(address: string): { host: string; port: number; secure: boolean; auth?: { user: string; pass: string } } | null {
+  let url: URL;
+  try { url = new URL(address); } catch { return null; }
+  if ((url.protocol !== "smtp:" && url.protocol !== "smtps:") || !url.hostname) return null;
+  const secure = url.protocol === "smtps:";
+  const port = url.port ? Number(url.port) : secure ? 465 : 587;
+  let user = "";
+  let pass = "";
+  try { user = decodeURIComponent(url.username); pass = decodeURIComponent(url.password); } catch { return null; }
+  // A literal IPv6 host keeps its brackets in URL.hostname; the socket wants it without.
+  const host = url.hostname.startsWith("[") ? url.hostname.slice(1, -1) : url.hostname;
+  return { host, port, secure, ...(user ? { auth: { user, pass } } : {}) };
+}
+
+let transporter: { key: string; t: Transporter } | null = null;
+
+/** Sends through the SMTP server of these settings; the transport is made again only when the server changes. A
+ * server that is not the environment's own (`ZIFFR_SMTP_URL` or its default) is resolved and checked at every send,
+ * and the connection goes to the address that was checked, with TLS checking the name. */
+export function smtpTransportWith(settings: Settings): MailTransport {
+  return async (mail) => {
+    const url = settings.ZIFFR_SMTP_URL!;
+    const options = smtpOptions(url);
+    if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
+    let connect: Parameters<typeof nodemailer.createTransport>[0] = options;
+    // Decided by where the address came from, never by a second lookup that could fail open: only the one the
+    // environment sets (or its default, Docker's Mailpit) is used as it is; every other one is checked.
+    const fromEnvironment = [process.env.ZIFFR_SMTP_URL, process.env.ZIFFR_SMTP_URL_DEFAULT].some((v) => typeof v === "string" && v.trim() !== "" && v === url);
+    if (!fromEnvironment) {
+      const pinned = await checkedMailHost(options.host);
+      connect = { ...options, host: pinned.address, ...(pinned.servername ? { tls: { servername: pinned.servername } } : {}) };
+    }
+    const key = `${url}\n${(connect as { host: string }).host}`;
+    if (transporter?.key !== key) {
+      transporter?.t.close();
+      transporter = { key, t: nodemailer.createTransport(connect) };
+    }
+    const from = settings.ZIFFR_MAIL_FROM!;
+    const name = from.match(/^\s*([^<]+?)\s*</)?.[1];
+    const info = await transporter.t.sendMail({
+      from: name ? { name: headerSafe(name), address: fromAddress(settings) } : fromAddress(settings),
+      to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+      // Automated mail: no out-of-office replies to it (RFC 3834). One-click unsubscribe where it applies (RFC 8058).
+      headers: {
+        "Auto-Submitted": "auto-generated",
+        ...(mail.unsubscribe ? { "List-Unsubscribe": `<${mail.unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}),
+      },
+    });
+    return { messageId: String(info.messageId ?? "") };
+  };
+}
+
+/** The SMTP transport of the settings in effect when it sends. */
+export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(await settingsInEffect())(mail);
 
 /** Sends one email that is not a Delivery (an invitation, whose invitee is nobody's member yet). The address must
  * be one plain address and the subject is put on one line; returns the provider's Message-ID. */
 export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
-  if (!mailEnabled()) throw new Error("Email is not set up.");
+  if (!(await mailOn())) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
   return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text) })).messageId;
 }
 
-/** Whether replies by email come back into Ziffr (spec 0004, ticket #73): sending works, ZIFFR_INBOUND_DOMAIN names
- * the domain replies go to, and ZIFFR_INBOUND_SECRET (32 characters or more) signs what the provider forwards. */
-export function inboundEnabled(env: Record<string, string | undefined> = process.env): boolean {
+/** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
+ * ZIFFR_INBOUND_DOMAIN names the domain replies go to, and ZIFFR_INBOUND_SECRET (32 characters or more) signs what
+ * the provider forwards. Pass the settings in effect (or use inboundOn). */
+export function inboundEnabled(env: Settings): boolean {
   return mailEnabled(env) && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(env.ZIFFR_INBOUND_DOMAIN ?? "") && (env.ZIFFR_INBOUND_SECRET ?? "").length >= 32;
 }
 
-/** The reply address of a Delivery's token. */
-export const replyAddress = (token: string) => `reply+${token}@${String(process.env.ZIFFR_INBOUND_DOMAIN).toLowerCase()}`;
+/** Whether replies by email come back now, by the settings in effect. */
+export const inboundOn = async (): Promise<boolean> => inboundEnabled(await settingsInEffect());
 
-/** The state a new Delivery starts in: queued when it will really be emailed, else it stays in the Outbox. */
-export function initialMailState(connector: string, workspaceId: string): "queued" | "outbox" {
-  return connector === "email" && workspaceId !== DEMO_WORKSPACE_ID && mailEnabled() ? "queued" : "outbox";
+/** The reply address of a Delivery's token, at the replies domain of these settings. */
+export const replyAddress = (token: string, settings: Settings) => `reply+${token}@${String(settings.ZIFFR_INBOUND_DOMAIN).toLowerCase()}`;
+
+/** The state a new Delivery starts in with these settings: queued when it will really be emailed, else it stays in
+ * the Outbox. */
+export function initialMailState(connector: string, workspaceId: string, settings: Settings): "queued" | "outbox" {
+  return connector === "email" && workspaceId !== DEMO_WORKSPACE_ID && mailEnabled(settings) ? "queued" : "outbox";
 }
 
 /** The address a workspace keeps for a person: a Contact's stored one, or a member's own (proven at sign-in). Null
@@ -137,7 +187,9 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
-  if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled()) return never("Email is not set up.");
+  // One reading of the settings for the whole send, so it cannot change half way.
+  const settings = await settingsInEffect();
+  if (claimed.workspace_id === DEMO_WORKSPACE_ID || !mailEnabled(settings)) return never("Email is not set up.");
   const to = await addressIn(claimed.workspace_id, claimed.recipient_id);
   if (!to) return never("No usable email address for this person here.");
   // Someone who stopped Prompts and reminders by email gets none, also ones queued before they stopped.
@@ -166,28 +218,31 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   let text = String(claimed.body);
   if (text.includes(FORM_LINK)) {
     const { data: token } = claimed.form_token_id ? await db().from("tokens").select("code").eq("id", claimed.form_token_id).eq("workspace_id", claimed.workspace_id).maybeSingle() : { data: null };
-    text = text.split(FORM_LINK).join(token ? `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/submit/${token.code}` : `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/`);
+    text = text.split(FORM_LINK).join(token ? `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/submit/${token.code}` : `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/`);
   }
   if (stoppable) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
-    unsubscribe = `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
+    unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
     text += `\n\n--\nTo get no more of these by email: ${unsubscribe}`;
   }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
-  if (inboundEnabled()) {
+  if (inboundEnabled(settings)) {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
-    replyTo = replyAddress(token);
+    replyTo = replyAddress(token, settings);
   }
   try {
-    const { messageId } = await transport({ to, subject: headerSafe(claimed.subject), text, replyTo, unsubscribe });
+    const { messageId } = await (transport === smtpTransport ? smtpTransportWith(settings) : transport)({ to, subject: headerSafe(claimed.subject), text, replyTo, unsubscribe });
     await db().from("deliveries").update({ mail_state: "sent", attempts, sent_at: new Date().toISOString(), provider_id: messageId.slice(0, 300) || null, last_error: null }).eq("id", id);
     return "sent";
   } catch (e) {
     // The server's own words may hold addresses or settings: only its kind of failure is kept.
-    return fail(`The mail server refused it (${(e as { code?: string }).code ?? "error"}).`);
+    // Workspace members read this on the Connectors page: the Installation's own checks of its mail host are none of
+    // their business, so those codes become a plain "error".
+    const code = (e as { code?: string }).code;
+    return fail(`The mail server refused it (${code && !["EPRIVATEHOST", "EDNS", "EBADADDRESS"].includes(code) ? code : "error"}).`);
   }
 }
 
