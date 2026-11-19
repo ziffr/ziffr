@@ -12,7 +12,7 @@ Ziffr is only useful if its numbers are right. So every calculation on values is
   - `attainment.ts`: Attainment by ratio and by distance;
   - `formula.ts`: a formula read by the shunting-yard method and worked out on exact fractions;
   - `derived.ts`: a Derived Metric per period and over a longer span;
-  - `write.ts`: a value written digit by digit in a Number Style, with its unit, a percentage change and a short value;
+  - `write.ts`: a value written digit by digit in a Number Style, with its unit, a percentage change and a short value, with the minus sign "−" for people and the ASCII "-" without group marks, for files;
   - `analyses.ts`: Pearson's r and Holt's forecast, from their textbook definitions;
   - `reference.test.ts`, `attainment.test.ts` and the "the reference gives what was worked out by hand" tests check the references themselves.
 - **Hand-made cases** (`cases.ts`): an empty series, one value, exactly half and one short of half of a span, week 53, weeks across a month, quarter and year, 29 February, the current span to date, a Comparison point mid-span, a period given twice, unsorted input, negative values and zeros. The `aggregations*.test.ts` files run every case for every source Period, Display Period, Aggregation and Fiscal Year start.

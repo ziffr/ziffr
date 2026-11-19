@@ -15,7 +15,7 @@ The same rule holds on every Metric screen, and on dashboards too:
 
 The Metrics list repeats this in one line above the table. Under a widget on a dashboard, the same comparisons appear as a short line: the **Attainment** ("92 % of target"), then for example "vs prev. ↗ +4.2 %" and "YoY ↘ −1.0 %", or "n/a" when a comparison cannot be made. Point at an entry to see both values it compares. Every percentage change in Ziffr is written this one way: one decimal, a sign, a space and "%".
 
-Every value is written in the Workspace's **Number Style** (see the Workspace settings chapter), with its Metric's unit on the side the Metric says: "118,941 €" in a Workspace that writes 1,234.5, "118.941 €" in one that writes 1.234,5, "$1,200" for a Metric whose unit stands before the number. Chart labels shorten values from 10,000 on, such as "12.3k", "126k €" or "$1.2M".
+Every value is written in the Workspace's **Number Style** (see the Workspace settings chapter), with its Metric's unit on the side the Metric says: "118,941 €" in a Workspace that writes 1,234.5, "118.941 €" in one that writes 1.234,5, "$1,200" for a Metric whose unit stands before the number. A negative value has the minus sign in front, the unit too: "−$1,200", "−3.5 %". Chart labels shorten values from 10,000 on, such as "12.3k", "126k €" or "$1.2M".
 
 ## The Metrics list
 

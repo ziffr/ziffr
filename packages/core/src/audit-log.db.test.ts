@@ -85,7 +85,8 @@ describe("recording", () => {
     expect(rows[17].details).toMatchObject({ to: "Audit Co" });
     expect(rows[18].details).toEqual({ from_industry: null, to_industry: "saas" });
     expect(rows[19].details).toEqual({ from: 1, to: 4 });
-    expect(rows[20].details).toEqual({ from: null, to: "1.234,5" });
+    // The Workspace has no country, so the style it had was the default (ticket #184).
+    expect(rows[20].details).toEqual({ from: null, followed: "default", to: "1.234,5" });
     // Never a secret: no invitation token, no Contact's address.
     const all = JSON.stringify(rows);
     expect(all).not.toContain(inviteToken);

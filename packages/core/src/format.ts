@@ -14,6 +14,11 @@ export type ValueUnit = Pick<MetricDescription, "decimals" | "unit" | "unit_posi
 // The space a "1 234,5" style groups with: a no-break space, so a value never breaks across lines.
 const STYLE_SPACE = " ";
 
+/** The minus sign every number shown to people is written with: values, absolute and percentage changes alike
+ * ("−1.200 €", "−3,5 %"). Files and programs read numbers, so CSV, chart data and anything parsed back keep the
+ * ASCII "-" (`formatNumber` with `group: false`), and the number readers accept both (ticket #184). */
+export const MINUS = "−";
+
 // Digits only: grouped in the style unless `group` is false, rounded to `decimals`, without a sign.
 function digits(abs: number, decimals: number, style: NumberStyle, group = true): string {
   const marks = NUMBER_STYLE_MARKS[style];
@@ -39,17 +44,19 @@ function signed(v: number, decimals: number, style: NumberStyle, group?: boolean
 // The unit on its side: before without a space ("$1,200"; "CHF " keeps the space it ends with), after with one.
 // A Metric kept before units had a side (in an old Snapshot) has none, and its unit stands after, as it did.
 function withUnit(m: Pick<ValueUnit, "unit" | "unit_position">, minus: boolean, body: string): string {
-  const sign = minus ? "-" : "";
+  const sign = minus ? MINUS : "";
   if (!m.unit) return sign + body;
   return m.unit_position === "before" ? `${sign}${m.unit}${body}` : `${sign}${body} ${m.unit}`;
 }
 
-/** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5"; `group: false` leaves out the
- * group marks, for files a spreadsheet reads. A dash for a value that is not a finite number. */
+/** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5" or "−5"; `group: false` writes
+ * it for files a spreadsheet or program reads: no group marks and the ASCII "-" as its minus. A dash for a value that
+ * is not a finite number. */
 export function formatNumber(v: number | null | undefined, decimals: number, style: NumberStyle, opts: { group?: boolean } = {}): string {
   if (!isNumber(v)) return "–";
   const { minus, body } = signed(v, decimals, style, opts.group);
-  return (minus ? "-" : "") + body;
+  if (!minus) return body;
+  return (opts.group === false ? "-" : MINUS) + body;
 }
 
 /** A value in the Number Style with its Metric's unit, side and decimals, e.g. "1.200 €" or "$1,200"; a dash when
@@ -79,13 +86,71 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
   return withUnit(m, v < 0, digits(n, Number.isInteger(n) ? 0 : 1, style) + suffix);
 }
 
-/** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", "−" or "±"
+/** A value axis from `lo` to `hi`: about `count` ticks a nice step apart (1, 2, 2.5 or 5 times a power of ten), and
+ * the domain from the first to the last. A single value (lo = hi) gets an axis around it, from 0 when it is positive.
+ * Ticket #184: a chart of one value drew steps such as 92.35, 3,592.35, 7,092.35.
+ * Where no such steps can be counted (values near the limits of a double, a step below their precision), the axis is
+ * the padded domain the charts used before, with no ticks of its own: the chart then picks its own. */
+export function niceAxis(lo: number, hi: number, count = 5): { domain: [number, number]; ticks: number[]; step: number } {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { domain: [0, 1], ticks: [0, 1], step: 1 };
+  if (lo > hi) [lo, hi] = [hi, lo];
+  if (lo === hi) {
+    if (hi === 0) hi = 1;
+    else if (hi > 0) lo = 0;
+    else hi = 0;
+  }
+  const padded = (): { domain: [number, number]; ticks: number[]; step: number } => {
+    const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.08 || 1;
+    const domain: [number, number] = [lo - pad, hi + pad];
+    return { domain: domain.every(Number.isFinite) ? domain : [lo, hi], ticks: [], step: 0 };
+  };
+  const raw = (hi - lo) / Math.max(1, count - 1);
+  const power = 10 ** Math.floor(Math.log10(raw));
+  // Ten times the power is always at least `raw`; only a power that is not finite finds none.
+  const step = [1, 2, 2.5, 5, 10].map((f) => f * power).find((s) => s >= raw);
+  if (step === undefined || !Number.isFinite(step) || step <= 0) return padded();
+  // Rounded to the step's own decimals, so 0.1 + 0.2 does not become 0.30000000000000004; toFixed takes 0 to 100.
+  const places = Math.min(20, Math.max(0, -Math.floor(Math.log10(step)) + 1));
+  const round = (x: number) => Number(x.toFixed(places));
+  const first = round(Math.floor(lo / step) * step);
+  const last = round(Math.ceil(hi / step) * step);
+  // The ticks are counted, never stepped to: with a step below a value's precision, first + step is first again.
+  const n = Math.round((last - first) / step);
+  if (!Number.isFinite(first) || !Number.isFinite(last) || !Number.isFinite(n) || n < 1 || n > MAX_AXIS_TICKS) return padded();
+  const ticks = Array.from({ length: n + 1 }, (_, i) => round(first + i * step));
+  // Steps lost to rounding (two ticks the same) mean the values are beyond what the axis can tell apart.
+  if (new Set(ticks).size !== ticks.length) return padded();
+  return { domain: [first, last], ticks, step };
+}
+
+/** The most ticks `niceAxis` draws; more means the values defeat its steps, and the chart picks its own. */
+export const MAX_AXIS_TICKS = 50;
+
+/** The labels of an axis's ticks in one notation: all shortened (k or M, as `compactValue`) when the largest reaches
+ * 10,000, otherwise all written in full, with as many decimals as the step needs and never more than the Metric's. */
+export function axisLabels(m: ValueUnit, ticks: number[], step: number, style: NumberStyle): string[] {
+  const top = Math.max(0, ...ticks.map(Math.abs));
+  // The decimals a step is written with: 2.5 needs one, 0.25 two, 500 none.
+  const placesFor = (s: number) => Math.min(6, (String(Number(s.toPrecision(6))).split(".")[1] ?? "").length);
+  if (top < 10_000) {
+    const decimals = Math.min(m.decimals, placesFor(step));
+    return ticks.map((t) => formatValue({ ...m, decimals }, t, style));
+  }
+  const [div, suffix] = top >= 1_000_000 ? [1_000_000, "M"] : [1000, "k"];
+  const decimals = placesFor(step / div);
+  return ticks.map((t) => {
+    const { minus, body } = signed(t / div, decimals, style);
+    return withUnit(m, minus, /[1-9]/.test(body) ? body + suffix : body);
+  });
+}
+
+/** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", `MINUS` or "±"
  * ("+12.0 %", "−3.5 %"); `signed: false` writes the size only, for "up 12.0 %". A dash for none. */
 export function formatChange(pct: number | null | undefined, style: NumberStyle, opts: { signed?: boolean } = {}): string {
   if (!isNumber(pct)) return "–";
   const body = digits(Math.abs(pct), 1, style);
   // Stryker disable next-line EqualityOperator: a change of 0 has no 1-9 in its digits and is "±" before pct > 0 is asked.
-  const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : "−";
+  const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : MINUS;
   return `${sign}${body} %`;
 }
 

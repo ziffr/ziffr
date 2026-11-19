@@ -38,13 +38,13 @@ const HOSTILE: [string, string, string, Where][] = [
   ["not JSON", "{ steps: 1 }", "Expected a field name", "{"],
   ["oversized", text({ ...EXAMPLE, description: "x".repeat(RECIPE_LIMITS.bytes) }), "at most 32,768 are allowed", null],
   ["a later version", text({ ...EXAMPLE, format: "ziffr.analysis/2" }), "this Ziffr reads ziffr.analysis/1", '"format"'],
-  ["an unknown field", text({ ...EXAMPLE, code: "return fetch('x')" }), "“code” is not a field here", '"code"'],
+  ["an unknown field", text({ ...EXAMPLE, code: "return fetch('x')" }), "is not a field here", '"code"'],
   ["a function the library does not have", withSteps([{ id: "x", fn: "eval", of: "slot1" }]), "must be one of “movingAverage”", '"eval"'],
   ["code in a parameter", withSteps([{ id: "x", fn: "movingAverage", of: "slot1", window: "3; fetch()" }]), "must be a whole number", '"3; fetch()"'],
   ["a window out of range", withSteps([{ id: "x", fn: "movingAverage", of: "slot1", window: 1000 }]), "must be at most 60", "1000"],
   ["a missing parameter", withSteps([{ id: "x", fn: "seasonalIndex", of: "slot1" }]), "needs the field “season”", { after: '"steps": [' }],
-  ["a parameter it does not take", withSteps([{ id: "x", fn: "growth", of: "slot1", window: 3 }]), "“window” is not a field here", '"window"'],
-  ["a second series where none belongs", withSteps([{ id: "x", fn: "mean", of: "slot1", with: "slot2" }]), "“with” is not a field here", '"with"'],
+  ["a parameter it does not take", withSteps([{ id: "x", fn: "growth", of: "slot1", window: 3 }]), "is not a field here", '"window"'],
+  ["a second series where none belongs", withSteps([{ id: "x", fn: "mean", of: "slot1", with: "slot2" }]), "is not a field here", '"with"'],
   ["a correlation without its second series", withSteps([{ id: "x", fn: "correlation", of: "slot1" }]), "needs the field “with”", { after: '"steps": [' }],
   ["a Metric by its name", withSteps([{ id: "x", fn: "mean", of: "metric:revenue" }]), "a Slot (slot1 to slot4) or the id of an earlier step", '"metric:revenue"'],
   ["a Slot it does not have", withSteps([{ id: "x", fn: "mean", of: "slot3" }]), "“slot3” is neither a Slot of this recipe nor an earlier step", '"slot3"'],
@@ -59,7 +59,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["too many steps", withSteps(Array.from({ length: 13 }, (_, i) => ({ id: `s${i}`, fn: "growth", of: "slot1" }))), "13 entries; at most 12", '"steps"'],
   ["too many Slots", text({ ...EXAMPLE, slots: Array(5).fill({ label: "M" }) }), "5 entries; at most 4", '"slots"'],
   ["a unit it does not know", text({ ...EXAMPLE, outputs: [{ step: "smooth", label: "x", unit: "px" }] }), "must be one of “metric”, “percent”, “number”", '"px"'],
-  ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": {},\n  "format"'), "“__proto__” is not a field here", "__proto__"],
+  ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": {},\n  "format"'), "is not a field here", "__proto__"],
 ];
 
 describe("checkAnalysisRecipe", () => {

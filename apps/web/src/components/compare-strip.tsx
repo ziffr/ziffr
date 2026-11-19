@@ -1,6 +1,6 @@
 "use client";
 // The comparison strip under a widget (GLOSSARY: Comparison, Attainment): one engine, one look everywhere.
-import { compactValue, formatChange, formatValue } from "@ziffr/core/format";
+import { compactValue, formatChange, formatValue, MINUS } from "@ziffr/core/format";
 import { attainmentText, COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
 import type { CanvasData, Metric } from "@ziffr/core/types";
 import { attainmentMethodNote } from "@ziffr/core/attainment-method";
@@ -10,7 +10,7 @@ import { COLOUR_LEGEND } from "./target-chip";
 export const DEFAULT_COMPARE: CompareKey[] = ["prev", "yoy"];
 
 const SHORT: Record<CompareKey, string> = { ...COMPARE_LABEL, prev: "vs prev." };
-const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±");
+const sign = (n: number) => (n > 0 ? "+" : n < 0 ? MINUS : "±");
 const arrow = (n: number) => (n > 0 ? "↗ " : n < 0 ? "↘ " : "→ ");
 
 /** The attainment and comparisons under a widget's value. */

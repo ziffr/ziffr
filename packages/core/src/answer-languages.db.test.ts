@@ -32,7 +32,7 @@ describe("the Answer Languages", () => {
     // The same languages again change nothing and record nothing.
     await setAnswerLanguages(owner, ["es"]);
     const { data } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "workspace.answer_languages_changed").order("id");
-    expect(data?.map((r) => r.details)).toEqual([{ from: null, to: ["en", "fr"] }, { from: ["en", "fr"], to: ["es"] }]);
+    expect(data?.map((r) => r.details)).toEqual([{ from: null, followed: "country", to: ["en", "fr"] }, { from: ["en", "fr"], to: ["es"] }]);
   });
 
   it("refuses Members, Guests, Access Keys, the demo and languages Ziffr has no words for", async () => {

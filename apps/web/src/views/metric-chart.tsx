@@ -1,7 +1,7 @@
 "use client";
 // PROTOTYPE: Views are hardcoded. This folder is where the View plugin seam would go.
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue } from "@ziffr/core/format";
+import { axisLabels, compactValue, formatValue, niceAxis } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@ziffr/core/forecast";
@@ -78,8 +78,10 @@ export function MetricChart({
   const values = rows.flatMap((r) => [r.value, r.partial, r.target, ...(r.band ?? [])]).filter((v): v is number => v !== undefined);
   const lo = Math.min(...values, metric.target_min ?? Infinity);
   const hi = Math.max(...values, metric.target_max ?? -Infinity);
-  const pad = (hi - lo) * 0.08 || 1;
-  const domain: [number, number] = [Math.max(0, lo - pad), hi + pad];
+  // Nice steps in one notation (ticket #184): never 92.35, 3,592.35, 10.6k on one axis.
+  const axis = niceAxis(values.length ? lo : 0, values.length ? hi : 1);
+  const domain = axis.domain;
+  const axisText = new Map(axis.ticks.map((t, i) => [t, axisLabels(metric, axis.ticks, axis.step, numberStyle)[i]]));
   const byPeriod = new Map(rows.map((r) => [r.period, r]));
   const mp = by ?? metric.period;
   const label = (p: string) => name?.(p) ?? periodLabel(p, mp, yearStart);
@@ -104,7 +106,7 @@ export function MetricChart({
             />
           )}
           <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, yearStart, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
-          <YAxis domain={domain} tickFormatter={(v) => compactValue(metric, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
+          <YAxis domain={domain} ticks={axis.ticks.length ? axis.ticks : undefined} interval={axis.ticks.length ? 0 : undefined} tickFormatter={(v) => axisText.get(v) ?? compactValue(metric, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
               const r = payload?.[0]?.payload as Row | undefined;

@@ -4,6 +4,7 @@
 // currency proposes, which the owner may change; an example shows how a value will read. The core checks every field.
 import { useState } from "react";
 import { formatValue } from "@ziffr/core/format";
+import { suggestedSide } from "@ziffr/core/units";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Format, UnitPosition } from "@ziffr/core/types";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,13 @@ export function UnitFields({ format: format0, unit: unit0, unitPosition: side0, 
   const [unit, setUnit] = useState(unit0);
   const [side, setSide] = useState<UnitPosition>(side0);
   const [decimals, setDecimals] = useState(String(decimals0));
+  // Once the owner picks a side themselves, typing the unit no longer changes it.
+  const [sidePicked, setSidePicked] = useState(false);
+  const typeUnit = (next: string) => {
+    setUnit(next);
+    const s = sidePicked ? null : suggestedSide(next);
+    if (s) setSide(s);
+  };
   const choose = (next: Format) => {
     setFormat(next);
     // Only a unit the form put there itself, or none, is replaced: one the owner typed stays.
@@ -48,11 +56,11 @@ export function UnitFields({ format: format0, unit: unit0, unitPosition: side0, 
       <div className="grid grid-cols-[1fr_auto_4.5rem] gap-3">
         <div>
           <Label htmlFor={`${idPrefix}-unit`} className="mb-1.5 block">Unit</Label>
-          <Input id={`${idPrefix}-unit`} name="unit" value={unit} onChange={(e) => setUnit(e.target.value)} maxLength={20} placeholder="€, $, d, pc…" />
+          <Input id={`${idPrefix}-unit`} name="unit" value={unit} onChange={(e) => typeUnit(e.target.value)} maxLength={20} placeholder="€, $, d, pc…" />
         </div>
         <div>
           <Label htmlFor={`${idPrefix}-side`} className="mb-1.5 block">Stands</Label>
-          <select id={`${idPrefix}-side`} name="unit_position" value={side} onChange={(e) => setSide(e.target.value as UnitPosition)} className={field}>
+          <select id={`${idPrefix}-side`} name="unit_position" value={side} onChange={(e) => { setSide(e.target.value as UnitPosition); setSidePicked(true); }} className={field}>
             <option value="after">after</option>
             <option value="before">before</option>
           </select>

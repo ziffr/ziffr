@@ -4,11 +4,15 @@
 // - round to the decimals, half away from zero, on the exact value (1.005 to two places is 1.01);
 // - group the whole part in threes from the right with the style's group mark (a no-break space for "1 234,5"), and
 //   put the style's decimal mark before the decimals;
-// - a value that rounds to zero has no minus; a minus goes in front of everything, the unit too ("-$1,200.50");
+// - a value that rounds to zero has no minus; a minus goes in front of everything, the unit too ("−$1,200.50"), and
+//   it is the minus sign U+2212, except without group marks (for files and programs), where it is the ASCII "-";
 // - a unit before stands without a space ("$1,200", "CHF " keeps its own), after with one ("1.200 €");
 // - anything that is not a finite number is "–".
 import type { NumberStyle } from "../../number-style";
 import { exactOf, roundedText, type Exact } from "./exact";
+
+// The minus sign U+2212, spelled out here rather than taken from format.ts, which this reference shares nothing with.
+const MINUS = "\u2212";
 
 const MARKS: Record<NumberStyle, [group: string, decimal: string]> = {
   "1,234.5": [",", "."],
@@ -35,14 +39,14 @@ function digits(x: Exact, decimals: number, style: NumberStyle, group = true): {
 export function referenceNumber(value: number | string | null | undefined, decimals: number, style: NumberStyle, group = true): string {
   if (value === null || value === undefined || (typeof value === "number" && !Number.isFinite(value))) return "–";
   const r = digits(exactOf(value), decimals, style, group);
-  return `${r.negative ? "-" : ""}${r.text}`;
+  return `${r.negative ? (group ? MINUS : "-") : ""}${r.text}`;
 }
 
 /** formatValue by the reference: digits in the style with the unit on its side. */
 export function referenceValue(m: { unit: string; unit_position: "before" | "after" | undefined; decimals: number }, value: number | string | null | undefined, style: NumberStyle): string {
   if (value === null || value === undefined || (typeof value === "number" && !Number.isFinite(value))) return "–";
   const r = digits(exactOf(value), m.decimals, style);
-  const sign = r.negative ? "-" : "";
+  const sign = r.negative ? MINUS : "";
   if (!m.unit) return sign + r.text;
   return m.unit_position === "before" ? `${sign}${m.unit}${r.text}` : `${sign}${r.text} ${m.unit}`;
 }
@@ -53,7 +57,7 @@ export function referenceChange(pct: number | string | Exact | null | undefined,
   if (pct === null || pct === undefined || (typeof pct === "number" && !Number.isFinite(pct))) return "–";
   const x = typeof pct === "object" ? pct : exactOf(pct);
   const r = digits(x, 1, style);
-  const sign = !signed ? "" : r.zero ? "±" : x.num > 0n ? "+" : "−";
+  const sign = !signed ? "" : r.zero ? "±" : x.num > 0n ? "+" : MINUS;
   return `${sign}${r.text} %`;
 }
 
@@ -77,7 +81,7 @@ export function referenceCompact(m: { unit: string; unit_position: "before" | "a
     suffix = "M";
   }
   const body = digits(exactOf(n), n.includes(".") ? 1 : 0, style).text + suffix;
-  const sign = x.num < 0n ? "-" : "";
+  const sign = x.num < 0n ? MINUS : "";
   if (!m.unit) return sign + body;
   return m.unit_position === "before" ? `${sign}${m.unit}${body}` : `${sign}${body} ${m.unit}`;
 }

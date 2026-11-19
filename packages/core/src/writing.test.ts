@@ -54,17 +54,19 @@ describe("writing a value", () => {
   it("the reference writes what was worked out by hand", () => {
     const eur = { unit: "€", unit_position: "after" as const, decimals: 2 };
     expect(referenceValue(eur, "1234567.005", "1.234,5")).toBe("1.234.567,01 €");
-    expect(referenceValue({ ...eur, unit: "$", unit_position: "before" }, "-1200.5", "1,234.5")).toBe("-$1,200.50");
+    expect(referenceValue({ ...eur, unit: "$", unit_position: "before" }, "-1200.5", "1,234.5")).toBe("−$1,200.50");
     expect(referenceValue(eur, "-0.004", "1 234,5")).toBe("0,00 €");
     expect(referenceNumber("1234.5", 0, "1'234.5")).toBe("1'235");
     expect(referenceNumber("1234.5", 1, "1'234.5", false)).toBe("1234.5");
+    expect(referenceNumber("-1234.5", 1, "1'234.5")).toBe("−1'234.5");
+    expect(referenceNumber("-1234.5", 1, "1'234.5", false)).toBe("-1234.5");
     expect(referenceChange("-0.04", "1,234.5")).toBe("±0.0 %");
     expect(referenceChange("12.25", "1.234,5")).toBe("+12,3 %");
     expect(referenceChange("-3.45", "1,234.5")).toBe("−3.5 %");
     expect(referenceCompact(eur, 126_000, "1,234.5")).toBe("126k €");
     expect(referenceCompact(eur, 12_345, "1.234,5")).toBe("12,3k €");
     expect(referenceCompact(eur, 999_950, "1,234.5")).toBe("1M €");
-    expect(referenceCompact(eur, -1_250_000, "1,234.5")).toBe("-1.3M €");
+    expect(referenceCompact(eur, -1_250_000, "1,234.5")).toBe("−1.3M €");
     expect(referenceCompact(eur, 9_999.5, "1,234.5")).toBe("9,999.50 €");
   });
 });

@@ -33,11 +33,13 @@ describe("chart values", () => {
     expect(chartValue({ decimals: 0 }, 1234.5678)).toBe(1235);
     expect(chartValue({ decimals: 2 }, 1234.5678)).toBe(1234.57);
     expect(chartValue({ decimals: 1 }, -0.04)).toBe(0);
+    // A number for the chart's data, never text: a negative value stays negative (the display's "−" is not a number).
+    expect(chartValue({ decimals: 2 }, -1234.5678)).toBe(-1234.57);
   });
-  it("are labelled with the decimals and the unit on its side", () => {
-    expect(chartFormatCode({ decimals: 0, unit: "€", unit_position: "after" })).toBe('#,##0" €"');
-    expect(chartFormatCode({ decimals: 2, unit: "$", unit_position: "before" })).toBe('"$"#,##0.00');
-    expect(chartFormatCode({ decimals: 1, unit: "", unit_position: "after" })).toBe("#,##0.0");
-    expect(chartFormatCode({ decimals: 0, unit: 'a"b', unit_position: "after" })).toBe('#,##0" a""b"');
+  it("are labelled with the decimals, the unit on its side and the app's minus sign", () => {
+    expect(chartFormatCode({ decimals: 0, unit: "€", unit_position: "after" })).toBe('#,##0" €";"−"#,##0" €"');
+    expect(chartFormatCode({ decimals: 2, unit: "$", unit_position: "before" })).toBe('"$"#,##0.00;"−$"#,##0.00');
+    expect(chartFormatCode({ decimals: 1, unit: "", unit_position: "after" })).toBe('#,##0.0;"−"#,##0.0');
+    expect(chartFormatCode({ decimals: 0, unit: 'a"b', unit_position: "after" })).toBe('#,##0" a""b";"−"#,##0" a""b"');
   });
 });

@@ -221,7 +221,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 )}
               </div>
               {bdRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No breakdown yet. Add rows with the next value on the form, or send one line per row, such as <code className="fig">Germany 61,200</code>.</p>
+                <p className="text-sm text-muted-foreground">No breakdown yet. Add rows with the next value on the form, or send one line per row, such as <code className="fig">Germany {formatNumber(61200, 0, numberStyle)}</code>.</p>
               ) : (
                 <>
                   <table className="w-full text-sm">

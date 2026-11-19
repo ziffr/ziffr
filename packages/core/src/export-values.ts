@@ -3,7 +3,7 @@
 // is tested without PowerPoint.
 import { COMPARE_LABEL, compare, resolverFrom, type CompareKey } from "./compare";
 import { scaled } from "./exact";
-import { formatChange, formatNumber } from "./format";
+import { formatChange, formatNumber, MINUS } from "./format";
 import type { NumberStyle } from "./number-style";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
 
@@ -40,11 +40,13 @@ export function csvNumber(v: number, style: NumberStyle): string {
 }
 
 /** The number format PowerPoint labels a chart's values with: the Metric's decimals and its unit on its side, such
- * as `#,##0.0" d"` or `"$"#,##0`. PowerPoint writes the marks the way the computer opening it does. */
+ * as `#,##0.0" d"` or `"$"#,##0`, and a second section for negative values with the minus sign the app shows
+ * ("−$1,200", not PowerPoint's own "-"; #184). PowerPoint writes the marks the way the computer opening it does. */
 export function chartFormatCode(m: Pick<Metric, "decimals" | "unit" | "unit_position">): string {
   const digits = m.decimals > 0 ? `#,##0.${"0".repeat(Math.min(6, m.decimals))}` : "#,##0";
-  if (!m.unit) return digits;
+  if (!m.unit) return `${digits};"${MINUS}"${digits}`;
   // A unit is free text: quoted, with its own quotes doubled, so PowerPoint reads none of it as a format.
   const unit = m.unit.replace(/"/g, '""');
-  return m.unit_position === "before" ? `"${unit}"${digits}` : `${digits}" ${unit}"`;
+  if (m.unit_position === "before") return `"${unit}"${digits};"${MINUS}${unit}"${digits}`;
+  return `${digits}" ${unit}";"${MINUS}"${digits}" ${unit}"`;
 }

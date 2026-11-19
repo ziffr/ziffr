@@ -32,6 +32,10 @@ function about(e: AuditEvent) {
 }
 
 /** The details that matter, short: old and new roles, who a Share went to, the period. Never values. */
+/** What a setting followed before it was chosen: the Workspace's country, or the default when it had none. Events
+ * from before this was recorded say the country. */
+const followed = (d: Record<string, unknown>) => (d.followed === "default" ? "from the default" : "from the country");
+
 function detailText(e: AuditEvent): string {
   const d = e.details;
   const role = (r: unknown) => ROLE[String(r)] ?? String(r);
@@ -53,8 +57,8 @@ function detailText(e: AuditEvent): string {
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
-    case "workspace.number_style_changed": return `${d.from ?? "from the country"} → ${d.to}`;
-    case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : "from the country"} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
+    case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;
+    case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : followed(d)} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
     case "workspace.attainment_method_changed": return `${d.from} → ${d.to}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";

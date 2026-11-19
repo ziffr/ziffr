@@ -226,7 +226,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
       <DeckMaster.Provider value={master}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Presentation aria-hidden className="size-5 text-muted-foreground" />
-        <label className="min-w-0 flex-1">
+        {/* At least room for a name of a few words: the buttons wrap to the next line before the name is cut. */}
+        <label className="min-w-[min(100%,20rem)] flex-1">
           <span className="sr-only">Deck name</span>
           <input
             value={name}

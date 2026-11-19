@@ -196,7 +196,8 @@ export function checkSchema(root: Schema, value: unknown, lines: Map<string, num
         const p = key(path, k);
         const sub = s.properties && Object.prototype.hasOwnProperty.call(s.properties, k) ? s.properties[k] : undefined;
         if (sub) walk(sub, x, p);
-        else if (s.additionalProperties === false) at(p, `“${k}” is not a field here${s.properties ? `; the fields are ${quoted(Object.keys(s.properties))}` : ""}.`);
+        // The path already names the field (`marks[0].onClick`), so the message does not say it again.
+        else if (s.additionalProperties === false) at(p, `is not a field here${s.properties ? `; the fields are ${quoted(Object.keys(s.properties))}` : ""}.`);
       }
     }
   };

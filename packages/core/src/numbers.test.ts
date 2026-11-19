@@ -436,9 +436,12 @@ describe("reading what Ziffr writes", () => {
         const rounded = exactOf(roundedText(exactOf(text), decimals));
         const sized = rounded.num < 0n ? -rounded.num : rounded.num;
         const big = sized > 10n ** 15n * rounded.den;
-        // A sign typed in front: "+" changes nothing, "−" (the minus sign) negates, as "-" does.
-        const typed = sign && !written.startsWith("-") ? `${sign}${written}` : written;
-        const negate = sign === "−" && !written.startsWith("-");
+        // Grouped it is written for people, with the minus sign "−"; ungrouped for files, with "-" (#184). A sign typed
+        // in front: "+" changes nothing, "−" (the minus sign) negates, as "-" does.
+        const negative = /^[-−]/.test(written);
+        if (negative) expect(written[0], written).toBe(group ? "−" : "-");
+        const typed = sign && !negative ? `${sign}${written}` : written;
+        const negate = sign === "−" && !negative;
         const read = readNumber(typed, style);
         if (big) expect(read, typed).toBeNull();
         else expect(read !== null && isNearestDouble(negate ? -read : read, rounded), `${typed} in ${style} read as ${read}`).toBe(true);

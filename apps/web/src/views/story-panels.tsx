@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
 import { attainment, compare, resolverFrom, targetFor } from "@ziffr/core/compare";
-import { compactValue, formatChange, formatPercent } from "@ziffr/core/format";
+import { compactValue, formatChange, formatPercent, MINUS } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
@@ -235,7 +235,7 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
           Plot.tickY(connectors, { x: "label", y: "y", stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
           Plot.text(steps, {
             x: "label", y: (x: Step) => Math.max(x.start, x.end), dy: -10,
-            text: (x: Step) => (x.kind === "total" ? compactValue(m, x.end, data.numberStyle) : `${x.end - x.start > 0 ? "+" : "−"}${compactValue(m, Math.abs(x.end - x.start), data.numberStyle)}`),
+            text: (x: Step) => (x.kind === "total" ? compactValue(m, x.end, data.numberStyle) : `${x.end - x.start > 0 ? "+" : MINUS}${compactValue(m, Math.abs(x.end - x.start), data.numberStyle)}`),
             fill: (x: Step) => (x.kind === "down" ? "var(--color-error)" : "var(--color-print)"), fontWeight: 700, fontSize: 13,
           }),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 42, text: "label", fill: "var(--color-accent-2)" })] : []),
