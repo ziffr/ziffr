@@ -10,11 +10,17 @@ import { routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
+import { inboxOf } from "./sign-in-limits";
+import { createHash } from "node:crypto";
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
 /** Replies taken for one Delivery; more are ignored. */
 export const MAX_REPLIES_PER_DELIVERY = 20;
+/** Messages taken from one sender in an hour: far more than a person replies, few enough that a flood stops soon. */
+export const INBOUND_PER_SENDER = 30;
+/** Messages taken by the whole Installation in an hour, from anyone. */
+export const INBOUND_TOTAL = 1000;
 /** How long a reply address works. */
 const REPLY_DAYS = 30;
 
@@ -26,7 +32,7 @@ export type InboundEmail = { tokens: string[]; from: string | null; text: string
 /** What became of an inbound email, for the provider's logs; it never says more than the outcome's name. */
 export type InboundOutcome =
   | "recorded" | "refused" | "form_link" | "replied" | "corrected"
-  | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty";
+  | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited";
 
 /** An Authentication-Results value (RFC 8601) as its parts: the authserv-id, then one result per method, lower case.
  * Comments in parentheses and quoted strings are taken out first, so text the sender controls inside them (an
@@ -104,9 +110,20 @@ export function newText(text: string): string {
   return out.join("\n").trim().slice(0, 5000);
 }
 
+/** Whether one more message from this sender may be taken this hour, and counts it if so. A database that does not
+ * answer takes nothing: failing open would turn the limit off when it is needed. */
+async function claimInbound(from: string | null): Promise<boolean> {
+  const key = createHash("sha256").update(`ziffr-inbound:${inboxOf(from ?? "")}`).digest("hex");
+  const { data, error } = await db().rpc("claim_inbound_email", { p_sender_key: key, p_per_sender: INBOUND_PER_SENDER, p_total: INBOUND_TOTAL });
+  return !error && data === true;
+}
+
 /** Takes one inbound email. Every check that can refuse it comes before anything is changed. */
 export async function receiveEmail(email: InboundEmail, effects: { submission?: SubmissionEffects; transport?: MailTransport } = {}): Promise<InboundOutcome> {
   if (email.automatic) return "automatic";
+  // A flood (many messages from one sender, or from many) stops here, before any reply token is looked up. Counted
+  // by the inbox it claims to come from: a forged one only uses up the forger's count or the total.
+  if (!(await claimInbound(email.from))) return "limited";
   const token = email.tokens[0];
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();

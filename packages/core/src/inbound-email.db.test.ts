@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
-import { newText, parseInbound, receiveEmail, senderVerified } from "./inbound-email";
+import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderVerified } from "./inbound-email";
 import { connectorsView } from "./page-data";
 import { ask } from "./questions";
 import type { SubmissionEffects } from "./submissions";
@@ -169,3 +169,15 @@ describe("replies by email", () => {
     }
   });
 });
+
+describe("a flood of mail", () => {
+  it("takes at most INBOUND_PER_SENDER messages from one sender in an hour, before any reply token is looked up", async () => {
+    const from = address("flood");
+    const unknown = (n: number) => reply({ from, token: "x".repeat(31) + String(n % 10), text: "1" });
+    for (let i = 0; i < INBOUND_PER_SENDER; i++) expect(await receiveEmail(await parseInbound(unknown(i)))).toBe("unknown_token");
+    expect(await receiveEmail(await parseInbound(unknown(99)))).toBe("limited");
+    // Another sender is not held back by it.
+    expect(await receiveEmail(await parseInbound(reply({ from: address("other"), token: "y".repeat(32), text: "1" })))).toBe("unknown_token");
+  });
+});
+

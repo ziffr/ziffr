@@ -43,7 +43,7 @@ Each email gets a reply address of its own, `reply+<token>@<your inbound domain>
    - `X-Ziffr-Timestamp`: the time in Unix seconds;
    - `X-Ziffr-Signature`: `sha256=` and the hex HMAC-SHA256 of `<timestamp>.<raw message>` with the secret.
 
-   Ziffr takes nothing unsigned, older than five minutes or larger than 1 MB.
+   Ziffr takes nothing unsigned, older than five minutes or larger than 1 MB. It also takes at most 30 messages an hour from one sender and 1,000 an hour in all, so a flood of mail to the reply domain stops before any reply address is looked up.
 
 **Checking senders.** Anyone can write any `From` address. `ZIFFR_INBOUND_AUTHSERV_ID` names the provider that received the message. Ziffr then takes a reply only when that provider's own `Authentication-Results` header, the topmost one, says DMARC or DKIM passed for the sender's domain. To find the name, look at a message your provider received: it is the first word of its topmost `Authentication-Results` header. Without this setting, replies are checked by their reply address and `From` alone, and Approvals are never taken by email.
 
