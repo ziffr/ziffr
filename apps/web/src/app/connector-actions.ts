@@ -108,20 +108,14 @@ export async function setPreference(userId: string | null, kind: PreferenceKind,
   });
 }
 
-/** The recipient answers where the Delivery reached them (demo only). */
+/** What the recipient's answer where the Delivery reached them would do (demo only); nothing is saved. */
 export async function simulateReply(deliveryId: number, text: string) {
-  return attempt(async () => {
-    await demo.simulateReply(await currentActor(), Number(deliveryId), String(text ?? ""));
-    done();
-  });
+  return attempt(async () => demo.simulateReply(await currentActor(), Number(deliveryId), String(text ?? "")));
 }
 
-/** Closing the ticket marks the task done (demo only). */
+/** What closing the ticket would do (demo only); nothing is saved. */
 export async function simulateTicketClose(deliveryId: number) {
-  return attempt(async () => {
-    await demo.simulateTicketClose(await currentActor(), Number(deliveryId));
-    done();
-  });
+  return attempt(async () => demo.simulateTicketClose(await currentActor(), Number(deliveryId)));
 }
 
 /** What a scheduler would do each morning: remind assignees of open tasks due within two days. */
@@ -142,11 +136,7 @@ export async function askForMissingValues() {
   });
 }
 
-/** The submitter answers a Prompt where it reached them (demo only). */
+/** What the submitter's answer to a Prompt where it reached them would do (demo only); nothing is saved. */
 export async function simulatePromptAnswer(deliveryId: number, text: string) {
-  return attempt(async () => {
-    const r = await demo.simulatePromptAnswer(await currentActor(), Number(deliveryId), String(text ?? ""));
-    done();
-    return r;
-  });
+  return attempt(async () => demo.simulatePromptAnswer(await currentActor(), Number(deliveryId), String(text ?? "")));
 }

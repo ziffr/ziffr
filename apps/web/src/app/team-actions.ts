@@ -4,7 +4,6 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
-import { isDemo } from "@/lib/auth";
 import * as team from "@ziffr/core/team";
 import * as inv from "@ziffr/core/invitations";
 import * as clock from "@ziffr/core/workspace-clock";
@@ -50,8 +49,6 @@ export async function setMember(groupId: number, userId: string, member: boolean
 /** Adds a Contact: someone without a login who submits values by Slack, email or the form. */
 export async function addContact(input: { name: string; email?: string; slackHandle?: string; phone?: string }) {
   return attempt(async () => {
-    // Visitors share the demo: anything stored there is shown to every other visitor.
-    if (await isDemo()) throw new Error("Contacts cannot be added in the demo.");
     await team.addContact(await currentActor(), {
       name: String(input?.name ?? ""), email: String(input?.email ?? ""), slackHandle: String(input?.slackHandle ?? ""), phone: String(input?.phone ?? ""),
     });

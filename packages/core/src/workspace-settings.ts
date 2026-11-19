@@ -9,16 +9,13 @@ import { db } from "./db";
 import { isNumberStyle, numberStyleForCountry, type NumberStyle } from "./number-style";
 import { ANSWER_LANGUAGES, answerLanguagesForCountry, checkAnswerLanguages, monthFirstIn } from "./numbers/languages";
 import { HIDDEN_CHARACTERS } from "./profile";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { checkProfile, COUNTRIES, type WorkspaceProfile } from "./workspace-profile";
 
 /** The longest name a workspace can have. */
 export const MAX_WORKSPACE_NAME = 80;
 
-// The demo is shared by every visitor: what one of them stored there, all the others would see.
 function assertManages(actor: Actor, what: string) {
   if (actor.key || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden(`Only Owners and Admins change the workspace's ${what}.`);
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo keeps its settings.");
 }
 
 /** The workspace's name. */

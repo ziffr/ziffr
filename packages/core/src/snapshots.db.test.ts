@@ -2,7 +2,7 @@
 // write, show and delete them; what they keep for each period; and that their numbers never change.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { createDashboard, placeWidget, removeWidget, saveDashboardText } from "./dashboards";
 import { dashboardWidgets } from "./page-data";
 import { share } from "./sharing";
@@ -277,12 +277,12 @@ describe("the demo's Snapshots", () => {
     const DEMO = "d3e00000-0000-4000-8000-000000000001";
     const { data: dash } = await db().from("dashboards").select("id, owner_id").eq("workspace_id", DEMO).eq("name", "October in short").single();
     const owner = { personId: dash!.owner_id as string, workspaceId: DEMO, role: "owner" as const };
-    // Start from none, as after a reset.
-    for (const s of await listSnapshots(owner, dash!.id)) await deleteSnapshot(owner, s.id);
+    // Start from none, as after a reset; only the seed may change the demo (#271).
+    await seedingDemo(async () => { for (const s of await listSnapshots(owner, dash!.id)) await deleteSnapshot(owner, s.id); });
     await seedDemoSnapshots("2026-11-15");
     const list = await listSnapshots(owner, dash!.id);
     expect(list.map((s) => [s.label, Boolean(s.shownAt)])).toEqual([["October 2026", true], ["September 2026", true]]);
-    for (const s of list) await deleteSnapshot(owner, s.id);
+    await seedingDemo(async () => { for (const s of list) await deleteSnapshot(owner, s.id); });
   });
 });
 

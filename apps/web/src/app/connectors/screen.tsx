@@ -1,7 +1,8 @@
 "use client";
 // Connectors, Delivery Preferences and the Outbox (GLOSSARY). Email goes out for real once it is set up (spec 0004);
-// for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering.
-import { isActionError, shown as refusal, unwrap } from "@/lib/action-error";
+// for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering: they say
+// what would happen, and save nothing (#271).
+import { isActionError, shown as refusal, unwrap, type ActionError } from "@/lib/action-error";
 import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -41,8 +42,8 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
  * Slack workspace is connected (spec 0007). */
 export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, tokens, optedOut, email, demo, slack = "off", telegram = "off", ways = [] }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; optedOut: boolean; email: "off" | "send" | "both"; demo: boolean; slack?: "off" | "connected"; telegram?: "off" | "on"; ways?: WayState[] }) {
   const [pending, start] = useTransition();
-  // Asking and reminding by hand is what the schedule does each morning: in the demo anyone plays it; elsewhere
-  // owners and admins get it as a fallback, explained, and members do not see it.
+  // Asking and reminding by hand is what the schedule does each morning: in the demo anyone sees it (and is told the
+  // demo can't be changed); elsewhere owners and admins get it as a fallback, explained, and members do not see it.
   const runNow = (
     <span className="flex flex-wrap gap-2">
       <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
@@ -128,11 +129,11 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="o-h" className="text-[length:var(--text-lg)]">Outbox</h2>
-            <p className="mt-1 text-sm text-muted-foreground">What Ziffr sent, newest first, as it looks on the other side.{demo ? " Answer as the recipient to see it come back." : ""}</p>
+            <p className="mt-1 text-sm text-muted-foreground">What Ziffr sent, newest first, as it looks on the other side.{demo ? " Answer as the recipient to see what would come back." : ""}</p>
           </div>
         </div>
         {demo ? (
-          <DemoControls className="mt-4" hint="In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning. Here you start it by hand.">{runNow}</DemoControls>
+          <DemoControls className="mt-4" hint="In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning, and an Owner or Admin can start it here.">{runNow}</DemoControls>
         ) : isOwner && (
           <details className="mt-4 rounded-[var(--radius-card)] border border-border p-4 text-sm">
             <summary className="cursor-pointer font-medium">Run now</summary>
@@ -164,7 +165,8 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
   // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
   const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
   const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
-  const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { unwrap(await f()); toast.success(ok); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: refusal(err) }); } });
+  // In the demo nothing is saved: the answer says what would have happened.
+  const play = (f: () => Promise<string | ActionError>) => start(async () => { try { toast.info("Not saved: this is the demo", { description: unwrap(await f()) }); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: refusal(err) }); } });
 
   return (
     <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
@@ -191,7 +193,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
           {!open ? (
             <div className="flex flex-wrap gap-1">
               {canReply && <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>Answer as {to}</Button>}
-              {canClose && <Button variant="ghost" size="sm" disabled={pending} onClick={() => run(() => simulateTicketClose(d.id), "Ticket closed: the task is done in Ziffr")}>Close ticket as {to}</Button>}
+              {canClose && <Button variant="ghost" size="sm" disabled={pending} onClick={() => play(() => simulateTicketClose(d.id))}>Close ticket as {to}</Button>}
             </div>
           ) : (
             <form className="space-y-2" onSubmit={(e) => {
@@ -199,10 +201,10 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
               if (isPrompt) start(async () => {
                 const r = await simulatePromptAnswer(d.id, reply);
                 if (isActionError(r)) { toast.error("Not recorded", { description: r.error }); return; }
-                (r.ok ? toast.success : toast.error)(r.ok ? "Value recorded" : "Not recorded", { description: r.detail });
+                (r.ok ? toast.info : toast.error)(r.ok ? "Would be recorded; not saved in the demo" : "Would not be recorded", { description: r.detail });
                 if (r.ok) { setOpen(false); setReply(""); }
               });
-              else run(() => simulateReply(d.id, reply), `${to}'s answer is in the thread`);
+              else play(() => simulateReply(d.id, reply));
             }}>
               <Textarea rows={2} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={`Answer as ${to} in ${c.label}`} aria-label={`Answer as ${to}`} autoFocus />
               <p className="text-xs text-muted-foreground">{isPrompt ? "Reply with the number, e.g. 42, or a breakdown with one row per line." : c.replyHint}</p>

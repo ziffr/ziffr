@@ -2,7 +2,6 @@
 // Workflows run. Days in Ziffr (periods, Due Dates, Away) are calendar days; this says which one "today" is for a team.
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
 
 /** A workspace's time zone and the hour (0–23) its Workflows run. */
@@ -35,7 +34,6 @@ export async function workspaceClock(actor: Actor): Promise<WorkspaceClock> {
 /** Sets the workspace's time zone and run hour, for Owners and Admins. Not in the demo, which is never scheduled. */
 export async function setWorkspaceClock(actor: Actor, clock: WorkspaceClock): Promise<void> {
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins set the workspace's time.");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo keeps its own time.");
   if (!knownTimeZone(clock?.timeZone)) throw new Error("Pick a time zone from the list.");
   const hour = Number(clock.runHour);
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error("Pick an hour from 0 to 23.");

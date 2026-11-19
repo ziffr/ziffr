@@ -1,6 +1,8 @@
 "use client";
+// The demo's pretend Slack channel and inbox (GLOSSARY: Demo Mode, Source): a message sent here goes through the same
+// checks as a real one, and the answer says what would have happened. The demo can't be changed (#271), so nothing is
+// saved: what was tried stays on this screen only, marked so, until the page is left.
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AtSign, Bot, Hash, Mail, Reply, Send } from "lucide-react";
 import { simulateMessage } from "@/app/actions";
@@ -19,8 +21,10 @@ type Props = {
   metricNames: Record<number, string>;
 };
 
+/** A message tried in this visit, with what it would have done; kept in the browser only. */
+type Tried = { id: number; at: string; sender: string; raw: string; outcome: string; detail: string };
+
 export function Simulator({ source, prompts, log, profiles, viewer, metricNames }: Props) {
-  const router = useRouter();
   const ident = (p: Profile) => (source === "slack" ? p.slack_handle : p.email);
   const stranger = source === "slack" ? "@max.stranger" : "max@unknown.example";
   const me = profiles.find((p) => p.id === viewer);
@@ -28,21 +32,22 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<Prompt | null>(null);
   const [pending, start] = useTransition();
+  const [tried, setTried] = useState<Tried[]>([]);
   const byIdent = Object.fromEntries(profiles.map((p) => [ident(p), p]));
 
   // Interleave Prompts and messages into one timeline.
   const timeline = [
     ...prompts.map((p) => ({ kind: "prompt" as const, at: p.sent_at, p })),
     ...log.map((l) => ({ kind: "msg" as const, at: l.at, l })),
+    ...tried.map((t) => ({ kind: "tried" as const, at: t.at, t })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   const send = () =>
     start(async () => {
       const r = await simulateMessage({ source, sender, text, promptId: replyTo?.id });
-      (r.ok ? toast.success : toast.error)(r.ok ? "Recorded" : "Not recorded", { description: r.detail });
+      setTried((list) => [...list, { id: list.length, at: new Date().toISOString(), sender, raw: text, outcome: r.outcome, detail: r.detail }]);
       setText("");
       setReplyTo(null);
-      router.refresh();
     });
 
   const Icon = source === "slack" ? Hash : Mail;
@@ -78,6 +83,17 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
                   )}
                 </div>
               </li>
+            ) : t.kind === "tried" ? (
+              <li key={`t${t.t.id}`} className="flex gap-2.5">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-medium text-white" style={{ background: byIdent[t.t.sender]?.color ?? "var(--color-muted)" }}>
+                  {(byIdent[t.t.sender]?.name ?? t.t.sender.replace(/^@/, ""))[0].toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs"><span className="font-semibold">{byIdent[t.t.sender]?.name ?? t.t.sender}</span> <span className="text-muted-foreground">{format(new Date(t.at), "d MMM HH:mm")}, not saved</span></div>
+                  <div className="text-sm whitespace-pre-wrap">{t.t.raw}</div>
+                  <Outcome outcome={t.t.outcome} detail={t.t.detail} would />
+                </div>
+              </li>
             ) : (
               <li key={`m${t.l.id}`} className="flex gap-2.5">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-medium text-white" style={{ background: byIdent[t.l.sender]?.color ?? "var(--color-muted)" }}>
@@ -86,7 +102,7 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
                 <div className="min-w-0 flex-1">
                   <div className="text-xs"><span className="font-semibold">{byIdent[t.l.sender]?.name ?? t.l.sender}</span> <span className="text-muted-foreground">{format(new Date(t.at), "d MMM HH:mm")}</span></div>
                   <div className="text-sm whitespace-pre-wrap">{t.l.raw}</div>
-                  <Outcome entry={t.l} metricName={t.l.metric_id ? metricNames[t.l.metric_id] : undefined} />
+                  <Outcome outcome={t.l.outcome} detail={t.l.detail} token={t.l.token_code} metricName={t.l.metric_id ? metricNames[t.l.metric_id] : undefined} />
                 </div>
               </li>
             ),
@@ -124,6 +140,7 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
   overwritten: { label: "Overwritten", ok: true },
   added: { label: "Added up", ok: true },
   kept_both: { label: "Kept both", ok: true },
+  proposed_locked: { label: "Proposed as a correction", ok: true },
   rejected_duplicate: { label: "Rejected: duplicate", ok: false },
   rejected_no_token: { label: "Rejected: may not submit this metric", ok: false },
   rejected_unknown_sender: { label: "Rejected: unknown sender", ok: false },
@@ -139,14 +156,16 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
   rejected_not_a_period: { label: "Asked back: not one of the metric's periods", ok: false },
 };
 
-function Outcome({ entry, metricName }: { entry: IntakeEntry; metricName?: string }) {
-  const o = OUTCOME[entry.outcome] ?? { label: entry.outcome, ok: false };
+/** What a message did, or for one tried in the demo (`would`), what it would have done. */
+function Outcome({ outcome, detail, token, metricName, would }: { outcome: string; detail: string; token?: string | null; metricName?: string; would?: boolean }) {
+  const o = OUTCOME[outcome] ?? { label: outcome, ok: false };
   return (
     <div className={cn("mt-1 rounded-md border px-2 py-1 text-xs", o.ok ? "border-[var(--color-rule-2)] bg-[var(--color-paper-2)]" : "border-destructive/30 bg-destructive/5")}>
+      {would && <span className="text-muted-foreground">Would be: </span>}
       <span className={cn("font-semibold", o.ok ? "text-[var(--color-success)]" : "text-destructive")}>{o.label}</span>
       {metricName && <span className="text-muted-foreground"> for {metricName}</span>}
-      {entry.token_code && <span className="text-muted-foreground"> with token <code className="fig">{entry.token_code}</code></span>}
-      <div className="text-muted-foreground">{entry.detail}</div>
+      {token && <span className="text-muted-foreground"> with token <code className="fig">{token}</code></span>}
+      <div className="text-muted-foreground">{detail}</div>
     </div>
   );
 }

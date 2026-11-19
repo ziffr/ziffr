@@ -4,12 +4,11 @@
 // by the address the workspace keeps for them. A stored Slack handle is never used: display names in Slack are
 // neither unique nor stable, and nobody proved one.
 import { randomBytes } from "node:crypto";
-import { Forbidden, type Actor } from "./actor";
+import type { Actor } from "./actor";
 import { db } from "./db";
 import { addressIn } from "./mail";
 import { callSlack, SlackError } from "./slack-api";
 import { slackBot, type SlackBot } from "./slack-connection";
-import { DEMO_WORKSPACE_ID } from "./team";
 
 /** How long a link code works. */
 const CODE_MINUTES = 10;
@@ -85,7 +84,6 @@ export async function personOfSlackUser(workspaceId: string, teamId: string, sla
 /** A one-time code the actor sends the bot to link their Slack account, valid ten minutes. Members only: a Contact
  * has no login to make one. Making a new one ends the last. */
 export async function startSlackLink(actor: Actor): Promise<{ code: string; minutes: number }> {
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo does not connect to Slack.");
   if (!(await slackBot(actor.workspaceId))) throw new Error("Slack is not connected here.");
   // 80 random bits: nobody on the Slack workspace can guess a code that is waiting, in ten minutes or ever.
   const bytes = randomBytes(10);

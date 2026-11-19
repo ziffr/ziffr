@@ -2,13 +2,14 @@
 // one Slack workspace with "Add to Slack" (OAuth v2) and can disconnect it. The bot token is sealed before it is
 // stored (secrets.ts) and only the core's Slack sending opens it: no loader returns it, no page sees it.
 import { randomBytes } from "node:crypto";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { openSecretRotating, sealSecret } from "./secrets";
 import { settingsInEffect } from "./settings-in-effect";
 import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./slack-api";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { refuseInDemo } from "./demo";
 
 /** The bot scopes the Slack app asks for: post, open a direct message, read direct messages, find people by address. */
 export const SLACK_SCOPES = ["chat:write", "im:write", "im:history", "users:read", "users:read.email"];
@@ -27,8 +28,8 @@ const redirectUri = () => `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, 
 
 function mayManage(actor: Actor) {
   assertCan(actor, "manage-members");
-  // The demo is shared by every visitor: it never reaches a real Slack workspace.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo does not connect to Slack.");
+  // Before Slack is called: the demo never reaches a real Slack workspace.
+  refuseInDemo(actor);
 }
 
 /** Starts "Add to Slack" for an Owner or Admin: a one-time state bound to them and their workspace, and the address

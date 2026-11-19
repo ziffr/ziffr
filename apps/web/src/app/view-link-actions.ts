@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
-import { isDemo } from "@/lib/auth";
 import * as links from "@ziffr/core/view-links";
 import { listSnapshots } from "@ziffr/core/snapshots";
 
@@ -15,8 +14,6 @@ export async function listViewLinks(type: "dashboard" | "deck", id: number) {
 /** Makes a View Link; returns its token. */
 export async function createViewLink(type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }) {
   return attempt(async () => {
-    // Visitors share the demo: a View Link from it would let anyone publish their own text under this site.
-    if (await isDemo()) throw new Error("View Links cannot be made in the demo.");
     const token = await links.createViewLink(await currentActor(), type, Number(id), { label: String(input?.label ?? ""), expires: String(input?.expires ?? ""), frozen: Boolean(input?.frozen), snapshotId: input?.snapshotId === null || input?.snapshotId === undefined ? null : Number(input.snapshotId) });
     revalidatePath("/", "layout");
     return token;

@@ -24,7 +24,7 @@ if (push.status !== 0) {
 
 const demoDone = `${DIR}/state/demo-filled`;
 if (env.ZIFFR_DEMO !== "0" && !existsSync(demoDone)) {
-  // Through PostgREST with the service role, as the app's own reset does: demo_reset is granted to nothing else.
+  // Through PostgREST with the service role, as the nightly job does: demo_reset is granted to nothing else.
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/demo_reset`, {
     method: "POST",
     headers: {
@@ -35,7 +35,7 @@ if (env.ZIFFR_DEMO !== "0" && !existsSync(demoDone)) {
     body: JSON.stringify({ min_gap: "0 seconds" }),
   });
   if (!res.ok) {
-    // The demo is not worth stopping the Installation for; visitors can fill it in from the login page.
+    // The demo is not worth stopping the Installation for; the next start tries again, as does the nightly job.
     console.error(`Ziffr: the demo could not be filled in (${res.status}): ${(await res.text()).slice(0, 300)}`);
   } else {
     writeFileSync(demoDone, new Date().toISOString() + "\n");

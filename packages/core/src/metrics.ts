@@ -13,7 +13,6 @@ import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
 import { deckMetricIds } from "./visibility";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows } from "./workspace-data";
 import { getShares } from "./access";
 import { feedIdsAmong } from "./feed-people";
@@ -203,7 +202,6 @@ export class MetricKept extends Error {
  * The Audit Log keeps who deleted it and its name. Returns how many values went with it. */
 export async function deleteMetric(actor: Actor, metricId: number, confirmName: string, origin: { accessKeyId?: number } = {}): Promise<{ values: number }> {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's Metrics stay.");
   const ws = actor.workspaceId;
   const { data: m } = await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner deletes it.");

@@ -1,7 +1,7 @@
 // Opting out of email (spec 0004, ticket #74; GLOSSARY: Prompt, Delivery). Every Prompt and reminder by email has a
 // one-click link (RFC 8058) with a token of its own; using it stops Prompts and reminders by email for that person in
 // that workspace, and the owners of the Metrics concerned are told. Questions, tasks and Thread replies keep coming.
-import { Forbidden, type Actor } from "./actor";
+import type { Actor } from "./actor";
 import { db } from "./db";
 import { openNames } from "./sealed-columns";
 import { deliverNotice } from "./deliveries";
@@ -71,7 +71,6 @@ export async function emailOptedOut(actor: Actor): Promise<boolean> {
 /** The actor stops Prompts and reminders by email in their workspace, as the link in such an email does. Only for
  * themselves, and not in the demo, whose made-up people get no email. */
 export async function optOutOfEmail(actor: Actor): Promise<void> {
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo sends no email.");
   await stopEmail(actor.workspaceId, actor.personId);
 }
 

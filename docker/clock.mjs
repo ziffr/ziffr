@@ -25,8 +25,8 @@ async function call(job) {
   }
 }
 
-// A public demo (ZIFFR_DEMO_ONLY=1, set by docker/init.mjs): the demo starts clean every night, at 03:30 UTC, away
-// from the hour when Workflows run.
+// A public demo (ZIFFR_DEMO_ONLY=1, set by docker/init.mjs): the demo is seeded again every night, at 03:30 UTC, away
+// from the hour when Workflows run, so its made-up history keeps reaching up to today (visitors cannot change it).
 const DEMO_RESET = process.env.ZIFFR_DEMO_RESET === "1";
 // A Ziffr that offers trials (spec 0021): reminders, closing and deleting of trials, every hour at twenty past.
 const TRIAL_CLEANUP = process.env.ZIFFR_TRIAL_CLEANUP === "1";

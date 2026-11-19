@@ -31,7 +31,7 @@ export default async function WorkspaceSettingsPage() {
   const canEdit = !demo && (actor.role === "owner" || actor.role === "admin");
   return (
     <>
-      <PageHeader title="Workspace" sub={canEdit ? "The workspace's name, its day, when its year starts, how it writes and reads numbers and computes Attainment, and what kind of business it is." : demo ? "The demo keeps its settings." : "Only Owners and Admins change these."} />
+      <PageHeader title="Workspace" sub={canEdit ? "The workspace's name, its day, when its year starts, how it writes and reads numbers and computes Attainment, and what kind of business it is." : demo ? "The demo can't be changed." : "Only Owners and Admins change these."} />
       <div className="max-w-2xl space-y-8">
         <WorkspaceNameForm name={name} canEdit={canEdit} />
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { getMetric, listGroups, listMetrics, listObservations, listPeople } from "./api";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { share } from "./sharing";
 import { createGroup } from "./team";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -39,9 +39,11 @@ describe("listMetrics", () => {
     const w = await ws(); const ben = await w.person("member");
     const { id, secret } = await createAccessKey(w.actor(ben, "member"), { name: "Moved", scopes: ["metrics:read"], expiresOn: inDays(30) });
     expect(await actorForKey(secret)).not.toBeNull();
-    const { error } = await db().from("access_keys").update({ workspace_id: DEMO_WORKSPACE_ID }).eq("id", id);
+    // Only the demo's seed can put a row there (#271).
+    const { error } = await seedingDemo(async () => db().from("access_keys").update({ workspace_id: DEMO_WORKSPACE_ID }).eq("id", id));
     expect(error).toBeNull();
     expect(await actorForKey(secret)).toBeNull();
+    await seedingDemo(async () => { await db().from("access_keys").delete().eq("id", id); });
   });
 });
 

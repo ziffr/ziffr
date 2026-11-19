@@ -19,7 +19,6 @@ import { setWorkflowCheck } from "./workflows";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { isPeriodStart, periodStart } from "./periods";
 import { normalizeMetric } from "./metric-row";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { getMetrics, getSeriesValues } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import type { Metric, SourceId } from "./types";
@@ -104,7 +103,6 @@ async function splitSubmitters(creator: Actor, ids: unknown): Promise<{ people: 
  * too: each one gets a first Prompt, so naming others reaches people. Everything is checked before the Metric exists. */
 export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMetricInput, effects: MetricEffects = metricEffects): Promise<ApiMetric> {
   assertScope(actor, "metrics:write");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   // The key's creator, with their role as it is now (actorForKey reads it on every call).
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
   const sources = input.sources === undefined ? SOURCE_IDS : sourcesFrom(input.sources);
@@ -142,7 +140,6 @@ export async function deleteMetricWithKey(actor: Actor | KeyActor, slug: string,
  * and the key as the origin the Audit Log names. Never in the demo, which has no Access Keys. */
 async function writableByKey(actor: Actor | KeyActor, slug: string) {
   assertScope(actor, "metrics:write");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const metrics = await getMetrics(actor.workspaceId);
   const m = metrics.find((x) => x.slug === String(slug));
   // A Metric that is missing, of another workspace or hidden from the creator is refused without a reason (404).
@@ -187,7 +184,6 @@ export type ApiMetricPatch = {
  * no longer create (now a Guest) is refused with one. Whether they may change this Metric is the core's check after. */
 async function changeableByKey(actor: Actor | KeyActor, slug: string): Promise<{ creator: Actor; metric: Metric }> {
   assertScope(actor, "metrics:edit");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const metrics = await getMetrics(actor.workspaceId);
   const metric = metrics.find((x) => x.slug === String(slug));
   if (!metric || !(await visibleMetricIds(actor.workspaceId, actor.personId, metrics)).has(metric.id)) throw new Forbidden();
@@ -328,7 +324,6 @@ export async function unusualValueCheckWithKey(actor: Actor | KeyActor, slug: st
  * A Workflow without a check step gets none here: steps are added in Ziffr. The Workflow's history names the key. */
 export async function setUnusualValueCheckWithKey(actor: Actor | KeyActor, slug: string, change: { change_pct?: number; outside_target?: boolean }): Promise<ApiUnusualValueCheck> {
   assertScope(actor, "metrics:edit");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const { wf } = await checkOf(actor, slug);
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
   if (!can(creator, "create")) throw new Forbidden("The key's creator's role may not change Metrics.");

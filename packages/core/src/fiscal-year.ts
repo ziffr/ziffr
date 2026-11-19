@@ -5,7 +5,6 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { isPeriodStart, isYearStart, JANUARY, periodLabel, toYearStart, type Span, type YearStart } from "./periods";
-import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The year start of a workspace, for code that has already checked who may see it. */
 export async function yearStartOf(workspaceId: string): Promise<YearStart> {
@@ -80,8 +79,6 @@ async function choicesIn(ws: string): Promise<YearStartChoices & { stored: Store
  * the new names ("Q1 FY 2026/27"), so a Snapshot is called what its period is called everywhere else. */
 export async function setYearStart(actor: Actor, month: unknown): Promise<YearStart> {
   if (actor.key || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden("Only Owners and Admins change when the workspace's year starts.");
-  // The demo is shared by every visitor: what one of them set there, all the others would see.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo keeps its settings.");
   if (!isYearStart(month)) throw new Error("Pick a month from the list.");
   const choices = await choicesIn(actor.workspaceId);
   if (month === choices.yearStart) return month;

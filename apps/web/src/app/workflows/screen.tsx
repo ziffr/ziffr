@@ -155,7 +155,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               {schedule ? (
                 <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = unwrap(await runTodayNow()); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
               ) : (
-                <DemoControls hint="In a real workspace Workflows run by themselves every morning. Here you pick the day and run them.">
+                <DemoControls hint="In a real workspace Workflows run by themselves every morning. Pick a day to see the Workflows as they stand then.">
                   <div className="space-y-2">
                     <label className="block text-xs">
                       <span className="mb-1 block font-medium">Pretend today is</span>

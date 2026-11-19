@@ -2,7 +2,7 @@
 // their own name and colour, never in the demo or as one of its people; stops and restarts email for themselves.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { emailOptedOut, optBackIn, optOutOfEmail } from "./email-opt-out";
 import { cleanName, myDeliverySettings, myProfile, PERSON_COLORS, updateMyProfile } from "./profile";
 import { setPreference } from "./questions";
@@ -41,11 +41,12 @@ describe("your profile", () => {
   it("refuses the demo, the demo's people anywhere, and someone not in the workspace", async () => {
     const w = await ws(); const other = await ws(); const sara = await w.person("owner"); const zoe = await other.person("owner");
     await expect(updateMyProfile({ personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, { name: "Mallory" })).rejects.toEqual(expect.any(Forbidden));
-    await db().from("memberships").insert({ workspace_id: DEMO_WORKSPACE_ID, user_id: sara, role: "member" });
+    // A person of the demo keeps their name wherever they act: the database refuses it (#271).
+    await seedingDemo(async () => { await db().from("memberships").insert({ workspace_id: DEMO_WORKSPACE_ID, user_id: sara, role: "member" }); });
     try {
       await expect(updateMyProfile(w.actor(sara), { name: "Mallory" })).rejects.toEqual(expect.any(Forbidden));
     } finally {
-      await db().from("memberships").delete().eq("workspace_id", DEMO_WORKSPACE_ID).eq("user_id", sara);
+      await seedingDemo(async () => { await db().from("memberships").delete().eq("workspace_id", DEMO_WORKSPACE_ID).eq("user_id", sara); });
     }
     await expect(updateMyProfile({ personId: zoe, workspaceId: w.id, role: "owner" }, { name: "Mallory" })).rejects.toEqual(expect.any(Forbidden));
     const contact = await w.contact({ email: "c@example.test" });

@@ -374,7 +374,7 @@ Ziffr refuses to delete a Metric while something still uses it, and says what:
 - it is shown in a widget or a deck (take it out first),
 - a **View Link** that still works shows it (revoke the link first).
 
-The demo's Metrics cannot be deleted, since every visitor shares them.
+The demo's Metrics cannot be deleted: the demo can't be changed.
 
 ## Locks and corrections on a Metric
 

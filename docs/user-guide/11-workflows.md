@@ -92,7 +92,7 @@ The panel also shows the last run: when it was, whether it was started by hand, 
 
 If the panel says that nothing has run by the clock yet, whoever runs Ziffr for this workspace still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
 
-**In the demo**, last month's close is under way when you open it: earlier months are published (and locked on **Monthly finance close**), Orders and Cost for last month are published and locked, Revenue waits for Ben's approval, and Return rate is still waited for. Nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is**, then choose **Run workflows**. A list shows what happened on that day, such as who was asked or reminded.
+**In the demo**, last month's close is under way when you open it: earlier months are published (and locked on **Monthly finance close**), Orders and Cost for last month are published and locked, Revenue waits for Ben's approval, and Return rate is still waited for. Nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is** to see the Workflows as of that day. **Run workflows** says "The demo can't be changed.", since running them would save Prompts and reminders.
 
 ### Close the period
 
