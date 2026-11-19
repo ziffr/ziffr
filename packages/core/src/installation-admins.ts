@@ -181,6 +181,13 @@ export async function recordInstallationEvent(by: string, kind: string, subject:
   }
 }
 
+/** Records an event Ziffr itself did, not a person (such as deleting an ended trial): by "Ziffr", about a subject
+ * that names no person and no Workspace by name, such as a Workspace's id. Best effort, like the Audit Log. */
+export async function recordInstallationSystemEvent(kind: string, subject: string): Promise<void> {
+  const { error } = await db().from("installation_audit_events").insert({ actor_id: null, actor_name: "Ziffr", kind, subject: String(subject).slice(0, 120) });
+  if (error) console.error(`Installation audit: could not record ${kind} (${error.code ?? "error"})`);
+}
+
 /** The latest events of the Installation's own audit, newest first, for an Installation Admin. */
 export async function installationEvents(actor: InstallationActor, limit = 30): Promise<InstallationEvent[]> {
   await assertInstallationAdmin(actor);

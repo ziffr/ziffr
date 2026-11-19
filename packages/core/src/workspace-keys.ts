@@ -225,6 +225,20 @@ export function forgetWorkspaceKey(workspaceId: string): void {
   cache.delete(workspaceId.toLowerCase());
 }
 
+/** Destroys every version of a Workspace's key (spec 0028, ticket #249): deleting a Workspace does this first, so
+ * whatever of it is left anywhere, half-deleted rows or any copy made from now on, cannot be opened with what the
+ * Installation keeps. The Workspace stays marked as keyed, so no new key is ever made for it. This process forgets
+ * the key at once; others within the 10 minutes their cache keeps it. Never undone. */
+export async function destroyWorkspaceKeys(workspaceId: string): Promise<void> {
+  const id = workspaceId.toLowerCase();
+  if (!UUID.test(id)) throw new Error("Not a Workspace id.");
+  forgetWorkspaceKey(id);
+  const { error } = await db().from("workspace_keys").delete().eq("workspace_id", id);
+  if (error) throw new Error("The Workspace Key could not be destroyed.");
+  // Forgotten again: a request in this process may have loaded it while the rows were being deleted.
+  forgetWorkspaceKey(id);
+}
+
 type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: string | null };
 
 /** Wraps a key again under the current Installation key, only if nobody changed its row since it was read. A failure

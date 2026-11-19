@@ -80,4 +80,4 @@ Replies by email, the check against bots, trials and the demo are listed with wh
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, and test emails. It names the setting, never its value.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, and test emails. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name: the Workspace was deleted and its key destroyed, so nothing left of it can be read.

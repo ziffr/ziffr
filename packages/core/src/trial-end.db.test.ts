@@ -1,7 +1,7 @@
 // The end of a Trial Workspace, against the real database (spec 0021, ticket 9): one reminder the day before, closing
 // at the end, deletion a week later with everything and everyone in it, ending it now, and its values as CSV.
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { actorForSecret, createAccessKey } from "./access-keys";
 import { db } from "./db";
@@ -9,6 +9,7 @@ import { createFeed } from "./feeds";
 import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialValuesCsv } from "./trial-end";
 import { workspace } from "./test/db-fixtures";
 import { setNumberStyle } from "./workspace-settings";
+import { ensureWorkspaceKey, forgetWorkspaceKey, workspaceCipher } from "./workspace-keys";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c().catch(() => {}); });
@@ -132,5 +133,85 @@ describe("a trial's values as CSV", () => {
     expect(semi[2]).toContain('"2026-10-01";"0,000123"');
     await setNumberStyle(t.ownerActor, "1'234.5");
     expect((await trialValuesCsv(t.ownerActor)).split("\r\n")[1]).toContain('"2026-09-01","-1234.25"');
+  });
+});
+
+describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => {
+  const saved = process.env.ZIFFR_SECRETS_KEY;
+  beforeEach(() => { process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 77).toString("base64"); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (saved === undefined) delete process.env.ZIFFR_SECRETS_KEY;
+    else process.env.ZIFFR_SECRETS_KEY = saved;
+  });
+  const at = { table: "thread_messages", column: "body", row: 1 };
+
+  /** Records which tables rows are deleted from, in order; `failOn` makes that table's delete fail. */
+  function watchDeletes(failOn?: string) {
+    const deleted: string[] = [];
+    const client = db();
+    const from = client.from.bind(client);
+    vi.spyOn(client, "from").mockImplementation(((table: string) => {
+      const builder = from(table);
+      const remove = builder.delete.bind(builder);
+      builder.delete = ((...args: Parameters<typeof remove>) => {
+        deleted.push(table);
+        if (table === failOn) return { eq: () => ({ not: async () => ({ error: { message: "down" } }) }) } as never;
+        return remove(...args);
+      }) as typeof builder.delete;
+      return builder;
+    }) as typeof client.from);
+    return deleted;
+  }
+
+  it("before any of its rows, and leaves other Workspaces' keys alone", async () => {
+    const t = await trial(-8 * 24);
+    const other = await trial(48);
+    await ensureWorkspaceKey(t.id);
+    await ensureWorkspaceKey(other.id);
+    const sealedOther = (await workspaceCipher(other.id)).seal(at, "still ours");
+    const deleted = watchDeletes();
+    await endTrialNow(t.actor(t.owner)).catch(() => {});
+    await deleteExpiredTrials();
+    vi.restoreAllMocks();
+    expect(deleted.indexOf("workspace_keys")).toBeGreaterThanOrEqual(0);
+    expect(deleted.indexOf("workspace_keys")).toBeLessThan(deleted.indexOf("workspaces"));
+    expect((await db().from("workspace_keys").select("version").eq("workspace_id", t.id)).data).toEqual([]);
+    forgetWorkspaceKey(other.id);
+    expect((await workspaceCipher(other.id)).open(at, sealedOther)).toBe("still ours");
+  });
+
+  it("so a deletion that stops half-way leaves nothing that opens, and no new key is made", async () => {
+    const t = await trial(48);
+    await ensureWorkspaceKey(t.id);
+    const sealed = (await workspaceCipher(t.id)).seal(at, "the trial's words");
+    watchDeletes("workspaces");
+    await expect(endTrialNow(t.actor(t.owner))).rejects.toThrow(/could not be deleted/);
+    vi.restoreAllMocks();
+    // The Workspace is still there, its key is not, and it cannot be given a new one.
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
+    await expect(workspaceCipher(t.id)).rejects.toThrow(/key is gone/);
+    await expect(ensureWorkspaceKey(t.id)).rejects.toThrow(/key is gone/);
+    expect(sealed).not.toContain("words");
+    // The next try finishes the deletion.
+    await endTrialNow(t.actor(t.owner));
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).toBeNull();
+  });
+
+  it("is recorded in the Installation's audit by the Workspace's id, never its name", async () => {
+    const t = await trial(48);
+    await ensureWorkspaceKey(t.id);
+    await endTrialNow(t.actor(t.owner));
+    const { data } = await db().from("installation_audit_events").select("actor_id, actor_name, kind, subject").eq("subject", t.id);
+    expect(data).toEqual([{ actor_id: null, actor_name: "Ziffr", kind: "workspace.deleted", subject: t.id }]);
+  });
+
+  it("is never done for a workspace that is not a trial", async () => {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    await ensureWorkspaceKey(w.id);
+    await expect(endTrialNow(w.actor(sara))).rejects.toBeInstanceOf(Forbidden);
+    expect((await db().from("workspace_keys").select("version").eq("workspace_id", w.id)).data).toHaveLength(1);
   });
 });
