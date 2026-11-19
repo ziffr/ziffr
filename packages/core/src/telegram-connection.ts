@@ -69,19 +69,28 @@ function mayManage(actor: Actor) {
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo does not use Telegram.");
 }
 
+/** Why Telegram cannot send answers to a Ziffr without an https address. */
+export const TELEGRAM_NEEDS_HTTPS = "Telegram needs ZIFFR_SITE_URL with https, or ZIFFR_TELEGRAM_POLLING=1 on a laptop.";
+
+/** Where Telegram sends this Ziffr's updates, or null without an https ZIFFR_SITE_URL, which Telegram requires. */
+export function telegramWebhookUrl(settings: Settings): string | null {
+  const site = String(settings.ZIFFR_SITE_URL ?? "").replace(/\/+$/, "");
+  return /^https:\/\/[^\s/]+$/.test(site) ? `${site}/api/telegram/updates` : null;
+}
+
 /** Points Telegram's webhook at this Ziffr, with the secret it must send back. Installation-wide, so registering it
  * again for another workspace changes nothing. Not with polling, which fetches updates itself. With the settings in
  * effect, unless others are given (a token just saved on the page). */
 export async function registerTelegramWebhook(given?: Settings): Promise<"registered" | "polling"> {
   const settings = given ?? (await settingsInEffect());
   if (telegramPolling(settings)) return "polling";
-  const site = String(settings.ZIFFR_SITE_URL ?? "").replace(/\/+$/, "");
-  if (!/^https:\/\/[^\s/]+$/.test(site)) throw new Error("Telegram needs ZIFFR_SITE_URL with https, or ZIFFR_TELEGRAM_POLLING=1 on a laptop.");
+  const url = telegramWebhookUrl(settings);
+  if (!url) throw new Error(TELEGRAM_NEEDS_HTTPS);
   const token = telegramToken(settings);
   const secret = telegramWebhookSecret(settings);
   if (!token || !secret) throw new TelegramError("not_configured");
   await callTelegram("setWebhook", {
-    url: `${site}/api/telegram/updates`,
+    url,
     secret_token: secret,
     allowed_updates: TELEGRAM_UPDATES,
     max_connections: 10,

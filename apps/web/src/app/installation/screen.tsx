@@ -37,7 +37,8 @@ async function report(p: Promise<Result>, done: string): Promise<boolean> {
 
 /** A word for how a section stands, never a coloured dot alone. */
 function Standing({ section }: { section: SectionView }) {
-  const word = section.working ? "Working" : section.ready ? "Not set up" : "Set on the server for now";
+  // A section with a reason below it (a bot Telegram cannot send answers through, say) is not merely unset.
+  const word = section.working ? "Working" : !section.ready ? "Set on the server for now" : section.detail ? "Not working" : "Not set up";
   return <span className={section.working ? "pressed text-xs" : "inline-flex items-center rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]"}>{word}</span>;
 }
 

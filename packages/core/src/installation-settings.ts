@@ -9,7 +9,7 @@ import { db } from "./db";
 import { headerSafe, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
-import { botUsername, forgetTelegramBot, registerTelegramWebhook, telegramBot } from "./telegram-connection";
+import { botUsername, forgetTelegramBot, registerTelegramWebhook, TELEGRAM_NEEDS_HTTPS, telegramBot, telegramWebhookUrl } from "./telegram-connection";
 import { callTelegram, TELEGRAM_TOKEN, TelegramError, telegramEnabled, telegramPolling, telegramToken } from "./telegram-api";
 import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
@@ -96,13 +96,29 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
+/** Why Telegram cannot send people's answers to this Ziffr, or null when it can (or polling fetches them, or Telegram
+ * could not be asked: then the bot's own answer decides). Asked fresh each time, so Check Telegram shows at once. */
+async function telegramCannotReach(settings: Record<string, string | undefined>): Promise<string | null> {
+  if (telegramPolling(settings)) return null;
+  const url = telegramWebhookUrl(settings);
+  if (!url) return `answers cannot arrive: ${TELEGRAM_NEEDS_HTTPS}`;
+  try {
+    const info = await callTelegram<{ url?: string }>("getWebhookInfo", {}, 0, telegramToken(settings)!);
+    return info?.url === url ? null : "Telegram does not send answers to this Ziffr. Choose Check Telegram to tell it.";
+  } catch {
+    return null;
+  }
+}
+
 /** Whether a section works with these settings, for the dot next to its title. */
 async function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): Promise<{ working: boolean; detail: string | null }> {
   if (id === "mail") return { working: mailEnabled(settings), detail: null };
   if (id === "telegram") {
     if (!telegramEnabled(settings)) return { working: false, detail: telegramToken(settings) ? "Needs ZIFFR_SECRETS_KEY on the server." : null };
     const bot = await telegramBot();
-    return bot ? { working: true, detail: `Bot @${bot.username}` } : { working: false, detail: "Telegram does not accept this token, or cannot be reached." };
+    if (!bot) return { working: false, detail: "Telegram does not accept this token, or cannot be reached." };
+    const unreachable = await telegramCannotReach(settings);
+    return unreachable ? { working: false, detail: `Bot @${bot.username} answers, but ${unreachable}` } : { working: true, detail: `Bot @${bot.username}` };
   }
   if (id === "slack") {
     if (slackEnabled(settings)) return { working: true, detail: null };
