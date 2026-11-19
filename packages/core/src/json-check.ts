@@ -75,10 +75,12 @@ export function parseJson(text: string, limits: TextLimits): Parsed {
       return fail("A text has an escape JSON does not know.");
     }
   };
-  const value = (path: string, depth: number): unknown => {
+  // `path` is null past the first LISTED entries of a list: no format allows a list that long, and the list itself is
+  // refused on its own line, so the entries need none. A file of many small values then costs no map of their paths.
+  const value = (path: string | null, depth: number): unknown => {
     if (depth > limits.maxDepth) fail(`The file is nested more than ${limits.maxDepth} levels deep.`);
     space();
-    lines.set(path, line);
+    if (path !== null) lines.set(path, line);
     const c = text[i];
     if (c === "{") {
       i++;
@@ -94,9 +96,9 @@ export function parseJson(text: string, limits: TextLimits): Parsed {
         space();
         if (text[i] !== ":") fail(`Expected “:” after “${k}”.`);
         i++;
-        const p = key(path, k);
+        const p = path === null ? null : key(path, k);
         const v = value(p, depth + 1);
-        lines.set(p, lines.get(p) ?? at);
+        if (p !== null) lines.set(p, lines.get(p) ?? at);
         // A plain record: "__proto__" and friends are data here, never the object's prototype.
         Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
         space();
@@ -111,7 +113,7 @@ export function parseJson(text: string, limits: TextLimits): Parsed {
       space();
       if (text[i] === "]") return i++, out;
       for (;;) {
-        out.push(value(`${path}[${out.length}]`, depth + 1));
+        out.push(value(path !== null && out.length < LISTED ? `${path}[${out.length}]` : null, depth + 1));
         space();
         if (text[i] === ",") { i++; continue; }
         if (text[i] === "]") { i++; return out; }
@@ -119,7 +121,8 @@ export function parseJson(text: string, limits: TextLimits): Parsed {
       }
     }
     if (c === '"') return string();
-    const lit = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(text.slice(i, i + 64));
+    LITERAL.lastIndex = i;
+    const lit = LITERAL.exec(text);
     if (!lit) return fail(i >= text.length ? "The file ends too early." : "Expected a value: a text in double quotes, a number, true, false, a list or an object.");
     i += lit[0].length;
     return JSON.parse(lit[0]);
@@ -134,6 +137,11 @@ export function parseJson(text: string, limits: TextLimits): Parsed {
     throw e;
   }
 }
+
+// How many entries of a list get a line of their own: more than any format allows in a list.
+const LISTED = 256;
+// A literal where a value starts: read in place (sticky), so a file of many numbers is not copied piece by piece.
+const LITERAL = /(?:true|false|null|-?(?:0|[1-9]\d{0,63})(?:\.\d{1,64})?(?:[eE][+-]?\d{1,4})?)/y;
 
 class ParseError extends Error {
   constructor(message: string, readonly line: number) {
@@ -218,4 +226,28 @@ function pick(branches: Schema[], v: unknown): { branch?: Schema; path?: string;
   if (!Object.prototype.hasOwnProperty.call(o, field)) return { message: `needs the field “${field}”: one of ${quoted(names)}.` };
   const branch = sameType.find((b) => b.properties?.[field]?.const === o[field]);
   return branch ? { branch, message: "" } : { path: field, message: `must be one of ${quoted(names)}.` };
+}
+
+/** What checking a file of one format gives: the value, or every problem found with its line. */
+export type FormatCheck<T> = { ok: true; value: T } | { ok: false; problems: Problem[] };
+
+/** A problem of a part, named by its path in the whole file. A part is checked without the file's lines (looking
+ * them up per part would walk the whole file once per item); its problems find their line by this path. */
+export const under = (prefix: string, p: Problem): Problem => ({ ...p, path: p.path ? (p.path.startsWith("[") ? `${prefix}${p.path}` : `${prefix}.${p.path}`) : prefix });
+
+/** Checks a value already read from JSON against one file format: an unknown version of the format is named as one,
+ * then the schema, then `meaning` (what a schema cannot say), which reports through `at`. */
+export function checkFormat<T>(
+  format: { family: string; reads: readonly string[]; schema: Schema; meaning?: (value: T, at: (path: string, message: string) => void) => void },
+  value: unknown,
+  lines: Map<string, number> = new Map(),
+): FormatCheck<T> {
+  const fmt = value && typeof value === "object" && !Array.isArray(value) ? (value as { format?: unknown }).format : undefined;
+  if (typeof fmt === "string" && fmt.startsWith(`${format.family}/`) && !format.reads.includes(fmt))
+    return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${format.reads.join(", ")}.` }] };
+  const problems = checkSchema(format.schema, value, lines);
+  if (problems.length) return { ok: false, problems };
+  const out: Problem[] = [];
+  format.meaning?.(value as T, (path, message) => void (out.length < MAX_PROBLEMS && out.push({ path, line: lines.get(path) ?? null, message })));
+  return out.length ? { ok: false, problems: out } : { ok: true, value: value as T };
 }

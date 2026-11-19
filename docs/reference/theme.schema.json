@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.app/schemas/ziffr.theme-1.json",
+  "title": "Ziffr Theme (ziffr.theme/1)",
+  "description": "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image, font file or web address.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.theme/1",
+      "description": "The format and its version."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 60,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "colors": {
+      "type": "object",
+      "description": "Text, surfaces, data, good, bad and the target band.",
+      "properties": {
+        "canvas": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "surface": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "ink": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "muted": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "rule": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "good": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "bad": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "band": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+        },
+        "data": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "a colour as # and six hex digits, such as “#1A2B3C”"
+          },
+          "description": "The data colours, the first for single series."
+        }
+      },
+      "required": [
+        "canvas",
+        "surface",
+        "ink",
+        "muted",
+        "rule",
+        "accent",
+        "good",
+        "bad",
+        "band",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "fonts": {
+      "type": "object",
+      "properties": {
+        "heading": {
+          "enum": [
+            "general-sans",
+            "inter",
+            "ibm-plex-sans",
+            "libre-franklin",
+            "source-serif",
+            "playfair",
+            "georgia",
+            "arial",
+            "geist-mono",
+            "ibm-plex-mono"
+          ],
+          "description": "One of the fonts Ziffr ships."
+        },
+        "body": {
+          "enum": [
+            "general-sans",
+            "inter",
+            "ibm-plex-sans",
+            "libre-franklin",
+            "source-serif",
+            "playfair",
+            "georgia",
+            "arial",
+            "geist-mono",
+            "ibm-plex-mono"
+          ],
+          "description": "One of the fonts Ziffr ships."
+        },
+        "figures": {
+          "enum": [
+            "general-sans",
+            "inter",
+            "ibm-plex-sans",
+            "libre-franklin",
+            "source-serif",
+            "playfair",
+            "georgia",
+            "arial",
+            "geist-mono",
+            "ibm-plex-mono"
+          ],
+          "description": "One of the fonts Ziffr ships."
+        }
+      },
+      "required": [
+        "heading",
+        "body",
+        "figures"
+      ],
+      "additionalProperties": false
+    },
+    "radius": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 24,
+      "description": "How round the corners of cards are, in pixels."
+    },
+    "cards": {
+      "enum": [
+        "paper",
+        "flat",
+        "plain"
+      ],
+      "description": "paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all."
+    },
+    "slides": {
+      "type": "object",
+      "description": "What every slide shows. A logo and a background image are set in Ziffr, never in the file.",
+      "properties": {
+        "logoPosition": {
+          "enum": [
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right"
+          ]
+        },
+        "logoWidth": {
+          "type": "integer",
+          "minimum": 40,
+          "maximum": 400,
+          "description": "The logo's width on a slide, in pixels."
+        },
+        "footer": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "showSlideNumber": {
+          "type": "boolean"
+        },
+        "titleSize": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 96,
+          "description": "The size of slide titles, in pixels."
+        },
+        "bodySize": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 48,
+          "description": "The size of slide text, in pixels."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "name",
+    "colors",
+    "fonts",
+    "radius",
+    "cards"
+  ],
+  "additionalProperties": false
+}

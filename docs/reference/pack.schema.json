@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.app/schemas/ziffr.pack-1.json",
+  "title": "Ziffr Pack (ziffr.pack/1)",
+  "description": "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard Templates, View Designs, Analysis Recipes and Themes, with its name, version, author and license.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.pack/1",
+      "description": "The format and its version."
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 100,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9-]{0,59}$",
+      "description": "the creator's Marketplace handle and a slug, such as “ziffr/saas-metrics”, the same for every version"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "maxLength": 20,
+      "pattern": "^(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})$",
+      "description": "three numbers, major, minor and patch, such as “1.2.0”"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "license": {
+      "enum": [
+        "CC-BY-4.0",
+        "MIT",
+        "Ziffr-Pack-1.0"
+      ],
+      "description": "CC-BY-4.0 or MIT for a free Pack, Ziffr-Pack-1.0 for a paid one."
+    },
+    "ziffr": {
+      "type": "string",
+      "maxLength": 20,
+      "pattern": "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$",
+      "description": "the oldest Ziffr that can install it, such as “>=0.12”"
+    },
+    "listing": {
+      "type": "object",
+      "description": "The only place a Pack may hold web addresses, shown on its pages as plain links.",
+      "properties": {
+        "homepage": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^https://[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,62}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,62}[a-zA-Z0-9])?)+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~%!$&'()*+,;=:@/-]*)?(?:\\?[A-Za-z0-9._~%!$&'()*+,;=:@/?-]*)?$",
+          "description": "an https address, such as “https://example.com/help”"
+        },
+        "support": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^https://[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,62}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,62}[a-zA-Z0-9])?)+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~%!$&'()*+,;=:@/-]*)?(?:\\?[A-Za-z0-9._~%!$&'()*+,;=:@/?-]*)?$",
+          "description": "an https address, such as “https://example.com/help”"
+        }
+      },
+      "additionalProperties": false
+    },
+    "contents": {
+      "type": "object",
+      "description": "What installing adds. Nothing in it may hold a web address.",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Metric Catalog entries, each a ziffr.metric/1 document under “metric”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "metric": {
+                "type": "object",
+                "description": "A ziffr.metric/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "metric"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dashboards": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Dashboard Templates, each a ziffr.dashboard-template/1 document under “template”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "template": {
+                "type": "object",
+                "description": "A ziffr.dashboard-template/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "template"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "views": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "View Designs, each a ziffr.view/1 document under “design”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "design": {
+                "type": "object",
+                "description": "A ziffr.view/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "design"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "analyses": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Analysis Recipes, each a ziffr.analysis/1 document under “recipe”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "recipe": {
+                "type": "object",
+                "description": "A ziffr.analysis/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "recipe"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Themes, each a ziffr.theme/1 document under “theme”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "theme": {
+                "type": "object",
+                "description": "A ziffr.theme/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "theme"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "id",
+    "name",
+    "version",
+    "summary",
+    "author",
+    "license",
+    "contents"
+  ],
+  "additionalProperties": false
+}
