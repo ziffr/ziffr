@@ -95,7 +95,7 @@ A program outside Ziffr that brings in values for some metrics from another syst
 _Avoid_: Integration, sync, pipeline, connector, workflow
 
 **Import**:
-Values a Feed records for past periods that had none yet, such as two years of history when it is first connected. They skip the Unusual Value check and are marked as imported in the metric's history.
+Values recorded for past periods that had none yet, by a Feed (such as two years of history when it is first connected) or by a paste that its Metric Owner, or an Owner or Admin, chose to record as history. They skip the Unusual Value check and are marked as imported in the metric's history.
 _Avoid_: Backfill, migration, sync
 
 **Token**:
