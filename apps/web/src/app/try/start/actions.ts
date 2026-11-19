@@ -4,8 +4,7 @@
 // since production builds hide the message of a thrown error.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
-import type { AskNowResult } from "@ziffr/core/ask-now";
-import { askTrialGuide, saveTrialGuide, trialGuideValue, type GuideStep, type GuideValue, type GuideWay } from "@ziffr/core/trial-guide";
+import { askTrialGuide, saveTrialGuide, trialGuideValue, type GuideAsked, type GuideStep, type GuideValue, type GuideWay } from "@ziffr/core/trial-guide";
 
 const words = (e: unknown) => ({ error: (e as Error).message });
 
@@ -17,8 +16,8 @@ export async function moveGuide(step: GuideStep, ways?: GuideWay[]): Promise<{ e
   } catch (e) { return words(e); }
 }
 
-/** Sends the Test Metric's Prompt by the ways picked. */
-export async function askGuide(): Promise<AskNowResult[] | { error: string }> {
+/** Sends the Test Metric's Prompt by the ways picked; the Owner's own form link comes back with it. */
+export async function askGuide(): Promise<GuideAsked | { error: string }> {
   try {
     return await askTrialGuide(await currentActor());
   } catch (e) { return words(e); }

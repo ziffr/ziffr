@@ -34,8 +34,6 @@ export type TrialGuide = {
   ready: Record<GuideWay, boolean>;
   email: string;
   testMetric: { id: number; name: string; unit: string; slug: string } | null;
-  /** The Owner's own form link code for the Test Metric: theirs alone, the same one every Prompt to them carries. */
-  formCode: string | null;
 };
 
 /** The first value recorded for the Test Metric, for the guide to show once it arrives. */
@@ -62,9 +60,6 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
   const { data: m } = ws?.trial_test_metric_id
     ? await db().from("metrics").select("id, name, unit, slug").eq("id", ws.trial_test_metric_id).eq("workspace_id", actor.workspaceId).maybeSingle()
     : { data: null };
-  const { data: token } = m
-    ? await db().from("tokens").select("code").eq("metric_id", m.id).eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle()
-    : { data: null };
   const state = (w: string) => here.find((x) => x.way === w)?.state;
   const choices = here.filter((w) => isWay(w.way) || w.way === "whatsapp");
   return {
@@ -76,7 +71,6 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
     ready: { email: state("email") === "real", "web-form": true, slack: state("slack") === "real", telegram: state("telegram") === "real" && Boolean(telegram) },
     email: (me?.email as string | null) ?? "",
     testMetric: m ? { id: m.id as number, name: m.name as string, unit: (m.unit as string | null) ?? "", slug: m.slug as string } : null,
-    formCode: (token?.code as string | undefined) ?? null,
   };
 }
 
@@ -99,16 +93,22 @@ export async function saveTrialGuide(actor: Actor, step: GuideStep, ways?: Guide
   if (error) throw new Error("The guide could not be saved.");
 }
 
+/** What asking gave: one result per way, and the Owner's own form link code for the Test Metric, the same one every
+ * Prompt to them carries. Only given once they asked, so the code reaches the browser at the ask step alone. */
+export type GuideAsked = { results: AskNowResult[]; formCode: string | null };
+
 /** Sends the Test Metric's Prompt to the Owner by each way they picked (by email when only the form link was), and
  * moves the guide to its ask step. The ten-minute limit of Ask me now applies. */
-export async function askTrialGuide(actor: Actor): Promise<AskNowResult[]> {
+export async function askTrialGuide(actor: Actor): Promise<GuideAsked> {
   const guide = await trialGuide(actor);
   if (!guide) throw new Forbidden("Only the trial's Owner has the guide.");
   if (!guide.testMetric) throw new Error("This trial has no Test Metric to ask for.");
   const via = guide.ways.map((w) => CONNECTOR[w]).filter((c): c is ConnectorId => c !== null);
   const results = await askMeNowBy(actor, guide.testMetric.id, via.length ? via : ["email"]);
   await saveTrialGuide(actor, "ask");
-  return results;
+  const { data: token } = await db().from("tokens").select("code").eq("metric_id", guide.testMetric.id)
+    .eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle();
+  return { results, formCode: (token?.code as string | undefined) ?? null };
 }
 
 /** The latest value recorded for the Test Metric, or null while none has come. The guide polls this while it waits. */

@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
-import { askMeNow, canAskNow } from "./ask-now";
+import { askMeNow, askMeNowBy, canAskNow, NOT_DELIVERED, shownReason } from "./ask-now";
+import { TRIAL_HOLDS_BACK } from "./trials";
 import { db } from "./db";
 import { workspace } from "./test/db-fixtures";
 
@@ -54,5 +55,19 @@ describe("Ask me now", () => {
     await expect(askMeNow({ ...other.actor(olga) }, m.id)).rejects.toBeInstanceOf(Forbidden);
     const { count } = await db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id);
     expect(count).toBe(0);
+  });
+
+  it("asks by each given way with one result each, and shows only Ziffr's own reasons", async () => {
+    const w = await ws(); const sara = await w.person("owner", { email: address() });
+    const m = await w.metric(sara, { sources: ["web_form", "mail", "telegram"] }); await w.token(m.id, sara);
+    const results = await askMeNowBy(w.actor(sara), m.id, ["email", "telegram"]);
+    expect(results.map((r) => r.connector)).toEqual(["email", "telegram"]);
+    expect(results[0].state).toBe("sent");
+    // Telegram is not set up here: it says so per way instead of stopping the email.
+    expect(["outbox", "failed", "queued"]).toContain(results[1].state);
+    await expect(askMeNowBy(w.actor(sara), m.id, ["nope" as never])).rejects.toBeInstanceOf(Forbidden);
+    expect(shownReason(TRIAL_HOLDS_BACK.notOwner)).toBe(TRIAL_HOLDS_BACK.notOwner);
+    expect(shownReason("550 5.1.1 <x@y>: Recipient address rejected by smtp.example")).toBe(NOT_DELIVERED);
+    expect(shownReason(null)).toBeNull();
   });
 });

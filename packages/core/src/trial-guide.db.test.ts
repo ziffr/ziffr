@@ -32,12 +32,11 @@ async function newTrial(): Promise<Actor> {
 }
 
 describe("the Trial Guide", () => {
-  it("starts at welcome with the Test Metric and the Owner's own form link, and keeps the step and ways", async () => {
+  it("starts at welcome with the Test Metric, without the form link, and keeps the step and ways", async () => {
     const owner = await newTrial();
     const g = (await trialGuide(owner))!;
     expect(g).toMatchObject({ step: "welcome", ways: [], testMetric: { name: "Cups of coffee", unit: "cups" } });
-    const { data: token } = await db().from("tokens").select("code, submitter_id").eq("metric_id", g.testMetric!.id).single();
-    expect(token).toEqual({ code: g.formCode, submitter_id: owner.personId });
+    expect(g).not.toHaveProperty("formCode");
     await saveTrialGuide(owner, "connect", ["web-form"]);
     expect(await trialGuide(owner)).toMatchObject({ step: "connect", ways: ["web-form"] });
     // Moving on without ways keeps the ones picked.
@@ -77,7 +76,10 @@ describe("the Trial Guide", () => {
     await saveTrialGuide(owner, "ask", ["web-form"]);
     // Only the form link picked: the Prompt carrying it goes by email.
     const sent = await askTrialGuide(owner);
-    expect(sent.map((s) => s.connector)).toEqual(["email"]);
+    expect(sent.results.map((s) => s.connector)).toEqual(["email"]);
+    // The Owner's own form link comes with asking, and only then.
+    const { data: token } = await db().from("tokens").select("code, submitter_id").eq("metric_id", (await trialGuide(owner))!.testMetric!.id).single();
+    expect(token).toEqual({ code: sent.formCode, submitter_id: owner.personId });
     expect((await trialGuide(owner))!.step).toBe("ask");
     await expect(askTrialGuide(owner)).rejects.toThrow(/a moment ago/);
     expect(await trialGuideValue(owner)).toBeNull();

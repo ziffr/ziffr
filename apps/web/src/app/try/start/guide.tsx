@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, Send } from "lucide-react";
 import type { AskNowResult } from "@ziffr/core/ask-now";
-import type { GuideStep, GuideValue, GuideWay, TrialGuide } from "@ziffr/core/trial-guide";
+import type { GuideAsked, GuideStep, GuideValue, GuideWay, TrialGuide } from "@ziffr/core/trial-guide";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WayLine } from "@/components/way-state";
@@ -151,7 +151,7 @@ function Connect({ guide, ways }: { guide: TrialGuide; ways: GuideWay[] }) {
 /** Asks, then waits for the answer and shows it the moment it is recorded. When nothing has come after a while, it
  * says where each request went and how else to answer, and offers to send it again once Ask me now allows. */
 function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; ways: GuideWay[]; askEveryMinutes: number; onArrived: () => void }) {
-  const [sent, setSent] = useState<{ results: AskNowResult[]; at: number } | null>(null);
+  const [sent, setSent] = useState<(GuideAsked & { at: number }) | null>(null);
   const [value, setValue] = useState<GuideValue | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [pending, start] = useTransition();
@@ -174,7 +174,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
   const ask = () => start(async () => {
     const r = await askGuide();
     if ("error" in r) { toast.error(r.error); return; }
-    setSent({ results: r, at: Date.now() });
+    setSent({ ...r, at: Date.now() });
     setNow(Date.now());
   });
 
@@ -183,7 +183,8 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
   const slow = sent && !value && now - sent.at >= HINT_MS;
   const againAt = sent ? sent.at + askEveryMinutes * 60_000 : 0;
   const where = (s: AskNowResult) => {
-    if (s.state === "outbox" || s.state === "failed") return <>It stayed in Ziffr{s.note ? ` (${s.note})` : ""}: <Link href="/connectors" className="underline">open the Outbox</Link> and answer it there.</>;
+    if (s.state === "failed") return <>{s.label} did not take it{s.note ? `: ${s.note}` : "."} Answer by your form instead.</>;
+    if (s.state === "outbox") return <>It stayed in Ziffr{s.note ? ` (${s.note})` : ""}: <Link href="/connectors" className="underline">open the Outbox</Link> and answer it there.</>;
     if (s.connector === "email") return <>Look in the inbox of {guide.email || "the address you signed in with"} for &ldquo;What&rsquo;s the number for {guide.testMetric!.name} today?&rdquo;, also in spam, and answer by the form link in it.</>;
     if (s.connector === "slack") return <>Look in Slack for a direct message from Ziffr and answer in its thread.</>;
     if (s.connector === "telegram") return <>Look in Telegram for the bot&rsquo;s message and reply with the number.</>;
@@ -200,14 +201,16 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
         <ul className="mt-5 space-y-1 text-sm">
           {sent.results.map((s, i) => (
             <li key={i}>
-              {s.state === "sent" || s.state === "queued" ? `Asked by ${s.label}.` : `${s.label}: kept in the Outbox${s.note ? `: ${s.note}` : "."}`}
+              {s.state === "sent" || s.state === "queued" ? `Asked by ${s.label}.`
+                : s.state === "failed" ? `${s.label}: not sent${s.note ? `. ${s.note}` : "."}`
+                  : `${s.label}: kept in the Outbox${s.note ? `: ${s.note}` : "."}`}
               {s.state === "outbox" && <> <Link href="/connectors" className="underline">Open the Outbox</Link></>}
             </li>
           ))}
         </ul>
       )}
-      {sent && ways.includes("web-form") && guide.formCode && (
-        <p className="mt-3 text-sm">Or answer right here: <a href={`/submit/${guide.formCode}`} target="_blank" rel="noreferrer" className="underline">open your form</a> (it opens in a new tab).</p>
+      {sent && sent.formCode && (ways.includes("web-form") || sent.results.every((x) => x.state === "failed")) && (
+        <p className="mt-3 text-sm">Or answer right here: <a href={`/submit/${sent.formCode}`} target="_blank" rel="noreferrer" className="underline">open your form</a> (it opens in a new tab).</p>
       )}
       {sent && !value && <p className="mt-5 text-sm text-muted-foreground" aria-live="polite">Waiting for your answer…</p>}
       {slow && (
@@ -215,7 +218,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
           <p className="font-semibold">Nothing yet? Here is where it went</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {sent!.results.map((s, i) => <li key={i}>{where(s)}</li>)}
-            {guide.formCode && <li>Or skip the message: <a href={`/submit/${guide.formCode}`} target="_blank" rel="noreferrer" className="underline">open your form</a> and enter the number there.</li>}
+            {sent!.formCode && <li>Or skip the message: <a href={`/submit/${sent!.formCode}`} target="_blank" rel="noreferrer" className="underline">open your form</a> and enter the number there.</li>}
           </ul>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button variant="outline" onClick={ask} disabled={pending || now < againAt}><Send /> Send it again</Button>
