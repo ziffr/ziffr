@@ -41,7 +41,7 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 
 | Tool | Needs | What it does |
 | --- | --- | --- |
-| `list_metrics` | Read metrics | Every Metric the key may read: slug, name, period, unit, format, Target Range, Sources |
+| `list_metrics` | Read metrics | Every Metric in use the key may read: slug, name, period, unit, format, Target Range, Sources; with `archived`, the Archived Metrics instead |
 | `get_metric` | Read metrics | One Metric's description and its values for a range of periods (at most the 500 newest) |
 | `get_workspace` | Read metrics | The month the workspace's fiscal year starts in, where quarterly and yearly Metrics' periods begin |
 | `my_schedule` | Read metrics | What the key's creator has to do, overdue first, then by day: values due by their Due Dates, Approvals waiting for them, their Tasks and Questions, each with its link; this week unless `from` and `to` (at most 90 days apart) say otherwise. An Owner or Admin may name a teammate (`person_id` from `list_people`) |
@@ -52,6 +52,7 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 | `submit_value` | Submit values | Records a value for the current or a named period, through the Metric's rules (Approvals, Locks) |
 | `create_metric` | Create metrics; Change metrics too for `submitters` | Creates a Metric owned by the key's creator, with its Sources and Submitters once the assistant has asked you |
 | `delete_metric` | Create metrics | Deletes a Metric the key's creator owns, with its values, after you confirm its exact name; refused while something uses it |
+| `archive_metric`, `restore_metric` | Create metrics | Puts a Metric aside, keeping its values and history, so nobody is asked for it and it takes no values; or brings it back. Only Owners, Admins and the Metric's owner |
 | `update_metric` | Change metrics | Changes a Metric's Target Range, Polarity, Attainment method or Sources |
 | `set_target_series`, `set_projections` | Change metrics | Sets or removes 1 to 500 periods (value null removes), all or nothing; Projections only for the current period or later |
 | `set_unusual_value_check` | Change metrics | Changes the check step of the Metric's Workflow, so every Metric sharing it; only the Workflow's owner may |

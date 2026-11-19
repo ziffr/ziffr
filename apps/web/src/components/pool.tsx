@@ -1,5 +1,6 @@
 "use client";
 import { useEnsure } from "@/canvas/series-store";
+import { inUse } from "@ziffr/core/metric-row";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -29,7 +30,8 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
   const [browse, setBrowse] = useState(false);
   const people = Object.fromEntries(data.people.map((p) => [p.id, p]));
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase());
-  const metrics = data.metrics.filter((m) => match(m.name));
+  // Archived Metrics are not offered (GLOSSARY: Archived Metric); widgets that already show one keep it.
+  const metrics = inUse(data.metrics).filter((m) => match(m.name));
   const widgets = saved.filter((w) => match(w.title ?? ""));
   // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
   const templates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && match(t.name));

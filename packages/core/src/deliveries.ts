@@ -75,7 +75,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
-    db().from("metrics").select("id, name, period, sources, formula, workspace_id").eq("id", input.metricId).single(),
+    db().from("metrics").select("id, name, period, sources, formula, workspace_id, archived_at").eq("id", input.metricId).single(),
     // A Contact is reached by the details this workspace keeps for them; a member by their own.
     db().from("profiles").select("*").eq("id", input.submitterId).single().then(async (r) => {
       if (!r.data) return r;
@@ -102,7 +102,8 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
     }
   }
   if (!token) return false;
-  if (!metric || !person || !token || metric.formula) return false;
+  // A Derived Metric is computed and an Archived Metric asks for nothing: neither is ever prompted for.
+  if (!metric || !person || !token || metric.formula || metric.archived_at) return false;
   let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(metric.workspace_id, person.id, "prompt", null);
   if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers
   const c = CONNECTORS[via];

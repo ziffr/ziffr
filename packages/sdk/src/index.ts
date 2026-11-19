@@ -26,6 +26,8 @@ export type Metric = {
   sources: Source[];
   /** A Derived Metric: computed from others, takes no values. */
   derived: boolean;
+  /** An Archived Metric: kept with its values and history, asked for nothing and taking no values. */
+  archived: boolean;
 };
 
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
@@ -205,6 +207,9 @@ export type Template = { id: string | number; kind: "view" | "widget" | "dashboa
 /** Paging options of every list. */
 export type PageOptions = { limit?: number; cursor?: string };
 
+/** Options of the Metrics list: with `archived`, only the Archived Metrics instead of those in use. */
+export type MetricListOptions = PageOptions & { archived?: boolean };
+
 /** Options of a Metric's values: the periods from `from` to `to` (first days, YYYY-MM-DD, both included). */
 export type ObservationOptions = PageOptions & { from?: string; to?: string };
 
@@ -264,10 +269,10 @@ export class Ziffr {
 
   /** The Metrics the key's creator sees. */
   readonly metrics = {
-    /** One page of Metrics. */
-    list: (options: PageOptions = {}) => this.get<Page<Metric>>("/metrics", options),
-    /** Every Metric, page by page. */
-    all: () => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100 })),
+    /** One page of Metrics: those in use, or with `archived` only the Archived Metrics. */
+    list: ({ archived, ...options }: MetricListOptions = {}) => this.get<Page<Metric>>("/metrics", { ...options, archived: archived ? "true" : undefined }),
+    /** Every Metric in use, or with `archived` every Archived Metric, page by page. */
+    all: (options: { archived?: boolean } = {}) => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100, archived: options.archived })),
     /** One Metric's description. */
     get: (slug: string) => this.get<Metric>(`/metrics/${encodeURIComponent(slug)}`),
     /** Creates a Metric owned by the key's creator (scope metrics:write). A fresh idempotency key is sent unless one is
@@ -280,6 +285,11 @@ export class Ziffr {
      * (ZiffrError 422) while another Metric's formula, a widget, a deck or a working View Link uses it. */
     delete: async (slug: string, confirmName: string): Promise<{ deleted: string; values: number }> =>
       (await this.request<{ deleted: string; values: number }>("DELETE", `/metrics/${encodeURIComponent(slug)}`, { confirm: confirmName })).body,
+    /** Archives a Metric (scope metrics:write), when the key's creator is an Owner or Admin or owns it: its values and
+     * history stay, it is asked for nothing and takes no values. Answers the Metric as it is now. */
+    archive: async (slug: string): Promise<Metric> => (await this.request<Metric>("POST", `/metrics/${encodeURIComponent(slug)}/archive`)).body,
+    /** Brings an Archived Metric back (scope metrics:write), under the same rule. Answers the Metric as it is now. */
+    restore: async (slug: string): Promise<Metric> => (await this.request<Metric>("POST", `/metrics/${encodeURIComponent(slug)}/restore`)).body,
     /** Changes a Metric's Polarity, Target Range or Attainment method (scope metrics:edit), when
      * the key's creator owns it or is its Editor. Answers the Metric as it is now. */
     update: async (slug: string, patch: MetricPatch): Promise<Metric> => (await this.request<Metric>("PATCH", `/metrics/${encodeURIComponent(slug)}`, undefined, patch)).body,

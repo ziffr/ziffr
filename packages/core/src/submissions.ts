@@ -4,7 +4,7 @@
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
 import { formatValue, SOURCE_LABEL } from "./format";
-import { normalizeMetric } from "./metric-row";
+import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { parseBreakdown } from "./parse";
@@ -14,6 +14,7 @@ import { Forbidden, type Actor } from "./actor";
 import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
+import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import type { Metric, Profile, SourceId, Token } from "./types";
 import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
@@ -162,6 +163,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
   if (metric.formula) return log({ ...base, ok: false, outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` });
+  // An Archived Metric takes no values by any Source (GLOSSARY: Archived Metric); a Feed's other Metrics go on.
+  if (isArchived(metric)) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
   // The API is a Source of its own (spec 0012): a Metric takes programs' and Feeds' values only where it says so.
   if (!metric.sources.includes(input.source))
     return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
@@ -231,6 +234,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       p_access_key: row.access_key_id, p_imported: mayImport, p_rows: (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value })),
     })
     .single<{ observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number }>();
+  // Archived between the check above and the write: the database refuses it the same way.
+  if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
   if (error || !data) {
     console.error("record_observation failed:", error?.message ?? "no row");
@@ -377,8 +382,10 @@ export type CorrectionEffects = {
  * value (the first value is kept as the original) and goes through the Workflow again, so a locked period unlocks
  * for re-approval. Refuses anyone but the owner, and anything outside the actor's workspace. */
 export async function decideCorrection(actor: Actor, messageId: number, accept: boolean, effects: CorrectionEffects = correctionEffects): Promise<void> {
-  const { data: msg } = await db().from("thread_messages").select("*, actions(*, metrics(owner_id))").eq("id", messageId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: msg } = await db().from("thread_messages").select("*, actions(*, metrics(owner_id, archived_at))").eq("id", messageId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!msg || msg.actions?.metrics?.owner_id !== actor.personId) throw new Forbidden();
+  // An Archived Metric takes no values, a Correction neither; it stays proposed for when the Metric is brought back.
+  if (accept && msg.actions?.metrics?.archived_at) throw new Error(ARCHIVED_REFUSAL);
   // Decided once only: the status changes first and only if it was still proposed, so a second click does nothing.
   const { data: claimed } = await db().from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "proposed").select("id");
   if (!claimed?.length) return;

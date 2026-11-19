@@ -1,4 +1,5 @@
 "use client";
+import { inUse } from "@ziffr/core/metric-row";
 import { useState, useTransition } from "react";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { FlaskConical, Lock, Play, Trash2, Wand2, X } from "lucide-react";
@@ -65,7 +66,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const tickets = bySlug("support-tickets");
   const returns = bySlug("return-rate");
   const recipes = [
-    cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...data.metrics.filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
+    cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...inUse(data.metrics).filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
     revenue && { label: "Where is Revenue heading?", go: () => recipe([revenue.id], "forecast") },
     tickets && returns && { label: "Do support tickets drive returns?", go: () => recipe([returns.id, tickets.id], "correlation") },
   ].filter(Boolean) as { label: string; go: () => void }[];

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -29,6 +29,7 @@ import { applyTemplate, assignInPlace, getHistory, placeWidget, removeWidget, sa
 import { formatValue, SOURCE_LABEL } from "@ziffr/core/format";
 import type { Action, ActionKind, CanvasData, Observation, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { isArchived } from "@ziffr/core/metric-row";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
@@ -260,6 +261,8 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
             <span className="truncate text-sm font-semibold">{title}</span>
+            {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
+            {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><Archive aria-hidden className="size-3.5" /> Archived</span>}
             {open > 0 && <span title={`${open} open action(s)`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><MessageSquare aria-hidden className="size-3.5" /><span className="fig">{open}</span> open</span>}
             <DropdownMenu>
               <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>

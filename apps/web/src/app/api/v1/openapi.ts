@@ -22,8 +22,8 @@ type Endpoint = {
 /** Every version 1 endpoint, in the order the reference lists them. */
 const ENDPOINTS: Endpoint[] = [
   {
-    method: "get", path: "/metrics", scope: "metrics:read", query: S.pageQuery, ok: { status: 200, name: "MetricList", schema: S.MetricList },
-    summary: "List Metrics", description: "The Metrics the key's creator sees, oldest first, a page at a time.",
+    method: "get", path: "/metrics", scope: "metrics:read", query: S.metricsQuery, ok: { status: 200, name: "MetricList", schema: S.MetricList },
+    summary: "List Metrics", description: "The Metrics the key's creator sees, oldest first, a page at a time: those in use, or with `archived=true` only the Archived Metrics.",
   },
   {
     method: "post", path: "/metrics", scope: "metrics:write", body: S.CreateMetric, idempotent: true, ok: { status: 201, name: "Metric", schema: S.MetricDescription },
@@ -58,6 +58,21 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "post", path: "/metrics/{slug}/archive", scope: "metrics:write", ok: { status: 200, name: "Metric", schema: S.MetricDescription },
+    summary: "Archive a Metric",
+    description: "Archives a Metric as the key's creator, when they are an Owner or Admin of the workspace or own the Metric, as in the app. Its values and history stay and widgets keep drawing them; it is asked for nothing, takes no values and is listed only with `archived=true`. The Audit Log names the key.",
+    errors: [{ status: 403, description: "Or the key's creator sees the Metric but may not archive it." }],
+  },
+  {
+    method: "post", path: "/metrics/{slug}/restore", scope: "metrics:write", ok: { status: 200, name: "Metric", schema: S.MetricDescription },
+    summary: "Bring back an Archived Metric",
+    description: "Brings an Archived Metric back as the key's creator, when they are an Owner or Admin of the workspace or own the Metric: it is asked for and takes values again. The Audit Log names the key.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but may not bring it back." },
+      { status: 422, description: "It could not be brought back; nothing was changed." },
+    ],
+  },
+  {
     method: "get", path: "/metrics/{slug}/observations", scope: "metrics:read", query: S.observationsQuery, ok: { status: 200, name: "ObservationList", schema: S.ObservationList },
     summary: "List a Metric's values",
     description: "The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, submitter and Breakdown. A Derived Metric's values are computed.",
@@ -69,7 +84,7 @@ const ENDPOINTS: Endpoint[] = [
     errors: [
       { status: 403, description: "Or the key's creator does not submit values for this Metric." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first submission is still running." },
-      { status: 422, description: "`locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric or the period refused it." },
+      { status: 422, description: "`locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric, an Archived Metric or the period refused it." },
     ],
   },
   {

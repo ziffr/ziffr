@@ -11,6 +11,7 @@ import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
 import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
+import { archiveMetric, restoreMetric } from "./archived-metrics";
 import { peopleIn } from "./submissions";
 import { yearStartFor } from "./fiscal-year";
 import { withVersionNote } from "./versions";
@@ -133,6 +134,13 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
  * confirm, and never while anything uses it, exactly as in the app. The Audit Log names the key. */
 export async function deleteMetricWithKey(actor: Actor | KeyActor, slug: string, confirmName: string): Promise<{ values: number }> {
+  const { m, creator, origin } = await writableByKey(actor, slug);
+  return deleteMetric(creator, m.id, String(confirmName ?? ""), origin);
+}
+
+/** The Metric with this slug for a key with metrics:write, the key's creator as the Actor the app's functions take,
+ * and the key as the origin the Audit Log names. Never in the demo, which has no Access Keys. */
+async function writableByKey(actor: Actor | KeyActor, slug: string) {
   assertScope(actor, "metrics:write");
   if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const metrics = await getMetrics(actor.workspaceId);
@@ -140,7 +148,18 @@ export async function deleteMetricWithKey(actor: Actor | KeyActor, slug: string,
   // A Metric that is missing, of another workspace or hidden from the creator is refused without a reason (404).
   if (!m || !(await visibleMetricIds(actor.workspaceId, actor.personId, metrics)).has(m.id)) throw new Forbidden();
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
-  return deleteMetric(creator, m.id as number, String(confirmName ?? ""), { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
+  return { m, creator, origin: { accessKeyId: actor.key ? Number(actor.key.id) : undefined } };
+}
+
+/** Archives a Metric (scope metrics:write) as the key's creator, or with `restore` brings it back (GLOSSARY: Archived
+ * Metric): only when they see it and are an Owner, an Admin or its Metric Owner, as in the app. The Audit Log names
+ * the key. Answers the Metric as it is now. */
+export async function setMetricArchivedWithKey(actor: Actor | KeyActor, slug: string, archived: boolean): Promise<ApiMetric> {
+  const { m, creator, origin } = await writableByKey(actor, slug);
+  if (archived) await archiveMetric(creator, m.id, origin);
+  else await restoreMetric(creator, m.id, origin);
+  const { data } = await db().from("metrics").select("*").eq("id", m.id).eq("workspace_id", actor.workspaceId).single();
+  return toApi(normalizeMetric(data as Metric));
 }
 
 /** Thrown when a change to a Metric is refused for its content, such as a lower target above the upper one or a

@@ -10,12 +10,19 @@ import { viewerId } from "@/lib/viewer";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
+import { inUse, isArchived } from "@ziffr/core/metric-row";
+import { cn } from "@/lib/utils";
 
-export default async function MetricsPage() {
+export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
-  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
+  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams]);
   const visible = await visibleMetricIds(viewer, all);
-  const metrics = all.filter((m) => visible.has(m.id));
+  const seen = all.filter((m) => visible.has(m.id));
+  // Archived Metrics (GLOSSARY: Archived Metric) are listed only under their own filter.
+  const showArchived = sp.show === "archived";
+  const archivedCount = seen.filter(isArchived).length;
+  const metrics = showArchived ? seen.filter(isArchived) : inUse(seen);
+  const filter = (archived: boolean) => cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
       <PageHeader title="Metrics" sub="Each metric is described once. Its values then arrive by chat, mail, a form link or the API.">
@@ -27,7 +34,16 @@ export default async function MetricsPage() {
         </Link>
       </PageHeader>
 
-      {metrics.length === 0 ? (
+      {(archivedCount > 0 || showArchived) && (
+        <nav aria-label="Which Metrics" className="mb-3 flex flex-wrap gap-1 text-sm">
+          <Link href="/metrics" aria-current={!showArchived ? "true" : undefined} className={filter(false)}>In use</Link>
+          <Link href="/metrics?show=archived" aria-current={showArchived ? "true" : undefined} className={filter(true)}>Archived ({archivedCount})</Link>
+        </nav>
+      )}
+
+      {showArchived && metrics.length === 0 ? (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">No Archived Metrics. Archiving a Metric keeps its values and history and stops asking for it.</p>
+      ) : metrics.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
           <p className="font-medium">No metrics yet</p>
           <p className="mt-1 text-sm text-muted-foreground">Describe your first one, or ask a colleague to share theirs.</p>

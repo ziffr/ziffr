@@ -103,7 +103,7 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
   const ws = actor.workspaceId;
   const [{ data: tokens }, { data: metrics }] = await Promise.all([
     db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws).is("stands_in_for", null),
-    db().from("metrics").select("id, period, formula").eq("workspace_id", ws),
+    db().from("metrics").select("id, period, formula, archived_at").eq("workspace_id", ws),
   ]);
   const byId = new Map((metrics ?? []).map((m) => [m.id as number, m]));
   // Whether a Metric has its value for the current period, asked once per Metric rather than once per submitter.
@@ -115,7 +115,7 @@ export async function askForMissingValues(actor: Actor): Promise<number> {
   let n = 0;
   for (const t of tokens ?? []) {
     const m = byId.get(t.metric_id);
-    if (!m || m.formula) continue;
+    if (!m || m.formula || m.archived_at) continue; // computed, or archived: never asked for
     const period = periodStart(new Date(), m.period as Period, await yearStartFor(actor.workspaceId, m.period as Period));
     const [have, { count: asked }] = await Promise.all([
       hasValue(m.id, period),

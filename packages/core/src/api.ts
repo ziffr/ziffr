@@ -15,23 +15,26 @@ export const MAX_PAGE = 100;
 export type Page<T, C = number> = { items: T[]; next: C | null };
 
 /** A Metric as a program sees it in a list or on its own. */
-export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean };
+export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean };
 
 /** A Metric in the shape programs see it. */
 export const toApi = (m: Metric): ApiMetric => ({
   slug: m.slug, name: m.name, description: m.description, period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   attainment_method: m.attainment_method ?? null, sources: [...(m.sources ?? [])], derived: Boolean(m.formula),
+  archived: Boolean(m.archived_at),
 });
 
-/** The Metrics the key's creator sees, in a stable order (by id), one page after `after` (scope metrics:read). */
-export async function listMetrics(actor: Actor | KeyActor, page: { after?: number | null; limit: number }): Promise<Page<ApiMetric>> {
+/** The Metrics the key's creator sees, in a stable order (by id), one page after `after` (scope metrics:read): those
+ * in use, or with `archived` only the Archived Metrics (GLOSSARY: Archived Metric), which are listed only when asked. */
+export async function listMetrics(actor: Actor | KeyActor, page: { after?: number | null; limit: number; archived?: boolean }): Promise<Page<ApiMetric>> {
   assertScope(actor, "metrics:read");
   const limit = clampLimit(page.limit);
   const after = Number.isInteger(page.after) ? (page.after as number) : 0;
   const metrics = await getMetrics(actor.workspaceId);
   const visible = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
-  const rest = metrics.filter((m) => visible.has(m.id) && m.id > after).sort((a, b) => a.id - b.id);
+  const archived = page.archived === true;
+  const rest = metrics.filter((m) => visible.has(m.id) && m.id > after && Boolean(m.archived_at) === archived).sort((a, b) => a.id - b.id);
   const items = rest.slice(0, limit);
   return { items: items.map(toApi), next: rest.length > limit ? items[items.length - 1].id : null };
 }

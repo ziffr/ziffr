@@ -15,8 +15,8 @@ export type AskNowResult = { connector: ConnectorId; label: string; state: "sent
 
 /** Whether the actor may press Ask me now on a Metric: they own it and are one of its Submitters themselves. */
 export async function canAskNow(actor: Actor, metricId: number): Promise<boolean> {
-  const { data: m } = await db().from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!m || m.owner_id !== actor.personId || m.formula) return false;
+  const { data: m } = await db().from("metrics").select("owner_id, formula, archived_at").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m || m.owner_id !== actor.personId || m.formula || m.archived_at) return false;
   const { data: token } = await db().from("tokens").select("id").eq("metric_id", metricId).eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle();
   return Boolean(token);
 }

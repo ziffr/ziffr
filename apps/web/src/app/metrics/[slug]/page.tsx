@@ -10,6 +10,9 @@ import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
 import { DeleteMetric } from "./delete-metric";
+import { ArchiveControl } from "./archive-metric";
+import { ArchivedNote } from "./archived-note";
+import { canArchiveMetric } from "@ziffr/core/archived-metrics";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
@@ -107,7 +110,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     );
   }
   const actor = await currentActor();
-  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile, archivable] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
@@ -120,6 +123,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     canAskNow(actor, metric.id),
     // Its currency is the unit Edit details proposes when the Metric becomes a money one (spec 0022).
     workspaceProfile(actor),
+    // Owners, Admins and its owner archive it and bring it back (GLOSSARY: Archived Metric).
+    canArchiveMetric(actor, metric.id),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod, pending } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -169,9 +174,11 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
           <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
           {/* Only the owner deletes a Metric; the demo's Metrics stay for every visitor. */}
+          <ArchiveControl metricId={metric.id} name={metric.name} archived={Boolean(metric.archived_at)} allowed={archivable && !demo} />
           {isOwner && !demo && <DeleteMetric metricId={metric.id} name={metric.name} />}
         </ObjectToolbar>
       </PageHeader>
+      <ArchivedNote archivedAt={metric.archived_at ?? null} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>

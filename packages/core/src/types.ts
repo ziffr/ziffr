@@ -62,6 +62,8 @@ export type Metric = MetricDescription & {
   formula: string | null;
   from_catalog_id: number | null;
   created_at: string;
+  /** When it was archived (GLOSSARY: Archived Metric); null or missing while it is in use. */
+  archived_at?: string | null;
 };
 
 /** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */
