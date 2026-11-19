@@ -8,7 +8,8 @@ import { slackEscape } from "./connectors/slack";
 import { tellOwnersOfStop } from "./email-opt-out";
 import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
-import { callSlack, slackEnabled } from "./slack-api";
+import { callSlack, slackOn } from "./slack-api";
+import { noteSlackEventsChecked } from "./slack-setup";
 import { slackBotOfTeam, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { isSlackId, linkSlackByCode, personOfSlackUser } from "./slack-people";
 import { SLACK_BUTTONS } from "./slack-send";
@@ -25,9 +26,9 @@ const MAX_ANSWERS_PER_MINUTE = 10;
 /** How long a Delivery takes replies in its thread. */
 const REPLY_DAYS = 30;
 
-/** Whether a request was signed by Slack with ZIFFR_SLACK_SIGNING_SECRET a moment ago: `v0=` and the hex HMAC-SHA256
- * of "v0:<timestamp>:<raw body>", compared in constant time, the timestamp within five minutes. */
-export function slackSigned(timestamp: string | null, signature: string | null, body: Uint8Array | string, secret = process.env.ZIFFR_SLACK_SIGNING_SECRET, now = Date.now()): boolean {
+/** Whether a request was signed by Slack with this signing secret (the one in effect) a moment ago: `v0=` and the hex
+ * HMAC-SHA256 of "v0:<timestamp>:<raw body>", compared in constant time, the timestamp within five minutes. */
+export function slackSigned(timestamp: string | null, signature: string | null, body: Uint8Array | string, secret: string | null | undefined, now = Date.now()): boolean {
   if (!secret || !timestamp || !signature || !/^\d{9,11}$/.test(timestamp) || Math.abs(now / 1000 - Number(timestamp)) > 300) return false;
   const given = /^v0=([0-9a-f]{64})$/.exec(signature)?.[1];
   if (!given) return false;
@@ -62,14 +63,17 @@ async function say(bot: SlackBot, channel: string, threadTs: string | null, text
 }
 
 /** Takes one request from the Events API, already checked to be signed. Answers url_verification with its
- * challenge; everything else is claimed by its event_id first, so a retry from Slack changes nothing. */
-export async function receiveSlackEvent(body: unknown, effects: { submission?: SubmissionEffects } = {}): Promise<{ challenge?: string; outcome: SlackOutcome }> {
+ * challenge, and notes for the Installation Settings page that Slack reached the events address with the signing
+ * secret it was checked with (`signedWith`); everything else is claimed by its event_id first, so a retry from Slack changes nothing. */
+export async function receiveSlackEvent(body: unknown, effects: { submission?: SubmissionEffects; signedWith?: string } = {}): Promise<{ challenge?: string; outcome: SlackOutcome }> {
   const b = obj(body);
   if (b.type === "url_verification") {
     const challenge = str(b.challenge);
+    // The secret the signature was checked with; without it (a caller that checked none), nothing is noted.
+    await noteSlackEventsChecked(effects.signedWith ?? null);
     return /^[A-Za-z0-9_-]{1,200}$/.test(challenge) ? { challenge, outcome: "ignored" } : { outcome: "ignored" };
   }
-  if (b.type !== "event_callback" || !slackEnabled()) return { outcome: "ignored" };
+  if (b.type !== "event_callback" || !(await slackOn())) return { outcome: "ignored" };
   const eventId = str(b.event_id);
   if (!/^[A-Za-z0-9]{3,40}$/.test(eventId)) return { outcome: "ignored" };
   // Only a Slack workspace that is connected, and only for this installation's own app.
@@ -137,7 +141,7 @@ async function handle(bot: SlackBot, e: Obj, effects: { submission?: SubmissionE
  * message a Delivery was sent as, pressed by the Slack user that Delivery's recipient is matched to. */
 export async function receiveSlackInteraction(payload: unknown): Promise<SlackOutcome> {
   const p = obj(payload);
-  if (p.type !== "block_actions" || !slackEnabled()) return "ignored";
+  if (p.type !== "block_actions" || !(await slackOn())) return "ignored";
   const bot = await slackBotOfTeam(str(obj(p.team).id));
   if (!bot || str(p.api_app_id) !== bot.appId) return "unknown_team";
   // A press has no event_id: its trigger_id, unique per press, claims it once, so a replayed request does nothing.

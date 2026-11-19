@@ -2,9 +2,21 @@
 
 Ziffr can send real Slack messages and take the answers ([spec 0007](../specs/0007-real-slack.md)). Prompts asking for a number, reminders, questions, tasks and Thread replies arrive as direct messages from the Ziffr app. A reply in the message's thread records the number, answers in the Thread or proposes a Correction. Buttons approve an Unusual Value and stop Prompts and reminders on Slack. Without the settings below, or until a workspace connects Slack, Slack messages stay in the Outbox, as before. The demo never sends anything to Slack.
 
+## On the Installation settings page
+
+The easiest way: an Installation Admin opens **Installation settings** (`/installation`, see the [user guide](../user-guide/18-installation-settings.md)) and goes to **Slack**.
+
+1. **Create the Slack app** opens Slack's "Create app" with the manifest below already filled in for this Ziffr's address (`ZIFFR_SITE_URL`, which must be https). Pick the Slack workspace that owns the app and create it.
+2. On the app's **Basic Information** page, under **App Credentials**, copy the **Client ID**, **Client Secret** and **Signing Secret** into the page's fields and save. The two secrets are sealed with `ZIFFR_SECRETS_KEY` and never shown again. They work at once, without a restart.
+3. Slack tried the events address when the app was made, before Ziffr knew the signing secret. In Slack, open the app's **App Manifest** page and choose **Verify** next to the events address. Once Slack's signed check arrives, the page says "Slack has checked the events address". If it does not, the signing secret is wrong or Slack cannot reach this Ziffr.
+
+Slack cannot check the client id and secret before a Slack workspace is connected; they are used for the first time when an Owner or Admin of a Workspace chooses **Add to Slack** (step 3 below).
+
+A value set in the server's environment wins over the page, which shows it as "Set on the server". The rest of this guide sets everything in the environment instead.
+
 ## 1. Create the Slack app
 
-Every Ziffr installation uses a Slack app of its own. On [api.slack.com/apps](https://api.slack.com/apps) choose **Create New App**, then **From a manifest**, pick the Slack workspace that owns the app, and paste this. Replace `ziffr.example.com` with your Ziffr's address (`ZIFFR_SITE_URL`):
+Every Ziffr installation uses a Slack app of its own. On [api.slack.com/apps](https://api.slack.com/apps) choose **Create New App**, then **From a manifest**, pick the Slack workspace that owns the app, and paste this. Replace `ziffr.example.com` with your Ziffr's address (`ZIFFR_SITE_URL`). The Installation settings page's button fills in the same manifest, as JSON:
 
 ```yaml
 display_information:
@@ -42,13 +54,13 @@ settings:
   token_rotation_enabled: false
 ```
 
-Ziffr must be reachable from the internet at that address before Slack accepts the event URL: Slack checks it with a signed `url_verification` request, which Ziffr answers once the settings below are set. Keep token rotation off: Ziffr keeps the bot token Slack gives it and does not refresh it.
+Ziffr must be reachable from the internet at that address before Slack accepts the event URL: Slack checks it with a signed `url_verification` request, which Ziffr answers once it has the signing secret (on the page or below). If Slack checked before that, choose **Verify** on the app's App Manifest page again. Keep token rotation off: Ziffr keeps the bot token Slack gives it and does not refresh it.
 
 To connect Slack workspaces other than the one that owns the app, turn on **Manage Distribution** for the app. A team that only connects its own Slack workspace does not need to.
 
 ## 2. Settings
 
-From the app's **Basic Information** page, set these where Ziffr runs:
+From the app's **Basic Information** page, set these where Ziffr runs (or the three Slack values on the Installation settings page, as above):
 
 ```sh
 ZIFFR_SITE_URL=https://ziffr.example.com

@@ -6,7 +6,8 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { openSecretRotating, sealSecret } from "./secrets";
-import { callSlack, slackApiBase, slackEnabled, SlackError } from "./slack-api";
+import { settingsInEffect } from "./settings-in-effect";
+import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./slack-api";
 import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The bot scopes the Slack app asks for: post, open a direct message, read direct messages, find people by address. */
@@ -34,14 +35,15 @@ function mayManage(actor: Actor) {
  * at Slack to send them to. */
 export async function startSlackInstall(actor: Actor): Promise<string> {
   mayManage(actor);
-  if (!slackEnabled()) throw new Error("Slack is not set up for this Ziffr.");
+  const settings = await settingsInEffect();
+  if (!slackEnabled(settings)) throw new Error("Slack is not set up for this Ziffr.");
   const state = randomBytes(24).toString("base64url");
   // An abandoned attempt leaves nothing usable behind for long.
   await db().from("slack_install_states").delete().lt("created_at", new Date(Date.now() - STATE_MINUTES * 60_000).toISOString());
   const { error } = await db().from("slack_install_states").insert({ state, workspace_id: actor.workspaceId, person_id: actor.personId });
   if (error) throw new Error("Slack could not be started.");
   const url = new URL(`${new URL(slackApiBase()).origin}/oauth/v2/authorize`);
-  url.searchParams.set("client_id", String(process.env.ZIFFR_SLACK_CLIENT_ID));
+  url.searchParams.set("client_id", String(settings.ZIFFR_SLACK_CLIENT_ID));
   url.searchParams.set("scope", SLACK_SCOPES.join(","));
   url.searchParams.set("redirect_uri", redirectUri());
   url.searchParams.set("state", state);
@@ -55,7 +57,8 @@ export type SlackInstallOutcome = "connected" | "refused" | "elsewhere" | "org_i
  * for the same person in the same workspace, who must still be an Owner or Admin there. */
 export async function finishSlackInstall(actor: Actor, input: { code: string; state: string }): Promise<SlackInstallOutcome> {
   mayManage(actor);
-  if (!slackEnabled()) return "refused";
+  const settings = await settingsInEffect();
+  if (!slackEnabled(settings)) return "refused";
   const state = String(input.state ?? "");
   const code = String(input.code ?? "");
   if (!/^[A-Za-z0-9_-]{32}$/.test(state) || !/^[A-Za-z0-9._-]{10,300}$/.test(code)) return "refused";
@@ -66,7 +69,7 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   if (Date.now() - new Date(s.created_at).getTime() > STATE_MINUTES * 60_000) return "refused";
   let r: Record<string, unknown>;
   try {
-    r = await callSlack("oauth.v2.access", { client_id: process.env.ZIFFR_SLACK_CLIENT_ID, client_secret: process.env.ZIFFR_SLACK_CLIENT_SECRET, code, redirect_uri: redirectUri() });
+    r = await callSlack("oauth.v2.access", { client_id: settings.ZIFFR_SLACK_CLIENT_ID, client_secret: settings.ZIFFR_SLACK_CLIENT_SECRET, code, redirect_uri: redirectUri() });
   } catch {
     return "failed";
   }
@@ -119,12 +122,12 @@ export async function disconnectSlack(actor: Actor): Promise<void> {
 export async function slackConnection(actor: Actor): Promise<SlackConnectionView> {
   const { data } = await db().from("slack_installations").select("team_name, installed_at").eq("workspace_id", actor.workspaceId).is("revoked_at", null).maybeSingle();
   const canManage = (actor.role === "owner" || actor.role === "admin") && actor.workspaceId !== DEMO_WORKSPACE_ID;
-  return { enabled: slackEnabled() && actor.workspaceId !== DEMO_WORKSPACE_ID, canManage, team: data ? { name: data.team_name, connectedAt: data.installed_at } : null };
+  return { enabled: (await slackOn()) && actor.workspaceId !== DEMO_WORKSPACE_ID, canManage, team: data ? { name: data.team_name, connectedAt: data.installed_at } : null };
 }
 
 /** The workspace's connected bot with its token, for the core's Slack code only. */
 export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
-  if (workspaceId === DEMO_WORKSPACE_ID || !slackEnabled()) return null;
+  if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn())) return null;
   const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
   const opened = openSecretRotating(data.bot_token, sealContext(workspaceId));

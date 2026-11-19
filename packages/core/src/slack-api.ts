@@ -1,7 +1,10 @@
 // The Slack Web API (spec 0007; GLOSSARY: Connector). Every call Ziffr makes to Slack goes through here, to
 // https://slack.com/api or the self-hoster's ZIFFR_SLACK_API_URL (GovSlack), never to an address taken from data.
-// Slack's own words in an error are not kept beyond its error code: they may name people or settings.
+// Slack's own words in an error are not kept beyond its error code: they may name people or settings. The app's
+// client id, client secret and signing secret are the ones in effect (spec 0025): the environment's, else the ones an
+// Installation Admin saved on the Installation Settings page.
 import { secretsKey } from "./secrets";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 
 /** Slack's answer to one method call, as JSON. */
 export type SlackAnswer = { ok: boolean; error?: string } & Record<string, unknown>;
@@ -25,12 +28,24 @@ export function slackApiBase(env: Record<string, string | undefined> = process.e
   return "https://slack.com/api";
 }
 
-/** Whether this Ziffr talks to Slack: the app's client id, client secret and signing secret, the key that seals bot
+/** The signing secret of these settings, when it is long enough to be one; null otherwise. Pass the settings in effect. */
+export function slackSigningSecret(env: Settings): string | null {
+  const s = env.ZIFFR_SLACK_SIGNING_SECRET ?? "";
+  return s.length >= 16 ? s : null;
+}
+
+/** Whether these settings talk to Slack: the app's client id, client secret and signing secret, the key that seals bot
  * tokens, and ZIFFR_SITE_URL for the links and the OAuth redirect. */
-export function slackEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(env.ZIFFR_SLACK_CLIENT_ID && env.ZIFFR_SLACK_CLIENT_SECRET) && (env.ZIFFR_SLACK_SIGNING_SECRET ?? "").length >= 16
+export function slackEnabled(env: Settings): boolean {
+  return Boolean(env.ZIFFR_SLACK_CLIENT_ID && env.ZIFFR_SLACK_CLIENT_SECRET) && Boolean(slackSigningSecret(env))
     && Boolean(secretsKey(env)) && /^https?:\/\/[^\s/]+/.test(env.ZIFFR_SITE_URL ?? "");
 }
+
+/** The signing secret in effect now, for checking Slack's requests on the server; null without one. */
+export const slackSigningSecretNow = async (): Promise<string | null> => slackSigningSecret(await settingsInEffect());
+
+/** Whether this Ziffr talks to Slack now, by the settings in effect. */
+export const slackOn = async (): Promise<boolean> => slackEnabled(await settingsInEffect());
 
 /** Calls one Web API method with form fields (objects are sent as JSON, as Slack takes `blocks`), with the bot token
  * when given. Throws a SlackError for `ok: false`, a 429 or a failed request; waits at most ten seconds. */

@@ -5,12 +5,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
 import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInstallationSettings, sendTestEmail } from "@/app/installation-actions";
 import type { InstallationAdminRow, InstallationEvent } from "@ziffr/core/installation-admins";
-import type { InstallationSettingsView, SectionView, SettingView } from "@ziffr/core/installation-settings";
+import type { InstallationSettingsView, SectionView, SettingView, SlackSetupView } from "@ziffr/core/installation-settings";
 
 /** The words the page uses for each kind of event of the Installation's audit. */
 const EVENT_WORDS: Record<string, string> = {
@@ -54,7 +54,7 @@ export function InstallationScreen({ view, admins, events }: { view: Installatio
       </nav>
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} />)}
+        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} />)}
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>
           <p className="text-sm text-muted-foreground">Who changed what here, by the setting&apos;s name. Values are never recorded.</p>
@@ -123,8 +123,9 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
   );
 }
 
-/** One section: what it is for, how it stands, and its form when the page can set it up yet. */
-function Section({ section, canSeal }: { section: SectionView; canSeal: boolean }) {
+/** One section: what it is for, how it stands, and its form when the page can set it up yet. Slack gets its steps
+ * around the form: make the app from the manifest, then what Slack has checked and what comes next. */
+function Section({ section, canSeal, slack, siteUrl }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null }) {
   return (
     <section id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -133,10 +134,40 @@ function Section({ section, canSeal }: { section: SectionView; canSeal: boolean 
       </div>
       <p className="max-w-[62ch] text-sm text-muted-foreground">{section.purpose}</p>
       {section.detail && <p className="text-sm">{section.detail}</p>}
+      {slack && <SlackCreateApp slack={slack} siteUrl={siteUrl} />}
       {section.ready
         ? <SectionForm section={section} canSeal={canSeal} />
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
+      {slack && <SlackChecked slack={slack} section={section} />}
     </section>
+  );
+}
+
+/** Step one for Slack: a button that opens Slack's "Create app" with Ziffr's manifest filled in for this address. */
+function SlackCreateApp({ slack, siteUrl }: { slack: SlackSetupView; siteUrl: string | null }) {
+  if (!slack.createAppLink) {
+    return <p className="max-w-[62ch] text-sm">Slack only talks to an https address. Set ZIFFR_SITE_URL on the server to this Ziffr&apos;s https address{siteUrl ? <> (it is <span className="font-mono text-xs">{siteUrl}</span> now)</> : null}, then make the app here.</p>;
+  }
+  return (
+    <div className="max-w-[62ch] space-y-2 text-sm">
+      <p>1. Make the app: Slack opens with Ziffr&apos;s manifest already filled in for this address. Pick the Slack workspace that owns the app, then choose Create.</p>
+      <a href={slack.createAppLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>Create the Slack app</a>
+      <p>2. On the app&apos;s Basic Information page, under App Credentials, copy the three values into the fields below and save.</p>
+    </div>
+  );
+}
+
+/** Step three for Slack: whether Slack reached the events address with the signing secret saved, and what comes next. */
+function SlackChecked({ slack, section }: { slack: SlackSetupView; section: SectionView }) {
+  const signing = section.settings.find((x) => x.name === "ZIFFR_SLACK_SIGNING_SECRET");
+  if (!signing || signing.source === "none") return null;
+  return (
+    <div className="max-w-[62ch] space-y-2 text-sm">
+      {slack.eventsCheckedAt
+        ? <p role="status">Slack has checked the events address: it reached this Ziffr, signed with this signing secret, <RelativeTime at={slack.eventsCheckedAt} />.</p>
+        : <p role="status">3. Slack has not reached the events address with this signing secret yet. In Slack, open the app&apos;s App Manifest page and choose Verify next to the events address, then reload this page. Slack tried once when the app was made, before Ziffr knew the secret.</p>}
+      <p className="text-muted-foreground">Slack cannot check the Client ID and Client Secret before a Slack workspace is connected. {section.working ? "Next: an Owner or Admin of a Workspace chooses Add to Slack on its Connectors page; that uses them for the first time." : "Once all three are saved, an Owner or Admin of a Workspace chooses Add to Slack on its Connectors page."}</p>
+    </div>
   );
 }
 
