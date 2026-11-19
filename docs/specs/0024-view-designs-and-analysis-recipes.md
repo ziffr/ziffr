@@ -101,5 +101,6 @@ Two risks are accepted and written into the threat model: any checked design on 
 
 ## Further Notes
 
+- **Superseded by ADR 0013:** code from others never runs inside Ziffr, sandboxed or not, so the next note is kept only as the history of the idea. Shared designs and recipes travel in Packs (spec 0030).
 - **Code plugins later, if files are not enough.** A View or Analysis that no file can describe would run in a sandbox: a frame on its own origin with no cookies, no network (`connect-src 'none'`), no navigation, receiving only its own widget's numbers by message and returning only a drawing or numbers. Only Owners and Admins could install one. Its results would be marked "Computed by …, not verified by Ziffr", because they are not. Analyses in Python could run in such a sandbox through WebAssembly (Pyodide). Programs that analyse outside Ziffr can already read values through the API and write results back, like Feeds. A scan of plugin code can be added as an extra, never as the protection.
 - **Why not check imported code for malice.** No check can reliably tell harmless code from harmful code. The safety has to come from the design: no code in what is imported, and for later code plugins, a sandbox that limits what the code can reach.
