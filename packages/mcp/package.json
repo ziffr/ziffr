@@ -1,6 +1,6 @@
 {
   "name": "@ziffr/mcp",
-  "version": "0.1.0",
+  "version": "0.0.0-dev",
   "description": "A local MCP server that lets an AI assistant read your Ziffr Metrics and submit values, with an Access Key.",
   "license": "MIT",
   "repository": {

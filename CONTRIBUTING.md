@@ -55,7 +55,7 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 - a reference and tests against it;
 - its paths in `.github/calculation-paths.txt`.
 
-`pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path, and mutates the calculation modules the change touches, starting from the nightly run's results, in at most 20 minutes. Every night and before a release, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
+`pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path, and mutates the calculation modules the change touches, starting from the nightly run's results, in at most 20 minutes. Every night, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
 
 ## Code health
 
@@ -85,16 +85,24 @@ Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks f
 
 ## Versions and releases
 
-Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). The owner releases with one button: **Actions → Release → Run workflow** on `main`, or `pnpm release`, which starts the same run (`.github/workflows/release.yml`). The run turns the notes into a `CHANGELOG.md` section and sets the version on a branch `release/vX.Y.Z`. `main` takes changes only by pull request with passing checks, for everyone, so the run opens the release pull request, starts CI on it, merges it once the checks pass, and tags the merged commit `vX.Y.Z`. Then it creates the GitHub release from that same section, including the day the version becomes AGPL-3.0, verifies the calculations on the tagged code, and builds and publishes the image. The full mutation run, a few hours, is part of it only when a calculation path changed since the last nightly run that reached the score. If the run fails, fix the cause on `main` and press the button again: it tags a release merged without its tag, and makes a release pull request whose checks failed again from the new `main`. A `v*` or `*-v*` tag cannot be moved or deleted. Between releases, the pre-release **Preview** on the releases page shows what `main` holds beyond the last release: the waiting notes and every commit since, replaced after every push to `main` (`.github/workflows/preview.yml`). After every push to `main` the image `ghcr.io/ziffr/ziffr:main` is built too (`.github/workflows/next-image.yml`), and the **next** Ziffr at https://ziffr-next.stefansonntag.com follows it, so a merged change can be tried on a real server without a release.
+Ziffr has one version for the product (app, core and database together), `0.x` until the first public release (ADR 0004). A release is a tag on `main` (ADR 0014). The owner presses one button: **Actions → Release → Run workflow** on `main`, or `pnpm release`, which starts the same run (`.github/workflows/release.yml`). In about ten minutes the run:
+
+1. Refuses unless `main`'s CI passed on its newest commit. `main` takes nothing without its required checks, so nothing else runs again; the full mutation run stays nightly.
+2. Takes the release notes added to `.changeset/` since the previous tag `vX.Y.Z` and the version their bump levels make, and refuses when there are none. `node scripts/next-release.mjs` shows the same beforehand, on any computer.
+3. Tags that commit `vX.Y.Z`. Nothing is committed: the version comes from the tag.
+4. Builds the image with that version, starts it once with `docker/compose.yml` and checks it from outside, then pushes `X.Y.Z`, `X.Y` and `latest`.
+5. Makes the GitHub release, marked Latest, from the notes (self-hoster notes first, and the day the version becomes AGPL-3.0), with the version's `compose.yml` and `install.sh` attached.
+6. Refreshes the Preview, then publishes the npm packages at that version.
+
+If a job fails after the tag, use **Re-run failed jobs**; a `v*` or `*-v*` tag cannot be moved or deleted. A fix to the code is a pull request and a new press. Release notes stay in `.changeset/` after a release, since only files added after the previous tag count; a normal pull request may delete old ones. `CHANGELOG.md` keeps the versions up to 0.11.0; newer ones are on the [Releases page](https://github.com/ziffr/ziffr/releases). No release changes a file on `main`: the release writes its version into what it builds and attaches. The product's `package.json` files stay at 0.11.0, the last version committed, and the core uses that only where no image says otherwise (`packages/core/src/ziffr-version.ts`: Packs are checked against `ZIFFR_VERSION` in a release's image); the MIT packages say `0.0.0-dev`, and the Docker files on `main` name a placeholder.
+
+Between releases, the pre-release **Preview** on the releases page shows what `main` holds beyond the last release: the notes added since and every commit since, replaced after every push to `main` and after every release (`.github/workflows/preview.yml`). After every push to `main` the image `ghcr.io/ziffr/ziffr:main` is built too (`.github/workflows/next-image.yml`), and the **next** Ziffr at https://ziffr-next.stefansonntag.com follows it, so a merged change can be tried on a real server without a release.
 
 ### The MIT packages
 
-`@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` have versions of their own and are published to npm, each on its own (ADR 0004). A maintainer:
+`@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` carry the product's version from 0.12.0 on and are published to npm with every release (ADR 0014). The Release workflow writes the version into each package without committing it, packs them in a job with no way to publish, and publishes them with npm provenance in the environment `release`, each before the packages that depend on it. Nothing else publishes them. main's CI tested each against the running app on that commit already.
 
-1. Sets the package's `version` in its `packages/<name>/package.json` in a pull request, and merges it.
-2. Tags that commit `<name>-vX.Y.Z` (such as `sdk-v0.2.0` or `feed-kit-v0.1.0`) and pushes the tag. The "Publish a package" workflow checks the tag against the version, checks that the `@ziffr` packages it depends on are published (the MCP server and the feed kit need their SDK version, the SQL Feed its feed kit), runs every check and the package's tests against the running app, and publishes with npm provenance.
-
-Publishing needs no token: each package has trusted publishing set up on npmjs.com (repository `ziffr/ziffr`, workflow `publish-packages.yml`, environment `release`). A new package is published once by hand or with a short-lived token, then gets the same setup.
+Publishing needs no token: each package has trusted publishing set up on npmjs.com (repository `ziffr/ziffr`, workflow `release.yml`, environment `release`; the environment deploys only from `main`). A new package is published once by hand or with a short-lived token, then gets the same setup.
 
 ## Running it
 

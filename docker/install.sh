@@ -9,8 +9,9 @@
 # ZIFFR_MAIL_FROM from the environment.
 set -eu
 
-ZIFFR_VERSION=0.11.0
-COMPOSE_URL="${ZIFFR_COMPOSE_URL:-https://raw.githubusercontent.com/ziffr/ziffr/v${ZIFFR_VERSION}/docker/compose.yml}"
+# The release writes its version here in the copy it attaches (scripts/release-files.mjs); on main it is a placeholder.
+ZIFFR_VERSION=0.0.0-dev
+COMPOSE_URL="${ZIFFR_COMPOSE_URL:-https://github.com/ziffr/ziffr/releases/download/v${ZIFFR_VERSION}/compose.yml}"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Ziffr installer: %s\n' "$*" >&2; exit 1; }

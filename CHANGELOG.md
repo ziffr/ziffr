@@ -1,6 +1,8 @@
 # Changelog
 
-What changes for people who use or run Ziffr, newest version first. Each section is written by `pnpm release` from the release notes that pull requests leave in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section. Notes waiting for the next release are in `.changeset/`.
+From 0.12.0 on, every release and its notes are on the [GitHub Releases page](https://github.com/ziffr/ziffr/releases) (ADR 0014). This file keeps the versions up to 0.11.0 as they were released.
+
+What changed for people who use or run Ziffr, newest version first. Each section was written by `pnpm release` from the release notes that pull requests left in `.changeset/` (ADR 0004), and the GitHub release of a version shows exactly its section.
 
 ## 0.11.0 (2026-11-19)
 

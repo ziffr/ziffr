@@ -9,7 +9,7 @@
 // checked in full like any Pack: the signature says where a file came from, the checks are the protection.
 import { createPublicKey, verify, type KeyObject } from "node:crypto";
 import { request } from "node:https";
-import { version as ZIFFR_VERSION } from "../package.json";
+import { ZIFFR_VERSION } from "./ziffr-version";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";

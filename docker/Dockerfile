@@ -40,10 +40,14 @@ RUN case "$TARGETARCH" in \
  && tar -xzf /tmp/cli.tgz -C /usr/local/bin supabase && /usr/local/bin/supabase --version
 
 FROM ${NODE_IMAGE}
+# The version this image is (ADR 0014): the Release workflow passes the tag's version, the image of main `main-<sha>`.
+# Set only in this last stage and read when the app runs, so a new version rebuilds nothing before it.
+ARG ZIFFR_VERSION=dev
 LABEL org.opencontainers.image.title="Ziffr" \
       org.opencontainers.image.source="https://github.com/ziffr/ziffr" \
-      org.opencontainers.image.licenses="LicenseRef-Ziffr-Source-Available"
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+      org.opencontainers.image.licenses="LicenseRef-Ziffr-Source-Available" \
+      org.opencontainers.image.version="${ZIFFR_VERSION}"
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 ZIFFR_VERSION=${ZIFFR_VERSION}
 WORKDIR /app
 COPY --from=cli /usr/local/bin/supabase /usr/local/bin/supabase
 COPY --from=build --chown=node:node /repo/apps/web/.next/standalone ./

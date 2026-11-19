@@ -1,7 +1,9 @@
-// Releases (ADR 0004): pure rules for turning waiting release notes (Changesets) into a version and a changelog
-// section, and for reading a section back out. Kept free of files and git so it can be tested on its own.
+// Releases (ADR 0004, ADR 0014): pure rules for turning the release notes (Changesets) added since the last release
+// into the next version and the text of its GitHub release. Kept free of files and git so it can be tested on its own.
 
 const BUMPS = ["patch", "minor", "major"];
+/** A release tag: `vX.Y.Z`, nothing before or after. */
+const RELEASE_TAG = /^v(\d+\.\d+\.\d+)$/;
 
 /** Reads one Changeset file: the bump it asks for (the largest named) and its note. Returns null for anything else. */
 export function parseChangeset(text) {
@@ -29,7 +31,7 @@ export function changeDate(day) {
   return `${y + 3}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-/** Notes grouped as the changelog shows them: self-hoster notes first, then what is new, fixes, and notes for
+/** Notes grouped as a release shows them: self-hoster notes first, then what is new, fixes, and notes for
  * developers, each under a `### ` heading; lines ending in a blank line. */
 function renderGroups(notes) {
   const audience = (n, who) => new RegExp(`^${who}:\\s*`, "i").test(n.note);
@@ -49,19 +51,34 @@ function renderGroups(notes) {
   ];
 }
 
-/** The changelog section for a release: self-hoster notes first, then what is new, fixes, and notes for developers. */
-export function renderSection(version, day, notes) {
-  return [
-    `## ${version} (${day})`,
-    "",
-    ...renderGroups(notes),
-    `This version becomes available under AGPL-3.0 on ${changeDate(day)}.`,
-    "",
-  ].join("\n");
+/** The text of a GitHub release: self-hoster notes first, then what is new, fixes, and notes for developers, and the
+ * day the version becomes AGPL-3.0. The same grouping as the sections of CHANGELOG.md up to 0.11.0. */
+export function renderNotes(day, notes) {
+  return [...renderGroups(notes), `This version becomes available under AGPL-3.0 on ${changeDate(day)}.`, ""].join("\n");
+}
+
+/** The next release after the tag `previous`, from the Changeset files added since it (`files` are `{ name, text }`).
+ * Refuses when nothing was added, or when a file is not a release note: the release must not drop one silently. */
+export function nextRelease({ previous, files, day }) {
+  const current = RELEASE_TAG.exec(previous)?.[1];
+  if (!current) throw new Error(`${previous} is not a release tag like v0.11.0.`);
+  if (!files.length) throw new Error(`No release notes were added to .changeset/ since ${previous}: nothing to release.`);
+  const notes = files.map(({ name, text }) => {
+    const n = parseChangeset(text);
+    if (!n) throw new Error(`${name} is not a release note (see .changeset/README.md).`);
+    return n;
+  });
+  const version = nextVersion(current, notes);
+  return { previous, version, tag: `v${version}`, notes: renderNotes(day, notes), count: notes.length };
+}
+
+/** Which of the paths a diff lists are release notes: Markdown files directly in `.changeset/`, but not its README. */
+export function changesetPaths(paths) {
+  return paths.filter((p) => /^\.changeset\/[^/]+\.md$/.test(p) && p !== ".changeset/README.md");
 }
 
 /** The text of the rolling Preview pre-release: what main holds beyond the last release. The waiting notes, grouped
- * like a changelog section under the version they would make, then every commit since that release, newest first.
+ * like a release under the version they would make, then every commit since that release, newest first.
  * `commits` are `{ sha, subject }`; `repo` is `owner/name`. */
 export function renderPreview({ notes, next, since, commits, repo, day }) {
   const lines = [
@@ -78,26 +95,14 @@ export function renderPreview({ notes, next, since, commits, repo, day }) {
   return lines.join("\n");
 }
 
-/** Puts a new section on top of the released ones, below the changelog's introduction. */
-export function insertSection(changelog, section) {
-  const at = changelog.search(/^## /m);
-  return at === -1 ? `${changelog.trimEnd()}\n\n${section}` : `${changelog.slice(0, at)}${section}\n${changelog.slice(at)}`;
-}
-
-/** The text of one version's section, exactly as the changelog has it: the GitHub release is made from this. */
-export function sectionOf(changelog, version) {
-  const lines = changelog.split("\n");
-  const start = lines.findIndex((l) => l.startsWith(`## ${version} `) || l === `## ${version}`);
-  if (start === -1) return null;
-  let end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
-  if (end === -1) end = lines.length;
-  return lines.slice(start + 1, end).join("\n").trim() + "\n";
-}
-
-/** The Docker files (spec 0015) with the new version: the image docker/compose.yml starts, and the release
- * docker/install.sh downloads compose.yml from. Nothing else in them changes. */
+/** The Docker files (spec 0015) as a release attaches them: `docker/compose.yml` starts the image of `version` and
+ * `docker/install.sh` downloads that release's compose file. On main they name a placeholder; nothing else changes.
+ * Throws if the file has no version to set, so a renamed line cannot ship a release that starts the wrong image. */
 export function setDockerVersion(text, version) {
-  return text
-    .replace(/(ghcr\.io\/ziffr\/ziffr:)\d+\.\d+\.\d+/g, `$1${version}`)
-    .replace(/^(ZIFFR_VERSION=)\d+\.\d+\.\d+$/m, `$1${version}`);
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`${version} is not a version.`);
+  const out = text
+    .replace(/(ghcr\.io\/ziffr\/ziffr:)(?:main|\d+\.\d+\.\d+(?:-[\w.]+)?)\b/g, `$1${version}`)
+    .replace(/^(ZIFFR_VERSION=)\S+$/m, `$1${version}`);
+  if (out === text) throw new Error("No version to set in this file.");
+  return out;
 }

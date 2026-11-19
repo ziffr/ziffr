@@ -1,4 +1,4 @@
-# Release notes waiting for the next release
+# Release notes
 
 Every pull request that changes what people use or run adds one file here (ADR 0004). `pnpm changeset` writes it for you; agents write it directly:
 
@@ -14,4 +14,4 @@ People can now sign in with an email link.
 - Always name `@ziffr/web`: it stands for the product, including the core and the database.
 - Write for the people who use or run Ziffr, in one or two plain sentences. Start notes for self-hosters with "Self-hosters:" and for developers with "Developers:".
 
-The Release button turns these files into a section of `CHANGELOG.md` and removes them.
+The Release button takes the files added here since the previous release tag and makes them the text of the GitHub release (ADR 0014). The files stay afterwards and are never released twice; a pull request may delete old ones.

@@ -1,22 +1,19 @@
 #!/usr/bin/env node
-// Prints the text of the rolling Preview pre-release (.github/workflows/preview.yml): the release notes waiting in
-// .changeset/ under the version they would make, then every commit since the last release tag. Needs the full git
-// history (fetch-depth: 0). Usage: node scripts/preview-notes.mjs owner/repo
+// Prints the text of the rolling Preview pre-release (.github/workflows/preview.yml): the release notes added to
+// .changeset/ since the last release tag, under the version they would make (the same notes the Release button would
+// take, scripts/next-release.mjs), then every commit since that tag. Needs the full git history (fetch-depth: 0).
+// Usage: node scripts/preview-notes.mjs owner/repo
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { changesetsSince, previousTag } from "./next-release.mjs";
 import { nextVersion, parseChangeset, renderPreview } from "./release-lib.mjs";
 
 const repo = process.argv[2];
 if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) throw new Error("Give the repository as owner/name.");
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
-const notes = readdirSync(".changeset")
-  .filter((f) => f.endsWith(".md") && f !== "README.md")
-  .map((f) => parseChangeset(readFileSync(join(".changeset", f), "utf8")))
-  .filter(Boolean);
-const current = JSON.parse(readFileSync("package.json", "utf8")).version;
-const since = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*.[0-9]*.[0-9]*");
+const since = previousTag();
+// A file that is no release note is left out here; the Release button refuses it, and CI before it.
+const notes = changesetsSince(since).map((f) => parseChangeset(f.text)).filter(Boolean);
 const commits = git("log", "--no-merges", "--format=%H%x09%s", `${since}..HEAD`)
   .split("\n")
   .filter(Boolean)
@@ -26,5 +23,5 @@ const commits = git("log", "--no-merges", "--format=%H%x09%s", `${since}..HEAD`)
   });
 
 process.stdout.write(
-  renderPreview({ notes, next: nextVersion(current, notes), since, commits, repo, day: new Date().toISOString().slice(0, 10) }),
+  renderPreview({ notes, next: nextVersion(since.slice(1), notes), since, commits, repo, day: new Date().toISOString().slice(0, 10) }),
 );
