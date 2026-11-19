@@ -66,6 +66,8 @@ Three checks keep the code from growing what nobody needs. `pnpm health` runs th
 
 A ceiling only goes down. When the worst one gets better, lower the number in the same pull request.
 
+Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks for a simplification pass over the whole code base: merge duplicates, shrink the most complex functions, remove dead paths. Spec 0022's verification is its safety net, as for any change: the references, mutation testing, the same number everywhere. A change that alters any number fails.
+
 ## Pull requests
 
 - One concern per pull request; small is better.

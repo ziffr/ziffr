@@ -1,0 +1,39 @@
+# The quarterly simplification pass (#177, CONTRIBUTING "Code health"): on the first day of each quarter, an issue
+# asks for a pass over the whole code base. It only opens the issue, and none while the last one is still open; the
+# pass itself is a pull request like any other. Also runs on demand.
+name: Simplification pass
+on:
+  schedule:
+    - cron: "0 6 1 1,4,7,10 *"
+  workflow_dispatch:
+# Opening an issue is all it does: no checkout, no other access.
+permissions:
+  issues: write
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open the quarter's issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ -n "$(gh issue list --state open --search 'in:title "Simplification pass"' --json number --jq '.[].number')" ]; then
+            echo "The last simplification pass is still open: no new issue."; exit 0
+          fi
+          quarter="$(date -u +%Y)-Q$(( ($(date -u +%-m) - 1) / 3 + 1 ))"
+          gh issue create --title "Simplification pass $quarter" --body-file - <<'BODY'
+          Once a quarter, a pass over the whole code base (CONTRIBUTING, "Code health"), for example by an agent:
+
+          - **Merge duplicates.** `node scripts/code-health.mjs` lists the clones jscpd finds; merge the real ones.
+          - **Shrink the most complex functions.** `pnpm health:worst` lists them; split the worst into parts with names.
+          - **Remove dead paths.** Branches, options and fallbacks nothing reaches any more, besides what knip finds.
+
+          Then lower the ceilings to the new worst values: `DUPLICATION_CEILING` in `scripts/code-health.mjs`, and
+          `COMPLEXITY_CEILING` and `FUNCTION_LINES_CEILING` in `eslint.code-health.mjs`.
+
+          Behaviour does not change, and every number stays the same. Spec 0022's verification is the safety net: the
+          references, mutation testing (`pnpm --filter @ziffr/core test:mutation`), the same number everywhere. A change
+          that alters any number fails. Run `pnpm ci:local` before pushing.
+          BODY
