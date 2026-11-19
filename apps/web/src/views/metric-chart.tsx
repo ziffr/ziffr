@@ -106,7 +106,7 @@ export function MetricChart({
             />
           )}
           <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, mp, yearStart, true)} tick={{ fontSize: 12, fill: "var(--color-muted)" }} minTickGap={24} stroke="var(--color-rule-2)" />
-          <YAxis domain={domain} ticks={axis.ticks} interval={0} tickFormatter={(v) => axisText.get(v) ?? compactValue(metric, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
+          <YAxis domain={domain} ticks={axis.ticks.length ? axis.ticks : undefined} interval={axis.ticks.length ? 0 : undefined} tickFormatter={(v) => axisText.get(v) ?? compactValue(metric, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ active, payload }) => {
               const r = payload?.[0]?.payload as Row | undefined;

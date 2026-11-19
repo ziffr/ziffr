@@ -114,7 +114,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
           {part.grid === "horizontal" && <CartesianGrid vertical={false} stroke="var(--color-rule)" />}
           {part.grid === "both" && <CartesianGrid stroke="var(--color-rule)" />}
           {!none && <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, v.by, data.yearStart, true)} tick={tick(compact ? 11 : 12)} minTickGap={compact ? 16 : 24} stroke="var(--color-rule-2)" />}
-          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks} interval={axis ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick(compact ? 11 : 12, true)} width={compact ? 56 : 68} stroke="var(--color-rule-2)" />}
+          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks.length ? axis.ticks : undefined} interval={axis?.ticks.length ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick(compact ? 11 : 12, true)} width={compact ? 56 : 68} stroke="var(--color-rule-2)" />}
           {!none && <Tooltip content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : undefined} />}
           {marks.map((k, i) => {
             switch (k.mark) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { axisLabels, compactValue, formatChange, niceAxis, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
+import { axisLabels, compactValue, formatChange, MAX_AXIS_TICKS, niceAxis, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { metric } from "./test/fixtures";
 import { isUnitPosition, keptUnit, moneyUnit, UNIT_POSITIONS } from "./units";
@@ -188,6 +188,25 @@ describe("niceAxis and axisLabels (ticket #184)", () => {
     expect(niceAxis(-30, 70).ticks).toEqual([-50, -25, 0, 25, 50, 75]);
     expect(niceAxis(0, 0).ticks).toEqual([0, 0.25, 0.5, 0.75, 1]);
     expect(niceAxis(-4, -4).domain).toEqual([-4, 0]);
+    expect(niceAxis(9, 0)).toEqual(niceAxis(0, 9));
+  });
+  it("ends for any input, at most MAX_AXIS_TICKS ticks, and falls back to a padded domain where it cannot step", () => {
+    const sane = (a: ReturnType<typeof niceAxis>) => {
+      expect(a.ticks.length).toBeLessThanOrEqual(MAX_AXIS_TICKS + 1);
+      expect(a.domain.every(Number.isFinite)).toBe(true);
+      expect(a.domain[0]).toBeLessThanOrEqual(a.domain[1]);
+    };
+    // Huge values: the step is far below their precision, or the span overflows.
+    for (const [lo, hi] of [[1e300, 1e300], [-1e300, 1e300], [Number.MAX_VALUE, Number.MAX_VALUE], [-Number.MAX_VALUE, Number.MAX_VALUE], [1e15, 1e15 + 1], [2 ** 53, 2 ** 53 + 2], [1e-300, 2e-300], [5e-324, 1e-323]]) sane(niceAxis(lo, hi));
+    // Steps of 0.5 at 2^53, where doubles are 2 apart: ticks would repeat, so the chart picks its own.
+    expect(niceAxis(2 ** 53, 2 ** 53 + 2).ticks).toEqual([]);
+    // A range of 0, and values that are no numbers.
+    sane(niceAxis(0, 0));
+    expect(niceAxis(Number.NaN, 5)).toEqual({ domain: [0, 1], ticks: [0, 1], step: 1 });
+    expect(niceAxis(0, Number.POSITIVE_INFINITY)).toEqual({ domain: [0, 1], ticks: [0, 1], step: 1 });
+    expect(niceAxis(Number.NEGATIVE_INFINITY, Number.NaN).ticks).toEqual([0, 1]);
+    // A tick count that asks for far more steps than the cap.
+    sane(niceAxis(0, 1, 1e9));
   });
   it("writes small axes in full with the decimals the step needs, never more than the Metric's", () => {
     const a = niceAxis(0, 9);

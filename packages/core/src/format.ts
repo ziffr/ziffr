@@ -81,7 +81,9 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
 
 /** A value axis from `lo` to `hi`: about `count` ticks a nice step apart (1, 2, 2.5 or 5 times a power of ten), and
  * the domain from the first to the last. A single value (lo = hi) gets an axis around it, from 0 when it is positive.
- * Ticket #184: a chart of one value drew steps such as 92.35, 3,592.35, 7,092.35. */
+ * Ticket #184: a chart of one value drew steps such as 92.35, 3,592.35, 7,092.35.
+ * Where no such steps can be counted (values near the limits of a double, a step below their precision), the axis is
+ * the padded domain the charts used before, with no ticks of its own: the chart then picks its own. */
 export function niceAxis(lo: number, hi: number, count = 5): { domain: [number, number]; ticks: number[]; step: number } {
   if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { domain: [0, 1], ticks: [0, 1], step: 1 };
   if (lo > hi) [lo, hi] = [hi, lo];
@@ -90,18 +92,32 @@ export function niceAxis(lo: number, hi: number, count = 5): { domain: [number, 
     else if (hi > 0) lo = 0;
     else hi = 0;
   }
+  const padded = (): { domain: [number, number]; ticks: number[]; step: number } => {
+    const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.08 || 1;
+    const domain: [number, number] = [lo - pad, hi + pad];
+    return { domain: domain.every(Number.isFinite) ? domain : [lo, hi], ticks: [], step: 0 };
+  };
   const raw = (hi - lo) / Math.max(1, count - 1);
   const power = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((f) => f * power).find((s) => s >= raw) ?? 10 * power;
-  // Rounded to the step's own decimals, so 0.1 + 0.2 does not become 0.30000000000000004.
-  const places = Math.max(0, -Math.floor(Math.log10(step)) + 1);
+  // Ten times the power is always at least `raw`; only a power that is not finite finds none.
+  const step = [1, 2, 2.5, 5, 10].map((f) => f * power).find((s) => s >= raw);
+  if (step === undefined || !Number.isFinite(step) || step <= 0) return padded();
+  // Rounded to the step's own decimals, so 0.1 + 0.2 does not become 0.30000000000000004; toFixed takes 0 to 100.
+  const places = Math.min(20, Math.max(0, -Math.floor(Math.log10(step)) + 1));
   const round = (x: number) => Number(x.toFixed(places));
   const first = round(Math.floor(lo / step) * step);
   const last = round(Math.ceil(hi / step) * step);
-  const ticks: number[] = [];
-  for (let t = first; t <= last + step / 2; t = round(t + step)) ticks.push(t);
+  // The ticks are counted, never stepped to: with a step below a value's precision, first + step is first again.
+  const n = Math.round((last - first) / step);
+  if (!Number.isFinite(first) || !Number.isFinite(last) || !Number.isFinite(n) || n < 1 || n > MAX_AXIS_TICKS) return padded();
+  const ticks = Array.from({ length: n + 1 }, (_, i) => round(first + i * step));
+  // Steps lost to rounding (two ticks the same) mean the values are beyond what the axis can tell apart.
+  if (new Set(ticks).size !== ticks.length) return padded();
   return { domain: [first, last], ticks, step };
 }
+
+/** The most ticks `niceAxis` draws; more means the values defeat its steps, and the chart picks its own. */
+export const MAX_AXIS_TICKS = 50;
 
 /** The labels of an axis's ticks in one notation: all shortened (k or M, as `compactValue`) when the largest reaches
  * 10,000, otherwise all written in full, with as many decimals as the step needs and never more than the Metric's. */
