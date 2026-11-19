@@ -99,8 +99,8 @@ describe("targets with a key", () => {
     const { key: reader } = await keyFor(w, ben, "member", ["metrics:read"]);
     // A key made to create Metrics does not change them: metrics:edit is a scope of its own.
     const { key: creating } = await keyFor(w, ben, "member", ["metrics:read", "metrics:write"]);
-    await expect(updateMetricWithKey(creating, mine.slug, { target_min: 1 })).rejects.toThrow(/may not metrics edit/);
-    await expect(setSeriesWithKey(creating, mine.slug, "target", [{ period: "2027-01-01", value: 1 }])).rejects.toThrow(/may not metrics edit/);
+    await expect(updateMetricWithKey(creating, mine.slug, { target_min: 1 })).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
+    await expect(setSeriesWithKey(creating, mine.slug, "target", [{ period: "2027-01-01", value: 1 }])).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
     await expect(updateMetricWithKey(reader, mine.slug, { target_min: 1 })).rejects.toEqual(forbidden);
     await expect(updateMetricWithKey(key, saras.slug, { target_min: 1 })).rejects.toEqual(forbidden);
     expect(await updateMetricWithKey(key, mine.slug, { target_min: 1, target_max: 9 })).toMatchObject({ target_min: 1, target_max: 9 });
@@ -143,7 +143,7 @@ describe("the Unusual Value check with a key", () => {
     expect(await unusualValueCheckWithKey(key, revenue.slug)).toEqual({ workflow: { name: "Monthly close", yours: true, metrics: 2 }, check: { change_pct: 30, outside_target: false } });
     expect(await unusualValueCheckWithKey(key, none.slug)).toEqual({ workflow: null, check: null });
     await expect(unusualValueCheckWithKey(key, hiddenOne.slug)).rejects.toEqual(forbidden);
-    await expect(setUnusualValueCheckWithKey(creating, revenue.slug, { change_pct: 50 })).rejects.toThrow(/may not metrics edit/);
+    await expect(setUnusualValueCheckWithKey(creating, revenue.slug, { change_pct: 50 })).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
     await expect(setUnusualValueCheckWithKey(key, none.slug, { change_pct: 50 })).rejects.toBeInstanceOf(MetricChangeRefused);
     await expect(setUnusualValueCheckWithKey(key, revenue.slug, { change_pct: 0 })).rejects.toBeInstanceOf(MetricChangeRefused);
 
@@ -182,7 +182,7 @@ describe("Sources and Submitters with a key", () => {
 
     // Only its Sources: fine with metrics:write. Naming others needs metrics:edit too.
     expect(await createMetricWithKey(creating, { name: "Visits", sources: ["web_form", "mail"] }, effects)).toMatchObject({ sources: ["web_form", "mail"] });
-    await expect(createMetricWithKey(creating, { name: "Calls", submitters: [ann] }, effects)).rejects.toThrow(/may not metrics edit/);
+    await expect(createMetricWithKey(creating, { name: "Calls", submitters: [ann] }, effects)).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
     // Unknown Sources, and people of no workspace of Ben's, are refused before anything is made.
     await expect(createMetricWithKey(key, { name: "Calls", sources: ["fax"] }, effects)).rejects.toBeInstanceOf(MetricChangeRefused);
     const other = await ws(); const stranger = await other.person("member");
@@ -196,7 +196,7 @@ describe("Sources and Submitters with a key", () => {
     expect(effects.promptSubmitter).toHaveBeenCalledTimes(3);
     expect((await listSubmittersWithKey(key, calls.slug)).map((x) => x.kind).sort()).toEqual(["contact", "feed", "person", "person"]);
     expect(await listFeedsWithKey(key)).toEqual([{ id: crm, name: "CRM" }]);
-    await expect(listFeedsWithKey(creating)).rejects.toThrow(/may not metrics edit/);
+    await expect(listFeedsWithKey(creating)).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
   });
 
   it("adds and removes Submitters only for the Metric's owner and Editors, never as a Guest", async () => {
@@ -209,7 +209,7 @@ describe("Sources and Submitters with a key", () => {
     const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:edit"]);
     const { key: creating } = await keyFor(w, ben, "member", ["metrics:read", "metrics:write"]);
 
-    await expect(setSubmittersWithKey(creating, mine.slug, { add: [ann] }, effects)).rejects.toThrow(/may not metrics edit/);
+    await expect(setSubmittersWithKey(creating, mine.slug, { add: [ann] }, effects)).rejects.toThrow(/lacks the scope "Change metrics" \(metrics:edit\)/);
     await expect(setSubmittersWithKey(key, viewed.slug, { add: [ann] }, effects)).rejects.toThrow(/owner and its Editors/);
     const r = await setSubmittersWithKey(key, mine.slug, { add: [ann, crm, ann] }, effects);
     expect(r).toMatchObject({ added: 2, removed: 0 });

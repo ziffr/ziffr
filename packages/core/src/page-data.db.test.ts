@@ -10,6 +10,7 @@ import { ask } from "./questions";
 import { deliverPrompt } from "./deliveries";
 import { workspace } from "./test/db-fixtures";
 import { JANUARY, periodStart } from "./periods";
+import { addFeedToMetric, createFeed } from "./feeds";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -70,6 +71,26 @@ describe("page loaders", () => {
     await expect(metricExtras(w.actor(ben, "member"), secret.id, "month")).rejects.toEqual(forbidden);
     await db().from("versions").insert({ object_type: "metric", object_id: secret.id, version: 1, snapshot: {}, author_id: sara, workspace_id: w.id });
     expect((await activityView(w.actor(ben, "member"))).versions.map((v) => v.object_id)).not.toContain(secret.id);
+  });
+  it("tell the Metric's page every period whose value waits for Approval", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara);
+    await db().from("period_states").insert([
+      { workspace_id: w.id, metric_id: m.id, period_start: "2026-09-01", state: "approval" },
+      { workspace_id: w.id, metric_id: m.id, period_start: "2026-08-01", state: "published" },
+    ]);
+    expect((await metricExtras(w.actor(sara), m.id, "month")).pending).toEqual(["2026-09-01"]);
+  });
+  it("name a Feed among a Metric's submitters on the Workflows page, never by its id", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara);
+    const { id: feedId } = await createFeed(w.actor(sara), "CRM export");
+    await addFeedToMetric(w.actor(sara), m.id, feedId);
+    // A Feed that submits nothing on a Metric shown here stays out.
+    await createFeed(w.actor(sara), "Unrelated");
+    const view = await workflowsView(w.actor(sara));
+    expect(view.tokens.map((t) => t.submitter_id)).toContain(feedId);
+    expect(view.feeds).toEqual([{ id: feedId, name: "CRM export" }]);
   });
   it("give nothing of a dashboard, deck or thread one may not see, nor of another workspace", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");

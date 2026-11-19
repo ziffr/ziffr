@@ -24,7 +24,7 @@ The list shows every Metric you may see, one row each.
 | Column | What it shows |
 | --- | --- |
 | **Metric** | Its name, how often it is counted (Daily, Weekly, Monthly, Quarterly or Yearly) and how its values arrive, such as "via Web form or Mail". A **Derived Metric** says "derived from other metrics" instead. |
-| **Latest** | The most recent value, its period and its on-target label. "No values yet" when nothing has arrived. |
+| **Latest** | The most recent value, its period and its on-target label, marked "not approved yet" while it waits for **Approval**. "No values yet" when nothing has arrived. |
 | **Change** | The change against the period before, as an arrow and a percentage. |
 | **Trend** | A small line of the last 30 periods, on wider screens. |
 | **Target** | Its **Target Range**, such as "≥ 80,000 €", "≤ 5 %", "40 – 60" or "No target". |
@@ -194,7 +194,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 
 | Column | What it shows |
 | --- | --- |
-| **Period** | The period the value is for. |
+| **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. |
 | **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "imported" is an **Import**: a **Feed**'s value for a past period, recorded without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
 | **Submitted by** | The person, Contact or Feed who sent it. |

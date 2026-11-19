@@ -122,7 +122,8 @@ export async function activityView(actor: Actor) {
   };
 }
 
-/** The Workflows page: the workspace's Workflows and, for the Metrics the person sees, their states and submitters. */
+/** The Workflows page: the workspace's Workflows and, for the Metrics the person sees, their states and submitters
+ * (with the names of the Feeds among them). */
 export async function workflowsView(actor: Actor) {
   const ws = actor.workspaceId;
   const [all, { data: workflows }] = await Promise.all([getMetrics(ws), db().from("workflows").select("*").eq("workspace_id", ws).order("id")]);
@@ -132,7 +133,14 @@ export async function workflowsView(actor: Actor) {
     db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws).in("metric_id", ids).is("stands_in_for", null),
   ]);
   const metrics = all.filter((m) => ids.includes(m.id));
-  return { workflows: workflows ?? [], states: states ?? [], tokens: tokens ?? [], metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
+  // A Feed submits as a profile of its own that is no member or Contact: its name comes from the feeds table, as on
+  // the Metric's page, so the page never falls back to showing its id. Only the names of these Metrics' Feeds.
+  const submitterIds = [...new Set((tokens ?? []).map((t) => t.submitter_id as string))];
+  const { data: feedRows } = submitterIds.length
+    ? await db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", submitterIds)
+    : { data: [] };
+  const feeds = (feedRows ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
+  return { workflows: workflows ?? [], states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 
 /** The Metric Catalog: example Metrics anyone may start from; the same for every workspace. */
@@ -141,17 +149,21 @@ export async function metricCatalog() {
   return data ?? [];
 }
 
-/** What a Metric's page adds for someone who sees it: its Submitters, the workspace's Workflows, and this period's state. */
+/** What a Metric's page adds for someone who sees it: its Submitters, the workspace's Workflows, this period's state,
+ * and the periods whose values wait for Approval. */
 export async function metricExtras(actor: Actor, metricId: number, period: Period) {
   await assertSeesMetrics(actor, [metricId]);
   const ws = actor.workspaceId;
   const today = new Date().toISOString().slice(0, 10);
   const current = workingPeriod(today, period, await yearStartFor(ws, period));
-  const [{ data: tokens }, { data: workflows }, { data: row }, { data: state }] = await Promise.all([
+  const [{ data: tokens }, { data: workflows }, { data: row }, { data: state }, { data: waiting }] = await Promise.all([
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for").eq("workspace_id", ws).eq("metric_id", metricId),
     db().from("workflows").select("*").eq("workspace_id", ws).order("id"),
     db().from("metrics").select("workflow_id, owner_id").eq("id", metricId).eq("workspace_id", ws).single(),
     db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle(),
+    // Every period whose value waits for Approval, not only the Workflow's: the page marks those values as not
+    // approved yet, as widgets do (GLOSSARY: Approval).
+    db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metricId).eq("state", "approval"),
   ]);
   // A Token code opens someone's submission form, so a code goes to the browser only for the person's own Tokens, or
   // to the Metric's owner and admins, who hand the links out (in the demo, all of them). Everyone else sees who submits.
@@ -160,7 +172,8 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", ws).in("person_id", (tokens ?? []).map((t) => t.submitter_id));
   const feedIds = new Set((feeds ?? []).map((f) => f.person_id as string));
   const shown = (tokens ?? []).map((t) => ({ ...t, feed: feedIds.has(t.submitter_id), code: !feedIds.has(t.submitter_id) && (allCodes || t.submitter_id === actor.personId) ? t.code : null }));
-  return { tokens: shown, workflows: workflows ?? [], workflowId: (row?.workflow_id as number | null) ?? null, state, period: current };
+  const pending = (waiting ?? []).map((p) => p.period_start as string);
+  return { tokens: shown, workflows: workflows ?? [], workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
 }
 
 /** The actor's saved widgets (their Pool). */

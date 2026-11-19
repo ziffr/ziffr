@@ -45,6 +45,7 @@ import { Change, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { moneyUnit } from "@ziffr/core/units";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
+import { NotApprovedMark } from "@/views/approval-mark";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -106,7 +107,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     // Its currency is the unit Edit details proposes when the Metric becomes a money one (spec 0022).
     workspaceProfile(actor),
   ]);
-  const { tokens, workflows, workflowId, state: wfState, period: wfPeriod } = extras;
+  const { tokens, workflows, workflowId, state: wfState, period: wfPeriod, pending } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id]))[metric.id] ?? {};
@@ -165,7 +166,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
-          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
+          <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && pending.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change numberStyle={numberStyle} pct={change} size="size-5" />
@@ -335,7 +336,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <tbody>
                     {obs.map((o) => (
                       <tr key={o.id} className="border-t">
-                        <td className="py-2">{periodLabel(o.period_start, metric.period, yearStart)}</td>
+                        <td className="py-2">{periodLabel(o.period_start, metric.period, yearStart)}{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}

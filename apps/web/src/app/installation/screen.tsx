@@ -167,7 +167,8 @@ function SlackChecked({ slack, section }: { slack: SlackSetupView; section: Sect
     <div className="max-w-[62ch] space-y-2 text-sm">
       {slack.eventsCheckedAt
         ? <p role="status">Slack has checked the events address: it reached this Ziffr, signed with this signing secret, <RelativeTime at={slack.eventsCheckedAt} />.</p>
-        : <p role="status">3. Slack has not reached the events address with this signing secret yet. In Slack, open the app&apos;s App Manifest page and choose Verify next to the events address, then reload this page. Slack tried once when the app was made, before Ziffr knew the secret.</p>}
+        // Numbered only when steps 1 and 2 show above it, which needs an https address.
+        : <p role="status">{slack.createAppLink ? "3. " : ""}Slack has not reached the events address with this signing secret yet. In Slack, open the app&apos;s App Manifest page and choose Verify next to the events address, then reload this page. Slack tried once when the app was made, before Ziffr knew the secret.</p>}
       <p className="text-muted-foreground">Slack cannot check the Client ID and Client Secret before a Slack workspace is connected. {section.working ? "Next: an Owner or Admin of a Workspace chooses Add to Slack on its Connectors page; that uses them for the first time." : "Once all three are saved, an Owner or Admin of a Workspace chooses Add to Slack on its Connectors page."}</p>
     </div>
   );

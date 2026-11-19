@@ -42,7 +42,7 @@ describe("targets through the API", () => {
     expect((await patch(mine.slug, reader, { target_min: 10 })).status).toBe(403);
     for (const r of [await patch(mine.slug, creating, { target_min: 10 }), await setTargets(mine.slug, creating, [{ period: "2027-01-01", value: 1 }]), await setProjections(mine.slug, creating, [{ period: month(1), value: 1 }])]) {
       expect(r.status).toBe(403);
-      expect((await r.json()).error.message).toBe("This key may not metrics edit.");
+      expect((await r.json()).error.message).toBe("This key lacks the scope \"Change metrics\" (metrics:edit).");
     }
     // Hidden: not found. Seen as a viewer: forbidden, saying why.
     expect((await patch(hidden.slug, writer, { target_min: 10 })).status).toBe(404);

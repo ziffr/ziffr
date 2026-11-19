@@ -53,7 +53,7 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
   const [slackOn, telegramOn] = await Promise.all([slackSends(actor.workspaceId), telegramOnIn(actor.workspaceId)]);
   return [
     mailEnabled(env) ? way("email", "real", trial ? "Sent to the address you signed in with." : "Sent to each person's own address.", toOwner)
-      : way("email", "simulated", "This Ziffr has no mail server, so emails stay in the Outbox."),
+      : way("email", "simulated", "This Ziffr has no mail server, so emails stay in the Outbox. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Replying to an email with a number records it.")
       : way("email-replies", "off", mailEnabled(env) ? "Replies do not come back on this Ziffr: answer by the form link in the email." : "This Ziffr has no mail server."),
     !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox. Whoever runs it can set one up on its Installation settings page.")
@@ -81,10 +81,10 @@ export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boo
   if (!settings) return { demo, trial: null };
   const toYou = `To you only, at most ${TRIAL_DELIVERIES_PER_DAY} messages a day.`;
   const ways = [
-    mailEnabled(env) ? way("email", "real", "Requests for values reach the address you sign in with.", toYou) : way("email", "simulated", "This Ziffr has no mail server."),
+    mailEnabled(env) ? way("email", "real", "Requests for values reach the address you sign in with.", toYou) : way("email", "simulated", "This Ziffr has no mail server. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Reply with a number to record it.") : way("email-replies", "off", "Answer by the form link instead."),
     slackEnabled(env) ? way("slack", "real", "Connect your own Slack workspace.", toYou) : way("slack", "simulated", "This Ziffr has no Slack app. Whoever runs it can set one up on its Installation settings page."),
-    telegramEnabled(env) ? way("telegram", "real", "Connect your own Telegram.", toYou) : way("telegram", "simulated", "This Ziffr has no Telegram bot."),
+    telegramEnabled(env) ? way("telegram", "real", "Connect your own Telegram.", toYou) : way("telegram", "simulated", "This Ziffr has no Telegram bot. Whoever runs it can add one on its Installation settings page."),
     way("api", "real", "Programs with an Access Key.", `At most ${TRIAL_KEYS_MAX} keys.`),
     way("mcp", "real", "Claude and other assistants.", `At most ${TRIAL_KEYS_MAX} keys.`),
     way("feeds", "real", "n8n, scripts and other programs with a Feed Key.", `At most ${TRIAL_KEYS_MAX} Feeds.`),

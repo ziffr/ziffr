@@ -99,4 +99,12 @@ describe("what this Ziffr offers someone signed out", () => {
     expect(of(offers.trial!.ways, "email").state).toBe("real");
     expect(of(offers.trial!.ways, "slack").state).toBe("simulated");
   });
+  it("points to the Installation settings page for each Connector that page can set up", async () => {
+    // Mail, Slack and Telegram are all set on that page now (spec 0025); a simulated one says where.
+    const offers = await whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "7" });
+    for (const w of ["email", "slack", "telegram"] as Way[]) {
+      expect(of(offers.trial!.ways, w).state).toBe("simulated");
+      expect(of(offers.trial!.ways, w).reason).toMatch(/Installation settings page/);
+    }
+  });
 });
