@@ -1,4 +1,4 @@
-# 0029 Plans and limits: a Size per Workspace on hosted Ziffr, and Workspace Limits in the open code
+# 0029 Sizes and limits: a Size per Workspace on hosted Ziffr, and Workspace Limits in the open code
 
 **Status:** draft. **Tracking issue:** #258 (label `tracking`); its tickets become sub-issues labelled `spec:0029` once the owner has read this spec. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
@@ -49,7 +49,7 @@ The work splits in two:
 | Business | 1,000 | €199 | €1,990 |
 | Larger | more than 1,000 | on request | on request |
 
-- Prices are in EUR only and shown without VAT for businesses. _Decided while writing, check:_ people buying for themselves see prices with VAT, as EU consumer law requires; Ziffr Cloud asks "business or private" before showing a price.
+- Prices are in EUR only and shown without VAT for businesses. people buying for themselves see prices with VAT, as EU consumer law requires; Ziffr Cloud asks "business or private" before showing a price.
 - Members are unlimited. Guests, Contacts, Feeds and assistants never cost anything. Every feature is in every Size.
 - Values per day and storage are safeguards against abuse, the same at every Size, never a price. They are the limits Ziffr already has (per Access Key, per Feed, per Workspace for email), not new ones.
 - None of this table is in the open code. Ziffr itself knows a Size only as a Workspace Limit with a name.
@@ -60,7 +60,7 @@ The work splits in two:
 - **Where it is stored:** a new table `workspace_limits` (service role only): the Workspace, `metrics` (a whole number, or none for no limit), `label` (the name to show, such as "Small", plain text of at most 30 characters), an optional coming change (`next_label`, `next_on`) shown to Owners and Admins, who set it (`installation_admin` or `cloud`) and when. A Workspace without a row has the Installation's default.
 - **The Installation's default:** two new Installation Settings in a section "Workspace Limits", `ZIFFR_DEFAULT_METRICS_LIMIT` (unset means no limit) and `ZIFFR_DEFAULT_LIMIT_LABEL` (such as "Free"). Hosted Ziffr sets 10 and "Free". A self-hoster sets nothing and sees no limit anywhere.
 - **Who sets one:** an Installation Admin on the Installation Settings page, or Ziffr Cloud through its API (below). Both write the same row; the last write wins, and the page says when the limit it overrides was set by Ziffr Cloud. A Workspace Owner never sets their own limit.
-- **What the Installation Admin sees:** _decided while writing, check:_ the Workspace Limits section lists Workspaces by name with their Metric count, limit, label and who set it, and nothing else of them. Being an Installation Admin still shows no Workspace's data (spec 0025); a name and a count are what they need to pick the right Workspace.
+- **What the Installation Admin sees:** the Workspace Limits section lists Workspaces by name with their Metric count, limit, label and who set it, and nothing else of them. Being an Installation Admin still shows no Workspace's data (spec 0025); a name and a count are what they need to pick the right Workspace.
 - **Where it is enforced:** in the database, as the trial's 25 Metrics are today (`metrics_per_trial`). A trigger on `metrics`, before insert and before an Archived Metric is brought back, locks the Workspace's row, counts its Metrics and refuses with `ZF431` when the rule below says so. Every way a Metric is made goes through it: the form, the Metric Catalog, Duplicate, the API, the MCP Server, a Pack (spec 0030) and the trial's sample data.
 - **What a refusal says:** the core turns `ZF431` into one message, "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size." The API answers 403 with the code `workspace_limit` and the count and limit; the MCP Server's tools return the same words.
 - **The demo** has no limit.
@@ -82,7 +82,17 @@ The rule, in the core (`workspace-limits.ts`) and in the trigger, with the same 
 - **What it is:** a Metric kept with its description, values, history and Versions, that asks for nothing and takes no values. It does not count towards the Workspace Limit. Owners, Admins and the Metric's own Metric Owner archive it and bring it back; bringing it back counts again and may be refused by the limit.
 - **What it does:** Workflows skip it, so no Prompt, reminder or Escalation goes out for it. A value sent for it by any Source is refused with "This Metric is archived". Feeds that submit to it get the same answer for it and keep working for their other Metrics.
 - **Where it shows:** under a filter "Archived" on the Metrics page, not in the Pool and not in pickers. A widget that shows it keeps drawing its history, marked "Archived". The API lists it only when asked (`archived=true`).
-- **Glossary:** adds **Archived Metric**. _Decided while writing, check:_ "archive" is an _Avoid_ word for Snapshot, which is about keeping what a dashboard showed. An Archived Metric is a different thing, and the glossary entry says so.
+- **Glossary:** adds **Archived Metric**. "Archive" was an _Avoid_ word for Snapshot; it comes off that list, which now avoids "archived copy" instead. A Snapshot keeps what a dashboard showed; archiving puts a Metric aside. The two never meet in one sentence.
+
+### Demo Mode becomes read-only
+
+- **The rule:** visitors look around the demo and switch between its made-up people to see each one's view, but nothing they do changes it. Nothing is saved, so there is nothing to reset, and the **Reset** button goes.
+- **One refusal, everywhere:** every core function that writes refuses an Actor in the demo Workspace with one sentence, "The demo can't be changed. Start a trial to try it with your own numbers." (or, where trials are not offered, "The demo can't be changed."). Server actions show it as any other refusal (#232's way of saying why). The demo has no Access Keys, so the API and the MCP Server never reach it; their write endpoints refuse it the same way if they ever do.
+- **One check, not many:** the check lives where an Actor is turned into a write, in the core (`assertCan` and the few writes outside it), not in each page. Today's scattered demo checks that refuse one thing each ("Contacts cannot be added in the demo") become the one sentence.
+- **What the screens do:** forms, buttons and menus that write stay visible so visitors see what Ziffr offers, but say the sentence when used instead of failing. The Sources page and the simulated answers in the Outbox (`demo-channels.ts`), which today let a visitor play a submitter or a recipient, show what would happen without saving it.
+- **The seed:** `demo_reset` stays as the function that fills the demo, for Docker's first start (`docker/migrate.mjs`) and for `prototype:reset`. The nightly `POST /api/jobs/demo-reset` (`docker/clock.mjs`, 03:30 UTC) stays only if the seed's dates must move with the calendar so the demo keeps a current period; the ticket checks which, and removes the job otherwise.
+- **Why:** a shared demo that anyone may change shows the next visitor someone else's mess, needs a reset that races with visitors, and is one more place where a write path must be kept safe. A Trial Workspace (spec 0021) is where people try Ziffr with their own numbers.
+- **Glossary:** **Demo Mode** loses "resetting it" and says that nothing a visitor does is saved.
 
 ### Size and usage, in the app
 
@@ -98,13 +108,13 @@ The rule, in the core (`workspace-limits.ts`) and in the trigger, with the same 
 - **What changes at that moment:** invitations open, Connectors reach everyone as in any Workspace, and Access Keys and Feed Keys keep the end date they were made with instead of the trial's. A trial with more than 10 Metrics is then over its limit, and the grace above applies.
 - **Booking during the trial ends it at once:** a limit Ziffr Cloud sets with `endTrial` turns the Trial Workspace into an ordinary one with that limit, the same way.
 - **The words:** the trial bar and the email the day before say "Your trial ends on 3 December. Your Workspace then stays, on Free: up to 10 Metrics." with the label and number from the settings. The ended screen of spec 0021 is not shown on such an Installation.
-- _Decided while writing, check:_ during its 14 days the trial keeps spec 0021's rules: it reaches only its Owner, nobody can be invited, and it holds at most 25 Metrics. "Every feature" means every feature, not every person. A public sign-up page must not become a way to send invitations to any address someone types (ADR 0010). Booking a Size lifts this at once; a card proves more than an email address. The other way, letting trials invite, is weighed in Further Notes.
-- _Decided while writing, check:_ one person may own at most three Workspaces on the default limit on such an Installation (`ZIFFR_DEFAULT_LIMIT_PER_PERSON`, default 3, unset on self-hosted Installations). Without it, one person could hold any number of Free Workspaces of 10 Metrics each, which is a Business Size for nothing.
+- during its 14 days the trial keeps spec 0021's rules: it reaches only its Owner, nobody can be invited, and it holds at most 25 Metrics. "Every feature" means every feature, not every person. A public sign-up page must not become a way to send invitations to any address someone types (ADR 0010). Booking a Size lifts this at once; a card proves more than an email address. The other way, letting trials invite, is weighed in Further Notes.
+- one person may own at most three Workspaces on the default limit on such an Installation (`ZIFFR_DEFAULT_LIMIT_PER_PERSON`, default 3, unset on self-hosted Installations). Without it, one person could hold any number of Free Workspaces of 10 Metrics each, which is a Business Size for nothing.
 
 ### Unused Workspaces on the default limit
 
 - **Which:** only Workspaces on the Installation's default limit (on hosted Ziffr, Free), only where `ZIFFR_DELETE_UNUSED_AFTER_DAYS` is set (hosted Ziffr: 90), never in a trial, never the demo. A Workspace with a limit of its own (a paid Size, or one an Installation Admin set) is never deleted for being unused.
-- **What counts as used:** anyone of the Workspace signing in to it, or a value recorded for any of its Metrics by any Source. _Decided while writing, check:_ the owner named sign-ins and values from Feeds or email; counting every Source (Slack, Telegram, the form, the API) as well keeps a team that only answers Prompts from losing its Workspace. `workspaces.last_used_at` is updated at most once an hour per Workspace: where a sign-in is recorded in the Audit Log today (`audit-log.ts`), and in `record_observation`.
+- **What counts as used:** anyone of the Workspace signing in to it, or a value recorded for any of its Metrics by any Source. the owner named sign-ins and values from Feeds or email; counting every Source (Slack, Telegram, the form, the API) as well keeps a team that only answers Prompts from losing its Workspace. `workspaces.last_used_at` is updated at most once an hour per Workspace: where a sign-in is recorded in the Audit Log today (`audit-log.ts`), and in `record_observation`.
 - **The warning:** after 90 days without use, one email goes to every Owner: what will be deleted, on which day (14 days later), that one sign-in or one value keeps it, and a link to sign in and download its values as CSV first. `unused_warned_at` is set.
 - **The deletion:** 14 days after the warning, if still unused, the Workspace is deleted with its key destroyed first (spec 0028, ticket 5). As with trials, a person whose only Workspace this was is deleted with their sign-in. The Installation's audit keeps one line: the Workspace's id, that it was deleted as unused, and when.
 - **Stopping it:** any use clears `unused_warned_at`, and the count starts again.
@@ -115,14 +125,14 @@ The rule, in the core (`workspace-limits.ts`) and in the trigger, with the same 
 - **Upgrading** takes effect at once and is charged prorated for the rest of the period (Stripe's proration). Ziffr Cloud sets the new limit as soon as Stripe confirms the payment.
 - **Downgrading** takes effect at the end of the period, and only if the Workspace fits the smaller Size at the time it is booked. Ziffr Cloud reads the count through its API. If the Workspace does not fit, Ziffr Cloud sends the Owner back to **Make room** in Ziffr (`/settings/size/make-room?to=50`). That page lists the Metrics to archive, the ones with the oldest latest value first, ticked until enough are ticked. Ziffr Cloud never sees a Metric's name.
 - **The downgrade at the end of the period:** Ziffr Cloud sets the new limit with the coming change shown until then. If the Workspace has grown past it again in the meantime, the grace applies; nothing is archived by itself.
-- _Decided while writing, check:_ **cancelling** is always possible, takes effect at the end of the period, and moves the Workspace to the default limit (Free), even when it holds more Metrics than Free allows; the grace then applies. A rule that refused a cancellation would not be allowed for consumers and would feel like a trap to everyone else.
-- _Decided while writing, check:_ **a failed payment** follows Stripe's retries for up to 14 days with emails to the booking Owner; then the Size is cancelled as above. The Workspace never stops collecting values.
-- _Decided while writing, check:_ **deleting a Workspace with a paid Size** is refused until the Size is cancelled, so Ziffr never deletes something Ziffr Cloud still charges for. Deleting an ordinary Workspace is itself still to come (spec 0028).
+- **cancelling** is always possible, takes effect at the end of the period, and moves the Workspace to the default limit (Free), even when it holds more Metrics than Free allows; the grace then applies. A rule that refused a cancellation would not be allowed for consumers and would feel like a trap to everyone else.
+- **a failed payment** follows Stripe's retries for up to 14 days with emails to the booking Owner; then the Size is cancelled as above. The Workspace never stops collecting values.
+- **deleting a Workspace with a paid Size** is refused until the Size is cancelled, so Ziffr never deletes something Ziffr Cloud still charges for. Deleting an ordinary Workspace is itself still to come (spec 0028).
 
 ### Who books
 
 - **Only Workspace Owners** book, change and cancel a Size and see invoices. Admins see the Size and usage only (above). This matches the Workspace Role: an Owner manages billing, an Admin everything else.
-- **The billing address** is the booking Owner's own: they enter it in Ziffr Cloud (company or name, address, VAT ID for a business), and Ziffr Cloud and Stripe keep it, never Ziffr. _Decided while writing, check:_ when that Owner leaves the Workspace, the Size keeps running; another Owner takes over billing in Ziffr Cloud with their own details, and until then the invoices still go to the address on file.
+- **The billing address** is the booking Owner's own: they enter it in Ziffr Cloud (company or name, address, VAT ID for a business), and Ziffr Cloud and Stripe keep it, never Ziffr. when that Owner leaves the Workspace, the Size keeps running; another Owner takes over billing in Ziffr Cloud with their own details, and until then the invoices still go to the address on file.
 
 ### The Ziffr Cloud API
 
@@ -185,10 +195,11 @@ Adds **Size**, **Workspace Limit**, **Archived Metric** and **Ziffr Cloud**. Cha
 2. Workspace Limits: the table, the default settings, the trigger and the rule with the grace, the refusal's words in the app, API and MCP; the Installation Settings section. Blocked by 1.
 3. Size and usage in Workspace settings, the near-limit note, the Owners' banner and emails, the Audit Log events. Blocked by 2.
 4. The Ziffr Cloud API: signed requests, read, list and write, the handover for Owners, audit and limits; the threat model boundary. Blocked by 2.
-5. Trials kept: `ZIFFR_TRIAL_THEN`, the end turning a trial into an ordinary Workspace, the words, `endTrial`, the default limit per person. Blocked by 2 and 4.
+5. Trials kept: `ZIFFR_TRIAL_THEN`, the end turning a trial into an ordinary Workspace, the words, `endTrial`, one Free Workspace per person. Blocked by 2 and 4.
 6. Unused Workspaces: last use, the warning, the job, deletion with the key destroyed. Blocked by 2 and spec 0028's ticket 5.
 7. **Make room**: the page that names the Metrics to archive for a smaller Size. Blocked by 1 and 4.
-8. Docs: the self-hosting guide, the user guide chapters, `.env.example`, `docker/README.md`, release notes, and a security review of the whole spec.
+8. Demo Mode becomes read-only: one refusal in the core for every write by an Actor in the demo, the screens saying it, the Reset button and `resetDemo` gone, the simulated channels showing without saving, the nightly reset kept or removed; the glossary. Not blocked.
+9. Docs: the self-hosting guide, the user guide chapters, `.env.example`, `docker/README.md`, release notes, and a security review of the whole spec.
 
 In Ziffr Cloud's own repository, not sub-issues here: Stripe Billing and Tax, Checkout and the portal, the Size pages, proration and changes at period end, failed payments, the privacy page, EU hosting with backups kept 30 days.
 
@@ -219,22 +230,28 @@ From a grilling session, written as decided:
 11. **Payments:** Stripe Billing with Stripe Tax, EU VAT through OSS. Creators are paid later through Stripe Connect.
 12. **Billing code:** in a separate private service, Ziffr Cloud, in its own repository. The open code knows only generic limits per Workspace (number of Metrics), unlimited by default, set by an Installation Admin or by Ziffr Cloud. Self-hosters get no limits.
 
-## Decided while writing, check
+After reading the draft (also 2026-11-19), the owner accepted every point decided while writing, with these changes:
 
-Each is written into the decisions above with its recommendation; the owner confirms or changes it.
+- **Free is one Workspace per person,** besides the demo (the draft had three).
+- **The demo cannot be changed.** Visitors look around and switch between its made-up people, but nothing they do is saved, so there is no reset. Every server action and the API refuse writes in Demo Mode with one clear sentence.
+- **The title** is "Sizes and limits": "plan" is an _Avoid_ word.
+- **"Archive" stays the word for Metrics,** and comes off the _Avoid_ list under Snapshot.
+
+## Decided while writing
+
+Proposed in the draft and accepted by the owner on 2026-11-19, with the changes above; each is written into the decisions above.
 
 1. **Prices for people buying for themselves** are shown with VAT, as EU consumer law requires; Ziffr Cloud asks "business or private" first.
 2. **The Installation Admin's list** of Workspace Limits shows each Workspace's name and Metric count, nothing else.
-3. **"Archive"** is the word for Metrics (a new glossary term, Archived Metric), although it is an _Avoid_ word for Snapshot.
+3. **"Archive"** is the word for Metrics (a new glossary term, Archived Metric); it is no longer an _Avoid_ word for Snapshot.
 4. **The trial keeps spec 0021's reach** for its 14 days: only its Owner, no invitations, at most 25 Metrics. Booking a Size ends the trial at once.
-5. **At most three Workspaces on the default limit per person**, so Free cannot be stacked into a Business Size.
+5. **One Free Workspace per person** (the owner changed this from three), besides the demo.
 6. **Every Source counts as use** of a Workspace, not only Feeds and email.
 7. **Cancelling** is always possible and moves the Workspace to Free at period end, even when it holds more Metrics; the grace applies.
 8. **A failed payment** is retried for up to 14 days, then the Size is cancelled.
 9. **A Workspace with a paid Size cannot be deleted** until the Size is cancelled.
 10. **When the booking Owner leaves,** the Size keeps running and another Owner takes over billing with their own details.
 11. **The unused-Workspace rule** is a setting of the Installation (`ZIFFR_DELETE_UNUSED_AFTER_DAYS`) that applies only to Workspaces on the default limit. Ziffr Cloud cannot delete a Workspace through its API.
-12. **The spec's title** keeps "Plans" because the ticket is named so; in Ziffr's own words it is a Size, and the glossary lists "plan" under _Avoid_ for Size.
 
 ## Further Notes
 

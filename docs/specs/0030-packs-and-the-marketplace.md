@@ -50,7 +50,7 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 - **The existing schemas stay the authority.** A View Design in a Pack is checked by `checkViewDesign`, a recipe by the recipe checks, exactly as when pasted into the Playground. The Pack format only wraps them.
 - **New schemas for what has none yet:** Dashboard Templates and Themes exist today but have no published file format; this spec gives them one, generated into `docs/reference/` like spec 0024's. Deck Templates and Workflow Templates do not exist yet; ticket 2 adds them as features (save a deck or a Workflow as a template, start from one) and as formats. "Template" alone is never used in UI text without what it is a template of.
 - **References inside a Pack** go by an item's `key` and only to items of the same Pack: a Dashboard Template's Slot may suggest a Metric Catalog entry (`"suggests": "mrr"`), a widget may use one of the Pack's View Designs, a Deck Template may name one of its Themes. A reference to anything outside the Pack is refused.
-- **No images, fonts or links in the contents.** A Theme in a Pack uses only fonts Ziffr ships and no logo or background image. _Decided while writing, check:_ images would need their own checks (type, size, metadata, SVG scripts) for little gain in version 1; a Theme's logo is set by its Owner after installing.
+- **No images, fonts or links in the contents.** A Theme in a Pack uses only fonts Ziffr ships and no logo or background image. images would need their own checks (type, size, metadata, SVG scripts) for little gain in version 1; a Theme's logo is set by its Owner after installing.
 - **Derived Metrics** may be Metric Catalog entries; their formula names other entries of the same Pack by key, and **Set up** (below) makes their inputs first.
 
 ### The manifest
@@ -93,10 +93,10 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 - **Before installing:** the Pack's page in Ziffr shows every item, drawn as a Preview with Sample Data, with its license and author. A file from outside the Marketplace says so plainly ("Uploaded file. The Marketplace did not check it.").
 - **What installing does:** it copies each item into the table it lives in today, with three more columns: the install it came from, its `key`, and a hash of the item as installed. A new table `pack_installs` keeps the Workspace, the Pack's id, version, license, where it came from (Marketplace or upload), whether its signature held, the manifest as installed, who installed it and when. Everything happens in one database step, so a Pack is either installed whole or not at all.
 - **What it never does:** create Metrics, Workflows, dashboards or decks, send anything, or change anything already in the Workspace. Metric Catalog entries are only entries; templates are only templates. Installing never counts towards the Workspace Limit (spec 0029).
-- **Set up from this Pack** is a separate, optional step after installing. A person picks which of the Pack's Metric Catalog entries to make into Metrics, which Dashboard Template to make into a dashboard with its Slots filled by them, and which Workflow Template to use, with the people picked. Each Metric is made through `createMetric`, so the Workspace Limit, the Audit Log and every rule apply. The result is ordinary Metrics, a dashboard and a Workflow, as if made by hand. _Decided while writing, check:_ keeping installing and setting up apart means installing can never fill a Size or send a Prompt.
+- **Set up from this Pack** is a separate, optional step after installing. A person picks which of the Pack's Metric Catalog entries to make into Metrics, which Dashboard Template to make into a dashboard with its Slots filled by them, and which Workflow Template to use, with the people picked. Each Metric is made through `createMetric`, so the Workspace Limit, the Audit Log and every rule apply. The result is ordinary Metrics, a dashboard and a Workflow, as if made by hand. keeping installing and setting up apart means installing can never fill a Size or send a Prompt.
 - **A Metric made from a Pack's entry** is an independent copy, as from the Metric Catalog today. It records the Pack and entry it came from, as `from_catalog_id` does today, and updating or uninstalling the Pack never changes it.
 - **Audit:** `pack.installed`, `pack.updated` and `pack.uninstalled`, with the Pack's id and version.
-- **Signatures:** the Marketplace signs each published version (Ed25519) and Ziffr ships the Marketplace's public key. A Pack from the Marketplace whose signature fails is refused. An uploaded file with a valid signature is shown as from the Marketplace; one without is installed as an uploaded file, after the warning above. _Decided while writing, check:_ the signature tells the person where a file came from; the checks, not the signature, are the protection.
+- **Signatures:** the Marketplace signs each published version (Ed25519) and Ziffr ships the Marketplace's public key. A Pack from the Marketplace whose signature fails is refused. An uploaded file with a valid signature is shown as from the Marketplace; one without is installed as an uploaded file, after the warning above. the signature tells the person where a file came from; the checks, not the signature, are the protection.
 
 ### Updating
 
@@ -113,7 +113,7 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 
 - **Automatic, for every version:** the Pack's schema and every item's own checks, exactly as on install; the license from the list; the version higher than the last; the `listing` addresses reachable over https, not redirecting elsewhere and not on a blocklist of known bad hosts.
 - **Texts aimed at assistants:** descriptions of Metrics reach AI assistants through the MCP Server. Every text is searched for words addressed to an assistant: instructions to ignore, to call a tool, to send or record something. A hit stops the listing for a person to look at. This is a filter for what is obvious, not a protection: assistants reach Ziffr only through their key's scopes (the threat model's accepted risk "Assistants read workspace text").
-- **A person reviews** a creator's first Pack, and every paid Pack's every version: does it do what its summary says, are its words fit to show, does it copy someone else's work. _Decided while writing, check:_ a free Pack's later versions are listed after the automatic checks alone, and the Marketplace can take any version down.
+- **A person reviews** a creator's first Pack, and every paid Pack's every version: does it do what its summary says, are its words fit to show, does it copy someone else's work. a free Pack's later versions are listed after the automatic checks alone, and the Marketplace can take any version down.
 - **Taking a Pack down** stops new installs and updates. Installed copies stay, and the Packs page tells their Workspaces that it was withdrawn and why, in one line.
 
 ### Licenses
@@ -125,7 +125,7 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 ### Paid Packs (later)
 
 - Packs are free at first. Paid Packs come once the Marketplace has about 20 good free ones; until then a creator may list only free Packs.
-- Ziffr sells a paid Pack in its own name through Ziffr Cloud (Stripe, with VAT as for Sizes) and pays the creator 80 % through Stripe Connect. _Decided while writing, check:_ the 80 % is of the price without VAT, and Stripe's fees come out of Ziffr's 20 %, so a creator can say exactly what they earn.
+- Ziffr sells a paid Pack in its own name through Ziffr Cloud (Stripe, with VAT as for Sizes) and pays the creator 80 % through Stripe Connect. the 80 % is of the price without VAT, and Stripe's fees come out of Ziffr's 20 %, so a creator can say exactly what they earn.
 - A paid Pack is bought for a Workspace by one of its Owners. The Workspace can then install it and its updates.
 - Paid Packs on self-hosted Ziffr come later still: they need a way to prove a purchase without an account at Ziffr, which this spec does not design.
 
@@ -134,7 +134,7 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 - **What is listed:** a program that runs outside Ziffr and sends values in through a Feed, such as a CRM Feed, a warehouse query or an n8n flow. Its listing has its name, its creator, what it does, what it reads and from where, which Metrics it fills, its price as its creator sets it, and a link.
 - **The check before listing:** a person checks, briefly, that its setup asks only for a Feed Key (never an Access Key, a Ziffr password or a session) and that it states what it reads. Its code, uptime and handling of other systems' credentials are not checked, and the listing says so in those words.
 - **Money:** creators bill their customers themselves. Ziffr takes no share and handles no payment for it (ADR 0013).
-- **Not listed for now:** programs that need an Access Key, such as reporting tools or assistants' servers, since they read values. _Decided while writing, check:_ they can come later with their own check of the scopes they ask for.
+- **Not listed for now:** programs that need an Access Key, such as reporting tools or assistants' servers, since they read values. they can come later with their own check of the scopes they ask for.
 
 ### The Marketplace, as Ziffr sees it
 
@@ -220,11 +220,11 @@ From a grilling session, written as decided:
 19. **Self-hosters** can install free Packs through an outgoing connection that is off by default and turned on by the Installation Admin, or by uploading the file. Paid Packs on self-hosted Ziffr come later.
 20. **Ziffr seeds the Marketplace** with 5 free Packs: SaaS metrics, online shop, agency or freelancer, sports club, and a board meeting deck.
 
-The numbers follow the owner's list; points 1 to 12 are in spec 0029.
+The numbers follow the owner's list; points 1 to 12 are in spec 0029 (sizes and limits).
 
-## Decided while writing, check
+## Decided while writing
 
-Each is written into the decisions above with its recommendation; the owner confirms or changes it.
+Proposed in the draft and accepted by the owner on 2026-11-19 as written; each is in the decisions above.
 
 1. **Installing and setting up are two steps.** Installing adds only catalog entries, templates, designs, recipes and Themes; **Set up from this Pack** makes Metrics, a dashboard and a Workflow, within the Workspace Limit.
 2. **No images, fonts or links in a Pack's contents;** addresses only in its listing.
