@@ -5,9 +5,20 @@ import { DEFAULT_ATTAINMENT_METHOD } from "./attainment-method";
 import type { NumberStyle } from "./number-style";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { fromDashboardTemplate, fromTemplate } from "./team-templates";
-import { seeded } from "./trial-starting-values";
 import { TEMPLATES } from "./widget-templates";
 import type { BreakdownRow, CanvasData, DashboardTemplateBody, Metric, MetricDescription, Period, Point, Slot, TemplateId, WidgetSettings, WidgetTemplate } from "./types";
+
+// mulberry32: a tiny seeded generator of numbers from 0 to 1, the same numbers for the same seed.
+function seeded(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /** Who owns the sample Metrics: no person has this id. */
 export const SAMPLE_OWNER = "sample";

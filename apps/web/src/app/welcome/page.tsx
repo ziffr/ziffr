@@ -21,7 +21,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
       <div className="mx-auto mt-16 max-w-sm">
         <h1 className="text-[length:var(--text-2xl)] leading-tight">Start your trial</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          A Trial Workspace for you alone. It starts with made-up Metrics, a dashboard and a Workflow that asks you, so you can try how values arrive by email, Slack, Telegram, an assistant or a program. Nobody else can be invited, and nothing is sent to anyone but you. It ends after {trial.days} days and is then deleted with everything in it.
+          A Trial Workspace for you alone. It starts with one Metric, Cups of coffee, a Workflow that asks you for it each day and a small dashboard, so you can try how values arrive by email, Slack, Telegram, an assistant or a program. Nothing in it is made up: the first value is yours. Nobody else can be invited, and nothing is sent to anyone but you. It ends after {trial.days} days and is then deleted with everything in it.
         </p>
         <WelcomeForm />
       </div>

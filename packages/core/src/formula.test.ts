@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, type FormulaInput } from "./formula";
-import { STARTING_METRICS } from "./trial-starting-values";
 import { referenceReads } from "./test/reference/formula";
 
 describe("formula", () => {
@@ -126,9 +125,5 @@ describe("checkFormula", () => {
     expect(inputsProblem({ formula: "{revenue} / {hidden}", period: "month" }, inputs)).toBeNull();
     expect(inputsNotCombined({ formula: "{revenue} / {stock}" }, inputs)).toMatch(/STOCK is set to Aggregation none/);
     expect(inputsNotCombined({ formula: "{revenue} / {orders}" }, inputs)).toBeNull();
-  });
-  it("takes every formula of the trial's starting Metrics", () => {
-    const made = STARTING_METRICS.map((m) => ({ slug: m.slug, name: m.name, period: m.period, aggregation: m.aggregation, formula: m.formula ?? null }));
-    for (const m of STARTING_METRICS.filter((x) => x.formula)) expect(checkFormula(m.formula!, made, m)).toBeNull();
   });
 });
