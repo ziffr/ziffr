@@ -113,6 +113,10 @@ describe("values due", () => {
     expect(bens.overdue[0].standingInFor).toEqual({ id: ana, name: expect.stringContaining("member") });
     // Ana is back before November's Due Date: that one is hers, October's is not.
     expect(brief(await schedule(w.actor(ana, "member"), span, NOW))).toEqual(["value_due Revenue 2026-11-01 2026-12-03"]);
+    // A Stand-in who does not see the Metric (no Token of their own yet) gets nothing about it.
+    await db().from("tokens").delete().eq("metric_id", m.id).eq("submitter_id", ben);
+    expect(brief(await schedule(w.actor(ben, "member"), span, NOW))).toEqual([]);
+    await token(m.id, ben, { stands_in_for: ana, expires_at: "2027-01-31" });
     // Away moved later: the entry moves with it as soon as it is saved.
     await db().from("away").update({ starts: "2026-12-01", ends: "2026-12-04" }).eq("user_id", ana);
     expect(brief(await schedule(w.actor(ben, "member"), span, NOW))).toEqual(["value_due Revenue 2026-11-01 2026-12-03"]);
@@ -160,6 +164,16 @@ describe("Approvals, Tasks and Questions", () => {
     expect(s.days[0].entries[0].text).toBe("Renegotiate the shipping rate");
   });
 
+  it("counts working days late at once, also from a due date long ago", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara, { name: "Old", created_at: LONG_AGO });
+    await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: sara, kind: "task", question: "Ancient", due_date: "0001-01-01" });
+    await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: sara, kind: "task", question: "Last Friday", due_date: "2026-11-13" });
+    const s = await schedule(w.actor(sara), {}, NOW);
+    // One older than 90 days is not listed; last Friday's is four working days late.
+    expect(brief(s)).toEqual(["task Old 2026-10-01 2026-11-13 overdue 4"]);
+  });
+
   it("leaves out everything about a Metric the person no longer sees", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara, { name: "Secret", created_at: LONG_AGO });
@@ -179,7 +193,8 @@ describe("the span and today", () => {
     await expect(schedule(a, { from: "2026-11-22", to: "2026-11-16" }, NOW)).rejects.toThrow(/not be after/);
     await expect(schedule(a, { from: "2026-11-01", to: "2027-01-31" }, NOW)).rejects.toThrow(/90 days/);
     await expect(schedule(a, { from: "2027-11-10", to: "2027-11-21" }, NOW)).rejects.toThrow(/366 days/);
-    await expect(schedule(a, { from: "2026-02-30", to: "2026-03-01" }, NOW)).rejects.toThrow(/YYYY-MM-DD/);
+    await expect(schedule(a, { from: "2026-08-20", to: "2026-08-31" }, NOW)).rejects.toThrow(/90 days back/);
+    await expect(schedule(a, { from: "2027-02-30", to: "2027-03-01" }, NOW)).rejects.toThrow(/YYYY-MM-DD/);
     await expect(schedule(a, { from: "2026-11-01", to: "2026-11-01'; drop" }, NOW)).rejects.toThrow(/YYYY-MM-DD/);
     await expect(schedule(a, { from: "2026-11-01", to: "2027-01-30" }, NOW)).resolves.toBeTruthy();
   });
