@@ -129,7 +129,7 @@ describe("the Approve step's choice", () => {
     expect(await approvalTasks(m.id)).toMatchObject([{ assignee_id: ada, status: "open" }, { assignee_id: ada, status: "open" }]);
   });
 
-  it("with Every value, asks the Workflow's owner when the submitter is the only Approver; Unusual values only does not", async () => {
+  it("with Every value, asks the Metric Owner when the submitter is the only Approver; a usual value under Unusual values only counts", async () => {
     const every = await setup("every");
     await saveWorkflow(every.w.actor(every.sara), every.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [every.ada], values: "every" }, { type: "publish", lock: false }] });
     await every.w.token(every.m.id, every.ada);
@@ -153,5 +153,31 @@ describe("the Approve step's choice", () => {
     const [first] = (await approvalTasks(m.id)).filter((t) => t.status === "open");
     expect(await approve(w.id, first.id, ada)).toBe(`Approved; ${bo} approves next.`);
     expect((await approvalTasks(m.id)).filter((t) => t.status === "open")).toMatchObject([{ assignee_id: bo }]);
+  });
+
+  it("sends an unusual value from the sole Approver to the Metric Owner, and keeps it waiting when nobody else is left", async () => {
+    const { w, sara, ada, m, workflowId } = await setup("unusual");
+    await saveWorkflow(w.actor(sara), workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "check", changePct: 50, outsideTarget: false }, { type: "approve", approvers: [ada], values: "unusual" }, { type: "publish", lock: false }] });
+    await w.token(m.id, ada);
+    await w.value(m.id, monthsAgo(1), 100, ada);
+    await onValue(m.id, monthsAgo(1), ada);
+    await w.value(m.id, thisMonth(), 400, ada);
+    expect((await onValue(m.id, thisMonth(), ada))[0]).toMatch(new RegExp(`approval asked from ${sara}$`));
+    // Sara owns the Metric and the Workflow and is the only Approver: her own value waits, it is never published.
+    const solo = await setup("every");
+    await saveWorkflow(solo.w.actor(solo.sara), solo.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [solo.sara], values: "every" }, { type: "publish", lock: false }] });
+    await solo.w.token(solo.m.id, solo.sara);
+    await solo.w.value(solo.m.id, thisMonth(), 100, solo.sara);
+    expect(await onValue(solo.m.id, thisMonth(), solo.sara)).toEqual(["waits for approval: nobody but the submitter can approve it"]);
+    expect(await getState(solo.m.id, thisMonth())).toMatchObject({ state: "approval", approval_action_id: null, note: expect.stringMatching(/nobody but its submitter/) });
+    expect(await approvalTasks(solo.m.id)).toEqual([]);
+  });
+
+  it("under Every value, holds back an Import for the period being closed, and lets an old one count", async () => {
+    const { m, ada } = await setup("every");
+    await db().from("observations").insert({ metric_id: m.id, period_start: monthsAgo(1), value: 100, submitter_id: ada, source: "api", workspace_id: (await db().from("metrics").select("workspace_id").eq("id", m.id).single()).data!.workspace_id, imported: true });
+    expect((await onValue(m.id, monthsAgo(1), ada, { imported: true }))[0]).toMatch(/approval asked from/);
+    await db().from("observations").insert({ metric_id: m.id, period_start: monthsAgo(4), value: 100, submitter_id: ada, source: "api", workspace_id: (await db().from("metrics").select("workspace_id").eq("id", m.id).single()).data!.workspace_id, imported: true });
+    expect(await onValue(m.id, monthsAgo(4), ada, { imported: true })).toEqual(["published"]);
   });
 });

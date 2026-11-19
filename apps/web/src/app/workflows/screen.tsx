@@ -49,6 +49,8 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
   const setStep = (i: number, s: WorkflowStep) => setCfg({ ...cfg, steps: steps.map((x, j) => (j === i ? s : x)) });
   const move = (i: number, d: -1 | 1) => { const s = [...steps]; [s[i], s[i + d]] = [s[i + d], s[i]]; setCfg({ ...cfg, steps: s }); };
   const onIt = metrics.filter((m) => current && m.workflow_id === current.id);
+  // Who submits to the Metrics on this Workflow, for the Approve step's warning.
+  const submitters = new Set(tokens.filter((t) => onIt.some((m) => m.id === t.metric_id)).map((t) => t.submitter_id));
   const run = (f: () => Promise<unknown>) => start(async () => { try { await f(); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
   const { confirm, dialog } = useConfirm();
 
@@ -91,7 +93,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                     </span>
                   )}
                 >
-                  {canEdit && <StepFields s={s} people={people} onChange={(x) => setStep(i, x)} />}
+                  {canEdit && <StepFields s={s} people={people} submitters={submitters} onChange={(x) => setStep(i, x)} />}
                 </Node>
               ))}
             </ol>
@@ -182,7 +184,7 @@ function IconBtn({ label, onClick, children }: { label: string; onClick: () => v
   return <button type="button" aria-label={label} title={label} onClick={onClick} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
-function StepFields({ s, people, onChange }: { s: WorkflowStep; people: Profile[]; onChange: (s: WorkflowStep) => void }) {
+function StepFields({ s, people, submitters, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; onChange: (s: WorkflowStep) => void }) {
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-2 text-xs";
   const num = (v: number, set: (n: number) => void, max = 30) => <input type="number" min={0} max={max} value={v} onChange={(e) => set(Number(e.target.value))} className={cn(field, "w-16")} />;
   return (
@@ -218,6 +220,11 @@ function StepFields({ s, people, onChange }: { s: WorkflowStep; people: Profile[
           ))}
           {s.approvers.length < 3 && <button type="button" onClick={() => onChange({ ...s, approvers: [...s.approvers, people[0]?.id ?? ""] })} className="underline">Add approver</button>}
           <span>Nobody approves their own value; the next one does.</span>
+          {s.approvers.length > 0 && s.approvers.every((a) => submitters.has(a)) && (
+            <span role="note" className="basis-full text-[var(--color-ink)]">
+              {s.approvers.length === 1 ? "The only Approver" : "Every Approver"} also submits a Metric on this Workflow: their own values go to the Metric Owner, or the Workflow&apos;s owner, for Approval instead, and wait if that is them too. Add another Approver.
+            </span>
+          )}
         </>
       )}
       {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published</label>}

@@ -137,15 +137,15 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
-/** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. With Every value,
- * when that leaves nobody (the submitter is the only Approver), the Workflow's owner approves instead, else the
- * Metric's owner, so a value never counts unapproved because its submitter is an Approver. An Approve step that names
- * nobody holds nothing back. */
+/** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. When that leaves
+ * nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner, so a
+ * value never counts unapproved because its submitter is an Approver; with nobody else at all, it waits (see onValue).
+ * An Approve step that names nobody holds nothing back. */
 function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): string[] {
   if (!step?.approvers.length) return [];
   const named = step.approvers.filter((a) => a !== from);
-  if (named.length || step.values !== "every") return named;
-  return [ctx.wf.owner_id, ctx.m.owner_id].filter((a) => a && a !== from).slice(0, 1);
+  if (named.length) return named;
+  return [ctx.m.owner_id, ctx.wf.owner_id].filter((a) => a && a !== from).slice(0, 1);
 }
 
 /** Whether a period is history for a Workflow as of today: before the period it works on (the last one that ended),
@@ -182,6 +182,12 @@ export async function onValue(metricId: number, period: string, submitterId: str
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
   const every = approve?.values === "every" && (!opts.imported || !(await beforeWorkingPeriod(ctx, period)));
+  // Approval is needed, but the submitter is the only person who could give it: the value waits, never published
+  // unapproved; the note says why, on the Workflow and the Metric's pages.
+  if ((reasons.length || every) && approve?.approvers.length && !approvers.length) {
+    await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: null, approval_for: submitterId, note: "Waits for Approval: nobody but its submitter can approve it. Add an Approver to the Workflow, or have someone else submit it." });
+    return ["waits for approval: nobody but the submitter can approve it"];
+  }
   if ((reasons.length || every) && approvers.length) {
     const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
     await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, approval_for: submitterId, note: reasons.join("; ") });
