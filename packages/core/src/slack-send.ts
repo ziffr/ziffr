@@ -4,7 +4,7 @@
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
 import { FORM_LINK, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
-import { callSlack, slackEnabled, SlackError, TOKEN_GONE } from "./slack-api";
+import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -24,7 +24,7 @@ export const SLACK_BUTTONS = { approve: "ziffr_approve", stop: "ziffr_stop" } as
 
 /** Whether a new Slack Delivery in this workspace is really sent: Slack is set up and the workspace connected. */
 export async function slackSends(workspaceId: string): Promise<boolean> {
-  if (workspaceId === DEMO_WORKSPACE_ID || !slackEnabled()) return false;
+  if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn())) return false;
   const { data } = await db().from("slack_installations").select("workspace_id").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   return Boolean(data);
 }
@@ -53,7 +53,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
-  if (d.workspace_id === DEMO_WORKSPACE_ID || !slackEnabled()) return never("Slack is not set up.");
+  if (d.workspace_id === DEMO_WORKSPACE_ID || !(await slackOn())) return never("Slack is not set up.");
   const bot = await slackBot(d.workspace_id);
   if (!bot) return never("Slack is not connected.");
   // Someone who stopped Prompts and reminders on Slack gets none, also ones queued before they stopped.

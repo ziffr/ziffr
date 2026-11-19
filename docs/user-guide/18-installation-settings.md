@@ -4,7 +4,7 @@
 
 This chapter is for the people who run a Ziffr for others: a team, a club or a company. If someone else runs your Ziffr, you never see this page, and you can skip it.
 
-An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server first, and later Telegram, Slack, the check against bots and trials. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
+An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and later the check against bots and trials. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
 
 ## Becoming the first Installation Admin
 
@@ -54,14 +54,26 @@ If Telegram could not be told where to send answers, the token is saved anyway a
 
 **Remove** takes the token off the page and tells Telegram to stop sending answers here; Workspaces then reach nobody by Telegram. Saving another token does the same for the bot before it. Like the mail server, the token is a secret: once saved, the page shows only that it is saved and its last four characters.
 
+## Slack
+
+Ziffr sends requests for values to people's Slack and takes their answers once the Installation has a Slack app. One app serves the whole Installation; each Workspace then connects its own Slack workspace on its Connectors page.
+
+1. Choose **Create the Slack app**. Slack opens with Ziffr's manifest already filled in for this Ziffr's address. Pick the Slack workspace that owns the app and choose **Create**. If the page says Slack only talks to an https address, whoever runs the server sets this Ziffr's https address there first.
+2. On the app's **Basic Information** page in Slack, under **App Credentials**, copy the **Client ID**, the **Client Secret** and the **Signing Secret** into the three fields and choose **Save**. "Working" next to the title means Ziffr has all three.
+3. Slack tried the events address once when the app was made, before Ziffr knew the signing secret. In Slack, open the app's **App Manifest** page and choose **Verify** next to the events address. Reload Ziffr's page: "Slack has checked the events address" means Slack reached this Ziffr and signed its request with the secret you saved. If it does not appear, copy the Signing Secret again.
+
+Slack cannot check the Client ID and Client Secret until a Slack workspace is connected. The next step is in a Workspace: an Owner or Admin opens **Connectors** and chooses **Add to Slack**. If the Client ID or Client Secret is wrong, that is where it shows.
+
+To connect Slack workspaces other than the one that owns the app, turn on **Manage Distribution** for the app in Slack. The Client Secret and the Signing Secret are secrets: once saved, the page shows only that they are saved and their last four characters. Saving a new Signing Secret means asking Slack to verify the events address again.
+
 ## Set on the server
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
 
 ## Sections still to come
 
-Replies by email, Slack, the check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
+Replies by email, the check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server or the Telegram bot token, and test emails. It names the setting, never its value.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, and test emails. It names the setting, never its value.

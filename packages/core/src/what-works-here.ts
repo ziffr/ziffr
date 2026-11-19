@@ -56,7 +56,7 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
       : way("email", "simulated", "This Ziffr has no mail server, so emails stay in the Outbox."),
     inboundEnabled(env) ? way("email-replies", "real", "Replying to an email with a number records it.")
       : way("email-replies", "off", mailEnabled(env) ? "Replies do not come back on this Ziffr: answer by the form link in the email." : "This Ziffr has no mail server."),
-    !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox.")
+    !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox. Whoever runs it can set one up on its Installation settings page.")
       : slackOn ? way("slack", "real", trial ? "Direct messages to you in your Slack workspace." : "Direct messages in your Slack workspace.", toOwner)
         : way("slack", "off", "Not connected yet: an Owner or Admin connects a Slack workspace on the Connectors page."),
     !telegramEnabled(env) ? way("telegram", "simulated", "This Ziffr has no Telegram bot, so Telegram messages stay in the Outbox. Whoever runs it can add one on its Installation settings page.")
@@ -83,7 +83,7 @@ export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boo
   const ways = [
     mailEnabled(env) ? way("email", "real", "Requests for values reach the address you sign in with.", toYou) : way("email", "simulated", "This Ziffr has no mail server."),
     inboundEnabled(env) ? way("email-replies", "real", "Reply with a number to record it.") : way("email-replies", "off", "Answer by the form link instead."),
-    slackEnabled(env) ? way("slack", "real", "Connect your own Slack workspace.", toYou) : way("slack", "simulated", "This Ziffr has no Slack app."),
+    slackEnabled(env) ? way("slack", "real", "Connect your own Slack workspace.", toYou) : way("slack", "simulated", "This Ziffr has no Slack app. Whoever runs it can set one up on its Installation settings page."),
     telegramEnabled(env) ? way("telegram", "real", "Connect your own Telegram.", toYou) : way("telegram", "simulated", "This Ziffr has no Telegram bot."),
     way("api", "real", "Programs with an Access Key.", `At most ${TRIAL_KEYS_MAX} keys.`),
     way("mcp", "real", "Claude and other assistants.", `At most ${TRIAL_KEYS_MAX} keys.`),

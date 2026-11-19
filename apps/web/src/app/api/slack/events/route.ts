@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   } catch {
     return slackAnswer(400, { error: "not_json" });
   }
-  const r = await receiveSlackEvent(json);
+  const r = await receiveSlackEvent(json, { signedWith: body.signedWith });
   if (r.challenge) return new Response(r.challenge, { status: 200, headers: { "content-type": "text/plain", "cache-control": "no-store" } });
   // Slack only learns the outcome's name: it says nothing of the workspace.
   return slackAnswer(200, { outcome: r.outcome });

@@ -11,6 +11,8 @@ import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowe
 import { secretsKey, sealSecret } from "./secrets";
 import { botUsername, forgetTelegramBot, registerTelegramWebhook, telegramBot } from "./telegram-connection";
 import { callTelegram, TELEGRAM_TOKEN, TelegramError, telegramEnabled, telegramPolling, telegramToken } from "./telegram-api";
+import { slackEnabled } from "./slack-api";
+import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -24,8 +26,13 @@ export type SectionView = { id: SettingsSectionId; title: string; purpose: strin
  * send answers, an old bot not let go). */
 export type SaveOutcome = { notice: string | null; warning: string | null };
 
+/** What the Slack section shows besides its fields: the link that opens Slack's "Create app" with the manifest for
+ * this Ziffr (null without an https ZIFFR_SITE_URL), and when Slack last reached the events address signed with the
+ * signing secret in effect. */
+export type SlackSetupView = { createAppLink: string | null; eventsCheckedAt: string | null };
+
 /** Everything the Installation Settings page shows, for an Installation Admin. */
-export type InstallationSettingsView = { sections: SectionView[]; canSeal: boolean; siteUrl: string | null };
+export type InstallationSettingsView = { sections: SectionView[]; canSeal: boolean; siteUrl: string | null; slack: SlackSetupView };
 
 // The longest value any setting takes; the table allows 4096 for the sealed form.
 const MAX_VALUE = 1000;
@@ -83,6 +90,9 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_INBOUND_DOMAIN: (v) => (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(v) ? null : "The domain for replies looks like in.ziffr.example.com."),
   ZIFFR_INBOUND_SECRET: (v) => (/^\S{32,200}$/.test(v) ? null : "The signing secret has 32 to 200 characters, without spaces."),
   ZIFFR_TELEGRAM_BOT_TOKEN: (v) => (TELEGRAM_TOKEN.test(v) ? null : "A bot token looks like 1234567890:AA… : the numbers, a colon, and the rest, as @BotFather wrote it."),
+  ZIFFR_SLACK_CLIENT_ID: (v) => (/^\d{4,20}\.\d{4,20}$/.test(v) ? null : "The Client ID is two numbers with a dot between them, such as 1234567890.1234567890."),
+  ZIFFR_SLACK_CLIENT_SECRET: (v) => (/^[A-Za-z0-9]{32,128}$/.test(v) ? null : "The Client Secret is letters and digits, as Slack shows it under App Credentials."),
+  ZIFFR_SLACK_SIGNING_SECRET: (v) => (/^[A-Za-z0-9]{32,128}$/.test(v) ? null : "The Signing Secret is letters and digits, as Slack shows it under App Credentials."),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
@@ -93,6 +103,14 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     if (!telegramEnabled(settings)) return { working: false, detail: telegramToken(settings) ? "Needs ZIFFR_SECRETS_KEY on the server." : null };
     const bot = await telegramBot();
     return bot ? { working: true, detail: `Bot @${bot.username}` } : { working: false, detail: "Telegram does not accept this token, or cannot be reached." };
+  }
+  if (id === "slack") {
+    if (slackEnabled(settings)) return { working: true, detail: null };
+    const some = ["ZIFFR_SLACK_CLIENT_ID", "ZIFFR_SLACK_CLIENT_SECRET", "ZIFFR_SLACK_SIGNING_SECRET"].some((n) => settings[n]);
+    if (!some) return { working: false, detail: null };
+    if (!secretsKey(settings)) return { working: false, detail: "Needs ZIFFR_SECRETS_KEY on the server, which seals the Slack workspaces' bot tokens." };
+    if (!/^https?:\/\/[^\s/]+/.test(settings.ZIFFR_SITE_URL ?? "")) return { working: false, detail: "Needs ZIFFR_SITE_URL on the server." };
+    return { working: false, detail: "Needs all three values from Slack." };
   }
   return { working: false, detail: null };
 }
@@ -113,6 +131,7 @@ export async function installationSettingsView(actor: InstallationActor): Promis
     sections: await Promise.all(SETTINGS_SECTIONS.map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
     canSeal: secretsKey() !== null,
     siteUrl: process.env.ZIFFR_SITE_URL ?? null,
+    slack: { createAppLink: slackCreateAppLink(process.env.ZIFFR_SITE_URL), eventsCheckedAt: await slackEventsCheckedAt(settings) },
   };
 }
 
@@ -178,6 +197,7 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   }
   forgetStoredSettings();
   for (const { def, value } of changes) await recordInstallationEvent(actor.personId, value === null ? "setting.removed" : "setting.set", def.name);
+  if (sec.id === "slack") return slackSaved(changes.some((c) => c.def.name === "ZIFFR_SLACK_SIGNING_SECRET" && c.value !== null));
   if (!telegram) return { notice: null, warning: null };
   forgetTelegramBot();
   let warning: string | null = null;
@@ -209,6 +229,15 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     const why = e instanceof TelegramError ? "Telegram refused to send answers here. Try Check Telegram in a moment." : e instanceof Error ? e.message : "It did not work.";
     return { notice: `Saved: @${username}.`, warning: `Telegram was not told where to send answers. ${why}` };
   }
+}
+
+/** What saving Slack's values says next: Slack checks the events address once asked again (it tried when the app was
+ * made, before Ziffr knew the signing secret), and the client id and secret are first used when a Workspace connects. */
+async function slackSaved(newSigningSecret: boolean): Promise<SaveOutcome> {
+  const settings = await settingsInEffect();
+  if (!slackEnabled(settings)) return { notice: "Saved. Slack works once all three values are set.", warning: null };
+  const verify = newSigningSecret ? " In Slack, open the app's App Manifest page and choose Verify next to the events address; this page then says Slack reached it." : "";
+  return { notice: `Saved.${verify} Then an Owner or Admin of a Workspace chooses Add to Slack on its Connectors page.`, warning: null };
 }
 
 /** Asks Telegram about the bot in effect, registers the webhook again, and says how it stands, for an Installation
