@@ -68,7 +68,7 @@ describe("/mcp", () => {
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual((await local.listResourceTemplates()).resourceTemplates);
     expect(client.getServerVersion()).toEqual(local.getServerVersion());
     // The Starters too, filled in and refused the same way.
-    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "weekly_review", "record_values", "build_dashboard", "explain_metric", "set_targets"]);
+    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "weekly_review", "record_values", "build_dashboard", "explain_metric", "start_tracking", "set_targets"]);
     expect((await client.listPrompts()).prompts).toEqual((await local.listPrompts()).prompts);
     const args = { name: "record_values", arguments: { text: "3 coffees today" } };
     expect(await client.getPrompt(args)).toEqual(await local.getPrompt(args));
@@ -103,6 +103,8 @@ describe("/mcp", () => {
       ["set_target_series", { slug: orders.slug, items: [{ period: "2027-01-01", value: 1 }] }],
       ["set_projections", { slug: orders.slug, items: [{ period: "2099-01-01", value: 1 }] }],
       ["set_unusual_value_check", { slug: orders.slug, change_pct: 10 }],
+      ["set_submitters", { slug: orders.slug, add: ["x"] }],
+      ["list_feeds", {}],
     ] as const) {
       const r = await client.callTool({ name, arguments: args });
       expect(r.isError, name).toBe(true);
@@ -124,6 +126,10 @@ describe("/mcp", () => {
     expect(over.isError).toBe(true);
     expect(text(over)).toMatch(/unprocessable.*is over/);
     expect(json(await client.callTool({ name: "get_unusual_value_check", arguments: { slug: orders.slug } }))).toEqual({ workflow: null, check: null });
+    // Sources and Submitters (ticket #217).
+    expect(json(await client.callTool({ name: "update_metric", arguments: { slug: orders.slug, sources: ["mail", "api"] } })).metric.sources).toEqual(["mail", "api"]);
+    expect(json(await client.callTool({ name: "list_submitters", arguments: { slug: orders.slug } })).submitters).toHaveLength(1);
+    expect(json(await client.callTool({ name: "list_feeds", arguments: {} }))).toEqual({ feeds: [] });
     const hiddenOne = await client.callTool({ name: "set_target_series", arguments: { slug: hidden.slug, items: [{ period: "2027-01-01", value: 1 }] } });
     expect(text(hiddenOne)).toContain("not_found");
   });

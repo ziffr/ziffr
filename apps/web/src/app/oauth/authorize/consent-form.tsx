@@ -11,7 +11,7 @@ import { answerConsent, type ConsentState } from "./actions";
 
 const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
 /** What a scope covers, where its label alone does not say. */
-const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections and the Unusual Value check of the Metrics you own or edit" };
+const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
 const READING: Scope[] = ["metrics:read", "dashboards:read"];
 
 /** The form; the server checks everything again. */
@@ -47,10 +47,13 @@ export function ConsentForm({ request, clientName, returnHost, onThisComputer, w
       <fieldset className="space-y-1.5">
         <legend className="text-xs text-muted-foreground">It may</legend>
         {shown.map((s) => (
-          <label key={s} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="scope" value={s} checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="size-4 accent-[var(--color-ink)]" />
-            {SCOPE_LABEL[s]}
-            {SCOPE_HINT[s] && <span className="text-xs text-muted-foreground">({SCOPE_HINT[s]})</span>}
+          <label key={s} className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="scope" value={s} checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="mt-0.5 size-4 shrink-0 accent-[var(--color-ink)]" />
+            <span>
+              {SCOPE_LABEL[s]}
+              {/* On a line of its own, so the label never wraps beside it. */}
+              {SCOPE_HINT[s] && <span className="block text-xs text-muted-foreground">{SCOPE_HINT[s]}</span>}
+            </span>
           </label>
         ))}
       </fieldset>

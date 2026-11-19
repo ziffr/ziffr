@@ -2,6 +2,9 @@
 // and the OpenAPI document is generated from them, so the description and the server cannot drift apart.
 import { z } from "zod";
 
+/** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
+export const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
+
 /** A Metric as a program sees it (GLOSSARY: Metric, Metric Description). */
 export const ApiMetric = z.object({
   slug: z.string().describe("Stable id in paths; survives renames of the name."),
@@ -17,6 +20,7 @@ export const ApiMetric = z.object({
   target_min: z.number().nullable().describe("The low end of its target, if any."),
   target_max: z.number().nullable().describe("The high end of its target, if any."),
   attainment_method: z.enum(["ratio", "distance"]).nullable().describe("How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default."),
+  sources: z.array(SourceId).describe("Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric."),
   derived: z.boolean().describe("A Derived Metric: computed from others, takes no values."),
 });
 
@@ -47,6 +51,9 @@ export const ApiObservation = z.object({
 /** GET /api/v1/metrics/{slug}/observations answers this. */
 export const ObservationList = pageOf(ApiObservation);
 
+/** Person or Feed ids naming Submitters: at most 20 at a time, since each one added gets a first Prompt. */
+const submitterIds = z.array(z.string().min(1).max(64)).max(20);
+
 /** POST /api/v1/metrics takes this (spec 0003): a Metric's description, as GET /api/v1/metrics/{slug} shows one. */
 export const CreateMetric = z.object({
   name: z.string().trim().min(1).max(120).describe("What it is called; its slug is made from it."),
@@ -63,6 +70,8 @@ export const CreateMetric = z.object({
   target_max: z.number().nullable().optional(),
   attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; left out or null, it follows the workspace's default."),
   submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
+  sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, the ways values may arrive; left out, every one."),
+  submitters: submitterIds.optional().describe("Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well."),
 }).strict();
 
 /** A target or Projection: a number at most 10^15 either way. */
@@ -71,6 +80,7 @@ const seriesValue = z.number().min(-1e15).max(1e15);
 /** PATCH /api/v1/metrics/{slug} takes this (ticket #211): the parts of a Metric's description a program may change, its
  * Polarity, Target Range and Attainment method. Each part left out stays as it is. Not its name or description. */
 export const UpdateMetric = z.object({
+  sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, all of them: the ones left out are turned off. Not for a Derived Metric."),
   polarity: z.enum(["higher", "lower", "target"]).optional().describe("Whether higher or lower values are better, or a range (target)."),
   target_min: seriesValue.nullable().optional().describe("The low end of its Target Range; null for none."),
   target_max: seriesValue.nullable().optional().describe("The high end of its Target Range; null for none."),
@@ -114,6 +124,24 @@ export const UpdateUnusualValueCheck = z.object({
   change_pct: z.number().int().min(1).max(1000).optional().describe("Unusual beyond this change in per cent, 1 to 1,000."),
   outside_target: z.boolean().optional().describe("Whether a value outside the Target Range is unusual too."),
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
+
+/** One of a Metric's Submitters (GLOSSARY: Submitter): id, name and kind, never contact details. */
+export const ApiSubmitter = z.object({ id: z.string(), name: z.string(), kind: z.enum(["person", "contact", "feed"]) });
+
+/** GET /api/v1/metrics/{slug}/submitters answers this. */
+export const SubmitterList = z.object({ items: z.array(ApiSubmitter) });
+
+/** POST /api/v1/metrics/{slug}/submitters takes this: ids to add and to remove, at most 20 each. */
+export const ChangeSubmitters = z.object({
+  add: submitterIds.optional().describe("Ids from GET /people or GET /feeds. Each person or Contact added gets a first Prompt; a Feed turns the API Source on."),
+  remove: submitterIds.optional().describe("Ids of current Submitters. Their earlier values stay."),
+}).strict().refine((c) => (c.add?.length ?? 0) + (c.remove?.length ?? 0) > 0, "Name Submitters to add or remove.");
+
+/** POST /api/v1/metrics/{slug}/submitters answers this. */
+export const SubmittersChanged = z.object({ items: z.array(ApiSubmitter).describe("Its Submitters now."), added: z.number().int().nonnegative(), removed: z.number().int().nonnegative() });
+
+/** GET /api/v1/feeds answers this: the workspace's live Feeds, to name one as a Submitter. */
+export const FeedList = z.object({ items: z.array(z.object({ id: z.string(), name: z.string() })) });
 
 /** POST /api/v1/metrics/{slug}/observations takes this. */
 export const SubmitObservation = z.object({

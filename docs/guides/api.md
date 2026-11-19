@@ -90,3 +90,12 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/revenue/target-series \
 - `GET /api/v1/metrics/{slug}/unusual-value-check` says what makes a value an **Unusual Value** in the Metric's Workflow (`change_pct`, `outside_target`), with the Workflow's name, whether the key's creator owns it and how many Metrics they see share it. `PATCH` on it changes that check: it changes the Workflow, so every Metric that shares it, and only the Workflow's owner may. A Metric without a Workflow, or a Workflow without a check step, answers 422; steps are added only in Ziffr.
 - Seen but not theirs to change answers 403 with the reason; a Guest's key is refused (403), also when the person became a Guest after making the key.
 
+## Sources and Submitters
+
+A Metric's **Sources** are the ways its values may arrive (`web_form`, `mail`, `slack`, `telegram`, `api`; the personal form link works apart from them), and its **Submitters** are who sends them. Every Metric answer carries its `sources`.
+
+- `POST /api/v1/metrics` takes `sources` (every one when left out) and `submitters`: ids of people and Contacts from `GET /api/v1/people` and of Feeds from `GET /api/v1/feeds`. Naming Submitters needs "Change metrics" (`metrics:edit`) as well as "Create metrics", since each person named gets a first Prompt. Everything is checked before the Metric exists; an id that is not one of the workspace's answers 422.
+- `PATCH /api/v1/metrics/{slug}` takes `sources`, all of them: the ones left out are turned off.
+- `GET /api/v1/metrics/{slug}/submitters` lists them by id, name and kind (`person`, `contact`, `feed`), never contact details. `POST` on it takes `add` and `remove`, at most 20 each, as the key's creator and only for a Metric they own or are an Editor of. A person or Contact added gets a Token and a first Prompt, by their own Delivery Preference, unless they were asked for this Metric in the last 24 hours, or already five times that day through keys: then the Workflow asks them next. A Feed added turns the API Source on. Someone removed keeps their earlier values.
+- People are named by id, never by email address: the API gives out no contact details, and would otherwise tell a program whose address is in the workspace.
+

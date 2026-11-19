@@ -10,11 +10,13 @@ import * as finding from "@/app/api/v1/dashboards/[id]/findings/[findingId]/rout
 import * as widgets from "@/app/api/v1/dashboards/[id]/widgets/route";
 import * as widget from "@/app/api/v1/dashboards/[id]/widgets/[widgetId]/route";
 import * as fromTemplate from "@/app/api/v1/dashboards/from-template/route";
+import * as feeds from "@/app/api/v1/feeds/route";
 import * as groups from "@/app/api/v1/groups/route";
 import * as metrics from "@/app/api/v1/metrics/route";
 import * as metric from "@/app/api/v1/metrics/[slug]/route";
 import * as observations from "@/app/api/v1/metrics/[slug]/observations/route";
 import * as projections from "@/app/api/v1/metrics/[slug]/projections/route";
+import * as submitters from "@/app/api/v1/metrics/[slug]/submitters/route";
 import * as targetSeries from "@/app/api/v1/metrics/[slug]/target-series/route";
 import * as unusualValueCheck from "@/app/api/v1/metrics/[slug]/unusual-value-check/route";
 import * as people from "@/app/api/v1/people/route";
@@ -35,11 +37,13 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["dashboards/[id]/findings/[findingId]", finding],
   ["dashboards/[id]/widgets", widgets],
   ["dashboards/[id]/widgets/[widgetId]", widget],
+  ["feeds", feeds],
   ["groups", groups],
   ["metrics", metrics],
   ["metrics/[slug]", metric],
   ["metrics/[slug]/observations", observations],
   ["metrics/[slug]/projections", projections],
+  ["metrics/[slug]/submitters", submitters],
   ["metrics/[slug]/target-series", targetSeries],
   ["metrics/[slug]/unusual-value-check", unusualValueCheck],
   ["people", people],

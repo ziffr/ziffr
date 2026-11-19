@@ -27,7 +27,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 ## Starters
 
-Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
+Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
 
 - They are registered in `createServer` (`packages/mcp/src/server.ts`), so `/mcp` gets them with the tools; `apps/web/src/app/mcp/route.db.test.ts` checks that both servers list and fill them in alike.
 - A Starter calls nothing itself. `prompts/get` returns one user message; the assistant then uses the tools, with the credential's scopes, like for any request.
@@ -59,7 +59,7 @@ Ziffr is its own authorization server (ADR 0011), following the [MCP authorizati
 
 What holds, so an assistant knows what to expect:
 
-- Scopes are the Access Key scopes: `metrics:read`, `values:submit`, `metrics:write` (create Metrics), `metrics:edit` (change Metrics: Target Range, Target Series, Projections, the Unusual Value check), `dashboards:read`, `dashboards:write`. The person picks them on the consent screen, never more than their role allows.
+- Scopes are the Access Key scopes: `metrics:read`, `values:submit`, `metrics:write` (create Metrics), `metrics:edit` (change Metrics: Target Range, Target Series, Projections, the Unusual Value check, Sources and Submitters), `dashboards:read`, `dashboards:write`. The person picks them on the consent screen, never more than their role allows.
 - Redirect addresses are https, or http on `localhost`, `127.0.0.1` or `[::1]`, at most five, matched exactly; on those loopback addresses the port may differ.
 - A code works once, for ten minutes; presented again, it ends the connection it made.
 - Access tokens work for an hour, and only at `/mcp`, never on `/api/v1` directly. Refresh tokens rotate on every use; one used twice ends the connection. A refusal is `invalid_grant`.
