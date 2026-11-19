@@ -19,7 +19,7 @@ export const MAX_INBOUND_BYTES = 1024 * 1024;
 export const MAX_REPLIES_PER_DELIVERY = 20;
 /** Messages taken from one sender in an hour: far more than a person replies, few enough that a flood stops soon. */
 export const INBOUND_PER_SENDER = 30;
-/** Messages of any kind looked at by the whole Installation in an hour: a ceiling on the work a flood can cause, set
+/** Messages looked at by the whole Installation in an hour, counted apart for vouched and unvouched mail: a ceiling on the work a flood can cause, set
  * far above what real replies need, which have their own total below. */
 export const INBOUND_ALL = 10_000;
 /** Refusals recorded for one Delivery in an hour (wrong sender, expired, unvouched); beyond it they are not written. */
@@ -131,9 +131,11 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   // the forged bucket, never theirs.
   // Mail without a sender is answered by nobody and counted against nobody's bucket.
   if (!email.from) return "wrong_sender";
-  // The ceiling on work first, then the sender's own count.
-  if (!(await claimInbound("all", INBOUND_ALL))) return "limited";
-  if (!(await claimInbound(`${email.verified ? "vouched" : "unvouched"}:${inboxOf(email.from)}`, INBOUND_PER_SENDER))) return "limited";
+  // The sender's own count first, so a sender past it stops counting anywhere else; then the ceiling on work, kept
+  // apart for mail the provider vouched for, so a flood of forged mail never uses up what real senders rely on.
+  const vouched = email.verified ? "vouched" : "unvouched";
+  if (!(await claimInbound(`${vouched}:${inboxOf(email.from)}`, INBOUND_PER_SENDER))) return "limited";
+  if (!(await claimInbound(`all:${vouched}`, INBOUND_ALL))) return "limited";
   const token = email.tokens[0];
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
