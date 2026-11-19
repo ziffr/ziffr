@@ -65,8 +65,8 @@ export async function emailRemindersAgain() {
 
 /** "Add to Slack" (spec 0007): an Owner or Admin is sent to Slack with a one-time state; the core checks the role. */
 export async function connectSlack() {
-  // A form's action that redirects: it answers nothing, so a refusal here still shows as an error page.
-  redirect(await slackConnection.startSlackInstall(await currentActor()));
+  // The redirect passes through attempt(); a refusal comes back as words for the form to show.
+  return attempt(async () => redirect(await slackConnection.startSlackInstall(await currentActor())));
 }
 
 /** Disconnects the workspace's Slack (Owners and Admins; the core checks). */

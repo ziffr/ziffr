@@ -19,7 +19,7 @@ At the top, if you may create dashboards:
 
 | Option | What it does |
 | --- | --- |
-| **Name of the new dashboard** and **New dashboard** | Makes an empty dashboard with that name and opens it, ready to fill. |
+| **Name of the new dashboard** and **New dashboard** | Makes an empty dashboard with that name and opens it, ready to fill. If Ziffr refuses, for example because your role may no longer create, the reason shows below the field. |
 | **From a template…** | Opens the **New dashboard** window, where you can start from a Dashboard Template (see [Creating a dashboard](#creating-a-dashboard)). |
 
 If there is no dashboard yet, the list says "No dashboards yet" and suggests naming one or asking a colleague to share theirs.

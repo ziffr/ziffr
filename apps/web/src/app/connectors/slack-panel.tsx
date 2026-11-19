@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
+import { AnsweredForm } from "@/components/answered-form";
 import { connectSlack, disconnectSlack, slackLinkCode, slackRemindersAgain, unlinkSlack } from "@/app/connector-actions";
 import type { SlackConnectionView } from "@ziffr/core/slack-connection";
 
@@ -36,7 +37,7 @@ export function SlackPanel({ connection, link, stopped, notice }: { connection: 
         <p className="mt-2 text-muted-foreground">Not connected: messages by Slack are only recorded in the Outbox.{connection.canManage ? "" : " An Owner or Admin can connect it."}</p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
-        {connection.canManage && !team && <form action={connectSlack}><Button type="submit" disabled={pending}>Add to Slack</Button></form>}
+        {connection.canManage && !team && <AnsweredForm action={connectSlack}><Button type="submit" disabled={pending}>Add to Slack</Button></AnsweredForm>}
         {connection.canManage && team && <Button variant="outline" disabled={pending} onClick={async () => { if (await confirm({ title: "Disconnect Slack?", description: "Nobody gets messages there any more until it is connected again. Who was found on Slack is forgotten.", confirmLabel: "Disconnect Slack" })) run(() => disconnectSlack(), "Slack is disconnected"); }}>Disconnect Slack</Button>}
       </div>
       {team && (

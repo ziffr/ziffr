@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import type { DashboardAccess } from "@/lib/access";
 import { dashboardTemplateChoices } from "@ziffr/core/dashboard-templates";
 import { NewDashboardButton } from "@/components/new-dashboard-dialog";
+import { AnsweredForm } from "@/components/answered-form";
 
 export default async function DashboardsPage() {
   const actor = await currentActor();
@@ -35,10 +36,10 @@ export default async function DashboardsPage() {
     <>
       <PageHeader title="Dashboards" sub="Watch your numbers as they come in. Ziffr opens on your Home dashboard; choose it on any dashboard with Make this my home.">
         {can(actor, "create") && (
-          <form action={newDashboard} className="flex gap-2">
+          <AnsweredForm action={newDashboard} className="flex gap-2">
             <Input name="name" required maxLength={120} placeholder="Name of the new dashboard" aria-label="Name of the new dashboard" className="w-60" />
             <Button type="submit">New dashboard</Button>
-          </form>
+          </AnsweredForm>
         )}
         {can(actor, "create") && (
           <NewDashboardButton templates={choices.templates} metrics={choices.metrics} numberStyle={numberStyle} label="From a template…" variant="outline" />

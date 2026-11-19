@@ -8,6 +8,7 @@ import { actionThread } from "@ziffr/core/page-data";
 import { formatDate, formatValue } from "@ziffr/core/format";
 import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
 import { markTaskDone } from "@/app/canvas-actions";
+import { AnsweredButton } from "@/components/answered-form";
 import { MetricChart } from "@/views/metric-chart";
 import { Avatar } from "@/components/avatar";
 import { StatusBadge } from "@/components/status";
@@ -112,7 +113,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
               </label>
             )}
             <div className="ml-auto flex gap-2">
-              {isAssignee && a.kind === "task" && a.status === "open" && <Button formAction={markTaskDone.bind(null, a.id)} variant="outline" type="submit">Mark done</Button>}
+              {isAssignee && a.kind === "task" && a.status === "open" && <AnsweredButton action={markTaskDone.bind(null, a.id)} variant="outline">Mark done</AnsweredButton>}
               {isAsker && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
               <Button type="submit">Reply</Button>
             </div>

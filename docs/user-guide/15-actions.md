@@ -92,7 +92,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 | The text box | Your reply. For the Assignee it starts as "Explain what happened…". |
 | **Propose a correction** | A new value for the period, if the value is wrong. Shown when the period has a value. See [Corrections](#corrections). |
 | **Reply** | Sends your reply. The other person hears about it through their Connector. |
-| **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. |
+| **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. If the Task is no longer open or no longer yours, the reason shows next to the button. |
 | **Close Action** | For the asker: ends the Action. The Assignee hears that it was closed. |
 
 ### From open to closed
