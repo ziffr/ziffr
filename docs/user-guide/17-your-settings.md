@@ -169,15 +169,15 @@ Once Ziffr is connected, as in [Connecting an assistant](#connecting-an-assistan
 
 Ziffr offers the assistant a few **Starters**, ready-made requests you pick instead of writing them:
 
-| Starter | What the assistant does |
-| --- | --- |
-| **What can I do here?** (`what_can_i_do`) | Looks at your Workspace and explains what it can read, record and build for you, with your Metrics as examples. |
-| **Weekly review** (`weekly_review`) | Tells you which Metrics moved notably, which values are still missing for the last period and anything unusual. You can name the period, such as "last week". It only reads. |
-| **Record values** (`record_values`) | Takes a sentence such as "3 coffees today, 12 signups this week", shows which Metric and period each number would go to, and records them once you agree. |
-| **Build a dashboard** (`build_dashboard`) | Proposes one dashboard on a topic you name, from your Metrics and the team's Dashboard Templates, and builds it only once you agree. You get its link. |
-| **Explain a Metric** (`explain_metric`) | Explains one Metric: what it measures, its values over time and where it is heading. It only reads. |
-| **Start tracking** (`start_tracking`) | Sets up a new Metric with you: its name, how often, its unit and target, how its values come in and who sends them. It shows you the whole Metric and creates it once you agree. |
-| **Set targets** (`set_targets`) | Takes a sentence such as "budget 5000 a month for revenue in 2027", shows which Metric gets which Target Range, Target Series or Projection for which periods, and sets them once you agree. It can also change when a value counts as unusual. |
+| Starter | What the assistant does | Box it needs to change anything |
+| --- | --- | --- |
+| **What can I do here?** (`what_can_i_do`) | Looks at your Workspace and explains what it can read, record and build for you, with your Metrics as examples. | none, it only reads |
+| **Weekly review** (`weekly_review`) | Tells you which Metrics moved notably, which values are still missing for the last period and anything unusual. You can name the period, such as "last week". It only reads. | none, it only reads |
+| **Record values** (`record_values`) | Takes a sentence such as "3 coffees today, 12 signups this week", shows which Metric and period each number would go to, and records them once you agree. | Submit values |
+| **Build a dashboard** (`build_dashboard`) | Proposes one dashboard on a topic you name, from your Metrics and the team's Dashboard Templates, and builds it only once you agree. You get its link. | Build dashboards |
+| **Explain a Metric** (`explain_metric`) | Explains one Metric: what it measures, its values over time and where it is heading. It only reads. | none, it only reads |
+| **Start tracking** (`start_tracking`) | Sets up a new Metric with you: its name, how often, its unit and target, how its values come in and who sends them. It shows you the whole Metric and creates it once you agree. | Create metrics, and Change metrics to name who sends values |
+| **Set targets** (`set_targets`) | Takes a sentence such as "budget 5000 a month for revenue in 2027", shows which Metric gets which Target Range, Target Series or Projection for which periods, and sets them once you agree. It can also change when a value counts as unusual. | Change metrics |
 
 Where to find them:
 
