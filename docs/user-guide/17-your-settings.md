@@ -157,4 +157,6 @@ In the assistant, add a connector with your Ziffr's address followed by `/mcp`, 
 | **Until** | The last day it works, 90 days from now unless you pick another, at most a year. |
 | **Connect** / **Cancel** | Connect makes the connection and sends you back to the assistant; Cancel tells the assistant no. |
 
+Without a Workspace of your own, the page says so: start one, then press Connect in the assistant again.
+
 A connection acts as you, with your current Workspace Role, and sees no more than you do. What it does shows in the Access Log on the **Access Keys** page. A Trial Workspace can have one connected assistant at a time. The demo has none.
