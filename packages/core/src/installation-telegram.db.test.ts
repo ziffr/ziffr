@@ -126,12 +126,30 @@ describe("setting the Telegram bot on the page", () => {
     expect(out.warning).toMatch(/not told where to send answers/);
     expect(await telegramOn()).toBe(true);
     // Without https the webhook cannot work; polling needs none.
+    const site = process.env.ZIFFR_SITE_URL;
     process.env.ZIFFR_SITE_URL = "http://localhost:3001";
-    expect((await saveInstallationSettings(a, "telegram", { ZIFFR_TELEGRAM_BOT_TOKEN: TOKEN })).warning).toMatch(/https/);
-    process.env.ZIFFR_TELEGRAM_POLLING = "1";
-    const before = tg.of("setWebhook").length;
-    expect((await saveInstallationSettings(a, "telegram", { ZIFFR_TELEGRAM_BOT_TOKEN: TOKEN })).notice).toMatch(/polling/);
-    expect(tg.of("setWebhook")).toHaveLength(before);
+    try {
+      expect((await saveInstallationSettings(a, "telegram", { ZIFFR_TELEGRAM_BOT_TOKEN: TOKEN })).warning).toMatch(/https/);
+      // The section does not say Working while answers cannot arrive, and says why (#256).
+      expect(await telegramOf(a)).toMatchObject({ working: false, detail: expect.stringMatching(/^Bot @ziffr_test_bot answers, but answers cannot arrive: .*https/) });
+      process.env.ZIFFR_TELEGRAM_POLLING = "1";
+      const before = tg.of("setWebhook").length;
+      expect((await saveInstallationSettings(a, "telegram", { ZIFFR_TELEGRAM_BOT_TOKEN: TOKEN })).notice).toMatch(/polling/);
+      expect(tg.of("setWebhook")).toHaveLength(before);
+      expect(await telegramOf(a)).toMatchObject({ working: true, detail: "Bot @ziffr_test_bot" });
+    } finally {
+      if (site === undefined) delete process.env.ZIFFR_SITE_URL; else process.env.ZIFFR_SITE_URL = site;
+    }
+  });
+
+  it("says Not working when Telegram lost the webhook, until Check Telegram tells it again", async () => {
+    const a = await admin();
+    await saveInstallationSettings(a, "telegram", { ZIFFR_TELEGRAM_BOT_TOKEN: TOKEN });
+    expect((await telegramOf(a)).working).toBe(true);
+    delete tg.webhook["7000000001"];
+    expect(await telegramOf(a)).toMatchObject({ working: false, detail: "Bot @ziffr_test_bot answers, but Telegram does not send answers to this Ziffr. Choose Check Telegram to tell it." });
+    expect((await checkTelegram(a)).ok).toBe(true);
+    expect(await telegramOf(a)).toMatchObject({ working: true, detail: "Bot @ziffr_test_bot" });
   });
 
   it("lets go of the old bot's webhook when the token is replaced or removed", async () => {
