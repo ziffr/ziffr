@@ -7,7 +7,7 @@ import { setDeckTheme } from "@/app/theme-actions";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { toast } from "sonner";
 import { FileDown, Group as GroupIcon, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer, Ungroup } from "lucide-react";
-import { createShapeId, DefaultDashStyle, DefaultFontStyle, getSnapshot, Tldraw, useValue, type Editor, type TLEditorSnapshot } from "tldraw";
+import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -69,6 +69,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const masterRef = useRef<SlideDesign | null>(null);
   masterRef.current = master;
+  // What onMount lays out a new deck from, read through a ref: onMount sets the editor up once, and a dependency on
+  // them would set it up again (and listen twice) whenever the metrics change (#3).
+  const firstLayout = useRef({ seed, metrics: data.metrics });
+  firstLayout.current = { seed, metrics: data.metrics };
 
   // Read once: a new snapshot object on every render would make tldraw reload its store.
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
@@ -84,8 +88,9 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
       if (!orderedSlides(ed).length) {
         // A new deck made from a dashboard gets its slides laid out; any other starts with a title slide.
+        const { seed, metrics } = firstLayout.current;
         const id = seed
-          ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || data.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
+          ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
           : addSlide(ed, "title", masterRef.current);
         ed.zoomToBounds(ed.getShapePageBounds(id)!, { inset: 48 });
       } else {
@@ -315,7 +320,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
           }}
         >
           <ThemeScope theme={theme} className="h-full w-full">
-            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} overrides={LOCAL_ONLY_OVERRIDES} onMount={onMount} />
+            <Tldraw shapeUtils={shapeUtils} snapshot={snapshot} overrides={LOCAL_ONLY_OVERRIDES} components={DECK_COMPONENTS} onMount={onMount} />
           </ThemeScope>
         </div>
       </div>
@@ -326,6 +331,17 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
     </DeckData.Provider>
   );
 }
+
+/** tldraw's style panel, only while something is selected or a drawing tool is chosen: open over a slide nobody is
+ * styling, it covers the slide's top right corner (#12). */
+function StylePanelWhenStyling(props: TLUiStylePanelProps) {
+  const editor = useEditor();
+  const styling = useValue("styling", () => editor.getSelectedShapeIds().length > 0 || !["select", "hand"].includes(editor.getCurrentToolId()), [editor]);
+  return styling ? <DefaultStylePanel {...props} /> : null;
+}
+
+/** The tldraw parts the deck editor replaces; a constant, so tldraw does not rebuild its UI on every render. */
+const DECK_COMPONENTS: TLComponents = { StylePanel: StylePanelWhenStyling };
 
 /** Group and Ungroup for the selection: tldraw does both with Ctrl+G and its context menu, which few people find. */
 function GroupButtons({ editor }: { editor: Editor }) {
