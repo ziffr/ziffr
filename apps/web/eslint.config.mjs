@@ -1,6 +1,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
+import { codeHealth } from "../../eslint.code-health.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +23,7 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  codeHealth,
 ];
 
 export default eslintConfig;

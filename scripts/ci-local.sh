@@ -15,6 +15,9 @@ pnpm typecheck
 pnpm lint
 pnpm test
 
+step "Code health: nothing unused, duplication and complexity under their ceilings"
+pnpm health
+
 step "Calculations against the reference, full strength (when a calculation path changed)"
 # The paths are listed once, in .github/calculation-paths.txt; CI's `numbers` job reads the same file.
 if .github/scripts/calculation-paths-touched.sh origin/main; then pnpm --filter @ziffr/core test:numbers; fi

@@ -2,6 +2,7 @@
 // every module starts with a header comment, every export has a doc comment.
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
+import { codeHealth } from "../../eslint.code-health.mjs";
 
 /** Every module starts with a comment saying what it is for and which glossary term it implements. */
 const moduleHeader = {
@@ -34,4 +35,5 @@ export default tseslint.config(
       }],
     },
   },
+  codeHealth,
 );
