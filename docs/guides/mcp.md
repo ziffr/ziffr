@@ -2,7 +2,7 @@
 
 Ziffr's MCP Server lets an AI assistant read the Metrics a person may see, submit values and build dashboards, with exactly that person's rights and no more (GLOSSARY: MCP Server). There are two ways to reach it, with the same tools and Starters:
 
-- **On your own computer:** `@ziffr/mcp`, started by the assistant (Claude Desktop, Claude Code), with an Access Key you make on the Team page. See [`packages/mcp/README.md`](../../packages/mcp/README.md). Works with any Ziffr, also one without a public address.
+- **On your own computer:** `@ziffr/mcp`, started by the assistant (Claude Desktop, Claude Code), with an Access Key you make under **Workspace → Access Keys**. See [`packages/mcp/README.md`](../../packages/mcp/README.md). Works with any Ziffr, also one without a public address.
 - **At your Ziffr's address:** `https://<your ziffr>/mcp`, for assistants that connect over the internet, such as Claude.ai. You sign in to Ziffr in the window that opens and choose what the assistant may do. Nothing to install, and no secret to paste (spec 0023).
 
 ## Connecting Claude.ai
@@ -23,6 +23,15 @@ Claude.ai reaches your Ziffr from Anthropic's servers (`160.79.104.0/21`), so `l
 npx @modelcontextprotocol/inspector                       # opens a browser; pick Streamable HTTP and the /mcp address, then Connect
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
   --header "Authorization: Bearer zk_..." --method tools/list   # with an Access Key, no sign-in
+```
+
+## Tools and scopes
+
+Both servers list the same 28 tools, 7 Starters and one resource template (`ziffr://metrics/{slug}`). The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards `dashboards:write`. To compare a running server with the table:
+
+```sh
+npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
+  --header "Authorization: Bearer zk_..." --method tools/list     # also prompts/list, resources/templates/list
 ```
 
 ## Starters
