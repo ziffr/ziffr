@@ -2,6 +2,7 @@
 // Telegram on the Connectors page (spec 0016, tickets #24 and #25; GLOSSARY: Connector). Owners and Admins turn it on
 // or off for the workspace; everyone sees which bot it is and that Telegram can read what goes through it, and
 // connects their own Telegram with a one-time link. It gets the bot's username only, never its token.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
@@ -16,7 +17,7 @@ export function TelegramPanel({ connection, linked, stopped }: { connection: Tel
   const [link, setLink] = useState<{ url: string; minutes: number } | null>(null);
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const { bot, enabled, canManage } = connection;
   return (
     <section aria-labelledby="telegram-h" className="stock mb-12 rounded-[var(--radius-card)] p-4 text-sm">
@@ -62,7 +63,7 @@ export function TelegramPanel({ connection, linked, stopped }: { connection: Tel
           ) : (
             <p className="flex flex-wrap items-center gap-3">
               Get Ziffr messages for this workspace in Telegram.
-              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setLink(await telegramLinkStart()))}>Connect Telegram</Button>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => setLink(unwrap(await telegramLinkStart())))}>Connect Telegram</Button>
             </p>
           )}
         </div>

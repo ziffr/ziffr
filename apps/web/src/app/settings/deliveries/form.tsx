@@ -1,5 +1,6 @@
 "use client";
 // Your Delivery Preferences, email and Away dates (spec 0006, ticket #95). The core lets a person set only their own.
+import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { setPreference } from "@/app/connector-actions";
@@ -35,7 +36,7 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email }: { 
               <select
                 defaultValue={mine.find((p) => p.kind === k.id)?.connector ?? ""}
                 disabled={pending}
-                onChange={(e) => start(async () => { try { await setPreference(viewer, k.id, (e.target.value || null) as ConnectorId | null); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: (err as Error).message }); } })}
+                onChange={(e) => start(async () => { try { unwrap(await setPreference(viewer, k.id, (e.target.value || null) as ConnectorId | null)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } })}
                 className="mt-1 block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 font-normal"
               >
                 <option value="">Team default ({CONNECTORS[teamFor(k.id)].label})</option>

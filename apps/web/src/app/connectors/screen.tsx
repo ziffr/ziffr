@@ -1,6 +1,7 @@
 "use client";
 // Connectors, Delivery Preferences and the Outbox (GLOSSARY). Email goes out for real once it is set up (spec 0004);
 // for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering.
+import { isActionError, shown as refusal, unwrap } from "@/lib/action-error";
 import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -44,10 +45,10 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
   // owners and admins get it as a fallback, explained, and members do not see it.
   const runNow = (
     <span className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
+      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await askForMissingValues(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(n ? `Asked for ${n} missing value${n === 1 ? "" : "s"}` : "Nobody is missing a value for the current period"); })}>
         <Hash aria-hidden /> Ask for missing values now
       </Button>
-      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); toast.success(n ? `Reminded ${n} open task${n === 1 ? "" : "s"}` : "No open tasks due in the next two days"); })}>
+      <Button variant="outline" disabled={pending} onClick={() => start(async () => { const n = await sendDueReminders(); if (isActionError(n)) { toast.error("Not done", { description: n.error }); return; } toast.success(n ? `Reminded ${n} open task${n === 1 ? "" : "s"}` : "No open tasks due in the next two days"); })}>
         <BellRing aria-hidden /> Send due reminders now
       </Button>
     </span>
@@ -60,7 +61,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
       {optedOut && (
         <p role="status" className="stock flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] p-4 text-sm">
           You stopped requests for numbers and reminders by email in this workspace.
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await emailRemindersAgain(); toast.success("You get them by email again"); })}>Get them by email again</Button>
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { const r = await emailRemindersAgain(); if (isActionError(r)) { toast.error("Not done", { description: r.error }); return; } toast.success("You get them by email again"); })}>Get them by email again</Button>
         </p>
       )}
       <section aria-labelledby="c-h">
@@ -108,7 +109,7 @@ export function ConnectorsScreen({ viewer, isOwner, people, prefs, deliveries, t
                         aria-label={`${k.label} for ${row.label}`}
                         disabled={!row.can || pending}
                         value={pref(row.id, k.id) ?? ""}
-                        onChange={(e) => start(async () => { await setPreference(row.id, k.id, (e.target.value || null) as ConnectorId | null); })}
+                        onChange={(e) => start(async () => { const r = await setPreference(row.id, k.id, (e.target.value || null) as ConnectorId | null); if (isActionError(r)) toast.error("Not saved", { description: r.error }); })}
                         className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 disabled:opacity-70"
                       >
                         {row.id !== null && <option value="">Team default ({CONNECTORS[pref(null, k.id) ?? "email"].label})</option>}
@@ -163,7 +164,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
   // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
   const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
   const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
-  const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { await f(); toast.success(ok); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: (err as Error).message }); } });
+  const run = (f: () => Promise<unknown>, ok: string) => start(async () => { try { unwrap(await f()); toast.success(ok); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: refusal(err) }); } });
 
   return (
     <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
@@ -197,6 +198,7 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
               e.preventDefault();
               if (isPrompt) start(async () => {
                 const r = await simulatePromptAnswer(d.id, reply);
+                if (isActionError(r)) { toast.error("Not recorded", { description: r.error }); return; }
                 (r.ok ? toast.success : toast.error)(r.ok ? "Value recorded" : "Not recorded", { description: r.detail });
                 if (r.ok) { setOpen(false); setReply(""); }
               });

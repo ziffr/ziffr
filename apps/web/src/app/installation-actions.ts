@@ -2,6 +2,7 @@
 // Installation Settings and Installation Admins (spec 0025; GLOSSARY: Installation Admin, Installation Settings):
 // thin calls into the core, which checks who may do each. Each answers an error text instead of throwing, so the
 // page can show the core's words in a production build too; anyone who may not answers "not found".
+import { forPeople } from "@/lib/action-result";
 import { revalidatePath } from "next/cache";
 import { Forbidden } from "@ziffr/core/actor";
 import * as admins from "@ziffr/core/installation-admins";
@@ -11,6 +12,13 @@ import { installationActor } from "@/lib/installation";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
  * problem that did not stop it. */
+// Only Ziffr's own words go back (forPeople); anything else is logged here and answered with one line, so no
+// internal or provider detail reaches the page.
+function unforeseen(e: unknown): string {
+  console.error("An Installation settings action failed:", e);
+  return "That did not work. Try again.";
+}
+
 type Result = { error: string } | { ok: true; message?: string; warning?: string };
 
 async function run(f: (actor: admins.InstallationActor) => Promise<string | void | { notice: string | null; warning: string | null }>): Promise<Result> {
@@ -24,7 +32,7 @@ async function run(f: (actor: admins.InstallationActor) => Promise<string | void
   } catch (e) {
     // Not an Installation Admin: the same answer as for a page that is not there.
     if (e instanceof Forbidden) return { error: "Not found." };
-    return { error: e instanceof Error ? e.message : "That did not work. Try again." };
+    return { error: forPeople(e) ?? unforeseen(e) };
   }
 }
 
@@ -74,7 +82,7 @@ export async function startTelegramTest(): Promise<{ error: string } | { url: st
     return await telegramTest.startTelegramTest(actor);
   } catch (e) {
     if (e instanceof Forbidden) return { error: "Not found." };
-    return { error: e instanceof Error ? e.message : "That did not work. Try again." };
+    return { error: forPeople(e) ?? unforeseen(e) };
   }
 }
 

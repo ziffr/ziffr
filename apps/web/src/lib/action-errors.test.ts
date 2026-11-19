@@ -9,12 +9,9 @@ const ROOT = path.resolve(__dirname, "..");
 /** Reading a caught error's message: `(err as Error).message`, `err.message`, `e.message`. */
 const READS_MESSAGE = /\((?:e|err|error) as Error\)\.message|\b(?:err|e)\.message\b/;
 
-/** Client files not moved to `{ error }` yet (part 1 of ticket 192 did Metrics, Workflows and Feeds). The list only
+/** Client files not moved to `{ error }` yet (part 1 of ticket 192 did Metrics, Workflows, Feeds and Connectors). The list only
  * shrinks: the test fails for a file on it that no longer needs to be, so it is taken off. */
 const NOT_YET = new Set([
-  "app/connectors/screen.tsx",
-  "app/connectors/slack-panel.tsx",
-  "app/connectors/telegram-panel.tsx",
   "app/dashboards/[id]/snapshots/[sid]/screen.tsx",
   "app/dashboards/screen.tsx",
   "app/invite/[token]/join.tsx",
@@ -28,7 +25,6 @@ const NOT_YET = new Set([
   "app/settings/workspace/forms.tsx",
   "app/settings/workspace/number-style.tsx",
   "app/settings/workspace/year-start.tsx",
-  "app/submit/[code]/telegram-connect.tsx",
   "app/team/members.tsx",
   "app/team/screen.tsx",
   "app/themes/screen.tsx",
