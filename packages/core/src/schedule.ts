@@ -10,7 +10,8 @@ import { yearStartOf } from "./fiscal-year";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import { addWorkingDays, dueDate, workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
-import { localTime } from "./workspace-clock";
+import { localTime, workspaceClock } from "./workspace-clock";
+import { tokenValid } from "./tokens";
 import type { Metric, Period, WorkflowConfig } from "./types";
 
 /** What kind of duty an entry is. */
@@ -242,6 +243,15 @@ async function actionEntries(ws: string, person: string, metrics: Map<number, Me
   return out;
 }
 
+/** An entry in a few words, the same on the My schedule page and in a calendar: "Revenue for October 2026 due",
+ * "Approve: Cost for October 2026", "Task: Renegotiate the shipping rate". */
+export function entryTitle(e: ScheduleEntry): string {
+  const about = `${e.metric.name} for ${e.period.label}`;
+  if (e.kind === "value_due") return `${about} due`;
+  if (e.kind === "approval") return `Approve: ${about}`;
+  return `${e.kind === "task" ? "Task" : "Question"}: ${e.text ?? about}`;
+}
+
 const byKindAndName = (a: ScheduleEntry, b: ScheduleEntry) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.metric.name.localeCompare(b.metric.name) || a.period.start.localeCompare(b.period.start) || (a.actionId ?? 0) - (b.actionId ?? 0);
 
 /** A person's Schedule in the actor's Workspace from `from` to `to` (days, both included, at most 90 days apart, `to`
@@ -282,4 +292,19 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, list]) => ({ date, entries: list.sort(byKindAndName) }));
   const undated = entries.filter((e) => e.date === null).sort(byKindAndName);
   return { today: base.today, personId: person, overdue, days, undated };
+}
+
+/** Where a value due of the Schedule is entered: the person's own form link for the Metric (their Token, or their
+ * Stand-in's Token while it counts), or null when they have none. The link holds the Token's code, a credential, so it
+ * is only ever given to the Token's own person, signed in, and never written into the Schedule itself. */
+export async function ownFormCode(actor: Actor, slug: unknown): Promise<string | null> {
+  if (actor.key || typeof slug !== "string" || !/^[a-z0-9][a-z0-9-]{0,99}$/.test(slug)) return null;
+  const { data: m } = await db().from("metrics").select("id, formula").eq("workspace_id", actor.workspaceId).eq("slug", slug).maybeSingle();
+  if (!m || m.formula) return null;
+  const { data: tokens } = await db().from("tokens").select("code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", actor.workspaceId).eq("metric_id", m.id);
+  const all = tokens ?? [];
+  const mine = all.filter((t) => t.submitter_id === actor.personId);
+  const today = localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
+  const usable = mine.find((t) => !t.stands_in_for) ?? mine.find((t) => tokenValid(t, all, today));
+  return (usable?.code as string | undefined) ?? null;
 }

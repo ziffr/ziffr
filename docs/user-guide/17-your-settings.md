@@ -1,8 +1,8 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/reset-button.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/reset-button.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
-This chapter covers what is yours rather than the team's: signing in, the demo, the top bar, and your two own pages, **Your profile** and **Your Deliveries**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
+This chapter covers what is yours rather than the team's: signing in, the demo, the top bar, and your own pages: **My schedule**, **Your profile** and **Your Deliveries**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
 
 ## Signing in
 
@@ -86,6 +86,7 @@ The top bar is on every page once you are in a Workspace.
 | --- | --- |
 | **Workspace** | Shown when you belong to more than one Workspace. Pick another to switch to it. |
 | **New workspace** | Starts another Workspace, of which you become the Owner |
+| **My schedule** | What you have to do in this Workspace, overdue first; see [My schedule and your calendar](#my-schedule-and-your-calendar) |
 | **Your profile** | Your name, colour and address |
 | **Your Deliveries** | Where Ziffr reaches you, and when you are Away |
 | **Installation settings** | Only for Installation Admins: what this Ziffr talks to and who runs it; see [Installation settings](18-installation-settings.md) |
@@ -93,9 +94,32 @@ The top bar is on every page once you are in a Workspace.
 
 ### On a phone
 
-On a phone the bar keeps the Ziffr name, the Actions icon and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (Your profile, Your Deliveries, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
+On a phone the bar keeps the Ziffr name, the Actions icon and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same top bar. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
+
+## My schedule and your calendar
+
+Open **My schedule** from the menu under your name, or from the side list of the settings area. It lists what you have to do in the current Workspace, and only that:
+
+| Part | What it lists |
+| --- | --- |
+| **Overdue** | Everything late from the last 90 days, the most late first, with how many working days late it is (Saturdays and Sundays do not count) |
+| **Today** and the next days | What falls on each of the next 14 days, today first; days with nothing are left out |
+| **No date** | Tasks without a due date, and Questions asked of you |
+
+Each line links to where you do it:
+
+| Line | When it falls | Where it takes you |
+| --- | --- | --- |
+| **Revenue for October 2026 due** | The value's Due Date, set by the Metric's Workflow, such as the 3rd working day after the month ends. It says when Ziffr reminds you, such as "Ziffr reminds you 2 days before". A Metric without a Workflow has no Due Date: only its last ended period without a value is listed, on the first working day after it ends, marked "no Due Date set". | Your form for the Metric, or the Metric's page if you have no form for it |
+| **Approve: Cost for October 2026** | The day you were asked. It is overdue from the day after that period's Due Date. | The Approval |
+| **Task: …** | The Task's due date, or under **No date** | The Task |
+| **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. | The Question |
+
+A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only Metrics you may see are listed. Values a Feed sends are never anyone's to do.
+
+Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).
 
 ## Your profile
 
