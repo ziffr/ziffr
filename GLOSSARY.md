@@ -288,6 +288,10 @@ _Avoid_: Superadmin, root, system administrator
 What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
 _Avoid_: Admin settings, system settings, global config
 
+**Workspace Key**:
+The key a Workspace's sensitive data is encrypted with in the database: its values, the words people write and its Contacts' details. Each Workspace has its own, kept only wrapped by the Installation's key, and deleting the Workspace destroys it, so what is left of the Workspace can no longer be read. It is not end-to-end encryption: the Installation reads the data to check, combine and send it. The demo has none.
+_Avoid_: Tenant key, encryption key, data key, customer key
+
 **Installed app**:
 Ziffr added to a phone's home screen or a computer's dock from the browser, so it opens in a window of its own. It is the same Ziffr as in the browser, needs a connection and keeps no Workspace data on the device; there is no native app. Not an Installation, which is a running Ziffr on a server.
 _Avoid_: PWA, native app, mobile app, offline mode
