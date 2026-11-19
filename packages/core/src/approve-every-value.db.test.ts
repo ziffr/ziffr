@@ -180,4 +180,16 @@ describe("the Approve step's choice", () => {
     await db().from("observations").insert({ metric_id: m.id, period_start: monthsAgo(4), value: 100, submitter_id: ada, source: "api", workspace_id: (await db().from("metrics").select("workspace_id").eq("id", m.id).single()).data!.workspace_id, imported: true });
     expect(await onValue(m.id, monthsAgo(4), ada, { imported: true })).toEqual(["published"]);
   });
+
+  it("falls back only to someone who sees the Metric: a Workflow owner it is not shared with is not asked", async () => {
+    const { w, sara, ada, workflowId } = await setup("every");
+    await saveWorkflow(w.actor(sara), workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [ada], values: "every" }, { type: "publish", lock: false }] });
+    // Ada's own Metric, shared with nobody: Sara owns the Workflow but does not see it.
+    const own = await w.metric(ada, { name: "Ada's pipeline", sources: ["web_form", "api"] });
+    await setMetricWorkflow(w.actor(ada, "admin"), own.id, workflowId);
+    await w.token(own.id, ada);
+    await w.value(own.id, thisMonth(), 100, ada);
+    expect(await onValue(own.id, thisMonth(), ada)).toEqual(["waits for approval: nobody but the submitter can approve it"]);
+    expect(await approvalTasks(own.id)).toEqual([]);
+  });
 });

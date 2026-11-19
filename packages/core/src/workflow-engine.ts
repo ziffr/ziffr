@@ -9,6 +9,8 @@ import { deliver, deliverPrompt } from "./deliveries";
 import { targetFor } from "./compare";
 import { dueDate, unusualReasons, workingPeriod } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
+import { visibleMetricIds } from "./access";
+import { getMetrics } from "./workspace-data";
 import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
 import { recordAudit } from "./audit-log";
 import { periodLabel, shiftPeriod, type YearStart } from "./periods";
@@ -138,14 +140,19 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
 }
 
 /** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. When that leaves
- * nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner, so a
- * value never counts unapproved because its submitter is an Approver; with nobody else at all, it waits (see onValue).
- * An Approve step that names nobody holds nothing back. */
-function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): string[] {
+ * nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner, but
+ * only someone who sees the Metric: the Approval task shows its value. With nobody else at all, it waits (onValue),
+ * so a value never counts unapproved because its submitter is an Approver. A step that names nobody holds nothing back. */
+async function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): Promise<string[]> {
   if (!step?.approvers.length) return [];
   const named = step.approvers.filter((a) => a !== from);
   if (named.length) return named;
-  return [ctx.m.owner_id, ctx.wf.owner_id].filter((a) => a && a !== from).slice(0, 1);
+  for (const candidate of [ctx.m.owner_id, ctx.wf.owner_id]) {
+    if (!candidate || candidate === from) continue;
+    // Only someone of this workspace who sees the Metric now (Shares and Groups as everywhere else).
+    if ((await visibleMetricIds(ctx.ws, candidate, await getMetrics(ctx.ws))).has(ctx.m.id)) return [candidate];
+  }
+  return [];
 }
 
 /** Whether a period is history for a Workflow as of today: before the period it works on (the last one that ended),
@@ -177,7 +184,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
     const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
-  const approvers = approversFor(ctx, approve, submitterId);
+  const approvers = await approversFor(ctx, approve, submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
@@ -233,7 +240,7 @@ export async function approve(ws: string, actionId: number, by: string) {
   // The same people, in the same order, as when the round started: skipping the one the round is about (also when
   // it began with an accepted Correction), not whoever submitted the latest value.
   const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
-  const approvers = approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from);
+  const approvers = await approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from);
   const next = (state.approval_step ?? 0) + 1;
   if (next < approvers.length) {
     const nextAction = await requestApproval(ctx, approvers[next], from, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
