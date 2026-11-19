@@ -33,7 +33,7 @@ describe("the Number Style", () => {
     // The same style again changes nothing and records nothing.
     await setNumberStyle(owner, "1,234.5");
     const { data } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).eq("kind", "workspace.number_style_changed").order("id");
-    expect(data?.map((r) => r.details)).toEqual([{ from: null, to: "1 234,5" }, { from: "1 234,5", to: "1,234.5" }]);
+    expect(data?.map((r) => r.details)).toEqual([{ from: null, followed: "country", to: "1 234,5" }, { from: "1 234,5", to: "1,234.5" }]);
   });
 
   it("refuses Members, Guests, Access Keys, the demo and anything that is not one of the four keys", async () => {
