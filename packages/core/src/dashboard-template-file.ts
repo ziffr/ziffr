@@ -3,9 +3,9 @@
 // below is the only definition, checked wherever such a file is read; docs/reference is generated from it.
 // Security: only settings a template keeps are fields here (no Free Layout documents, no periods or rows of one
 // Workspace's data), every word is plain text, and a widget's View Design is checked as any other design.
-import { checkFormat, linesUnder, parseJson, under, type FormatCheck, type Schema } from "./json-check";
+import { checkFormat, parseJson, under, type FormatCheck, type Schema } from "./json-check";
 import { itemKey, plainText, words } from "./file-text";
-import { checkViewDesignValue, type ViewDesign } from "./view-design";
+import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design";
 import { NOT_IN_DASHBOARD_TEMPLATES } from "./team-templates";
 import { TEMPLATES } from "./widget-templates";
 import type { AnchorRule, MeasureId, PanelType, TemplateId } from "./types";
@@ -125,7 +125,7 @@ export const DASHBOARD_TEMPLATE_SCHEMA: Schema = {
 type At = (path: string, message: string) => void;
 
 /** What the schema cannot say: Slots that exist, widgets that do not overlap, View Designs that pass their own checks. */
-function meaning(t: DashboardTemplateFile, at: At, lines: Map<string, number>) {
+function meaning(t: DashboardTemplateFile, at: At) {
   const slots = t.slots.length;
   const bad = (n: number) => n >= slots;
   t.widgets.forEach((w, i) => {
@@ -138,7 +138,9 @@ function meaning(t: DashboardTemplateFile, at: At, lines: Map<string, number>) {
     if ((w.view === "design") !== (design !== undefined)) at(w.view === "design" ? `${here}.settings` : `${here}.settings.design`, w.view === "design" ? "needs “design”: the View Design the widget is drawn with." : "is only for the view “design”.");
     if (design && typeof design === "object") {
       const path = `${here}.settings.design`;
-      const res = checkViewDesignValue(design, linesUnder(lines, path));
+      const size = new TextEncoder().encode(JSON.stringify(design)).length;
+      // Held to a design's own size, as if it were pasted on its own.
+      const res = size > VIEW_LIMITS.bytes ? { ok: false as const, problems: [{ path: "", line: null, message: `is ${size.toLocaleString("en")} bytes; a View Design may have at most ${VIEW_LIMITS.bytes.toLocaleString("en")}.` }] } : checkViewDesignValue(design, new Map());
       if (!res.ok) for (const p of res.problems) at(under(path, p).path, p.message);
     }
     for (let j = 0; j < i; j++) {
@@ -170,5 +172,5 @@ export function checkDashboardTemplateFile(textIn: string): FormatCheck<Dashboar
 
 /** Checks a Dashboard Template file already read from JSON; which Pack items it names is checked by its Pack. */
 export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<DashboardTemplateFile> {
-  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema: DASHBOARD_TEMPLATE_SCHEMA, meaning: (t: DashboardTemplateFile, at) => meaning(t, at, lines) }, value, lines);
+  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema: DASHBOARD_TEMPLATE_SCHEMA, meaning }, value, lines);
 }

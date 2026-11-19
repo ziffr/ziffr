@@ -5,7 +5,7 @@
 // unknown and repeated fields are refused, "__proto__" is read as data, web addresses appear only in `listing`, an
 // item may name only items of the same Pack, and texts that address an assistant are reported for a person to see.
 import { version as ZIFFR_VERSION } from "../package.json";
-import { checkFormat, linesUnder, parseJson, under, type FormatCheck, type Problem, type Schema } from "./json-check";
+import { checkFormat, parseJson, under, type FormatCheck, type Problem, type Schema } from "./json-check";
 import { itemKey, plainText } from "./file-text";
 import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, dashboardTemplateReferences, DASHBOARD_TEMPLATE_LIMITS, type DashboardTemplateFile } from "./dashboard-template-file";
@@ -173,7 +173,7 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string, at: (path: 
       const size = new TextEncoder().encode(JSON.stringify(doc)).length;
       if (size > bytes) return at(`${here}.${field}`, `is ${size.toLocaleString("en")} bytes; at most ${bytes.toLocaleString("en")} are allowed for one of ${KINDS[k].what}.`);
       const path = `${here}.${field}`;
-      const r = (check as (v: unknown, l: Map<string, number>) => FormatCheck<unknown>)(doc, linesUnder(lines, path));
+      const r = (check as (v: unknown, l: Map<string, number>) => FormatCheck<unknown>)(doc, new Map());
       if (!r.ok) for (const x of r.problems) at(under(path, x).path, x.message);
     });
   }

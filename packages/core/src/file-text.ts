@@ -5,8 +5,13 @@ import type { Schema } from "./json-check";
 
 // Plain text: letters, digits, spaces and everyday punctuation. No < or > (so no HTML), no braces, brackets or
 // backslashes (so nothing that reads as a template or a script), no line breaks, and no web address or scheme
-// (://, www., javascript:, data:, url( ). Ziffr draws text as text anyway.
-const NO_ADDRESS = "(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())";
+// (://, www., javascript:, data:, url( ). Ziffr draws text as text anyway. Nor a bare address such as "evil.example/x"
+// or "https:evil.example", which mail, Slack and Telegram turn into links when a name goes out in a Prompt: a letter or
+// digit, a dot and two letters ("e.g." and "3.5" pass), or a scheme and a colon with no space after it.
+// JSON Schema patterns take no flags, so a word in any case is written letter by letter: [Hh][Tt]….
+const anyCase = (word: string) => [...word].map((c) => (/[a-z]/.test(c) ? `[${c.toUpperCase()}${c}]` : c)).join("");
+const SCHEMES = ["https?", "ftp", "mailto", "tel", "sms", "file", "vbscript"].map(anyCase).join("|");
+const NO_ADDRESS = `(?![\\s\\S]*(?:://|${anyCase("www")}\\.|${anyCase("javascript")}:|${anyCase("data")}:|${anyCase("url")}\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:${SCHEMES}):(?!\\s)))`;
 const CHARS = "[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]";
 
 /** The pattern of plain text, as a JSON Schema `pattern` (read with the `u` flag). */
