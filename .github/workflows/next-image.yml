@@ -1,0 +1,38 @@
+# The image of main, for the "next" Ziffr on the demo server (ziffr-next.stefansonntag.com): after every push to main,
+# ghcr.io/ziffr/ziffr:main is built for Intel and pushed, so a merged change can be tried on a real server within
+# minutes, without a release. Releases still publish their own version tags and `latest` (release.yml); nothing here
+# touches those, and self-hosters never get :main unless they ask for it.
+name: Next image
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: next-image
+  cancel-in-progress: true
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push ghcr.io/ziffr/ziffr:main
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/ziffr/ziffr:main,ghcr.io/ziffr/ziffr:main-${{ github.sha }}
+          # A cache of its own, so it never replaces the one the release's image job builds with.
+          cache-from: type=gha,scope=next
+          cache-to: type=gha,scope=next,mode=max
