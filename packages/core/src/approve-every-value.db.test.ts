@@ -112,18 +112,46 @@ describe("the Approve step's choice", () => {
     expect(await approvalTasks(m.id)).toMatchObject([{ assignee_id: ada, status: "open" }]);
   });
 
-  it("holds back a Feed's value with Every value, but never its Import of an empty past period", async () => {
+  it("holds back a Feed's value with Every value, and its Import of the period being closed, but not of history", async () => {
     const { w, sara, ada, m } = await setup("every");
     const { id: feedId } = await createFeed(w.actor(sara), "CRM");
     await addFeedToMetric(w.actor(sara), m.id, feedId);
     const { secret } = await createFeedKey(w.actor(sara), feedId, { name: "Nightly", expiresOn: inDays(30) });
     const feed = (await actorForSecret(secret)) as FeedActor;
     const r = await submitFeedObservations(feed, [
-      { metric: m.slug, value: 90, period: monthsAgo(2) }, // empty past period: an Import, counted at once
+      { metric: m.slug, value: 90, period: monthsAgo(2) }, // history: an Import, counted at once
+      { metric: m.slug, value: 95, period: monthsAgo(1) }, // the month the Workflow closes: an Import, but it waits
       { metric: m.slug, value: 100 }, // the current period: waits for the Approvers
     ], quiet());
-    expect(r).toMatchObject([{ status: "recorded", imported: true }, { status: "awaiting_approval", imported: false }]);
+    expect(r).toMatchObject([{ status: "recorded", imported: true }, { status: "awaiting_approval", imported: true }, { status: "awaiting_approval", imported: false }]);
     expect((await getState(m.id, monthsAgo(2)))?.state).toBe("published");
-    expect(await approvalTasks(m.id)).toMatchObject([{ assignee_id: ada, status: "open" }]);
+    expect((await getState(m.id, monthsAgo(1)))?.state).toBe("approval");
+    expect(await approvalTasks(m.id)).toMatchObject([{ assignee_id: ada, status: "open" }, { assignee_id: ada, status: "open" }]);
+  });
+
+  it("with Every value, asks the Workflow's owner when the submitter is the only Approver; Unusual values only does not", async () => {
+    const every = await setup("every");
+    await saveWorkflow(every.w.actor(every.sara), every.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [every.ada], values: "every" }, { type: "publish", lock: false }] });
+    await every.w.token(every.m.id, every.ada);
+    await every.w.value(every.m.id, thisMonth(), 100, every.ada);
+    expect(await onValue(every.m.id, thisMonth(), every.ada)).toEqual([`every value is approved, approval asked from ${every.sara}`]);
+    // Unusual values only keeps today's rule: nobody else named, a usual value counts.
+    const unusual = await setup("unusual");
+    await saveWorkflow(unusual.w.actor(unusual.sara), unusual.workflowId, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [unusual.ada], values: "unusual" }, { type: "publish", lock: false }] });
+    await unusual.w.token(unusual.m.id, unusual.ada);
+    await unusual.w.value(unusual.m.id, thisMonth(), 100, unusual.ada);
+    expect(await onValue(unusual.m.id, thisMonth(), unusual.ada)).toEqual(["published"]);
+  });
+
+  it("keeps skipping the same person at every step of a round, also when it began with someone else's Correction", async () => {
+    const { w, ada, bo, ann, m } = await setup("every");
+    // Ada's value, then a round on behalf of Ann (as when the owner accepts Ann's Correction): Ada and Bo approve.
+    await w.token(m.id, ada);
+    await w.value(m.id, thisMonth(), 100, ada);
+    expect(await onValue(m.id, thisMonth(), ann)).toEqual([`every value is approved, approval asked from ${ada}`]);
+    expect((await getState(m.id, thisMonth()))?.approval_for).toBe(ann);
+    const [first] = (await approvalTasks(m.id)).filter((t) => t.status === "open");
+    expect(await approve(w.id, first.id, ada)).toBe(`Approved; ${bo} approves next.`);
+    expect((await approvalTasks(m.id)).filter((t) => t.status === "open")).toMatchObject([{ assignee_id: bo }]);
   });
 });

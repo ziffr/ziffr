@@ -8,6 +8,7 @@ import { normalizeMetric } from "./metric-row";
 import { deliver, deliverPrompt } from "./deliveries";
 import { targetFor } from "./compare";
 import { dueDate, unusualReasons, workingPeriod } from "./workflow-rules";
+import { localTime } from "./workspace-clock";
 import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
 import { recordAudit } from "./audit-log";
 import { periodLabel, shiftPeriod, type YearStart } from "./periods";
@@ -16,7 +17,7 @@ import type { NumberStyle } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 
 /** A Metric with its Workflow and the period at hand. */
-type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle };
+type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
 
 /** The Metric and its Workflow for a period, or null when it has none. */
 async function metricCtx(metricId: number, period: string): Promise<Ctx | null> {
@@ -24,7 +25,7 @@ async function metricCtx(metricId: number, period: string): Promise<Ctx | null> 
   if (!row?.workflow_id) return null;
   const { data: wf } = await db().from("workflows").select("*").eq("id", row.workflow_id).single();
   const m = normalizeMetric(row) as Metric;
-  return wf ? { m, wf: wf as Workflow, period, yearStart: await yearStartFor(String(row.workspace_id), m.period), numberStyle: await numberStyleOf(String(row.workspace_id)) } : null;
+  return wf ? { m, wf: wf as Workflow, period, ws: String(row.workspace_id), yearStart: await yearStartFor(String(row.workspace_id), m.period), numberStyle: await numberStyleOf(String(row.workspace_id)) } : null;
 }
 
 /** The Workflow state of one period of a Metric. */
@@ -81,7 +82,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const period = workingPeriod(asOf, m.period, yearStart);
     const wf = workflows.get(row.workflow_id as number);
     if (!wf) continue;
-    const ctx: Ctx = { m, wf, period, yearStart, numberStyle };
+    const ctx: Ctx = { m, wf, period, yearStart, numberStyle, ws: workspaceId };
     const label = `${m.name}, ${periodLabel(period, m.period, yearStart)}`;
     const [state, value] = await Promise.all([getState(m.id, period), latestValue(m.id, period)]);
     if (value) {
@@ -136,10 +137,30 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
+/** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. With Every value,
+ * when that leaves nobody (the submitter is the only Approver), the Workflow's owner approves instead, else the
+ * Metric's owner, so a value never counts unapproved because its submitter is an Approver. An Approve step that names
+ * nobody holds nothing back. */
+function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): string[] {
+  if (!step?.approvers.length) return [];
+  const named = step.approvers.filter((a) => a !== from);
+  if (named.length || step.values !== "every") return named;
+  return [ctx.wf.owner_id, ctx.m.owner_id].filter((a) => a && a !== from).slice(0, 1);
+}
+
+/** Whether a period is history for a Workflow as of today: before the period it works on (the last one that ended),
+ * in the workspace's own time zone. */
+async function beforeWorkingPeriod(ctx: Ctx, period: string): Promise<boolean> {
+  const { data } = await db().from("workspaces").select("time_zone").eq("id", ctx.ws).maybeSingle();
+  const today = localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
+  return period < workingPeriod(today, ctx.m.period, ctx.yearStart);
+}
+
 /** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words.
  * An Unusual Value waits for the Approvers; with an Approve step for every value, every value does. An Import
- * (GLOSSARY: Import) is neither checked nor held back, whatever the step says: a Feed's history should not raise an
- * Approval per period, and its values are marked as imported instead. */
+ * (GLOSSARY: Import) is not checked: a Feed's history should not raise an Approval per period, and its values are
+ * marked as imported instead. Under Every value an Import counts at once only for history, a period before the one
+ * the Workflow works on; one for that period or later waits like any value, so a Feed closing the month is approved. */
 export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean } = {}): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
@@ -156,14 +177,14 @@ export async function onValue(metricId: number, period: string, submitterId: str
     const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
-  const approvers = (approve?.approvers ?? []).filter((a) => a !== submitterId);
+  const approvers = approversFor(ctx, approve, submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
-  const every = approve?.values === "every" && !opts.imported;
+  const every = approve?.values === "every" && (!opts.imported || !(await beforeWorkingPeriod(ctx, period)));
   if ((reasons.length || every) && approvers.length) {
     const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
-    await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, note: reasons.join("; ") });
+    await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, approval_for: submitterId, note: reasons.join("; ") });
     return [reasons.length ? `unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}` : `every value is approved, approval asked from ${approvers[0]}`];
   }
   return [await publish(ctx)];
@@ -203,11 +224,14 @@ export async function approve(ws: string, actionId: number, by: string) {
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
   const value = await latestValue(a.metric_id, a.period_start);
-  const approvers = (ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve")?.approvers ?? []).filter((x) => x !== value?.submitter_id);
+  // The same people, in the same order, as when the round started: skipping the one the round is about (also when
+  // it began with an accepted Correction), not whoever submitted the latest value.
+  const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
+  const approvers = approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from);
   const next = (state.approval_step ?? 0) + 1;
   if (next < approvers.length) {
-    const nextAction = await requestApproval(ctx, approvers[next], value?.submitter_id ?? a.asker_id, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
-    await setState(a.metric_id, a.period_start, { state: "approval", approval_step: next, approval_action_id: nextAction, note: state.note });
+    const nextAction = await requestApproval(ctx, approvers[next], from, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
+    await setState(a.metric_id, a.period_start, { state: "approval", approval_step: next, approval_action_id: nextAction, approval_for: from, note: state.note });
     return `Approved; ${approvers[next]} approves next.`;
   }
   return `Approved; ${await publish(ctx)}.`;

@@ -257,7 +257,7 @@ export const FeedItemResult = z.object({
   metric: z.string(),
   period: z.string().nullable().describe("The period it was meant for, YYYY-MM-DD; null when the Metric was not found."),
   status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused."),
-  imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check and without waiting for Approval."),
+  imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check. Under a Workflow that approves every value, one for the period it is closing or later still waits for Approval."),
   code: z.string().optional().describe("Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token."),
   detail: z.string(),
 });

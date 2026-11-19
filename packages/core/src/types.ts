@@ -416,4 +416,4 @@ export type Workflow = { id: number; owner_id: string; name: string; config: Wor
 /** Where a metric's period is in its Workflow. */
 export type PeriodStateName = "asked" | "submitted" | "approval" | "published" | "locked";
 /** A metric's period in its Workflow, with the steps done and the current approval. */
-export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; approval_action_id?: number | null; note: string | null; updated_at: string };
+export type PeriodState = { metric_id: number; period_start: string; state: PeriodStateName; done_steps: number[]; approval_step: number | null; approval_action_id?: number | null; approval_for?: string | null; note: string | null; updated_at: string };
