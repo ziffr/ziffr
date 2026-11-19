@@ -225,18 +225,24 @@ export function forgetWorkspaceKey(workspaceId: string): void {
   cache.delete(workspaceId.toLowerCase());
 }
 
+/** Times a Workspace's key was destroyed in this process: a load that started before keeps its result out of the
+ * cache, so this process never opens a destroyed Workspace again from memory. */
+const destroyed = new Map<string, number>();
+
 /** Destroys every version of a Workspace's key (spec 0028, ticket #249): deleting a Workspace does this first, so
  * whatever of it is left anywhere, half-deleted rows or any copy made from now on, cannot be opened with what the
- * Installation keeps. The Workspace stays marked as keyed, so no new key is ever made for it. This process forgets
- * the key at once; others within the 10 minutes their cache keeps it. Never undone. */
-export async function destroyWorkspaceKeys(workspaceId: string): Promise<void> {
+ * Installation keeps. In one locked database step it also marks the Workspace as keyed, so no new key is ever made
+ * for it, and writes the Installation's audit line by its id. This process forgets the key at once; others within
+ * the 10 minutes their cache keeps it. Never undone. False when there is no such Workspace. */
+export async function destroyWorkspaceKeys(workspaceId: string): Promise<boolean> {
   const id = workspaceId.toLowerCase();
   if (!UUID.test(id)) throw new Error("Not a Workspace id.");
+  destroyed.set(id, (destroyed.get(id) ?? 0) + 1);
   forgetWorkspaceKey(id);
-  const { error } = await db().from("workspace_keys").delete().eq("workspace_id", id);
+  const { data, error } = await db().rpc("destroy_workspace_keys", { p_workspace: id });
   if (error) throw new Error("The Workspace Key could not be destroyed.");
-  // Forgotten again: a request in this process may have loaded it while the rows were being deleted.
   forgetWorkspaceKey(id);
+  return data === true;
 }
 
 type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: string | null };
@@ -301,6 +307,7 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   if (id === DEMO_WORKSPACE_ID) return cipherFromKeys(id, []);
   const cached = cache.get(id);
   if (cached) return cached;
+  const generation = destroyed.get(id) ?? 0;
   let rows = await keyRows(id);
   if (!rows.length) {
     // An Installation without ZIFFR_SECRETS_KEY works as before, in clear (spec 0028); not cached, so the key is
@@ -323,6 +330,7 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   // for that before it writes under the new version.
   const cipher = cipherFromKeys(id, keys, rows.find((r) => r.retired_at === null)?.version);
   for (const k of keys) k.key.fill(0);
-  cache.set(id, cipher);
+  // Not kept when its key was destroyed while it loaded (see `destroyed`).
+  if ((destroyed.get(id) ?? 0) === generation) cache.set(id, cipher);
   return cipher;
 }
