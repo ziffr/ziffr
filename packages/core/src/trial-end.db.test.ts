@@ -146,13 +146,19 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
   });
   const at = { table: "thread_messages", column: "body", row: 1 };
 
-  /** Records which tables rows are deleted from, in order; `failOn` makes that table's delete fail. */
+  /** Records, in order, which tables rows are deleted from and when the keys are destroyed (as "keys"); `failOn`
+   * makes that table's delete fail. */
   function watchDeletes(failOn?: string) {
     const deleted: string[] = [];
     const client = db();
     // The core uses one client: watching it watches every call.
     expect(db()).toBe(client);
     const from = client.from.bind(client);
+    const rpc = client.rpc.bind(client);
+    vi.spyOn(client, "rpc").mockImplementation(((name: string, ...args: unknown[]) => {
+      if (name === "destroy_workspace_keys") deleted.push("keys");
+      return (rpc as (...a: unknown[]) => unknown)(name, ...args);
+    }) as typeof client.rpc);
     vi.spyOn(client, "from").mockImplementation(((table: string) => {
       const builder = from(table);
       const remove = builder.delete.bind(builder);
@@ -175,8 +181,8 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
     const deleted = watchDeletes();
     await endTrialNow(t.actor(t.owner));
     vi.restoreAllMocks();
-    expect(deleted.indexOf("workspace_keys")).toBeGreaterThanOrEqual(0);
-    expect(deleted.indexOf("workspace_keys")).toBeLessThan(deleted.indexOf("workspaces"));
+    expect(deleted.indexOf("keys")).toBe(0);
+    expect(deleted.indexOf("workspaces")).toBeGreaterThan(0);
     expect((await db().from("workspace_keys").select("version").eq("workspace_id", t.id)).data).toEqual([]);
     forgetWorkspaceKey(other.id);
     expect((await workspaceCipher(other.id)).open(at, sealedOther)).toBe("still ours");
