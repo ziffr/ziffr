@@ -118,6 +118,10 @@ _Avoid_: Process, pipeline, flow
 When a period's value must be in, counted in working days after the period ends, e.g. the 3rd working day.
 _Avoid_: Deadline, cut-off
 
+**Schedule**:
+What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+_Avoid_: Agenda, to-do list, inbox, calendar
+
 **Stand-in**:
 The person asked instead of a submitter who is Away, or who has not answered by the Due Date.
 _Avoid_: Deputy, backup, substitute
@@ -347,6 +351,10 @@ _Avoid_: Invite, publish
 **View Link**:
 A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers; for a deck, numbers frozen when it was made; for a dashboard, one of its Snapshots once shown, which ends the link when it is deleted.
 _Avoid_: Public link, guest access, embed
+
+**Calendar Link**:
+A secret address that shows one person's Schedule in a calendar app, as all-day entries that link into Ziffr. Anyone with the address sees what it shows, so it can leave out the Metrics' names; it shows only what its person may see now, ends when they leave the Workspace, and can be revoked by them or an Owner or Admin. Not a View Link, which shows a dashboard or deck, and not a Feed, which sends values.
+_Avoid_: iCal feed, calendar feed, calendar subscription, ICS link
 
 **Group**:
 A named set of users, such as Management or Sales, that things are shared with or a Thread is limited to. Whoever joins a group gets what was shared with it. The workspace owner manages groups. Every workspace also has the group Everyone in the workspace: all its members except guests, kept up to date by itself.
