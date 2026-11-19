@@ -5,7 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
-import { askTrialGuide, finishTrialGuide, saveTrialGuide, trialGuideValue, type GuideAsked, type GuideStep, type GuideValue, type GuideWay } from "@ziffr/core/trial-guide";
+import { askTrialGuide, finishTrialGuide, makeGuideFeedKey, saveTrialGuide, type GuideFeedKeyResult, trialGuideValue, type GuideAsked, type GuideStep, type GuideValue, type GuideWay } from "@ziffr/core/trial-guide";
 
 const words = (e: unknown) => ({ error: (e as Error).message });
 
@@ -35,4 +35,12 @@ export async function askGuide(): Promise<GuideAsked | { error: string }> {
 /** The Test Metric's latest value, polled while the guide waits for it. */
 export async function guideValue(): Promise<GuideValue | null> {
   return trialGuideValue(await currentActor());
+}
+
+/** Makes the Feed and Feed Key a program such as n8n sends the Test Metric's values with, or replaces the key. The
+ * secret comes back this once and is never stored by the page. */
+export async function makeN8nKey(replace: boolean): Promise<GuideFeedKeyResult | { error: string }> {
+  try {
+    return await makeGuideFeedKey(await currentActor(), replace === true);
+  } catch (e) { return words(e); }
 }

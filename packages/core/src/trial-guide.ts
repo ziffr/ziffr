@@ -9,6 +9,7 @@ import type { ConnectorId } from "./connectors/types";
 import { setPreference } from "./questions";
 import { myTelegramLink } from "./telegram-people";
 import { trialEndsAt } from "./trials";
+import { addFeedToMetric, createFeed, createFeedKey, revokeFeedKey } from "./feeds";
 import { whatWorksHere, type WayState } from "./what-works-here";
 import { dailyWay, type DailyWay } from "./trial-guide-ways";
 
@@ -41,7 +42,12 @@ export type TrialGuide = {
   replies: boolean;
   email: string;
   testMetric: { id: number; name: string; unit: string; slug: string } | null;
+  /** The working key of the guide's Feed, if one was made: its prefix and last day only, never the secret. */
+  feedKey: GuideFeedKey | null;
 };
+
+/** A Feed Key as the guide may show it: enough to recognise it on the Feeds page. */
+export type GuideFeedKey = { prefix: string; expiresOn: string };
 
 /** The first value recorded for the Test Metric, for the guide to show once it arrives. */
 export type GuideValue = { value: number; period: string; source: string; at: string };
@@ -80,6 +86,7 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
     ready: { email: state("email") === "real", "web-form": true, slack: state("slack") === "real", telegram: state("telegram") === "real" && Boolean(telegram) },
     email: (me?.email as string | null) ?? "",
     testMetric: m ? { id: m.id as number, name: m.name as string, unit: (m.unit as string | null) ?? "", slug: m.slug as string } : null,
+    feedKey: m ? shownKey((await guideFeed(actor.workspaceId, m.id as number))?.key) : null,
   };
 }
 
@@ -146,4 +153,50 @@ export async function trialGuideValue(actor: Actor): Promise<GuideValue | null> 
   const { data: o } = await db().from("observations").select("value, period_start, source, created_at")
     .eq("workspace_id", actor.workspaceId).eq("metric_id", ws.trial_test_metric_id).order("id", { ascending: false }).limit(1).maybeSingle();
   return o ? { value: Number(o.value), period: o.period_start as string, source: o.source as string, at: o.created_at as string } : null;
+}
+
+/** The name the guide gives the Feed it makes, so the Feeds page says where it came from. */
+export const GUIDE_FEED_NAME = "n8n (from the Trial guide)";
+
+// The guide's Feed: a live Feed of the workspace that submits to the Test Metric, with its newest working key.
+async function guideFeed(workspaceId: string, metricId: number): Promise<{ id: string; key: (GuideFeedKey & { id: number }) | null } | null> {
+  const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", workspaceId).is("deleted_at", null).order("created_at");
+  const ids = (feeds ?? []).map((f) => f.person_id as string);
+  if (!ids.length) return null;
+  const { data: token } = await db().from("tokens").select("submitter_id").eq("metric_id", metricId).in("submitter_id", ids).is("stands_in_for", null).limit(1).maybeSingle();
+  if (!token) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: key } = await db().from("access_keys").select("id, prefix, expires_on").eq("workspace_id", workspaceId).eq("feed_id", token.submitter_id)
+    .is("revoked_at", null).gte("expires_on", today).order("id", { ascending: false }).limit(1).maybeSingle();
+  return { id: token.submitter_id as string, key: key ? { id: key.id as number, prefix: key.prefix as string, expiresOn: key.expires_on as string } : null };
+}
+
+// Only the prefix and last day go to the browser, never the key's row id.
+const shownKey = (k: GuideFeedKey | null | undefined): GuideFeedKey | null => (k ? { prefix: k.prefix, expiresOn: k.expiresOn } : null);
+
+/** What making a key for n8n gave: the secret, shown this once, or the key that already works. */
+export type GuideFeedKeyResult = { made: true; secret: string; key: GuideFeedKey } | { made: false; key: GuideFeedKey };
+
+/** Makes the Feed a program such as n8n sends the Test Metric's values with, and a Feed Key for it, for the trial's
+ * Owner. Uses the guide's Feed when there is one, so pressing again makes no second Feed. When a key already works it
+ * is kept and said so, unless `replace` is set: then it is revoked and a new one made, since a secret is shown only
+ * once. The key ends with the trial; the trial's limits on Feeds and keys apply as anywhere else. */
+export async function makeGuideFeedKey(actor: Actor, replace = false): Promise<GuideFeedKeyResult> {
+  await assertGuideOwner(actor);
+  const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_ends_at").eq("id", actor.workspaceId).single();
+  if (!ws?.trial_test_metric_id) throw new Error("This trial has no Test Metric to send values to.");
+  const metricId = ws.trial_test_metric_id as number;
+  let feed = await guideFeed(actor.workspaceId, metricId);
+  if (feed?.key && !replace) return { made: false, key: shownKey(feed.key)! };
+  if (!feed) {
+    const { id } = await createFeed(actor, GUIDE_FEED_NAME);
+    await addFeedToMetric(actor, metricId, id);
+    feed = { id, key: null };
+  }
+  const lastDay = new Date(ws.trial_ends_at as string).toISOString().slice(0, 10);
+  if (lastDay <= new Date().toISOString().slice(0, 10)) throw new Error("This trial ends today, so a new key would not work.");
+  if (feed.key) await revokeFeedKey(actor, feed.key.id);
+  const { secret } = await createFeedKey(actor, feed.id, { name: "n8n key", expiresOn: lastDay });
+  const made = await guideFeed(actor.workspaceId, metricId);
+  return { made: true, secret, key: shownKey(made?.key)! };
 }

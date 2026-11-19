@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
-import { askTrialGuide, dailyWay, finishTrialGuide, saveTrialGuide, trialGuide, trialGuidePending, trialGuideValue } from "./trial-guide";
+import { actorForSecret } from "./access-keys";
+import { submitFeedObservations } from "./feeds";
+import { askTrialGuide, makeGuideFeedKey, dailyWay, finishTrialGuide, saveTrialGuide, trialGuide, trialGuidePending, trialGuideValue } from "./trial-guide";
 
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
@@ -115,5 +117,39 @@ describe("the Trial Guide", () => {
     const today = new Date().toISOString().slice(0, 10);
     await db().from("observations").insert({ metric_id: g.testMetric!.id, period_start: today, value: 3, submitter_id: owner.personId, source: "web_form", workspace_id: owner.workspaceId });
     expect(await trialGuideValue(owner)).toMatchObject({ value: 3, source: "web_form", period: today });
+  });
+
+  it("makes one Feed for the Test Metric with a key that ends with the trial, and reuses it when pressed again", async () => {
+    const owner = await newTrial();
+    const first = await makeGuideFeedKey(owner);
+    if (!first.made) throw new Error("expected a new key");
+    const { data: ws } = await db().from("workspaces").select("trial_ends_at, trial_test_metric_id").eq("id", owner.workspaceId).single();
+    expect(first.key.expiresOn).toBe(new Date(ws!.trial_ends_at).toISOString().slice(0, 10));
+    expect(first.secret.startsWith(`zk_${first.key.prefix}_`)).toBe(true);
+    // The key works for the Feed and records a value for the Test Metric, whose API Source is now on.
+    const feed = await actorForSecret(first.secret);
+    expect(feed && "feedId" in feed).toBe(true);
+    const g = (await trialGuide(owner))!;
+    expect(g.feedKey).toEqual(first.key);
+    const [result] = await submitFeedObservations(feed as never, [{ metric: g.testMetric!.slug, value: 3 }]);
+    expect(result).toMatchObject({ status: "recorded" });
+    expect(await trialGuideValue(owner)).toMatchObject({ value: 3 });
+
+    // Pressed again: the same key is kept and said so, with no second Feed.
+    expect(await makeGuideFeedKey(owner)).toEqual({ made: false, key: first.key });
+    // Replacing it revokes the old key and makes a new one for the same Feed.
+    const second = await makeGuideFeedKey(owner, true);
+    if (!second.made) throw new Error("expected a new key");
+    expect(second.key.prefix).not.toBe(first.key.prefix);
+    expect(await actorForSecret(first.secret)).toBeNull();
+    const { count } = await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", owner.workspaceId);
+    expect(count).toBe(1);
+  });
+
+  it("makes a Feed Key only for the trial's Owner", async () => {
+    const owner = await newTrial();
+    await expect(makeGuideFeedKey({ ...owner, role: "admin", personId: `t-${randomUUID()}` })).rejects.toBeInstanceOf(Forbidden);
+    const { count } = await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", owner.workspaceId);
+    expect(count).toBe(0);
   });
 });
