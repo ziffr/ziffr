@@ -6,6 +6,8 @@ import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { trialGuide } from "@ziffr/core/trial-guide";
 import { ASK_NOW_EVERY_MINUTES } from "@ziffr/core/ask-now";
+import { mcpUrl, remoteMcpEnabled } from "@/lib/remote-mcp";
+import { SITE_URL } from "@/lib/sign-in";
 import { Guide } from "./guide";
 
 /** The page; only for the Owner of a running Trial Workspace. */
@@ -14,5 +16,6 @@ export default async function TrialGuidePage() {
   const guide = await trialGuide(await currentActor());
   if (!guide) redirect("/");
   // Only what the steps need: the Owner's own address, the Test Metric and the ways as the core says they are here.
-  return <Guide guide={guide} askEveryMinutes={ASK_NOW_EVERY_MINUTES} />;
+  // The MCP address only where this Ziffr serves /mcp, so the guide never offers an assistant that cannot connect.
+  return <Guide guide={guide} askEveryMinutes={ASK_NOW_EVERY_MINUTES} siteUrl={SITE_URL} mcpUrl={remoteMcpEnabled() ? mcpUrl() : null} />;
 }

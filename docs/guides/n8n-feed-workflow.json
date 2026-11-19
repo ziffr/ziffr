@@ -1,0 +1,144 @@
+{
+  "name": "Send a number to Ziffr",
+  "nodes": [
+    {
+      "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1001",
+      "name": "Execute workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1002",
+      "name": "Every day at 9",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "disabled": true,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1003",
+      "name": "Value",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1006",
+              "name": "value",
+              "value": "={{ Math.floor(Math.random() * 5) + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1004",
+      "name": "Send to Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ziffr.example.com/api/v1/feed/observations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer zk_your_feed_key"
+            },
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"items\":[{\"metric\":\"your-metric-slug\",\"value\": {{ $json.value }} }]}",
+        "options": {}
+      }
+    },
+    {
+      "id": "3f0c5a4e-0b1d-4c55-9a1e-6c2f6f0a1005",
+      "name": "What this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -300
+      ],
+      "parameters": {
+        "content": "## Send a number to Ziffr\nPress **Execute workflow**: **Value** picks a number from 1 to 5 and **Send to Ziffr** records it for `your-metric-slug` as today's value.\n\nThe Feed Key in the Authorization header comes from Ziffr (Trial guide or Settings, then Feeds). For real use, put it in an n8n credential (Header Auth, name `Authorization`, value `Bearer <key>`) instead of the header field.\n\n**Every day at 9** sends a value daily once you turn it on.",
+        "height": 260,
+        "width": 560
+      }
+    }
+  ],
+  "connections": {
+    "Execute workflow": {
+      "main": [
+        [
+          {
+            "node": "Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every day at 9": {
+      "main": [
+        [
+          {
+            "node": "Value",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Value": {
+      "main": [
+        [
+          {
+            "node": "Send to Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

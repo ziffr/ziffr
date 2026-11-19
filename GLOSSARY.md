@@ -265,7 +265,7 @@ A Workspace on an Installation that offers trials, made by one person to try Zif
 _Avoid_: Sandbox, test workspace, free trial
 
 **Trial Guide**:
-The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, and its first value arriving. Each step can be skipped; until its Owner reaches the end or skips the whole guide, the trial's home and Try it lead back to it at the step reached. It sets the one way the Owner is asked each day: the first picked of Telegram, Slack and email. Try it stays as the reference of every way.
+The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, and its first value arriving. Each step can be skipped; until its Owner reaches the end or skips the whole guide, the trial's home and Try it lead back to it at the step reached. It sets the one way the Owner is asked each day: the first picked of Telegram, Slack and email. At its end it shows the ways in that need no asking: an assistant through the MCP Server, and a program through a Feed it can make with its Feed Key. Try it stays as the reference of every way.
 _Avoid_: Wizard, onboarding, tour
 
 **Test Metric**:

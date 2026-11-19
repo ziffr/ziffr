@@ -111,6 +111,8 @@ In n8n, add an **HTTP Request** node after the node that reads your CRM:
 { "items": [{ "metric": "pipeline-value", "value": {{ $json.total }} }] }
 ```
 
+A ready workflow to start from: [n8n-feed-workflow.json](n8n-feed-workflow.json). Paste it onto an n8n canvas (or use ⋯ → Import from file), replace `https://ziffr.example.com`, `your-metric-slug` and `zk_your_feed_key`, and press Execute workflow: it sends a number from 1 to 5. It has the key in a header field so it works at once; move it into a Header Auth credential before you use it for real, and turn on its daily trigger if you want one value a day. In a trial, **Make a key for n8n** at the end of the Trial guide offers the same workflow with everything filled in.
+
 Leave out `period` to record the current period, or give a period's first day (`2026-10-01`) to fill an earlier one. Each result says `recorded`, `awaiting_approval`, `locked` or `refused`, with a `code` (such as `duplicate` or `period`) for a refusal. `imported: true` marks an Import. One refused item does not stop the rest, so check the results, not only the HTTP status.
 
 ## Limits
