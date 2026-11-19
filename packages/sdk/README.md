@@ -42,6 +42,10 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | `metrics.list(options)`, `metrics.all()` | `GET /api/v1/metrics` |
 | `metrics.get(slug)` | `GET /api/v1/metrics/{slug}` |
 | `metrics.create({ name, period, unit, submit, ... }, { idempotencyKey })` | `POST /api/v1/metrics` |
+| `metrics.update(slug, { target_min, target_max, polarity, attainment_method })` | `PATCH /api/v1/metrics/{slug}` |
+| `targetSeries.list(slug)`, `targetSeries.set(slug, [{ period, value }])` | `GET`, `POST /api/v1/metrics/{slug}/target-series` (value null removes a period) |
+| `metrics.unusualValueCheck(slug)`, `metrics.setUnusualValueCheck(slug, { change_pct, outside_target })` | `GET`, `PATCH /api/v1/metrics/{slug}/unusual-value-check`: the check step of the Metric's Workflow, shared by its Metrics |
+| `projections.list(slug)`, `projections.set(slug, [{ period, value }])` | `GET`, `POST /api/v1/metrics/{slug}/projections` (the current period or later) |
 | `observations.list(slug, { from, to, limit, cursor })`, `observations.all(slug, { from, to })` | `GET /api/v1/metrics/{slug}/observations` |
 | `observations.submit(slug, { value, period, breakdown }, { idempotencyKey })` | `POST /api/v1/metrics/{slug}/observations` |
 | `workspace()` | `GET /api/v1/workspace`: the month the fiscal year starts in, where quarters and years begin |

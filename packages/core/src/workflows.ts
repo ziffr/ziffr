@@ -60,6 +60,24 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   return id;
 }
 
+/** Changes only the check step of a Workflow the actor owns (GLOSSARY: Unusual Value): when a value is unusual. The
+ * rest of the Workflow stays exactly as stored, and the change is refused when the Workflow changed since `seen` (its
+ * updated_at as read), so an edit in the Workflow editor meanwhile is never overwritten. Returns false when refused. */
+export async function setWorkflowCheck(actor: Actor, id: number, check: { changePct?: number; outsideTarget?: boolean }, seen: string): Promise<boolean> {
+  await ownWorkflow(actor, id);
+  const { data: wf } = await db().from("workflows").select("config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+  if (!wf || wf.updated_at !== seen) return false;
+  const config = wf.config as WorkflowConfig;
+  if (!config.steps.some((s) => s.type === "check")) return false;
+  const steps = config.steps.map((s) => (s.type === "check" ? { ...s, changePct: check.changePct === undefined ? s.changePct : int(check.changePct, 1, 1000), outsideTarget: check.outsideTarget ?? s.outsideTarget } : s));
+  await ensureBaseline("workflow", id, actor.personId);
+  const { data: done } = await db().from("workflows").update({ config: { ...config, steps }, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("workspace_id", actor.workspaceId).eq("updated_at", seen).select("id");
+  if (!done?.length) return false;
+  await recordVersion("workflow", id, actor.personId, { message: "Changed its Unusual Value check" });
+  return true;
+}
+
 /** Deletes a Workflow the actor owns. */
 export async function deleteWorkflow(actor: Actor, id: number) {
   await ownWorkflow(actor, id);

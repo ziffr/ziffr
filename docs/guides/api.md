@@ -55,7 +55,7 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
 
 ## Creating Metrics
 
-A key with the scope "Create metrics" can make new Metrics, owned by the person who made the key and checked as in the web form:
+A key with the scope "Create metrics" (`metrics:write`) can make new Metrics, owned by the person who made the key and checked as in the web form:
 
 ```sh
 curl -X POST https://your-ziffr.example/api/v1/metrics \
@@ -68,5 +68,25 @@ curl -X POST https://your-ziffr.example/api/v1/metrics \
 - `submit: true` makes the key's creator its Submitter, so a key that may also submit values can send the first one at once.
 - The key's creator must be allowed to create Metrics: a Guest's key is refused (403), also when the person became a Guest after making the key.
 - Each key may create **50 Metrics in any 24 hours**, also when it calls in parallel; over that, 429 with `Retry-After`. An Idempotency-Key works as for values, and a replayed answer does not count.
-- A program cannot change, share or delete a Metric, or name other Submitters: that stays in the app.
+- A program cannot rename, describe or share a Metric or name other Submitters: that stays in the app. It can delete a Metric its creator owns (`DELETE /api/v1/metrics/{slug}?confirm=<name>`) and change targets, below.
+
+## Changing targets, Projections and the Unusual Value check
+
+A key with the scope "Change metrics" (`metrics:edit`) changes a Metric's **Target Range**, **Target Series** and **Projections**, as the key's creator and only for a Metric they own or are an Editor of, as on the Metric's page. It is a scope of its own, so a key made to create Metrics cannot change them:
+
+```sh
+curl -X PATCH https://your-ziffr.example/api/v1/metrics/revenue \
+  -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
+  -d '{ "target_min": 40000, "target_max": 60000, "polarity": "target" }'
+
+curl -X POST https://your-ziffr.example/api/v1/metrics/revenue/target-series \
+  -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
+  -d '{ "items": [ { "period": "2027-01-01", "value": 5000 }, { "period": "2027-02-01", "value": null } ] }'
+```
+
+- `PATCH /api/v1/metrics/{slug}` changes `polarity`, `target_min`, `target_max` and `attainment_method`; each left out stays, null clears an end of the Target Range. A lower end above the upper one answers 422. A Metric's name and description are changed only in Ziffr, since other people and their assistants read them. The Metric's history names the key.
+- `POST /api/v1/metrics/{slug}/target-series` and `/projections` take 1 to 500 items: a period's first day and a value, or null to remove that period. Every item is checked before anything is written; one refused item (not a period's first day, or a Projection for a period that is over) answers 422 and writes nothing. Repeating a call is safe.
+- `GET` on the same two addresses lists them with `metrics:read`, for any Metric the key's creator sees.
+- `GET /api/v1/metrics/{slug}/unusual-value-check` says what makes a value an **Unusual Value** in the Metric's Workflow (`change_pct`, `outside_target`), with the Workflow's name, whether the key's creator owns it and how many Metrics they see share it. `PATCH` on it changes that check: it changes the Workflow, so every Metric that shares it, and only the Workflow's owner may. A Metric without a Workflow, or a Workflow without a check step, answers 422; steps are added only in Ziffr.
+- Seen but not theirs to change answers 403 with the reason; a Guest's key is refused (403), also when the person became a Guest after making the key.
 

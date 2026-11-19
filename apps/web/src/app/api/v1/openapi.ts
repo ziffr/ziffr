@@ -48,6 +48,15 @@ export const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "patch", path: "/metrics/{slug}", scope: "metrics:edit", body: S.UpdateMetric, ok: { status: 200, name: "Metric", schema: S.MetricDescription },
+    summary: "Change a Metric's Target Range",
+    description: "Changes a Metric's Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
+      { status: 422, description: "The lower target is above the upper one; nothing was changed." },
+    ],
+  },
+  {
     method: "get", path: "/metrics/{slug}/observations", scope: "metrics:read", query: S.observationsQuery, ok: { status: 200, name: "ObservationList", schema: S.ObservationList },
     summary: "List a Metric's values",
     description: "The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, submitter and Breakdown. A Derived Metric's values are computed.",
@@ -60,6 +69,48 @@ export const ENDPOINTS: Endpoint[] = [
       { status: 403, description: "Or the key's creator does not submit values for this Metric." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first submission is still running." },
       { status: 422, description: "`locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric or the period refused it." },
+    ],
+  },
+  {
+    method: "get", path: "/metrics/{slug}/target-series", scope: "metrics:read", ok: { status: 200, name: "SeriesList", schema: S.SeriesList },
+    summary: "List a Metric's Target Series",
+    description: "Target values for single periods, such as a monthly budget; where a period has none, the Target Range applies. Every period that has one, oldest first.",
+  },
+  {
+    method: "post", path: "/metrics/{slug}/target-series", scope: "metrics:edit", body: S.SetSeries, ok: { status: 200, name: "SeriesAnswer", schema: S.SeriesAnswer },
+    summary: "Set a Metric's Target Series",
+    description: "Sets or removes 1 to 500 periods: a number sets the period's value, null removes it. Each period is its first day. Every item is checked before anything is written, as the key's creator, only when they own the Metric or are its Editor.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
+      { status: 422, description: "A period that is not one of the Metric's period starts; nothing was written." },
+    ],
+  },
+  {
+    method: "get", path: "/metrics/{slug}/projections", scope: "metrics:read", ok: { status: 200, name: "SeriesList", schema: S.SeriesList },
+    summary: "List a Metric's Projections",
+    description: "Values for periods not over yet, from an outside forecast, always shown as projections and never as values. Every period that has one, oldest first.",
+  },
+  {
+    method: "post", path: "/metrics/{slug}/projections", scope: "metrics:edit", body: S.SetSeries, ok: { status: 200, name: "SeriesAnswer", schema: S.SeriesAnswer },
+    summary: "Set a Metric's Projections",
+    description: "Sets or removes 1 to 500 periods of the current period or later: a number sets the period's value, null removes it. Each period is its first day. Every item is checked before anything is written, as the key's creator, only when they own the Metric or are its Editor.",
+    errors: [
+      { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
+      { status: 422, description: "A period that is not one of the Metric's period starts, or one that is over; nothing was written." },
+    ],
+  },
+  {
+    method: "get", path: "/metrics/{slug}/unusual-value-check", scope: "metrics:read", ok: { status: 200, name: "UnusualValueCheck", schema: S.UnusualValueCheck },
+    summary: "Describe a Metric's Unusual Value check",
+    description: "What makes a value unusual in the Metric's Workflow: a change beyond a per cent on the period before, and whether a value outside the Target Range is too. With the Workflow's name, whether the key's creator owns it, and how many Metrics they see share it.",
+  },
+  {
+    method: "patch", path: "/metrics/{slug}/unusual-value-check", scope: "metrics:edit", body: S.UpdateUnusualValueCheck, ok: { status: 200, name: "UnusualValueCheck", schema: S.UnusualValueCheck },
+    summary: "Change a Metric's Unusual Value check",
+    description: "Changes the check step of the Metric's Workflow. It changes the Workflow, so every Metric that shares it. Only the Workflow's owner may, as in the Workflow editor; its history names the key. Steps are added or removed only in Ziffr.",
+    errors: [
+      { status: 403, description: "Or the key's creator does not own the Workflow, or their role may not create (Guests)." },
+      { status: 422, description: "The Metric has no Workflow, or its Workflow has no check step." },
     ],
   },
   {
@@ -218,7 +269,7 @@ export function openApiDocument() {
     openapi: "3.1.0",
     info: {
       title: "Ziffr API", version: "1",
-      description: "Read the Metrics an Access Key's creator sees and submit values, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
+      description: "Read the Metrics an Access Key's creator sees and submit values, set their targets and Projections, and build dashboards as them, with the key in `Authorization: Bearer <key>`. A Feed Key (spec 0012) uses only the `/feed` endpoints. Version 1 does not change in ways that break a client.",
       license: { name: "BUSL-1.1", identifier: "BUSL-1.1" },
     },
     servers: [{ url: "/api/v1" }],

@@ -36,8 +36,9 @@ describe("@ziffr/mcp against the app", () => {
     const { client, ben, orders, hidden } = await connect();
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
-      "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric", "get_workspace",
-      "list_dashboards", "list_metrics", "list_people", "list_templates", "remove_widget", "submit_value", "update_dashboard", "update_finding", "update_widget",
+      "add_finding", "add_widget", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric", "get_unusual_value_check", "get_workspace",
+      "list_dashboards", "list_metrics", "list_people", "list_projections", "list_target_series", "list_templates", "remove_widget", "set_projections", "set_target_series", "set_unusual_value_check",
+      "submit_value", "update_dashboard", "update_finding", "update_metric", "update_widget",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
     expect(tools.find((t) => t.name === "delete_metric")?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });

@@ -9,7 +9,9 @@ import type { Scope } from "@ziffr/core/actor";
 import { CREATING_SCOPES, SCOPES } from "@ziffr/core/actor";
 import { answerConsent, type ConsentState } from "./actions";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+/** What a scope covers, where its label alone does not say. */
+const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections and the Unusual Value check of the Metrics you own or edit" };
 const READING: Scope[] = ["metrics:read", "dashboards:read"];
 
 /** The form; the server checks everything again. */
@@ -48,6 +50,7 @@ export function ConsentForm({ request, clientName, returnHost, onThisComputer, w
           <label key={s} className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="scope" value={s} checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="size-4 accent-[var(--color-ink)]" />
             {SCOPE_LABEL[s]}
+            {SCOPE_HINT[s] && <span className="text-xs text-muted-foreground">({SCOPE_HINT[s]})</span>}
           </label>
         ))}
       </fieldset>

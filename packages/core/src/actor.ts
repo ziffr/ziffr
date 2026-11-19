@@ -42,15 +42,17 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
 }
 
 /** What an Access Key may be allowed to do. "metrics:write" creates Metrics owned by the key's creator (spec 0003),
- * and only while the creator's role may create. "dashboards:read" reads the dashboards the creator sees,
+ * and only while the creator's role may create. "metrics:edit" changes the Metrics the creator owns or edits: their
+ * Target Range, Target Series, Projections and Unusual Value check (ticket #211), only while the creator's role may
+ * create; a scope of its own, so keys made before it can do no more than they could. "dashboards:read" reads the dashboards the creator sees,
  * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "dashboards:read" | "dashboards:write";
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "dashboards:read", "dashboards:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write"];
 
 /** Scopes only a creator whose role may create can give a key. */
-export const CREATING_SCOPES: Scope[] = ["metrics:write", "dashboards:write"];
+export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {

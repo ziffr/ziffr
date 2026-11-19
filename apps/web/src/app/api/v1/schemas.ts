@@ -65,6 +65,56 @@ export const CreateMetric = z.object({
   submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
 }).strict();
 
+/** A target or Projection: a number at most 10^15 either way. */
+const seriesValue = z.number().min(-1e15).max(1e15);
+
+/** PATCH /api/v1/metrics/{slug} takes this (ticket #211): the parts of a Metric's description a program may change, its
+ * Polarity, Target Range and Attainment method. Each part left out stays as it is. Not its name or description. */
+export const UpdateMetric = z.object({
+  polarity: z.enum(["higher", "lower", "target"]).optional().describe("Whether higher or lower values are better, or a range (target)."),
+  target_min: seriesValue.nullable().optional().describe("The low end of its Target Range; null for none."),
+  target_max: seriesValue.nullable().optional().describe("The high end of its Target Range; null for none."),
+  attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; null follows the workspace's default."),
+}).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
+
+/** One period's value of a Target Series or a Projection (GLOSSARY: Target Series, Projection). */
+export const ApiSeriesValue = z.object({ period: z.string().describe("The period's first day, YYYY-MM-DD."), value: z.number() });
+
+/** GET /api/v1/metrics/{slug}/target-series and /projections answer this: every period that has one, oldest first. */
+export const SeriesList = z.object({ items: z.array(ApiSeriesValue) });
+
+/** POST /api/v1/metrics/{slug}/target-series and /projections take this: 1 to 500 periods, a number to set the
+ * period's value, null to remove it. */
+export const SetSeries = z.object({
+  items: z.array(z.object({
+    period: periodDateOf().describe("The period's first day, YYYY-MM-DD, as in the Metric's values."),
+    value: seriesValue.nullable().describe("The value, at most 10^15 either way; null removes the period's value."),
+  }).strict()).min(1).max(500).describe("1 to 500 periods; all are checked before anything is written, a later item for the same period wins."),
+}).strict();
+
+/** What setting a Target Series or Projections did. */
+export const SeriesAnswer = z.object({ saved: z.number().int().nonnegative().describe("Periods set."), removed: z.number().int().nonnegative().describe("Periods removed; a period without a value counts none.") });
+
+/** GET and PATCH /api/v1/metrics/{slug}/unusual-value-check answer this (GLOSSARY: Unusual Value): the check step of
+ * the Metric's Workflow, and only what a program needs of that Workflow. */
+export const UnusualValueCheck = z.object({
+  workflow: z.object({
+    name: z.string(),
+    yours: z.boolean().describe("Whether the key's creator owns the Workflow: only its owner changes the check."),
+    metrics: z.number().int().nonnegative().describe("How many Metrics the key's creator sees use this Workflow; a change applies to all of them."),
+  }).nullable().describe("null: the Metric has no Workflow, so nothing checks its values."),
+  check: z.object({
+    change_pct: z.number().int().describe("A value is unusual when it changes more than this per cent on the period before."),
+    outside_target: z.boolean().describe("Also unusual when it falls outside the Target Range."),
+  }).nullable().describe("null: the Workflow has no check step."),
+});
+
+/** PATCH /api/v1/metrics/{slug}/unusual-value-check takes this. Each part left out stays. */
+export const UpdateUnusualValueCheck = z.object({
+  change_pct: z.number().int().min(1).max(1000).optional().describe("Unusual beyond this change in per cent, 1 to 1,000."),
+  outside_target: z.boolean().optional().describe("Whether a value outside the Target Range is unusual too."),
+}).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
+
 /** POST /api/v1/metrics/{slug}/observations takes this. */
 export const SubmitObservation = z.object({
   value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
@@ -110,7 +160,12 @@ export const pageQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{1,15})$/).t
 export const textPageQuery = z.object({ limit, cursor: cursorOf(/^v1:([A-Za-z0-9_-]{1,64})$/) });
 
 /** A period's first day, as the API writes periods. */
-export const periodDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date as YYYY-MM-DD.").refine((d) => !Number.isNaN(Date.parse(d)), "Not a real date.");
+export const periodDate = periodDateOf();
+
+/** A day as YYYY-MM-DD; a function so shapes defined above it can use it. */
+function periodDateOf() {
+  return z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date as YYYY-MM-DD.").refine((d) => !Number.isNaN(Date.parse(d)), "Not a real date.");
+}
 
 /** Paging and range parameters of a Metric's values. */
 export const observationsQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{4}-\d{2}-\d{2})$/), from: periodDate.optional(), to: periodDate.optional() })
