@@ -27,7 +27,8 @@ export function ScatterView({
   return (
     <div style={{ height }} role="img" aria-label={`${y.name} against ${x.name}, ${pairs.length} points`}>
       <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart accessibilityLayer={false} margin={{ top: 8, right: 12, bottom: 8, left: 8 }}>
+        {/* Room on the right for half of the last x label, which is centred on the edge ("150k €" was cut off, #16). */}
+        <ScatterChart accessibilityLayer={false} margin={{ top: 8, right: 28, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="var(--color-rule)" />
           <XAxis type="number" dataKey="x" name={x.name} domain={["auto", "auto"]} tickFormatter={(v) => compactValue(x, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} stroke="var(--color-rule-2)" />
           <YAxis type="number" dataKey="y" name={y.name} domain={["auto", "auto"]} tickFormatter={(v) => compactValue(y, v, numberStyle)} tick={{ fontSize: 12, fill: "var(--color-muted)", fontFamily: "var(--font-outlier)" }} width={68} stroke="var(--color-rule-2)" />

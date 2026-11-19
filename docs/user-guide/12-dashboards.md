@@ -125,7 +125,7 @@ The **Pool** holds everything you can put on the dashboard. **Filter** at the to
 
 To place something, drag it onto the dashboard where you want it, or point at it and press **+** to add it.
 
-- **A Metric** lands as **Number + sparkline**. You can change that afterwards with **Change view**.
+- **A Metric** lands as **Number + sparkline**. The sparkline keeps a small, fixed height, also in a tall card on a phone, so small dips do not look dramatic. You can change that afterwards with **Change view**.
 - **A saved Widget** lands as a copy. Changing the copy does not change your saved Widget, nor the other way round.
 - **A Widget Template** first asks for its Slots (see below), then lands with the chosen Metrics.
 

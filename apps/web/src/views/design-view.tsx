@@ -123,7 +123,9 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
       );
     case "plot":
       return (
-        <div className={part.axes === "none" ? "mt-auto min-h-10 flex-1 pt-2" : "min-h-0 flex-1"}>
+        // A plot without axes is a sparkline: a fixed, small height, so a tall card on a phone does not stretch small dips
+        // into dramatic ones (#16).
+        <div className={part.axes === "none" ? "mt-auto h-12 shrink-0 pt-2" : "min-h-0 flex-1"}>
           <DesignPlot part={part} v={v} onPointContext={ctx} />
         </div>
       );
