@@ -85,17 +85,16 @@ export function printSetupCode(code: string): void {
 /** Makes a setup code and prints it while the Installation has no Installation Admin. `fresh` (at start) always makes
  * a new one, since the old one may have left the log; otherwise one is made only when none waits (the claim page). */
 export async function prepareSetupCode(opts: { fresh: boolean }, print: (code: string) => void = printSetupCode): Promise<"printed" | "waiting" | "claimed"> {
-  if (await installationClaimed()) {
+  if (serverAdminAddresses().length) {
     await db().from("installation_setup_codes").delete().eq("id", true);
     return "claimed";
   }
-  if (!opts.fresh) {
-    const { data } = await db().from("installation_setup_codes").select("id").eq("id", true).maybeSingle();
-    if (data) return "waiting";
-  }
+  // Checked and stored in one step under the claim lock, so no code is made while someone claims the Installation.
   const code = newSetupCode();
-  const { error } = await db().from("installation_setup_codes").upsert({ id: true, code_hash: setupCodeHash(code), made_at: new Date().toISOString() });
+  const { data, error } = await db().rpc("prepare_setup_code", { p_code_hash: setupCodeHash(code), p_fresh: opts.fresh });
   if (error) throw new Error("The setup code could not be made.");
+  if (data === "claimed" || data === "waiting") return data;
+  if (data !== "made") throw new Error("The setup code could not be made.");
   print(code);
   return "printed";
 }
@@ -157,8 +156,12 @@ export async function removeInstallationAdmin(actor: InstallationActor, personId
   const named = serverAdminAddresses();
   // Others the server names who could sign in now: they keep the Installation run if the last one here goes.
   const { data: others } = named.length ? await db().from("profiles").select("id").in("email", named).not("auth_user_id", "is", null).neq("id", id) : { data: [] };
-  const { data, error } = await db().rpc("remove_installation_admin", { p_person: id, p_server_admins: (others ?? []).length });
+  const me = await personOf(actor.personId);
+  const meOnServer = Boolean(me?.auth_user_id && me.email && named.includes(me.email.toLowerCase()));
+  // The database checks again, under the lock, that the one removing is still an Installation Admin.
+  const { data, error } = await db().rpc("remove_installation_admin", { p_actor: actor.personId, p_actor_on_server: meOnServer, p_person: id, p_server_admins: (others ?? []).length });
   if (error) throw new Error("They could not be removed. Try again.");
+  if (data === "forbidden") throw new Forbidden("Only Installation Admins may do this.");
   if (data === "last") throw new Error("The last Installation Admin cannot be removed. Add another one first.");
   if (data !== "ok") throw new Error("They are not an Installation Admin added here.");
   await recordInstallationEvent(actor.personId, "installation_admin.removed", person?.name ?? "A former person");

@@ -239,7 +239,10 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     return "sent";
   } catch (e) {
     // The server's own words may hold addresses or settings: only its kind of failure is kept.
-    return fail(`The mail server refused it (${(e as { code?: string }).code ?? "error"}).`);
+    // Workspace members read this on the Connectors page: the Installation's own checks of its mail host are none of
+    // their business, so those codes become a plain "error".
+    const code = (e as { code?: string }).code;
+    return fail(`The mail server refused it (${code && !["EPRIVATEHOST", "EDNS", "EBADADDRESS"].includes(code) ? code : "error"}).`);
   }
 }
 

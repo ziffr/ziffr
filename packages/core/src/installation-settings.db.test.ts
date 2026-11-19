@@ -324,6 +324,20 @@ describe("a mail server saved on the page, resolved", () => {
     expect(asked).toBe(false);
   });
 
+  it("tells Workspace members a plain error, never the Installation's host checks", async () => {
+    const a = await admin();
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const owner = await w.person("owner", { email: `o-${randomUUID().slice(0, 8)}@example.test` });
+    const m = await w.metric(owner, { sources: ["web_form", "mail"] });
+    await w.token(m.id, owner);
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    await deliverPrompt({ metricId: m.id, submitterId: owner, via: "email" });
+    const { data } = await db().from("deliveries").select("mail_state, last_error").eq("workspace_id", w.id).eq("connector", "email").order("id", { ascending: false }).limit(1).single();
+    expect(data).toEqual({ mail_state: "queued", last_error: "The mail server refused it (error)." });
+  });
+
   it("leaves a mail server from the environment as it is", async () => {
     delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
     const a = await admin();

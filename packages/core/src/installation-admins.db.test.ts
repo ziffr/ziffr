@@ -179,6 +179,43 @@ describe("adding and removing Installation Admins", () => {
     expect(list.find((a) => a.email === "later@example.test")!.personId).toBeNull();
   });
 
+  it("refuses a removal by someone who stopped being an admin a moment before", async () => {
+    const admin = await claimed();
+    const ben = await person();
+    const cat = await person();
+    await addInstallationAdmin(admin, ben.email);
+    await addInstallationAdmin(admin, cat.email);
+    await removeInstallationAdmin(admin, ben.personId);
+    // Ben's request was already past the core's own check: the database checks again under the lock.
+    const { data } = await db().rpc("remove_installation_admin", { p_actor: ben.personId, p_actor_on_server: false, p_person: cat.personId, p_server_admins: 0 });
+    expect(data).toBe("forbidden");
+    expect(await isInstallationAdmin(cat)).toBe(true);
+  });
+
+  it("does not delete the person of the last Installation Admin", async () => {
+    const admin = await claimed();
+    const { error } = await db().from("profiles").delete().eq("id", admin.personId);
+    expect(error?.message).toMatch(/last Installation Admin/);
+    expect(await isInstallationAdmin(admin)).toBe(true);
+    // With another one, they may go, and their admin row with them.
+    const ben = await person();
+    await addInstallationAdmin(admin, ben.email);
+    expect((await db().from("profiles").delete().eq("id", admin.personId)).error).toBeNull();
+    expect(await isInstallationAdmin(ben)).toBe(true);
+    expect((await db().from("installation_admins").select("person_id").eq("person_id", admin.personId)).data).toEqual([]);
+  });
+
+  it("makes no setup code while someone claims the Installation", async () => {
+    const code = await codeInLog();
+    const ann = await person();
+    // A start making a new code may win, and then the old code no longer works: both outcomes are fine, but never an
+    // admin with a code still waiting.
+    await Promise.allSettled([claimInstallation(ann, code), prepareSetupCode({ fresh: true }, () => {}), prepareSetupCode({ fresh: true }, () => {})]);
+    const waiting = ((await db().from("installation_setup_codes").select("id")).data ?? []).length;
+    expect(waiting).toBe((await isInstallationAdmin(ann)) ? 0 : 1);
+    if (await isInstallationAdmin(ann)) expect(await prepareSetupCode({ fresh: true }, () => { throw new Error("printed"); })).toBe("claimed");
+  });
+
   it("keeps every table away from the public roles", async () => {
     const { createClient } = await import("@supabase/supabase-js");
     const { execFileSync } = await import("node:child_process");
