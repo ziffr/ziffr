@@ -146,7 +146,8 @@ export async function assignInPlace(input: { metricId: number; period: string; a
 
 /** The assignee marks their task done. */
 export async function markTaskDone(actionId: number) {
-  // A form action on the Action's page: it has no answer to show, so a refusal stays thrown.
-  await questions.markTaskDone(await currentActor(), Number(actionId));
-  done();
+  return attempt(async () => {
+    await questions.markTaskDone(await currentActor(), Number(actionId));
+    done();
+  });
 }

@@ -17,8 +17,10 @@ export async function setHome(dashboardId: number) {
 }
 
 /** Starts a new dashboard from the dashboards list and opens it (in edit mode, being empty). */
-export async function newDashboard(form: FormData) {
-  const id = await createDashboard(await currentActor(), String(form.get("name") ?? ""));
-  revalidatePath("/", "layout");
-  redirect(`/dashboards/${id}`);
+export async function newDashboard(_previous: unknown, form: FormData) {
+  return attempt(async () => {
+    const id = await createDashboard(await currentActor(), String(form.get("name") ?? ""));
+    revalidatePath("/", "layout");
+    redirect(`/dashboards/${id}`);
+  });
 }
