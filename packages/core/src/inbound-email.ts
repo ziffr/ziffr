@@ -19,7 +19,7 @@ export const MAX_INBOUND_BYTES = 1024 * 1024;
 export const MAX_REPLIES_PER_DELIVERY = 20;
 /** Messages taken from one sender in an hour: far more than a person replies, few enough that a flood stops soon. */
 export const INBOUND_PER_SENDER = 30;
-/** Messages taken by the whole Installation in an hour, from anyone. */
+/** Messages naming a real reply address for their recipient, taken by the whole Installation in an hour. */
 export const INBOUND_TOTAL = 1000;
 /** How long a reply address works. */
 const REPLY_DAYS = 30;
@@ -110,20 +110,21 @@ export function newText(text: string): string {
   return out.join("\n").trim().slice(0, 5000);
 }
 
-/** Whether one more message from this sender may be taken this hour, and counts it if so. A database that does not
+/** Whether one more message may be counted against this key this hour, and counts it if so. A database that does not
  * answer takes nothing: failing open would turn the limit off when it is needed. */
-async function claimInbound(from: string | null): Promise<boolean> {
-  const key = createHash("sha256").update(`ziffr-inbound:${inboxOf(from ?? "")}`).digest("hex");
-  const { data, error } = await db().rpc("claim_inbound_email", { p_sender_key: key, p_per_sender: INBOUND_PER_SENDER, p_total: INBOUND_TOTAL });
+async function claimInbound(what: string, limit: number): Promise<boolean> {
+  const key = createHash("sha256").update(`ziffr-inbound:${what}`).digest("hex");
+  const { data, error } = await db().rpc("claim_inbound_email", { p_key: key, p_limit: limit });
   return !error && data === true;
 }
 
 /** Takes one inbound email. Every check that can refuse it comes before anything is changed. */
 export async function receiveEmail(email: InboundEmail, effects: { submission?: SubmissionEffects; transport?: MailTransport } = {}): Promise<InboundOutcome> {
   if (email.automatic) return "automatic";
-  // A flood (many messages from one sender, or from many) stops here, before any reply token is looked up. Counted
-  // by the inbox it claims to come from: a forged one only uses up the forger's count or the total.
-  if (!(await claimInbound(email.from))) return "limited";
+  // A flood from one sender stops here, before any reply token is looked up. Counted by the inbox it comes from, in a
+  // bucket of its own when the receiving provider did not vouch for it: mail forged in someone's name only uses up
+  // the forged bucket, never theirs.
+  if (!(await claimInbound(`${email.verified ? "vouched" : "unvouched"}:${inboxOf(email.from ?? "")}`, INBOUND_PER_SENDER))) return "limited";
   const token = email.tokens[0];
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
@@ -137,8 +138,11 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   // senders, nothing unvouched is taken; without one, Approvals, which change what is published, are only given in
   // Ziffr, never by email.
   if (!email.verified && (process.env.ZIFFR_INBOUND_AUTHSERV_ID || (d.action_id && (await isApproval(d.workspace_id, d.action_id))))) return log(d, "unverified");
+  // The Installation's total counts only mail that got this far, naming a real reply address for its own recipient:
+  // junk to made-up addresses cannot use up what real replies need.
+  if (!(await claimInbound("total", INBOUND_TOTAL))) return log(d, "limited");
   // Only replies that were taken count, so refused ones (from someone else) cannot use up the person's own.
-  const { count } = await db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_sender,unverified,too_many)");
+  const { count } = await db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_sender,unverified,too_many,limited)");
   if ((count ?? 0) >= MAX_REPLIES_PER_DELIVERY) return log(d, "too_many");
   // Claimed by its Message-ID first, so the same message delivered twice is taken once.
   const { data: claim, error } = await db().from("inbound_emails").insert({ message_id: email.messageId, delivery_id: d.id, workspace_id: d.workspace_id, outcome: "taken" }).select("id").single();
