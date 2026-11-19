@@ -36,17 +36,19 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     correction_value: correction,
     correction_status: correction !== null ? "proposed" : null,
   }]);
-  // The Assignee replying moves an open Action to answered.
-  const answered = a.assignee_id === authorId && a.status === "open";
+  // The Assignee replying moves an open Action to answered; not an Approval or Self-check, which only their own
+  // commands decide: answered, it could no longer be decided and the value would wait for good.
+  const answered = a.assignee_id === authorId && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check";
   await db().from("actions").update({ ...(answered ? { status: "answered" } : {}), updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", ws);
   const other = authorId === a.assignee_id ? a.asker_id : a.assignee_id;
   await deliver({ kind: "reply", actionId, senderId: authorId, recipientId: other, text: body, correction });
   if (correction !== null && a.owner_id !== other) await deliver({ kind: "correction", actionId, senderId: authorId, recipientId: a.owner_id, text: body, correction });
 }
 
-/** A task marked done, in Ziffr or by closing its ticket. */
+/** A task marked done, in Ziffr or by closing its ticket. Never an Approval or Self-check: those are decided by
+ * approving, sending back, confirming or correcting, and one marked done would leave its value waiting for good. */
 export async function finishTask(ws: string, actionId: number, byId: string) {
-  const { data } = await db().from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", ws).eq("assignee_id", byId).eq("kind", "task").eq("status", "open").select("asker_id");
+  const { data } = await db().from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", ws).eq("assignee_id", byId).eq("kind", "task").eq("status", "open").or("purpose.is.null,purpose.eq.escalation").select("asker_id");
   if (data?.[0]) await deliver({ kind: "done", actionId, senderId: byId, recipientId: data[0].asker_id });
   return Boolean(data?.[0]);
 }

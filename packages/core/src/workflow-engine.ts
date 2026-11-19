@@ -212,9 +212,9 @@ export async function valueOutlook(metricId: number, submitterId: string): Promi
  * marked as imported instead. Under Every value an Import counts at once only for history, a period before the one
  * the Workflow works on; one for that period or later waits like any value, so a Feed closing the month is approved.
  * When nobody but the submitter could approve it, the submitter checks it (GLOSSARY: Self-check) or it counts at
- * once, as the Approve step says. `selfChecked` is set only by correctSelfCheck, for the value the submitter just
- * typed while checking: it then counts as confirmed instead of asking them to check it again. */
-export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: boolean } = {}): Promise<string[]> {
+ * once, as the Approve step says. `selfChecked` is set only by correctSelfCheck, the id of the value the submitter
+ * just typed while checking: if it is still the latest, it counts as confirmed instead of asking them again. */
+export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number } = {}): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
   const value = await latestValue(metricId, period);
@@ -239,16 +239,17 @@ export async function onValue(metricId: number, period: string, submitterId: str
   // Approval is needed, but the submitter is the only person who could give it. Never an Approval by them: the step
   // says whether they check it themselves (a Self-check, the default) or it counts without Approval, said in a note.
   if ((reasons.length || every) && approve?.approvers.length && !approvers.length) {
-    if (approve.nobodyElse === "count") {
-      await recordAudit(ctx.ws, null, { kind: "approval.skipped", object: { type: "metric", id: metricId, name: ctx.m.name }, details: { period } });
-      return [`counted without approval: nobody else could approve it; ${await publish(ctx, COUNTED_NOTE)}`];
-    }
-    if (opts.selfChecked) return [`corrected and confirmed by the submitter; ${await publish(ctx, CONFIRMED_NOTE)}`];
-    // A Feed is a program and cannot check anything: its value waits, as before the choice existed.
+    // A Feed is a program: it cannot check anything, and nobody stands behind its value, so it waits under either
+    // choice, as before the choice existed.
     if ((await feedsAmong([submitterId])).size) {
       await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: null, approval_for: submitterId, note: "Waits for Approval: nobody but the Feed that sent it can approve it. Add an Approver to the Workflow." });
       return ["waits for approval: nobody but the Feed that sent it can approve it"];
     }
+    if (approve.nobodyElse === "count") {
+      await recordAudit(ctx.ws, null, { kind: "approval.skipped", object: { type: "metric", id: metricId, name: ctx.m.name }, details: { period, submitter: submitterId, workflow: ctx.wf.id } });
+      return [`counted without approval: nobody else could approve it; ${await publish(ctx, COUNTED_NOTE)}`];
+    }
+    if (opts.selfChecked !== undefined && opts.selfChecked === value.id) return [`corrected and confirmed by the submitter; ${await publish(ctx, CONFIRMED_NOTE)}`];
     const actionId = await requestSelfCheck(ctx, submitterId, reasons, Number(value.value), value.id as number);
     await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: actionId, approval_for: submitterId, note: `Waits for its submitter to check it: nobody else can approve it.${reasons.length ? ` ${reasons.join("; ")}` : ""}` });
     return ["nobody else can approve it: its submitter checks it"];
@@ -293,9 +294,24 @@ const COUNTED_NOTE = "Counted without approval: nobody else could approve it.";
 
 /** Publishes a period, locking it if the Workflow says so, with a note when given (why it counts). */
 async function publish(ctx: Ctx, note?: string) {
-  const pub = ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "publish" }> => s.type === "publish");
-  await setState(ctx.m.id, ctx.period, { state: pub?.lock ? "locked" : "published", approval_step: null, approval_action_id: null, ...(note ? { note } : {}) });
-  return pub?.lock ? "published and locked" : "published";
+  await setState(ctx.m.id, ctx.period, { state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note } : {}) });
+  return publishedLabel(ctx);
+}
+
+function publishedState(ctx: Ctx): "locked" | "published" {
+  return ctx.wf.config.steps.some((s) => s.type === "publish" && s.lock) ? "locked" : "published";
+}
+function publishedLabel(ctx: Ctx) {
+  return publishedState(ctx) === "locked" ? "published and locked" : "published";
+}
+
+/** Publishes a period only while it still waits on this task, in one statement: a value that came in after the task
+ * was decided started a round of its own, which this decision must not overwrite. False when it did. */
+async function publishDecided(ctx: Ctx, actionId: number, note?: string): Promise<boolean> {
+  const { data } = await db().from("period_states")
+    .update({ state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note } : {}), updated_at: new Date().toISOString() })
+    .eq("metric_id", ctx.m.id).eq("period_start", ctx.period).eq("state", "approval").eq("approval_action_id", actionId).select("metric_id");
+  return Boolean(data?.length);
 }
 
 /** An open Self-check task of the workspace that is the person's own and that the period still waits on, with the
@@ -327,9 +343,10 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string)
     return `Someone else can approve it now: ${log.join("; ")}.`;
   }
   await claimTask(actionId);
+  if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
   await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Confirmed by the submitter.", workspace_id: ws });
   await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
-  return `Confirmed by you; ${await publish(ctx, CONFIRMED_NOTE)}.`;
+  return `Confirmed by you; ${publishedLabel(ctx)}.`;
 }
 
 /** The submitter corrects their own value in a Self-check, as a Correction: the new value replaces it (the first is
@@ -349,7 +366,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
   await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start } });
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null });
-  return (await onValue(a.metric_id, a.period_start, by, { selfChecked: true })).join("; ");
+  return (await onValue(a.metric_id, a.period_start, by, { selfChecked: obs.id as number })).join("; ");
 }
 
 /** The approver of an approval task approves; the next approver is asked, or the value is published. */
@@ -380,7 +397,8 @@ export async function approve(ws: string, actionId: number, by: string) {
     await setState(a.metric_id, a.period_start, { state: "approval", approval_step: next, approval_action_id: nextAction, approval_for: from, note: state.note });
     return `Approved; ${approvers[next]} approves next.`;
   }
-  return `Approved; ${await publish(ctx)}.`;
+  if (!(await publishDecided(ctx, actionId))) return "Approved; a newer value came in, and it is checked instead.";
+  return `Approved; ${publishedLabel(ctx)}.`;
 }
 
 /** Sends the value back to the submitter with what to check; the value stays, marked as not approved. */

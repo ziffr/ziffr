@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
-import { postReply } from "./threads";
+import { finishTask, postReply } from "./threads";
 import { workspace } from "./test/db-fixtures";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
 import { confirmOwnValue, saveWorkflow, setMetricWorkflow } from "./workflows";
@@ -132,6 +132,17 @@ describe("the Self-check", () => {
     await db().from("actions").update({ assignee_id: ann }).eq("id", check.id);
     await expect(confirmSelfCheck(w.id, check.id, ann)).rejects.toThrow(/not waiting for this check/);
     expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+  });
+
+  it("stays open for Confirm and Correct after another reply, and is never just marked done", async () => {
+    const { w, sara, m } = await alone("self-check");
+    await w.value(m.id, thisMonth(), 100, sara);
+    await onValue(m.id, thisMonth(), sara);
+    const check = await openCheck(m.id);
+    await postReply(w.id, check.id, sara, "Looks about right, let me look again", null);
+    expect(await finishTask(w.id, check.id, sara)).toBe(false);
+    expect((await tasks(m.id, "self_check")).find((t) => t.id === check.id)?.status).toBe("open");
+    expect(await confirmSelfCheck(w.id, check.id, sara)).toBe("Confirmed by you; published.");
   });
 
   it("is neither locked nor closed with the period while it waits", async () => {
