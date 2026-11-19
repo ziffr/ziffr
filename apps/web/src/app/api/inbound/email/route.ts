@@ -2,21 +2,13 @@
 // when signed: `X-Ziffr-Timestamp` (Unix seconds, within five minutes) and `X-Ziffr-Signature: sha256=<hex>`, the
 // HMAC-SHA256 of "<timestamp>.<body>" with ZIFFR_INBOUND_SECRET, compared in constant time. Without inbound mail set
 // up, unsigned, stale or too large, it answers 404 or 413 and reads nothing; the core decides the rest.
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { MAX_INBOUND_BYTES, parseInbound, receiveEmail } from "@ziffr/core/inbound-email";
-import { inboundEnabled } from "@ziffr/core/mail";
+import { inboundSigned, MAX_INBOUND_BYTES, parseInbound, receiveEmail } from "@ziffr/core/inbound-email";
+import { inboundOn } from "@ziffr/core/mail";
 
 const answer = (status: number, body?: unknown) => (body === undefined ? new Response(null, { status, headers: { "cache-control": "no-store" } }) : Response.json(body, { status, headers: { "cache-control": "no-store" } }));
 
-/** Whether the body was signed with the secret, a moment ago. */
-function signed(req: Request, body: Uint8Array): boolean {
-  const ts = req.headers.get("x-ziffr-timestamp") ?? "";
-  const sig = /^sha256=([0-9a-f]{64})$/i.exec(req.headers.get("x-ziffr-signature") ?? "")?.[1];
-  if (!/^\d{9,11}$/.test(ts) || !sig || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
-  const mac = createHmac("sha256", process.env.ZIFFR_INBOUND_SECRET!).update(`${ts}.`).update(body).digest();
-  const given = Buffer.from(sig, "hex");
-  return given.length === mac.length && timingSafeEqual(given, mac);
-}
+/** Whether the body was signed with the secret, a moment ago; the core holds the secret. */
+const signed = (req: Request, body: Uint8Array) => inboundSigned(req.headers.get("x-ziffr-timestamp") ?? "", req.headers.get("x-ziffr-signature") ?? "", body);
 
 /** The body, read until it passes the limit (then null), so a large or endless body is never held whole. */
 async function readLimited(req: Request): Promise<Uint8Array | null> {
@@ -41,10 +33,10 @@ async function readLimited(req: Request): Promise<Uint8Array | null> {
 
 /** Takes one forwarded email. */
 export async function POST(req: Request) {
-  if (!inboundEnabled()) return answer(404);
+  if (!(await inboundOn())) return answer(404);
   const body = await readLimited(req);
   if (!body) return answer(413);
-  if (!signed(req, body)) return answer(404);
+  if (!(await signed(req, body))) return answer(404);
   let email;
   try {
     email = await parseInbound(body);

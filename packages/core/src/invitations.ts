@@ -6,7 +6,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
-import { headerSafe, isAddress, mailboxKey, mailEnabled, sendMail, type MailTransport } from "./mail";
+import { headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial } from "./trials";
 
@@ -118,7 +118,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
   // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
   const name = input.contactPersonId ? await personName(input.contactPersonId) : email;
   await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: made.id, name }, details: { role: input.role, by: "email", contact: Boolean(input.contactPersonId) } });
-  if (mailEnabled()) await emailInvitation(made.id, actor.personId, transport);
+  if (await mailOn()) await emailInvitation(made.id, actor.personId, transport);
   return t;
 }
 
@@ -127,7 +127,7 @@ export async function resendInvitation(actor: Actor, id: number, transport?: Mai
   notDemo(actor);
   await assertNotTrial(actor.workspaceId, "Inviting people");
   assertCan(actor, "manage-members");
-  if (!mailEnabled()) throw new Error("Email is not set up on this Ziffr.");
+  if (!(await mailOn())) throw new Error("Email is not set up on this Ziffr.");
   const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!inv || !inv.email || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
   if (inv.email_sends >= MAX_SENDS) throw new Error("This invitation was emailed three times already; send the link yourself.");

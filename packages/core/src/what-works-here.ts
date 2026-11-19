@@ -1,11 +1,12 @@
 // What works here (spec 0021; GLOSSARY: Connector, Source, Trial Workspace, Demo Mode): for each way in and out of
 // Ziffr, whether it is real, simulated or off where the person is, why, and the limit that applies. Built from the
-// same settings and checks the delivery queue and the API use (mailEnabled, slackSends, telegramOnIn, the demo and
-// trial rules), so the explanation can never say "real" while the queue keeps a message back. Every page that sets
+// settings in effect and the checks the delivery queue and the API use (mailEnabled, slackSends, telegramOnIn, the
+// demo and trial rules), so the explanation can never say "real" while the queue keeps a message back. Every page that sets
 // expectations reads this; none writes its own list. It holds no workspace data beyond whether Slack or Telegram is on.
 import type { Actor } from "./actor";
 import { db } from "./db";
 import { inboundEnabled, mailEnabled } from "./mail";
+import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEnabled } from "./slack-api";
 import { slackSends } from "./slack-send";
 import { telegramEnabled } from "./telegram-api";
@@ -28,8 +29,10 @@ const LABEL: Record<Way, string> = {
 
 const way = (w: Way, state: WayState["state"], reason: string, limit: string | null = null): WayState => ({ way: w, label: LABEL[w], state, reason, limit });
 
-/** What works in the actor's workspace: the demo, a Trial Workspace or an ordinary one. */
-export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, env: Record<string, string | undefined> = process.env): Promise<WayState[]> {
+/** What works in the actor's workspace (the demo, a Trial Workspace or an ordinary one), by the settings in effect
+ * unless others are given. */
+export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: Settings): Promise<WayState[]> {
+  const env = given ?? (await settingsInEffect());
   if (actor.workspaceId === DEMO_WORKSPACE_ID) {
     const sim = "The demo sends nothing: messages appear in the Outbox, and you answer them in the simulator.";
     return [
@@ -68,9 +71,10 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, env: Reco
   ];
 }
 
-/** What this Ziffr offers someone who has not signed in: the demo, and whether trials are offered and what works in
- * one. No workspace data at all, so the login page may show it to anyone. */
-export function whatThisZiffrOffers(env: Record<string, string | undefined> = process.env): { demo: boolean; trial: { days: number; ways: WayState[] } | null } {
+/** What this Ziffr offers someone who has not signed in (the demo, and whether trials are offered and what works in
+ * one), by the settings in effect unless others are given. No workspace data, so the login page may show it to anyone. */
+export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boolean; trial: { days: number; ways: WayState[] } | null }> {
+  const env = given ?? (await settingsInEffect());
   let settings: { days: number; max: number } | null = null;
   try { settings = trialSettings(env); } catch { settings = null; }
   const demo = env.ZIFFR_DEMO_ONLY === "1" || env.ZIFFR_DEMO !== "0";

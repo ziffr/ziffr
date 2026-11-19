@@ -78,7 +78,7 @@ export async function createWorkspace(name: string): Promise<{ error: string } |
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
   // A new trial opens on its Trial Guide (ticket 193): a few steps to the first value its Owner answers.
-  redirect(whatThisZiffrOffers().trial ? "/try/start" : "/");
+  redirect((await whatThisZiffrOffers()).trial ? "/try/start" : "/");
 }
 
 /** Switches to another of the person's workspaces. */

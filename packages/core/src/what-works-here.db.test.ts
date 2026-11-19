@@ -89,12 +89,12 @@ describe("what works here says what the queue does", () => {
 });
 
 describe("what this Ziffr offers someone signed out", () => {
-  it("offers no trial without the setting, or with a wrong one", () => {
-    expect(whatThisZiffrOffers({}).trial).toBeNull();
-    expect(whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "90" }).trial).toBeNull();
+  it("offers no trial without the setting, or with a wrong one", async () => {
+    expect((await whatThisZiffrOffers({})).trial).toBeNull();
+    expect((await whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "90" })).trial).toBeNull();
   });
-  it("offers a trial with its days and what works in it", () => {
-    const offers = whatThisZiffrOffers({ ...MAIL, ZIFFR_TRIAL_DAYS: "7" });
+  it("offers a trial with its days and what works in it", async () => {
+    const offers = await whatThisZiffrOffers({ ...MAIL, ZIFFR_TRIAL_DAYS: "7" });
     expect(offers.trial?.days).toBe(7);
     expect(of(offers.trial!.ways, "email").state).toBe("real");
     expect(of(offers.trial!.ways, "slack").state).toBe("simulated");

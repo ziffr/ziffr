@@ -2,7 +2,7 @@ import { currentActor } from "@/lib/viewer";
 import { getProfiles } from "@/lib/data";
 import { connectorsView } from "@ziffr/core/page-data";
 import { emailOptedOut } from "@ziffr/core/email-opt-out";
-import { inboundEnabled, mailEnabled } from "@ziffr/core/mail";
+import { inboundOn, mailOn } from "@ziffr/core/mail";
 import { slackConnection } from "@ziffr/core/slack-connection";
 import { mySlackLink, slackOptedOut } from "@ziffr/core/slack-people";
 import { telegramConnection } from "@ziffr/core/telegram-connection";
@@ -41,7 +41,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
       {/* The demo has no Access Keys, so it offers no assistant. */}
       {!demo && <McpPanel siteUrl={SITE_URL} remote={remoteMcpEnabled() ? mcpUrl() : null} />}
-      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={mailEnabled() ? (inboundEnabled() ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} />
+      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={(await mailOn()) ? ((await inboundOn()) ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} />
     </>
   );
 }
