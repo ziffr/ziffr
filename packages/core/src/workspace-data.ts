@@ -44,27 +44,25 @@ export async function getObservations(ws: string, metricIds?: number[]): Promise
   return rows.map(toObservation);
 }
 
-/** The latest value of each period (what a chart plots), optionally of some Metrics and periods only (period starts,
- * both included), ordered by Metric, then period. One answer from the database, so no row limit cuts it. */
-export async function getLatestObservations(ws: string, filter: { metricIds?: number[]; from?: string | null; to?: string | null } = {}): Promise<Observation[]> {
-  const { data, error } = await db().rpc("latest_observations", { p_workspace: ws, p_metric_ids: filter.metricIds ?? null, p_from: filter.from ?? null, p_to: filter.to ?? null });
+// The values a database function answered. On an error, the database's words stay in the server log and a person
+// gets a sentence of Ziffr's own.
+function valuesRead({ data, error }: { data: unknown; error: { message: string } | null }): Observation[] {
   if (error) {
-    // The database's words stay in the server log; a person gets a sentence of Ziffr's own.
     console.error("Values could not be read:", error.message);
     throw new Error("Values could not be read. Try again in a moment.");
   }
   return ((data ?? []) as Record<string, unknown>[]).map(toObservation);
 }
 
+/** The latest value of each period (what a chart plots), optionally of some Metrics and periods only (period starts,
+ * both included), ordered by Metric, then period. One answer from the database, so no row limit cuts it. */
+export async function getLatestObservations(ws: string, filter: { metricIds?: number[]; from?: string | null; to?: string | null } = {}): Promise<Observation[]> {
+  return valuesRead(await db().rpc("latest_observations", { p_workspace: ws, p_metric_ids: filter.metricIds ?? null, p_from: filter.from ?? null, p_to: filter.to ?? null }));
+}
+
 /** The latest value of each of a Metric's last `points` periods, for lists with a trend line. */
 export async function getRecentObservations(ws: string, points: number, metricIds?: number[]): Promise<Observation[]> {
-  const { data, error } = await db().rpc("recent_observations", { p_workspace: ws, p_points: Math.max(0, Math.trunc(points)), p_metric_ids: metricIds ?? null });
-  if (error) {
-    // The database's words stay in the server log; a person gets a sentence of Ziffr's own.
-    console.error("Values could not be read:", error.message);
-    throw new Error("Values could not be read. Try again in a moment.");
-  }
-  return ((data ?? []) as Record<string, unknown>[]).map(toObservation);
+  return valuesRead(await db().rpc("recent_observations", { p_workspace: ws, p_points: Math.max(0, Math.trunc(points)), p_metric_ids: metricIds ?? null }));
 }
 
 /** One value of a workspace by id, or null. */
