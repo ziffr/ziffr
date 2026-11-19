@@ -391,13 +391,19 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   if (!claimed?.length) return;
   const act = msg.actions as { metric_id: number; period_start: string; observation_id: number | null };
   if (accept) {
+    let written: { error: { code?: string } | null };
     if (act.observation_id) {
       // Only the value of this Metric in this workspace is changed.
       const { data: obs } = await db().from("observations").select("value, original_value").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
       if (!obs) throw new Forbidden();
-      await db().from("observations").update({ value: msg.correction_value, original_value: obs.original_value ?? obs.value }).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
+      written = await db().from("observations").update({ value: msg.correction_value, original_value: obs.original_value ?? obs.value }).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
     } else {
-      await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
+      written = await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
+    }
+    // Archived in the meantime: the database refused the value, so the Correction stays proposed.
+    if (written.error?.code === ARCHIVED_CODE) {
+      await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId);
+      throw new Error(ARCHIVED_REFUSAL);
     }
   }
   if (accept) {

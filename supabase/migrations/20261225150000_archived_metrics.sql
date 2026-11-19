@@ -16,7 +16,8 @@ create index metrics_workspace_archived on metrics (workspace_id, (archived_at i
 create or replace function observations_not_archived() returns trigger
 language plpgsql set search_path = public as $$
 begin
-  if tg_op = 'UPDATE' and new.value is not distinct from old.value and new.metric_id = old.metric_id then return new; end if;
+  if tg_op = 'UPDATE' and new.value is not distinct from old.value and new.metric_id = old.metric_id
+    and new.period_start = old.period_start then return new; end if;
   if exists (select 1 from metrics m where m.id = new.metric_id and m.archived_at is not null) then
     raise exception using errcode = 'ZF440', message = 'This Metric is archived';
   end if;

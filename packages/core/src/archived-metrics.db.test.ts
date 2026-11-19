@@ -44,11 +44,18 @@ async function setup() {
 describe("archiving and bringing back", () => {
   it("is for Owners, Admins and the Metric's owner; never other Members, Guests or another workspace", async () => {
     const { w, sara, adam, ben, dan, gus, m } = await setup();
+    // Owners and Admins archive the Metrics they see, here shared with them.
+    await share(w.actor(ben, "member"), "metric", m.id, sara, "viewer");
+    await share(w.actor(ben, "member"), "metric", m.id, adam, "viewer");
     await expect(archiveMetric(w.actor(dan, "member"), m.id)).rejects.toThrow(Forbidden);
     await expect(archiveMetric(w.actor(gus, "guest"), m.id)).rejects.toThrow(Forbidden);
     const other = await ws(); const zoe = await other.person("owner");
     await expect(archiveMetric(other.actor(zoe), m.id)).rejects.toEqual(new Forbidden());
     expect(await canArchiveMetric(w.actor(dan, "member"), m.id)).toBe(false);
+    // An Admin who does not see a Metric cannot archive it either, and learns nothing about it.
+    const hidden = await w.metric(sara, { name: "Payroll" });
+    await expect(archiveMetric(w.actor(adam, "admin"), hidden.id)).rejects.toEqual(new Forbidden());
+    await expect(archiveMetric(w.actor(dan, "member"), hidden.id)).rejects.toEqual(new Forbidden());
     expect(await canArchiveMetric(w.actor(ben, "member"), m.id)).toBe(true);
 
     expect(await archiveMetric(w.actor(ben, "member"), m.id)).toEqual({ archived: true });
@@ -141,12 +148,17 @@ describe("an Archived Metric asks for nothing", () => {
     const { w, sara, ben, cleo, m } = await setup();
     const workflowId = await saveWorkflow(w.actor(sara), null, "Monthly", { dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 1 }, { type: "escalate", daysAfter: 1, to: "owner" }] } as never);
     await db().from("metrics").update({ workflow_id: workflowId }).eq("id", m.id);
+    // A Prompt queued before archiving does not go out after it.
+    expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara, queue: true })).toBe(true);
+    await db().from("deliveries").update({ mail_state: "queued" }).eq("workspace_id", w.id);
     await archiveMetric(w.actor(ben, "member"), m.id);
+    expect((await db().from("deliveries").select("mail_state, last_error").eq("workspace_id", w.id)).data).toEqual([{ mail_state: "failed", last_error: "The Metric was archived before it went out." }]);
+    const asked = (await prompts(m.id)).length;
     const asOf = shiftPeriod(thisMonth(), "day", 20);
     expect(await runWorkflows(w.id, asOf, sara)).toEqual([]);
     expect(await askForMissingValues(w.actor(sara))).toBe(0);
     expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara })).toBe(false);
-    expect(await prompts(m.id)).toEqual([]);
+    expect((await prompts(m.id)).length).toBe(asked);
     const { data: escalations } = await db().from("actions").select("id").eq("metric_id", m.id);
     expect(escalations).toEqual([]);
 
@@ -156,7 +168,7 @@ describe("an Archived Metric asks for nothing", () => {
     await restoreMetric(w.actor(ben, "member"), m.id);
     expect(await remindDueTasks(w.id, inDays(0))).toBe(1);
     expect((await runWorkflows(w.id, asOf, sara)).length).toBeGreaterThan(0);
-    expect((await prompts(m.id)).length).toBeGreaterThan(0);
+    expect((await prompts(m.id)).length).toBeGreaterThan(asked);
   });
 });
 

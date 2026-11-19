@@ -1,6 +1,6 @@
 "use client";
 // Archiving a Metric and bringing it back (GLOSSARY: Archived Metric): for Owners, Admins and the Metric's owner. The
-// core checks who again, and refuses bringing it back when there is no room for it.
+// core checks who again.
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
