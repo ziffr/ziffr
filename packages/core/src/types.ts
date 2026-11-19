@@ -403,8 +403,12 @@ export type WorkflowStep =
   | { type: "remind"; daysBefore: number }
   | { type: "escalate"; to: "stand-in" | "owner"; daysAfter: number }
   | { type: "check"; changePct: number; outsideTarget: boolean }
-  | { type: "approve"; approvers: string[] }
+  // Which values wait for the Approvers: Unusual Values only (the default, also for steps stored before the choice
+  // existed) or every value. Imports never wait.
+  | { type: "approve"; approvers: string[]; values?: ApprovalScope }
   | { type: "publish"; lock: boolean };
+/** Which values an Approve step holds back for Approval: only Unusual Values, or every value. */
+export type ApprovalScope = "unusual" | "every";
 /** A Workflow's Due Date and its steps. */
 export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
 /** A named, reusable path a metric's value takes each period (GLOSSARY: Workflow). */

@@ -28,9 +28,10 @@ export const IDEMPOTENCY_HOURS = 24;
 export type ApiSubmissionInput = { value: number; period?: string | null; breakdown?: { label: string; value: number }[] | null };
 
 /** What became of a program's value (for a key without metrics:read: the value it sent, and words that hold no
- * earlier value or Metric name): recorded (published, or awaiting Approval as an Unusual Value), or refused
- * because the period is locked (it went to the Metric's owner as a proposed Correction), because the key's creator
- * does not submit to the Metric, or by another rule (the Submission Rule, a Derived Metric, a bad period). */
+ * earlier value or Metric name): recorded (published, or awaiting Approval as an Unusual Value or under a Workflow
+ * that approves every value), or refused because the period is locked (it went to the Metric's owner as a proposed
+ * Correction), because the key's creator does not submit to the Metric, or by another rule (the Submission Rule, a
+ * Derived Metric, a bad period). */
 export type ApiSubmissionResult =
   | { ok: true; status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string }
   | { ok: false; reason: "locked" | "not_submitter" | "refused"; detail: string };

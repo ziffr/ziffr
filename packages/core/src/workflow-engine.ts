@@ -137,7 +137,9 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
 }
 
 /** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words.
- * An Import (GLOSSARY: Import) is not checked: a Feed's history should not raise an Approval per period. */
+ * An Unusual Value waits for the Approvers; with an Approve step for every value, every value does. An Import
+ * (GLOSSARY: Import) is neither checked nor held back, whatever the step says: a Feed's history should not raise an
+ * Approval per period, and its values are marked as imported instead. */
 export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean } = {}): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
@@ -157,10 +159,12 @@ export async function onValue(metricId: number, period: string, submitterId: str
   const approvers = (approve?.approvers ?? []).filter((a) => a !== submitterId);
   // A new value restarts approval: approval tasks from an earlier round can no longer decide anything.
   await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).eq("purpose", "approval").eq("kind", "task").eq("status", "open");
-  if (reasons.length && approvers.length) {
+  // A step stored without the choice holds back Unusual Values only, as before the choice existed.
+  const every = approve?.values === "every" && !opts.imported;
+  if ((reasons.length || every) && approvers.length) {
     const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
     await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, note: reasons.join("; ") });
-    return [`unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}`];
+    return [reasons.length ? `unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}` : `every value is approved, approval asked from ${approvers[0]}`];
   }
   return [await publish(ctx)];
 }
@@ -169,7 +173,8 @@ export async function onValue(metricId: number, period: string, submitterId: str
 async function requestApproval(ctx: Ctx, approver: string, submitterId: string, reasons: string[], value: number) {
   const { data } = await db().from("actions").insert({
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: submitterId === approver ? ctx.wf.owner_id : submitterId, assignee_id: approver,
-    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value, ctx.numberStyle)}, ${reasons.join(", ")}. Reply “approve”, or “send back:” with what to check.`,
+    // Without reasons the value waits because every value is approved here, not because it is unusual.
+    question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value, ctx.numberStyle)}${reasons.length ? `, ${reasons.join(", ")}` : ""}. Reply “approve”, or “send back:” with what to check.`,
     kind: "task", purpose: "approval",
   }).select("id, asker_id").single();
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });

@@ -339,7 +339,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}
-                          {o.imported && <span className="block text-xs text-muted-foreground" title="A Feed's value for a past period, recorded without the Unusual Value check">imported</span>}
+                          {o.imported && <span className="block text-xs text-muted-foreground" title="A Feed's value for a past period, recorded without the Unusual Value check or Approval">imported</span>}
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
                         <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>

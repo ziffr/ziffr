@@ -24,7 +24,7 @@ const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
   remind: { type: "remind", daysBefore: 2 },
   escalate: { type: "escalate", to: "stand-in", daysAfter: 0 },
   check: { type: "check", changePct: 30, outsideTarget: true },
-  approve: { type: "approve", approvers: [] },
+  approve: { type: "approve", approvers: [], values: "unusual" },
   publish: { type: "publish", lock: true },
 };
 const STATE_LABEL: Record<PeriodState["state"], string> = { asked: "Asked, waiting", submitted: "In, not approved yet", approval: "Waiting for approval", published: "Published", locked: "Published and locked" };
@@ -202,6 +202,11 @@ function StepFields({ s, people, onChange }: { s: WorkflowStep; people: Profile[
       )}
       {s.type === "approve" && (
         <>
+          <select aria-label="Which values wait for Approval" value={s.values === "every" ? "every" : "unusual"} onChange={(e) => onChange({ ...s, values: e.target.value === "every" ? "every" : "unusual" })} className={field}>
+            <option value="unusual">Unusual values only</option>
+            <option value="every">Every value</option>
+          </select>
+          <span>approved by</span>
           {s.approvers.map((a, i) => (
             <span key={i} className="flex items-center gap-1">
               {i > 0 && <span>then</span>}

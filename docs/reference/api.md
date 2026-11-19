@@ -303,7 +303,7 @@ Records a value for the current period, or the one named, through the Metric's S
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
-| `status` | `"recorded"`, `"awaiting_approval"` | yes | recorded, or waiting for Approval as an Unusual Value. |
+| `status` | `"recorded"`, `"awaiting_approval"` | yes | recorded, or waiting for Approval: as an Unusual Value, or because its Workflow approves every value. |
 | `period` | string | yes | The period it was recorded for, YYYY-MM-DD. |
 | `value` | number | yes | The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent. |
 | `detail` | string | yes | What happened, in words. For a key that may not read metrics, without earlier values. |
@@ -680,8 +680,8 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 | `results` | array of object | yes | One per item, in the order sent. |
 | `results[].metric` | string | yes |  |
 | `results[].period` | string or null | yes | The period it was meant for, YYYY-MM-DD; null when the Metric was not found. |
-| `results[].status` | `"recorded"`, `"awaiting_approval"`, `"locked"`, `"refused"` | yes | recorded; waiting for Approval as an Unusual Value; locked (it went to the Metric's owner as a proposed Correction); or refused. |
-| `results[].imported` | boolean | no | An Import: a past period that had no value, recorded without the Unusual Value check. |
+| `results[].status` | `"recorded"`, `"awaiting_approval"`, `"locked"`, `"refused"` | yes | recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused. |
+| `results[].imported` | boolean | no | An Import: a past period that had no value, recorded without the Unusual Value check and without waiting for Approval. |
 | `results[].code` | string | no | Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token. |
 | `results[].detail` | string | yes |  |
 
