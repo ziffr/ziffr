@@ -91,6 +91,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_USER_GUIDE_URL` | Where the app's "User guide" link leads, if your team keeps its guide elsewhere; without it, Ziffr's own guide at `/guide` ([user guide](../user-guide/README.md)) |
 | `ZIFFR_USER_GUIDE_DIR` | A folder of guide chapters other than `docs/user-guide`, such as a translated copy, optional |
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)); or set them on the [Installation settings](#installation-settings) page |
+| `ZIFFR_ALLOW_PRIVATE_MAIL_HOST` | `1` lets the Installation settings page save a mail server inside this server's network (`localhost`, `10.x`, a Docker service such as `mail`); off by default, so the page cannot reach into your network |
 | `ZIFFR_INSTALLATION_ADMINS` | Email addresses of the people who run this Installation, separated by commas, optional: they are Installation Admins without the setup code ([Installation settings](#installation-settings)) |
 | `ZIFFR_JOB_SECRET` | The secret your scheduler sends to the jobs, at least 32 characters ([jobs](jobs.md)) |
 | `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET`, `ZIFFR_INBOUND_AUTHSERV_ID` | Replies by email, optional ([email](email.md)) |
@@ -128,6 +129,7 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **The first Installation Admin.** While there is none, Ziffr writes a one-time setup code to its log at every start, and when someone opens `/installation`. With Docker: `docker compose logs app | grep "setup code"`. Sign in, open `/installation` and enter it; it works once. Anyone who can read the log can claim the Installation, so claim it before you hand out the address. Or name the admins in `ZIFFR_INSTALLATION_ADMINS` and skip the code.
 - **Which value counts.** The environment first, then the page, then the default (Docker's Mailpit). A setting in the environment is shown on the page as "set on the server" and cannot be changed there, so an Installation set up with a file works as before. A saved value takes effect within seconds, without a restart.
 - **Secrets.** The mail server's address holds its password, so it is sealed with `ZIFFR_SECRETS_KEY` before it is stored, and never shown again. Docker makes that key on the first start; elsewhere set it before saving secrets on the page. Back it up with the database: without it, sealed settings no longer open and must be saved again.
+- **The mail server's address** is read for its host, port, user and password only, also from the environment: options in a query (`?…`) are ignored, and the page refuses them. A host inside your own network is refused on the page unless `ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1`.
 - **Sign-in links** are sent by Supabase Auth, which keeps reading its own mail settings (with Docker, `ZIFFR_SMTP_URL` in the settings file). A mail server saved on the page sends everything else.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 

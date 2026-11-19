@@ -32,7 +32,9 @@ Ziffr sends requests for values, reminders, replies and invitations by email onc
 - **Mail server**: the address of your SMTP server with its user and password, such as `smtps://user:password@smtp.example.com:465`.
 - **Sender**: the address emails come from, with a name if you like, such as `Ziffr <ziffr@example.com>`. Your mail server must be allowed to send as it.
 
-Choose **Save**: it works at once, without restarting Ziffr. Then choose **Send a test email to yourself**. It goes to the address you signed in with, and the page says whether the mail server took it. "Working" next to the section's title means Ziffr has what it needs to send.
+Choose **Save**: it works at once, without restarting Ziffr. Then choose **Send a test email to yourself**. It goes to the address you signed in with, at most ten times an hour. If it fails, the page says one of: could not reach the mail server, the mail server refused the login, it refused the sender or recipient, or it did not work. "Working" next to the section's title means Ziffr has what it needs to send.
+
+A mail server inside the server's own network, such as `localhost` or `10.0.0.5`, is refused unless whoever runs the server allows it. Options after a `?` are refused too.
 
 The mail server is a secret. Once saved, the page never shows it again, only that it is saved and its last four characters. To change it, type a new one; to keep it, leave the field empty.
 

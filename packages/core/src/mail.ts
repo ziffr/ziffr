@@ -72,6 +72,24 @@ function fromAddress(env: Record<string, string | undefined>): string {
 /** Whether this Ziffr sends email now, by the settings in effect. */
 export const mailOn = async (): Promise<boolean> => mailEnabled(await settingsInEffect());
 
+/** The SMTP connection a mail server address names, built field by field: host, port, TLS from `smtps:`, and the
+ * user and password decoded. Nothing else in the address becomes an option, so a query such as `?logger=true` or
+ * `?tls.rejectUnauthorized=false` does nothing, wherever the address comes from. Null for anything that is not an
+ * smtp: or smtps: address with a host. */
+export function smtpOptions(address: string): { host: string; port: number; secure: boolean; auth?: { user: string; pass: string } } | null {
+  let url: URL;
+  try { url = new URL(address); } catch { return null; }
+  if ((url.protocol !== "smtp:" && url.protocol !== "smtps:") || !url.hostname) return null;
+  const secure = url.protocol === "smtps:";
+  const port = url.port ? Number(url.port) : secure ? 465 : 587;
+  let user = "";
+  let pass = "";
+  try { user = decodeURIComponent(url.username); pass = decodeURIComponent(url.password); } catch { return null; }
+  // A literal IPv6 host keeps its brackets in URL.hostname; the socket wants it without.
+  const host = url.hostname.startsWith("[") ? url.hostname.slice(1, -1) : url.hostname;
+  return { host, port, secure, ...(user ? { auth: { user, pass } } : {}) };
+}
+
 let transporter: { url: string; t: Transporter } | null = null;
 
 /** Sends through the SMTP server of these settings; the transport is made again only when the server changes. */
@@ -80,7 +98,9 @@ export function smtpTransportWith(settings: Settings): MailTransport {
     const url = settings.ZIFFR_SMTP_URL!;
     if (transporter?.url !== url) {
       transporter?.t.close();
-      transporter = { url, t: nodemailer.createTransport(url) };
+      const options = smtpOptions(url);
+      if (!options) throw Object.assign(new Error("The mail server address is not an smtp: or smtps: address."), { code: "EBADADDRESS" });
+      transporter = { url, t: nodemailer.createTransport(options) };
     }
     const from = settings.ZIFFR_MAIL_FROM!;
     const name = from.match(/^\s*([^<]+?)\s*</)?.[1];

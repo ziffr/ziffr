@@ -6,7 +6,7 @@
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
-import { headerSafe, isAddress, mailEnabled, smtpTransportWith, type MailTransport } from "./mail";
+import { headerSafe, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { secretsKey, sealSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
@@ -23,6 +23,63 @@ export type InstallationSettingsView = { sections: SectionView[]; canSeal: boole
 // The longest value any setting takes; the table allows 4096 for the sealed form.
 const MAX_VALUE = 1000;
 
+/** Test emails one Installation Admin may send in an hour: the page must not become a way to knock on servers. */
+export const TEST_EMAILS_PER_HOUR = 10;
+
+/** The fixed answers a failed test email gives. Never the mail server's own code or words: with a host and port of
+ * one's choosing, those would tell what listens where in the server's network. */
+export const TEST_EMAIL_ERRORS = {
+  reach: "Could not reach the mail server.",
+  login: "The mail server refused the login.",
+  envelope: "The mail server refused the sender or recipient.",
+  other: "It did not work.",
+} as const;
+
+// An IPv4 address as its four numbers, or null.
+function ipv4(host: string): number[] | null {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m) return null;
+  const parts = m.slice(1).map(Number);
+  return parts.every((n) => n <= 255) ? parts : null;
+}
+
+const privateV4 = ([a, b]: number[]) =>
+  a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+
+/** Whether a mail server host is inside the server's own network as written: loopback, private (RFC 1918, CGNAT,
+ * fc00::/7), link-local, unspecified, or a bare name without a dot (such as `mail` or `localhost`). Only what is
+ * written is judged; a public name that resolves to a private address is not caught here. */
+export function privateMailHost(raw: string): boolean {
+  const host = String(raw).toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (host.includes(":")) {
+    if (host === "::" || host === "::1") return true;
+    if (/^f[cd][0-9a-f]{0,2}:/.test(host) || /^fe[89ab][0-9a-f]?:/.test(host)) return true;
+    // IPv4 mapped into IPv6, as written or as URL writes it (::ffff:7f00:1).
+    const mapped = /^::ffff:(.+)$/.exec(host)?.[1];
+    if (mapped) {
+      const dotted = ipv4(mapped);
+      if (dotted) return privateV4(dotted);
+      const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mapped);
+      if (hex) { const hi = parseInt(hex[1], 16); return privateV4([hi >> 8, hi & 255]); }
+    }
+    return false;
+  }
+  const v4 = ipv4(host);
+  if (v4) return privateV4(v4);
+  return !host.includes(".") || host.endsWith(".localhost");
+}
+
+/** Which of the fixed answers a failed send gets. */
+function testEmailError(e: unknown): string {
+  const err = e as { code?: string; responseCode?: number; command?: string };
+  const code = String(err?.code ?? "");
+  const response = Number(err?.responseCode ?? 0);
+  if (code === "EAUTH" || response === 530 || response === 534 || response === 535) return TEST_EMAIL_ERRORS.login;
+  if (code === "EENVELOPE" || (response >= 550 && response <= 554)) return TEST_EMAIL_ERRORS.envelope;
+  if (["ECONNECTION", "ECONNREFUSED", "ETIMEDOUT", "ESOCKET", "EDNS", "ENOTFOUND", "EHOSTUNREACH", "ENETUNREACH", "ETLS", "EBADADDRESS"].includes(code)) return TEST_EMAIL_ERRORS.reach;
+  return TEST_EMAIL_ERRORS.other;
+}
+
 // The check each setting's value must pass before it is stored; a message for the page when it does not.
 const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_SMTP_URL: (v) => {
@@ -30,8 +87,15 @@ const CHECKS: Record<string, (v: string) => string | null> = {
     try { url = new URL(v); } catch { return "The mail server looks like smtps://user:password@smtp.example.com:465."; }
     if (url.protocol !== "smtp:" && url.protocol !== "smtps:") return "The mail server starts with smtps:// or smtp://.";
     if (!url.hostname) return "The mail server needs a host name.";
-    // Nodemailer reads options from the query (a logger, a proxy, no TLS checks): from the page, only the server.
+    // Nodemailer reads options from a query (a logger, a proxy, no TLS checks). The transport is built from the
+    // fields alone anyway (smtpOptions); a query is refused so nobody believes it does something.
     if (url.search || url.hash || v.includes("?") || v.includes("#")) return "The mail server takes no ?options: only user, password, host and port.";
+    const options = smtpOptions(v);
+    if (!options) return "The mail server's user or password is not written correctly: encode / as %2F, @ as %40.";
+    // The page must not reach into the server's own network unless the person running it allows that.
+    if (privateMailHost(options.host) && process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST !== "1") {
+      return "That mail server is inside this server's own network. To use one there, set ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1 on the server.";
+    }
     return null;
   },
   ZIFFR_MAIL_FROM: (v) => {
@@ -110,8 +174,8 @@ export async function saveInstallationSettings(actor: InstallationActor, section
 }
 
 /** Sends a test email to the acting Installation Admin's own address with the mail settings in effect, and answers
- * where it went. Never to another address. A failure says only the kind of error, never the server's own words,
- * which may repeat the settings. */
+ * where it went. Never to another address, at most TEST_EMAILS_PER_HOUR an hour each. A failure gives one of the
+ * TEST_EMAIL_ERRORS, never the server's own code or words. */
 export async function sendTestEmail(actor: InstallationActor, transport?: MailTransport): Promise<{ to: string }> {
   await assertInstallationAdmin(actor);
   const settings = await settingsInEffect();
@@ -120,15 +184,18 @@ export async function sendTestEmail(actor: InstallationActor, transport?: MailTr
   const { data: me } = await db().from("profiles").select("email").eq("id", actor.personId).maybeSingle();
   const to = (me?.email as string | null) ?? null;
   if (!isAddress(to)) throw new Error("Your account has no proven email address to send the test to.");
+  // Counted from the Installation's audit, where every attempt is recorded before it is made.
+  const { count } = await db().from("installation_audit_events").select("id", { count: "exact", head: true })
+    .eq("actor_id", actor.personId).eq("kind", "setting.test_email").gt("at", new Date(Date.now() - 3_600_000).toISOString());
+  if ((count ?? 0) >= TEST_EMAILS_PER_HOUR) throw new Error(`At most ${TEST_EMAILS_PER_HOUR} test emails an hour. Try again later.`);
+  await recordInstallationEvent(actor.personId, "setting.test_email", "ZIFFR_SMTP_URL");
   try {
     await (transport ?? smtpTransportWith(settings))({
       to, subject: "Ziffr: test email",
       text: `This is a test email from Ziffr at ${settings.ZIFFR_SITE_URL}.\n\nIf you can read it, Ziffr can send email.`,
     });
   } catch (e) {
-    const err = e as { code?: string; responseCode?: number };
-    throw new Error(`The mail server did not take it (${String(err.code ?? "error").replace(/[^A-Z0-9_]/gi, "").slice(0, 30)}${err.responseCode ? ` ${Number(err.responseCode)}` : ""}). Check the server, its port and the password.`);
+    throw new Error(testEmailError(e));
   }
-  await recordInstallationEvent(actor.personId, "setting.test_email", "ZIFFR_SMTP_URL");
   return { to };
 }

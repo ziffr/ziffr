@@ -6,8 +6,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
-import { installationSettingsView, saveInstallationSettings, sendTestEmail } from "./installation-settings";
-import { inboundOn, mailOn } from "./mail";
+import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR } from "./installation-settings";
+import { inboundOn, mailOn, smtpOptions } from "./mail";
 import { openSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect } from "./settings-in-effect";
 import { workspace } from "./test/db-fixtures";
@@ -15,7 +15,7 @@ import { whatThisZiffrOffers, whatWorksHere } from "./what-works-here";
 
 const SMTP = process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425";
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
-const KEYS = ["ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS"];
+const KEYS = ["ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS", "ZIFFR_ALLOW_PRIVATE_MAIL_HOST"];
 const savedEnv: Record<string, string | undefined> = {};
 let savedAdmins: Record<string, unknown>[] = [];
 let savedSettings: Record<string, unknown>[] = [];
@@ -37,6 +37,8 @@ beforeEach(async () => {
   process.env.ZIFFR_SITE_URL = "https://ziffr.example.test";
   // A fixed test key: 32 bytes, base64.
   process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 7).toString("base64");
+  // The local Mailpit is on 127.0.0.1, which the page refuses without this.
+  process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST = "1";
   await db().from("installation_admins").delete().neq("person_id", "");
   await db().from("installation_settings").delete().neq("name", "");
   forgetStoredSettings();
@@ -199,12 +201,54 @@ describe("the test email", () => {
     expect(messages.map((x) => x.Subject)).toEqual(["Ziffr: test email"]);
   });
 
-  it("says only the kind of failure, never the server's words", async () => {
+  it("answers one of a few fixed messages, never the server's code or words", async () => {
     const a = await admin();
     await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: `smtp://u:${PASSWORD}@127.0.0.1:1`, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
-    const err = await sendTestEmail(a).catch((e: Error) => e);
-    expect(err).toBeInstanceOf(Error);
-    expect((err as Error).message).toMatch(/did not take it \(E[A-Z]+/);
-    expect((err as Error).message).not.toContain(PASSWORD);
+    await expect(sendTestEmail(a)).rejects.toThrow(TEST_EMAIL_ERRORS.reach);
+    const failing = (e: object) => async () => { throw Object.assign(new Error(`535 ${PASSWORD} rejected at 10.0.0.7`), e); };
+    const message = async (e: object) => ((await sendTestEmail(a, failing(e)).catch((x: Error) => x)) as Error).message;
+    expect(await message({ code: "EAUTH", responseCode: 535 })).toBe(TEST_EMAIL_ERRORS.login);
+    expect(await message({ code: "EENVELOPE", responseCode: 553 })).toBe(TEST_EMAIL_ERRORS.envelope);
+    expect(await message({ code: "EPROTOCOL", responseCode: 421 })).toBe(TEST_EMAIL_ERRORS.other);
+    for (const m of Object.values(TEST_EMAIL_ERRORS)) expect(m).not.toMatch(/E[A-Z]{3,}|\d{3}/);
+  });
+
+  it("sends at most ten an hour per Installation Admin", async () => {
+    const a = await admin();
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    const sent: string[] = [];
+    for (let i = 0; i < TEST_EMAILS_PER_HOUR; i++) await sendTestEmail(a, async (m) => { sent.push(m.to); return { messageId: "x" }; });
+    await expect(sendTestEmail(a, async () => ({ messageId: "x" }))).rejects.toThrow(/At most 10 test emails an hour/);
+    expect(sent).toHaveLength(TEST_EMAILS_PER_HOUR);
+    // Another Installation Admin has their own ten.
+    const b = await person();
+    await db().from("installation_admins").insert({ person_id: b.personId, added_by: a.personId });
+    await expect(sendTestEmail(b, async () => ({ messageId: "x" }))).resolves.toEqual({ to: b.email });
+  });
+});
+
+describe("the mail server's address", () => {
+  it("becomes a connection of host, port, TLS and login only, from the page or the environment", () => {
+    expect(smtpOptions("smtps://user:p%2Fw%40x@smtp.example.test:465")).toEqual({ host: "smtp.example.test", port: 465, secure: true, auth: { user: "user", pass: "p/w@x" } });
+    expect(smtpOptions("smtp://smtp.example.test")).toEqual({ host: "smtp.example.test", port: 587, secure: false });
+    // A query in the environment's value is ignored: it never becomes an option.
+    expect(smtpOptions("smtp://smtp.example.test:25?logger=true&tls.rejectUnauthorized=false&proxy=http://x")).toEqual({ host: "smtp.example.test", port: 25, secure: false });
+    expect(smtpOptions("http://smtp.example.test")).toBeNull();
+    expect(smtpOptions("smtps://u:%E0%A4%A@smtp.example.test")).toBeNull();
+  });
+
+  it("is refused on the page with options, or inside the server's network unless the server allows it", async () => {
+    const a = await admin();
+    await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://smtp.example.test:587?logger=true" })).rejects.toThrow(/no \?options/);
+    await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://smtp.example.test:587#x" })).rejects.toThrow(/no \?options/);
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtps://user:p%2Fw@smtp.example.test:465" });
+    delete process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST;
+    for (const host of ["127.0.0.1", "localhost", "mail:1025", "10.0.0.5", "172.20.1.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "[::1]", "[fd00::1]", "[fe80::1]", "[::ffff:127.0.0.1]", "relay.localhost"]) {
+      await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: `smtp://${host}` }), host).rejects.toThrow(/ZIFFR_ALLOW_PRIVATE_MAIL_HOST/);
+    }
+    for (const host of ["smtp.example.test", "8.8.8.8", "172.32.0.1", "[2001:db8::1]"]) expect(privateMailHost(host.replace(/^\[|\]$/g, "")), host).toBe(false);
+    process.env.ZIFFR_ALLOW_PRIVATE_MAIL_HOST = "1";
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://mail:1025" });
+    expect((await settingsInEffect()).ZIFFR_SMTP_URL).toBe("smtp://mail:1025");
   });
 });
