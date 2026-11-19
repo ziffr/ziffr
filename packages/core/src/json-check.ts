@@ -219,3 +219,37 @@ function pick(branches: Schema[], v: unknown): { branch?: Schema; path?: string;
   const branch = sameType.find((b) => b.properties?.[field]?.const === o[field]);
   return branch ? { branch, message: "" } : { path: field, message: `must be one of ${quoted(names)}.` };
 }
+
+/** What checking a file of one format gives: the value, or every problem found with its line. */
+export type FormatCheck<T> = { ok: true; value: T } | { ok: false; problems: Problem[] };
+
+/** The lines of a part of a file, by paths inside that part: so a part is checked as if it were a file of its own. */
+export function linesUnder(lines: Map<string, number>, prefix: string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [k, v] of lines) {
+    if (k === prefix) out.set("", v);
+    else if (k.startsWith(`${prefix}.`)) out.set(k.slice(prefix.length + 1), v);
+    else if (k.startsWith(`${prefix}[`)) out.set(k.slice(prefix.length), v);
+  }
+  return out;
+}
+
+/** A problem of a part, named by its path in the whole file. */
+export const under = (prefix: string, p: Problem): Problem => ({ ...p, path: p.path ? (p.path.startsWith("[") ? `${prefix}${p.path}` : `${prefix}.${p.path}`) : prefix });
+
+/** Checks a value already read from JSON against one file format: an unknown version of the format is named as one,
+ * then the schema, then `meaning` (what a schema cannot say), which reports through `at`. */
+export function checkFormat<T>(
+  format: { family: string; reads: readonly string[]; schema: Schema; meaning?: (value: T, at: (path: string, message: string) => void) => void },
+  value: unknown,
+  lines: Map<string, number> = new Map(),
+): FormatCheck<T> {
+  const fmt = value && typeof value === "object" && !Array.isArray(value) ? (value as { format?: unknown }).format : undefined;
+  if (typeof fmt === "string" && fmt.startsWith(`${format.family}/`) && !format.reads.includes(fmt))
+    return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${format.reads.join(", ")}.` }] };
+  const problems = checkSchema(format.schema, value, lines);
+  if (problems.length) return { ok: false, problems };
+  const out: Problem[] = [];
+  format.meaning?.(value as T, (path, message) => void (out.length < MAX_PROBLEMS && out.push({ path, line: lines.get(path) ?? null, message })));
+  return out.length ? { ok: false, problems: out } : { ok: true, value: value as T };
+}

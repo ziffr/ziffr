@@ -4,6 +4,7 @@
 // Security: nothing in a design is run. It holds no web addresses, HTML, scripts or styles, unknown fields are
 // refused, and every number it shows comes from the core's verified functions, never from the file.
 import { checkSchema, parseJson, type Problem, type Schema } from "./json-check";
+import { plainText } from "./file-text";
 import { ANALYSIS_RECIPE_SCHEMA, checkAnalysisRecipeValue, FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe";
 
 /** The format this Ziffr writes; it reads every version in `VIEW_FORMATS`. */
@@ -86,12 +87,7 @@ const TONES = ["data", "muted", "ink", "good", "bad", "accent", "status"] as con
 const FLAGS = ["showTarget", "showForecast", "hasForecast", "hasNote", "manyValues"] as const;
 const TEXT_STYLES = ["headline", "value", "body", "caption", "note"] as const;
 
-// Plain text: letters, digits, spaces and everyday punctuation. No < or > (so no HTML), no braces, brackets or
-// backslashes (so nothing that reads as a template or a script), no line breaks, and no web address or scheme
-// (://, www., javascript:, data:, url( ). Ziffr draws text as text anyway; refusing these keeps a file obviously
-// harmless to whoever reads it.
-const PLAIN = "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$";
-const text = (max: number, description: string): Schema => ({ type: "string", maxLength: max, pattern: PLAIN, description });
+const text = (max: number, description: string): Schema => plainText(max, description);
 const flags: Schema = { type: "array", maxItems: FLAGS.length, items: { enum: [...FLAGS] }, description: "Drawn only when all of these hold: showTarget and showForecast are the options; hasForecast, hasNote and manyValues (two or more values) are about the data." };
 const esc = (x: string) => x.replace(/\./g, "\\.");
 // What a mark shows: one of the core's results, or "recipe." and a step of the design's Analysis Recipe.

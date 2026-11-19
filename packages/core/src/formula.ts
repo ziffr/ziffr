@@ -138,6 +138,13 @@ export function evaluate(formula: string, vars: Record<string, number>): number 
   return Number.isFinite(x) ? x || 0 : null;
 }
 
+/** Why a formula cannot be read at all, or null: only its writing, not which Metrics it names (a file checks those
+ * against its own entries). */
+export function formulaReadProblem(formula: string): string | null {
+  const p = parse(formula);
+  return p.ok ? null : p.reason;
+}
+
 /** The Metrics a Derived Metric may be computed from: what `checkFormula` needs to know of each. */
 export type FormulaInput = Pick<Metric, "slug" | "name" | "period" | "aggregation" | "formula">;
 

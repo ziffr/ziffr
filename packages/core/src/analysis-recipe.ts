@@ -3,6 +3,7 @@
 // the only definition, checked wherever a recipe is saved and in the Playground, and docs/reference is generated
 // from it. Running one is recipe-run.ts.
 import { checkSchema, parseJson, type Problem, type Schema } from "./json-check";
+import { plainText } from "./file-text";
 
 /** The format this Ziffr writes; it reads every version in `ANALYSIS_FORMATS`. */
 export const ANALYSIS_FORMAT = "ziffr.analysis/1";
@@ -35,8 +36,7 @@ export type Output = { step: string; label: string; unit: "metric" | "percent" |
 /** An Analysis written as a file (GLOSSARY: Analysis Recipe), in the newest format. */
 export type AnalysisRecipe = { format: typeof ANALYSIS_FORMAT; name: string; description?: string; slots: { label: string }[]; steps: Step[]; outputs: Output[] };
 
-const PLAIN = "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\())[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$";
-const text = (max: number): Schema => ({ type: "string", maxLength: max, pattern: PLAIN, description: "plain text, without markup or web addresses" });
+const text = (max: number): Schema => plainText(max);
 const ID = "^[a-z][a-zA-Z0-9]{0,23}$";
 const SOURCE: Schema = { type: "string", pattern: "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$", description: "a Slot (slot1 to slot4) or the id of an earlier step" };
 const step = (fn: FunctionName): Schema => {
