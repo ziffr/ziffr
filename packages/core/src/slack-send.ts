@@ -3,7 +3,8 @@
 // queued, claimed in the database within limits, retried by the job. Only to the Slack user a member or Contact of
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
-import { failForGood, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult, withFormLink } from "./mail";
+import { failForGood, withFormLink } from "./internal/delivery-send";
+import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";

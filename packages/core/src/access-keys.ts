@@ -2,19 +2,20 @@
 // and ending on a set day. A key acts as its creator, with the creator's current role, and can do no more than its
 // scopes allow; it stops when it ends, when it is revoked, or when its creator is no longer a member. Only a hash of
 // the secret is stored; the secret is shown once.
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
+import { hash, insertKey } from "./internal/key-store";
 import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { getAllSeries } from "./workspace-data";
 import { visibleMetricIds } from "./access";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { trialEnded, trialLimitMessage } from "./trials";
+import { trialEnded } from "./trials";
 import { assertSeesMetrics } from "./sharing";
 import { audit } from "./audit-log";
 
 const DAY = 86_400_000;
-/** The stored form of a secret: its SHA-256, never the secret. */
-export const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
+/** The stored form of a secret: its SHA-256, never the secret (kept with the key store). */
+export { hash };
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** A key as its creator and the workspace's Owners and Admins see it: never the secret. */
@@ -51,22 +52,6 @@ export async function createAccessKey(actor: Actor, input: { name: string; scope
   return { id: key.id, secret: key.secret };
 }
 
-/** Stores a new key, an Access Key or a Feed Key, with a fresh secret of which only the hash is kept. Returns its
- * id and end, and the secret, for the caller to show once. The caller has checked who may make it. */
-export async function insertKey(row: { workspace_id: string; created_by: string; feed_id?: string; name: string; scopes: string[]; expires_on: string }) {
-  // A taken prefix is all but impossible (48 random bits); one more try covers it.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const prefix = randomBytes(6).toString("hex");
-    const secret = `zk_${prefix}_${randomBytes(32).toString("base64url")}`;
-    const { data, error } = await db().from("access_keys").insert({ ...row, prefix, secret_hash: hash(secret) }).select("id, expires_on").single();
-    if (data) return { id: data.id as number, expires_on: data.expires_on as string, secret };
-    // A trial's limit (spec 0021) says which one it is.
-    const limit = trialLimitMessage(error?.code);
-    if (limit) throw new Error(limit);
-    if (error?.code !== "23505") break;
-  }
-  throw new Error("The key could not be created.");
-}
 
 /** The keys the actor may see: their own, or every key of the workspace for Owners and Admins (who see a key and its
  * Access Log, but only Owners may revoke another person's key). */

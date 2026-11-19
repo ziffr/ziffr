@@ -6,7 +6,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { FEED_SCOPE, Forbidden, type Actor, type FeedActor } from "./actor";
-import { insertKey } from "./access-keys";
+import { insertKey } from "./internal/key-store";
 import { REFUSED } from "./api-submissions";
 import { audit } from "./audit-log";
 import { normalizeMetric } from "./metric-row";

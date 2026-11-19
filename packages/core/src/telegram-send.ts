@@ -3,7 +3,8 @@
 // connected themselves, through the queue every real Connector uses: queued, claimed in the database within limits,
 // retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
 import { db } from "./db";
-import { failForGood, MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult, withFormLink } from "./mail";
+import { failForGood, withFormLink } from "./internal/delivery-send";
+import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";

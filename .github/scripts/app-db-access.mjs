@@ -2,7 +2,8 @@
 // The web app reads and writes data only through the core (AGENTS.md rule 2, ticket #42). Only finding the signed-in
 // person and the demo's "view as" and reset may use the database directly. Run from the repository root; exits 1
 // and names each other file that does. It looks for any way in: the app's and the core's database modules, the
-// Supabase clients, and query calls on anything named db, however they are written.
+// Supabase clients, and query calls on anything named db, however they are written. Nor does it import the core's
+// internal modules (packages/core/src/internal), which check no Actor and are only for the core's own operations.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -12,6 +13,7 @@ const ALLOWED = new Set(["lib/db.ts", "lib/auth.ts", "lib/viewer.ts", "app/actio
 const RULES = [
   [/["'](?:[^"']*\/)?lib\/db(?:\.[jt]s)?["']/, "imports the app's database module"],
   [/["']@ziffr\/core\/(?:src\/)?db(?:\.[jt]s)?["']/, "imports the core's database module"],
+  [/["']@ziffr\/core\/(?:src\/)?internal\//, "imports a core-internal module"],
   [/["']@supabase\/(?:supabase-js|ssr)["']/, "imports a Supabase client"],
   [/\bdb\s*(?:\(\s*\))?\s*\.\s*(?:from|rpc|schema|storage)\s*\(/, "queries the database"],
 ];
