@@ -58,6 +58,10 @@ _Avoid_: Admin, maintainer
 A library of predefined metric descriptions. Picking one copies its description into a new metric of your own, with no link back to the catalog.
 _Avoid_: Template library, presets
 
+**Archived Metric**:
+A Metric kept with its description, values and history that asks for nothing and takes no values, shown only under Archived. It does not count towards the Workspace Limit; bringing it back counts again. Not a Snapshot, which keeps what a dashboard showed.
+_Avoid_: Deleted metric, inactive metric, hidden metric
+
 **Observation**:
 One value of a metric for one period.
 _Avoid_: Number, entry, data point, upload
@@ -113,6 +117,10 @@ _Avoid_: Reminder, nudge
 **Workflow**:
 A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
 _Avoid_: Process, pipeline, flow
+
+**Workflow Template**:
+A starting point for a new Workflow: its steps, Due Date and reminders, with the people left open to be picked when it is used. A Workflow made from one is an independent copy.
+_Avoid_: Preset, blueprint, process template
 
 **Due Date**:
 When a period's value must be in, counted in working days after the period ends, e.g. the 3rd working day.
@@ -181,8 +189,12 @@ A starting point for a new widget or Finding: a view, its settings and, when the
 _Avoid_: Preset, widget type, blueprint
 
 **Dashboard Template**:
-A starting point for a new dashboard: its widgets with their views, settings, words and layout, with the metrics left open as Slots. One Slot can fill several widgets. Ziffr ships built-in ones; anyone who may change a dashboard and sees every metric on it can save it as a team template, which only its creator changes. A dashboard made from one is an independent copy. "Template" alone is never used in UI text without "Widget" or "Dashboard".
+A starting point for a new dashboard: its widgets with their views, settings, words and layout, with the metrics left open as Slots. One Slot can fill several widgets. Ziffr ships built-in ones; anyone who may change a dashboard and sees every metric on it can save it as a team template, which only its creator changes. A dashboard made from one is an independent copy. "Template" alone is never used in UI text without what it is a template of: Widget, Dashboard, Deck or Workflow.
 _Avoid_: Preset, blueprint, starter dashboard
+
+**Deck Template**:
+A starting point for a new deck: its slides with their widgets, words and layout, with the metrics left open as Slots. A deck made from one is an independent copy.
+_Avoid_: Preset, blueprint, master
 
 **Slot**:
 A place in a Widget Template or Dashboard Template that is filled with a metric when the template is used. A slot takes exactly one metric, or one or more for small multiples.
@@ -265,7 +277,7 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and it is deleted a set number of days after it was made. On such an Installation every Workspace is one. It starts with made-up Metrics and values of its own, so its dashboard shows something at once; unlike Sample Data, they are the workspace's and can be changed.
+A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and a set number of days after it was made it is deleted, or, where the Installation keeps trials, becomes an ordinary Workspace with the Installation's default Workspace Limit. On such an Installation every Workspace is one. It starts with made-up Metrics and values of its own, so its dashboard shows something at once; unlike Sample Data, they are the workspace's and can be changed.
 _Avoid_: Sandbox, test workspace, free trial
 
 **Trial Guide**:
@@ -287,6 +299,26 @@ _Avoid_: Superadmin, root, system administrator
 **Installation Settings**:
 What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
 _Avoid_: Admin settings, system settings, global config
+
+**Workspace Limit**:
+The most Metrics a Workspace may hold, Archived Metrics not counted, set for it by an Installation Admin or by Ziffr Cloud, or else the Installation's default; without any there is no limit, as on most self-hosted Installations. A Workspace over it keeps everything working and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more.
+_Avoid_: Quota, cap, allowance, plan
+
+**Size**:
+What a Workspace on hosted Ziffr is booked for, named by how many Metrics it may hold: Free, Small, Team, Business, or larger on request. Every Size has every feature and any number of members. In Ziffr itself a Size is a Workspace Limit with a name; its price is known only to Ziffr Cloud.
+_Avoid_: Plan, tier, package, edition, subscription
+
+**Ziffr Cloud**:
+The private service that runs hosted Ziffr's billing: Sizes, prices, payments, invoices and the Marketplace. It sets Workspace Limits through an API of its own, which can read a Workspace's count of Metrics and nothing of its data.
+_Avoid_: Billing service, SaaS, hosted edition
+
+**Pack**:
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author and license. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
+_Avoid_: Plugin, extension, add-on, integration, app, bundle
+
+**Marketplace**:
+Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
+_Avoid_: Store, app store, gallery, hub
 
 **Workspace Key**:
 The key a Workspace's sensitive data is encrypted with in the database: its values, the words people write and its Contacts' details. Each Workspace has its own, kept only wrapped by the Installation's key, and deleting the Workspace destroys it, so what is left of the Workspace can no longer be read. It is not end-to-end encryption: the Installation reads the data to check, combine and send it. The demo has none.
