@@ -19,6 +19,11 @@ export const MAX_INBOUND_BYTES = 1024 * 1024;
 export const MAX_REPLIES_PER_DELIVERY = 20;
 /** Messages taken from one sender in an hour: far more than a person replies, few enough that a flood stops soon. */
 export const INBOUND_PER_SENDER = 30;
+/** Messages of any kind looked at by the whole Installation in an hour: a ceiling on the work a flood can cause, set
+ * far above what real replies need, which have their own total below. */
+export const INBOUND_ALL = 10_000;
+/** Refusals recorded for one Delivery in an hour (wrong sender, expired, unvouched); beyond it they are not written. */
+export const REFUSALS_PER_DELIVERY = 50;
 /** Messages naming a real reply address for their recipient, taken by the whole Installation in an hour. */
 export const INBOUND_TOTAL = 1000;
 /** How long a reply address works. */
@@ -124,7 +129,11 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   // A flood from one sender stops here, before any reply token is looked up. Counted by the inbox it comes from, in a
   // bucket of its own when the receiving provider did not vouch for it: mail forged in someone's name only uses up
   // the forged bucket, never theirs.
-  if (!(await claimInbound(`${email.verified ? "vouched" : "unvouched"}:${inboxOf(email.from ?? "")}`, INBOUND_PER_SENDER))) return "limited";
+  // Mail without a sender is answered by nobody and counted against nobody's bucket.
+  if (!email.from) return "wrong_sender";
+  // The ceiling on work first, then the sender's own count.
+  if (!(await claimInbound("all", INBOUND_ALL))) return "limited";
+  if (!(await claimInbound(`${email.verified ? "vouched" : "unvouched"}:${inboxOf(email.from)}`, INBOUND_PER_SENDER))) return "limited";
   const token = email.tokens[0];
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
@@ -161,6 +170,9 @@ async function isApproval(ws: string, actionId: number): Promise<boolean> {
 type DeliveryRow = { id: number; workspace_id: string; recipient_id: string; kind: string; action_id: number | null; prompt_id: number | null };
 
 async function log(d: DeliveryRow, outcome: InboundOutcome): Promise<InboundOutcome> {
+  // Someone holding a real reply address could otherwise write a refusal row per message: past the limit for this
+  // Delivery, refusals are answered the same but no longer recorded.
+  if (!(await claimInbound(`refused:${d.id}`, REFUSALS_PER_DELIVERY))) return outcome;
   // A refusal is noted once, without the Message-ID claim, so the real reply can still come in afterwards.
   await db().from("inbound_emails").insert({ message_id: null, delivery_id: d.id, workspace_id: d.workspace_id, outcome });
   return outcome;

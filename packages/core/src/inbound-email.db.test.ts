@@ -179,6 +179,8 @@ describe("a flood of mail", () => {
     // Mail the provider vouched for, from that same address, has a bucket of its own: a forged flood in someone's name
     // never uses up theirs.
     expect(await receiveEmail(unknownFrom(from, true, 1))).toBe("unknown_token");
+    // Mail without a sender counts against nobody.
+    expect(await receiveEmail({ ...unknownFrom(from, false, 2), from: null })).toBe("wrong_sender");
     // Nor does it hold back anyone else.
     expect(await receiveEmail(unknownFrom(address("other"), false, 1))).toBe("unknown_token");
   });
