@@ -6,7 +6,7 @@ import { actorForSecret } from "@ziffr/core/access-keys";
 import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
 import { calledFromMcp } from "@/lib/mcp-context";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
-import { Forbidden, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
+import { Forbidden, scopeRefusal, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
 export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "internal";
@@ -50,7 +50,7 @@ export function keyRoute<C>(scope: Scope | null, handler: (actor: KeyActor, req:
   return guarded<C>(async (actor, req, ctx) => {
     // A Feed Key acts for no person, so it may use none of the endpoints written for people's keys (spec 0012).
     if ("feed" in actor) return scope ? apiError("forbidden", "A Feed Key works only with /api/v1/feed.") : apiError("not_found", "Not found.");
-    if (scope && !actor.key.scopes.includes(scope)) return apiError("forbidden", `This key may not ${scope.replace(":", " ")}.`);
+    if (scope && !actor.key.scopes.includes(scope)) return apiError("forbidden", scopeRefusal(scope));
     return run(actor, req, ctx, handler);
   });
 }

@@ -72,7 +72,7 @@ The right side lists every Metric that uses this Workflow and that you may see. 
 - the period being worked on (the last one that has ended) and its Due Date,
 - where the value is: **Not started**, **Asked, waiting**, **In, not approved yet**, **Waiting for approval**, **Published**, or **Published and locked**,
 - a note when there is one, such as why a value is unusual, who sent it back, or who unlocked the period and why,
-- who submits it and, where chosen, their Stand-in.
+- who submits it (a **Feed** by its name) and, where chosen, their Stand-in.
 
 You do not add Metrics here. "A metric's owner picks its workflow on the metric's page." See [A Metric's Workflow box](#a-metrics-workflow-box).
 

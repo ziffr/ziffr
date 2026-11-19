@@ -36,7 +36,7 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart }: { yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart }: { yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -46,6 +46,8 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
   const [pending, start] = useTransition();
   const canEdit = isNew || current?.owner_id === viewer;
   const first = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
+  // A Feed is named in full, as on the Metric's page ("n8n (from the Trial guide)"), never by its id.
+  const submitter = (id: string) => feeds.find((f) => f.id === id)?.name ?? first(id);
   const steps = cfg.steps;
   const setStep = (i: number, s: WorkflowStep) => setCfg({ ...cfg, steps: steps.map((x, j) => (j === i ? s : x)) });
   const move = (i: number, d: -1 | 1) => { const s = [...steps]; [s[i], s[i + d]] = [s[i + d], s[i]]; setCfg({ ...cfg, steps: s }); };
@@ -133,7 +135,7 @@ export function WorkflowsScreen({ viewer, people, metrics, workflows, current, s
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
                       </div>
                       {st?.note && <p className="mt-1 text-xs text-muted-foreground">{st.note}</p>}
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CircleUserRound aria-hidden className="size-3.5" /> {toks.map((t) => `${first(t.submitter_id)}${t.stand_in_id ? `, stand-in ${first(t.stand_in_id)}` : ""}`).join("; ") || "No submitter"}</p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CircleUserRound aria-hidden className="size-3.5" /> {toks.map((t) => `${submitter(t.submitter_id)}${t.stand_in_id ? `, stand-in ${first(t.stand_in_id)}` : ""}`).join("; ") || "No submitter"}</p>
                     </li>
                   );
                 })}

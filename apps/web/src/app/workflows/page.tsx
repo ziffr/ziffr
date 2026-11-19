@@ -13,7 +13,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const actor = await currentActor();
   const viewer = actor.personId;
   // Only Metrics this viewer may see, decided in the core, and only what the page shows of them.
-  const [people, { workflows, states, tokens, metrics: seen, assigned }, demo, yearStart] = await Promise.all([getProfiles(), workflowsView(actor), isDemo(), getYearStart()]);
+  const [people, { workflows, states, tokens, feeds, metrics: seen, assigned }, demo, yearStart] = await Promise.all([getProfiles(), workflowsView(actor), isDemo(), getYearStart()]);
   // A real workspace runs on the clock; the demo pretends a day instead.
   const schedule = demo ? null : await workflowSchedule(actor);
   const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
@@ -32,6 +32,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         current={current}
         states={states as PeriodState[]}
         tokens={tokens}
+        feeds={feeds}
         asOf={schedule ? schedule.today : asOf}
         schedule={schedule}
         canRun={actor.role === "owner" || actor.role === "admin"}

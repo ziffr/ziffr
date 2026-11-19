@@ -51,12 +51,18 @@ export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metric
 /** Every scope a key can have. */
 export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write"];
 
+/** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+
+/** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
+export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;
+
 /** Scopes only a creator whose role may create can give a key. */
 export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {
-  if (actor.key && !actor.key.scopes.includes(scope)) throw new Forbidden(`This key may not ${scope.replace(":", " ")}.`);
+  if (actor.key && !actor.key.scopes.includes(scope)) throw new Forbidden(scopeRefusal(scope));
 }
 
 /** Thrown when an actor may not do or see something; callers turn it into "not found" or "forbidden". */

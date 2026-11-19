@@ -64,6 +64,8 @@ Ziffr sends requests for values to people's Slack and takes their answers once t
 2. On the app's **Basic Information** page in Slack, under **App Credentials**, copy the **Client ID**, the **Client Secret** and the **Signing Secret** into the three fields and choose **Save**. "Working" next to the title means Ziffr has all three.
 3. Slack tried the events address once when the app was made, before Ziffr knew the signing secret. In Slack, open the app's **App Manifest** page and choose **Verify** next to the events address. Reload Ziffr's page: "Slack has checked the events address" means Slack reached this Ziffr and signed its request with the secret you saved. If it does not appear, copy the Signing Secret again.
 
+Without an https address the page shows neither step 1 nor step 2, so the line about the events address carries no number.
+
 Slack cannot check the Client ID and Client Secret until a Slack workspace is connected. The next step is in a Workspace: an Owner or Admin opens **Connectors** and chooses **Add to Slack**. If the Client ID or Client Secret is wrong, that is where it shows.
 
 To connect Slack workspaces other than the one that owns the app, turn on **Manage Distribution** for the app in Slack. The Client Secret and the Signing Secret are secrets: once saved, the page shows only that they are saved and their last four characters. Saving a new Signing Secret means asking Slack to verify the events address again.
