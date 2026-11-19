@@ -14,6 +14,11 @@ export type ValueUnit = Pick<MetricDescription, "decimals" | "unit" | "unit_posi
 // The space a "1 234,5" style groups with: a no-break space, so a value never breaks across lines.
 const STYLE_SPACE = " ";
 
+/** The minus sign every number shown to people is written with: values, absolute and percentage changes alike
+ * ("−1.200 €", "−3,5 %"). Files and programs read numbers, so CSV, chart data and anything parsed back keep the
+ * ASCII "-" (`formatNumber` with `group: false`), and the number readers accept both (ticket #184). */
+export const MINUS = "−";
+
 // Digits only: grouped in the style unless `group` is false, rounded to `decimals`, without a sign.
 function digits(abs: number, decimals: number, style: NumberStyle, group = true): string {
   const marks = NUMBER_STYLE_MARKS[style];
@@ -39,17 +44,19 @@ function signed(v: number, decimals: number, style: NumberStyle, group?: boolean
 // The unit on its side: before without a space ("$1,200"; "CHF " keeps the space it ends with), after with one.
 // A Metric kept before units had a side (in an old Snapshot) has none, and its unit stands after, as it did.
 function withUnit(m: Pick<ValueUnit, "unit" | "unit_position">, minus: boolean, body: string): string {
-  const sign = minus ? "-" : "";
+  const sign = minus ? MINUS : "";
   if (!m.unit) return sign + body;
   return m.unit_position === "before" ? `${sign}${m.unit}${body}` : `${sign}${body} ${m.unit}`;
 }
 
-/** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5"; `group: false` leaves out the
- * group marks, for files a spreadsheet reads. A dash for a value that is not a finite number. */
+/** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5" or "−5"; `group: false` writes
+ * it for files a spreadsheet or program reads: no group marks and the ASCII "-" as its minus. A dash for a value that
+ * is not a finite number. */
 export function formatNumber(v: number | null | undefined, decimals: number, style: NumberStyle, opts: { group?: boolean } = {}): string {
   if (!isNumber(v)) return "–";
   const { minus, body } = signed(v, decimals, style, opts.group);
-  return (minus ? "-" : "") + body;
+  if (!minus) return body;
+  return (opts.group === false ? "-" : MINUS) + body;
 }
 
 /** A value in the Number Style with its Metric's unit, side and decimals, e.g. "1.200 €" or "$1,200"; a dash when
@@ -137,13 +144,13 @@ export function axisLabels(m: ValueUnit, ticks: number[], step: number, style: N
   });
 }
 
-/** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", "−" or "±"
+/** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", `MINUS` or "±"
  * ("+12.0 %", "−3.5 %"); `signed: false` writes the size only, for "up 12.0 %". A dash for none. */
 export function formatChange(pct: number | null | undefined, style: NumberStyle, opts: { signed?: boolean } = {}): string {
   if (!isNumber(pct)) return "–";
   const body = digits(Math.abs(pct), 1, style);
   // Stryker disable next-line EqualityOperator: a change of 0 has no 1-9 in its digits and is "±" before pct > 0 is asked.
-  const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : "−";
+  const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : MINUS;
   return `${sign}${body} %`;
 }
 

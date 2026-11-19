@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { axisLabels, compactValue, formatChange, MAX_AXIS_TICKS, niceAxis, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
+import { axisLabels, compactValue, formatChange, MAX_AXIS_TICKS, MINUS, niceAxis, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
+import { readNumber } from "./numbers";
 import { metric } from "./test/fixtures";
 import { isUnitPosition, keptUnit, moneyUnit, UNIT_POSITIONS } from "./units";
 
@@ -20,13 +21,13 @@ const WRITTEN: [ValueUnit, number, NumberStyle, string][] = [
   [eur, 118941, "1'234.5", "118'941 €"],
   [usd, 1200, "1,234.5", "$1,200.00"],
   [usd, 1200, "1.234,5", "$1.200,00"],
-  [usd, -1200.5, "1,234.5", "-$1,200.50"],
+  [usd, -1200.5, "1,234.5", "−$1,200.50"],
   [chf, 1200, "1'234.5", "CHF 1'200"],
   [days, 12, "1,234.5", "12.0 d"],
   [days, 12.25, "1.234,5", "12,3 d"],
   [pct, 12.5, "1,234.5", "12.5 %"],
   [pct, 12.5, "1 234,5", "12,5 %"],
-  [pct, -6.5, "1,234.5", "-6.5 %"],
+  [pct, -6.5, "1,234.5", "−6.5 %"],
   [plain, 1234567.891, "1,234.5", "1,234,568"],
   [{ ...plain, decimals: 3 }, 1234.5678, "1.234,5", "1.234,568"],
   [plain, -0.4, "1,234.5", "0"],
@@ -66,7 +67,7 @@ describe("compactValue", () => {
     [plain, 1234567, "1,234.5", "1.2M"],
     [plain, 1234567, "1 234,5", "1,2M"],
     [usd, 1234567, "1,234.5", "$1.2M"],
-    [usd, -1234567, "1,234.5", "-$1.2M"],
+    [usd, -1234567, "1,234.5", "−$1.2M"],
     [{ ...plain, unit: "pc" }, 12000, "1,234.5", "12k pc"],
     [pct, 12.5, "1,234.5", "12.5 %"],
     [plain, 2_500_000_000, "1.234,5", "2.500M"],
@@ -110,6 +111,22 @@ describe("formatNumber", () => {
   });
   it("writes a dash for no number", () => {
     for (const v of [null, undefined, Number.NaN, Infinity, -Infinity]) expect(formatNumber(v, 2, "1,234.5")).toBe("–");
+  });
+  it("writes one minus sign for people and the ASCII minus for files, and both read back as the same number (#184)", () => {
+    expect(MINUS).toBe("\u2212");
+    expect(formatNumber(-1234.5, 1, "1,234.5")).toBe("−1,234.5");
+    expect(formatValue({ unit: "€", unit_position: "after", decimals: 0 }, -1200, "1.234,5")).toBe("−1.200 €");
+    expect(compactValue({ unit: "", unit_position: "after", decimals: 0 }, -12_300, "1,234.5")).toBe("−12.3k");
+    expect(formatChange(-3.5, "1,234.5")).toBe("−3.5 %");
+    expect(axisLabels({ unit: "", unit_position: "after", decimals: 0 }, [-20_000, 0, 20_000], 20_000, "1,234.5")).toEqual(["−20k", "0", "20k"]);
+    for (const s of NUMBER_STYLES) {
+      const shown = formatNumber(-1234.5, 1, s);
+      const filed = formatNumber(-1234.5, 1, s, { group: false });
+      expect(shown.startsWith(MINUS) && !shown.includes("-")).toBe(true);
+      expect(filed.startsWith("-") && !filed.includes(MINUS)).toBe(true);
+      expect(readNumber(shown, s)).toBe(-1234.5);
+      expect(readNumber(filed, s)).toBe(-1234.5);
+    }
   });
   it("writes the same digits in every style, only the marks differ", () => {
     for (const s of NUMBER_STYLES) expect(formatNumber(1234.5, 1, s).replace(/\D/g, "")).toBe("12345");

@@ -38,7 +38,7 @@ describe("designRecipe", () => {
   it("writes outputs in the Metric's unit, as a percentage, or as a plain number", () => {
     expect(formatOutput("metric", revenue, 1234.5, "1.234,5")).toBe("1.235 €");
     expect(formatOutput("percent", revenue, 12.345, "1,234.5")).toBe("12.3 %");
-    expect(formatOutput("number", revenue, -0.5, "1,234.5")).toBe("-0.50");
+    expect(formatOutput("number", revenue, -0.5, "1,234.5")).toBe("−0.50");
   });
 });
 

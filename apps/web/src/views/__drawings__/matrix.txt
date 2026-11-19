@@ -14,8 +14,8 @@
 "1.00"
 <td title=r = 1.00, over 24 months>
 "1.00"
-<td title=r = -0.90, over 24 months>
-"-0.90"
+<td title=r = −0.90, over 24 months>
+"−0.90"
 <tr>
 <th>
 "Orders"
@@ -23,14 +23,14 @@
 "1.00"
 <td>
 "1.00"
-<td title=r = -0.91, over 24 months>
-"-0.91"
+<td title=r = −0.91, over 24 months>
+"−0.91"
 <tr>
 <th>
 "Churn rate"
-<td title=r = -0.90, over 24 months>
-"-0.90"
-<td title=r = -0.91, over 24 months>
-"-0.91"
+<td title=r = −0.90, over 24 months>
+"−0.90"
+<td title=r = −0.91, over 24 months>
+"−0.91"
 <td>
 "1.00"
