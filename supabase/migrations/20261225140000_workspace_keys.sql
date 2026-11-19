@@ -23,3 +23,32 @@ create table workspace_keys (
 create unique index workspace_keys_one_current on workspace_keys (workspace_id) where retired_at is null;
 alter table workspace_keys enable row level security;
 revoke all on table workspace_keys from public, anon, authenticated;
+
+-- When the Workspace was first given a key. Set together with that key and never cleared, so a Workspace whose key
+-- rows are gone (destroyed on deletion, or lost) is refused instead of quietly given a new key, under which its
+-- sealed values would read as empty and new ones would be sealed for nobody who expects them.
+alter table workspaces add column keyed_at timestamptz;
+
+-- A Workspace's first key and its mark, in one step; a second call, from another process at the same moment,
+-- changes nothing. Refused once the Workspace was keyed before: a lost or destroyed key is not replaced here.
+create function create_first_workspace_key(p_workspace uuid, p_wrapped text, p_wrapper text, p_under text)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  marked timestamptz;
+begin
+  select keyed_at into marked from workspaces where id = p_workspace for update;
+  if not found then
+    raise exception 'No such workspace.';
+  end if;
+  if exists (select 1 from workspace_keys where workspace_id = p_workspace) then
+    return true;
+  end if;
+  if marked is not null then
+    return false;
+  end if;
+  insert into workspace_keys (workspace_id, version, wrapped, wrapper, wrapped_under) values (p_workspace, 1, p_wrapped, p_wrapper, p_under);
+  update workspaces set keyed_at = now() where id = p_workspace;
+  return true;
+end;
+$$;
+revoke all on function create_first_workspace_key(uuid, text, text, text) from public, anon, authenticated;

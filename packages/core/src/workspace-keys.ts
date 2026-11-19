@@ -125,12 +125,16 @@ const wrappers: Record<string, KeyWrapper> = { installation: installationKeyWrap
 
 /** The additional data of a sealed value, checked so that no two places can share it. */
 function placeOf(workspaceId: string, at: SealedAt): string {
-  const row = String(at.row);
+  // One spelling per row: a uuid in lower case, a number only while it is exact (a bigint read as a JSON number past
+  // 2^53 would name another row). Otherwise a value sealed under one spelling would not open under another.
+  if (typeof at.row === "number" && !(Number.isSafeInteger(at.row) && at.row >= 0)) throw new Error(`Not a row a value can be sealed at: ${at.table}.${at.column}.`);
+  const row = UUID.test(String(at.row)) ? String(at.row).toLowerCase() : String(at.row);
   if (!NAME.test(at.table) || !NAME.test(at.column) || !ROW.test(row)) throw new Error(`Not a place a value can be sealed at: ${at.table}.${at.column}.`);
   return `${workspaceId.toLowerCase()}:${at.table}:${at.column}:${row}`;
 }
 
-/** The normal form a blind index is taken of: the same text however it was typed in case, spacing or Unicode form. */
+/** The normal form a blind index is taken of: the same text however it was typed in case, spacing or Unicode form.
+ * Lower case, not full case folding ("ß" and "SS" stay apart), as Postgres's lower() on addresses did. */
 export function normaliseForIndex(value: string): string {
   return value.normalize("NFC").trim().toLowerCase();
 }
@@ -163,8 +167,11 @@ export function cipherFromKeys(workspaceId: string, keys: { version: number; key
       const m = SEALED.exec(stored);
       if (!m) return stored;
       const key = byVersion.get(Number(m[1]));
-      if (!key) return null;
-      return gcmOpen(key, place, unb64(m[2]), unb64(m[3]), unb64(m[4]))?.toString("utf8") ?? null;
+      const [iv, ct, tag] = [unb64(m[2]), unb64(m[3]), unb64(m[4])];
+      // Only the one spelling of each part: base64url has spare bits, so another spelling of the same bytes would
+      // otherwise open too, and a changed stored text would go unnoticed by anything comparing it.
+      if (!key || b64(iv) !== m[2] || b64(ct) !== m[3] || b64(tag) !== m[4]) return null;
+      return gcmOpen(key, place, iv, ct, tag)?.toString("utf8") ?? null;
     },
     blindIndex(purpose: string, value: string) {
       return current === null ? null : mac(current, purpose, value);
@@ -194,6 +201,9 @@ export function keyCache(options: { ttlMs?: number; max?: number; now?: () => nu
     /** Keeps a Workspace's cipher, dropping the least recently used one when full. */
     set(workspaceId: string, cipher: WorkspaceCipher) {
       entries.delete(workspaceId);
+      // Expired keys go now, not only when their Workspace is asked for again.
+      const t = now();
+      for (const [id, e] of entries) if (e.until <= t) entries.delete(id);
       entries.set(workspaceId, { cipher, until: now() + ttl });
       while (entries.size > max) entries.delete(entries.keys().next().value as string);
     },
@@ -217,6 +227,17 @@ export function forgetWorkspaceKey(workspaceId: string): void {
 
 type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: string | null };
 
+/** Wraps a key again under the current Installation key, only if nobody changed its row since it was read. A failure
+ * here leaves the old wrapping, which still opens with the previous key: it is tried again on the next load. */
+async function rewrap(workspaceId: string, row: KeyRow, wrapper: KeyWrapper, key: Buffer): Promise<void> {
+  try {
+    const { wrapped, under } = await wrapper.wrap(workspaceId, row.version, key);
+    await db().from("workspace_keys").update({ wrapped, wrapped_under: under }).eq("workspace_id", workspaceId).eq("version", row.version).eq("wrapped", row.wrapped);
+  } catch {
+    // Nothing logged: the message could only say the re-wrap failed, which the next load retries.
+  }
+}
+
 async function keyRows(workspaceId: string): Promise<KeyRow[]> {
   const { data, error } = await db().from("workspace_keys").select("version, wrapped, wrapper, retired_at").eq("workspace_id", workspaceId).order("version");
   if (error) throw new Error("The Workspace Key could not be read.");
@@ -230,13 +251,29 @@ export async function ensureWorkspaceKey(workspaceId: string): Promise<boolean> 
   if (!UUID.test(id)) throw new Error("Not a Workspace id.");
   if (id === DEMO_WORKSPACE_ID) return false;
   if ((await keyRows(id)).length) return true;
+  if (await wasKeyed(id)) return true;
   if (!secretsKey()) return false;
   const key = randomBytes(32);
   const wrapper = wrappers.installation;
   const { wrapped, under } = await wrapper.wrap(id, 1, key);
   key.fill(0);
-  const { error } = await db().from("workspace_keys").upsert({ workspace_id: id, version: 1, wrapped, wrapper: wrapper.name, wrapped_under: under }, { onConflict: "workspace_id,version", ignoreDuplicates: true });
+  // Stored and the Workspace marked as keyed in one step, so a key that later goes missing is never replaced.
+  const { data, error } = await db().rpc("create_first_workspace_key", { p_workspace: id, p_wrapped: wrapped, p_wrapper: wrapper.name, p_under: under });
   if (error) throw new Error("The Workspace Key could not be stored.");
+  if (data !== true) throw new Error(LOST);
+  return true;
+}
+
+const LOST = "This Workspace's key is gone: it was destroyed, or its row was removed. Its sealed data cannot be opened, and no new key is made in its place.";
+
+/** True when a Workspace was keyed and its key is there (made by another process meanwhile); throws when it had a key
+ * and has none now: a destroyed key is never quietly replaced by a new one. */
+async function wasKeyed(workspaceId: string): Promise<boolean> {
+  const { data, error } = await db().from("workspaces").select("keyed_at").eq("id", workspaceId).maybeSingle();
+  if (error) throw new Error("The Workspace Key could not be read.");
+  // Keyed by another process since this one read no rows: its key is there now.
+  if (!data?.keyed_at) return false;
+  if (!(await keyRows(workspaceId)).length) throw new Error(LOST);
   return true;
 }
 
@@ -252,7 +289,7 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   let rows = await keyRows(id);
   if (!rows.length) {
     // An Installation without ZIFFR_SECRETS_KEY works as before, in clear (spec 0028); not cached, so the key is
-    // made as soon as the Installation has one.
+    // made as soon as the Installation has one. A Workspace that had a key is refused in ensureWorkspaceKey.
     if (!(await ensureWorkspaceKey(id))) return cipherFromKeys(id, []);
     rows = await keyRows(id);
   }
@@ -261,6 +298,9 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
     const wrapper = wrappers[row.wrapper];
     const opened = wrapper ? await wrapper.unwrap(id, row.version, row.wrapped) : null;
     if (!opened) throw new Error("This Workspace's key cannot be unwrapped. Was ZIFFR_SECRETS_KEY changed without ZIFFR_SECRETS_KEY_PREVIOUS?");
+    // Opened only with ZIFFR_SECRETS_KEY_PREVIOUS: wrapped again under the current key at once, so the previous key
+    // can go once every Workspace was used (spec 0009); the re-wrap job (ticket 6) catches the ones that were not.
+    if (opened.stale) await rewrap(id, row, wrapper, opened.key);
     keys.push({ version: row.version, key: opened.key });
   }
   // The current version seals: the one not retired, else the newest. Another process may make a new version current

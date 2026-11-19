@@ -59,8 +59,8 @@ describe("sealing and opening", () => {
     expect(c.open(at, flip(sealed, 3))).toBeNull();
     expect(c.open(at, flip(sealed, 4))).toBeNull();
     const parts = sealed.split(".");
-    // A tag cut to 12 bytes is not the sealed format, so it is not opened and not taken for plain text either
-    // unless it is plain text: it has the wrong shape and is passed through as it is, never opened.
+    // A tag cut to 12 bytes is not the sealed format: it is never opened, so a short tag cannot be forged into a
+    // value; it comes back as the text it is.
     const short = [...parts.slice(0, 4), Buffer.from(parts[4], "base64url").subarray(0, 12).toString("base64url")].join(".");
     expect(isSealed(short)).toBe(false);
     expect(c.open(at, short)).toBe(short);
@@ -99,6 +99,26 @@ describe("sealing and opening", () => {
     expect(() => c.open({ table: "t", column: "c", row: "1:2" }, "x")).toThrow();
     expect(() => c.seal({ table: "t", column: "c", row: "" }, "x")).toThrow();
     expect(() => cipherFromKeys("not-a-uuid", [])).toThrow();
+  });
+
+  it("names a row one way only: a uuid in any case, an exact number", () => {
+    const row = "AAAAAAAA-0000-4000-8000-00000000000A";
+    const sealed = c.seal({ ...at, row }, "x");
+    expect(c.open({ ...at, row: row.toLowerCase() }, sealed)).toBe("x");
+    expect(() => c.seal({ ...at, row: 2 ** 53 }, "x")).toThrow();
+    expect(() => c.seal({ ...at, row: -1 }, "x")).toThrow();
+    expect(() => c.seal({ ...at, row: 1.5 }, "x")).toThrow();
+  });
+
+  it("opens only the one spelling of a sealed value", () => {
+    const sealed = c.seal(at, "x");
+    const parts = sealed.split(".");
+    // The last character of a 16-byte tag carries 4 spare bits: another letter there decodes to the same bytes.
+    const last = parts[4].slice(-1);
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const twin = [...alphabet].find((ch) => ch !== last && Buffer.from(parts[4].slice(0, -1) + ch, "base64url").equals(Buffer.from(parts[4], "base64url")));
+    expect(twin).toBeDefined();
+    expect(c.open(at, [...parts.slice(0, 4), parts[4].slice(0, -1) + twin].join("."))).toBeNull();
   });
 
   it("never shows a key when printed or turned into JSON", () => {
@@ -246,6 +266,15 @@ describe("the key cache", () => {
     expect(cache.get("a")).toBe(cipher);
     expect(cache.get("c")).toBe(cipher);
     expect(cache.size).toBe(2);
+  });
+
+  it("lets expired keys go when another Workspace is added", () => {
+    let t = 0;
+    const cache = keyCache({ now: () => t });
+    cache.set("a", cipher);
+    t = 11 * 60_000;
+    cache.set("b", cipher);
+    expect(cache.size).toBe(1);
   });
 
   it("drops a Workspace at once when asked", () => {

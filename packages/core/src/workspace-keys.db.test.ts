@@ -27,7 +27,7 @@ afterEach(async () => {
   for (const id of made.workspaces) forgetWorkspaceKey(id);
   if (made.workspaces.length) await db().from("workspaces").delete().in("id", made.workspaces.splice(0));
   if (made.people.length) await db().from("profiles").delete().in("id", made.people.splice(0));
-});
+}, 60_000);
 
 /** A bare Workspace row with no key yet, as every Workspace made before the upgrade is. */
 async function bareWorkspace() {
@@ -68,6 +68,8 @@ describe("a key for every new Workspace", () => {
     const results = await Promise.all(Array.from({ length: 6 }, () => ensureWorkspaceKey(id)));
     expect(results.every(Boolean)).toBe(true);
     expect(await keysOf(id)).toHaveLength(1);
+    const { data } = await db().from("workspaces").select("keyed_at").eq("id", id).single();
+    expect(data?.keyed_at).not.toBeNull();
     expect(await ensureWorkspaceKey(id)).toBe(true);
     expect(await keysOf(id)).toHaveLength(1);
   });
@@ -123,16 +125,21 @@ describe("a Workspace's sealed values", () => {
     expect(a.blindIndex("contacts.email", "ana@example.com")).not.toBe(b.blindIndex("contacts.email", "ana@example.com"));
   });
 
-  it("no longer open once the key is gone, while other Workspaces' still do", async () => {
+  it("no longer open once the key is gone, and no new key takes its place, while other Workspaces' still open", async () => {
     const gone = await bareWorkspace();
     const kept = await bareWorkspace();
-    const sealedGone = (await workspaceCipher(gone)).seal(at, "will be unreadable");
+    (await workspaceCipher(gone)).seal(at, "will be unreadable");
     const sealedKept = (await workspaceCipher(kept)).seal(at, "still readable");
     await db().from("workspace_keys").delete().eq("workspace_id", gone);
     forgetWorkspaceKey(gone);
     forgetWorkspaceKey(kept);
-    // A new key is made for what comes next, and it does not open what the destroyed one sealed.
-    expect((await workspaceCipher(gone)).open(at, sealedGone)).toBeNull();
+    await expect(workspaceCipher(gone)).rejects.toThrow(/key is gone/);
+    await expect(ensureWorkspaceKey(gone)).rejects.toThrow(/key is gone/);
+    expect(await keysOf(gone)).toHaveLength(0);
+    // Also without ZIFFR_SECRETS_KEY it is refused, not taken for a Workspace that never had a key.
+    delete process.env.ZIFFR_SECRETS_KEY;
+    await expect(workspaceCipher(gone)).rejects.toThrow(/key is gone/);
+    process.env.ZIFFR_SECRETS_KEY = installationKey.toString("base64");
     expect((await workspaceCipher(kept)).open(at, sealedKept)).toBe("still readable");
   });
 
@@ -152,12 +159,18 @@ describe("changing the Installation's key (spec 0009)", () => {
     forgetWorkspaceKey(id);
     process.env.ZIFFR_SECRETS_KEY = newInstallationKey.toString("base64");
     process.env.ZIFFR_SECRETS_KEY_PREVIOUS = installationKey.toString("base64");
+    const before = (await keysOf(id))[0];
     const cipher = await workspaceCipher(id);
     expect(cipher.open(at, sealed)).toBe("sealed before the change");
-    // Still one key, still wrapped under the old Installation key until the re-wrap job (ticket 6) runs.
+    // Opened with the previous key, the Workspace Key was wrapped again under the new one: the same key, so what it
+    // sealed still opens once the previous key is gone.
     const rows = await keysOf(id);
     expect(rows).toHaveLength(1);
-    expect(rows[0].wrapped_under).toBe(installationKeyFingerprint(installationKey));
+    expect(rows[0].wrapped).not.toBe(before.wrapped);
+    expect(rows[0].wrapped_under).toBe(installationKeyFingerprint(newInstallationKey));
+    delete process.env.ZIFFR_SECRETS_KEY_PREVIOUS;
+    forgetWorkspaceKey(id);
+    expect((await workspaceCipher(id)).open(at, sealed)).toBe("sealed before the change");
   });
 
   it("refuses, and makes no new key, when the key changed without ZIFFR_SECRETS_KEY_PREVIOUS", async () => {
@@ -202,6 +215,16 @@ describe("the workspace_keys table", () => {
     expect(await keysOf(ws.id)).toHaveLength(1);
     await ws.cleanup();
     expect(await keysOf(ws.id)).toHaveLength(0);
+  });
+
+  it("makes first keys only through the core: the public roles cannot call its function", async () => {
+    if (!process.env.SUPABASE_ANON_KEY) return;
+    const id = await bareWorkspace();
+    const { createClient } = await import("@supabase/supabase-js");
+    const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    const { error } = await anon.rpc("create_first_workspace_key", { p_workspace: id, p_wrapped: "k1.x", p_wrapper: "installation", p_under: null });
+    expect(error).not.toBeNull();
+    expect(await keysOf(id)).toHaveLength(0);
   });
 
   it("is closed to the public roles", async () => {
