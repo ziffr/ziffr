@@ -16,6 +16,8 @@ Optional, in BotFather: `/setdescription` and `/setuserpic`, so people recognise
 
 **On the page (easiest).** An Installation Admin opens **Installation settings** (`/installation`), pastes the token under **Telegram** and chooses **Save**. Ziffr asks Telegram whether the token is a bot's (getMe) and stores nothing Telegram refuses. It then tells Telegram where to send answers (setWebhook) and shows the bot's name, such as "Saved: @acme_ziffr_bot". If Telegram cannot be told, the token is still saved and the page says so; **Check Telegram** tries again and shows Telegram's last error about reaching this Ziffr. **Remove** tells Telegram to stop sending here (deleteWebhook). Replacing the token does the same for the old bot. The token is sealed with `ZIFFR_SECRETS_KEY` and never shown again. No restart is needed. See [Installation settings](../user-guide/18-installation-settings.md).
 
+**Test Telegram** on the same page proves both directions. Its link opens the bot with a one-time code (`zt_…`, ten minutes, once, only for the Installation Admin who made it, stored as a hash). On **Start** the bot sends a test message, which shows Ziffr reaches Telegram. A reply with a number comes back through the webhook, which shows Telegram reaches Ziffr, and the page shows "Tested …: message sent, answer received". It connects nobody to a Workspace: test codes have their own shape and table, and a Workspace's "Connect Telegram" code is never taken as one. The chat is kept only until the answer, or ten minutes. Five tests an hour per admin.
+
 **Or in the server's settings**, which win over the page:
 
 ```sh
