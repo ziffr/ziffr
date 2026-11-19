@@ -2,7 +2,7 @@
 // turning a widget, slide or dashboard into a template with its metrics left open, and filling a template's slots to
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
-import type { AnchorRule, DashboardTemplateBody, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowTemplateBody, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -183,16 +183,15 @@ function mapRich(node: unknown, f: (t: string) => string): unknown {
   return { ...n, ...(typeof n.text === "string" ? { text: f(n.text) } : {}), ...(Array.isArray(n.content) ? { content: n.content.map((c) => mapRich(c, f)) } : {}) };
 }
 
-/** The slide layout a slide makes: shared slots for its widgets, placeholders in its words, and what changed on the way. */
-export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = []) {
-  const ctx = newCtx();
+/** One slide's shapes with its widgets' Metrics turned into Slots of `ctx`; keys of `choices` carry `prefix`. */
+function templatizeSlide(shapes: SlideShape[], metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
   const notices: string[] = [];
   // {metric} on the slide is the first metric of its first widget, {metric 2} the next new one, and so on.
   const slideIds = [...new Set(shapes.flatMap((sh) => (sh.type === "ziffr-widget" ? metricsInOrder(widgetOf(sh), metrics).map((m) => m.id) : [])))];
   const slideMetrics = slideIds.map((id) => metrics.find((m) => m.id === id)!).filter(Boolean);
   const out = shapes.map((sh, i): SlideShape => {
     if (sh.type === "ziffr-widget") {
-      const { notices: n, ...widget } = templatize(widgetOf(sh), metrics, choices, ctx, `s${i}:`);
+      const { notices: n, ...widget } = templatize(widgetOf(sh), metrics, choices, ctx, `${prefix}s${i}:`);
       notices.push(...n);
       const { metricIds: _m, settings: _s, title: _t, ...props } = sh.props; // eslint-disable-line @typescript-eslint/no-unused-vars
       return { ...sh, props, widget };
@@ -202,7 +201,34 @@ export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: 
   const texts: string[] = [];
   for (const sh of out) if (sh.props.richText) mapRich(sh.props.richText, (t) => (texts.push(t), t));
   if (texts.some((t) => /\d/.test(t.replace(/\{[^}]*\}/g, "")))) notices.push("Some words still contain numbers. They will read the same for every metric; use {latest} or {change yoy} to have them filled in.");
-  return { slots: nameSlots(ctx, labels), body: { shapes: out } as SlideBody, notices: [...new Set(notices)] };
+  return { body: { shapes: out } as SlideBody, notices };
+}
+
+/** The slide layout a slide makes: shared slots for its widgets, placeholders in its words, and what changed on the way. */
+export function toSlideLayout(shapes: SlideShape[], metrics: Metric[], choices: Choices, labels: string[] = []) {
+  const ctx = newCtx();
+  const { body, notices } = templatizeSlide(shapes, metrics, choices, ctx);
+  return { slots: nameSlots(ctx, labels), body, notices: [...new Set(notices)] };
+}
+
+// Deck Templates (GLOSSARY: Deck Template): every slide of a deck, sharing one set of Slots, so a Metric shown on
+// three slides is picked once. Each slide keeps its own words, with its own {metric}.
+
+/** Notes tied to one period or row on any slide of a deck; keys name the slide (d0:, d1:, …). */
+export function deckSpecifics(slides: SlideShape[][]): Specific[] {
+  return slides.flatMap((shapes, j) => slideSpecifics(shapes).map((x) => ({ ...x, key: `d${j}:${x.key}` })));
+}
+
+/** The Deck Template a deck's slides make: shared Slots, each slide's shapes with Slot numbers instead of Metrics. */
+export function toDeckTemplate(slides: SlideShape[][], metrics: Metric[], choices: Choices, labels: string[] = []) {
+  const ctx = newCtx();
+  const made = slides.map((shapes, j) => templatizeSlide(shapes, metrics, choices, ctx, `d${j}:`));
+  return { slots: nameSlots(ctx, labels), body: { slides: made.map((m) => m.body) } as DeckTemplateBody, notices: [...new Set(made.flatMap((m) => m.notices))] };
+}
+
+/** The slides of a new deck from a Deck Template, once each Slot has its Metrics; words filled by `fillWords`. */
+export function fromDeckTemplate(body: DeckTemplateBody, fills: number[][], fillWords: (t: string, metricIds: number[]) => string): SlideShape[][] {
+  return body.slides.map((slide) => fromSlideLayout(slide, fills, fillWords));
 }
 
 // Dashboard Templates (spec 0014): a whole dashboard saved as a template. Its widgets share one set of slots, so a
@@ -243,4 +269,26 @@ export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (
     if (w) return { ...rest, props: { ...sh.props, metricIds: w.metric_ids, settings: JSON.stringify(w.settings), title: w.title ?? "" } };
     return sh.props.richText ? { ...rest, props: { ...sh.props, richText: mapRich(sh.props.richText, (t) => fillWords(t, ids)) } } : rest;
   });
+}
+
+// Workflow Templates (GLOSSARY: Workflow Template): a Workflow's steps without its people.
+
+/** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who. */
+export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
+  return {
+    dueWorkingDays: c.dueWorkingDays,
+    steps: c.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual" } : s)),
+  };
+}
+
+/** A Workflow's Due Date and steps from a template, with the Approvers picked, in order. Null when the number of
+ * people picked is not the number the template asks for. */
+export function fromWorkflowTemplate(t: WorkflowTemplateBody, approvers: string[]): WorkflowConfig | null {
+  const wanted = t.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
+  if (approvers.length !== wanted || new Set(approvers).size !== approvers.length) return null;
+  let next = 0;
+  return {
+    dueWorkingDays: t.dueWorkingDays,
+    steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: approvers.slice(next, (next += s.approvers)), values: s.values ?? "unusual" } : s)),
+  };
 }

@@ -6,6 +6,8 @@ import { getProfileMap } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { deckDocuments } from "@ziffr/core/page-data";
 import { createDeck } from "@/app/deck-actions";
+import { deckTemplateChoices } from "@ziffr/core/deck-templates";
+import { NewDeckFromTemplate } from "@/components/new-deck-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,11 @@ import { Input } from "@/components/ui/input";
 export default async function DecksPage() {
   const viewer = await viewerId();
   const access = await visibleDecks(viewer);
-  const rows = await deckDocuments(await currentActor());
+  const actor = await currentActor();
+  const rows = await deckDocuments(actor);
+  // The team's Deck Templates and the Metrics this person may fill them with; nothing for a Guest. Only the names of
+  // their creators go to the browser, never the rest of a profile.
+  const choices = await deckTemplateChoices(actor);
   const [people, decks] = [await getProfileMap(), access.map((d) => ({ ...d, document: rows.find((r) => r.id === d.id)?.document }))];
   return (
     <>
@@ -23,6 +29,7 @@ export default async function DecksPage() {
           <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
           <Button type="submit">New deck</Button>
         </form>
+        {choices.templates.length > 0 && <NewDeckFromTemplate templates={choices.templates} metrics={choices.metrics} people={Object.fromEntries(choices.templates.map((t) => [t.owner_id, { name: people[t.owner_id]?.name ?? "" }]))} />}
       </PageHeader>
       {!decks?.length ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">

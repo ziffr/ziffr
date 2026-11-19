@@ -17,10 +17,11 @@ import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
 import { dropSpec } from "@/lib/drop-spec";
 import { useSlotFill } from "@/components/slot-dialog";
-import { SaveSlideDialog } from "@/components/save-template-dialog";
-import { fromSlideLayout } from "@ziffr/core/team-templates";
+import { SaveDeckDialog, SaveSlideDialog } from "@/components/save-template-dialog";
+import { fromDeckTemplate, fromSlideLayout } from "@ziffr/core/team-templates";
+import type { DeckTemplateSummary } from "@ziffr/core/deck-templates";
 import { fillText } from "@ziffr/core/placeholders";
-import type { SlideShape, SlideTemplate } from "@ziffr/core/types";
+import type { SlideBody, SlideShape, SlideTemplate } from "@ziffr/core/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { widgetFromShape } from "@/decks/widget-shape";
@@ -28,7 +29,7 @@ import type { CanvasData, Group, Share, SlideDesign, TemplateId, Widget } from "
 import { DeckMaster, setDeckExportMaster, SlideFrameUtil } from "@/decks/master";
 import Link from "next/link";
 import { DeckData, setDeckExportData, WIDGET_SHAPE, WidgetShapeUtil, type WidgetShape } from "@/decks/widget-shape";
-import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, seedSlides } from "@/decks/layouts";
+import { type DeckSeed, LAYOUTS, type LayoutId, MARGIN, SLIDE_H, SLIDE_W, addSlide, contentAreas, orderedSlides, placeShapes, seedSlides, slideShapes, templateSlides } from "@/decks/layouts";
 import { freeSpot } from "@/decks/placement";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
@@ -42,7 +43,11 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null };
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null;
+  /** Made from a Deck Template (spec 0030): its slides with Slot numbers, and the Metrics that fill each Slot. */
+  templateSeed?: { slides: SlideBody[]; fills: number[][] } | null;
+  /** The viewer's own Deck Templates, which saving the deck as one may replace. */
+  deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[] };
 
 /** The deck editor. The page sends the series of the deck's widgets; a widget placed since fetches its own
  * (ticket #125). */
@@ -51,7 +56,7 @@ export function DeckEditor(props: Props) {
   return <SeriesProvider ensure={ensure}><DeckCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
+function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTemplates = [] }: Props) {
   const ensure = useEnsure();
   // The newest data, for an export that first fetched what it lacked.
   const latest = useRef(data);
@@ -71,8 +76,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
   masterRef.current = master;
   // What onMount lays out a new deck from, read through a ref: onMount sets the editor up once, and a dependency on
   // them would set it up again (and listen twice) whenever the metrics change (#3).
-  const firstLayout = useRef({ seed, metrics: data.metrics });
-  firstLayout.current = { seed, metrics: data.metrics };
+  const firstLayout = useRef({ seed, templateSeed, data });
+  firstLayout.current = { seed, templateSeed, data };
 
   // Read once: a new snapshot object on every render would make tldraw reload its store.
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
@@ -86,28 +91,38 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
       // A deck is set in clean type with solid lines, not tldraw's hand-drawn defaults.
       ed.setStyleForNextShapes(DefaultFontStyle, "sans");
       ed.setStyleForNextShapes(DefaultDashStyle, "solid");
+      let seeded = false;
       if (!orderedSlides(ed).length) {
-        // A new deck made from a dashboard gets its slides laid out; any other starts with a title slide.
-        const { seed, metrics } = firstLayout.current;
-        const id = seed
-          ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
-          : addSlide(ed, "title", masterRef.current);
+        // A new deck made from a dashboard or a Deck Template gets its slides laid out; any other starts with a title slide.
+        const { seed, templateSeed, data: first } = firstLayout.current;
+        const byId = (ids: number[]) => ids.map((mid) => first.metrics.find((m) => m.id === mid)!).filter(Boolean);
+        const id = templateSeed
+          ? templateSlides(ed, masterRef.current, fromDeckTemplate({ slides: templateSeed.slides }, templateSeed.fills, (txt, ids) => fillText(txt, byId(ids), first) ?? txt))
+          : seed
+            ? seedSlides(ed, masterRef.current, seed, WIDGET_SHAPE, (w) => w.title || first.metrics.find((m) => m.id === w.metric_ids[0])?.name || "")
+            : addSlide(ed, "title", masterRef.current);
+        seeded = Boolean(templateSeed);
         ed.zoomToBounds(ed.getShapePageBounds(id)!, { inset: 48 });
       } else {
         ed.zoomToBounds(ed.getShapePageBounds(orderedSlides(ed)[0].id)!, { inset: 48 });
       }
+      const save = () => {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => {
+          setStatus("saving");
+          // Plain JSON only: tldraw records can hold class instances that server actions cannot carry.
+          saveDeck(deck.id, JSON.parse(JSON.stringify(getSnapshot(ed.store).document)))
+            .then(() => setStatus("saved"))
+            .catch(() => setStatus("unsaved"));
+        }, 800);
+      };
+      // Slides laid out from a Deck Template are the deck now: kept at once, so opening it again shows the same.
+      if (seeded) save();
       // Autosave the document (not the camera or selection) a moment after each user change.
       return ed.store.listen(
         () => {
           setStatus("unsaved");
-          if (saveTimer.current) clearTimeout(saveTimer.current);
-          saveTimer.current = setTimeout(() => {
-            setStatus("saving");
-            // Plain JSON only: tldraw records can hold class instances that server actions cannot carry.
-            saveDeck(deck.id, JSON.parse(JSON.stringify(getSnapshot(ed.store).document)))
-              .then(() => setStatus("saved"))
-              .catch(() => setStatus("unsaved"));
-          }, 800);
+          save();
         },
         { source: "user", scope: "document" },
       );
@@ -183,6 +198,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
   };
 
   const [layoutShapes, setLayoutShapes] = useState<SlideShape[] | null>(null);
+  const [deckSlides, setDeckSlides] = useState<SlideShape[][] | null>(null);
   /** A team slide layout: its slots filled, its words filled in from today's data, as a new slide at the end. */
   const newSlideFrom = async (t: SlideTemplate) => {
     if (!editor) return;
@@ -191,9 +207,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
     const byId = (ids: number[]) => ids.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
     const shapes = fromSlideLayout(t.body, fills, (txt, ids) => fillText(txt, byId(ids), data) ?? txt);
     const id = addSlide(editor, "blank", master);
-    editor.run(() => {
-      editor.createShapes(shapes.map((sh) => ({ id: createShapeId(), parentId: id, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as never);
-    });
+    placeShapes(editor, id, shapes);
     editor.select(id);
     editor.zoomToBounds(editor.getShapePageBounds(id)!, { inset: 48, animation: { duration: 220 } });
   };
@@ -278,6 +292,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
         {sharing && <ViewLinks type="deck" id={deck.id} />}
         {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
+        <Button variant="outline" disabled={!editor} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
         <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>
@@ -298,6 +313,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed }: Props) {
             <span className="mt-1 block text-xs text-muted-foreground">Empty uses the theme&rsquo;s footer. Logo, slide numbers and type come from the theme.</span>
           </label>
           {layoutShapes && <SaveSlideDialog deckId={deck.id} shapes={layoutShapes} data={data} onClose={() => setLayoutShapes(null)} />}
+          {deckSlides && <SaveDeckDialog deckId={deck.id} slides={deckSlides} data={data} existing={deckTemplates} onClose={() => setDeckSlides(null)} />}
         </div>
         <div
           className="order-1 h-[calc(100vh-13rem)] min-h-[32rem] overflow-hidden rounded-[var(--radius-card)] border border-border lg:order-2"
@@ -393,10 +409,7 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
           variant="outline"
           className="mt-3 w-full"
           onClick={() => {
-            // Plain JSON of the slide's own shapes, in slide coordinates.
-            const shapes = editor.getSortedChildIdsForParent(slide.id).map((cid) => editor.getShape(cid)!).filter(Boolean)
-              .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as SlideShape);
-            onSaveLayout(shapes);
+            onSaveLayout(slideShapes(editor, slide.id));
           }}
         >
           <LayoutTemplate aria-hidden /> Save slide as layout…

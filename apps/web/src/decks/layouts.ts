@@ -1,6 +1,6 @@
 // Slide layouts: a 16:9 frame plus placeholder text, the way a deck tool starts a slide.
 import { createShapeId, toRichText, type Editor, type TLShapeId } from "tldraw";
-import type { SlideDesign } from "@ziffr/core/types";
+import type { SlideDesign, SlideShape } from "@ziffr/core/types";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
@@ -72,4 +72,29 @@ export function seedSlides(editor: Editor, master: SlideDesign | null, seed: Dec
     editor.createShape({ type: widgetType, parentId: slide, x: area.x, y: area.y, props: { w: area.w, h: area.h, template: w.template, metricIds: w.metric_ids, settings: JSON.stringify(w.settings ?? {}), title: "" } });
   }
   return first;
+}
+
+/** Places a slide layout's or a Deck Template's shapes on a slide, in slide coordinates. */
+export function placeShapes(editor: Editor, slide: TLShapeId, shapes: SlideShape[]) {
+  editor.run(() => {
+    editor.createShapes(shapes.map((sh) => ({ id: createShapeId(), parentId: slide, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as never);
+  });
+}
+
+/** Lays out a new deck from a Deck Template (spec 0030): one slide per slide of the template, its Slots already
+ * filled. Answers the first slide. */
+export function templateSlides(editor: Editor, master: SlideDesign | null, slides: SlideShape[][]): TLShapeId {
+  let first: TLShapeId | null = null;
+  for (const shapes of slides) {
+    const id = addSlide(editor, "blank", master);
+    first ??= id;
+    placeShapes(editor, id, shapes);
+  }
+  return first ?? addSlide(editor, "title", master);
+}
+
+/** A slide's own shapes as plain JSON, in slide coordinates: what saving a layout or a Deck Template sends. */
+export function slideShapes(editor: Editor, slide: TLShapeId): SlideShape[] {
+  return editor.getSortedChildIdsForParent(slide).map((cid) => editor.getShape(cid)!).filter(Boolean)
+    .map((sh) => JSON.parse(JSON.stringify({ type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as SlideShape);
 }

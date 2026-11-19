@@ -10,6 +10,8 @@ import { itemKey, plainText } from "./file-text";
 import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, dashboardTemplateReferences, DASHBOARD_TEMPLATE_LIMITS, type DashboardTemplateFile } from "./dashboard-template-file";
 import { checkThemeFileValue, THEME_FILE_LIMITS, type ThemeFile } from "./theme-file";
+import { checkDeckTemplateFileValue, deckTemplateReferences, DECK_TEMPLATE_LIMITS, type DeckTemplateFile } from "./deck-template-file";
+import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file";
 import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design";
 import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnalysisRecipe } from "./analysis-recipe";
 import { checkFormula, type FormulaInput } from "./formula";
@@ -32,6 +34,8 @@ const KINDS = {
   views: { field: "design", what: "View Designs", format: "ziffr.view/1", bytes: VIEW_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<ViewDesign> => { const r = checkViewDesignValue(v, l); return r.ok ? { ok: true, value: r.design } : r; } },
   analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
   themes: { field: "theme", what: "Themes", format: "ziffr.theme/1", bytes: THEME_FILE_LIMITS.bytes, check: checkThemeFileValue },
+  decks: { field: "template", what: "Deck Templates", format: "ziffr.deck-template/1", bytes: DECK_TEMPLATE_LIMITS.bytes, check: checkDeckTemplateFileValue },
+  workflows: { field: "template", what: "Workflow Templates", format: "ziffr.workflow-template/1", bytes: WORKFLOW_TEMPLATE_LIMITS.bytes, check: checkWorkflowTemplateFileValue },
 } as const;
 /** A kind of thing in a Pack, as its manifest names the list. */
 export type PackKind = keyof typeof KINDS;
@@ -55,6 +59,8 @@ export type Pack = {
     views?: PackItem<"design", ViewDesign>[];
     analyses?: PackItem<"recipe", AnalysisRecipe>[];
     themes?: PackItem<"theme", ThemeFile>[];
+    decks?: PackItem<"template", DeckTemplateFile>[];
+    workflows?: PackItem<"template", WorkflowTemplateFile>[];
   };
 };
 
@@ -79,12 +85,13 @@ const item = (kind: PackKind): Schema => ({
 });
 
 /** The JSON Schema of ziffr.pack/1: the one definition the checks run and docs/reference is generated from. Each
- * item's document is held to its own published schema (metric, dashboard-template, view-design, analysis-recipe, theme). */
+ * item's document is held to its own published schema (metric, dashboard-template, deck-template, view-design,
+ * analysis-recipe, workflow-template, theme). */
 export const PACK_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://ziffr.app/schemas/ziffr.pack-1.json",
   title: "Ziffr Pack (ziffr.pack/1)",
-  description: "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard Templates, View Designs, Analysis Recipes and Themes, with its name, version, author and license.",
+  description: "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author and license.",
   type: "object",
   properties: {
     format: { const: PACK_FORMAT, description: "The format and its version." },
@@ -184,13 +191,14 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string, at: (path: 
 function references(p: Pack, at: (path: string, message: string) => void) {
   const metrics = p.contents.metrics ?? [];
   const keys = (k: PackKind) => new Set((p.contents[k] ?? []).map((x) => x.key));
-  const [metricKeys, viewKeys] = [keys("metrics"), keys("views")];
-  (p.contents.dashboards ?? []).forEach((d, i) => {
-    const refs = dashboardTemplateReferences(d.template);
-    const here = `contents.dashboards[${i}].template`;
-    for (const r of refs.metrics) if (!metricKeys.has(r.key)) at(`${here}.${r.path}`, `names “${r.key}”, which is not a Metric Catalog entry of this Pack.`);
-    for (const r of refs.views) if (!viewKeys.has(r.key)) at(`${here}.${r.path}`, `names “${r.key}”, which is not a View Design of this Pack.`);
-  });
+  const known = { metrics: keys("metrics"), views: keys("views"), themes: keys("themes") };
+  const what = { metrics: "a Metric Catalog entry", views: "a View Design", themes: "a Theme" };
+  const named = (here: string, refs: Partial<Record<keyof typeof known, { path: string; key: string }[]>>) => {
+    for (const k of Object.keys(refs) as (keyof typeof known)[])
+      for (const r of refs[k]!) if (!known[k].has(r.key)) at(`${here}.${r.path}`, `names “${r.key}”, which is not ${what[k]} of this Pack.`);
+  };
+  (p.contents.dashboards ?? []).forEach((d, i) => named(`contents.dashboards[${i}].template`, dashboardTemplateReferences(d.template)));
+  (p.contents.decks ?? []).forEach((d, i) => named(`contents.decks[${i}].template`, deckTemplateReferences(d.template)));
   // A Derived Metric's formula names the Pack's other entries by key, held to every rule a formula in a Workspace is.
   const inputs: FormulaInput[] = metrics.map((m) => ({ slug: m.key, name: m.metric.name, period: m.metric.period, aggregation: m.metric.aggregation, formula: m.metric.formula ?? null }));
   metrics.forEach((m, i) => {

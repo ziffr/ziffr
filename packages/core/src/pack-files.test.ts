@@ -10,6 +10,10 @@ import { BUILT_IN_DASHBOARD_TEMPLATES } from "./built-in-dashboard-templates";
 import { STARTER_THEME } from "./themes";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { EXAMPLE as VIEW } from "./view-design.test";
+import { checkDeckTemplateFile, checkDeckTemplateFileValue, deckTemplateFromFile, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file";
+import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, workflowTemplateFromFile, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file";
+import { dashboardTemplateFromFile } from "./dashboard-template-file";
+import { fromDashboardTemplate, fromDeckTemplate, fromWorkflowTemplate } from "./team-templates";
 import type { FormatCheck, Schema } from "./json-check";
 
 /** A Metric Catalog entry as a creator might write it. */
@@ -63,6 +67,40 @@ export const THEME: ThemeFile = {
   radius: 6,
   cards: "flat",
   slides: { logoPosition: "top-right", logoWidth: 120, footer: "Board meeting", showSlideNumber: true, titleSize: 48, bodySize: 22 },
+};
+
+/** A Deck Template with a title slide and a slide of a widget, text and a box. */
+export const DECK: DeckTemplateFile = {
+  format: "ziffr.deck-template/1",
+  name: "Board meeting",
+  description: "Key figures for the quarter, then one slide per figure.",
+  slots: [{ label: "Revenue" }, { label: "Cash" }],
+  slides: [
+    { shapes: [{ shape: "text", x: 64, y: 250, w: 1152, text: ["Board meeting"], size: "xl", scale: 1.4 }, { shape: "text", x: 64, y: 380, w: 1152, text: ["{period}"] }] },
+    {
+      shapes: [
+        { shape: "text", x: 64, y: 56, w: 952, text: ["{metric} against its target"], size: "xl" },
+        { shape: "widget", view: "line", slots: [0], x: 64, y: 150, w: 760, h: 500, settings: { window: 8, showTarget: true } },
+        { shape: "box", x: 860, y: 150, w: 356, h: 500, fill: "semi", color: "light-blue", text: ["Highlights", "Risks"] },
+        { shape: "widget", view: "number", slots: [1], x: 880, y: 560, w: 300, h: 80 },
+      ],
+    },
+  ],
+};
+
+/** A Workflow Template with every kind of step. */
+export const WORKFLOW: WorkflowTemplateFile = {
+  format: "ziffr.workflow-template/1",
+  name: "Monthly close",
+  description: "Values due three working days after the month, checked and approved, then locked.",
+  dueWorkingDays: 3,
+  steps: [
+    { type: "remind", daysBefore: 2 },
+    { type: "escalate", to: "stand-in", daysAfter: 1 },
+    { type: "check", changePct: 30, outsideTarget: true },
+    { type: "approve", approvers: 1, values: "unusual" },
+    { type: "publish", lock: true },
+  ],
 };
 
 const text = (v: unknown) => JSON.stringify(v, null, 2);
@@ -121,10 +159,35 @@ const THEME_HOSTILE: Case[] = [
   ["a radius out of range", { ...THEME, radius: 400 }, "must be at most 24"],
 ];
 
+const slide = (shape: Record<string, unknown>) => ({ ...DECK, slides: [{ shapes: [shape] }] });
+const DECK_HOSTILE: Case[] = [
+  ["an image", slide({ shape: "image", x: 0, y: 0, w: 10, h: 10, src: "https://evil.example/x.png" }), "must be one of “widget”, “text”, “box”"],
+  ["a drawing", slide({ shape: "draw", segments: [] }), "must be one of “widget”, “text”, “box”"],
+  ["a link on a box", slide({ shape: "box", x: 0, y: 0, w: 10, h: 10, url: "https://evil.example" }), "is not a field here"],
+  ["a Free Layout", slide({ shape: "widget", view: "canvas", slots: [0], x: 0, y: 0, w: 100, h: 100 }), "must be one of “number”"],
+  ["a Slot it does not have", slide({ shape: "widget", view: "line", slots: [4], x: 0, y: 0, w: 100, h: 100 }), "is Slot 4, but the template has Slots 0 to 1"],
+  ["a shape off the slide", slide({ shape: "box", x: 1200, y: 0, w: 200, h: 10 }), "reaches past the edge of the slide"],
+  ["markup in words", slide({ shape: "text", x: 0, y: 0, w: 100, text: ["<script>alert(1)</script>"] }), "without markup"],
+  ["a colour that is not the editor's", slide({ shape: "text", x: 0, y: 0, w: 100, text: ["a"], color: "#ff0000" }), "must be one of “black”"],
+  ["a Theme outside a Pack", { ...DECK, theme: "board" }, "only a Pack holding it can give"],
+  ["too many slides", { ...DECK, slides: Array(41).fill({ shapes: [] }) }, "41 entries; at most 40"],
+];
+
+const WORKFLOW_HOSTILE: Case[] = [
+  ["Approvers by name", { ...WORKFLOW, steps: [{ type: "approve", approvers: ["someone"] }] }, "must be a whole number, not a list"],
+  ["a person to escalate to", { ...WORKFLOW, steps: [{ type: "escalate", to: "someone", daysAfter: 1 }] }, "must be one of “stand-in”, “owner”"],
+  ["a step it does not know", { ...WORKFLOW, steps: [{ type: "webhook", url: "x" }] }, "must be one of “remind”"],
+  ["two checks", { ...WORKFLOW, steps: [WORKFLOW.steps[2], WORKFLOW.steps[2]] }, "is a second “check” step"],
+  ["publishing before the end", { ...WORKFLOW, steps: [WORKFLOW.steps[4], WORKFLOW.steps[0]] }, "publishing is the last step"],
+  ["a Due Date out of range", { ...WORKFLOW, dueWorkingDays: 99 }, "must be at most 30"],
+];
+
 const formats: [string, Case[], (v: unknown) => FormatCheck<unknown>, (t: string) => FormatCheck<unknown>, unknown, Schema][] = [
   ["ziffr.metric/1", METRIC_HOSTILE, checkMetricFileValue, checkMetricFile, METRIC, METRIC_FILE_SCHEMA],
   ["ziffr.dashboard-template/1", DASHBOARD_HOSTILE, checkDashboardTemplateFileValue, checkDashboardTemplateFile, DASHBOARD, DASHBOARD_TEMPLATE_SCHEMA],
   ["ziffr.theme/1", THEME_HOSTILE, checkThemeFileValue, checkThemeFile, THEME, THEME_FILE_SCHEMA],
+  ["ziffr.deck-template/1", DECK_HOSTILE, checkDeckTemplateFileValue, checkDeckTemplateFile, DECK, DECK_TEMPLATE_SCHEMA],
+  ["ziffr.workflow-template/1", WORKFLOW_HOSTILE, checkWorkflowTemplateFileValue, checkWorkflowTemplateFile, WORKFLOW, WORKFLOW_TEMPLATE_SCHEMA],
 ];
 
 describe.each(formats)("%s", (format, hostile, _value, check, good, schema) => {
@@ -188,5 +251,40 @@ describe("what Ziffr has today, as files", () => {
     };
     expect(checkThemeFile(text(file)).ok).toBe(true);
     expect(themeFromFile(file).tokens).toEqual(cleanTokens(t));
+  });
+});
+
+describe("files as what a Workspace keeps", () => {
+  it("makes a Dashboard Template's widgets from a file, notes tied to their rules and Panels to their Slots", () => {
+    const { slots, body } = dashboardTemplateFromFile(DASHBOARD);
+    expect(slots).toEqual([{ label: "MRR", multiple: false }, { label: "Customers", multiple: true }]);
+    const [story] = fromDashboardTemplate(body, [[7], [8, 9]]).filter((w) => w.template === "story");
+    expect(story.settings.callouts).toEqual([{ period: "", rule: "max", text: "The best month" }]);
+    expect(story.settings.panels?.[0]).toMatchObject({ metricIds: [7], annotations: [{ kind: "ring", anchor: { type: "rule", rule: "largest-step" }, text: "Biggest change" }] });
+  });
+
+  it("gives a widget the View Design its Pack names, and leaves out one whose design it does not have", () => {
+    const file: DashboardTemplateFile = { ...DASHBOARD, widgets: [{ view: "design", slots: [0], x: 0, y: 0, w: 6, h: 6, settings: { design: "trend" } }] };
+    expect(dashboardTemplateFromFile(file, new Map([["trend", VIEW]])).body.widgets[0].settings.design).toEqual({ id: null, body: VIEW });
+    expect(dashboardTemplateFromFile(file).body.widgets).toEqual([]);
+  });
+
+  it("makes a Deck Template's slides as the deck editor makes shapes, and fills its Slots", () => {
+    const body = deckTemplateFromFile(DECK, new Map(), 12);
+    expect(body.themeId).toBe(12);
+    const slides = fromDeckTemplate(body, [[7], [8]], (t) => t.replace("{metric}", "Revenue"));
+    expect(slides.map((s) => s.map((sh) => sh.type))).toEqual([["text", "text"], ["text", "ziffr-widget", "geo", "ziffr-widget"]]);
+    const [title, line, box] = slides[1];
+    expect(JSON.stringify(title.props.richText)).toContain("Revenue against its target");
+    expect(line.props).toMatchObject({ template: "line", metricIds: [7], w: 760, h: 500 });
+    expect(JSON.parse(String(line.props.settings))).toMatchObject({ window: 8, showTarget: true });
+    expect(box.props).toMatchObject({ geo: "rectangle", fill: "semi", color: "light-blue" });
+  });
+
+  it("makes a Workflow from a Workflow Template file once its Approvers are picked", () => {
+    const body = workflowTemplateFromFile(WORKFLOW);
+    expect(fromWorkflowTemplate(body, [])).toBeNull();
+    expect(fromWorkflowTemplate(body, ["a", "b"])).toBeNull();
+    expect(fromWorkflowTemplate(body, ["a"])?.steps[3]).toEqual({ type: "approve", approvers: ["a"], values: "unusual" });
   });
 });

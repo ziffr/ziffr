@@ -1,5 +1,5 @@
 "use client";
-// Saving as a team template (GLOSSARY: Widget Template): a widget, or a whole slide as a layout. Its metrics
+// Saving as a team template (GLOSSARY: Widget Template, Deck Template): a widget, a whole slide as a layout, or a deck. Its metrics
 // become slots; notes tied to one period or row can follow a rule instead, or are left out.
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSlideLayout, saveTemplate } from "@/app/template-actions";
-import { RULES_FOR, slideSpecifics, specifics, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
+import { saveAsDeckTemplate } from "@/app/deck-workflow-template-actions";
+import { deckSpecifics, RULES_FOR, slideSpecifics, specifics, toDeckTemplate, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
 import type { CanvasData, Period, Slot, SlideShape, Widget } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
 
@@ -49,8 +50,34 @@ export function SaveSlideDialog({ deckId, shapes, data, onClose }: { deckId: num
   );
 }
 
-function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, preview: make, submit, onClose }: {
-  kind: "widget" | "slide";
+/** "Save as Deck Template…": every slide of the deck, sharing one set of Slots (spec 0030). */
+export function SaveDeckDialog({ deckId, slides, data, existing, onClose }: { deckId: number; slides: SlideShape[][]; data: CanvasData; existing: Mine[]; onClose: () => void }) {
+  const items = useMemo(() => deckSpecifics(slides), [slides]);
+  return (
+    <TemplateSaveDialog
+      kind="deck"
+      title="Save as Deck Template"
+      data={data}
+      items={items}
+      grain="month"
+      defaultName=""
+      existing={existing}
+      preview={(choices) => toDeckTemplate(slides, data.metrics, choices)}
+      submit={(x) => saveAsDeckTemplate({ deckId, slides, ...x })}
+      onClose={onClose}
+    />
+  );
+}
+
+/** A template of the viewer's own that saving may replace. */
+type Mine = { id: number; name: string; description: string; slots: Slot[] };
+const NOUN = { widget: "template", slide: "layout", deck: "Deck Template" } as const;
+const WHERE = { widget: "Find it under Templates in the Pool, or in Change view.", slide: "Find it under + Slide in any deck.", deck: "Find it under From a Deck Template on the Decks page." } as const;
+
+function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, existing, preview: make, submit, onClose }: {
+  kind: "widget" | "slide" | "deck";
+  /** The viewer's own templates of this kind; left out, the widget templates and layouts the canvas has. */
+  existing?: Mine[];
   title: string;
   data: CanvasData;
   items: Specific[];
@@ -60,7 +87,7 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
   submit: (x: Submit) => Promise<unknown>;
   onClose: () => void;
 }) {
-  const mine = data.templates.filter((t) => t.owner_id === data.viewer && t.kind === kind);
+  const mine: Mine[] = existing ?? data.templates.filter((t) => t.owner_id === data.viewer && t.kind === kind);
   const [choices, setChoices] = useState<Choices>(() => Object.fromEntries(items.map((x) => [x.key, RULES_FOR[x.kind][0].rule])));
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState("");
@@ -68,7 +95,8 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
   const preview = useMemo(() => make(choices), [make, choices]);
   const [labels, setLabels] = useState<string[]>(() => preview.slots.map((s) => s.label));
   const [pending, start] = useTransition();
-  const noun = kind === "slide" ? "layout" : "template";
+  const noun = NOUN[kind];
+  const Noun = `${noun[0].toUpperCase()}${noun.slice(1)}`;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -82,10 +110,10 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
             start(async () => {
               try {
                 unwrap(await submit({ name, description, labels, choices, replaceId }));
-                toast.success(replaceId ? `${noun[0].toUpperCase()}${noun.slice(1)} replaced` : `${noun[0].toUpperCase()}${noun.slice(1)} saved`, { description: kind === "slide" ? "Find it under + Slide in any deck." : "Find it under Templates in the Pool, or in Change view." });
+                toast.success(replaceId ? `${Noun} replaced` : `${Noun} saved`, { description: WHERE[kind] });
                 onClose();
               } catch (err) {
-                toast.error(`${noun[0].toUpperCase()}${noun.slice(1)} not saved`, { description: shown(err) });
+                toast.error(`${Noun} not saved`, { description: shown(err) });
               }
             });
           }}
@@ -101,7 +129,7 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, prev
           )}
           <label className="block">
             <span className="mb-1 block text-xs font-medium">Name</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder={kind === "slide" ? "e.g. Monthly KPI slide" : "e.g. Year-on-year Finding"} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder={kind === "slide" ? "e.g. Monthly KPI slide" : kind === "deck" ? "e.g. Quarterly board meeting" : "e.g. Year-on-year Finding"} />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium">What it is for</span>

@@ -11,7 +11,9 @@ import { DASHBOARD_TEMPLATE_SCHEMA } from "./dashboard-template-file";
 import { THEME_FILE_SCHEMA } from "./theme-file";
 import { EXAMPLE as VIEW, WITH_RECIPE } from "./view-design.test";
 import { repoFile } from "./test/repo-file";
-import { DASHBOARD, METRIC, THEME } from "./pack-files.test";
+import { DASHBOARD, DECK, METRIC, THEME, WORKFLOW } from "./pack-files.test";
+import { DECK_TEMPLATE_SCHEMA } from "./deck-template-file";
+import { WORKFLOW_TEMPLATE_SCHEMA } from "./workflow-template-file";
 
 /** A Pack with one item of every kind, the dashboard naming the Pack's entries and design, as a creator might write it. */
 export const PACK: Pack = {
@@ -34,6 +36,8 @@ export const PACK: Pack = {
     views: [{ key: "trend", design: VIEW }],
     analyses: [{ key: "spread", recipe: WITH_RECIPE.analysis! }],
     themes: [{ key: "board", theme: THEME }],
+    decks: [{ key: "board-deck", template: { ...DECK, theme: "board", slots: [{ label: "Revenue", suggests: "mrr" }, DECK.slots[1]] } }],
+    workflows: [{ key: "monthly-close", template: WORKFLOW }],
   },
 };
 
@@ -91,6 +95,9 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an item of another kind's format", withContents({ themes: [{ key: "t", theme: VIEW }] }), "must be “ziffr.theme/1”", '"ziffr.view/1"'],
   ["a Slot suggesting an entry not in the Pack", withContents({ dashboards: [{ key: "d", template: { ...DASHBOARD, slots: [{ label: "MRR", suggests: "revenue" }, ...DASHBOARD.slots.slice(1)] } }] }), "“revenue”, which is not a Metric Catalog entry of this Pack", '"revenue"'],
   ["a widget using a design not in the Pack", withContents({ dashboards: [{ key: "d", template: { ...DASHBOARD, widgets: [{ view: "design", slots: [0], x: 0, y: 0, w: 6, h: 6, settings: { design: "elsewhere" } }] } }] }), "“elsewhere”, which is not a View Design of this Pack", '"elsewhere"'],
+  ["a deck naming a Theme not in the Pack", withContents({ decks: [{ key: "d", template: { ...DECK, theme: "dark" } }] }), "“dark”, which is not a Theme of this Pack", '"dark"'],
+  ["a deck widget using a design not in the Pack", withContents({ decks: [{ key: "d", template: { ...DECK, slides: [{ shapes: [{ shape: "widget", view: "design", slots: [0], x: 0, y: 0, w: 100, h: 100, settings: { design: "nope" } }] }] } }] }), "“nope”, which is not a View Design of this Pack", '"nope"'],
+  ["a Workflow Template naming a person", withContents({ workflows: [{ key: "w", template: { ...WORKFLOW, steps: [{ type: "approve", approvers: ["user-1"] }] } }] }), "must be a whole number, not a list", '"approvers"'],
   ["a reference by number", withContents({ dashboards: [{ key: "d", template: { ...DASHBOARD, slots: [{ label: "MRR", suggests: 12 }] } }] }), "must be a text, not a whole number", "12"],
   ["a formula naming an entry not in the Pack", withContents({ metrics: [{ key: "arpa", metric: { ...METRIC, formula: "{revenue} / 2" } }] }), "{revenue} is not a Metric Catalog entry of this Pack", '"formula"'],
   ["a formula naming itself", withContents({ metrics: [{ key: "arpa", metric: { ...METRIC, formula: "{arpa} + 1" } }] }), "{arpa} is this Metric itself", '"formula"'],
@@ -106,7 +113,7 @@ describe("the Pack format", () => {
     const res = checkPack(text(PACK));
     expect(res.ok ? [] : res.problems).toEqual([]);
     if (res.ok) {
-      expect(res.items).toBe(7);
+      expect(res.items).toBe(9);
       expect(res.needsOwner).toBe(true);
       expect(res.assistantTexts).toEqual([]);
     }
@@ -210,6 +217,8 @@ describe("the published schemas", () => {
     ["docs/reference/metric.schema.json", METRIC_FILE_SCHEMA],
     ["docs/reference/dashboard-template.schema.json", DASHBOARD_TEMPLATE_SCHEMA],
     ["docs/reference/theme.schema.json", THEME_FILE_SCHEMA],
+    ["docs/reference/deck-template.schema.json", DECK_TEMPLATE_SCHEMA],
+    ["docs/reference/workflow-template.schema.json", WORKFLOW_TEMPLATE_SCHEMA],
   ];
   it.each(published)("%s is the one the checks run", (file, schema) => {
     const path = repoFile(file);

@@ -12,6 +12,7 @@ The page lists every deck you made and every deck someone shared with you. Each 
 
 - **Open a deck** by choosing its card. If you may change it, the deck opens in the editor. If you may only present it, it opens for presenting.
 - **Make a new deck**: type a name in **Name of the new deck** and choose **New deck**. The deck opens in the editor and starts with one title slide.
+- **Make a deck from a Deck Template**: choose **From a Deck Template**, pick a template, and pick a Metric for each of its Slots, once even when several slides show it. The button shows when your team has saved a Deck Template. The new deck is yours: it starts with the template's slides, its words filled in from today's data, and the template's Theme if the Workspace still has it. Changing the deck never changes the template.
 - **Make a deck from a dashboard**: on a dashboard, open the **⋯** menu and choose **Make a deck**. The new deck has the dashboard's name. It starts with a title slide showing the dashboard's name and introduction, then one slide for each Widget, in the dashboard's reading order. Each slide is titled with the Widget's own title, or else its Metric's name.
 
 If you follow a link to a deck that is not shared with you, Ziffr says "This deck isn't shared with you" and lets you ask its owner for access.
@@ -35,6 +36,7 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | **View link** | Makes a link for someone outside the team. Only the deck's owner sees this button. |
 | **Share** | Shares the deck with people or Groups. Only the deck's owner sees this button. |
 | **Versions** | Shows earlier states of the deck and lets you go back to one. |
+| **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). |
 | **Present** | Shows the deck one slide at a time, filling the screen. |
 | **PDF** | Prepares a PDF to print or save. |
 | **Export PowerPoint** | Downloads the deck as a PowerPoint file. |
@@ -93,6 +95,10 @@ What the side panel shows depends on what you have selected.
 ### Saving a slide as a layout
 
 Select a slide and choose **Save slide as layout…**. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
+
+### Saving a deck as a Deck Template
+
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images stay behind. You can do this when you may change the deck and see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 

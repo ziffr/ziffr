@@ -1,6 +1,6 @@
 # Writing a Pack
 
-A **Pack** is one file of things to add to a Workspace: Metric Catalog entries, Dashboard Templates, View Designs, Analysis Recipes and Themes. It holds no code. Each thing in it is a document in a format Ziffr already checks, and Ziffr checks it exactly as it would on its own. The Pack only wraps them, with a manifest that names the Pack, its version, its author and its license.
+A **Pack** is one file of things to add to a Workspace: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes. It holds no code. Each thing in it is a document in a format Ziffr already checks, and Ziffr checks it exactly as it would on its own. The Pack only wraps them, with a manifest that names the Pack, its version, its author and its license.
 
 The exact formats are JSON Schemas in `docs/reference/`, generated from the definitions the checks run:
 
@@ -9,6 +9,8 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | The Pack and its manifest | `ziffr.pack/1` | [`pack.schema.json`](../reference/pack.schema.json) |
 | A Metric Catalog entry | `ziffr.metric/1` | [`metric.schema.json`](../reference/metric.schema.json) |
 | A Dashboard Template | `ziffr.dashboard-template/1` | [`dashboard-template.schema.json`](../reference/dashboard-template.schema.json) |
+| A Deck Template | `ziffr.deck-template/1` | [`deck-template.schema.json`](../reference/deck-template.schema.json) |
+| A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
 | A View Design | `ziffr.view/1` | [`view-design.schema.json`](../reference/view-design.schema.json), see [Writing a View Design](view-designs.md) |
 | An Analysis Recipe | `ziffr.analysis/1` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json), see [Analysis Recipes](analysis-recipes.md) |
 | A Theme | `ziffr.theme/1` | [`theme.schema.json`](../reference/theme.schema.json) |
@@ -63,6 +65,7 @@ An item may name another item of the same Pack, and nothing outside it:
 
 - a Dashboard Template's Slot may suggest one of the Pack's Metric Catalog entries: `"suggests": "mrr"`;
 - a widget drawn by a View Design names one of the Pack's View Designs: `"view": "design"`, `"settings": { "design": "trend" }`. Outside a Pack, the design is written out in full instead;
+- a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
 ## What is refused
@@ -74,6 +77,8 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`;
 - images, fonts and logos: a Theme uses only fonts Ziffr ships, and its logo and background image are set in Ziffr after installing;
 - a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
+- a slide of a Deck Template with anything but widgets, text and simple boxes, or a shape past the slide's edge;
+- a Workflow Template that names a person: an Approve step says only how many Approvers to pick;
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.
 

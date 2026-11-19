@@ -7,9 +7,10 @@ import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
 import { deckSeed } from "@ziffr/core/conversions";
 import { snapshotDeckSeed } from "@ziffr/core/snapshots";
+import { deckTemplateSeed, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 
-export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string }> }) {
+export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string }> }) {
   const id = Number((await params).id);
   const sp = await searchParams;
   const from = Number(sp.from);
@@ -36,9 +37,12 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   const seed = !empty ? null
     : Number.isInteger(fromSnapshot) && fromSnapshot > 0 ? await snapshotDeckSeed(actor, fromSnapshot).catch(() => null)
     : Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
+  // Made from a Deck Template (spec 0030): its slides with its Slots filled; the core checks every Metric again.
+  const fromTemplate = Number(sp.template);
+  const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null) : null;
   const [data, saved, shares, groups] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
-    getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? [])]),
+    getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? [])]),
     savedWidgets(actor),
     getRawShares(),
     getGroups(),
@@ -49,6 +53,8 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
       data={data}
       saved={saved}
       seed={seed}
+      templateSeed={templateSeed}
+      deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
       sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
     />
   );

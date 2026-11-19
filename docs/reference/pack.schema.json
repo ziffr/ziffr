@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.app/schemas/ziffr.pack-1.json",
   "title": "Ziffr Pack (ziffr.pack/1)",
-  "description": "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard Templates, View Designs, Analysis Recipes and Themes, with its name, version, author and license.",
+  "description": "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author and license.",
   "type": "object",
   "properties": {
     "format": {
@@ -204,6 +204,54 @@
             "required": [
               "key",
               "theme"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "decks": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Deck Templates, each a ziffr.deck-template/1 document under “template”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "template": {
+                "type": "object",
+                "description": "A ziffr.deck-template/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "template"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "workflows": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Workflow Templates, each a ziffr.workflow-template/1 document under “template”.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                "description": "a key unique in the Pack and kept across its versions: lower-case letters, digits and dashes"
+              },
+              "template": {
+                "type": "object",
+                "description": "A ziffr.workflow-template/1 document, checked by its own schema."
+              }
+            },
+            "required": [
+              "key",
+              "template"
             ],
             "additionalProperties": false
           }

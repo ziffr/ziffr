@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.app/schemas/ziffr.workflow-template-1.json",
+  "title": "Ziffr Workflow Template (ziffr.workflow-template/1)",
+  "description": "A starting point for a Workflow: its Due Date, steps and reminders, with the people left open to be picked when it is used. It holds no code and names no person.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.workflow-template/1",
+      "description": "The format and its version."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses"
+    },
+    "dueWorkingDays": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 30,
+      "description": "The Due Date: how many working days after a period ends its values are due."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "description": "What happens each period, in order.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Remind each Submitter some days before the Due Date.",
+            "properties": {
+              "type": {
+                "const": "remind"
+              },
+              "daysBefore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "Working days before the Due Date."
+              }
+            },
+            "required": [
+              "type",
+              "daysBefore"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Ask the Stand-in, or the Metric's owner, when a value is late.",
+            "properties": {
+              "type": {
+                "const": "escalate"
+              },
+              "to": {
+                "enum": [
+                  "stand-in",
+                  "owner"
+                ]
+              },
+              "daysAfter": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "Working days after the Due Date."
+              }
+            },
+            "required": [
+              "type",
+              "to",
+              "daysAfter"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Mark a value as unusual when it moves this much, or falls outside its Target Range.",
+            "properties": {
+              "type": {
+                "const": "check"
+              },
+              "changePct": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "outsideTarget": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "changePct",
+              "outsideTarget"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Hold values back for Approval.",
+            "properties": {
+              "type": {
+                "const": "approve"
+              },
+              "approvers": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many Approvers are picked when the template is used; with 0, no value waits."
+              },
+              "values": {
+                "enum": [
+                  "unusual",
+                  "every"
+                ],
+                "description": "Which values wait: Unusual Values only, or every value."
+              }
+            },
+            "required": [
+              "type",
+              "approvers"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Publish the period's values, and lock it if asked.",
+            "properties": {
+              "type": {
+                "const": "publish"
+              },
+              "lock": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "lock"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "format",
+    "name",
+    "dueWorkingDays",
+    "steps"
+  ],
+  "additionalProperties": false
+}

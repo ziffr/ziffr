@@ -43,6 +43,12 @@ A **Dashboard Template** is a starting point for a whole dashboard: its Widgets,
 
 When you have built a dashboard the team likes, such as "Monthly board pack", you can save it as a team Dashboard Template, so the next one starts from it. You can do this when you may change the dashboard and see every Metric on it.
 
+## Deck Templates and Workflow Templates
+
+A **Deck Template** is a starting point for a whole deck: its slides with their Widgets, words and boxes, the Metrics left open as Slots. Save a deck as one with **Save as Deck Template…** in the deck editor, and start a deck from one on the Decks page (Decks and Themes).
+
+A **Workflow Template** is a starting point for a Workflow: its Due Date, steps and reminders, with the people left open. Save a Workflow as one with **Save as template…**, and start one with **New from a template** on the Workflows page (Workflows and approvals).
+
 ## Slots and Placeholders
 
 A template never contains your numbers. Instead it has:
