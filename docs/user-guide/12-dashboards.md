@@ -103,6 +103,8 @@ A dashboard opens for looking. Its owner and Editors switch into editing on purp
 
 If you may only look, an empty dashboard says "This dashboard is empty." If you may change it, it says "Press Edit to add widgets."
 
+A value that waits for **Approval** shows, marked "not approved yet" next to it, or "unapproved" in a table row; a locked period shows a lock. The Metric's own page marks such a value the same way.
+
 ### What edit mode adds
 
 - **The Pool** appears on the left side (below the dashboard on a narrow screen).
