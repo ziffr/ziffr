@@ -1,14 +1,14 @@
 <svg style=width: 100%; height: 100%; display: block;>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=12>
-<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=155.46929889135103 y2=155.46929889135103 y=12>
-<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=100.93859778270196 y2=100.93859778270196 y=12>
-<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=46.407896674052935 y2=46.407896674052935 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=160.5 y2=160.5 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=111 y2=111 y=12>
+<line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=61.5 y2=61.5 y=12>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
-<path d=M 76,114.5488 h 392 v 81.7961 h -392 Z fill-opacity=0.6 fill=var(--color-band) height=81.7961 radius=0 stroke-width=1 stroke=none width=392 x=76 y1=100000 y2=130000 y=114.5488>
-<path d=M384,82.57197279312163L412,55.03053750350649L440,39.421387071391806L468,25.65517241379313L468,91.89672407373892L440,93.50738751708485L412,93.27511518591463L384,82.57197279312163Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
-<path d=M384,82.57197279312163L412,74.15282634471055L440,66.46438729423834L468,58.775948243766024 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
-<path d=M76,163.7354683232348L104,156.93003682487543L132,160.01647450762496L160,151.97592262915464L188,146.2747378282454L216,128.814007333256L244,130.19090753624937L272,102.88465895609339L300,106.25465628460788L328,86.13010104046099L356,97.54610331755663L384,82.57197279312163 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
+<path d=M 76,135.75 h 392 v 74.25 h -392 Z fill-opacity=0.6 fill=var(--color-band) height=74.25 radius=0 stroke-width=1 stroke=none width=392 x=76 y1=100000 y2=130000 y=135.75>
+<path d=M384,106.72320000000002L412,81.72258531654566L440,67.55344883597458L468,55.057229060743154L468,115.18770126270879L440,116.64977379844917L412,116.4389296288498L384,106.72320000000002Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
+<path d=M384,106.72320000000002L412,99.08075747269774L440,92.1016113172119L468,85.12246516172598 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
+<path d=M76,180.39900000000003L104,174.2214L132,177.02310000000003L160,169.724325L188,164.5491L216,148.69920000000002L244,149.94907500000002L272,125.16195000000002L300,128.22105000000002L328,109.953075L356,120.31590000000001L384,106.72320000000002 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=216 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=104 x2=104 x=76 y1=216 y2=210 y=210>
@@ -27,34 +27,34 @@
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=468 x2=468 x=76 y1=216 y2=210 y=210>
 <line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=76 x2=76 x=8 y1=12 y2=210 y=12>
 <line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=210 y2=210 y=12>
-<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=155.46929889135103 y2=155.46929889135103 y=12>
-<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=100.93859778270196 y2=100.93859778270196 y=12>
-<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=46.407896674052935 y2=46.407896674052935 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=160.5 y2=160.5 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=111 y2=111 y=12>
+<line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=61.5 y2=61.5 y=12>
 <line angle=0 fill=none height=198 orientation=left stroke=var(--color-rule-2) width=68 x1=70 x2=76 x=8 y1=12 y2=12 y=12>
 <g data-period=2025-07-01>
-<circle cx=76 cy=163.7354683232348 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=76 cy=180.39900000000003 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2025-08-01>
-<circle cx=104 cy=156.93003682487543 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=104 cy=174.2214 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2025-09-01>
-<circle cx=132 cy=160.01647450762496 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=132 cy=177.02310000000003 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2025-10-01>
-<circle cx=160 cy=151.97592262915464 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=160 cy=169.724325 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2025-11-01>
-<circle cx=188 cy=146.2747378282454 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=188 cy=164.5491 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2025-12-01>
-<circle cx=216 cy=128.814007333256 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=216 cy=148.69920000000002 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-01-01>
-<circle cx=244 cy=130.19090753624937 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=244 cy=149.94907500000002 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-02-01>
-<circle cx=272 cy=102.88465895609339 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=272 cy=125.16195000000002 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-03-01>
-<circle cx=300 cy=106.25465628460788 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=300 cy=128.22105000000002 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-04-01>
-<circle cx=328 cy=86.13010104046099 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=328 cy=109.953075 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-05-01>
-<circle cx=356 cy=97.54610331755663 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=356 cy=120.31590000000001 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <g data-period=2026-06-01>
-<circle cx=384 cy=82.57197279312163 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
+<circle cx=384 cy=106.72320000000002 fill=var(--color-cotton) r=3 stroke-width=1.5 stroke=var(--color-data)>
 <text fill=var(--color-muted) font-size=12 height=30 orientation=bottom stroke=none text-anchor=middle width=392 x=76 y=218>
 <tspan dy=0.71em x=76>
 "Jul 25"
@@ -102,16 +102,16 @@
 "Sep 26"
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=210>
 <tspan dy=0.355em x=68>
-"95k €"
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=155.46929889135103>
+"100k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=160.5>
 <tspan dy=0.355em x=68>
-"115k €"
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=100.93859778270196>
+"120k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=111>
 <tspan dy=0.355em x=68>
-"135k €"
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=46.407896674052935>
+"140k €"
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=61.5>
 <tspan dy=0.355em x=68>
-"155k €"
+"160k €"
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=12>
 <tspan dy=0.355em x=68>
-"168k €"
+"180k €"

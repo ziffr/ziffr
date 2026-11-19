@@ -79,6 +79,48 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
   return withUnit(m, v < 0, digits(n, Number.isInteger(n) ? 0 : 1, style) + suffix);
 }
 
+/** A value axis from `lo` to `hi`: about `count` ticks a nice step apart (1, 2, 2.5 or 5 times a power of ten), and
+ * the domain from the first to the last. A single value (lo = hi) gets an axis around it, from 0 when it is positive.
+ * Ticket #184: a chart of one value drew steps such as 92.35, 3,592.35, 7,092.35. */
+export function niceAxis(lo: number, hi: number, count = 5): { domain: [number, number]; ticks: number[]; step: number } {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { domain: [0, 1], ticks: [0, 1], step: 1 };
+  if (lo > hi) [lo, hi] = [hi, lo];
+  if (lo === hi) {
+    if (hi === 0) hi = 1;
+    else if (hi > 0) lo = 0;
+    else hi = 0;
+  }
+  const raw = (hi - lo) / Math.max(1, count - 1);
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((f) => f * power).find((s) => s >= raw) ?? 10 * power;
+  // Rounded to the step's own decimals, so 0.1 + 0.2 does not become 0.30000000000000004.
+  const places = Math.max(0, -Math.floor(Math.log10(step)) + 1);
+  const round = (x: number) => Number(x.toFixed(places));
+  const first = round(Math.floor(lo / step) * step);
+  const last = round(Math.ceil(hi / step) * step);
+  const ticks: number[] = [];
+  for (let t = first; t <= last + step / 2; t = round(t + step)) ticks.push(t);
+  return { domain: [first, last], ticks, step };
+}
+
+/** The labels of an axis's ticks in one notation: all shortened (k or M, as `compactValue`) when the largest reaches
+ * 10,000, otherwise all written in full, with as many decimals as the step needs and never more than the Metric's. */
+export function axisLabels(m: ValueUnit, ticks: number[], step: number, style: NumberStyle): string[] {
+  const top = Math.max(0, ...ticks.map(Math.abs));
+  // The decimals a step is written with: 2.5 needs one, 0.25 two, 500 none.
+  const placesFor = (s: number) => Math.min(6, (String(Number(s.toPrecision(6))).split(".")[1] ?? "").length);
+  if (top < 10_000) {
+    const decimals = Math.min(m.decimals, placesFor(step));
+    return ticks.map((t) => formatValue({ ...m, decimals }, t, style));
+  }
+  const [div, suffix] = top >= 1_000_000 ? [1_000_000, "M"] : [1000, "k"];
+  const decimals = placesFor(step / div);
+  return ticks.map((t) => {
+    const { minus, body } = signed(t / div, decimals, style);
+    return withUnit(m, minus, /[1-9]/.test(body) ? body + suffix : body);
+  });
+}
+
 /** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", "−" or "±"
  * ("+12.0 %", "−3.5 %"); `signed: false` writes the size only, for "up 12.0 %". A dash for none. */
 export function formatChange(pct: number | null | undefined, style: NumberStyle, opts: { signed?: boolean } = {}): string {

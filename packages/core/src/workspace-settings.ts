@@ -96,8 +96,9 @@ export async function setNumberStyle(actor: Actor, style: unknown): Promise<Numb
   if (before.chosen && before.style === style) return style;
   const { error } = await db().from("workspaces").update({ number_style: style }).eq("id", actor.workspaceId);
   if (error) throw new Error("The Number Style could not be saved.");
-  // One of the four keys, or null for a style that followed the country: nothing a person typed.
-  await audit(actor, { kind: "workspace.number_style_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.style : null, to: style } });
+  // One of the four keys, or null for a style that followed the country (or the default, without one): nothing a
+  // person typed.
+  await audit(actor, { kind: "workspace.number_style_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.style : null, ...(before.chosen ? {} : { followed: before.fromCountry ? "country" : "default" }), to: style } });
   return style;
 }
 
@@ -138,8 +139,9 @@ export async function setAnswerLanguages(actor: Actor, input: unknown): Promise<
   if (before.chosen && before.languages.join() === languages.join()) return languages;
   const { error } = await db().from("workspaces").update({ answer_languages: languages }).eq("id", actor.workspaceId);
   if (error) throw new Error("The Answer Languages could not be saved.");
-  // Codes from the list only, or null for languages that followed the country: nothing a person typed.
-  await audit(actor, { kind: "workspace.answer_languages_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.languages : null, to: languages } });
+  // Codes from the list only, or null for languages that followed the country (or the default, without one):
+  // nothing a person typed.
+  await audit(actor, { kind: "workspace.answer_languages_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from: before.chosen ? before.languages : null, ...(before.chosen ? {} : { followed: before.country ? "country" : "default" }), to: languages } });
   return languages;
 }
 

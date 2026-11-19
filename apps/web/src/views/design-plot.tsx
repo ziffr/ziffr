@@ -4,7 +4,7 @@
 // with gaps is drawn (dotted, open, hatched, spec 0018) is Ziffr's rule, the same in every design.
 import { useId, useRef } from "react";
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
-import { compactValue, formatValue, health } from "@ziffr/core/format";
+import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
 import { commonPeriod } from "@ziffr/core/correlation";
 import { isPartial, spanCount } from "@ziffr/core/display-periods";
@@ -76,16 +76,20 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const tMin = bandOn ? m.target_min : null;
   const tMax = bandOn ? m.target_max : null;
   let domain: [number, number] | ["dataMin", "dataMax"] | undefined;
+  let axis: { domain: [number, number]; ticks: number[]; step: number } | null = null;
   if (part.scale === "padded") {
     const recipeKeys = marks.filter((k) => k.show.startsWith("recipe.")).map((k) => `recipe:${k.show.slice("recipe.".length)}` as const);
     const ruled = marks.flatMap((k) => (k.mark === "rule" && k.show.startsWith("recipe.") ? [recipeValue(v, k.show)] : [])).filter((x): x is number => x !== null);
     const values = [...rows.flatMap((r) => [r.value, r.partial, r.target, ...(r.band ?? []), ...recipeKeys.map((key) => r[key])]), ...ruled].filter((x): x is number => x !== undefined && Number.isFinite(x));
     const lo = Math.min(...values, tMin ?? Infinity);
     const hi = Math.max(...values, tMax ?? -Infinity);
-    const pad = (hi - lo) * 0.08 || 1;
-    domain = [Math.max(0, lo - pad), hi + pad];
+    // Nice steps in one notation (ticket #184): never 92.35, 3,592.35, 10.6k on one axis.
+    axis = niceAxis(values.length ? lo : 0, values.length ? hi : 1);
+    domain = axis.domain;
   } else if (part.scale === "tight") domain = ["dataMin", "dataMax"];
 
+  const labels = axis ? new Map(axis.ticks.map((t, i) => [t, axisLabels(m, axis!.ticks, axis!.step, data.numberStyle)[i]])) : null;
+  const axisText = (x: number) => labels?.get(x) ?? compactValue(m, x, data.numberStyle);
   const byPeriod = new Map(pts.map((p) => [p.period, p]));
   const label = (p: string) => { const x = byPeriod.get(p); return x ? v.name(x) : periodLabel(p, v.by, data.yearStart); };
   const status = (p: { value: number } | undefined) => health(v.goal(p as never), p?.value);
@@ -110,7 +114,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
           {part.grid === "horizontal" && <CartesianGrid vertical={false} stroke="var(--color-rule)" />}
           {part.grid === "both" && <CartesianGrid stroke="var(--color-rule)" />}
           {!none && <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, v.by, data.yearStart, true)} tick={tick(compact ? 11 : 12)} minTickGap={compact ? 16 : 24} stroke="var(--color-rule-2)" />}
-          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} tickFormatter={(x) => compactValue(m, x, data.numberStyle)} tick={tick(compact ? 11 : 12, true)} width={compact ? 56 : 68} stroke="var(--color-rule-2)" />}
+          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks} interval={axis ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick(compact ? 11 : 12, true)} width={compact ? 56 : 68} stroke="var(--color-rule-2)" />}
           {!none && <Tooltip content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : undefined} />}
           {marks.map((k, i) => {
             switch (k.mark) {

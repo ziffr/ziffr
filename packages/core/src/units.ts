@@ -24,6 +24,20 @@ export function moneyUnit(currency: string | null | undefined): { unit: string; 
   return Object.hasOwn(CURRENCY_UNIT, currency) ? CURRENCY_UNIT[currency] : { unit: `${currency} `, unit_position: "before" };
 }
 
+// Signs that are usually written before the number, whatever the language: "$1,200", "£80", "¥5,000".
+const SIGNS_BEFORE = new Set(["$", "US$", "A$", "C$", "NZ$", "HK$", "S$", "R$", "£", "¥", "₹", "₩", "₱", "₪", "฿", "₦"]);
+// Signs usually written after it in the Workspaces Ziffr has met so far: "1.200 €", "80 kr", "50 %".
+const SIGNS_AFTER = new Set(["€", "%", "kr", "zł", "Kč", "Ft", "₽", "₴", "lei"]);
+
+/** The side a unit is usually written on, for a form to propose while it is typed; null for any other unit (days,
+ * pieces), which keeps whatever side was chosen. Three-letter currency codes stand before the number ("CHF 1'200"). */
+export function suggestedSide(unit: string): UnitPosition | null {
+  const u = String(unit).trim();
+  if (SIGNS_BEFORE.has(u) || /^[A-Z]{3}$/.test(u)) return "before";
+  if (SIGNS_AFTER.has(u)) return "after";
+  return null;
+}
+
 /** The unit a Metric kept before units had a side shows with: the "€" or "%" its format used to add when its unit
  * was empty, after the number. The migration that added the side did the same for every stored Metric; this does it
  * for Metrics kept in old Snapshots and frozen View Links, so they show what they showed. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactValue, formatChange, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
+import { axisLabels, compactValue, formatChange, niceAxis, formatDate, formatNumber, formatPercent, formatValue, targetStatus, targetText, type ValueUnit } from "./format";
 import { NUMBER_STYLES, type NumberStyle } from "./number-style";
 import { metric } from "./test/fixtures";
 import { isUnitPosition, keptUnit, moneyUnit, UNIT_POSITIONS } from "./units";
@@ -171,5 +171,29 @@ describe("format", () => {
     expect(formatDate("2026-11-04 12:00 GMT")).toBe(noonUtc);
     expect(formatDate("Wed, 04 Nov 2026 12:00:00 GMT")).toBe(noonUtc);
     expect(formatDate("Day 2026-11-04")).toBe(localDay(new Date(2026, 10, 4)));
+  });
+});
+
+describe("niceAxis and axisLabels (ticket #184)", () => {
+  const usd2: ValueUnit = { unit: "$", unit_position: "before", decimals: 2 };
+  it("gives one value an axis of nice steps from 0, in one notation", () => {
+    const a = niceAxis(13_292.35, 13_292.35);
+    expect(a.ticks).toEqual([0, 5000, 10_000, 15_000]);
+    expect(a.domain).toEqual([0, 15_000]);
+    expect(axisLabels(usd2, a.ticks, a.step, "1.234,5")).toEqual(["$0", "$5k", "$10k", "$15k"]);
+  });
+  it("steps by 1, 2, 2.5 or 5 times a power of ten and covers the data", () => {
+    expect(niceAxis(0, 9).ticks).toEqual([0, 2.5, 5, 7.5, 10]);
+    expect(niceAxis(0.1, 0.9).ticks).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1]);
+    expect(niceAxis(-30, 70).ticks).toEqual([-50, -25, 0, 25, 50, 75]);
+    expect(niceAxis(0, 0).ticks).toEqual([0, 0.25, 0.5, 0.75, 1]);
+    expect(niceAxis(-4, -4).domain).toEqual([-4, 0]);
+  });
+  it("writes small axes in full with the decimals the step needs, never more than the Metric's", () => {
+    const a = niceAxis(0, 9);
+    expect(axisLabels(usd2, a.ticks, a.step, "1,234.5")).toEqual(["$0.0", "$2.5", "$5.0", "$7.5", "$10.0"]);
+    expect(axisLabels({ unit: "d", unit_position: "after", decimals: 0 }, a.ticks, a.step, "1,234.5")).toEqual(["0 d", "3 d", "5 d", "8 d", "10 d"]);
+    const big = niceAxis(0, 2_400_000);
+    expect(axisLabels(usd2, big.ticks, big.step, "1,234.5")).toEqual(["$0", "$1M", "$2M", "$3M"]);
   });
 });
