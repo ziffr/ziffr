@@ -52,3 +52,6 @@ begin
 end;
 $$;
 revoke all on function create_first_workspace_key(uuid, text, text, text) from public, anon, authenticated;
+
+-- A database that ran an earlier draft of this migration may hold keys without the mark: mark those Workspaces too.
+update workspaces set keyed_at = now() where keyed_at is null and id in (select workspace_id from workspace_keys);

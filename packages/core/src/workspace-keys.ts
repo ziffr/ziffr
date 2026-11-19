@@ -232,6 +232,7 @@ type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: s
 async function rewrap(workspaceId: string, row: KeyRow, wrapper: KeyWrapper, key: Buffer): Promise<void> {
   try {
     const { wrapped, under } = await wrapper.wrap(workspaceId, row.version, key);
+    // The job that re-wraps every key (ticket 6) counts the rows it swapped; here a miss is simply tried next time.
     await db().from("workspace_keys").update({ wrapped, wrapped_under: under }).eq("workspace_id", workspaceId).eq("version", row.version).eq("wrapped", row.wrapped);
   } catch {
     // Nothing logged: the message could only say the re-wrap failed, which the next load retries.
