@@ -8,6 +8,7 @@ import { compactValue, formatChange, formatPercent, MINUS } from "@ziffr/core/fo
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Anchor, Annotation, CanvasData, MeasureId, Metric, Panel, Point } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
+import { labelsThatFit, ticksThatFit } from "./label-room";
 
 export const MEASURE_LABEL: Record<MeasureId, string> = {
   value: "Value",
@@ -82,7 +83,7 @@ const isPct = (panel: Panel) => (panel.measure ?? "value") !== "value";
 const fmt = (m: Metric, panel: Panel, v: number, style: NumberStyle, signed = false) =>
   isPct(panel) ? (signed ? formatChange(v, style) : formatPercent(v, style)) : `${signed && v > 0 ? "+" : ""}${compactValue(m, v, style)}`;
 
-function usePlot(draw: (width: number, height: number) => Element | null, deps: unknown[]) {
+function usePlot(draw: (width: number, height: number, el: HTMLElement) => Element | null, deps: unknown[]) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current;
@@ -90,7 +91,7 @@ function usePlot(draw: (width: number, height: number) => Element | null, deps: 
     const render = () => {
       const { width, height } = el.getBoundingClientRect();
       if (width < 60 || height < 60) return;
-      const chart = draw(width, height);
+      const chart = draw(width, height, el);
       if (chart) el.replaceChildren(chart);
     };
     render();
@@ -103,6 +104,16 @@ function usePlot(draw: (width: number, height: number) => Element | null, deps: 
 
 const STYLE = { fontFamily: "var(--font-body)", fontSize: "clamp(12px, 1.2cqw, 18px)", color: "var(--color-muted)", background: "transparent", overflow: "visible" };
 
+/** How wide each text is in the chart's own type, measured in `el` so the container's font size counts. */
+function textWidths(el: HTMLElement, texts: string[], fontWeight: number): number[] {
+  const probe = document.createElement("span");
+  Object.assign(probe.style, { position: "absolute", visibility: "hidden", whiteSpace: "nowrap", fontFamily: STYLE.fontFamily, fontSize: STYLE.fontSize, fontWeight: String(fontWeight) });
+  el.appendChild(probe);
+  const widths = texts.map((t) => { probe.textContent = t; return probe.getBoundingClientRect().width; });
+  probe.remove();
+  return widths;
+}
+
 /** Bars per period with signed direct labels; the highlighted bars (last or projected) stand out. */
 function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; panel: Panel; domain?: [number, number] }) {
   const rows = measureSeries(m, data, panel);
@@ -111,10 +122,18 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   const hl = (r: Bar) => (panel.highlight === "projection" && anyProjected ? r.projected : panel.highlight && !["last", "projection"].includes(panel.highlight) ? r.period === panel.highlight : r === rows[rows.length - 1]);
   const ref = refValue(m, data, panel, rows);
   const box = usePlot(
-    (width, height) =>
-      Plot.plot({
-        width, height, marginTop: panel.annotations?.length ? 56 : 28, marginBottom: 28, marginLeft: 4, marginRight: ref ? 40 : 4, style: STYLE,
-        x: { type: "band", domain: rows.map((r) => r.label), label: null, tickSize: 0, padding: 0.18 },
+    (width, height, el) => {
+      const marginLeft = 4, marginRight = ref ? 40 : 4;
+      // On a narrow chart, only the labels and month names that fit are drawn: the highlighted bars' first (#10).
+      const step = (width - marginLeft - marginRight) / Math.max(rows.length, 1);
+      const texts = rows.map((r) => fmt(m, panel, r.value, data.numberStyle, isPct(panel)));
+      const widths = rows.map((r, i) => textWidths(el, [texts[i]], hl(r) ? 700 : 400)[0]);
+      const order = rows.map((_, i) => rows.length - 1 - i).sort((a, b) => Number(hl(rows[b])) - Number(hl(rows[a])));
+      const labelled = labelsThatFit(rows.map((_, i) => (i + 0.5) * step), widths, order);
+      const named = ticksThatFit(rows.length, step, Math.max(0, ...textWidths(el, rows.map((r) => r.label), 400)));
+      return Plot.plot({
+        width, height, marginTop: panel.annotations?.length ? 56 : 28, marginBottom: 28, marginLeft, marginRight, style: STYLE,
+        x: { type: "band", domain: rows.map((r) => r.label), ticks: named.map((i) => rows[i].label), label: null, tickSize: 0, padding: 0.18 },
         y: { axis: null, domain: domain ?? undefined, nice: true, zero: true },
         marks: [
           Plot.barY(rows, { x: "label", y: "value", fill: (r: Bar) => (hl(r) ? "var(--color-accent-2)" : "var(--color-rule-2)") }),
@@ -126,12 +145,13 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
             [rows.filter((r) => r.value >= 0 && hl(r)), -9, 700],
             [rows.filter((r) => r.value < 0 && hl(r)), 11, 700],
           ].map(([subset, dy, weight]) =>
-            Plot.text(subset as Bar[], { x: "label", y: "value", text: (r: Bar) => fmt(m, panel, r.value, data.numberStyle, isPct(panel)), dy: dy as number, fill: "var(--color-print)", fontWeight: weight as number }),
+            Plot.text((subset as Bar[]).filter((r) => labelled.has(rows.indexOf(r))), { x: "label", y: "value", text: (r: Bar) => texts[rows.indexOf(r)], dy: dy as number, fill: "var(--color-print)", fontWeight: weight as number }),
           ),
           ...(ref ? [Plot.ruleY([ref.value], { stroke: "var(--color-accent-2)", strokeDasharray: "5 4" }), Plot.text([ref], { y: "value", frameAnchor: "right", dx: 38, text: "label", fill: "var(--color-accent-2)" })] : []),
           ...annotationMarks(panel.annotations, rows.map((r) => ({ ...r, top: Math.max(0, r.value) })), Math.max(...rows.map((r) => Math.abs(r.value)), 1)),
         ],
-      }),
+      });
+    },
     [JSON.stringify(rows), panel.highlight, domain?.join(), ref?.value, JSON.stringify(panel.annotations)],
   );
   return (

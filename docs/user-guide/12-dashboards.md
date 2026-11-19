@@ -292,7 +292,7 @@ A **Panel** is one chart inside a composed Finding. **Add panel** adds one (peri
 | Option | What it does |
 | --- | --- |
 | Panel type | **Period bars**, **Bridge**, **Annotated line**, **Ranked bars (breakdown)**, **Part of the whole (breakdown)** or **7 in 10 (breakdown)**. |
-| **Choose metrics** | Tick the Metrics it draws. Several Metrics are drawn side by side as small multiples, one small chart each. |
+| **Choose metrics** | Tick the Metrics it draws. Several Metrics are drawn side by side as small multiples, one small chart each. When period bars are too narrow for every label, as on a phone, the highlighted bars keep their values and the others only where there is room; the periods underneath are named every second or third bar, always the last. |
 | **Measure** | For period bars and annotated lines: the **Measure** drawn: **Value**, **Change vs previous period, %**, **Change vs previous year, %** or **Attainment of target, %** (by the Metric's method, as in the strip). |
 | Periods | For period bars and annotated lines: how many periods to show, from 2 to 36. |
 | **Highlight the last period** / **Highlight projections** | For period bars: which bars stand out. |
