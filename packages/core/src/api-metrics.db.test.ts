@@ -247,5 +247,19 @@ describe("Sources and Submitters with a key", () => {
     const claims = await Promise.all(Array.from({ length: 6 }, () => db().rpc("claim_first_prompt", { p_workspace: other.id, p_submitter: bea, p_metric: m.id, p_limit: 5 })));
     expect(claims.map((c) => c.data).filter(Boolean)).toHaveLength(1);
   });
+
+  it("sets and removes a series in one step: a failing item leaves nothing written (ticket #215)", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const m = await w.metric(ben, { name: "Budget" });
+    const { key } = await keyFor(w, ben, "member", ["metrics:read", "metrics:edit"]);
+    expect(await setSeriesWithKey(key, m.slug, "target", [{ period: "2027-01-01", value: 1 }, { period: "2027-02-01", value: 2 }])).toEqual({ saved: 2, removed: 0 });
+    // One save the database refuses (a value it cannot store) with a removal: neither happens.
+    const bad = await db().rpc("set_series_values", { p_metric: m.id, p_kind: "target", p_saves: [{ period: "2027-03-01", value: 3 }, { period: "2027-04-01", value: "not a number" }], p_removes: ["2027-01-01"], p_note: null });
+    expect(bad.error).not.toBeNull();
+    expect(await listSeriesWithKey(key, m.slug, "target")).toEqual([{ period: "2027-01-01", value: 1 }, { period: "2027-02-01", value: 2 }]);
+    // Both in one call when it works.
+    expect(await setSeriesWithKey(key, m.slug, "target", [{ period: "2027-01-01", value: null }, { period: "2027-03-01", value: 3 }])).toEqual({ saved: 1, removed: 1 });
+    expect(await listSeriesWithKey(key, m.slug, "target")).toEqual([{ period: "2027-02-01", value: 2 }, { period: "2027-03-01", value: 3 }]);
+  });
 });
 

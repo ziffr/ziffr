@@ -372,8 +372,8 @@ export class Ziffr {
     return {
       /** Every period that has a value, oldest first. */
       list: async (slug: string): Promise<SeriesValue[]> => (await this.get<{ items: SeriesValue[] }>(`/metrics/${encodeURIComponent(slug)}/${path}`)).items,
-      /** Sets or removes 1 to SERIES_ITEMS_MAX periods (their first days): a number sets one, null removes it. Every
-       * item is checked first: a refused one (ZiffrError 422) writes none. Safe to repeat. */
+      /** Sets or removes 1 to SERIES_ITEMS_MAX periods (their first days): a number sets one, null removes it. All
+       * or nothing: a refused item (ZiffrError 422) writes none. Safe to repeat. */
       set: async (slug: string, items: SeriesItem[]): Promise<{ saved: number; removed: number }> => {
         if (!items.length || items.length > SERIES_ITEMS_MAX) throw new Error(`Send 1 to ${SERIES_ITEMS_MAX} items.`);
         return (await this.request<{ saved: number; removed: number }>("POST", `/metrics/${encodeURIComponent(slug)}/${path}`, undefined, { items })).body;

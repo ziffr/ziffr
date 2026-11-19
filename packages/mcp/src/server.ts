@@ -290,7 +290,7 @@ export function createServer(ziffr: Ziffr): McpServer {
 
   server.registerTool("set_target_series", {
     title: "Set a Metric's Target Series",
-    description: `Sets or removes targets for single periods of a Metric, such as a monthly budget: 1 to ${SERIES_ITEMS_MAX} items, each a period's first day and a value, or null to remove it. Replaces what a period had. Every item is checked first: one refused item writes none. Only after the user confirmed the periods and values; only the Metric's owner and its Editors may; needs a key that may change metrics.`,
+    description: `Sets or removes targets for single periods of a Metric, such as a monthly budget: 1 to ${SERIES_ITEMS_MAX} items, each a period's first day and a value, or null to remove it. Replaces what a period had. All or nothing: one refused item writes none. Only after the user confirmed the periods and values; only the Metric's owner and its Editors may; needs a key that may change metrics.`,
     inputSchema: { slug, items: seriesItems },
     annotations: seriesWrite,
   }, ({ slug, items }) => guarded(async () => answer({ ...(await ziffr.targetSeries.set(slug, items)) })));
@@ -304,7 +304,7 @@ export function createServer(ziffr: Ziffr): McpServer {
 
   server.registerTool("set_projections", {
     title: "Set a Metric's Projections",
-    description: `Sets or removes a Metric's Projections, values expected for the current period or later ones: 1 to ${SERIES_ITEMS_MAX} items, each a period's first day and a value, or null to remove it. A period that is over is refused; record a value with submit_value instead. Every item is checked first: one refused item writes none. Only after the user confirmed the periods and values; only the Metric's owner and its Editors may; needs a key that may change metrics.`,
+    description: `Sets or removes a Metric's Projections, values expected for the current period or later ones: 1 to ${SERIES_ITEMS_MAX} items, each a period's first day and a value, or null to remove it. A period that is over is refused; record a value with submit_value instead. All or nothing: one refused item writes none. Only after the user confirmed the periods and values; only the Metric's owner and its Editors may; needs a key that may change metrics.`,
     inputSchema: { slug, items: seriesItems },
     annotations: seriesWrite,
   }, ({ slug, items }) => guarded(async () => answer({ ...(await ziffr.projections.set(slug, items)) })));
