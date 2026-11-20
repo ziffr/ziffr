@@ -152,6 +152,9 @@ describe("an Archived Metric asks for nothing", () => {
     // A Prompt queued before archiving does not go out after it.
     expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara, queue: true })).toBe(true);
     await db().from("deliveries").update({ mail_state: "queued" }).eq("workspace_id", w.id);
+    // One whose Prompt row is missing is found by its form link.
+    const { data: one } = await db().from("deliveries").select("id").eq("workspace_id", w.id).limit(1).single();
+    await db().from("deliveries").update({ prompt_id: null }).eq("id", one!.id);
     await archiveMetric(w.actor(ben, "member"), m.id);
     expect((await db().from("deliveries").select("mail_state, last_error").eq("workspace_id", w.id)).data).toEqual([{ mail_state: "failed", last_error: "The Metric was archived before it went out." }]);
     const asked = (await prompts(m.id)).length;

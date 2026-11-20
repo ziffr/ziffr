@@ -449,6 +449,8 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     }
     // The value was not written (archived in the meantime, or the database refused it): the Correction stays proposed.
     if (written.error) {
+      // The database's own words stay in the server log; the person gets Ziffr's.
+      if (written.error.code !== ARCHIVED_CODE) console.error("Accepting a Correction failed:", (written.error as { message?: string }).message ?? written.error.code);
       await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
       throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");
     }
