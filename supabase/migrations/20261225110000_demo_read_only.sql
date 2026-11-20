@@ -9,7 +9,8 @@
 -- anything they did not have.
 --
 -- Rows outside the demo pay one comparison in the trigger's WHEN clause, never a function call. A table with a
--- workspace_id made later gets the triggers in its own migration; demo-read-only.db.test.ts fails until it has.
+-- workspace_id made later calls attach_demo_guard (20261225190000) in its own migration; demo-read-only.db.test.ts
+-- fails until it has.
 
 create or replace function demo_seeding() returns boolean
 language plpgsql stable set search_path = public as $$

@@ -27,8 +27,8 @@ describe("the demo refuses every write", () => {
   it("in every table that has a workspace, and in the tables of its people", async () => {
     const { data, error } = await db().rpc("demo_read_only_gaps");
     expect(error).toBeNull();
-    // A table made later without the triggers is named here: give it them in its own migration.
-    expect(data).toEqual([]);
+    const unguarded = (data ?? []) as string[];
+    expect(unguarded, `These tables have a workspace_id but no demo guard: ${unguarded.join(", ")}. Call attach_demo_guard in your migration: select attach_demo_guard('${unguarded[0]}');`).toEqual([]);
   });
 
   it("as one sentence, thrown, whether the query answers with an error or throws", async () => {
