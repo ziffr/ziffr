@@ -6,7 +6,8 @@ import { Forbidden } from "./actor";
 import { actorForSecret, createAccessKey } from "./access-keys";
 import { db } from "./db";
 import { createFeed } from "./feeds";
-import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialValuesCsv } from "./trial-end";
+import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialCleanup, trialValuesCsv } from "./trial-end";
+import { forgetStoredSettings } from "./settings-in-effect";
 import { workspace } from "./test/db-fixtures";
 import { setNumberStyle } from "./workspace-settings";
 import { destroyWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, workspaceCipher } from "./workspace-keys";
@@ -164,7 +165,7 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
       const remove = builder.delete.bind(builder);
       builder.delete = ((...args: Parameters<typeof remove>) => {
         deleted.push(table);
-        if (table === failOn) return { eq: () => ({ not: () => ({ select: async () => ({ data: null, error: { message: "down" } }) }) }) } as never;
+        if (table === failOn) return { eq: () => ({ not: () => ({ is: () => ({ select: async () => ({ data: null, error: { message: "down" } }) }) }) }) } as never;
         return remove(...args);
       }) as typeof builder.delete;
       return builder;
@@ -247,5 +248,41 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
     // Nor by the database step itself, whoever calls it.
     await expect(destroyWorkspaceKeys(w.id)).rejects.toThrow();
     expect((await db().from("workspace_keys").select("version").eq("workspace_id", w.id)).data).toHaveLength(1);
+  });
+});
+
+describe("when the Installation Settings cannot be read (fail closed)", () => {
+  afterEach(() => { vi.restoreAllMocks(); forgetStoredSettings(); });
+
+  /** Makes every read of the stored Installation Settings fail, as a database hiccup would. */
+  function settingsDown() {
+    const client = db();
+    const from = client.from.bind(client);
+    vi.spyOn(client, "from").mockImplementation(((table: string) => table === "installation_settings"
+      ? { select: () => ({ in: async () => ({ data: null, error: { code: "XX000", message: "down" } }) }) }
+      : from(table)) as typeof client.from);
+    forgetStoredSettings();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  }
+
+  it("deletes no trial, closes none and aborts the whole run", async () => {
+    const old = await trial(-8 * 24);
+    const ended = await trial(-1);
+    settingsDown();
+    await expect(deleteExpiredTrials()).rejects.toThrow(/could not be read/);
+    await expect(closeEndedTrials()).rejects.toThrow(/could not be read/);
+    await expect(trialCleanup()).rejects.toThrow(/could not be read/);
+    vi.restoreAllMocks();
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).not.toBeNull();
+    const { data } = await db().from("workspaces").select("trial_closed_at").eq("id", ended.id).single();
+    expect(data!.trial_closed_at).toBeNull();
+  });
+
+  it("never deletes a trial that was kept", async () => {
+    const t = await trial(-8 * 24);
+    await db().from("workspaces").update({ trial_kept_at: new Date().toISOString() }).eq("id", t.id);
+    forgetStoredSettings();
+    await deleteExpiredTrials();
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
   });
 });
