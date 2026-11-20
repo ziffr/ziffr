@@ -10,7 +10,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
 const KEY = "k".repeat(40);
-const env = { ZIFFR_CLOUD_KEY: KEY, ZIFFR_CLOUD_URL: "https://cloud.example.test" };
+const env = { ZIFFR_CLOUD_KEY: KEY, ZIFFR_CLOUD_URL: "https://cloud.example.test", ZIFFR_SITE_URL: "https://ziffr.example.test/app" };
 const cleanups: (() => Promise<void>)[] = [];
 beforeEach(() => { process.env.ZIFFR_CLOUD_KEY = KEY; });
 afterEach(async () => { delete process.env.ZIFFR_CLOUD_KEY; for (const c of cleanups.splice(0)) await c(); });
@@ -93,6 +93,7 @@ describe("what Ziffr Cloud reads and sets", () => {
     const w = await ws();
     await expect(setCloudLimit(caller, w.id, { metrics: 0 })).rejects.toThrow("whole number");
     await expect(setCloudLimit(caller, w.id, { metrics: 5, label: "x".repeat(31) })).rejects.toThrow("30 characters");
+    await expect(setCloudLimit(caller, w.id, { metrics: 5, label: "Small", next: { label: "Team", on: "2026-02-30" } })).rejects.toThrow("a day");
   });
 });
 
@@ -109,7 +110,8 @@ describe("the handover", () => {
     const handoverKey = Buffer.from(hkdfSync("sha256", Buffer.from(KEY), Buffer.alloc(0), "ziffr/cloud-handover/v1", 32));
     expect(createHmac("sha256", handoverKey).update(body).digest("base64url")).toBe(mac);
     const payload = JSON.parse(Buffer.from(body, "base64url").toString());
-    expect(payload).toMatchObject({ v: 1, purpose: "billing", workspace: { id: w.id, name: "Acme Secret Name" }, person: { id: sara, email: "sara@acme.test" }, role: "owner" });
+    expect(payload).toMatchObject({ v: 1, purpose: "billing", workspace: { id: w.id, name: "Acme Secret Name" }, person: { id: sara, email: "sara@acme.test" }, role: "owner", aud: "https://ziffr.example.test" });
+    expect(payload.exp - payload.iat).toBe(300);
     expect(payload.exp - Date.now() / 1000).toBeLessThanOrEqual(300);
     expect(payload.nonce).toMatch(/^[A-Za-z0-9_-]{22}$/);
     // The token is no signature for a call.

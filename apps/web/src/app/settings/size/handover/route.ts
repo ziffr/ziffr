@@ -2,11 +2,17 @@
 // billing and invoices. The core checks that they are an Owner of the Workspace, signed in as themselves, and signs a
 // token that works for five minutes. The page posts it to Ziffr Cloud in a form, so it never sits in a browser
 // history, a server log or a Referer. Only from this app's own pages (the Origin), never cached.
+import { createHash } from "node:crypto";
 import { Forbidden } from "@ziffr/core/actor";
 import { handover } from "@ziffr/core/cloud-api";
 import { currentActor } from "@/lib/viewer";
 
 const HEADERS = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" };
+
+// The page's one script, allowed by its hash and nothing else; the form may post only to Ziffr Cloud.
+const SCRIPT = `document.getElementById("go").submit();`;
+const SCRIPT_HASH = createHash("sha256").update(SCRIPT).digest("base64");
+const csp = (target: string) => `default-src 'none'; script-src 'sha256-${SCRIPT_HASH}'; form-action ${new URL(target).origin}; base-uri 'none'; frame-ancestors 'none'`;
 
 /** Text for an HTML attribute. */
 const attr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -28,8 +34,8 @@ export async function POST(req: Request) {
     const { url, token } = await handover(await currentActor(), purpose);
     const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Ziffr Cloud</title></head>
 <body><form id="go" method="post" action="${attr(url)}"><input type="hidden" name="token" value="${attr(token)}"><p>Taking you to Ziffr Cloud…</p><button type="submit">Continue</button></form>
-<script>document.getElementById("go").submit();</script></body></html>`;
-    return new Response(page, { status: 200, headers: HEADERS });
+<script>${SCRIPT}</script></body></html>`;
+    return new Response(page, { status: 200, headers: { ...HEADERS, "content-security-policy": csp(url) } });
   } catch (e) {
     if (e instanceof Forbidden) return new Response("Only Owners change the Size.", { status: 403, headers: { "cache-control": "no-store" } });
     throw e;

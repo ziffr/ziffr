@@ -153,7 +153,7 @@ export async function setCloudLimit(caller: CloudCaller, workspaceId: string, in
   if (metrics !== null && (!Number.isInteger(metrics) || metrics < 1 || metrics > LIMIT_MAX)) throw new Error("metrics is a whole number from 1 to 1,000,000, or null.");
   const label = limitLabel(input.label ?? null);
   const next = input.next ? { label: limitLabel(input.next.label), on: input.next.on } : null;
-  if (next && (!next.label || !/^\d{4}-\d{2}-\d{2}$/.test(next.on) || Number.isNaN(Date.parse(next.on)))) throw new Error(`next is a label of 1 to ${LABEL_MAX} characters and a day.`);
+  if (next && (!next.label || !isDay(next.on))) throw new Error(`next is a label of 1 to ${LABEL_MAX} characters and a day.`);
   await syncDefaultLimit();
   const { error } = metrics === null
     ? await db().from("workspace_limits").delete().eq("workspace_id", before.id)
@@ -194,12 +194,22 @@ export async function handover(actor: Actor, purpose: HandoverPurpose, env: Env 
   if (!p?.auth_user_id || !p.email) throw new Forbidden("Sign in with your email address to change the Size.");
   const payload = {
     v: 1, purpose, workspace: { id: w.id as string, name: String(w.name).slice(0, 80) }, person: { id: p.id as string, email: String(p.email).toLowerCase() },
-    role: "owner", nonce: randomBytes(16).toString("base64url"), exp: Math.floor(Date.now() / 1000) + HANDOVER_SECONDS,
+    role: "owner", nonce: randomBytes(16).toString("base64url"),
+    // Which Installation made it (its address), so a key shared by mistake between two cannot carry a token across.
+    aud: siteOrigin(env), iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + HANDOVER_SECONDS,
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const mac = createHmac("sha256", key).update(body).digest("base64url");
   return { url: `${url}/handover`, token: `${body}.${mac}` };
 }
+
+/** This Installation's own address, as the handover token names it; null without ZIFFR_SITE_URL. */
+function siteOrigin(env: Env): string | null {
+  try { return env.ZIFFR_SITE_URL ? new URL(env.ZIFFR_SITE_URL).origin : null; } catch { return null; }
+}
+
+/** A day written YYYY-MM-DD that is a real day of a year from 2000 to 2999. */
+const isDay = (s: string) => /^[2]\d{3}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
 
 /** Whether an Owner sees Change Size and Billing and invoices: only where Ziffr Cloud is set up. */
 export function handoverOffered(actor: Pick<Actor, "role" | "workspaceId">, env: Env = process.env): boolean {
