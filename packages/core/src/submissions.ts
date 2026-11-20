@@ -68,13 +68,13 @@ export type SubmissionEffects = {
  * and mail. `provenSenderId` is for a Connector that proved who wrote (Slack signs it, spec 0007): the sender is then
  * that person of the workspace, not whoever `sender` names. It is never taken from what a browser sends. */
 export function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects, provenSenderId?: string): Promise<SubmissionResult> {
-  return takeValue(input, effects, provenSenderId, false);
+  return takeValue(input, effects, provenSenderId, false, recordObservation);
 }
 
 /** What submitValue would do with a value, saving nothing: no value, no log entry, no proposal, no Workflow step.
  * For the demo's simulated channels, where nothing a visitor does is saved (#271). */
 export function previewValue(input: SubmissionInput): Promise<SubmissionResult> {
-  return takeValue(input, { notifyCorrection: async () => {}, afterValue: async () => [] }, undefined, true);
+  return takeValue(input, { notifyCorrection: async () => {}, afterValue: async () => [] }, undefined, true, previewObservation);
 }
 
 /** A Prompt answered by a value: it asks no more. Not for a preview, which saves nothing. */
@@ -82,7 +82,7 @@ async function markAnswered(promptId: number, preview: boolean): Promise<void> {
   if (!preview) await db().from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", promptId);
 }
 
-async function takeValue(input: SubmissionInput, effects: SubmissionEffects, provenSenderId: string | undefined, preview: boolean): Promise<SubmissionResult> {
+async function takeValue(input: SubmissionInput, effects: SubmissionEffects, provenSenderId: string | undefined, preview: boolean, record: Recording): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
   // A paste arrives on the web form only; anywhere else the field is ignored, as `import` is for anyone but a Feed.
   const pasted = input.source === "web_form" && input.paste ? input.paste : null;
@@ -242,7 +242,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
   const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
   const rows = (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value }));
-  const { data, error } = await (preview ? previewObservation : recordObservation)(metric, period, value, row, mayImport, rows);
+  const { data, error } = await record(metric, period, value, row, mayImport, rows);
   // Archived between the check above and the write: the database refuses it the same way.
   if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
