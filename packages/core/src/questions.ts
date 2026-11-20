@@ -4,6 +4,7 @@
 import { remindDueTasks } from "./scheduled-runs";
 import { format } from "date-fns";
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
@@ -36,13 +37,12 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
   const ws = actor.workspaceId;
   const { data: obs } = await db().from("observations").select("id").eq("metric_id", input.metricId).eq("period_start", input.period).eq("workspace_id", ws).order("created_at", { ascending: false }).limit(1);
   const group = input.readGroupId ? (await db().from("groups").select("id").eq("id", input.readGroupId).eq("workspace_id", ws).maybeSingle()).data : null;
-  const { data, error } = await db().from("actions").insert({
+  const [data] = await insertSealed("actions", ws, [{
     metric_id: input.metricId, period_start: input.period, observation_id: obs?.[0]?.id ?? null, asker_id: actor.personId,
     assignee_id: input.assigneeId, question: text, kind, due_date: input.due || null,
     breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
-    read_group_id: group ? input.readGroupId : null, workspace_id: ws,
-  }).select("id").single();
-  if (error || !data) throw new Error("The question could not be sent.");
+    read_group_id: group ? input.readGroupId : null,
+  }]).catch(() => { throw new Error("The question could not be sent."); }) as { id: number }[];
   // The assignee hears it where they want to, or where the asker chose for this one message.
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : null;
   await deliver({ kind, actionId: data.id, senderId: actor.personId, recipientId: input.assigneeId, via });

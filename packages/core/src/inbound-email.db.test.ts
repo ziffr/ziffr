@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
 import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderVerified, type InboundEmail } from "./inbound-email";
 import { connectorsView } from "./page-data";
@@ -86,7 +87,7 @@ describe("replies by email", () => {
     const benMail = await emailOf(ben);
     expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Yes, checked with the bank.\r\n\r\n-- \r\nBen, Finance" })))).toBe("replied");
     expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Actually not.\r\nCorrection: 1250" })))).toBe("corrected");
-    const { data: thread } = await db().from("thread_messages").select("author_id, body, correction_value").eq("action_id", actionId).order("id");
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value").eq("action_id", actionId).order("id")).data);
     expect(thread).toEqual(expect.arrayContaining([
       expect.objectContaining({ author_id: ben, body: "Yes, checked with the bank.", correction_value: null }),
       expect.objectContaining({ author_id: ben, body: "Actually not.", correction_value: 1250 }),

@@ -3,6 +3,7 @@
 // Due Date counts working days after its last day; Unusual Values, Approvals and Locks go per quarter or year.
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
 import { setYearStart } from "./fiscal-year";
 import { approve, closePeriod, getState, onValue, runWorkflows, setLock } from "./workflow-engine";
@@ -57,7 +58,7 @@ describe("Workflows per quarter and year", () => {
     expect(await onValue(m.id, "2026-07-01", ann)).toEqual([expect.stringMatching(/up 50\.0 % on Q1 FY 2026\/27/)]);
     const state = await getState(m.id, "2026-07-01");
     expect(state).toMatchObject({ state: "approval", note: "up 50.0 % on Q1 FY 2026/27" });
-    const { data: task } = await db().from("actions").select("id, question, period_start").eq("id", state!.approval_action_id!).single();
+    const [task] = await openRows("actions", w.id, [(await db().from("actions").select("id, question, period_start").eq("id", state!.approval_action_id!).single()).data!]);
     expect(task).toMatchObject({ period_start: "2026-07-01", question: expect.stringContaining("NPS for Q2 FY 2026/27") });
     await approve(w.id, task!.id, sara);
     expect((await getState(m.id, "2026-07-01"))?.state).toBe("locked");

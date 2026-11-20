@@ -3,6 +3,7 @@
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
 import { format } from "date-fns";
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { formatValue } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { deliver, deliverPrompt } from "./deliveries";
@@ -132,10 +133,10 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
 /** Asks the Metric owner to follow up a missing value, naming the Feeds that should have sent it. */
 async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = false, feeds: string[] = []) {
   const from = feeds.length ? ` It should come from the Feed ${feeds.join(", ")}: check that it still runs.` : "";
-  const { data } = await db().from("actions").insert({
+  const [data] = await insertSealed("actions", ctx.ws, [{
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: ctx.wf.owner_id === ctx.m.owner_id ? actorId : ctx.wf.owner_id, assignee_id: ctx.m.owner_id,
     question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)} was due ${due} and is still missing.${from} Please follow up.`, kind: "question", purpose: "escalation",
-  }).select("id, asker_id").single();
+  }], "id, asker_id") as { id: number; asker_id: string }[];
   if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
 }
 
@@ -245,12 +246,12 @@ export async function onValue(metricId: number, period: string, submitterId: str
 
 /** Asks the next approver for Approval, as a task. */
 async function requestApproval(ctx: Ctx, approver: string, submitterId: string, reasons: string[], value: number) {
-  const { data } = await db().from("actions").insert({
+  const [data] = await insertSealed("actions", ctx.ws, [{
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: submitterId === approver ? ctx.wf.owner_id : submitterId, assignee_id: approver,
     // Without reasons the value waits because every value is approved here, not because it is unusual.
     question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value, ctx.numberStyle)}${reasons.length ? `, ${reasons.join(", ")}` : ""}. Reply “approve”, or “send back:” with what to check.`,
     kind: "task", purpose: "approval",
-  }).select("id, asker_id").single();
+  }], "id, asker_id") as { id: number; asker_id: string }[];
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });
   return (data?.id as number | undefined) ?? null;
 }
@@ -278,7 +279,7 @@ export async function approve(ws: string, actionId: number, by: string) {
   // press) approve once, and the second is refused like an approval that is done.
   const { data: closed } = await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId).eq("status", "open").select("id");
   if (!closed?.length) throw new Error("This approval is not yours, or it is done.");
-  await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Approved.", workspace_id: ws });
+  await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Approved." }]);
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
   // The same people, in the same order, as when the round started: skipping the one the round is about (also when
@@ -299,7 +300,7 @@ export async function sendBack(ws: string, actionId: number, by: string, comment
   if (!a || a.purpose !== "approval" || a.assignee_id !== by || a.status !== "open") throw new Error("This approval is not yours, or it is done.");
   const current = await getState(a.metric_id, a.period_start);
   if (current?.state !== "approval" || current.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
-  await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` });
+  await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` }]);
   await db().from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId);
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
   // The period only: the comment is a message and stays in the Thread.

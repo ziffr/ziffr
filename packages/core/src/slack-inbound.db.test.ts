@@ -5,6 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
 import { ask } from "./questions";
 import { finishSlackInstall, slackBot, startSlackInstall, type SlackBot } from "./slack-connection";
@@ -134,7 +135,7 @@ describe("answers by Slack", () => {
     const d = await sent(w.id, ann);
     expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "Two visits were cancelled."))).toEqual({ outcome: "replied" });
     expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "Sorry, wrong.\nCorrection: 1,234"))).toEqual({ outcome: "corrected" });
-    const { data: thread } = await db().from("thread_messages").select("author_id, body, correction_value").eq("action_id", actionId).order("id");
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value").eq("action_id", actionId).order("id")).data);
     expect(thread).toMatchObject([{ author_id: ann, body: "Two visits were cancelled." }, { author_id: ann, correction_value: 1234 }]);
   });
 

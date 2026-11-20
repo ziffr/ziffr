@@ -2,6 +2,7 @@
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { readableActions, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -234,8 +235,9 @@ export async function teamView(actor: Actor) {
 /** An Action with its Thread and Deliveries, if the actor may read it; null otherwise. */
 export async function actionThread(actor: Actor, id: number) {
   const ws = actor.workspaceId;
-  const { data: action } = await db().from("actions").select("*").eq("id", id).eq("workspace_id", ws).maybeSingle();
-  if (!action) return null;
+  const { data: found } = await db().from("actions").select("*").eq("id", id).eq("workspace_id", ws).maybeSingle();
+  if (!found) return null;
+  const [action] = await openRows("actions", ws, [found]);
   const [groups, { data: metrics }] = await Promise.all([getGroups(ws), db().from("metrics").select("id, owner_id").eq("workspace_id", ws)]);
   const can = threadReader(actor.personId, groups, (m) => metrics?.find((x) => x.id === m)?.owner_id, ws);
   if (!can(action as Action & { workspace_id: string })) return null;
@@ -243,7 +245,7 @@ export async function actionThread(actor: Actor, id: number) {
     db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
     db().from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("workspace_id", ws).eq("action_id", id).order("id"),
   ]);
-  return { action: action as Action, messages: messages ?? [], deliveries: deliveries ?? [] };
+  return { action: action as Action, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [] };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.

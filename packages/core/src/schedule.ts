@@ -5,6 +5,7 @@ import { addDays, differenceInCalendarDays, format, isValid, isWeekend, parseISO
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { feedIdsAmong } from "./feed-people";
 import { yearStartOf } from "./fiscal-year";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
@@ -209,7 +210,7 @@ function noDueDatePeriod(m: Metric, since: string, ctx: Ctx): { start: string; d
 
 /** The open Approvals, Tasks and Questions assigned to the person. */
 async function actionEntries(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx, readable: (a: ActionRow) => boolean): Promise<ScheduleEntry[]> {
-  const rows = await allRows<ActionRow>((from, to) => db().from("actions").select("id, metric_id, period_start, kind, purpose, due_date, question, created_at, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).eq("assignee_id", person).eq("status", "open").order("id").range(from, to));
+  const rows = await openRows("actions", ws, await allRows<ActionRow>((from, to) => db().from("actions").select("id, metric_id, period_start, kind, purpose, due_date, question, created_at, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).eq("assignee_id", person).eq("status", "open").order("id").range(from, to)));
   const out: ScheduleEntry[] = [];
   for (const a of rows) {
     const m = metrics.get(a.metric_id);
@@ -240,7 +241,7 @@ async function actionEntries(ws: string, person: string, metrics: Map<number, Me
       kind: approval ? "approval" : a.kind === "task" ? "task" : "question",
       date, overdue, overdueWorkingDays: overdue ? workingDaysBetween(overdueFrom!, ctx.today) : 0,
       metric: { id: m.id, slug: m.slug, name: m.name, period: m.period }, period: { start: a.period_start, label: periodLabel(a.period_start, m.period, ctx.yearStart) },
-      actionId: a.id, text: approval || !readable(a) ? null : a.question.slice(0, 300), escalation, standingInFor: null, noDueDate: false,
+      actionId: a.id, text: approval || !readable(a) ? null : (a.question ?? "").slice(0, 300), escalation, standingInFor: null, noDueDate: false,
       dueWorkingDays: cfg ? Math.max(0, cfg.dueWorkingDays) : null, remindDaysBefore: null, path: `/actions/${a.id}`,
     });
   }

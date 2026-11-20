@@ -1,6 +1,7 @@
 // Thread replies (GLOSSARY: Thread, Correction), wherever they are written: in Ziffr or answered through a Connector.
 // Every function looks the Action up in one Workspace only.
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { deliver } from "./deliveries";
 import type { ConnectorId } from "./connectors/index";
 
@@ -22,14 +23,13 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     const back = body.match(/^\s*send back\s*:?\s*([\s\S]*)$/i);
     if (back) { await sendBack(ws, actionId, authorId, back[1].trim()); return; }
   }
-  await db().from("thread_messages").insert({
-    workspace_id: ws,
+  await insertSealed("thread_messages", ws, [{
     action_id: actionId,
     author_id: authorId,
     body: body || (correction !== null ? "Proposing a correction." : "…"),
     correction_value: correction,
     correction_status: correction !== null ? "proposed" : null,
-  });
+  }]);
   // The Assignee replying moves an open Action to answered.
   const answered = a.assignee_id === authorId && a.status === "open";
   await db().from("actions").update({ ...(answered ? { status: "answered" } : {}), updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", ws);
