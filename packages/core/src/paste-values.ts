@@ -13,6 +13,7 @@ import { formatValue } from "./format";
 import { periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import { PASTE_LIMITS, pasteProblemText, pasteReadingText, readPaste, type PasteLayout, type PasteMetric, type PasteValue } from "./paste-reader";
 import { peopleIn, submissionEffects, submitValue, type SubmissionEffects, type SubmissionResult } from "./submissions";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { tokenValid, type TokenRow } from "./tokens";
 import type { Metric } from "./types";
 import { valueOutlook, type ValueOutlook } from "./workflow-engine";
@@ -23,6 +24,13 @@ import type { NumberStyle } from "./number-style";
 
 /** The most values one person may paste in any 24 hours, across all their pastes (spec 0026, "Limits"). */
 export const PASTED_VALUES_PER_DAY = 10_000;
+
+/** The same in the demo, where every visitor acts as the same made-up people: one visitor cannot use up a day for all
+ * the others, nor fill the shared Workspace with values. */
+export const PASTED_VALUES_PER_DAY_IN_DEMO = 500;
+
+/** The day's limit for the actor's Workspace. */
+const dailyLimit = (actor: Actor) => (actor.workspaceId === DEMO_WORKSPACE_ID ? PASTED_VALUES_PER_DAY_IN_DEMO : PASTED_VALUES_PER_DAY);
 
 /** What a value of a paste does, or did: recorded as it stands, recorded as history (an Import), replacing, added to
  * or kept beside the value there, a proposed Correction for a Locked period, refused by the Submission Rule or for
@@ -91,7 +99,8 @@ const PLACE = /^[A-Z]{1,3}[1-9]\d{0,6}$/;
 function check(input: unknown): Checked {
   const i = (input ?? {}) as Record<string, unknown>;
   if (typeof i.text !== "string") throw new Error("Paste the cells as text.");
-  if (i.text.length > PASTE_LIMITS.bytes) throw new Error(pasteReadingText({ ok: false, reason: "too_large" }));
+  // Counted in bytes of UTF-8, as the limit is: "€" is three.
+  if (new TextEncoder().encode(i.text).length > PASTE_LIMITS.bytes) throw new Error(pasteReadingText({ ok: false, reason: "too_large" }));
   const metricId = i.metricId === null || i.metricId === undefined ? null : Number(i.metricId);
   if (metricId !== null && !Number.isSafeInteger(metricId)) throw new Error("That is not a Metric.");
   const layout = i.layout === null || i.layout === undefined ? null : (LAYOUTS as readonly unknown[]).includes(i.layout) ? (i.layout as PasteLayout) : undefined;
@@ -167,7 +176,7 @@ async function leftTodayFor(actor: Actor): Promise<number> {
  * both pass on the same count. Returns how many are left after it, or, when the claim would cross the limit, a
  * negative number: -1 minus how many were left, and nothing is claimed. */
 async function claimPasted(actor: Actor, count: number): Promise<number> {
-  const { data, error } = await db().rpc("claim_pasted_values", { p_person: actor.personId, p_count: count, p_limit: PASTED_VALUES_PER_DAY });
+  const { data, error } = await db().rpc("claim_pasted_values", { p_person: actor.personId, p_count: count, p_limit: dailyLimit(actor) });
   if (error || typeof data !== "number") {
     console.error("claim_pasted_values failed:", error?.message ?? "no answer");
     throw new Error("The paste could not be checked. Try again in a moment.");
@@ -335,7 +344,7 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
   const claimed = go.length ? await claimPasted(actor, go.length) : s.leftToday;
   if (claimed < 0) {
     const left = (-1 - claimed).toLocaleString("en");
-    return { ok: false, reason: "daily_limit", detail: `You may paste ${PASTED_VALUES_PER_DAY.toLocaleString("en")} values a day; ${left} are left today, and this paste holds ${go.length.toLocaleString("en")}. Nothing was recorded.` };
+    return { ok: false, reason: "daily_limit", detail: `You may paste ${dailyLimit(actor).toLocaleString("en")} values a day; ${left} are left today, and this paste holds ${go.length.toLocaleString("en")}. Nothing was recorded.` };
   }
   // The values there now, kept up to date while recording, so a row names the value it replaced or added to.
   const ids = [...new Set(go.map((v) => v.metricId!))];

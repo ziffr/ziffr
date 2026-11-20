@@ -6,10 +6,11 @@ import fc from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
-import { PASTED_VALUES_PER_DAY, pasteMetrics, previewValues, recordPastedValues, type PasteReport, type PasteRow } from "./paste-values";
+import { PASTED_VALUES_PER_DAY, PASTED_VALUES_PER_DAY_IN_DEMO, pasteMetrics, previewValues, recordPastedValues, type PasteReport, type PasteRow } from "./paste-values";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { valuesOf, workspace } from "./test/db-fixtures";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { WorkflowStep } from "./types";
 
@@ -235,6 +236,18 @@ describe("limits", () => {
     expect(r).toEqual({ ok: false, reason: "daily_limit", detail: "You may paste 10,000 values a day; 1 are left today, and this paste holds 2. Nothing was recorded." });
     expect(await valuesOf(m.id)).toEqual([]);
     expect(ok(await recordPastedValues(w.actor(sara), { text: `Revenue\t${cell(ago(1))}\t1` }, quiet())).leftToday).toBe(0);
+  });
+
+  it("gives the demo's shared made-up people a smaller day, and previews a paste there", async () => {
+    const { data: who } = await db().from("memberships").select("user_id, role").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).maybeSingle();
+    // The demo is seeded by supabase/seed.sql; without it there is nothing to try.
+    if (!who) return;
+    const actor = { personId: String(who.user_id), workspaceId: DEMO_WORKSPACE_ID, role: who.role } as Actor;
+    const { data: before } = await db().from("paste_claims").select("value_count").eq("person_id", actor.personId).gt("at", new Date(Date.now() - 86_400_000).toISOString());
+    const used = (before ?? []).reduce((a, c) => a + Number(c.value_count), 0);
+    const r = ok(await previewValues(actor, { text: `Nothing here\t${cell(ago(1))}\t1` }));
+    expect(r.leftToday).toBe(Math.max(0, PASTED_VALUES_PER_DAY_IN_DEMO - used));
+    expect(r.rows[0]).toMatchObject({ outcome: "refused", metric: null });
   });
 
   it("lets only one of two pastes at once take the last values of the day", async () => {
