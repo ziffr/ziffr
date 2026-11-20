@@ -54,7 +54,7 @@ export const sessionUser = cache(async () => {
 /** The demo workspace (see the workspaces migration); its people are made up. */
 const DEMO_WORKSPACE = "d3e00000-0000-4000-8000-000000000001";
 /** The demo's made-up people (seeded with these ids), protected even while a reset is under way. */
-const DEMO_PEOPLE = ["sara", "ben", "anna"];
+const DEMO_PEOPLE = ["sara", "ben", "anna", "mia", "lena", "tom", "jonas"];
 
 /** Ways of signing in whose email Ziffr trusts to claim an existing person: the email link proves the address,
  * Google only hands out addresses it verified. Others (Microsoft's multi-tenant sign-in above all) may not. */
