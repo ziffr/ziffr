@@ -283,6 +283,25 @@ end $function$;
 revoke execute on function prototype_seed_weekly_numbers() from public, anon, authenticated;
 grant execute on function prototype_seed_weekly_numbers() to service_role;
 
+-- An example Alert (spec 0032; GLOSSARY: Alert): Mia asks to be told when Gross margin falls below 95 % of its target.
+-- It is armed: whether and how it fires is the core's (the demo's reset does not run it), so the demo shows the Alert
+-- itself. The level is plain here, as the rest of the demo's words are.
+create or replace function public.prototype_seed_example_alert()
+ returns void
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare demo constant uuid := 'd3e00000-0000-4000-8000-000000000001'; m int;
+begin
+  select id into m from metrics where workspace_id = demo and slug = 'gross-margin';
+  if m is null then return; end if;
+  insert into alerts (id, workspace_id, person_id, metric_id, kind, level, delivery, created_at, updated_at)
+  values (nextval(pg_get_serial_sequence('alerts', 'id')), demo, 'mia', m, 'share_of_target', '95', 'usual', timestamptz '2026-10-05 09:30:00+00', timestamptz '2026-10-05 09:30:00+00');
+end $function$;
+revoke execute on function prototype_seed_example_alert() from public, anon, authenticated;
+grant execute on function prototype_seed_example_alert() to service_role;
+
 -- demo_reset as in 20261225430000: the times fixed before the period record is made, then the three examples.
 create or replace function demo_reset(min_gap interval default interval '1 minute') returns boolean
 language plpgsql
@@ -313,6 +332,7 @@ begin
   perform prototype_seed_gross_margin();
   perform prototype_seed_churn_rate();
   perform prototype_seed_weekly_numbers();
+  perform prototype_seed_example_alert();
   if fresh_catalog then
   update catalog_metrics set aggregation = case
     when name in ('Customer satisfaction','Net Promoter Score','Average delivery time','Body weight') then 'average'

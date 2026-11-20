@@ -32,6 +32,11 @@ describe("example 1: the gross margin in October, and why it dropped (MCP)", () 
     expect(items[1]).toMatchObject({ submitter: "mia", submitter_name: "Mia Hartmann", submitted_at: "2026-11-03T10:15:00+00:00", source: "web_form" });
   });
 
+  it("has Mia's Alert on it, below 95 % of the target, armed (firing is not seeded)", async () => {
+    const { data } = await db().from("alerts").select("person_id, kind, level, state").eq("workspace_id", DEMO_WORKSPACE_ID).single();
+    expect(data).toEqual({ person_id: "mia", kind: "share_of_target", level: "95", state: "armed" });
+  });
+
   it("has Mia's words about shipping costs in the Thread on that value", async () => {
     const { threads } = await getThreads(sara, "gross-margin", "2026-10-01");
     expect(threads).toHaveLength(1);
