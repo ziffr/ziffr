@@ -172,12 +172,10 @@ async function tellOwnersSwitchedOff(ws: string, name: string, address: string, 
 }
 
 /** One send: the Webhook's current state, the message, the signed request, and the answer judged. */
-async function sendOne(send: Send, dayCount: Map<string, number>): Promise<Outcome> {
+async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   const ws = send.workspace_id;
   const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
   if (!data || data.disabled_at || (send.type !== "ping" && !((data.events as string[]) ?? []).includes(send.type))) return { state: "dropped" };
-  const used = dayCount.get(ws) ?? 0;
-  if (used >= WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY) return { state: "deferred" };
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
   const url = typeof hook.url === "string" ? hook.url : "";
   const secret = typeof hook.secret === "string" && hook.secret.startsWith("whsec_") ? hook.secret : null;
@@ -193,7 +191,9 @@ async function sendOne(send: Send, dayCount: Map<string, number>): Promise<Outco
   const secrets = [secret];
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   const timestamp = Math.floor(Date.now() / 1000);
-  dayCount.set(ws, used + 1);
+  // The daily cap is one atomic claim of a slot in the database, so runs at the same moment cannot pass it together.
+  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY });
+  if (slot !== true) return { state: "deferred" };
   try {
     const res = await outboundRequest(new URL(url), {
       method: "POST", body, maxBytes: 64 * 1024, privateHosts,
@@ -216,13 +216,13 @@ async function sendOne(send: Send, dayCount: Map<string, number>): Promise<Outco
   }
 }
 
-/** Starts of the current UTC day, for the daily cap. */
+/** Starts of the current UTC day: where a deferred send waits until. */
 const dayStart = () => new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
 
 /** One claimed send, sent and written into its row; a send that breaks is a network failure, never an exception. */
-async function attemptSend(send: Send, dayCount: Map<string, number>): Promise<Outcome> {
+async function attemptSend(send: Send, signal?: AbortSignal): Promise<Outcome> {
   let outcome: Outcome;
-  try { outcome = await sendOne(send, dayCount); } catch (e) { console.error("Webhooks: a send broke:", (e as Error).message); outcome = { state: "retrying", failure: "network", waitMs: retryWaitMs(send.attempts + 1) ?? undefined }; if (outcome.waitMs === undefined) outcome = { state: "failed", failure: "network" }; }
+  try { outcome = await sendOne(send, signal); } catch (e) { console.error("Webhooks: a send broke:", (e as Error).message); outcome = { state: "retrying", failure: "network", waitMs: retryWaitMs(send.attempts + 1) ?? undefined }; if (outcome.waitMs === undefined) outcome = { state: "failed", failure: "network" }; }
   await settle(send, outcome);
   return outcome;
 }
@@ -233,8 +233,7 @@ export async function sendWebhookNow(workspaceId: string, sendId: string): Promi
   const { data } = await db().from("webhook_sends").update({ state: "sending", claimed_at: new Date().toISOString() }).eq("id", sendId).eq("workspace_id", workspaceId).eq("state", "queued").select("*").maybeSingle();
   if (!data) return;
   const send = data as Send;
-  const { count } = await db().from("webhook_sends").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gte("last_attempt_at", dayStart().toISOString());
-  await attemptSend(send, new Map([[workspaceId, count ?? 0]]));
+  await attemptSend(send);
 }
 
 /** Sends the Webhook messages that are due, for the deliveries job: at most `limit`, each claimed once by a conditional
@@ -242,20 +241,31 @@ export async function sendWebhookNow(workspaceId: string, sendId: string): Promi
 export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; failed: number }> {
   // The log is kept 14 days.
   await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - WEBHOOK_LOG_DAYS * 86_400_000).toISOString());
+  await db().from("webhook_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
   const { data: claimed, error } = await db().rpc("claim_webhook_sends", { p_limit: limit });
   if (error || !Array.isArray(claimed) || !claimed.length) return { sent: 0, failed: 0 };
-  const sends = claimed as Send[];
-  const dayCount = new Map<string, number>();
-  for (const ws of new Set(sends.map((s) => s.workspace_id))) {
-    const { count } = await db().from("webhook_sends").select("id", { count: "exact", head: true }).eq("workspace_id", ws).gte("last_attempt_at", dayStart().toISOString());
-    dayCount.set(ws, count ?? 0);
+  return runSends(claimed as Send[]);
+}
+
+/** Sends, at once, what is queued for a Workspace (for one Metric when given): the moment before a Metric or a Workspace is
+ * deleted, since its send rows would go with it. One try each, no retry: whatever fails here is lost with the rows. Never throws. */
+export async function sendWebhooksNow(workspaceId: string, metricId: number | null = null): Promise<void> {
+  try {
+    const { data } = await db().rpc("claim_webhook_sends_for", { p_workspace: workspaceId, p_metric: metricId, p_limit: 500 });
+    if (Array.isArray(data) && data.length) await runSends(data as Send[]);
+  } catch (e) {
+    console.error("Webhooks: could not send the last events:", (e as Error).message);
   }
+}
+
+/** Sends claimed rows, a few at a time, and keeps each one's log. */
+async function runSends(sends: Send[]): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
   const queue = [...sends];
   const worker = async () => {
     for (let send = queue.shift(); send; send = queue.shift()) {
-      const outcome = await attemptSend(send, dayCount);
+      const outcome = await attemptSend(send, signal);
       if (outcome.state === "delivered") sent++;
       else if (outcome.state === "failed" || outcome.state === "retrying") failed++;
     }

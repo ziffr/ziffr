@@ -359,9 +359,10 @@ async function openSelfCheck(ws: string, actionId: number, by: string) {
   return { a, ctx };
 }
 
-// Closed only while still open, in one statement: two presses at once decide once, the second is refused.
-async function claimTask(ws: string, actionId: number, source: ChangeSource): Promise<void> {
-  const { changed } = await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval_or_self_check" } }, source);
+// Closed only while still open and still the submitter's own, in one statement: two presses at once decide once, the second is refused.
+/** Closes an Approval or Self-check that is still open and still `by`'s, once (exported for its test); throws when it is not. */
+export async function claimTask(ws: string, actionId: number, by: string, source: ChangeSource): Promise<void> {
+  const { changed } = await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval_or_self_check", assigneeId: by } }, source);
   if (!changed) throw new Error("This check is not yours, or it is done.");
 }
 
@@ -376,7 +377,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string,
     const log = await onValue(a.metric_id, a.period_start, by);
     return `Someone else can approve it now: ${log.join("; ")}.`;
   }
-  await claimTask(ws, actionId, source);
+  await claimTask(ws, actionId, by, source);
   if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Confirmed by the submitter." }]);
   await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
@@ -394,7 +395,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
     ? await db().from("observations").select("id, value, original_value").eq("id", a.observation_id).eq("workspace_id", ws).eq("metric_id", a.metric_id).maybeSingle()
     : { data: null };
   if (!obs) throw new Error("This value is not waiting for this check.");
-  await claimTask(ws, actionId, source);
+  await claimTask(ws, actionId, by, source);
   await db().from("observations").update({ value, original_value: obs.original_value ?? obs.value }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();

@@ -1,5 +1,6 @@
 // Creating Metrics and uploading their Target Series and Projections (GLOSSARY: Metric, Token, Target Series,
 // Projection). Every function takes the Actor first and works only inside the actor's Workspace.
+import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
@@ -220,6 +221,8 @@ export async function deleteMetric(actor: Actor, metricId: number, confirmName: 
   if (inWidgets || inDecks) throw new MetricKept(`It is shown in ${inWidgets} widget${inWidgets === 1 ? "" : "s"} and ${inDecks} deck${inDecks === 1 ? "" : "s"}. Take it out of them first.`);
   if ((links ?? []).some((l) => (l.metric_ids ?? []).map(Number).includes(metricId))) throw new MetricKept("A View Link that still works shows it. Revoke the link first.");
   const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metricId);
+  // Its open Actions are closed first, with their events sent now: the send rows would go with the Metric.
+  await closeForSystem(ws, { metricId, statuses: ["open", "answered"] }, "metric_deleted", { beforeDelete: true });
   // The intake log keeps what arrived, without the Metric it was for.
   await db().from("intake_log").update({ metric_id: null }).eq("workspace_id", ws).eq("metric_id", metricId);
   await db().from("shares").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId);

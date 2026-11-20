@@ -1,6 +1,6 @@
 // The one place an Action's state changes (GLOSSARY: Action, Webhook; spec 0034, "One state change, one event"). Every
 // way in goes through `changeActionState`: the app, each Connector's inbound (email, Slack, Telegram), a Workflow step
-// and the system's own closes. It changes the row with one conditional update (`where status = <the status it read>`),
+// and the system's own closes. It changes the row with one conditional update (`change_action_status`, `where status = <the status it read>`; a database trigger refuses any other change of the state),
 // and only the call that really changed the row writes the send rows for Webhooks, so a change made twice (two
 // channels at once, a retry) is one event and the later call is a no-op. A test greps the core for any other writer of
 // `actions.status`, so a new channel cannot bypass this. Security: callers decide who may change what (`guard` only
@@ -59,9 +59,9 @@ export async function changeActionState(workspaceId: string, actionId: number, c
   // Not a state it may change from (already there, or moved on): a repeat, not a refusal.
   if (!allowed.includes(row.status)) return { changed: false, status: row.status, refused: false };
   // One conditional update: the row must still be as it was read, so two calls at once change it once.
-  const { data: done } = await db().from("actions").update({ status: change.to, updated_at: new Date().toISOString() })
-    .eq("id", row.id).eq("workspace_id", workspaceId).eq("status", row.status).eq("asker_id", row.asker_id).eq("assignee_id", row.assignee_id).select("id");
-  if (!done?.length) {
+  // The database's one writer of the state (a trigger refuses every other): true only when the row was still as read.
+  const { data: done } = await db().rpc("change_action_status", { p_workspace: workspaceId, p_id: row.id, p_from: row.status, p_to: change.to, p_asker: row.asker_id, p_assignee: row.assignee_id });
+  if (done !== true) {
     const { data: now } = await db().from("actions").select("status").eq("id", row.id).eq("workspace_id", workspaceId).maybeSingle();
     return { changed: false, status: (now?.status as ActionStatus | undefined) ?? null, refused: false };
   }
@@ -71,12 +71,13 @@ export async function changeActionState(workspaceId: string, actionId: number, c
 }
 
 /** The Actions a system or Workflow close applies to. */
-export type CloseWhere = { metricId?: number; period?: string; kind?: "task" | "question"; purposes?: ("approval" | "self_check")[]; /** The states that count as not closed yet; only `open` when left out. */ statuses?: ("open" | "answered")[] };
+export type CloseWhere = { ids?: number[]; metricId?: number; period?: string; kind?: "task" | "question"; purposes?: ("approval" | "self_check")[]; /** The states that count as not closed yet; only `open` when left out. */ statuses?: ("open" | "answered")[] };
 
 /** Closes every Action of a Workspace that is not closed yet (open, unless `where.statuses` says more) and fits `where`, one by one
  * through `changeActionState`, so each fires its own event once. Returns how many it closed. */
 export async function closeActions(workspaceId: string, where: CloseWhere, source: ChangeSource, reason: DoneReason): Promise<number> {
   let q = db().from("actions").select("id").eq("workspace_id", workspaceId).in("status", where.statuses ?? ["open"]);
+  if (where.ids) q = q.in("id", where.ids);
   if (where.metricId !== undefined) q = q.eq("metric_id", where.metricId);
   if (where.period !== undefined) q = q.eq("period_start", where.period);
   if (where.kind !== undefined) q = q.eq("kind", where.kind);

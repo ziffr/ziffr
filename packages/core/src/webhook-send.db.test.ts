@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeActionState } from "./action-state";
+import { deleteMetric } from "./metrics";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
 import { ask } from "./questions";
@@ -311,8 +312,7 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
   });
   it("holds sends past the daily cap until tomorrow", async () => {
     const c = await setup();
-    const rows = Array.from({ length: 1000 }, () => ({ workspace_id: c.w.id, webhook_id: c.hook.id, type: "ping", source_type: "system", state: "delivered", attempts: 1, last_attempt_at: new Date().toISOString() }));
-    for (let i = 0; i < WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY / 1000; i++) expect((await db().from("webhook_sends").insert(rows)).error).toBeNull();
+    await db().from("webhook_send_days").insert({ workspace_id: c.w.id, day: new Date().toISOString().slice(0, 10), n: WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY });
     const id = await c.task();
     await c.done(id);
     expect(await run()).toEqual({ sent: 0, failed: 0 });
@@ -320,6 +320,21 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
     const row = await c.rowOf(id);
     expect(row.state).toBe("queued");
     expect(new Date(row.next_attempt_at).getTime()).toBeGreaterThan(Date.now());
+  });
+  it("claims the daily cap atomically: runs at the same moment cannot pass it together", async () => {
+    const c = await setup();
+    const takes = await Promise.all(Array.from({ length: 25 }, () => db().rpc("take_webhook_send_slot", { p_workspace: c.w.id, p_cap: 5 })));
+    expect(takes.filter((t) => t.data === true)).toHaveLength(5);
+    expect((await db().from("webhook_send_days").select("n").eq("workspace_id", c.w.id).single()).data?.n).toBe(5);
+  });
+  it("a Metric that is deleted still tells the Webhooks: its open Actions close with metric_deleted and are sent before the rows go", async () => {
+    const c = await setup();
+    await c.share();
+    const id = await c.task();
+    await deleteMetric(c.a, c.m.id, "Revenue <b>");
+    expect(seen).toHaveLength(1);
+    expect(json(seen[0])).toMatchObject({ type: "action.done", data: { ref: `ZIF-${id}`, status: "closed", reason: "metric_deleted", source: { type: "system" } } });
+    expect((await db().from("actions").select("id").eq("id", id)).data).toEqual([]);
   });
   it("sends at most a few at a time, so a slow name or answer cannot take every lookup", async () => {
     const c = await setup();

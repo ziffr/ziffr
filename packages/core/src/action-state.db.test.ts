@@ -4,6 +4,8 @@
 // `action.done` to the Webhook.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeActionState } from "./action-state";
+import { removeMember } from "./handover";
+import { closeEndedTrials, deleteExpiredTrials } from "./trial-end";
 import { archiveMetric } from "./archived-metrics";
 import { db } from "./db";
 import { mailHostResolver } from "./mail-hosts";
@@ -199,5 +201,66 @@ describe("the system's closes and a Webhook's own change", () => {
     await markTaskDone(c.annActor, id);
     expect(await statusOf(id)).toBe("answered");
     expect(await sends(id)).toEqual([]);
+  });
+});
+
+describe("the database guard on an Action's state", () => {
+  it("refuses a change of the state that does not come through changeActionState, and allows the one that does", async () => {
+    const c = await setup();
+    const id = await c.task();
+    const direct = await db().from("actions").update({ status: "closed" }).eq("id", id);
+    expect(direct.error?.message).toMatch(/changes only through change_action_status/);
+    expect(await statusOf(id)).toBe("open");
+    // Other columns are not guarded.
+    expect((await db().from("actions").update({ updated_at: new Date().toISOString() }).eq("id", id)).error).toBeNull();
+    expect((await changeActionState(c.w.id, id, { to: "closed" })).changed).toBe(true);
+    expect(await statusOf(id)).toBe("closed");
+    // The setting that allows it does not outlive the call.
+    expect((await db().from("actions").update({ status: "open" }).eq("id", id)).error).not.toBeNull();
+  });
+});
+
+describe("the system's own closes", () => {
+  it("a person removed from the Workspace: what was asked of them closes with assignee_left, once, and nothing else does", async () => {
+    const c = await setup();
+    const mine = await c.task();
+    const asked = await ask(c.a, { metricId: c.m.id, period: "2026-10-01", assigneeId: c.sara, text: "Check it", kind: "task" });
+    await removeMember(c.a, c.ann, c.sara);
+    expect(await statusOf(mine)).toBe("closed");
+    expect(await statusOf(asked)).toBe("open");
+    const done = ofType(await sends(mine), "action.done", c.all);
+    expect(done).toHaveLength(1);
+    expect(done[0]).toMatchObject({ source_type: "system", reason: "assignee_left" });
+    expect(ofType(await sends(asked), "action.done")).toEqual([]);
+  });
+});
+
+describe("a closing Workspace", () => {
+  it("closes its open Actions with workspace_closing when its trial closes, and a deleted trial goes without trouble", async () => {
+    const c = await setup();
+    const id = await c.task();
+    await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", c.w.id);
+    await closeEndedTrials();
+    expect(await statusOf(id)).toBe("closed");
+    const done = ofType(await sends(id), "action.done", c.all);
+    expect(done).toHaveLength(1);
+    expect(done[0]).toMatchObject({ source_type: "system", reason: "workspace_closing" });
+    // A week on it is deleted; what is still open then closes first and nothing stops the deletion.
+    await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() - 9 * 86_400_000).toISOString() }).eq("id", c.w.id);
+    await deleteExpiredTrials();
+    expect((await db().from("workspaces").select("id").eq("id", c.w.id).maybeSingle()).data).toBeNull();
+  });
+});
+
+describe("switching a Webhook back on", () => {
+  it("resets what counted its failures, and sends nothing that was held back meanwhile", async () => {
+    const c = await setup();
+    await db().from("webhooks").update({ failing_since: new Date(Date.now() - 86_400_000).toISOString(), failure_count: 4 }).eq("id", c.all);
+    await setWebhookEnabled(c.a, c.all, false);
+    const id = await c.task();
+    expect(ofType(await sends(id), "action.created", c.all)).toEqual([]);
+    await setWebhookEnabled(c.a, c.all, true);
+    expect((await db().from("webhooks").select("failing_since, failure_count, disabled_at, disabled_reason").eq("id", c.all).single()).data).toEqual({ failing_since: null, failure_count: 0, disabled_at: null, disabled_reason: null });
+    expect(ofType(await sends(id), "action.created", c.all)).toEqual([]);
   });
 });
