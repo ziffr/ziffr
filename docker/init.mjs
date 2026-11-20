@@ -107,9 +107,11 @@ const authHookSecret = set(env.ZIFFR_AUTH_HOOK_SECRET) ? env.ZIFFR_AUTH_HOOK_SEC
 // A public demo and nothing else (ZIFFR_DEMO_ONLY=1): the demo is on, Auth makes no accounts, and the clock resets the
 // demo every night.
 const demoOnly = env.ZIFFR_DEMO_ONLY === "1";
-// Trials offered (spec 0021): the clock then runs their cleanup.
-const trials = set(env.ZIFFR_TRIAL_DAYS);
 const demo = demoOnly ? "1" : set(env.ZIFFR_DEMO) ? env.ZIFFR_DEMO : domain ? "0" : "1";
+// Given in the settings file (or a demo-only Ziffr), the demo setting is the server's. So is "off" on a domain: the
+// middleware reads only the environment, so a demo off there keeps the demo's cookie from passing it at all, as
+// before. On a laptop the demo is only the default, which the Installation settings page may change (spec 0025).
+const demoFixed = demoOnly || set(env.ZIFFR_DEMO) || demo === "0";
 
 // The app's own settings from .env (Slack, replies by email, providers offered, the user guide…): every ZIFFR_*
 // setting except those that belong to the stack, never Auth's provider secrets or the keys made here.
@@ -133,7 +135,7 @@ const files = {
     ZIFFR_SECRETS_KEY: set(env.ZIFFR_SECRETS_KEY) ? env.ZIFFR_SECRETS_KEY : kept.secretsKey,
     // Caddy adds one hop; another proxy in front of it (ZIFFR_SITE_URL without ZIFFR_DOMAIN) adds its own.
     ZIFFR_PROXY_HOPS: set(env.ZIFFR_PROXY_HOPS) ? env.ZIFFR_PROXY_HOPS : "1",
-    ZIFFR_DEMO: demo,
+    ...(demoFixed ? { ZIFFR_DEMO: demo } : { ZIFFR_DEMO_DEFAULT: demo }),
   },
   migrate: {
     // No TLS inside the stack: the database is reachable only on its own network.
@@ -142,9 +144,9 @@ const files = {
     SUPABASE_SERVICE_ROLE_KEY: kept.serviceRoleKey,
     ZIFFR_DEMO: demo,
   },
-  // A Ziffr that offers trials (spec 0021) ends and deletes them hourly, and resets its shared demo nightly like a
-  // public demo does.
-  clock: { ZIFFR_JOB_SECRET: jobSecret, ZIFFR_DEMO_RESET: demoOnly || trials ? "1" : "0", ZIFFR_TRIAL_CLEANUP: trials ? "1" : "0" },
+  // The clock seeds the demo nightly and tends trials hourly wherever they are offered, from this file or the
+  // Installation settings page (spec 0025); a job for something not offered answers 404 and the clock says nothing.
+  clock: { ZIFFR_JOB_SECRET: jobSecret },
   // supabase/postgres: the superuser's password, which compose.yml's roles script also gives the roles Auth and
   // PostgREST sign in as. Read by the image's entrypoint, which starts as root.
   db: { POSTGRES_PASSWORD: dbPassword, PGPASSWORD: dbPassword, ZIFFR_AUTH_DB_PASSWORD: authPassword, ZIFFR_REST_DB_PASSWORD: restPassword },

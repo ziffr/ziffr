@@ -3,17 +3,23 @@
 // mail any address. The answer is verified here, on the server, before any link is sent; the browser's word is never
 // taken. Only Cloudflare's own address is called, never one from a request.
 import "server-only";
+import { settingsInEffect, storedSettings } from "@ziffr/core/settings-in-effect";
 
 const VERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-/** The site key the sign-in form shows the check with, or null when this Ziffr has no check set up. */
-export function turnstileSiteKey(env: Record<string, string | undefined> = process.env): string | null {
+/** The site key the sign-in form shows the check with, or null when these settings (the settings in effect: the
+ * environment, else the Installation settings page) set up no check. */
+export function turnstileSiteKey(env: Record<string, string | undefined>): string | null {
   return env.ZIFFR_TURNSTILE_SITE_KEY && env.ZIFFR_TURNSTILE_SECRET ? env.ZIFFR_TURNSTILE_SITE_KEY : null;
 }
 
 /** Whether the check's answer from the form is good: true when no check is set up; false for a missing, wrong, used
  * or late answer, or when Cloudflare cannot be asked (a closed door, never an open one). */
-export async function turnstilePassed(answer: unknown, ip: string | null, env: Record<string, string | undefined> = process.env): Promise<boolean> {
+export async function turnstilePassed(answer: unknown, ip: string | null, given?: Record<string, string | undefined>): Promise<boolean> {
+  const env = given ?? (await settingsInEffect());
+  // A secret saved on the page that no longer opens (ZIFFR_SECRETS_KEY changed) closes the door until it is saved
+  // again, rather than turning the check off.
+  if (!given && !env.ZIFFR_TURNSTILE_SECRET && (await storedSettings()).unreadable.has("ZIFFR_TURNSTILE_SECRET")) return false;
   if (!turnstileSiteKey(env)) return true;
   if (typeof answer !== "string" || !answer || answer.length > 2048) return false;
   const body = new URLSearchParams({ secret: String(env.ZIFFR_TURNSTILE_SECRET), response: answer });

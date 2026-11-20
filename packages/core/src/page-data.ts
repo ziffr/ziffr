@@ -13,7 +13,7 @@ import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
-import { createTrialWorkspace, trialSettings } from "./trials";
+import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
 import type { Action, Metric, Period, Point, Widget } from "./types";
@@ -303,7 +303,7 @@ export async function createWorkspace(personId: string, name: string): Promise<s
   const title = String(name ?? "").trim().slice(0, 80);
   if (!title) throw new Error("Give the workspace a name.");
   // On an Installation that offers trials, every workspace is a Trial Workspace (spec 0021).
-  const trials = trialSettings();
+  const trials = await trialSettingsInEffect();
   const ws = trials ? { id: await createTrialWorkspace(personId, title, trials) } : await plainWorkspace(personId, title);
   // Its Workspace Key before anything is written to it (spec 0028). A key that cannot be made now is made when first
   // needed, so the workspace is not refused for it.

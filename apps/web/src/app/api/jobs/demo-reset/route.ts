@@ -8,6 +8,6 @@ import { jobAuthorized, jobNotFound } from "@/lib/jobs";
 
 /** Seeds the demo workspace again; `reset` is false when it was seeded less than a minute ago. */
 export async function POST(req: Request) {
-  if (!jobAuthorized(req) || !demoEnabled()) return jobNotFound();
+  if (!jobAuthorized(req) || !(await demoEnabled())) return jobNotFound();
   return Response.json({ reset: await resetDemoWorkspace() }, { headers: { "cache-control": "no-store" } });
 }

@@ -65,10 +65,26 @@ export async function storedSettings(): Promise<Omit<Stored, "at">> {
  * else from its default. Server only: the result holds secrets. */
 export async function settingsInEffect(env: Settings = process.env): Promise<Settings> {
   const { values } = await storedSettings();
+  last = { values, at: Date.now() };
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
     if (isSet(env[name])) continue;
     const v = values.get(name) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
+    if (v === undefined) delete out[name];
+    else out[name] = v;
+  }
+  return out;
+}
+
+let last: { values: Map<string, string>; at: number } | null = null;
+
+/** The settings in effect as last read, for code that cannot wait for the database (the words of an error made deep
+ * in a call): the environment always, with what the page saved as of the last read a few seconds ago at most. */
+export function settingsInEffectNow(env: Settings = process.env): Settings {
+  const out: Settings = { ...env };
+  for (const { name } of INSTALLATION_SETTINGS) {
+    if (isSet(env[name])) continue;
+    const v = (last && Date.now() - last.at < 60_000 ? last.values.get(name) : undefined) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
     if (v === undefined) delete out[name];
     else out[name] = v;
   }

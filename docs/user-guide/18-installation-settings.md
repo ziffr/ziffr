@@ -96,10 +96,28 @@ Over its limit a Workspace keeps everything working: its Metrics, values, Prompt
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
 
-## Sections still to come
+## Check against bots
 
-The check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
+A Ziffr that strangers can reach should check that whoever asks for a sign-in link is a person: otherwise a program could make it email any address. Ziffr uses Cloudflare Turnstile.
+
+1. In the Cloudflare dashboard, under **Turnstile**, choose **Add widget**, add this Ziffr's domain, and pick the mode **Managed**.
+2. Copy the widget's **Site key** and **Secret key** into the two fields and choose **Save**.
+
+Ziffr asks Cloudflare whether it knows the secret key first and saves nothing Cloudflare does not know, so a wrong key never shuts everyone out of signing in. Once both are saved, the section says "Working", and the sign-in form shows the check: no link is sent and no provider opens until it is passed. The secret key is shown like any secret: only that it is saved and its last four characters.
+
+## Trials
+
+With trials on, anyone who signs in may start a **Trial Workspace** of their own, and every Workspace made on this Ziffr is one. Use it on a Ziffr of its own, never one your team works in.
+
+- **Days a trial lasts**: 1 to 30. Setting it turns trials on; **Remove** turns them off, and trials that run go on until they end.
+- **Trials at once**: the most trials that may run at the same time; empty means 200.
+
+The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.
+
+## Demo
+
+**Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Telegram bot token or the Slack Client Secret, a Workspace's limit, test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
