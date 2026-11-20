@@ -4,7 +4,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import type { Scope } from "@ziffr/core/actor";
-import { db } from "@ziffr/core/db";
 import { accessLogOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "@ziffr/core/workflows";
 import { GET as list, POST as create } from "./route";
@@ -23,7 +22,7 @@ async function setup() {
   const sara = await w.person("owner"); const ben = await w.person("member"); const gia = await w.person("guest");
   const cash = await w.metric(sara, { name: "Cash", target_min: 100 });
   const payroll = await w.metric(sara, { name: "Payroll" });
-  for (const user of [ben, gia]) await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: cash.id, user_id: user, role: "viewer" });
+  for (const user of [ben, gia]) await w.share(cash.id, user);
   return { w, sara, ben, gia, cash, payroll };
 }
 async function keyFor(w: W, person: string, role: "owner" | "member" | "guest", scopes: Scope[] = ALL) {
@@ -100,7 +99,7 @@ describe("Alerts over HTTP", () => {
     expect(await hidden.json()).toEqual(await missing.json());
     expect((await (await list(k.req("GET", `/alerts?metric=${payroll.slug}`), undefined)).json()).items).toEqual([]);
     const a = await (await create(k.req("POST", "/alerts", { metric: cash.slug, condition: { kind: "below", value: 1 } }), undefined)).json();
-    await db().from("shares").delete().eq("workspace_id", w.id).eq("object_id", cash.id).eq("user_id", ben);
+    await w.unshare(cash.id, ben);
     expect((await (await list(k.req("GET", "/alerts"), undefined)).json()).items).toEqual([]);
     expect((await patch(k.req("PATCH", `/alerts/${a.id}`, { paused: true }), k.params(a.id))).status).toBe(404);
     expect((await remove(k.req("DELETE", `/alerts/${a.id}`), k.params(a.id))).status).toBe(404);
@@ -110,7 +109,7 @@ describe("Alerts over HTTP", () => {
     const { w, ben, cash, sara } = await setup();
     const k = await keyFor(w, ben, "member");
     const noTarget = await w.metric(sara, { name: "Visits" });
-    await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: noTarget.id, user_id: ben, role: "viewer" });
+    await w.share(noTarget.id, ben);
     const noShare = await create(k.req("POST", "/alerts", { metric: noTarget.slug, condition: { kind: "share_of_target", share: 80 } }), undefined);
     expect(noShare.status).toBe(422);
     expect((await noShare.json()).error).toEqual({ code: "unprocessable", message: expect.stringContaining("no target") });
@@ -148,7 +147,7 @@ describe("Alerts over HTTP", () => {
     const { w, gia, cash } = await setup();
     const k = await keyFor(w, gia, "guest");
     expect((await create(k.req("POST", "/alerts", { metric: cash.slug, condition: { kind: "at_or_above", value: "1.5" } }), undefined)).status).toBe(201);
-    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", gia);
+    await w.dropMember(gia);
     expect((await list(k.req("GET", "/alerts"), undefined)).status).toBe(401);
   });
 });

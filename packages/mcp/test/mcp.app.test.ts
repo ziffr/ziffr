@@ -36,9 +36,9 @@ describe("@ziffr/mcp against the app", () => {
     const { client, ben, orders, hidden } = await connect();
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
-      "add_finding", "add_widget", "archive_metric", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "find", "get_dashboard", "get_metric", "get_thread", "get_unusual_value_check", "get_workspace",
-      "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_submitters", "list_target_series", "list_templates", "my_schedule", "period_status", "remove_widget", "restore_metric", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
-      "submit_value", "update_dashboard", "update_finding", "update_metric", "update_widget",
+      "add_finding", "add_widget", "archive_metric", "create_alert", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_alert", "delete_metric", "find", "get_dashboard", "get_metric", "get_thread", "get_unusual_value_check", "get_workspace",
+      "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_submitters", "list_target_series", "list_templates", "my_schedule", "period_status", "remove_widget", "restore_metric", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
+      "submit_value", "update_alert", "update_dashboard", "update_finding", "update_metric", "update_widget",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
     expect(tools.find((t) => t.name === "delete_metric")?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });

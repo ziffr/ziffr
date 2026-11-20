@@ -55,6 +55,11 @@ export async function workspace(name = "Test") {
     if (overDaysAgo !== undefined) await must(db().from("workspaces").update({ over_limit_since: new Date(Date.now() - overDaysAgo * 86_400_000).toISOString() }).eq("id", id));
   };
   const setRole = async (personId: string, role: Actor["role"]) => { await must(db().from("memberships").update({ role }).eq("workspace_id", id).eq("user_id", personId)); };
+  /** Shares a Metric with a person as a viewer, and takes that Share away again. */
+  const share = async (metricId: number, userId: string) => { await must(db().from("shares").insert({ workspace_id: id, object_type: "metric", object_id: metricId, user_id: userId, role: "viewer" })); };
+  const unshare = async (metricId: number, userId: string) => { await must(db().from("shares").delete().eq("workspace_id", id).eq("object_id", metricId).eq("user_id", userId)); };
+  /** Takes a person out of the workspace without handover, for tests of what a key does then. */
+  const dropMember = async (userId: string) => { await must(db().from("memberships").delete().eq("workspace_id", id).eq("user_id", userId)); };
   const actor = (personId: string, role: Actor["role"] = "owner"): Actor => ({ personId, workspaceId: id, role });
   const cleanup = async () => {
     // A Feed is a person row of its own (spec 0012); it goes with its workspace.
@@ -66,7 +71,7 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, actor, cleanup };
+  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, cleanup };
 }
 
 /** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */
