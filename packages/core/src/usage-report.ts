@@ -7,6 +7,7 @@ import { db } from "./db";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { archiveMetric, archivableMetric, restoreMetric } from "./archived-metrics";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { refuseInDemo } from "./demo";
 import { inUse } from "./metric-row";
 import { formulaInputs } from "./formula";
 import { peopleIn } from "./submissions";
@@ -222,6 +223,8 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
  * whole call is refused and nothing is archived; if one fails midway, those already archived are brought back. Each
  * goes through the single archive (and its Audit Log event). Returns how many were archived. */
 export async function archiveMetrics(actor: Actor, ids: unknown): Promise<number> {
+  // The demo says its one sentence, as every write there does.
+  refuseInDemo(actor);
   assertMay(actor);
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200 || !ids.every((x) => Number.isInteger(x))) throw new Error("Tick between 1 and 200 Metrics.");
   const unique = [...new Set(ids as number[])];
