@@ -1,7 +1,7 @@
 // Installation Usage against the real database (spec 0031, ticket #365): the Usage Key is shown once, stored as a hash,
 // one at a time and revocable; the figures hold only listed keys and no name of anything, even from a hostile table;
 // fewer than 3 Workspaces get totals only; the excluded Workspace and the demo are in no figure.
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import {
@@ -143,6 +143,11 @@ describe("the Workspace left out", () => {
     await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null })).rejects.toThrow(/Only an Owner/);
     await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w2.id })).rejects.toThrow(/Only an Owner/);
     expect(await usageExcludedWorkspace()).toBe(w.id);
+    // A read that fails refuses the change, even for the owner (it never reads as "nothing is left out").
+    const real = db(); const orig = real.from.bind(real);
+    const spy = vi.spyOn(real, "from").mockImplementation(((t: string) => t === "workspaces" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "down" } }) }) }) } : orig(t)) as never);
+    await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null })).rejects.toThrow(/could not be checked/);
+    spy.mockRestore();
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null });
     expect(await usageExcludedWorkspace()).toBeNull();
   });
