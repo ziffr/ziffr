@@ -60,6 +60,10 @@ jobs:
           node-version: 22
       - name: The version and the notes
         id: next
+        env:
+          # The script counts from the newest published release, which it asks GitHub for (a tag whose run failed
+          # before publishing is skipped, so its notes are not lost).
+          GH_TOKEN: ${{ github.token }}
         run: |
           held=$(git tag --points-at HEAD --list 'v[0-9]*.[0-9]*.[0-9]*')
           [ -z "$held" ] || { echo "::error::$GITHUB_SHA is released already as $held."; exit 1; }

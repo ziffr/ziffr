@@ -74,7 +74,9 @@ try {
 } catch {
   fail("ZIFFR_SMTP_URL must look like smtps://user:password@smtp.example.com:465.");
 }
-const mailFrom = set(env.ZIFFR_MAIL_FROM) ? env.ZIFFR_MAIL_FROM : `Ziffr <ziffr@${domain || "localhost"}>`;
+// Without a domain the default sender still needs a dot in its domain: Ziffr only sends from an address that looks
+// like one (mailEnabled), and since sign-in links go through Ziffr (#198) a bare "localhost" stopped them all.
+const mailFrom = set(env.ZIFFR_MAIL_FROM) ? env.ZIFFR_MAIL_FROM : `Ziffr <ziffr@${domain || "localhost.localdomain"}>`;
 const fromMatch = /^\s*(?:"?([^"<]*?)"?\s*)?<([^>]+)>\s*$/.exec(mailFrom);
 const senderName = fromMatch?.[1]?.trim() || "Ziffr";
 const senderAddress = fromMatch ? fromMatch[2].trim() : mailFrom.trim();
