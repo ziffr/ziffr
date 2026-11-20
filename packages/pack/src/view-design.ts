@@ -108,7 +108,7 @@ const mark = (name: string, description: string, props: Record<string, Schema>, 
 /** The JSON Schema of ziffr.view/1: the one definition the checks run and docs/reference is generated from. */
 export const VIEW_DESIGN_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.view-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.view-1.json",
   title: "Ziffr View Design (ziffr.view/1)",
   description: "A View written as a file: its Slots, its marks and what each shows, and its Theme colours. It holds no code.",
   type: "object",

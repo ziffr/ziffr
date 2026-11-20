@@ -47,7 +47,7 @@ const at = { x: place(L.width - 1, "From the slide's left edge, in pixels."), y:
 /** The JSON Schema of ziffr.deck-template/1: the one definition the checks run and docs/reference is generated from. */
 export const DECK_TEMPLATE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.deck-template-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.deck-template-1.json",
   title: "Ziffr Deck Template (ziffr.deck-template/1)",
   description: "A starting point for a deck: its slides with their widgets, words and boxes, with the Metrics left open as Slots. It holds no code, image or link.",
   type: "object",

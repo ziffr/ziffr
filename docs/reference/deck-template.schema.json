@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ziffr.app/schemas/ziffr.deck-template-1.json",
+  "$id": "https://ziffr.net/schemas/ziffr.deck-template-1.json",
   "title": "Ziffr Deck Template (ziffr.deck-template/1)",
   "description": "A starting point for a deck: its slides with their widgets, words and boxes, with the Metrics left open as Slots. It holds no code, image or link.",
   "type": "object",

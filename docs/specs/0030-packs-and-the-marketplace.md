@@ -250,6 +250,6 @@ Proposed in the draft and accepted by the owner on 2026-11-19 as written; each i
 - **A catalog entry's name is unique within its Pack**, not the Workspace: two Packs may describe Revenue.
 - **Limits per Workspace:** 25 Packs, 1,000 catalog entries from Packs, 1,000 templates, 100 View Designs.
 - **The demo** reads, fetches and installs no Pack.
-- **The Marketplace's address** defaults to `https://marketplace.ziffr.app`; the owner picks the domain. **Its public key** ships once Ziffr Cloud signs (`MARKETPLACE_PUBLIC_KEYS` is empty; a server may trust its own with `ZIFFR_MARKETPLACE_PUBLIC_KEY`).
+- **The Marketplace's address** defaults to `https://marketplace.ziffr.net`; the owner picks the domain. **Its public key** ships once Ziffr Cloud signs (`MARKETPLACE_PUBLIC_KEYS` is empty; a server may trust its own with `ZIFFR_MARKETPLACE_PUBLIC_KEY`).
 - **Not built yet:** an update badge outside the Packs page, a Marketplace signature recognised on an uploaded file, paid Packs.
 

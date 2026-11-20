@@ -90,7 +90,7 @@ const item = (kind: PackKind): Schema => ({
  * analysis-recipe, workflow-template, theme). */
 export const PACK_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.pack-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.pack-1.json",
   title: "Ziffr Pack (ziffr.pack/1)",
   description: "A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author and license.",
   type: "object",
