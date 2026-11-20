@@ -102,8 +102,8 @@ function checkOptions(delivery: unknown, include: unknown): { delivery: AlertDel
 
 /** The words for each refusal of the limits, in numbers the person can act on. */
 const LIMIT_WORDS: Record<string, string> = {
-  person_limit: `You already have ${ALERTS_PER_PERSON} Alerts in this Workspace. Delete one to make another.`,
-  metric_limit: `You already have ${ALERTS_PER_METRIC} Alerts on this Metric. Change or delete one to make another.`,
+  person_limit: `You already hold ${ALERTS_PER_PERSON} Alerts in this Workspace, counting any on Metrics you can no longer see. Delete one to make another.`,
+  metric_limit: `You already hold ${ALERTS_PER_METRIC} Alerts on this Metric. Change or delete one to make another.`,
   workspace_limit: `This Workspace already holds ${ALERTS_PER_WORKSPACE} Alerts, the most it may.`,
 };
 

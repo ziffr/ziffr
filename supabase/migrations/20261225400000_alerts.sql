@@ -58,8 +58,8 @@ begin
 end $$;
 create trigger alerts_id_reserved before insert on alerts for each row execute function alerts_id_reserved();
 
--- Makes one Alert for a person within the limits (Alerts the person cannot see do not count against theirs, so a limit
--- never tells them that a Metric they lost sight of is still there), in one step under a lock of the Workspace, so Alerts made at once
+-- Makes one Alert for a person within the limits (every row counts, also one on a Metric the person lost sight of, so
+-- losing sight and making more cannot get past a limit), in one step under a lock of the Workspace, so Alerts made at once
 -- cannot pass a limit together (as claim_pasted_values does). The limits come from the core (alert-limits.ts).
 -- Returns 'ok', or the first thing that refuses it: 'not_a_member', 'no_metric', 'person_limit', 'metric_limit' or
 -- 'workspace_limit'. The id was taken first (the level is sealed for it).
@@ -70,8 +70,8 @@ begin
   -- Only a person with a sign-in in this Workspace; a Contact or a stranger has no membership.
   if not exists (select 1 from memberships where workspace_id = p_ws and user_id = p_person) then return 'not_a_member'; end if;
   if not exists (select 1 from metrics where id = p_metric and workspace_id = p_ws) then return 'no_metric'; end if;
-  if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person and paused is distinct from 'no_access') >= p_per_person then return 'person_limit'; end if;
-  if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person and metric_id = p_metric and paused is distinct from 'no_access') >= p_per_metric then return 'metric_limit'; end if;
+  if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person) >= p_per_person then return 'person_limit'; end if;
+  if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person and metric_id = p_metric) >= p_per_metric then return 'metric_limit'; end if;
   if (select count(*) from alerts where workspace_id = p_ws) >= p_per_workspace then return 'workspace_limit'; end if;
   insert into alerts (id, workspace_id, person_id, metric_id, kind, level, delivery, include_unapproved)
     values (p_id, p_ws, p_person, p_metric, p_kind, p_level, p_delivery, p_include);

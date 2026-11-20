@@ -163,6 +163,25 @@ describe("who may see what", () => {
     expect((await listMyAlerts(a))[0]).toMatchObject({ paused: null });
   });
 
+  it("counts an Alert on a Metric the person lost sight of against their limits, so losing and regaining sight cannot pass them", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
+    const a = w.actor(ann, "member");
+    const gone = await w.metric(sara, { name: "Gone" }); await share(w, gone.id, ann);
+    for (let i = 0; i < ALERTS_PER_METRIC; i++) await createAlert(a, { metricId: gone.id, condition: above(String(i)) });
+    await db().from("shares").delete().eq("object_id", gone.id).eq("user_id", ann);
+    await refreshAlertSight(w.id);
+    for (let k = 0; k < 3; k++) {
+      const m = await w.metric(sara); await share(w, m.id, ann);
+      for (let i = 0; i < ALERTS_PER_METRIC; i++) await createAlert(a, { metricId: m.id, condition: above(String(i)) }).catch(() => null);
+    }
+    // 5 hidden + 15 visible reach the limit of 20; nothing more is made, and regaining sight cannot make 25.
+    expect(await listMyAlerts(a)).toHaveLength(ALERTS_PER_PERSON - ALERTS_PER_METRIC);
+    const more = await w.metric(sara); await share(w, more.id, ann);
+    expect((await refusal(createAlert(a, { metricId: more.id, condition: above("1") })))?.message).toMatch(/20 Alerts/);
+    await share(w, gone.id, ann); await refreshAlertSight(w.id);
+    expect(await listMyAlerts(a)).toHaveLength(ALERTS_PER_PERSON);
+  });
+
   it("ends a person's Alerts when they leave the Workspace", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
     const m = await w.metric(sara); await share(w, m.id, ann);
