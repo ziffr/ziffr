@@ -1,0 +1,455 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/board-meeting",
+  "name": "Board meeting deck",
+  "version": "1.0.0",
+  "summary": "A Deck Template for a quarterly board meeting, a Theme for it, and the Workflow for the quarter's close.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "revenue",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Revenue",
+          "description": "Net revenue invoiced in the month, excluding VAT, discounts and credit notes.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "cash",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cash balance",
+          "description": "Cash across all bank accounts at period end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 50000,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "runway",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cash runway",
+          "description": "Months the cash balance lasts at the average net burn of the last three months.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "months",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMin": 12,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "headcount",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Headcount",
+          "description": "People on payroll at the end of the quarter.",
+          "category": "People",
+          "period": "quarter",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "people",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "decks": [
+      {
+        "key": "quarterly-board",
+        "template": {
+          "format": "ziffr.deck-template/1",
+          "name": "Quarterly board meeting",
+          "description": "Key figures, revenue against its target, cash and runway, headcount, highlights and risks.",
+          "slots": [
+            {
+              "label": "Revenue",
+              "suggests": "revenue"
+            },
+            {
+              "label": "Cash balance",
+              "suggests": "cash"
+            },
+            {
+              "label": "Cash runway",
+              "suggests": "runway"
+            },
+            {
+              "label": "Headcount",
+              "suggests": "headcount"
+            }
+          ],
+          "theme": "board",
+          "slides": [
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 250,
+                  "w": 1152,
+                  "text": [
+                    "Board meeting"
+                  ],
+                  "size": "xl",
+                  "scale": 1.4
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 380,
+                  "w": 1152,
+                  "text": [
+                    "{period}"
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Key figures"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    1
+                  ],
+                  "x": 354,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    2
+                  ],
+                  "x": 644,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    3
+                  ],
+                  "x": 934,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 400,
+                  "w": 1152,
+                  "text": [
+                    "{metric} is {change prev} on the period before."
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "{metric} against its target"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 1152,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Cash and runway"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    1
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    2
+                  ],
+                  "x": 800,
+                  "y": 150,
+                  "w": 416,
+                  "h": 240
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Headcount"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "bars",
+                  "slots": [
+                    3
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 1152,
+                  "h": 500,
+                  "settings": {
+                    "window": 8
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Highlights and risks"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "box",
+                  "x": 64,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-green",
+                  "text": [
+                    "Highlights"
+                  ]
+                },
+                {
+                  "shape": "box",
+                  "x": 656,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-red",
+                  "text": [
+                    "Risks"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "themes": [
+      {
+        "key": "board",
+        "theme": {
+          "format": "ziffr.theme/1",
+          "name": "Board",
+          "colors": {
+            "canvas": "#F4F1EA",
+            "surface": "#FFFFFF",
+            "ink": "#1A1A1A",
+            "muted": "#6B6B6B",
+            "rule": "#D9D4C7",
+            "accent": "#B4441C",
+            "good": "#2E7D32",
+            "bad": "#C62828",
+            "band": "#E8E2D0",
+            "data": [
+              "#1F4E79",
+              "#B4441C",
+              "#5B7F3A",
+              "#8A6D3B"
+            ]
+          },
+          "fonts": {
+            "heading": "source-serif",
+            "body": "inter",
+            "figures": "ibm-plex-mono"
+          },
+          "radius": 4,
+          "cards": "flat",
+          "slides": {
+            "logoPosition": "top-right",
+            "logoWidth": 120,
+            "footer": "Board meeting",
+            "showSlideNumber": true,
+            "titleSize": 48,
+            "bodySize": 22
+          }
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "quarter-close",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Quarter close",
+          "description": "Values due on the fifth working day after the quarter, checked, approved by one person, then locked.",
+          "dueWorkingDays": 5,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "stand-in",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 30,
+              "outsideTarget": true
+            },
+            {
+              "type": "approve",
+              "approvers": 1,
+              "values": "every"
+            },
+            {
+              "type": "publish",
+              "lock": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,315 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/agency",
+  "name": "Agency or freelancer",
+  "version": "1.0.0",
+  "summary": "Billable hours, utilisation, revenue, the effective hourly rate, open invoices and pipeline, with a monthly dashboard and a Workflow that asks for hours on Fridays.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "billable-hours",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Billable hours",
+          "description": "Hours worked on client projects that can be invoiced, in the week; internal work and sales are not counted.",
+          "category": "People",
+          "industries": [
+            "agency"
+          ],
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "hours",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "utilisation",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Billable utilisation",
+          "description": "Hours billed to clients as a share of all hours worked in the month.",
+          "category": "People",
+          "industries": [
+            "agency"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "target",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 70,
+          "targetMax": 85,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "revenue",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Revenue",
+          "description": "Net revenue invoiced in the month, excluding VAT, discounts and credit notes.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "hourly-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Effective hourly rate",
+          "description": "Revenue of the month divided by the hours worked on client projects in it, billed or not.",
+          "category": "Finance",
+          "industries": [
+            "agency"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 2,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "open-invoices",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Open invoices",
+          "description": "Invoiced amounts clients have not paid yet, at month end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "pipeline",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Pipeline value",
+          "description": "Value of all open deals at month end, not weighted by probability.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "agency-monthly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Agency monthly",
+          "description": "Hours, utilisation, revenue and the hourly rate it makes, and the money still to come.",
+          "slots": [
+            {
+              "label": "Revenue",
+              "suggests": "revenue"
+            },
+            {
+              "label": "Billable utilisation",
+              "suggests": "utilisation"
+            },
+            {
+              "label": "Effective hourly rate",
+              "suggests": "hourly-rate"
+            },
+            {
+              "label": "Open invoices",
+              "suggests": "open-invoices"
+            },
+            {
+              "label": "Pipeline value",
+              "suggests": "pipeline"
+            },
+            {
+              "label": "Billable hours",
+              "suggests": "billable-hours"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                4
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                5
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "friday-hours",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Friday hours",
+          "description": "Each week's hours are asked for on Friday and due on Monday.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
