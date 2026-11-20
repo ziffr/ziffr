@@ -30,6 +30,8 @@ export function SizeAndUsage({ usage: u, cloud = false }: { usage: Usage; cloud?
           {u.next && <p className="text-sm">Changes to {u.next.label} on {dayWords(u.next.on)}.</p>}
         </>
       )}
+      {/* The values of the Metrics this Owner or Admin sees, as CSV (spec 0029): what an unused Workspace's warning offers. */}
+      <p className="text-sm"><a href="/settings/workspace/download" className="underline underline-offset-2">Download the values</a> of every Metric you see, as a CSV file.</p>
       {/* Owners only, where Ziffr Cloud is set up: a form post hands them over with a token (spec 0029). */}
       {cloud && (
         <div className="flex flex-wrap gap-2 pt-1">
