@@ -1,0 +1,54 @@
+{
+  "name": "@ziffr/feed-github",
+  "version": "0.0.0-dev",
+  "description": "The Ziffr GitHub Feed: reads the public download counts, stars and forks of a GitHub repository and sends them daily with a Feed Key into a Workspace.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziffr/ziffr.git",
+    "directory": "packages/feed-github"
+  },
+  "type": "module",
+  "bin": {
+    "ziffr-feed-github": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "bundle": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/github-feed.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ziffr/feed-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "esbuild": "0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsdoc": "^65.4.5",
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^4.1.12"
+  }
+}
