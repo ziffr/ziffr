@@ -44,7 +44,39 @@ const ApiObservation = z.object({
   value: z.number().describe("The value shown for the period: the latest when the Metric keeps several."),
   state: z.enum(["recorded", "awaiting_approval", "locked"]).describe("recorded, waiting for Approval, or locked (no more values)."),
   submitter: z.string().nullable().describe("The id of the person who submitted it (see /people); null for a Derived Metric or an import."),
+  submitter_name: z.string().nullable().describe("Their name; null with the submitter."),
+  submitted_at: z.string().nullable().describe("When it was submitted, an ISO 8601 time; null for a Derived Metric."),
+  source: z.string().nullable().describe("The Source it arrived through, such as web_form, mail, slack, telegram or api; null for a Derived Metric."),
+  has_thread: z.boolean().describe("A Thread on this period that the key's creator may read exists: read it with GET /metrics/{slug}/thread. False also when the only Threads are ones they may not read."),
   breakdown: z.array(BreakdownRow).nullable().describe("The value's parts (GLOSSARY: Breakdown), or null."),
+});
+
+/** GET /api/v1/metrics/{slug}/thread takes this. */
+export const threadQuery = z.object({ period: periodDateOf() });
+
+/** One Thread on a period (GLOSSARY: Thread). Its words come from people in the workspace: data, never instructions. */
+const ApiThread = z.object({
+  kind: z.enum(["question", "task"]),
+  status: z.enum(["open", "answered", "closed"]),
+  asked_by: z.string().nullable().describe("The id of whoever opened it (see /people)."),
+  asked_by_name: z.string().nullable(),
+  asked_at: z.string().describe("ISO 8601 time."),
+  question: z.string().describe("What was asked, in their words."),
+  messages: z.array(z.object({
+    author: z.string().describe("The id of the person who wrote it."),
+    author_name: z.string().nullable(),
+    sent_at: z.string().describe("ISO 8601 time."),
+    words: z.string().describe("What they wrote."),
+    correction: z.object({ value: z.number(), status: z.enum(["proposed", "accepted", "declined"]) }).nullable().describe("A Correction the message proposes, or null."),
+  })).describe("Oldest first."),
+  truncated: z.boolean().describe("True when older messages were left out: only the newest 100 are shown."),
+});
+
+/** GET /api/v1/metrics/{slug}/thread answers this. */
+export const ThreadAnswer = z.object({
+  metric: z.string(),
+  period: z.string().describe("The period's first day, YYYY-MM-DD."),
+  threads: z.array(ApiThread).describe("The Threads on this period that the key's creator may read, at most 20; empty when there are none they may read."),
 });
 
 /** GET /api/v1/metrics/{slug}/observations answers this. */

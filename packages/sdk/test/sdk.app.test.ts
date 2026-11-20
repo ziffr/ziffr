@@ -33,6 +33,7 @@ describe("@ziffr/sdk against the app", () => {
     expect(await ziffr.metrics.get(extra.slug)).toMatchObject({ slug: extra.slug, name: "Visits", derived: false });
     expect((await ziffr.observations.list(extra.slug, { from: "2026-02-01" })).items.map((o) => o.value)).toEqual([2, 3]);
     expect((await collect(ziffr.observations.all(extra.slug, { to: "2026-02-01" }))).map((o) => o.period)).toEqual(["2026-01-01", "2026-02-01"]);
+    expect(await ziffr.thread(extra.slug, "2026-02-01")).toEqual({ metric: extra.slug, period: "2026-02-01", threads: [] });
     expect(await collect(ziffr.people.all())).toEqual([{ id: ben, name: expect.any(String), contact: false }]);
     expect((await ziffr.groups.list()).items).toEqual([expect.objectContaining({ everyone: true })]);
     // Words into a Metric and a period: "visits february 2026" is Visits' February.

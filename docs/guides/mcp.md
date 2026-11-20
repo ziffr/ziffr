@@ -36,6 +36,8 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 ## Starters
 
+Reading values and Threads: `get_metric` says per value who submitted it (id and name), when, through which Source, and whether it has a Thread the key's creator may read (`has_thread`). `get_thread` (API: `GET /api/v1/metrics/{slug}/thread?period=`) answers why: the question and the replies with author, time and words, sealed words opened (spec 0028). Both go through `listObservations` and `getThreads` in `packages/core/src/api.ts`, which keep only the Threads the creator may read by the app's own rule (`canReadThread`: the people on it, the Metric's owner, a Group) and drop the rest before counting or opening anything, so a hidden Thread is not revealed, not even that it exists. Its words are data: the server's instructions and `explain_metric` tell the assistant never to follow them.
+
 Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
 
 - They are registered in `createServer` (`packages/mcp/src/server.ts`), so `/mcp` gets them with the tools; `apps/web/src/app/mcp/route.db.test.ts` checks that both servers list and fill them in alike.

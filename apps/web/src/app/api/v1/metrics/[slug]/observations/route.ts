@@ -1,17 +1,15 @@
 // /api/v1/metrics/{slug}/observations (spec 0002). GET: a Metric's values for a range of periods, with Breakdowns, a
 // page at a time (scope metrics:read). POST: submits a value (scope values:submit) through the same core path as a
 // form or Slack, with an optional Idempotency-Key and at most 1,000 values a day per key.
+import { metricRoute } from "@/lib/api-metric-route";
 import { admitValues, once, submitObservation, VALUES_PER_DAY, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listObservations } from "@ziffr/core/api";
-import { errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
+import { errorBody, json, jsonBody, query, toCursor } from "@/lib/api";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
-import { ObservationList, observationsQuery, slugParam, SubmissionAnswer, SubmitObservation } from "../../../schemas";
-
-type Ctx = { params: Promise<{ slug: string }> };
+import { ObservationList, observationsQuery, SubmissionAnswer, SubmitObservation } from "../../../schemas";
 
 /** Lists one visible Metric's values, oldest first. */
-export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
-  const slug = slugParam.parse((await ctx.params).slug);
+export const GET = metricRoute("metrics:read", async (actor, req, slug) => {
   const { limit, cursor, from, to } = observationsQuery.parse(query(req));
   const page = await listObservations(actor, slug, { from, to, after: cursor, limit });
   return json(ObservationList.parse({ items: page.items, next: toCursor(page.next) }));
@@ -19,8 +17,7 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
 
 /** Submits a value for one Metric. 201 when taken, 422 when locked or refused by a rule, 409 for a reused
  * Idempotency-Key with another body. */
-export const POST = keyRoute("values:submit", async (actor, req, ctx: Ctx) => {
-  const slug = slugParam.parse((await ctx.params).slug);
+export const POST = metricRoute("values:submit", async (actor, req, slug) => {
   const idem = idempotencyKey(req);
   const input = SubmitObservation.parse(await jsonBody(req));
   let retryAfter: number | null = null;

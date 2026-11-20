@@ -19,6 +19,7 @@ import * as observations from "@/app/api/v1/metrics/[slug]/observations/route";
 import * as projections from "@/app/api/v1/metrics/[slug]/projections/route";
 import * as restore from "@/app/api/v1/metrics/[slug]/restore/route";
 import * as submitters from "@/app/api/v1/metrics/[slug]/submitters/route";
+import * as thread from "@/app/api/v1/metrics/[slug]/thread/route";
 import * as targetSeries from "@/app/api/v1/metrics/[slug]/target-series/route";
 import * as unusualValueCheck from "@/app/api/v1/metrics/[slug]/unusual-value-check/route";
 import * as find from "@/app/api/v1/find/route";
@@ -53,6 +54,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["metrics/[slug]/restore", restore],
   ["metrics/[slug]/submitters", submitters],
   ["metrics/[slug]/target-series", targetSeries],
+  ["metrics/[slug]/thread", thread],
   ["metrics/[slug]/unusual-value-check", unusualValueCheck],
   ["find", find],
   ["people", people],
