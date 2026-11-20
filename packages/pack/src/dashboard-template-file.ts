@@ -103,7 +103,7 @@ export const WIDGET_DEFS: Record<string, Schema> = {
 /** The JSON Schema of ziffr.dashboard-template/1: the one definition the checks run and docs/reference is generated from. */
 export const DASHBOARD_TEMPLATE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.dashboard-template-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.dashboard-template-1.json",
   title: "Ziffr Dashboard Template (ziffr.dashboard-template/1)",
   description: "A starting point for a dashboard: its widgets with their views, settings, words and places, with the Metrics left open as Slots. It holds no code.",
   type: "object",

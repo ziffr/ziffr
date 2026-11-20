@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ziffr.app/schemas/ziffr.workflow-template-1.json",
+  "$id": "https://ziffr.net/schemas/ziffr.workflow-template-1.json",
   "title": "Ziffr Workflow Template (ziffr.workflow-template/1)",
   "description": "A starting point for a Workflow: its Due Date, steps and reminders, with the people left open to be picked when it is used. It holds no code and names no person.",
   "type": "object",

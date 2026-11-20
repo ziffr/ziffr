@@ -34,7 +34,7 @@ const int = (minimum: number, maximum: number, description: string): Schema => (
 /** The JSON Schema of ziffr.theme/1: the one definition the checks run and docs/reference is generated from. */
 export const THEME_FILE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.theme-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.theme-1.json",
   title: "Ziffr Theme (ziffr.theme/1)",
   description: "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image, font file or web address.",
   type: "object",

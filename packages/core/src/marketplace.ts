@@ -21,7 +21,7 @@ import { privateMailHost } from "./mail-hosts";
 import { outboundRequest, outboundTls, type OutboundAnswer } from "./outbound-request";
 
 /** Ziffr's own Marketplace, where the connection goes unless the Installation names another. */
-export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.app";
+export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.net";
 
 /** The Marketplace's public keys this Ziffr trusts, as base64 of the raw 32-byte Ed25519 key. PROTOTYPE: empty until
  * Ziffr Cloud's Marketplace signs its first Pack (spec 0030, the Marketplace service); the server may add its own

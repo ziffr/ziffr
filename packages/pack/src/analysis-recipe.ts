@@ -61,7 +61,7 @@ const step = (fn: FunctionName): Schema => {
 /** The JSON Schema of ziffr.analysis/1: the one definition the checks run and docs/reference is generated from. */
 export const ANALYSIS_RECIPE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.analysis-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.analysis-1.json",
   title: "Ziffr Analysis Recipe (ziffr.analysis/1)",
   description: "An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code.",
   type: "object",

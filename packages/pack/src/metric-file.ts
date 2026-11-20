@@ -45,7 +45,7 @@ const bound = (what: string): Schema => ({ type: "number", minimum: -METRIC_FILE
 /** The JSON Schema of ziffr.metric/1: the one definition the checks run and docs/reference is generated from. */
 export const METRIC_FILE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.metric-1.json",
+  $id: "https://ziffr.net/schemas/ziffr.metric-1.json",
   title: "Ziffr Metric Description (ziffr.metric/1)",
   description: "A Metric Description written as a file, without owner, Submitters or values: a Metric Catalog entry. It holds no code.",
   type: "object",
