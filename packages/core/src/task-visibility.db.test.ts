@@ -3,7 +3,7 @@
 // Group, and the action page drew the Metric's chart for anyone who could open it.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { readableActions } from "./access";
+import { getCanvasData, readableActions } from "./access";
 import { actionThread } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { workspace } from "./test/db-fixtures";
@@ -85,7 +85,63 @@ describe("a Thread limited to a Group", () => {
     expect(await listed(ben)).not.toContain(limitedId);
     expect(await listed(carla)).not.toContain(limitedId);
     await db().from("group_members").insert({ workspace_id: w.id, group_id: groupId, user_id: carla });
-    expect(await listed(carla)).toContain(limitedId);
-    expect(await actionThread(w.actor(carla, "member"), limitedId)).not.toBeNull();
+    try {
+      expect(await listed(carla)).toContain(limitedId);
+      expect(await actionThread(w.actor(carla, "member"), limitedId)).not.toBeNull();
+    } finally {
+      await db().from("group_members").delete().eq("group_id", groupId).eq("user_id", carla);
+    }
+  });
+});
+
+describe("seeing the Metric another way", () => {
+  it("lets in a member through a Share with their Group, and through a dashboard shared with them", async () => {
+    const dan = await w.person("member");
+    const eve = await w.person("member");
+    const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "Finance" }).select("id").single();
+    await db().from("group_members").insert({ workspace_id: w.id, group_id: g!.id, user_id: dan });
+    expect(await listed(dan)).not.toContain(taskId);
+    await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: metricId, group_id: g!.id, role: "viewer" });
+    expect(await listed(dan)).toContain(taskId);
+    expect(await listed(eve)).not.toContain(taskId);
+    const { data: d } = await db().from("dashboards").insert({ name: "Close", owner_id: sara, workspace_id: w.id }).select("id").single();
+    await db().from("widgets").insert({ owner_id: sara, dashboard_id: d!.id, template: "number", metric_ids: [metricId], settings: {}, x: 0, y: 0, w: 4, h: 3, workspace_id: w.id });
+    await db().from("shares").insert({ workspace_id: w.id, object_type: "dashboard", object_id: d!.id, user_id: eve, role: "viewer" });
+    expect(await listed(eve)).toContain(taskId);
+    expect((await actionThread(w.actor(eve, "member"), taskId))?.seesMetric).toBe(true);
+  });
+
+  it("keeps a Guest out of a Thread with no Group unless they see the Metric", async () => {
+    const gus = await w.person("guest");
+    expect(await listed(gus)).not.toContain(taskId);
+    expect(await actionThread(w.actor(gus, "guest"), taskId)).toBeNull();
+  });
+});
+
+describe("what goes with a task", () => {
+  it("is not counted on a canvas for someone who may not read it", async () => {
+    expect((await getCanvasData(w.id, ben)).openActions[metricId]).toBeUndefined();
+    expect((await getCanvasData(w.id, carla)).openActions[metricId]).toBeGreaterThan(0);
+  });
+
+  it("names only a few fields of the Metric to someone on it who does not see it, and no other Metric's value", async () => {
+    const t = await actionThread(w.actor(ann, "member"), taskId);
+    expect(Object.keys(t!.metric).sort()).toEqual(["decimals", "id", "name", "owner_id", "period", "slug", "unit", "unit_position"]);
+    expect(t!.chartMetric).toBeNull();
+    const other = await w.metric(sara, { name: "Other" });
+    const foreign = await w.value(other.id, thisMonth, 7, sara);
+    const odd = await w.action({ metric_id: metricId, period_start: thisMonth, asker_id: sara, assignee_id: ann, kind: "task", observation_id: foreign });
+    expect((await actionThread(w.actor(ann, "member"), odd))?.observation).toBeNull();
+  });
+
+  it("is not found from another Workspace", async () => {
+    const other = await workspace("Other");
+    try {
+      const zoe = await other.person("owner");
+      expect(await actionThread(other.actor(zoe), taskId)).toBeNull();
+      expect(await actionThread({ ...w.actor(sara), workspaceId: other.id }, taskId)).toBeNull();
+    } finally {
+      await other.cleanup();
+    }
   });
 });

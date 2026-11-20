@@ -238,6 +238,10 @@ export async function teamView(actor: Actor) {
   return { roles: roles ?? [], joinDomain: (space?.join_domain as string | null) ?? null, away: away ?? [] };
 }
 
+/** What the action page names of an Action's Metric for anyone on it: what its question names anyway, and how to
+ * write its value. */
+export type ActionMetric = Pick<Metric, "id" | "name" | "slug" | "period" | "owner_id" | "decimals" | "unit" | "unit_position">;
+
 /** How many periods the action page's chart shows before and after the Action's one: daily Metrics more. */
 const CHART_AROUND = { day: { before: 20, after: 10 }, other: { before: 8, after: 4 } } as const;
 
@@ -268,7 +272,10 @@ export async function actionThread(actor: Actor, id: number) {
   const chart = seesMetric ? pts.slice(Math.max(0, at - around.before), at + around.after) : [];
   // The value is only the one this Action is about, and only of its own Metric.
   const value = observation && observation.metric_id === metric.id ? observation : null;
-  return { action, metric, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [] };
+  // Security: someone on the Action who does not see its Metric gets only these few fields of it, never its
+  // description, settings or Workflow; the whole Metric, for the chart, only goes to a viewer who sees it.
+  const named: ActionMetric = { id: metric.id, name: metric.name, slug: metric.slug, period: metric.period, owner_id: metric.owner_id, decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
+  return { action, metric: named, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [] };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.

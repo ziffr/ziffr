@@ -27,7 +27,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   // about, and the periods around it only for a viewer who sees the Metric (ticket 323).
   const [thread0, people, viewer, yearStart, numberStyle] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
   if (!thread0) notFound();
-  const { action: a, metric: m, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent } = thread0;
+  const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent } = thread0;
   const isAsker = viewer === a.asker_id;
   // A Self-check is decided only by Confirm or Correct: closed or reopened by hand, it would decide nothing and leave
   // the value waiting (the core refuses it too).
@@ -55,7 +55,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
           </div>
         </div>
-        {seesMetric && window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={m} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
+        {chartMetric && window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={chartMetric} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
         {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
         {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}
         {sent.length > 0 && (
