@@ -186,3 +186,14 @@ export async function usageRollupJob(): Promise<{ days: number }> {
   }
   return { days };
 }
+
+/** The Workspaces this Installation Admin owns, by name: the ones they may leave out of the figures (see
+ * saveInstallationSettings). The demo is never offered. Installation Admins only. */
+export async function usageExclusionChoices(actor: InstallationActor): Promise<{ workspaceId: string; name: string }[]> {
+  await assertInstallationAdmin(actor);
+  const { data: rows } = await db().from("memberships").select("workspace_id").eq("user_id", actor.personId).eq("role", "owner");
+  const ids = (rows ?? []).map((r) => String(r.workspace_id)).filter((id) => id !== "d3e00000-0000-4000-8000-000000000001");
+  if (!ids.length) return [];
+  const { data: ws } = await db().from("workspaces").select("id, name").in("id", ids).order("name");
+  return (ws ?? []).map((w) => ({ workspaceId: String(w.id), name: String(w.name) }));
+}

@@ -16,7 +16,7 @@ import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
-import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
+import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
  * characters) only for a secret saved on the page. Only what the page needs goes to the browser. */
@@ -237,6 +237,24 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     const def = settingNamed(name);
     if (!def || def.section !== sec.id) throw new Error("That is not a setting of this section.");
     if (sources[name] === "server") throw new Error(`${def.label} is set on the server; change it there.`);
+    // Clearing or replacing the Workspace left out is as revealing as setting it (two days' totals differ by exactly
+    // that Workspace), so only its Owner may, unless none is set or it no longer exists.
+    // Fails closed: a read that fails refuses the change; a Workspace counts as gone only when the read worked and found none.
+    if (name === "ZIFFR_USAGE_EXCLUDE_WORKSPACE") {
+      const refuse = () => new Error("The Workspace left out could not be checked. Try again.");
+      let leftOut: string | undefined;
+      try { leftOut = (await settingsInEffectStrict())[name]?.trim(); } catch { throw refuse(); }
+      if (leftOut) {
+        const current = leftOut.toLowerCase();
+        const { data: still, error: e1 } = await db().from("workspaces").select("id").eq("id", current).maybeSingle();
+        if (e1) throw refuse();
+        if (still) {
+          const { data: mine, error: e2 } = await db().from("memberships").select("user_id").eq("workspace_id", current).eq("user_id", actor.personId).eq("role", "owner").maybeSingle();
+          if (e2) throw refuse();
+          if (!mine) throw new Error("Only an Owner of the Workspace that is left out can change or remove that.");
+        }
+      }
+    }
     if (raw === null) { changes.push({ def, value: null }); continue; }
     if (typeof raw !== "string") throw new Error(`${def.label}: enter a value.`);
     const value = raw.trim();
@@ -259,6 +277,10 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     if (name === "ZIFFR_USAGE_EXCLUDE_WORKSPACE") {
       const { data: ws } = await db().from("workspaces").select("id").eq("id", value.toLowerCase()).maybeSingle();
       if (!ws || value.toLowerCase() === "d3e00000-0000-4000-8000-000000000001") throw new Error("Pick a Workspace by name.");
+      // Only one the Admin owns: leaving a Workspace out changes the next day's totals by exactly that Workspace, so
+      // comparing two days would show its size to an Admin who has no business seeing it. Removing it is always allowed.
+      const { data: owned } = await db().from("memberships").select("user_id").eq("workspace_id", ws.id).eq("user_id", actor.personId).eq("role", "owner").maybeSingle();
+      if (!owned) throw new Error("You can leave out a Workspace you own. Ask its Owner, or make yourself its Owner first.");
     }
     changes.push({ def, value });
   }

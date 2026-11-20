@@ -1,11 +1,11 @@
 // Installation Usage against the real database (spec 0031, ticket #365): the Usage Key is shown once, stored as a hash,
 // one at a time and revocable; the figures hold only listed keys and no name of anything, even from a hostile table;
 // fewer than 3 Workspaces get totals only; the excluded Workspace and the demo are in no figure.
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import {
-  usageExcludedWorkspace, authenticateUsageKey, installationUsage, makeUsageKey, revokeUsageKey, usageDayView, usageKeyInfo, usageRollupJob, USAGE_FIGURES, USAGE_KEY_CALLS_PER_HOUR, UsageRangeError, usageRange,
+  usageExcludedWorkspace, usageExclusionChoices, authenticateUsageKey, installationUsage, makeUsageKey, revokeUsageKey, usageDayView, usageKeyInfo, usageRollupJob, USAGE_FIGURES, USAGE_KEY_CALLS_PER_HOUR, UsageRangeError, usageRange,
 } from "./installation-usage";
 import { saveInstallationSettings } from "./installation-settings";
 import { forgetStoredSettings } from "./settings-in-effect";
@@ -130,8 +130,24 @@ describe("the Workspace left out", () => {
     await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: "00000000-0000-4000-8000-0000000000ee" })).rejects.toThrow(/by name/);
     await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: DEMO_WORKSPACE_ID })).rejects.toThrow(/by name/);
     await expect(saveInstallationSettings({ personId: "t-nobody" }, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id })).rejects.toBeInstanceOf(Forbidden);
+    // Not one the Admin owns: leaving it out would show its size by differencing two days.
+    await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id })).rejects.toThrow(/you own/);
+    expect(await usageExclusionChoices(a)).toEqual([]);
+    await db().from("memberships").insert({ workspace_id: w.id, user_id: a.personId, role: "owner" });
+    expect(await usageExclusionChoices(a)).toEqual([{ workspaceId: w.id, name: expect.any(String) }]);
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id });
     expect(await usageExcludedWorkspace()).toBe(w.id);
+    // Another Installation Admin who does not own it can neither clear nor replace it; its owner can.
+    const other = await admin(); const w2 = await ws();
+    await db().from("memberships").insert({ workspace_id: w2.id, user_id: other.personId, role: "owner" });
+    await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null })).rejects.toThrow(/Only an Owner/);
+    await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w2.id })).rejects.toThrow(/Only an Owner/);
+    expect(await usageExcludedWorkspace()).toBe(w.id);
+    // A read that fails refuses the change, even for the owner (it never reads as "nothing is left out").
+    const real = db(); const orig = real.from.bind(real);
+    const spy = vi.spyOn(real, "from").mockImplementation(((t: string) => t === "workspaces" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "down" } }) }) }) } : orig(t)) as never);
+    await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null })).rejects.toThrow(/could not be checked/);
+    spy.mockRestore();
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null });
     expect(await usageExcludedWorkspace()).toBeNull();
   });

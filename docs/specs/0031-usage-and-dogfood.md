@@ -1,6 +1,6 @@
 # 0031 Usage and dogfood: what is looked at, for the operator and for every Workspace
 
-**Status:** draft. **Tracking issue:** #357 (label `tracking`); its tickets become sub-issues labelled `spec:0031` once the owner has read this spec.
+**Status:** done, except two follow-ups: #389 (installation figures nothing records yet) and #370 (a Workspace's own figures as Metrics). **Tracking issue:** #357 (label `tracking`).
 
 ## Problem Statement
 

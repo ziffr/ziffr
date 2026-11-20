@@ -134,7 +134,7 @@ Under **The last 30 days**, the page lists the days newest first. With fewer tha
 
 **Usage Key.** A program can read the same figures from `GET /api/v1/installation/usage` with a Usage Key. Choose **Make a Usage Key**: the page shows the key once, with **Copy**, and keeps only a fingerprint of it. There is one key at a time; **Make a new Usage Key** replaces it at once, and **Revoke** ends it. The key opens that one address and nothing else: it is not an Access Key, it sees no Workspace, and the job secret does not open the address either. Anyone else, with a wrong or revoked key, gets "not found". A Usage Key may call it 60 times an hour. The changes list says when a key was made or revoked, never the key.
 
-**Workspace left out.** Pick a Workspace by name, usually the one that holds your own numbers, to leave it out of every figure and of the count of Workspaces, so those numbers do not count themselves. It takes effect with the next day's count. The setting holds the Workspace's id (`ZIFFR_USAGE_EXCLUDE_WORKSPACE`); the endpoint never names the Workspace.
+**Workspace left out.** Pick one of the Workspaces you own, by name, usually the one that holds your own numbers, to leave it out of every figure and of the count of Workspaces, so those numbers do not count themselves. Only a Workspace you own can be picked, and only its Owner can change or remove the choice: leaving a Workspace out changes the next day's totals by exactly that Workspace, so two days side by side would show its size. It takes effect with the next day's count. The setting holds the Workspace's id (`ZIFFR_USAGE_EXCLUDE_WORKSPACE`); the endpoint never names the Workspace.
 
 ## Demo
 

@@ -18,7 +18,7 @@ The same steps in detail:
 
 1. **Make a Feed.** In the Workspace that should hold the numbers, open Settings, Feeds, create a Feed named "Ziffr usage" and a Feed Key for it. Copy the key; it is shown once.
 2. **Make a Usage Key.** On the Installation Settings page, choose **Make a Usage Key** and copy it.
-3. **Leave the operations Workspace out.** On the same page, pick that Workspace as the one left out of every figure. Otherwise its own Metrics, values and Feed calls are in the totals it records, and the dashboard partly pictures itself.
+3. **Leave the operations Workspace out.** On the same page, pick that Workspace as the one left out of every figure (you must own it). Otherwise its own Metrics, values and Feed calls are in the totals it records, and the dashboard partly pictures itself.
 4. **Give that Workspace room.** The figures are about 37 Metrics, and they count towards the [Workspace Limit](self-hosting.md) like any others. If the Workspace has a default limit, give it one of its own on the Workspace Limits page that is large enough.
 5. **Create the Metrics and add the Feed as Submitter.** Each figure is one Metric whose slug is the figure's name with hyphens, such as `people-active-7d`. Open "Who submits" on each Metric and add the Feed. Do not set a Due Date for the Feed's Submission: nobody should be asked for a number only a program can give. The list of figures is below.
 6. **Put the keys in the settings.** With Docker Compose, add to `.env` and start again:
@@ -60,3 +60,7 @@ State, taken at the end of the day: `workspaces`, `workspaces-trial`, `workspace
 Events, added up over the period: `workspaces-created`, `trials-started`, `trials-kept`, `trials-closed`, `sizes-booked`, `workspaces-deleted`, `signups`, `values-web`, `values-email`, `values-slack`, `values-telegram`, `values-api`, `values-feed`, `values-mcp`, `values-derived`, `api-calls`, `feed-calls`, `mcp-calls`, `emails-sent`, `views-dashboards`, `views-decks`, `views-metrics`.
 
 The split figures (`workspaces-trial`, `workspaces-free`, `workspaces-paid` and the `values-` ones) arrive only where at least three Workspaces are behind them.
+
+## Figures that are not filled yet
+
+Some figures are in the list but nothing records them yet, so they are absent or zero: `api-calls`, `feed-calls`, `mcp-calls`, `signups`, `people-active-7d`, `workspaces-active-7d`, `trials-started`, `sizes-booked`, `workspaces-deleted`, `values-feed`, `values-mcp` and `values-derived`. They are tracked in #389. A zero here means "not recorded", not "none happened".
