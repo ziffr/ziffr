@@ -110,6 +110,7 @@ The numbers 3 and "fewer than 3" are in one constant and are an open question be
 - **Size and retention:** one row per subject per day with a view, so a Workspace of 200 Metrics and 20 dashboards makes at most about 220 rows a day, far fewer in practice. Rows older than 400 days are deleted by the daily rollup job (13 months: enough for "this quarter against the same quarter last year" if it ever comes, and for the 90-day rule with room). Deleting a subject or Workspace deletes its rows.
 - **The demo** counts nothing: `recordView` returns at once for the demo Workspace, as every write does (spec 0029).
 - **Visibility and encryption:** the table holds ids and numbers, no names or text, so it is not under the Workspace Key. It is reached only through core functions that check the Workspace and the Role.
+- **Built (ticket 1, #362):** `view_counts` and `usage_counts` exist; `recordView` (`packages/core/src/usage.ts`) is one upsert per view, without the in-memory batching, which can follow if it is ever needed; `pruneViewCounts` deletes rows older than 400 days and is called by the rollup job once that exists.
 - **Before counting started:** a Workspace has `usage_since`, the first day it was counted (set when it first has a row, or when the feature is released). Nothing is called "not opened for 90 days" before `usage_since` plus 90 days; the page says "Ziffr started counting on 3 December. The list fills in by 3 March." instead of calling everything unused.
 
 ### Workspace level: the Usage page
