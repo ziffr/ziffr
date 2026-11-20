@@ -26,9 +26,13 @@ describe("the Usage Key", () => {
     expect(secret).toMatch(/^zu_[0-9a-f]{6}_/);
     const stored = JSON.stringify((await db().from("usage_keys").select("*")).data);
     expect(stored).not.toContain(secret);
-    expect(stored).not.toContain(secret.split("_")[2]);
+    // The random part is base64url, which may itself contain "_": cut after the fixed "zu_<6 hex>_" rather than split.
+    const prefix = secret.slice(3, 9);
+    const random = secret.slice(10);
+    expect(random.length).toBeGreaterThan(30);
+    expect(stored).not.toContain(random);
     const info = await usageKeyInfo(a);
-    expect(info).toMatchObject({ prefix: secret.split("_")[1] });
+    expect(info).toMatchObject({ prefix });
     expect(JSON.stringify(info)).not.toContain(secret);
     expect(await authenticateUsageKey(secret)).toMatchObject({ usageKey: true });
     const second = await makeUsageKey(a);
