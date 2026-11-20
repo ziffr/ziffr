@@ -345,7 +345,7 @@ export type DeckTemplateBody = { slides: SlideBody[]; themeId?: number | null };
 /** A whole deck saved with its Metrics left open (GLOSSARY: Deck Template). */
 export type DeckTemplate = TemplateBase & { kind: "deck"; view: "deck"; body: DeckTemplateBody };
 /** A step of a Workflow Template: a Workflow's step with its Approvers left open, only how many to pick. */
-export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" }> | { type: "approve"; approvers: number; values?: ApprovalScope };
+export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" }> | { type: "approve"; approvers: number; values?: ApprovalScope; nobodyElse?: NobodyElse };
 /** What a Workflow Template keeps (GLOSSARY: Workflow Template): the Due Date and steps, with no person in them. */
 export type WorkflowTemplateBody = { dueWorkingDays: number; steps: WorkflowTemplateStep[] };
 /** A Workflow saved with its people left open (GLOSSARY: Workflow Template). */

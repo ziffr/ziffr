@@ -40,7 +40,7 @@ export const WORKFLOW_TEMPLATE_SCHEMA: Schema = {
           step("remind", "Remind each Submitter some days before the Due Date.", { daysBefore: days("Working days before the Due Date.") }, ["daysBefore"]),
           step("escalate", "Ask the Stand-in, or the Metric's owner, when a value is late.", { to: { enum: ["stand-in", "owner"] }, daysAfter: days("Working days after the Due Date.") }, ["to", "daysAfter"]),
           step("check", "Mark a value as unusual when it moves this much, or falls outside its Target Range.", { changePct: { type: "integer", minimum: 1, maximum: 1000 }, outsideTarget: { type: "boolean" } }, ["changePct", "outsideTarget"]),
-          step("approve", "Hold values back for Approval.", { approvers: { type: "integer", minimum: 0, maximum: 3, description: "How many Approvers are picked when the template is used; with 0, no value waits." }, values: { enum: ["unusual", "every"], description: "Which values wait: Unusual Values only, or every value." } }, ["approvers"]),
+          step("approve", "Hold values back for Approval.", { approvers: { type: "integer", minimum: 0, maximum: 3, description: "How many Approvers are picked when the template is used; with 0, no value waits." }, values: { enum: ["unusual", "every"], description: "Which values wait: Unusual Values only, or every value." }, nobodyElse: { enum: ["self-check", "count"], description: "When nobody but the submitter could approve a value: they check it themselves (a Self-check, the default), or it counts without Approval." } }, ["approvers"]),
           step("publish", "Publish the period's values, and lock it if asked.", { lock: { type: "boolean" } }, ["lock"]),
         ],
       },
@@ -79,5 +79,5 @@ export function checkWorkflowTemplateFileValue(value: unknown, lines: Map<string
 
 /** A checked Workflow Template file as the body a Workflow Template stores. */
 export function workflowTemplateFromFile(t: WorkflowTemplateFile): WorkflowTemplateBody {
-  return { dueWorkingDays: t.dueWorkingDays, steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve", approvers: s.approvers, values: s.values ?? "unusual" } : s)) };
+  return { dueWorkingDays: t.dueWorkingDays, steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve", approvers: s.approvers, values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)) };
 }

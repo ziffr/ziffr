@@ -123,12 +123,13 @@ describe("Workflow Templates", () => {
     const wf = await saveWorkflow(w.actor(ann), null, "Monthly close", config([sara]));
     const t = await saveWorkflowTemplate(w.actor(ann), { workflowId: wf, name: "Close", description: "Every month" });
     const { data: row } = await db().from("team_templates").select("kind, slots, body").eq("id", t).single();
-    expect(row).toEqual({ kind: "workflow", slots: [], body: { dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 2 }, { type: "approve", approvers: 1, values: "every" }, { type: "publish", lock: true }] } });
+    expect(row).toEqual({ kind: "workflow", slots: [], body: { dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 2 }, { type: "approve", approvers: 1, values: "every", nobodyElse: "self-check" }, { type: "publish", lock: true }] } });
     expect(JSON.stringify(await listWorkflowTemplates(w.actor(ben, "member")))).not.toContain(sara);
 
     const id = await createWorkflowFromTemplate(w.actor(ben, "member"), { template: t, name: "Ben's close", approvers: [ann] });
     const { data: made } = await db().from("workflows").select("name, owner_id, config").eq("id", id).single();
-    expect(made).toEqual({ name: "Ben's close", owner_id: ben, config: config([ann]) });
+    // Saved Workflows always say what happens when nobody else can approve; the template keeps that choice too.
+    expect(made).toEqual({ name: "Ben's close", owner_id: ben, config: { ...config([ann]), steps: config([ann]).steps.map((s) => (s.type === "approve" ? { ...s, nobodyElse: "self-check" } : s)) } });
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "workflow").eq("object_id", id);
     expect(versions).toEqual([{ message: "Made from the Workflow Template “Close”" }]);
   });
