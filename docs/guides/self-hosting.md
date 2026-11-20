@@ -138,6 +138,10 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 
+## Deleting unused Workspaces
+
+With a default Workspace Limit (spec 0029), `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.
+
 ## Offering trials
 
 A public Ziffr can let anyone try it for real with a **Trial Workspace** of their own ([spec 0021](../specs/0021-trial-workspaces.md), [ADR 0010](../adr/0010-trial-workspaces-reach-only-their-owner.md)). A visitor signs in with their email address and gets one workspace, filled with made-up Metrics, a dashboard and a Workflow that asks them. Email, Slack, Telegram, the API, the MCP Server and Feeds work in it for real, but reach only its Owner; nobody can be invited, Contacts stay simulated, and it sends at most 50 messages a day. It ends after the days you set and is deleted a week later, with its Owner's account. The shared demo stays beside it for people who only want to look.

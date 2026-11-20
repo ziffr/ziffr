@@ -62,6 +62,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "on lets this server talk to the Marketplace; off, or empty, makes no connection. Packs can always be installed from a file." },
   { name: "ZIFFR_MARKETPLACE_URL", section: "marketplace", label: "Marketplace address", secret: false, placeholder: "https://marketplace.ziffr.app",
     help: "Where the Marketplace is; empty: Ziffr's own. https only, and never inside this server's own network." },
+  { name: "ZIFFR_DELETE_UNUSED_AFTER_DAYS", section: "limits", label: "Delete unused Workspaces after", secret: false, placeholder: "Never",
+    help: "Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own." },
 ];
 
 /** The setting of this name, or undefined for any name the page does not know. */
