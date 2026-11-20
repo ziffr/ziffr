@@ -57,7 +57,7 @@ const CASES: Record<string, Case> = {
   "actions:createAction": { args: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },
   "actions:replyToAction": { args: (i) => [i.action, form({ body: "A reply" })] },
   "actions:decideCorrection": { nothing: "the demo holds no proposed Correction", args: (i) => [i.message, true] },
-  "actions:setActionStatus": { args: (i) => [i.action, "closed"] },
+  "actions:setActionStatus": { args: (i) => [i.action, "open"] },
   "assistant-actions:disconnectAssistant": { nothing: "the demo has no connected assistants", args: () => [1] },
   "auth-actions:sendSignInLink": { outside: "signing in, not the demo Workspace" },
   "auth-actions:signInWith": { outside: "signing in, not the demo Workspace" },

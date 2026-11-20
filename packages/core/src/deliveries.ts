@@ -14,6 +14,8 @@ import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
 import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
+import { announceNewAction } from "./action-state";
+import { FROM_APP, type ChangeSource } from "./webhook-events";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
 export const linkTo = (path: string) => `${(process.env.ZIFFR_SITE_URL ?? "").replace(/\/+$/, "")}${path}`;
@@ -43,7 +45,9 @@ export async function connectorFor(ws: string, recipientId: string, kind: Delive
 
 /** Sends one Delivery about an Action. Nobody gets a message about their own doing. With `queue`, an email is
  * only queued, for the deliveries job to send. */
-export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null; queue?: boolean }) {
+export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null; queue?: boolean; source?: ChangeSource }) {
+  // A Task or Question given to someone is also told to the Webhooks, even to oneself: it is in the Workspace either way.
+  if (input.kind === "question" || input.kind === "task") await announceNewAction(input.actionId, input.source ?? FROM_APP);
   if (input.senderId === input.recipientId) return;
   const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metrics(name, period)").eq("id", input.actionId).single();
   if (!found) return;

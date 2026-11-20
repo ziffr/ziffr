@@ -64,7 +64,7 @@ export function maskAddress(raw: string): string {
 
 /** Less than the page shows, for the Audit Log and for notices that leave as email: the last two labels of the host
  * and nothing else, since some tools make the whole host (a subdomain) or the start of the path the secret. */
-function maskedHost(raw: string): string {
+export function maskedHost(raw: string): string {
   try {
     const host = new URL(raw).hostname;
     const labels = host.split(".");
@@ -227,7 +227,7 @@ export async function setWebhookEnabled(actor: Actor, id: string, enabled: boole
   if (typeof enabled !== "boolean") throw new Error("A Webhook is switched on or off.");
   const { row, address } = await find(actor, id);
   if (!!row.disabled_at === !enabled) return;
-  const patch = enabled ? { disabled_at: null, disabled_reason: null } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
+  const patch = enabled ? { disabled_at: null, disabled_reason: null, failing_since: null, failure_count: 0 } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
   const { data: changed, error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
   if (!changed?.length) throw new Forbidden(NOT_FOUND);

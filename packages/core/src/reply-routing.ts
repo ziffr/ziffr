@@ -50,7 +50,7 @@ export async function routeReply(d: RepliedDelivery, text: string, via: ReplyCha
   if (d.action_id) {
     const { body, correction } = parseReply(text);
     if (!body && correction === null) return "empty";
-    await postReply(d.workspace_id, d.action_id, d.recipient_id, body, correction);
+    await postReply(d.workspace_id, d.action_id, d.recipient_id, body, correction, { type: via.source === "mail" ? "email" : via.source });
     await db().from("deliveries").update({ status: "answered" }).eq("id", d.id);
     return correction === null ? "replied" : "corrected";
   }

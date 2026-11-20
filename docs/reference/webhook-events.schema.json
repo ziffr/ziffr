@@ -1,0 +1,1749 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ziffr Webhook message",
+  "description": "The JSON body of every message a Ziffr Webhook is sent, by `type`. Action events are `redacted` when the Metric is not shared with Everyone or the Thread is limited to a Group. Signed as described in the Webhooks guide; the same `id` on every retry.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "action.created"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "title",
+                "metric",
+                "period",
+                "asker"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "metric": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "period": {
+                  "type": "string"
+                },
+                "asker": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "reply": {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "redacted"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "redacted": {
+                  "const": true
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "action.updated"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "title",
+                "metric",
+                "period",
+                "asker"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "metric": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "period": {
+                  "type": "string"
+                },
+                "asker": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "reply": {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "redacted"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "redacted": {
+                  "const": true
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "action.answered"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "title",
+                "metric",
+                "period",
+                "asker"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "metric": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "period": {
+                  "type": "string"
+                },
+                "asker": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "reply": {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "redacted"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "redacted": {
+                  "const": true
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "action.done"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "title",
+                "metric",
+                "period",
+                "asker"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "metric": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "period": {
+                  "type": "string"
+                },
+                "asker": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "reply": {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "ref",
+                "kind",
+                "status",
+                "due",
+                "assignee",
+                "link",
+                "updated_at",
+                "source",
+                "external_ids",
+                "redacted"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "pattern": "^ZIF-[0-9]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "task",
+                    "question"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "answered",
+                    "closed"
+                  ]
+                },
+                "due": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "assignee": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "email"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "link": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "app",
+                        "api",
+                        "mcp",
+                        "email",
+                        "slack",
+                        "telegram",
+                        "web_form",
+                        "ticket_system",
+                        "workflow",
+                        "system",
+                        "webhook"
+                      ]
+                    },
+                    "webhook_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "external_ids": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "system",
+                      "external_id",
+                      "url"
+                    ],
+                    "properties": {
+                      "system": {
+                        "type": "string"
+                      },
+                      "external_id": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "reason": {
+                  "enum": [
+                    "done",
+                    "answered",
+                    "closed",
+                    "metric_archived",
+                    "metric_deleted",
+                    "assignee_left",
+                    "workspace_closing"
+                  ]
+                },
+                "redacted": {
+                  "const": true
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "value.recorded"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "metric",
+            "period",
+            "value",
+            "target",
+            "link"
+          ],
+          "properties": {
+            "metric": {
+              "type": "object",
+              "required": [
+                "id",
+                "name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "period": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "link": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "value.unusual"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "metric",
+            "period",
+            "link"
+          ],
+          "properties": {
+            "metric": {
+              "type": "object",
+              "required": [
+                "id",
+                "name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "period": {
+              "type": "string"
+            },
+            "link": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "ping"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "webhook"
+          ],
+          "properties": {
+            "webhook": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

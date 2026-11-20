@@ -10,7 +10,7 @@ import { ZIFFR_VERSION } from "./ziffr-version";
 import { mailHostResolver, privateAddress, privateMailHost } from "./mail-hosts";
 
 /** What one request gives back: its status and its body, cut at the limit given. */
-export type OutboundAnswer = { status: number; body: string; tooBig: boolean };
+export type OutboundAnswer = { status: number; body: string; tooBig: boolean; /** The answer's Retry-After header as sent, for a caller that retries (cut at 100 characters). */ retryAfter?: string };
 
 /** The longest a whole request may take, in milliseconds; a caller may only ask for less. */
 export const OUTBOUND_TIMEOUT_MS = 10_000;
@@ -99,13 +99,15 @@ export function outboundRequest(url: URL, init: OutboundInit): Promise<OutboundA
       }) as never,
     }, (res) => {
       const chunks: Buffer[] = [];
+      const after = res.headers["retry-after"];
+      const retryAfter = typeof after === "string" ? after.slice(0, 100) : undefined;
       let size = 0;
       res.on("data", (c: Buffer) => {
         size += c.length;
-        if (size > init.maxBytes) { res.destroy(); done(() => resolve({ status: res.statusCode ?? 0, body: "", tooBig: true })); return; }
+        if (size > init.maxBytes) { res.destroy(); done(() => resolve({ status: res.statusCode ?? 0, body: "", tooBig: true, retryAfter })); return; }
         chunks.push(c);
       });
-      res.on("end", () => done(() => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8"), tooBig: false })));
+      res.on("end", () => done(() => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8"), tooBig: false, retryAfter })));
       res.on("error", (e) => done(() => reject(e)));
       res.on("close", () => done(() => reject(new Error("the answer ended early"))));
     });
