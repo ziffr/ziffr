@@ -123,7 +123,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Workflow**:
-A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
 _Avoid_: Process, pipeline, flow
 
 **Workflow Template**:
