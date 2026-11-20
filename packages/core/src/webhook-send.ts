@@ -12,7 +12,7 @@ import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./out
 import { openNames, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
-import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
+import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
@@ -252,7 +252,8 @@ export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; f
 export async function sendWebhooksNow(workspaceId: string, metricId: number | null = null): Promise<void> {
   try {
     const { data } = await db().rpc("claim_webhook_sends_for", { p_workspace: workspaceId, p_metric: metricId, p_limit: 500 });
-    if (Array.isArray(data) && data.length) await runSends(data as Send[]);
+    // A budget: a Webhook that stalls must never hold back the delete that follows (what is not sent in time is lost with the rows).
+    if (Array.isArray(data) && data.length) await Promise.race([runSends(data as Send[]), new Promise((resolve) => setTimeout(resolve, WEBHOOK_SEND_NOW_BUDGET_MS))]);
   } catch (e) {
     console.error("Webhooks: could not send the last events:", (e as Error).message);
   }

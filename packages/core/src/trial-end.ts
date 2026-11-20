@@ -122,7 +122,7 @@ async function deleteTrial(workspaceId: string): Promise<void> {
   // Only a trial is deleted here: its key is destroyed only once that is certain.
   if (!trial) return;
   // What is still open is closed, and everything queued is sent now: the send rows go with the Workspace, its key next.
-  await closeForSystem(workspaceId, { statuses: ["open", "answered"] }, "workspace_closing", { beforeDelete: true });
+  await closeForSystem(workspaceId, { statuses: ["open", "answered"] }, "workspace_closing");
   await sendWebhooksNow(workspaceId);
   await destroyWorkspaceKeys(workspaceId);
   const { data: gone, error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null).is("trial_kept_at", null).select("id");
