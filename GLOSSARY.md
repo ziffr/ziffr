@@ -459,3 +459,19 @@ _Avoid_: Sent items, log
 **Delivery Preference**:
 Where a person wants to get questions, tasks, reminders and replies. The team sets a default; whoever sends may choose another for one message.
 _Avoid_: Notification settings, routing
+
+**Usage**:
+What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; an Installation Admin sees only totals across all Workspaces.
+_Avoid_: Analytics, telemetry, tracking, statistics, activity
+
+**View Count**:
+How many times a dashboard, deck or Metric was opened on one day, kept only as a number per day: never by whom, and nothing in the demo. It is what lets the Usage page say a dashboard was not opened for 90 days.
+_Avoid_: Page views, hits, visitors, tracking
+
+**Usage Key**:
+A secret an Installation Admin makes on the Installation Settings page. It reads the Installation's Usage totals and nothing else: no Workspace, Metric or person, and it is not an Access Key.
+_Avoid_: Admin key, telemetry key, API token
+
+**Usage Feed**:
+The Feed, in Ziffr's own repository, that reads an Installation's Usage totals and records them as Metrics in the operator's own Workspace. It runs outside Ziffr, from the Docker clock or any cron, only when its keys are set.
+_Avoid_: Telemetry, phone-home, reporting job
