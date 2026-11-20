@@ -79,6 +79,13 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   const s = taken?.[0];
   if (!s || s.workspace_id !== actor.workspaceId || s.person_id !== actor.personId) return "refused";
   if (Date.now() - new Date(s.created_at).getTime() > STATE_MINUTES * 60_000) return "refused";
+  // The token will be sealed with the Workspace Key: if that cannot be opened, no token is asked for at all, so none
+  // is left working at Slack with nowhere to keep it.
+  try {
+    await workspaceCipher(actor.workspaceId);
+  } catch {
+    return "failed";
+  }
   let r: Record<string, unknown>;
   try {
     r = await callSlack("oauth.v2.access", { client_id: settings.ZIFFR_SLACK_CLIENT_ID, client_secret: settings.ZIFFR_SLACK_CLIENT_SECRET, code, redirect_uri: redirectUri() });
@@ -116,7 +123,9 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
  * nothing is sent or taken any more. Who was found on Slack is forgotten. */
 export async function disconnectSlack(actor: Actor): Promise<void> {
   mayManage(actor);
-  const bot = await slackBot(actor.workspaceId);
+  // A token that cannot be opened any more (its Workspace Key is gone) is not revoked at Slack, but Ziffr stops
+  // using it all the same.
+  const bot = await slackBot(actor.workspaceId).catch(() => null);
   if (bot) {
     try {
       await callSlack("auth.revoke", {}, bot.token);

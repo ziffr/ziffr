@@ -9,7 +9,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
 import { workspace, opened } from "./test/db-fixtures";
-import { isSealed, workspaceCipher } from "./workspace-keys";
+import { forgetWorkspaceKey, isSealed, workspaceCipher } from "./workspace-keys";
 
 let slack: Awaited<ReturnType<typeof fakeSlack>>;
 beforeAll(async () => { slack = await fakeSlack(); });
@@ -113,6 +113,20 @@ describe("connecting Slack", () => {
     }
     // Sealed again, it opens without the previous key.
     expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+  });
+
+  it("asks Slack for no token when the Workspace Key cannot be opened, and still disconnects such a Workspace", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    await db().from("workspace_keys").delete().eq("workspace_id", w.id);
+    forgetWorkspaceKey(w.id);
+    const exchanges = slack.of("oauth.v2.access").length;
+    expect(await connect(w.actor(sara))).toBe("failed");
+    expect(slack.of("oauth.v2.access")).toHaveLength(exchanges);
+    await disconnectSlack(w.actor(sara));
+    const { data } = await db().from("slack_installations").select("revoked_at").eq("workspace_id", w.id).single();
+    expect(data!.revoked_at).not.toBeNull();
   });
 
   it("moves a token sealed before spec 0028 with ZIFFR_SECRETS_KEY to the Workspace Key on its next use", async () => {
