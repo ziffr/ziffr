@@ -8,7 +8,7 @@ import { db } from "./db";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
-import { deleteUnusedWorkspaces, unusedAfterDays, unusedWorkspacesJob, warnUnusedWorkspaces, workspaceValuesCsv } from "./unused-workspaces";
+import { runUnusedWorkspaces, unusedAfterDays, unusedWorkspacesJob, workspaceValuesCsv } from "./unused-workspaces";
 import { ensureWorkspaceKey } from "./workspace-keys";
 import { syncDefaultLimit } from "./workspace-limits";
 
@@ -61,18 +61,24 @@ describe("last use", () => {
 });
 
 describe("the warning and the deletion", () => {
-  it("warn the Owners once after the days, delete 14 days later with the key first, and take the lone Owner along", async () => {
+  /** The warning sent `daysAgo` days ago, after `unusedFor` days without use before it. */
+  const warnedAgo = (id: string, daysAgo: number, unusedFor = 100) =>
+    db().from("workspaces").update({ unused_warned_at: ago(daysAgo), last_used_at: ago(daysAgo + unusedFor) }).eq("id", id);
+  const run = () => runUnusedWorkspaces(90);
+
+  it("warn the Owners once by email after the days, delete 14 days later with the key first, and take the lone Owner along", async () => {
     const { w, sara, adam, cleo, authId } = await unused(100);
-    expect(await warnUnusedWorkspaces(90)).toBeGreaterThanOrEqual(1);
+    await run();
     expect(await notices(w.id)).toEqual([sara]);
-    expect(await warnUnusedWorkspaces(90)).toBe(0);
+    const { data: sent } = await db().from("deliveries").select("connector").eq("workspace_id", w.id).eq("kind", "notice");
+    expect(sent?.map((d) => d.connector)).toEqual(["email"]);
+    await run();
     expect(await notices(w.id)).toEqual([sara]);
     expect(adam).not.toBe(sara);
     // Not before 14 days.
-    expect(await deleteUnusedWorkspaces()).toBe(0);
     expect(await state(w.id)).not.toBeNull();
-    await db().from("workspaces").update({ unused_warned_at: ago(15) }).eq("id", w.id);
-    expect(await deleteUnusedWorkspaces()).toBeGreaterThanOrEqual(1);
+    await warnedAgo(w.id, 15);
+    await run();
     expect(await state(w.id)).toBeNull();
     expect((await db().from("workspace_keys").select("workspace_id").eq("workspace_id", w.id)).data).toEqual([]);
     const { data: lines } = await db().from("installation_audit_events").select("kind").eq("subject", w.id).order("id");
@@ -81,23 +87,54 @@ describe("the warning and the deletion", () => {
     expect((await db().auth.admin.getUserById(authId)).data.user).toBeNull();
   });
 
-  it("are stopped by a sign-in in between, and never touch a limit of its own, a trial, a recent Workspace or the demo (which no write reaches)", async () => {
+  it("are stopped by use in between, and never touch a limit of its own, a trial, a recent Workspace or the demo (which no write reaches)", async () => {
     const quiet = await unused(100);
     const sized = await unused(100); await sized.w.limit(50, "Small");
     const trial = await unused(100); await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() + 5 * DAY).toISOString() }).eq("id", trial.w.id);
     const recent = await unused(10);
-    await warnUnusedWorkspaces(90);
+    await run();
     expect((await state(quiet.w.id))!.unused_warned_at).not.toBeNull();
     for (const x of [sized, trial, recent]) expect((await state(x.w.id))!.unused_warned_at).toBeNull();
     expect((await state(DEMO_WORKSPACE_ID))!.unused_warned_at).toBeNull();
     // A sign-in after the warning keeps it, even once the 14 days are over.
     await recordSignIn(quiet.sara);
     await db().from("workspaces").update({ unused_warned_at: ago(15), last_used_at: ago(1) }).eq("id", quiet.w.id);
-    expect(await deleteUnusedWorkspaces()).toBe(0);
+    await run();
     expect(await state(quiet.w.id)).not.toBeNull();
-    // A Workspace marked as warned by hand but on a limit of its own is not deleted either.
-    await db().from("workspaces").update({ unused_warned_at: ago(30), last_used_at: ago(200) }).eq("id", sized.w.id);
-    expect(await deleteUnusedWorkspaces()).toBe(0);
+    // A value that replaces a period's value is use too.
+    const v = await quiet.w.value(quiet.m.id, "2026-08-01", 1);
+    await warnedAgo(quiet.w.id, 15);
+    await db().from("observations").update({ value: 2 }).eq("id", v);
+    expect((await state(quiet.w.id))!.unused_warned_at).toBeNull();
+    // A Workspace warned but on a limit of its own is not deleted either, and setting a limit ends the warning.
+    await warnedAgo(sized.w.id, 15);
+    await run();
+    expect(await state(sized.w.id)).not.toBeNull();
+    await warnedAgo(quiet.w.id, 15);
+    await quiet.w.limit(20);
+    expect((await state(quiet.w.id))!.unused_warned_at).toBeNull();
+  });
+
+  it("never delete on a stale warning or one sent before enough days without use", async () => {
+    const stale = await unused(400);
+    await warnedAgo(stale.w.id, 60, 300);
+    const early = await unused(400);
+    await warnedAgo(early.w.id, 15, 30);
+    await run();
+    expect(await state(stale.w.id)).not.toBeNull();
+    expect(await state(early.w.id)).not.toBeNull();
+    // The stale one is warned afresh instead.
+    expect(new Date((await state(stale.w.id))!.unused_warned_at!).getTime()).toBeGreaterThan(Date.now() - 60_000);
+  });
+
+  it("keep an Installation Admin whose only Workspace goes", async () => {
+    const { w, sara } = await unused(100);
+    await db().from("installation_admins").insert({ person_id: sara });
+    cleanups.push(async () => { await db().from("installation_admins").delete().eq("person_id", sara); await db().from("profiles").delete().eq("id", sara); });
+    await warnedAgo(w.id, 15);
+    await run();
+    expect(await state(w.id)).toBeNull();
+    expect((await db().from("profiles").select("id").eq("id", sara)).data).toEqual([{ id: sara }]);
   });
 
   it("do nothing where the rule is off", async () => {

@@ -6,6 +6,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Actor, WorkspaceRoleName } from "@ziffr/core/actor";
+import { touchWorkspace } from "@ziffr/core/unused-workspaces";
 import { db } from "./db";
 import { isDemo, personFor, sessionUser } from "./auth";
 
@@ -62,5 +63,7 @@ export async function currentActor(): Promise<Actor> {
   const [personId, workspaceId] = await Promise.all([viewerId(), currentWorkspaceId()]);
   const { data } = await db.from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", personId).maybeSingle();
   if (!data) throw new Error("Not a member of this workspace.");
+  // A signed-in person's page or action is use of the Workspace (spec 0029); the demo's visitors are nobody.
+  if (!(await isDemo())) await touchWorkspace(workspaceId);
   return { personId, workspaceId, role: data.role as WorkspaceRoleName };
 }

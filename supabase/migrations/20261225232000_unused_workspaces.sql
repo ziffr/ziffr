@@ -18,7 +18,8 @@ language sql security definer set search_path = public as $$
   where id = p_workspace and (last_used_at < now() - interval '1 hour' or unused_warned_at is not null)
 $$;
 
--- A value recorded by any Source is use (record_observation, add_to_observation and every other insert).
+-- A value recorded by any Source is use: a new one, and one that replaces or adds to a period's value (the Submission
+-- Rules overwrite and add, an accepted Correction).
 create or replace function observations_touch_workspace() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -26,33 +27,68 @@ begin
   return null;
 end $$;
 
-create trigger observations_touch_workspace after insert on observations
+create trigger observations_touch_workspace after insert or update of value on observations
   for each row execute function observations_touch_workspace();
 
--- Whether a Workspace may be deleted as unused now, read under its row lock by the deletion: on the default limit,
--- no trial, not the demo, warned at least p_wait_days ago and not used since the warning.
-create or replace function deletable_as_unused(p_workspace uuid, p_wait_days int) returns boolean
+-- A limit of its own (a Size booked, or one an Installation Admin set) ends any warning: such a Workspace is never
+-- deleted as unused, and if it comes back to the default it is warned afresh.
+create or replace function workspace_limits_clear_warning() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  update workspaces set unused_warned_at = null where id = coalesce(new.workspace_id, old.workspace_id) and unused_warned_at is not null;
+  return null;
+end $$;
+
+create trigger workspace_limits_clear_warning after insert or update or delete on workspace_limits
+  for each row execute function workspace_limits_clear_warning();
+
+-- Whether a Workspace may be deleted as unused now, read under its row lock by the deletion: on the default limit, no
+-- trial, not the demo, warned between 14 and 21 days ago (an older warning is stale and never deletes), and unused
+-- for p_days before the warning and since.
+create or replace function deletable_as_unused(p_workspace uuid, p_days int) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from workspaces w
     where w.id = p_workspace and w.id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
       and w.trial_ends_at is null and w.unused_warned_at is not null
-      and w.unused_warned_at <= now() - make_interval(days => greatest(p_wait_days, 14))
-      and w.last_used_at <= w.unused_warned_at
+      and w.unused_warned_at <= now() - interval '14 days' and w.unused_warned_at > now() - interval '21 days'
+      and w.last_used_at <= w.unused_warned_at - make_interval(days => p_days)
       and not exists (select 1 from workspace_limits l where l.workspace_id = w.id)
   )
 $$;
 
--- Deletes a Workspace as unused, in one step under its row lock, only while it still may be (a sign-in or a value since
--- the check stops it): first its key (spec 0028: from then on nothing of it can be read, in the database or in backups
+-- The Workspaces a run may warn (unused for p_days, on the default limit, never warned) and may delete, oldest first,
+-- at most p_limit each; warnings older than 21 days are stale and cleared, so the Workspace is warned afresh.
+create or replace function unused_workspace_candidates(p_days int, p_limit int) returns table (workspace_id uuid, step text)
+language plpgsql security definer set search_path = public as $$
+begin
+  update workspaces set unused_warned_at = null where unused_warned_at is not null and unused_warned_at <= now() - interval '21 days';
+  return query
+    (select w.id, 'warn'::text from workspaces w
+      where w.unused_warned_at is null and w.trial_ends_at is null and w.id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
+        and w.last_used_at <= now() - make_interval(days => p_days)
+        and not exists (select 1 from workspace_limits l where l.workspace_id = w.id)
+      order by w.last_used_at limit p_limit)
+    union all
+    (select w.id, 'delete'::text from workspaces w where deletable_as_unused(w.id, p_days) order by w.unused_warned_at limit p_limit);
+end $$;
+
+-- Takes back a warning that could not be sent, so a Workspace is never deleted without one.
+create or replace function unclaim_unused_warning(p_workspace uuid) returns void
+language sql security definer set search_path = public as $$
+  update workspaces set unused_warned_at = null where id = p_workspace
+$$;
+
+-- Deletes a Workspace as unused, in one step under its row lock, only while it still may be (a sign-in or a value
+-- committed before it stops it): first its key (spec 0028: from then on nothing of it can be read, in the database or in backups
 -- taken afterwards), with the Installation's audit line by its id, then the Workspace, whose rows go with it by their
 -- foreign keys, and one more line that it was deleted as unused. One step, so a key is never destroyed for a
 -- Workspace that then stays. True for the call that deleted it.
-create or replace function delete_unused_workspace(p_workspace uuid) returns boolean
+create or replace function delete_unused_workspace(p_workspace uuid, p_days int) returns boolean
 language plpgsql security definer set search_path = public as $$
 begin
   perform 1 from workspaces where id = p_workspace for update;
-  if not found or not deletable_as_unused(p_workspace, 14) then return false; end if;
+  if not found or not deletable_as_unused(p_workspace, p_days) then return false; end if;
   update workspaces set keyed_at = coalesce(keyed_at, now()) where id = p_workspace;
   delete from workspace_keys where workspace_id = p_workspace;
   if not exists (select 1 from installation_audit_events where kind = 'workspace.key_destroyed' and subject = p_workspace::text) then
@@ -77,5 +113,15 @@ begin
   return v_id is not null;
 end $$;
 
-revoke execute on function touch_workspace(uuid), deletable_as_unused(uuid, int), delete_unused_workspace(uuid), claim_unused_warning(uuid, int) from public, anon, authenticated;
-grant execute on function touch_workspace(uuid), deletable_as_unused(uuid, int), delete_unused_workspace(uuid), claim_unused_warning(uuid, int) to service_role;
+-- Replaces the function of 20261209150000: an Installation Admin is never deleted as a lone person (their only
+-- Workspace may be one that goes), so an Installation never loses its admins this way.
+create or replace function delete_lone_person(p_person text) returns uuid
+language sql security definer set search_path = public as $$
+  delete from profiles p where p.id = p_person
+    and not exists (select 1 from memberships m where m.user_id = p_person)
+    and not exists (select 1 from installation_admins a where a.person_id = p_person)
+  returning p.auth_user_id
+$$;
+
+revoke execute on function touch_workspace(uuid), deletable_as_unused(uuid, int), delete_unused_workspace(uuid, int), claim_unused_warning(uuid, int), unused_workspace_candidates(int, int), unclaim_unused_warning(uuid), delete_lone_person(text) from public, anon, authenticated;
+grant execute on function touch_workspace(uuid), deletable_as_unused(uuid, int), delete_unused_workspace(uuid, int), claim_unused_warning(uuid, int), unused_workspace_candidates(int, int), unclaim_unused_warning(uuid), delete_lone_person(text) to service_role;

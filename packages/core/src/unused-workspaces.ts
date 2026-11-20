@@ -33,70 +33,87 @@ export function unusedAfterDays(settings: Settings): number | null {
   return defaultLimitFrom(settings).metrics === null ? null : Number(raw);
 }
 
-/** Records that someone of the Workspace used it now (a sign-in; values touch it in the database). */
+// Workspaces this process marked as used, and when: a person's every page asks, so the database is asked at most every
+// ten minutes per Workspace from here (and writes at most once an hour, touch_workspace).
+const touched = new Map<string, number>();
+
+/** Records that someone of the Workspace used it now: a sign-in, and every page or action of a signed-in person (a
+ * session that stays open is use too). Values touch it in the database. */
 export async function touchWorkspace(workspaceId: string): Promise<void> {
   if (workspaceId === DEMO_WORKSPACE_ID) return;
+  const last = touched.get(workspaceId);
+  if (last && Date.now() - last < 10 * 60_000) return;
+  touched.set(workspaceId, Date.now());
   const { error } = await db().rpc("touch_workspace", { p_workspace: workspaceId });
-  if (error) console.error(`Unused Workspaces: could not record use (${error.code ?? "error"})`);
+  if (error) { touched.delete(workspaceId); console.error(`Unused Workspaces: could not record use (${error.code ?? "error"})`); }
 }
 
 /** A day as "3 December 2026". */
 const dayWords = (at: Date) => at.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
-/** Warns the Owners of Workspaces unused for `days`, once per time unused. Returns how many Workspaces were warned. */
-export async function warnUnusedWorkspaces(days: number, now = new Date()): Promise<number> {
-  const before = new Date(now.getTime() - days * DAY).toISOString();
-  const { data } = await db().from("workspaces").select("id").is("unused_warned_at", null).is("trial_ends_at", null).lte("last_used_at", before).neq("id", DEMO_WORKSPACE_ID).order("last_used_at").limit(PER_RUN);
-  let n = 0;
-  for (const w of data ?? []) {
-    // Claimed in the database, which checks again that it is unused and on the default limit, so it warns once.
-    const { data: claimed, error } = await db().rpc("claim_unused_warning", { p_workspace: w.id, p_days: days });
-    if (error || claimed !== true) continue;
-    const on = dayWords(new Date(now.getTime() + UNUSED_WAIT_DAYS * DAY));
-    const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", w.id).eq("role", "owner");
+/** Warns the Owners of one Workspace unused for `days`, by email, once per time unused. A warning that reaches no
+ * Owner is taken back, so a Workspace is never deleted without one. True when it was warned. */
+async function warn(workspaceId: string, days: number, now: Date): Promise<boolean> {
+  // Claimed in the database, which checks again that it is unused and on the default limit, so it warns once.
+  const { data: claimed, error } = await db().rpc("claim_unused_warning", { p_workspace: workspaceId, p_days: days });
+  if (error || claimed !== true) return false;
+  const on = dayWords(new Date(now.getTime() + UNUSED_WAIT_DAYS * DAY));
+  let sent = 0;
+  try {
+    const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner");
     for (const o of owners ?? []) {
-      await deliverNotice(w.id as string, {
-        recipientId: o.user_id as string, senderId: null, subject: "Your Ziffr Workspace will be deleted",
+      // By email, whatever Connector the Owner prefers for replies: this one must reach them where they will look.
+      await deliverNotice(workspaceId, {
+        recipientId: o.user_id as string, senderId: null, subject: "Your Ziffr Workspace will be deleted", via: "email",
         text: `Nobody has signed in to your Workspace or sent it a value for ${days} days. On ${on} it will be deleted with all its Metrics, values and dashboards, and its key destroyed, so nothing of it can be read again. One sign-in or one value keeps it. To keep a copy of its values, sign in and download them from the link below.`,
         link: "/settings/workspace/download",
       });
+      sent++;
     }
-    n++;
+  } finally {
+    if (sent === 0) await db().rpc("unclaim_unused_warning", { p_workspace: workspaceId });
   }
-  return n;
+  return sent > 0;
 }
 
-/** Deletes Workspaces still unused 14 days after their warning. Returns how many. */
-export async function deleteUnusedWorkspaces(now = new Date()): Promise<number> {
-  const before = new Date(now.getTime() - UNUSED_WAIT_DAYS * DAY).toISOString();
-  const { data } = await db().from("workspaces").select("id").not("unused_warned_at", "is", null).lte("unused_warned_at", before).is("trial_ends_at", null).neq("id", DEMO_WORKSPACE_ID).limit(PER_RUN);
-  let n = 0;
-  for (const w of data ?? []) {
+/** The day's warnings and deletions: what the database picks (unused on the default limit, oldest first; warned 14
+ * to 21 days ago and still unused), at most PER_RUN of each. Returns how many were warned and deleted. */
+export async function runUnusedWorkspaces(days: number, now = new Date()): Promise<{ warned: number; deleted: number }> {
+  const { data, error } = await db().rpc("unused_workspace_candidates", { p_days: days, p_limit: PER_RUN });
+  if (error) throw new Error("The unused Workspaces could not be read.");
+  let warned = 0;
+  let deleted = 0;
+  for (const c of (data ?? []) as { workspace_id: string; step: "warn" | "delete" }[]) {
     try {
-      if (await deleteUnused(w.id as string)) n++;
+      if (c.step === "warn" && (await warn(c.workspace_id, days, now))) warned++;
+      if (c.step === "delete" && (await deleteUnused(c.workspace_id, days))) deleted++;
     } catch (e) {
       // One that fails waits for the next run; the others still go.
-      console.error(`Unused Workspace ${w.id} could not be deleted: ${(e as Error).message}`);
+      console.error(`Unused Workspace ${c.workspace_id}: ${(e as Error).message}`);
     }
   }
-  return n;
+  return { warned, deleted };
 }
 
 /** Deletes one Workspace as unused, if it still may be: its key and the Workspace in one step in the database, then
- * the person rows of its Contacts and Feeds, and each member whose only Workspace it was, with their sign-in. */
-async function deleteUnused(workspaceId: string): Promise<boolean> {
+ * the person rows of its Contacts and Feeds, and each member whose only Workspace it was, with their sign-in (never an
+ * Installation Admin). */
+async function deleteUnused(workspaceId: string, days: number): Promise<boolean> {
   const [{ data: members }, { data: contacts }, { data: feeds }] = await Promise.all([
     db().from("memberships").select("user_id").eq("workspace_id", workspaceId),
     db().from("contacts").select("person_id").eq("workspace_id", workspaceId),
     db().from("feeds").select("person_id").eq("workspace_id", workspaceId),
   ]);
-  const { data: gone, error } = await db().rpc("delete_unused_workspace", { p_workspace: workspaceId });
+  const { data: gone, error } = await db().rpc("delete_unused_workspace", { p_workspace: workspaceId, p_days: days });
   forgetWorkspaceKey(workspaceId);
   if (error) throw new Error("The Workspace could not be deleted.");
   if (gone !== true) return false;
   // Contacts and Feeds are person rows made for this Workspace alone, never with a sign-in.
   const others = [...(contacts ?? []).map((c) => c.person_id as string), ...(feeds ?? []).map((f) => f.person_id as string)];
-  if (others.length) await db().from("profiles").delete().in("id", others);
+  if (others.length) {
+    const { error: e2 } = await db().from("profiles").delete().in("id", others);
+    if (e2) console.error(`Unused Workspace ${workspaceId}: its Contacts and Feeds could not be deleted (${e2.code ?? "error"})`);
+  }
   // A member goes only when they belong nowhere else, decided in the statement that deletes them (as with trials).
   for (const m of members ?? []) {
     const { data: authUser, error: e3 } = await db().rpc("delete_lone_person", { p_person: m.user_id });
@@ -110,7 +127,7 @@ async function deleteUnused(workspaceId: string): Promise<boolean> {
 export async function unusedWorkspacesJob(now = new Date()): Promise<{ warned: number; deleted: number }> {
   const days = unusedAfterDays(await settingsInEffect());
   if (days === null) return { warned: 0, deleted: 0 };
-  return { warned: await warnUnusedWorkspaces(days, now), deleted: await deleteUnusedWorkspaces(now) };
+  return runUnusedWorkspaces(days, now);
 }
 
 /** The values of every Metric the person sees, as CSV, for Owners and Admins: what the warning offers to keep before a
