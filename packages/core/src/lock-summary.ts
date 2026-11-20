@@ -27,6 +27,12 @@ async function summarise(ws: string, workflowId: number, period: string): Promis
   if (!wf || !(wf.config as WorkflowConfig | null)?.lockSummary) return false;
   const { data: owner } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", wf.owner_id).maybeSingle();
   if (!owner) return false;
+  // Cheap first: only when every value the Workflow asks for has a Lock for the period is the timeline made at all.
+  const { data: asked } = await db().from("metrics").select("id").eq("workspace_id", ws).eq("workflow_id", workflowId).is("formula", null).is("archived_at", null);
+  const ids = (asked ?? []).map((m) => m.id as number);
+  if (!ids.length) return false;
+  const { count } = await db().from("period_states").select("metric_id", { count: "exact", head: true }).eq("workspace_id", ws).eq("period_start", period).eq("state", "locked").in("metric_id", ids);
+  if ((count ?? 0) < ids.length) return false;
   const who: Actor = { personId: wf.owner_id as string, workspaceId: ws, role: owner.role as Actor["role"] };
   const t = await periodTimeline(who, workflowId, period);
   if (!t.of || t.locked < t.of) return false;

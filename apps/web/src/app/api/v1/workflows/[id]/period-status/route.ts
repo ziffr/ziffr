@@ -2,7 +2,6 @@
 // as the key's creator may see it: values in of values asked for, and what happened, in order. Scope metrics:read.
 // The core decides what appears: a Metric the creator does not see is a count ("1 value"), and a Thread's words are
 // only its first words, only for one they may read. The paths in the answer become links, which need a sign-in.
-import { Forbidden } from "@ziffr/core/actor";
 import { periodTimeline, workflowPeriods } from "@ziffr/core/period-timeline";
 import { ApiError, json, keyRoute, query } from "@/lib/api";
 import { idParam, PeriodStatus, periodStatusQuery } from "../../../schemas";
@@ -20,8 +19,9 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
   try {
     t = await periodTimeline(actor, id, start);
   } catch (e) {
-    if (e instanceof Forbidden) throw e;
-    throw new ApiError("invalid_request", e instanceof Error ? e.message : "Pick a period.");
+    // Only the core's own words about the period are passed on; anything else is an error of ours.
+    if (e instanceof Error && /^Pick a period/.test(e.message)) throw new ApiError("invalid_request", e.message);
+    throw e;
   }
   return json(PeriodStatus.parse({
     workflow: t.workflow, period: { start: t.period, name: t.label }, in: t.in, of: t.of, published: t.published, locked: t.locked,

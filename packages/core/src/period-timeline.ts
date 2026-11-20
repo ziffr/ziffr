@@ -185,9 +185,10 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   // Threads: only the ones this viewer may read are opened at all.
   const owners = new Map(mine.map((m) => [m.id, m.owner_id]));
   const readable = threadReader(viewer, groups, (id) => owners.get(id), ws, visible);
-  const opened = await openRows("actions", ws, actions ?? []);
-  // And only for a Metric they see: a Thread about one they do not see is never opened, whoever else is on it.
-  const mayRead = new Set(opened.filter((a) => visible.has(a.metric_id as number) && readable(a as unknown as Action & { workspace_id: string })).map((a) => a.id as number));
+  // Only Threads of Metrics they see, and that they may read, are opened: the columns decided on are not sealed.
+  const allowed = (actions ?? []).filter((a) => visible.has(a.metric_id as number) && readable(a as unknown as Action & { workspace_id: string }));
+  const opened = await openRows("actions", ws, allowed);
+  const mayRead = new Set(opened.map((a) => a.id as number));
   const readableIds = [...mayRead];
   const { data: messageRows } = readableIds.length
     ? await db().from("thread_messages").select("id, action_id, author_id, body, correction_status, created_at").eq("workspace_id", ws).in("action_id", readableIds).order("created_at").order("id")
@@ -307,7 +308,8 @@ function line(chunk: Raw[], total: number, seenIn: Set<number>, countable: Reado
   const unseen = hidden ? [values(hidden)] : [];
   if (kind === "asked" || kind === "reminded") {
     const people = new Set(chunk.map((r) => r.person));
-    const channels = [...new Set(chunk.map((r) => r.channel).filter((c): c is ConnectorId => Boolean(c)))].map((c) => CONNECTORS[c]?.label ?? c);
+    // The Connectors of Prompts for Metrics the viewer sees only.
+    const channels = [...new Set(shown.map((r) => r.channel).filter((c): c is ConnectorId => Boolean(c)))].map((c) => CONNECTORS[c]?.label ?? c);
     return {
       kind, count: people.size,
       text: `${kind === "asked" ? "Asked" : "Reminded"} ${plural(people.size, "person", "people")}${channels.length ? ` by ${list(channels)}` : ""}`,
