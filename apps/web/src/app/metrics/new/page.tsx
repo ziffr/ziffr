@@ -11,6 +11,7 @@ import { UnitFields } from "../unit-fields";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
 import { newMetricRefusal } from "@ziffr/core/workspace-limits";
+import { metricsOfLimit, nearLimitNote } from "@ziffr/core/workspace-usage";
 import { PageHeader } from "@/components/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,13 +60,16 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   const copy = sp.copy ? await draftOrNull(Number(sp.copy)) : null;
   if (sp.copy && !copy) notFound();
 
+  // Near the Workspace Limit, everyone sees how many it holds of how many (spec 0029), on the Catalog and the form.
+  const note = nearLimitNote(await metricsOfLimit(await currentActor()));
   if (!picked && !sp.scratch && !copy) {
     // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
-    const [profile, numberStyle] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle()]);
+    const [profile, numberStyle, refusal] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle(), newMetricRefusal(await currentActor())]);
     const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
     return (
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
+        <LimitNotes refusal={refusal} note={note} />
         <Link href="/metrics/new?scratch=1" className="mb-8 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
           <PenLine className="size-5 text-muted-foreground" />
           <div>
@@ -96,8 +100,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           ? "A new metric of yours with the same description. Values, Shares, Target Series and history stay with the original."
           : picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
       />
-      {/* The Workspace Limit (spec 0029): said before the form is filled in, in the core's words. */}
-      {refusal && <p role="alert" className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-4 text-sm">{refusal}</p>}
+      <LimitNotes refusal={refusal} note={note} />
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
         <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />
@@ -216,4 +219,12 @@ function F({ label, hint, className, children }: { label: string; hint?: string;
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
+}
+
+/** The Workspace Limit on these pages (spec 0029): the refusal a new Metric would meet, said before the form is
+ * filled in, or near the limit how many Metrics it holds of how many. */
+function LimitNotes({ refusal, note }: { refusal: string | null; note: string | null }) {
+  if (refusal) return <p role="alert" className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-4 text-sm">{refusal}</p>;
+  if (note) return <p className="mb-4 text-sm text-[var(--color-ink-2)]">This Workspace holds {note}. Archived Metrics are not counted.</p>;
+  return null;
 }

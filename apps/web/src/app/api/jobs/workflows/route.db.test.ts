@@ -23,6 +23,6 @@ describe("POST /api/jobs/workflows", () => {
   it("runs what is due and says only how many", async () => {
     const res = await call(`Bearer ${SECRET}`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ran: 2, failed: 0 });
+    expect(await res.json()).toEqual({ ran: 2, failed: 0, limitNotices: expect.any(Number) });
   });
 });

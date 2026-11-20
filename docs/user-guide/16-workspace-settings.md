@@ -75,6 +75,16 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 **Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style, its Answer Languages and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
+### Size and usage
+
+Owners and Admins see **Size and usage** under the name: how many Metrics the Workspace holds, Archived Metrics not counted. When the Workspace has a **Workspace Limit**, it also shows the Size, such as "Small", and the count of the limit, such as "38 of 50 Metrics"; and a coming change, such as "Changes to Team on 1 December 2026", when one is set. Without a limit, as on most self-hosted Ziffrs, it shows only the count.
+
+Over its limit, the section says since when and until when new Metrics can still be made (14 days, with room for 10 % more), or that they wait now. Everything else keeps working and values keep arriving. Owners and Admins then see a line under the top bar on every page with the same news and a link here, and every Owner gets one email when the 14 days start and one when they end. Archiving Metrics you no longer track makes room (see the Metrics chapter).
+
+Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
+
+Members and Guests do not see this section. Who sets a limit: see the Installation settings chapter.
+
 ### Name
 
 The **Workspace name** is what everyone sees in the top bar and in Invitations. Type a new one (up to 80 characters) and choose **Save**.
@@ -423,7 +433,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new and deleted Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, Slack, Snapshots taken, shown and deleted, exports and sign-ins.
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports and sign-ins.
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 
