@@ -10,6 +10,7 @@ import * as settings from "@ziffr/core/installation-settings";
 import * as replies from "@ziffr/core/installation-replies";
 import * as telegramTest from "@ziffr/core/installation-telegram-test";
 import * as limits from "@ziffr/core/workspace-limits-admin";
+import * as usage from "@ziffr/core/installation-usage";
 import { installationActor } from "@/lib/installation";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
@@ -99,18 +100,23 @@ export async function telegramTestStatus(): Promise<telegramTest.TelegramTestSta
   }
 }
 
-/** Makes a new signing secret for replies by email and answers it this once, for the inbound provider's forwarder. */
-export async function makeInboundSecret(): Promise<{ error: string } | { secret: string }> {
+/** Runs an action that answers a secret this once: the secret, or what went wrong in the page's words. */
+async function secretOnce(make: (a: admins.InstallationActor) => Promise<{ secret: string }>): Promise<{ error: string } | { secret: string }> {
   const actor = await installationActor();
   if (!actor) return { error: "Sign in first." };
   try {
-    const r = await replies.makeInboundSecret(actor);
+    const r = await make(actor);
     revalidatePath("/installation");
     return r;
   } catch (e) {
     if (e instanceof Forbidden) return { error: "Not found." };
     return { error: forPeople(e) ?? unforeseen(e) };
   }
+}
+
+/** Makes a new signing secret for replies by email and answers it this once, for the inbound provider's forwarder. */
+export async function makeInboundSecret(): Promise<{ error: string } | { secret: string }> {
+  return secretOnce((a) => replies.makeInboundSecret(a));
 }
 
 /** Starts the replies-by-email test: an email to your own address whose reply comes back through the provider. */
@@ -132,4 +138,14 @@ export async function replyTestStatus(): Promise<replies.ReplyTestStatus | { err
 /** Sets one Workspace's own limit (`metrics` empty for none), or with null gives it back to the default. */
 export async function setWorkspaceLimit(workspaceId: string, value: { metrics: string; label: string } | null): Promise<Result> {
   return run((a) => limits.setWorkspaceLimit(a, String(workspaceId ?? ""), value === null ? null : { metrics: String(value?.metrics ?? ""), label: String(value?.label ?? "") }));
+}
+
+/** Makes a Usage Key and answers its secret this once; a live one stops working. */
+export async function makeUsageKey(): Promise<{ error: string } | { secret: string }> {
+  return secretOnce((a) => usage.makeUsageKey(a));
+}
+
+/** Revokes the live Usage Key. */
+export async function revokeUsageKey(): Promise<Result> {
+  return run((a) => usage.revokeUsageKey(a));
 }

@@ -9,7 +9,8 @@ type Endpoint = {
   path: string;
   summary: string;
   description: string;
-  scope: Scope | typeof FEED_SCOPE;
+  /** The scope an Access Key needs, or `usage` for the Usage Key, which is not an Access Key. */
+  scope: Scope | typeof FEED_SCOPE | "usage";
   query?: z.ZodObject;
   body?: z.ZodType;
   idempotent?: boolean;
@@ -162,6 +163,14 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/installation/usage", scope: "usage", query: S.usageQuery, ok: { status: 200, name: "InstallationUsage", schema: S.UsageResponse },
+    summary: "Read the Installation's Usage",
+    description: "For a Usage Key only (spec 0031), made by an Installation Admin on the Installation Settings page: not an Access Key, and the job secret does not open it. One object per UTC day that has figures, oldest first, at most 400 days, the newest not later than yesterday: whole numbers of Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name or id, a person, a value or an address. Figures that split by kind or Source, and Packs, are left out where fewer than 3 Workspaces are behind them, and named in `withheld`. One Workspace may be left out of every figure by the Installation's settings. A Usage Key may call it 60 times an hour.",
+    errors: [
+      { status: 404, description: "No key, a wrong or revoked one, an Access Key, a Feed Key or the job secret: all get 404 with an empty body, so the endpoint is not known to be there." },
+    ],
+  },
+  {
     method: "get", path: "/workspace", scope: "metrics:read", ok: { status: 200, name: "Workspace", schema: S.ApiWorkspace },
     summary: "Describe the workspace",
     description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.",
@@ -291,7 +300,8 @@ export function openApiDocument() {
     }
     if (e.idempotent) parameters.push({ name: "Idempotency-Key", in: "header", required: false, description: "A repeat with the same key and body within 24 hours gets the first answer, with `Idempotent-Replayed: true`.", schema: json(S.IdempotencyKey, "input") });
     const responses: Record<string, unknown> = { [e.ok.status]: { description: e.ok.status === 201 ? "Taken." : "OK.", content: { "application/json": { schema: { $ref: `#/components/schemas/${e.ok.name}` } } } } };
-    for (const err of [...COMMON_ERRORS, ...(e.errors ?? [])].sort((a, b) => a.status - b.status)) {
+    // The Usage Key's endpoint hides itself: it never answers 401 or 403.
+    for (const err of [...COMMON_ERRORS.filter((c) => e.scope !== "usage" || [400, 429, 500].includes(c.status)), ...(e.errors ?? [])].sort((a, b) => a.status - b.status)) {
       const prev = responses[err.status] as { description: string } | undefined;
       responses[err.status] = {
         description: prev ? `${prev.description} ${err.description}` : err.description,
@@ -302,7 +312,7 @@ export function openApiDocument() {
     (paths[e.path] ??= {})[e.method] = {
       operationId: `${e.method}${e.path.replace(/\{(\w+)\}/g, "By_$1").split("/").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("")}`,
       summary: e.summary, description: e.description,
-      security: [{ accessKey: [] }], "x-scope": e.scope,
+      security: [{ [e.scope === "usage" ? "usageKey" : "accessKey"]: [] }], "x-scope": e.scope,
       ...(parameters.length ? { parameters } : {}),
       ...(e.body ? { requestBody: { required: true, content: { "application/json": { schema: json(e.body, "input") } } } } : {}),
       responses,
@@ -317,7 +327,7 @@ export function openApiDocument() {
     },
     servers: [{ url: "/api/v1" }],
     paths,
-    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made in Settings, or a Feed Key, made for a Feed on the Team page." } } },
+    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made in Settings, or a Feed Key, made for a Feed on the Team page." }, usageKey: { type: "http", scheme: "bearer", description: "A Usage Key, made by an Installation Admin on the Installation Settings page. It opens GET /installation/usage and nothing else." } } },
   };
 }
 

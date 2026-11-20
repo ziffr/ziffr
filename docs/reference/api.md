@@ -785,6 +785,74 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Read the Installation's Usage
+
+`GET /installation/usage` · scope `usage`
+
+For a Usage Key only (spec 0031), made by an Installation Admin on the Installation Settings page: not an Access Key, and the job secret does not open it. One object per UTC day that has figures, oldest first, at most 400 days, the newest not later than yesterday: whole numbers of Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name or id, a person, a value or an address. Figures that split by kind or Source, and Packs, are left out where fewer than 3 Workspaces are behind them, and named in `withheld`. One Workspace may be left out of every figure by the Installation's settings. A Usage Key may call it 60 times an hour.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `from` | query | string | no | The first day, YYYY-MM-DD. Default: 29 days before `to`. |
+| `to` | query | string | no | The last day, YYYY-MM-DD, at most yesterday (UTC); at most 400 days after `from`. Default: yesterday. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `days` | array of object | yes |  |
+| `days[].day` | string | yes | The UTC day, YYYY-MM-DD. |
+| `days[].workspaces` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].workspaces_created` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].trials_started` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].trials_kept` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].trials_closed` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].sizes_booked` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].workspaces_deleted` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].people` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].signups` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].people_active_7d` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].workspaces_active_7d` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].metrics` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].metrics_archived` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].dashboards` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].widgets` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].decks` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].workflows` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].feeds` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].packs_installed` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].api_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].feed_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].mcp_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].emails_sent` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].views_dashboards` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].views_decks` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].views_metrics` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
+| `days[].workspaces_trial` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].workspaces_free` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].workspaces_paid` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_web` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_email` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_slack` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_telegram` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_api` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_feed` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_mcp` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].values_derived` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].packs` | array of object | no | Marketplace Packs held by at least 3 Workspaces, with how many; an uploaded Pack is never named. |
+| `days[].packs[].id` | string | yes |  |
+| `days[].packs[].installs` | integer | yes |  |
+| `days[].withheld` | array of string | yes | The names of figures left out because too few Workspaces are behind them, or `packs`. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 404: No key, a wrong or revoked one, an Access Key, a Feed Key or the job secret: all get 404 with an empty body, so the endpoint is not known to be there.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## Describe the workspace
 
 `GET /workspace` · scope `metrics:read`

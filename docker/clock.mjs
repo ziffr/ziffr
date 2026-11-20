@@ -48,6 +48,8 @@ setInterval(() => {
   if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup", true);
   // Unused Workspaces (spec 0029): daily at 04:10 UTC; it does nothing unless ZIFFR_DELETE_UNUSED_AFTER_DAYS is set.
   if (now.getUTCHours() === 4 && now.getUTCMinutes() === 10) void call("unused-workspaces");
+  // Usage figures (spec 0031): the day's rollup, daily at 04:40 UTC; it only counts, and sends nothing anywhere.
+  if (now.getUTCHours() === 4 && now.getUTCMinutes() === 40) void call("usage-rollup");
 }, 15_000);
 writeFileSync(ALIVE, "");
 console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily).`);

@@ -1,6 +1,7 @@
 // The API's shapes (spec 0002): every endpoint's input and output as zod schemas. The server validates with them,
 // and the OpenAPI document is generated from them, so the description and the server cannot drift apart.
 import { z } from "zod";
+import { USAGE_FIGURES, USAGE_SPLIT_FIGURES } from "@ziffr/core/installation-usage";
 
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
 const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
@@ -440,3 +441,24 @@ export const ScheduleAnswer = z.object({
   days: z.array(z.object({ date: z.string(), entries: z.array(ScheduleEntry) })).describe("The span's days that have something, in order."),
   undated: z.array(ScheduleEntry).describe("Tasks without a due date and Questions other than Escalations."),
 }).meta({ examples: [SCHEDULE_EXAMPLE] });
+
+/** Parameters of GET /installation/usage: the days, both optional (the last 30 days). The core checks the range. */
+export const usageQuery = z.object({
+  from: periodDate.optional().describe("The first day, YYYY-MM-DD. Default: 29 days before `to`."),
+  to: periodDate.optional().describe("The last day, YYYY-MM-DD, at most yesterday (UTC); at most 400 days after `from`. Default: yesterday."),
+});
+
+/** One day of the Installation's figures: whole numbers by a fixed list of keys, nothing else (the object drops any other
+ * key, so a figure must be listed here to be returned at all). */
+const UsageDayShape = z.object({
+  day: z.string().describe("The UTC day, YYYY-MM-DD."),
+  ...Object.fromEntries(USAGE_FIGURES.map((k) => [k, z.number().int().nonnegative().optional().describe(
+    USAGE_SPLIT_FIGURES.includes(k as (typeof USAGE_SPLIT_FIGURES)[number]) ? "A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals." : "A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day.")])),
+  packs: z.array(z.object({ id: z.string(), installs: z.number().int().min(3) })).optional().describe("Marketplace Packs held by at least 3 Workspaces, with how many; an uploaded Pack is never named."),
+  withheld: z.array(z.string()).describe("The names of figures left out because too few Workspaces are behind them, or `packs`."),
+});
+
+/** GET /installation/usage answers this: one object per day that has figures, oldest first. */
+export const UsageResponse = z.object({ days: z.array(UsageDayShape) }).meta({
+  examples: [{ days: [{ day: "2026-11-19", workspaces: 12, workspaces_trial: 3, workspaces_free: 8, workspaces_paid: 1, people: 41, metrics: 380, dashboards: 55, values_web: 96, values_api: 210, api_calls: 1480, views_dashboards: 322, packs: [{ id: "sales-basics", installs: 5 }], withheld: [] }] }],
+});
