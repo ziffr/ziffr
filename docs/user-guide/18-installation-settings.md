@@ -38,7 +38,19 @@ A mail server inside the server's own network, such as `localhost` or `10.0.0.5`
 
 The mail server is a secret. Once saved, the page never shows it again, only that it is saved and its last four characters. To change it, type a new one; to keep it, leave the field empty.
 
-Sign-in links are sent by the sign-in service, which still takes its mail server from the server's settings.
+Sign-in links go out through this mail server too, where the sign-in service hands them to Ziffr, as a Ziffr run with Docker does by itself. Otherwise the sign-in service keeps the mail server from the server's settings for them.
+
+## Replies by email
+
+People can answer a request for a value, a question or a task by replying to its email, once mail works and replies are set up. Replies go to a domain of their own, such as `in.ziffr.example.com`; your inbound mail provider takes them and forwards each one to Ziffr, signed.
+
+- **Domain for replies**: the domain replies go to.
+- **Signing secret**: signs what the provider forwards. Choose **Make a signing secret**: the page shows a new one once, with **Copy**, for your provider's forwarder. It never shows it again; **Make a new signing secret** replaces it, and the old one stops working at once.
+- **Provider that vouches for senders**: the name your provider writes in its Authentication-Results header. With it, only replies the provider vouched for are taken. Without it, the section says that replies are checked by their address alone and Approvals are never taken by email.
+
+Under **Setting it up**, the page names the MX record the domain needs, and the MX records it has now, or that it has none yet. It also names the address the provider forwards to, which ends in `/api/inbound/email`. The [email guide](../guides/email.md#taking-replies) has a forwarder for Cloudflare.
+
+**Test replies by email** sends you an email whose reply address is the test's own. Reply to it with anything. While the page waits it says "Sent. Reply to the test email"; when your reply arrives through the provider it says, for example, "Tested just now: Your reply arrived, signed, from your address. Your provider vouched for the sender." It also says when a reply came from another address, or when the provider did not vouch for it, since a real reply like that would be refused. The reply address works once, for thirty minutes, and reaches no Workspace. You can run the test five times an hour.
 
 ## Telegram
 
@@ -86,8 +98,8 @@ A setting your server's settings file already has wins over the page. The page t
 
 ## Sections still to come
 
-Replies by email, the check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
+The check against bots, trials and the demo are listed with what they are for. Until the page can set them up, they are set in the server's settings, as the self-hosting guide says.
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, a Workspace's limit, and test emails. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Telegram bot token or the Slack Client Secret, a Workspace's limit, test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.

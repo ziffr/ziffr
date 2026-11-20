@@ -13,6 +13,9 @@ import { openSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect } from "./settings-in-effect";
 import { workspace } from "./test/db-fixtures";
 import { whatThisZiffrOffers, whatWorksHere } from "./what-works-here";
+import { inboundMx, makeInboundSecret, replyTestStatus, REPLY_TESTS_PER_HOUR, startReplyTest } from "./installation-replies";
+import { receiveEmail, type InboundEmail } from "./inbound-email";
+import type { OutgoingMail } from "./mail";
 
 const SMTP = process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425";
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
@@ -109,7 +112,7 @@ describe("who may see and change Installation Settings", () => {
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://smtp.example.test:587?logger=true&debug=true" })).rejects.toThrow(/no \?options/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "two@example.test, three@example.test" })).rejects.toThrow(/one email address/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "x".repeat(2000) })).rejects.toThrow(/too long/);
-    await expect(saveInstallationSettings(a, "replies", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/cannot be set up here yet/);
+    await expect(saveInstallationSettings(a, "bots", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/cannot be set up here yet/);
     // One bad value: nothing of the batch is stored.
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "Ziffr <z@example.test>", ZIFFR_SMTP_URL: "ftp://x" })).rejects.toThrow();
     expect((await db().from("installation_settings").select("name")).data).toEqual([]);
@@ -375,5 +378,98 @@ describe("the mail server's address", () => {
     answers["mail"] = ["172.18.0.5"];
     await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://mail:1025" });
     expect((await settingsInEffect()).ZIFFR_SMTP_URL).toBe("smtp://mail:1025");
+  });
+});
+
+describe("replies by email on the page (#198)", () => {
+  /** An admin with mail and replies saved on the page, and the secret Ziffr made for them. */
+  async function repliesSet() {
+    const a = await admin();
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    await saveInstallationSettings(a, "replies", { ZIFFR_INBOUND_DOMAIN: "in.example.test" });
+    const { secret } = await makeInboundSecret(a);
+    return { a, secret };
+  }
+  /** A forwarded reply to a test's address, as the inbound route hands it on after its signature check. */
+  const reply = (token: string, over: Partial<InboundEmail> = {}): InboundEmail => ({ tokens: [token], from: null, text: "test", messageId: `<${randomUUID()}@example.test>`, automatic: false, verified: false, ...over });
+  /** The reply token in a test email's reply address. */
+  const tokenOf = (m: OutgoingMail) => /^reply\+([A-Za-z0-9_-]{32})@in\.example\.test$/.exec(m.replyTo ?? "")![1];
+
+  it("makes a signing secret, sealed, shown once, and never for one the server sets", async () => {
+    const { a, secret } = await repliesSet();
+    expect(secret).toMatch(/^[0-9a-f]{64}$/);
+    const { data } = await db().from("installation_settings").select("value, sealed").eq("name", "ZIFFR_INBOUND_SECRET").single();
+    expect(data!.sealed).toBe(true);
+    expect(data!.value).not.toContain(secret);
+    expect(openSecret(data!.value as string, settingContext("ZIFFR_INBOUND_SECRET"))).toBe(secret);
+    expect(JSON.stringify(await installationSettingsView(a))).not.toContain(secret);
+    expect(await inboundOn()).toBe(true);
+    const replies = (await installationSettingsView(a)).sections.find((x) => x.id === "replies")!;
+    expect(replies.working).toBe(true);
+    // A new one replaces it at once.
+    const { secret: next } = await makeInboundSecret(a);
+    expect(next).not.toBe(secret);
+    expect((await settingsInEffect()).ZIFFR_INBOUND_SECRET).toBe(next);
+    process.env.ZIFFR_INBOUND_SECRET = "s".repeat(40);
+    await expect(makeInboundSecret(a)).rejects.toThrow(/set on the server/);
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    await expect(makeInboundSecret(w.actor(await w.person("owner")))).rejects.toThrow(/Only Installation Admins/);
+  });
+
+  it("shows the domain's MX records, or why there are none", async () => {
+    const { a } = await repliesSet();
+    expect(await inboundMx(a, async () => [{ exchange: "route2.mx.example.net", priority: 20 }, { exchange: "route1.mx.example.net", priority: 10 }]))
+      .toEqual({ domain: "in.example.test", records: ["10 route1.mx.example.net", "20 route2.mx.example.net"], problem: null });
+    expect(await inboundMx(a, async () => { throw Object.assign(new Error("x"), { code: "ENOTFOUND" }); })).toMatchObject({ records: [], problem: "in.example.test has no MX record yet." });
+    expect(await inboundMx(a, async () => { throw Object.assign(new Error("x"), { code: "ESERVFAIL" }); })).toMatchObject({ problem: /could not be read/ });
+  });
+
+  it("tests the way back: the admin's reply, from their address, vouched for or not, once", async () => {
+    const { a } = await repliesSet();
+    const before = (await db().from("inbound_emails").select("id", { count: "exact", head: true })).count;
+    expect(await replyTestStatus(a)).toEqual({ state: "none", at: null });
+    const sent: OutgoingMail[] = [];
+    expect(await startReplyTest(a, async (m) => { sent.push(m); return { messageId: "x" }; })).toEqual({ to: a.email });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe(a.email);
+    const token = tokenOf(sent[0]);
+    expect((await replyTestStatus(a)).state).toBe("waiting");
+    // Someone else's reply to the same address is noted as not from the admin; the test is used up by it.
+    expect(await receiveEmail(reply(token, { from: "someone@example.test", verified: true }))).toBe("test");
+    expect(await replyTestStatus(a)).toMatchObject({ state: "received", fromAdmin: false, vouched: true, vouchingAsked: false });
+    expect(await receiveEmail(reply(token, { from: a.email }))).toBe("unknown_token");
+    // A new test: the admin's own reply, not vouched for.
+    await startReplyTest(a, async (m) => { sent.push(m); return { messageId: "x" }; });
+    expect(await receiveEmail(reply(tokenOf(sent[1]), { from: a.email }))).toBe("test");
+    expect(await replyTestStatus(a)).toMatchObject({ state: "received", fromAdmin: true, vouched: false });
+    // Nothing of it reaches a Workspace: no reply was recorded against any Delivery.
+    expect((await db().from("inbound_emails").select("id", { count: "exact", head: true })).count).toBe(before);
+  });
+
+  it("ends a test that was not answered in thirty minutes, and one started after it", async () => {
+    const { a } = await repliesSet();
+    const sent: OutgoingMail[] = [];
+    await startReplyTest(a, async (m) => { sent.push(m); return { messageId: "x" }; });
+    await startReplyTest(a, async (m) => { sent.push(m); return { messageId: "x" }; });
+    // The first one stopped working when the second began.
+    expect(await receiveEmail(reply(tokenOf(sent[0]), { from: a.email }))).toBe("unknown_token");
+    await db().from("installation_reply_tests").update({ created_at: new Date(Date.now() - 31 * 60_000).toISOString() }).eq("person_id", a.personId);
+    expect((await replyTestStatus(a)).state).toBe("expired");
+    expect(await receiveEmail(reply(tokenOf(sent[1]), { from: a.email }))).toBe("unknown_token");
+  });
+
+  it("starts at most five tests an hour, only once replies are set up, and sends the real email to Mailpit", async () => {
+    const a = await admin();
+    await expect(startReplyTest(a)).rejects.toThrow(/Set up mail, the domain for replies and the signing secret first/);
+    await saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: SMTP, ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>" });
+    await saveInstallationSettings(a, "replies", { ZIFFR_INBOUND_DOMAIN: "in.example.test" });
+    await makeInboundSecret(a);
+    await startReplyTest(a);
+    const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${a.email}"`)}`)).json() as { messages: { Subject: string; ReplyTo: { Address: string }[] }[] };
+    expect(messages.map((x) => x.Subject)).toEqual(["Ziffr: test of replies by email"]);
+    expect(messages[0].ReplyTo[0].Address).toMatch(/^reply\+[A-Za-z0-9_-]{32}@in\.example\.test$/);
+    for (let i = 1; i < REPLY_TESTS_PER_HOUR; i++) await startReplyTest(a, async () => ({ messageId: "x" }));
+    await expect(startReplyTest(a, async () => ({ messageId: "x" }))).rejects.toThrow(/At most 5 reply tests an hour/);
   });
 });

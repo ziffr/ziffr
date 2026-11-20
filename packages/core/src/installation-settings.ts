@@ -6,7 +6,7 @@
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
-import { headerSafe, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
+import { headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
 import { botUsername, forgetTelegramBot, registerTelegramWebhook, TELEGRAM_NEEDS_HTTPS, telegramBot, telegramWebhookUrl } from "./telegram-connection";
@@ -121,6 +121,14 @@ function problemOf(check: () => unknown): string | null {
 /** Whether a section works with these settings, for the dot next to its title. */
 async function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): Promise<{ working: boolean; detail: string | null }> {
   if (id === "mail") return { working: mailEnabled(settings), detail: null };
+  if (id === "replies") {
+    if (inboundEnabled(settings)) {
+      return { working: true, detail: settings.ZIFFR_INBOUND_AUTHSERV_ID ? null : "Without the provider that vouches for senders, replies are checked by their address alone, and Approvals are never taken by email." };
+    }
+    const some = ["ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET"].some((n) => settings[n]);
+    if (!some) return { working: false, detail: null };
+    return { working: false, detail: mailEnabled(settings) ? "Needs both the domain for replies and the signing secret." : "Needs Mail first: replies answer emails Ziffr sent." };
+  }
   if (id === "telegram") {
     if (!telegramEnabled(settings)) return { working: false, detail: telegramToken(settings) ? "Needs ZIFFR_SECRETS_KEY on the server." : null };
     const bot = await telegramBot();

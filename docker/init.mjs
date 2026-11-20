@@ -44,6 +44,9 @@ const authPassword = keep("authDbPassword", () => random(24, "hex"));
 const restPassword = keep("restDbPassword", () => random(24, "hex"));
 keep("jobSecret", () => random(32));
 keep("secretsKey", () => randomBytes(32).toString("base64"));
+// Signs Auth's calls to Ziffr's Send Email Hook (spec 0025, #198): Ziffr sends sign-in links itself, through the mail
+// server in effect, also one saved on the Installation settings page.
+keep("authHookSecret", () => `v1,whsec_${randomBytes(32).toString("base64")}`);
 
 writeAtomic(keptFile, JSON.stringify(kept, null, 2), 0o600);
 chownSync(keptFile, 0, 0);
@@ -98,6 +101,7 @@ if (providerEnv.GOTRUE_EXTERNAL_AZURE_ENABLED) providerEnv.GOTRUE_EXTERNAL_AZURE
 
 const UID = { db: 0, app: 1000, migrate: 1001, auth: 1002, rest: 1003, clock: 1004 };
 const jobSecret = set(env.ZIFFR_JOB_SECRET) ? env.ZIFFR_JOB_SECRET : kept.jobSecret;
+const authHookSecret = set(env.ZIFFR_AUTH_HOOK_SECRET) ? env.ZIFFR_AUTH_HOOK_SECRET : kept.authHookSecret;
 // The demo is offered on a laptop; on a domain only when asked for (ZIFFR_DEMO=1), as an Installation for a team
 // should not let strangers in without signing in.
 // A public demo and nothing else (ZIFFR_DEMO_ONLY=1): the demo is on, Auth makes no accounts, and the clock resets the
@@ -125,6 +129,7 @@ const files = {
     ...(set(env.ZIFFR_SMTP_URL) ? { ZIFFR_SMTP_URL: smtpUrl } : { ZIFFR_SMTP_URL_DEFAULT: smtpUrl }),
     ...(set(env.ZIFFR_MAIL_FROM) ? { ZIFFR_MAIL_FROM: mailFrom } : { ZIFFR_MAIL_FROM_DEFAULT: mailFrom }),
     ZIFFR_JOB_SECRET: jobSecret,
+    ZIFFR_AUTH_HOOK_SECRET: authHookSecret,
     ZIFFR_SECRETS_KEY: set(env.ZIFFR_SECRETS_KEY) ? env.ZIFFR_SECRETS_KEY : kept.secretsKey,
     // Caddy adds one hop; another proxy in front of it (ZIFFR_SITE_URL without ZIFFR_DOMAIN) adds its own.
     ZIFFR_PROXY_HOPS: set(env.ZIFFR_PROXY_HOPS) ? env.ZIFFR_PROXY_HOPS : "1",
@@ -162,6 +167,13 @@ const files = {
     GOTRUE_SMTP_PASS: decodeURIComponent(smtp.password),
     GOTRUE_SMTP_ADMIN_EMAIL: senderAddress,
     GOTRUE_SMTP_SENDER_NAME: senderName,
+    // Auth hands every email to Ziffr, which sends it with the mail server in effect (spec 0025, #198). Auth calls
+    // plain http only on localhost or host.docker.internal, so the app answers to that name on a network it shares
+    // with Auth alone (compose.yml): the call never leaves the stack. The SMTP settings above are Auth's fallback
+    // only should the hook be switched off.
+    GOTRUE_HOOK_SEND_EMAIL_ENABLED: "true",
+    GOTRUE_HOOK_SEND_EMAIL_URI: "http://host.docker.internal:3000/api/auth/send-email",
+    GOTRUE_HOOK_SEND_EMAIL_SECRETS: authHookSecret,
     ...providerEnv,
   },
 };

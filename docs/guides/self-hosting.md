@@ -71,7 +71,7 @@ In the Supabase dashboard, under Authentication:
 - **Site URL:** where Ziffr is reached, the same as `ZIFFR_SITE_URL`, such as `https://ziffr.example.com`.
 - **Redirect URLs:** add `https://ziffr.example.com/auth/callback`.
 - **Email confirmations:** on. Ziffr counts an address as a person's only when a sign-in proved it.
-- **SMTP for sign-in links:** set your own SMTP server. Supabase's built-in sender is meant for trying things out and sends only a few emails an hour.
+- **Sign-in emails through Ziffr** (recommended): under Authentication, Hooks, add a **Send Email** hook of type HTTPS with the address `https://ziffr.example.com/api/auth/send-email`, let Supabase make its secret, and set that secret (`v1,whsec_…`) as `ZIFFR_AUTH_HOOK_SECRET` where Ziffr runs. Ziffr then sends sign-in links with its own mail server, also one saved on the [Installation settings](#installation-settings) page. Without the hook, set your own SMTP server here: Supabase's built-in sender is meant for trying things out and sends only a few emails an hour.
 - **Providers** (optional): Google, Microsoft (azure), GitHub or LinkedIn, each with its client id and secret. List the ones you set up in `ZIFFR_AUTH_PROVIDERS`, comma separated.
 
 Under Project Settings, API, keep **Max Rows** at 1000 or more (1000 is the default). Ziffr reads long lists page by page, 1000 rows at a time; with a lower limit, a list would end early.
@@ -130,7 +130,8 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **Which value counts.** The environment first, then the page, then the default (Docker's Mailpit). A setting in the environment is shown on the page as "set on the server" and cannot be changed there, so an Installation set up with a file works as before. A saved value takes effect within seconds, without a restart.
 - **Secrets.** The mail server's address holds its password, so it is sealed with `ZIFFR_SECRETS_KEY` before it is stored, and never shown again. Docker makes that key on the first start; elsewhere set it before saving secrets on the page. Back it up with the database: without it, sealed settings no longer open and must be saved again.
 - **The mail server's address** is read for its host, port, user and password only, also from the environment: options in a query (`?…`) are ignored, and the page refuses them. A host inside your own network, written so or resolving there, is refused on the page unless `ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1`; Ziffr connects to the address it checked.
-- **Sign-in links** are sent by Supabase Auth, which keeps reading its own mail settings (with Docker, `ZIFFR_SMTP_URL` in the settings file). A mail server saved on the page sends everything else.
+- **Sign-in links** go through Ziffr's mail settings too: Supabase Auth hands each one to Ziffr (its Send Email Hook), which Docker sets up by itself. With your own Supabase project, add the hook as above; without it, Auth keeps its own mail settings for sign-in links.
+- **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 
 ## Offering trials

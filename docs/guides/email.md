@@ -2,7 +2,9 @@
 
 Ziffr can send real email and take replies to it ([spec 0004](../specs/0004-real-email.md)). Prompts asking for a number, reminders, questions, tasks and replies in Threads go out through your SMTP server. A reply records the number, answers in the Thread or proposes a Correction. Without the settings below nothing is sent: messages stay in the Outbox, as before. The demo never sends email.
 
-An Installation Admin can also set the mail server and the sender on the Installation settings page (`/installation`) instead of in the environment, and send a test email from there; a value in the environment wins ([self-hosting](self-hosting.md#installation-settings)).
+An Installation Admin can also set the mail server and the sender on the Installation settings page (`/installation`) instead of in the environment, and send a test email from there; a value in the environment wins ([self-hosting](self-hosting.md#installation-settings)). The same goes for replies by email: the page makes the signing secret, shows the MX record the domain needs, and tests a real reply.
+
+**Sign-in links** go out the same way when Supabase Auth hands them to Ziffr through its Send Email Hook (`POST /api/auth/send-email`, signed with `ZIFFR_AUTH_HOOK_SECRET`). Docker sets this up on its own; with your own Supabase project, add the hook as the [self-hosting guide](self-hosting.md#with-your-own-supabase-project) says. Without it, Auth sends sign-in links with its own mail settings.
 
 ## Sending
 
@@ -40,6 +42,8 @@ Each email gets a reply address of its own, `reply+<token>@<your inbound domain>
    ZIFFR_INBOUND_SECRET=$(openssl rand -hex 32)
    ZIFFR_INBOUND_AUTHSERV_ID=<see below>
    ```
+
+   Or set them on the Installation settings page, where **Make a signing secret** makes the secret and shows it once to copy into your forwarder, and **Test replies by email** emails you and shows when your reply came back, from your address and whether your provider vouched for it.
 
 3. Forward each incoming message, unchanged, to `POST https://ziffr.example.com/api/inbound/email`, signed:
    - `X-Ziffr-Timestamp`: the time in Unix seconds;
