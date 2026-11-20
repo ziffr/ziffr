@@ -140,19 +140,20 @@ export async function deliverNotice(ws: string, input: { recipientId: string; se
  * that nothing can answer it. It has no Action, no Prompt and no reference, and the email carries no reply address
  * (mail.ts), so a reply to it records nothing (reply-routing.ts). Returns the Delivery's id. The caller has checked, a
  * moment before, that the person may still see the Metric; `text` holds nothing of any other Metric. */
-export async function deliverAlert(ws: string, input: { recipientId: string; subject: string; text: string; link: string; via?: ConnectorId }): Promise<number | null> {
-  return deliverPlain(ws, "alert", { ...input, senderId: null });
+export async function deliverAlert(ws: string, input: { recipientId: string; subject: string; text: string; link: string; via?: ConnectorId; metricId: number | null }): Promise<number | null> {
+  return deliverPlain(ws, "alert", { ...input, senderId: null, alertMetricId: input.metricId, queue: true });
 }
 
 /** One plain message of a kind that is not about an Action: a notice or an Alert. */
-async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId }): Promise<number | null> {
+async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; queue?: boolean }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
   const [d] = await insertSealed("deliveries", ws, [{
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
-    subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state,
+    subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, alert_metric_id: input.alertMetricId ?? null,
   }]) as { id: number }[];
-  await sendQueuedNow(d?.id, mail_state, via);
+  // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.
+  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
   return d?.id ?? null;
 }

@@ -79,6 +79,8 @@ export async function checkAlerts(metricId: number, opts: { imported?: boolean; 
     // Nothing is sent from the demo (spec 0032).
     if (!row || row.workspace_id === DEMO_WORKSPACE_ID) return;
     const ws = String(row.workspace_id);
+    // The common case first, cheaply: a Workspace without Alerts has nothing to check.
+    if (!(await db().from("alerts").select("id").eq("workspace_id", ws).limit(1)).data?.length) return;
     const metrics = await getMetrics(ws);
     const ctx: Ctx = { ws, metrics, style: await numberStyleOf(ws), method: await attainmentMethodOf(ws), seeing: new Map() };
     const hit = reached(metrics, metricId).filter((m) => !m.archived_at);
@@ -195,7 +197,7 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   const yearStart = await yearStartFor(ctx.ws, m.period);
   const text = claim === "note" ? ALERT_LIMIT_NOTE : alertText(m, c, view, ctx, yearStart);
   const link = `/metrics/${encodeURIComponent(m.slug)}`;
-  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery });
+  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id });
 }
 
 /** "week of 9 Nov 2026" inside a sentence. */

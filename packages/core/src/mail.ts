@@ -177,7 +177,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!found) return "skipped";

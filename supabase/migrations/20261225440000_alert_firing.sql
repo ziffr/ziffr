@@ -61,3 +61,8 @@ begin
 end $$;
 revoke execute on function claim_alert_message(uuid, text, date, int, int) from public, anon, authenticated;
 grant execute on function claim_alert_message(uuid, text, date, int, int) to service_role;
+
+-- The Metric an Alert message is about, so that it is checked again at the moment it leaves (a queued message may wait
+-- for hours): the person must still see the Metric and it must not be archived. Null for every other Delivery and for
+-- the one last note of a day. The messages of a deleted Metric go with it.
+alter table deliveries add column alert_metric_id bigint references metrics(id) on delete cascade;

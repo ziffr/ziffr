@@ -7,6 +7,7 @@ import { ALERT_MESSAGES_PER_PERSON_PER_DAY } from "./alert-limits";
 import { checkAlerts, ALERT_LIMIT_NOTE } from "./alert-firing";
 import type { AlertCondition } from "./alert-rules";
 import { createAlert, listMyAlerts, refreshAlertSight } from "./alerts";
+import { sendWaiting } from "./mail";
 import { db } from "./db";
 import { connectorsView } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
@@ -284,12 +285,21 @@ describe("mail", () => {
   beforeAll(() => { for (const [k, v] of Object.entries(SETTINGS)) { saved[k] = process.env[k]; process.env[k] = v; } });
   afterAll(() => { for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v; });
 
-  it("sends an Alert by email with no reply address, while a Prompt's would have one", async () => {
+  it("sends a queued Alert by email with no reply address, and not at all once the person lost sight", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
     const m = await w.metric(sara, { name: "Sales" }); await share(w, m.id, ann);
     await createAlert(w.actor(ann, "member"), { metricId: m.id, condition: above("100") });
     await put(w, m.id, P(1), 120, sara);
-    const [d] = await messages(w, ann);
-    expect(d).toMatchObject({ connector: "email", mail_state: "sent", reply_token: null });
+    const [queued] = await messages(w, ann);
+    expect(queued).toMatchObject({ connector: "email", mail_state: "queued" });
+    await sendWaiting();
+    expect((await messages(w, ann))[0]).toMatchObject({ mail_state: "sent", reply_token: null });
+    // A message that waits in the queue is checked again as it leaves.
+    await put(w, m.id, P(2), 50, sara);
+    await put(w, m.id, P(3), 150, sara);
+    expect((await messages(w, ann))[1]).toMatchObject({ mail_state: "queued" });
+    await db().from("shares").delete().eq("workspace_id", w.id).eq("user_id", ann);
+    await sendWaiting();
+    expect((await messages(w, ann))[1]).toMatchObject({ mail_state: "failed" });
   });
 });
