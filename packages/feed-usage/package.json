@@ -1,0 +1,56 @@
+{
+  "name": "@ziffr/feed-usage",
+  "version": "0.0.0-dev",
+  "description": "The Ziffr Usage Feed: reads an Installation's daily Usage figures and sends them with a Feed Key into the operator's own Workspace.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziffr/ziffr.git",
+    "directory": "packages/feed-usage"
+  },
+  "type": "module",
+  "bin": {
+    "ziffr-feed-usage": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "bundle": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/usage-feed.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:app": "vitest run --config vitest.app.config.ts"
+  },
+  "dependencies": {
+    "@ziffr/feed-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@ziffr/core": "workspace:*",
+    "esbuild": "0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsdoc": "^65.4.5",
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^4.1.12"
+  }
+}

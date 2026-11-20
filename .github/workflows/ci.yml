@@ -189,10 +189,11 @@ jobs:
         run: pnpm --filter @ziffr/sdk test:app
       - name: The MCP server against the running app
         run: pnpm --filter @ziffr/mcp test:app
-      - name: The feed kit and the SQL Feed against the running app
+      - name: The feed kit, the SQL Feed and the Usage Feed against the running app
         run: |
           pnpm --filter @ziffr/feed-kit test:app
           pnpm --filter @ziffr/feed-sql test:app
+          pnpm --filter @ziffr/feed-usage test:app
 
   # The required check: skipped on a pull request (which counts as passed), and in the merge queue and on main passed
   # only if every database job above passed. Its name stays core-db, so the ruleset and the release need no change.

@@ -14,7 +14,9 @@ WORKDIR /repo
 RUN corepack enable
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @ziffr/web...
+    pnpm install --frozen-lockfile --filter @ziffr/web... --filter @ziffr/feed-usage...
+# The Usage Feed (spec 0031) as one file the clock starts when the operator has turned it on.
+RUN pnpm --filter @ziffr/feed-usage bundle
 # Placeholders only so the build can load modules that make clients on import; the build inlines none of them (only
 # NEXT_PUBLIC_* would be, and nothing reads those any more). The check after the build makes sure.
 RUN NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1 \
@@ -60,6 +62,7 @@ COPY --chown=node:node GLOSSARY.md ./GLOSSARY.md
 COPY --chown=node:node supabase/config.toml ./supabase/config.toml
 COPY --chown=node:node supabase/migrations ./supabase/migrations
 COPY --chown=node:node docker/entrypoint.sh docker/init.mjs docker/migrate.mjs docker/clock.mjs ./docker/
+COPY --from=build --chown=node:node /repo/packages/feed-usage/dist/usage-feed.mjs ./docker/usage-feed.mjs
 # The keys volume takes this folder's owner when Docker first makes it, so node can write the keys.
 RUN mkdir -p /keys && chown node:node /keys && chmod 755 /app/docker/entrypoint.sh
 USER node

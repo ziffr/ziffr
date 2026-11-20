@@ -79,5 +79,6 @@ ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/sdk test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/mcp test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-kit test:app
 ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-sql test:app
+ZIFFR_TEST_URL="http://localhost:$PORT" pnpm --filter @ziffr/feed-usage test:app
 
 echo; echo "Everything CI checks passed locally."

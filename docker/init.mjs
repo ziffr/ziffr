@@ -118,6 +118,9 @@ const demoFixed = demoOnly || set(env.ZIFFR_DEMO) || demo === "0";
 // The app's own settings from .env (Slack, replies by email, providers offered, the user guide…): every ZIFFR_*
 // setting except those that belong to the stack, never Auth's provider secrets or the keys made here.
 const STACK_ONLY = new Set(["ZIFFR_DB_PASSWORD", "ZIFFR_JWT_SECRET", "ZIFFR_DOMAIN", "ZIFFR_HTTP_PORT", "ZIFFR_HTTPS_PORT", "ZIFFR_MAIL_PORT", "ZIFFR_IMAGE", "ZIFFR_KEYS_DIR"]);
+// The Usage Feed (spec 0031) runs from the clock, which gets these in its own file below; the app never reads them.
+const USAGE_FEED_SETTINGS = ["ZIFFR_USAGE_KEY", "ZIFFR_USAGE_FEED_KEY", "ZIFFR_USAGE_SOURCE_URL", "ZIFFR_USAGE_FEED_URL"];
+for (const k of USAGE_FEED_SETTINGS) STACK_ONLY.add(k);
 const appOwn = Object.fromEntries(Object.entries(env).filter(([k, v]) => k.startsWith("ZIFFR_") && !STACK_ONLY.has(k) && set(v)));
 
 const files = {
@@ -148,7 +151,11 @@ const files = {
   },
   // The clock seeds the demo nightly and tends trials hourly wherever they are offered, from this file or the
   // Installation settings page (spec 0025); a job for something not offered answers 404 and the clock says nothing.
-  clock: { ZIFFR_JOB_SECRET: jobSecret },
+  // The Usage Feed is off unless both of its keys are set (then the clock starts it daily); its keys go here and nowhere else.
+  clock: {
+    ZIFFR_JOB_SECRET: jobSecret,
+    ...(set(env.ZIFFR_USAGE_KEY) && set(env.ZIFFR_USAGE_FEED_KEY) ? Object.fromEntries(USAGE_FEED_SETTINGS.filter((k) => set(env[k])).map((k) => [k, env[k]])) : {}),
+  },
   // supabase/postgres: the superuser's password, which compose.yml's roles script also gives the roles Auth and
   // PostgREST sign in as. Read by the image's entrypoint, which starts as root.
   db: { POSTGRES_PASSWORD: dbPassword, PGPASSWORD: dbPassword, ZIFFR_AUTH_DB_PASSWORD: authPassword, ZIFFR_REST_DB_PASSWORD: restPassword },
