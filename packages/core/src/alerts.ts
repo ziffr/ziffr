@@ -25,8 +25,8 @@ export const ALERT_DELIVERIES = ["usual", "email", "slack", "telegram"] as const
 /** One way of delivery. */
 export type AlertDelivery = (typeof ALERT_DELIVERIES)[number];
 
-/** Why an Alert does not fire; null while it does. */
-export type AlertPause = "person" | "no_access" | "archived" | "no_target" | "no_workflow";
+/** Why the system does not let an Alert fire; null while it does. The person's own pause is apart (`pausedByPerson`). */
+export type AlertPause = "no_access" | "archived" | "no_target" | "no_workflow";
 
 /** What a person says to make or change an Alert. */
 export type AlertInput = { metricId: number; condition: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean };
@@ -38,6 +38,7 @@ export type MyAlert = {
   condition: AlertCondition;
   delivery: AlertDelivery;
   includeUnapproved: boolean;
+  pausedByPerson: boolean;
   paused: AlertPause | null;
   state: "armed" | "fired";
   firedAt: string | null;
@@ -45,8 +46,8 @@ export type MyAlert = {
 };
 
 /** What the database stores of an Alert, before it is opened. */
-type Row = { id: number; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused: AlertPause | null; state: "armed" | "fired"; fired_at: string | null; created_at: string };
-const COLUMNS = "id, metric_id, kind, level, delivery, include_unapproved, paused, state, fired_at, created_at";
+type Row = { id: number; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused_by_person: boolean; paused: AlertPause | null; state: "armed" | "fired"; fired_at: string | null; created_at: string };
+const COLUMNS = "id, metric_id, kind, level, delivery, include_unapproved, paused_by_person, paused, state, fired_at, created_at";
 
 /** The same words for a Metric that is not there and one the person may not see. */
 const NOT_FOUND = "That Metric was not found.";
@@ -110,7 +111,8 @@ const LIMIT_WORDS: Record<string, string> = {
  * database under a lock, so Alerts made at once cannot pass them together. Never in the demo. */
 export async function createAlert(actor: Actor, input: AlertInput): Promise<number> {
   refuseInDemo(actor);
-  const metric = await seen(actor, input?.metricId);
+  if (typeof input !== "object" || input === null) throw new Error("That is not an Alert.");
+  const metric = await seen(actor, input.metricId);
   if (metric.archived_at) throw new Error("This Metric is archived. Bring it back to set an Alert on it.");
   const { delivery, include } = checkOptions(input.delivery, input.includeUnapproved);
   await checkPossible(actor, metric, input.condition);
@@ -133,6 +135,7 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
 /** The acting person's own Alerts that they can still see, newest first; of one Metric when `metricId` is given.
  * An Alert whose Metric the person cannot see is left out, since its name would show that it still exists. */
 export async function listMyAlerts(actor: Actor, metricId?: number): Promise<MyAlert[]> {
+  if (metricId !== undefined && !Number.isInteger(metricId)) return [];
   let q = db().from("alerts").select(COLUMNS).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).order("id", { ascending: false });
   if (metricId !== undefined) q = q.eq("metric_id", metricId);
   const { data } = await q;
@@ -147,7 +150,7 @@ export async function listMyAlerts(actor: Actor, metricId?: number): Promise<MyA
     const condition = join(r.kind, r.level);
     // Without sight, or a level that does not open, there is nothing to show.
     if (!m || !visible.has(m.id) || !condition) continue;
-    out.push({ id: Number(r.id), metric: { id: m.id, slug: m.slug, name: m.name }, condition, delivery: r.delivery, includeUnapproved: r.include_unapproved, paused: r.paused, state: r.state, firedAt: r.fired_at, createdAt: r.created_at });
+    out.push({ id: Number(r.id), metric: { id: m.id, slug: m.slug, name: m.name }, condition, delivery: r.delivery, includeUnapproved: r.include_unapproved, pausedByPerson: r.paused_by_person, paused: r.paused, state: r.state, firedAt: r.fired_at, createdAt: r.created_at });
   }
   return out;
 }
@@ -156,12 +159,13 @@ export async function listMyAlerts(actor: Actor, metricId?: number): Promise<MyA
 export type AlertChange = { condition?: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean; paused?: boolean };
 
 /** Changes one of the acting person's own Alerts, while they still see its Metric. A new condition arms it again.
- * Pausing is the person's own switch: resuming ends only that pause, not one the bookkeeping set (no access, archived,
- * no target, no Workflow), which ends when its reason does. */
+ * Pausing is the person's own switch, kept apart: resuming ends only that, and the system's pauses (no access,
+ * archived, no target, no Workflow) neither undo it nor are undone by it. */
 export async function updateAlert(actor: Actor, id: number, change: AlertChange): Promise<void> {
   refuseInDemo(actor);
   if (!Number.isInteger(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("alerts").select("id, metric_id, paused").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
+  if (typeof change !== "object" || change === null) throw new Error("That is not a change to an Alert.");
+  const { data } = await db().from("alerts").select("id, metric_id").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const metric = await seen(actor, Number(data.metric_id));
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -171,13 +175,13 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
     if (change.includeUnapproved !== undefined) patch.include_unapproved = o.include;
   }
   if (change.paused !== undefined && typeof change.paused !== "boolean") throw new Error("An Alert is paused or not.");
-  if (change.paused === true && data.paused === null) patch.paused = "person";
-  if (change.paused === false && data.paused === "person") patch.paused = null;
+  if (change.paused !== undefined) patch.paused_by_person = change.paused;
   if (change.condition !== undefined) {
     await checkPossible(actor, metric, change.condition);
     const { kind, level } = split(change.condition);
     const row = await sealRow("alerts", actor.workspaceId, { id, level });
-    Object.assign(patch, { kind, level: row.level ?? null, state: "armed", fired_period: null, fired_at: null });
+    // A condition the Metric can give ends the pauses that said it could not (no target, no Workflow); the person's stays.
+    Object.assign(patch, { kind, level: row.level ?? null, state: "armed", fired_period: null, fired_at: null, ...(await clearsPause(actor, id)) });
   }
   const { error } = await db().from("alerts").update(patch).eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
   if (error) {
@@ -186,10 +190,20 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
   }
 }
 
+/** The pauses a new, possible condition ends: no target and no Workflow are about the old condition. */
+async function clearsPause(actor: Actor, id: number): Promise<{ paused?: null }> {
+  const { data } = await db().from("alerts").select("paused").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
+  return data?.paused === "no_target" || data?.paused === "no_workflow" ? { paused: null } : {};
+}
+
 /** Removes one of the acting person's own Alerts. Another person's, or one that is not there, is answered the same. */
 export async function deleteAlert(actor: Actor, id: number): Promise<void> {
   refuseInDemo(actor);
   if (!Number.isInteger(id)) throw new Forbidden(NOT_FOUND);
+  // Needs sight of the Metric like everything else, so success never says that a Metric the person lost is still there.
+  const { data: own } = await db().from("alerts").select("metric_id").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
+  if (!own) throw new Forbidden(NOT_FOUND);
+  await seen(actor, Number(own.metric_id));
   const { data, error } = await db().from("alerts").delete().eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).select("id");
   if (error) throw new Error("The Alert could not be removed. Try again in a moment.");
   if (!data?.length) throw new Forbidden(NOT_FOUND);

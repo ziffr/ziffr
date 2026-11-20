@@ -26,13 +26,13 @@ describe("making, changing, pausing and deleting", () => {
     const m = await w.metric(sara, { name: "Cash" }); await share(w, m.id, ann);
     const a = w.actor(ann, "member");
     const id = await createAlert(a, { metricId: m.id, condition: { kind: "below", value: "10000" }, delivery: "email", includeUnapproved: true });
-    expect(await listMyAlerts(a)).toEqual([expect.objectContaining({ id, metric: expect.objectContaining({ name: "Cash" }), condition: { kind: "below", value: "10000" }, delivery: "email", includeUnapproved: true, paused: null, state: "armed", firedAt: null })]);
+    expect(await listMyAlerts(a)).toEqual([expect.objectContaining({ id, metric: expect.objectContaining({ name: "Cash" }), condition: { kind: "below", value: "10000" }, delivery: "email", includeUnapproved: true, pausedByPerson: false, paused: null, state: "armed", firedAt: null })]);
     await updateAlert(a, id, { condition: { kind: "at_or_above", value: "-0.5" }, delivery: "usual", includeUnapproved: false });
     expect((await listMyAlerts(a, m.id))[0]).toMatchObject({ condition: { kind: "at_or_above", value: "-0.5" }, delivery: "usual", includeUnapproved: false });
     await updateAlert(a, id, { paused: true });
-    expect((await listMyAlerts(a))[0].paused).toBe("person");
+    expect((await listMyAlerts(a))[0]).toMatchObject({ pausedByPerson: true, paused: null });
     await updateAlert(a, id, { paused: false });
-    expect((await listMyAlerts(a))[0].paused).toBeNull();
+    expect((await listMyAlerts(a))[0]).toMatchObject({ pausedByPerson: false, paused: null });
     await deleteAlert(a, id);
     expect(await listMyAlerts(a)).toEqual([]);
   });
@@ -114,6 +114,8 @@ describe("who may see what", () => {
     // Immediately, before any bookkeeping, nothing is shown and nothing can be changed.
     expect(await listMyAlerts(a)).toEqual([]);
     expect(await refusal(updateAlert(a, id, { paused: true }))).toBeInstanceOf(Forbidden);
+    // Deleting says the same as for an Alert that is not there, so it never confirms that the Metric still exists.
+    expect((await refusal(deleteAlert(a, id)))?.message).toBe((await refusal(deleteAlert(a, 999_999_999)))?.message);
     expect(await refreshAlertSight(w.id)).toMatchObject({ paused: 1, resumed: 0 });
     const { data: stored } = await db().from("alerts").select("paused, no_access_since").eq("id", id).single();
     expect(stored?.paused).toBe("no_access");
@@ -141,6 +143,24 @@ describe("who may see what", () => {
     await db().from("metrics").update({ archived_at: null }).eq("id", m.id);
     await refreshAlertSight(w.id);
     expect((await listMyAlerts(a))[0]).toMatchObject({ id, paused: null });
+  });
+
+  it("keeps the person's own pause through losing and regaining sight, and the system's pause through their resume", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
+    const m = await w.metric(sara); await share(w, m.id, ann);
+    const a = w.actor(ann, "member");
+    const id = await createAlert(a, { metricId: m.id, condition: above("5") });
+    await updateAlert(a, id, { paused: true });
+    await db().from("shares").delete().eq("object_id", m.id).eq("user_id", ann);
+    await refreshAlertSight(w.id);
+    await share(w, m.id, ann);
+    await refreshAlertSight(w.id);
+    expect((await listMyAlerts(a))[0]).toMatchObject({ pausedByPerson: true, paused: null });
+    await db().from("alerts").update({ paused: "no_target" }).eq("id", id);
+    await updateAlert(a, id, { paused: false });
+    expect((await listMyAlerts(a))[0]).toMatchObject({ pausedByPerson: false, paused: "no_target" });
+    await updateAlert(a, id, { condition: above("6") });
+    expect((await listMyAlerts(a))[0]).toMatchObject({ paused: null });
   });
 
   it("ends a person's Alerts when they leave the Workspace", async () => {
