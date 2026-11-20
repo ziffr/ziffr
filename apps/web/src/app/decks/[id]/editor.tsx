@@ -12,6 +12,7 @@ import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { noteDeckExport, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
+import { doneAddingToDeck } from "@/app/convert-actions";
 import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
@@ -132,6 +133,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         // Placed once: the address no longer asks for it, so reloading adds nothing more. Back still leads where it
         // came from.
         window.history.replaceState(null, "", `/decks/${deck.id}`);
+        // Used once: the request is cleared, so opening the same address again adds nothing.
+        doneAddingToDeck().catch(() => {});
         toast.success("Added to the deck", { description: "It is a copy: changes here leave the original as it is.", action: { label: "Go back", onClick: () => window.history.back() } });
       }
       // Slides laid out from a Deck Template, or a widget added, are the deck now: kept at once.

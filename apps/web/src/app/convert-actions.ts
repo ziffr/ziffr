@@ -48,9 +48,16 @@ export async function addToDeck(widgetId: number, deckId: number | null, slide: 
     const id = deckId === null ? await newDeckFor(actor, Number(widgetId)) : Number(deckId);
     const added = await deckAddition(actor, id, Number(widgetId), slide);
     // Asked for here, by the person's own menu: a cookie of this site, which a link from elsewhere cannot set.
-    const intent = newIntent(id, Number(widgetId), added.slide);
+    const intent = newIntent(actor.personId, id, Number(widgetId), added.slide);
     (await cookies()).set(DECK_ADD_COOKIE, intent.cookie, { httpOnly: true, sameSite: "strict", path: "/decks", maxAge: DECK_ADD_SECONDS });
     revalidatePath("/", "layout");
     redirect(`/decks/${id}?add=${intent.nonce}`);
+  });
+}
+
+/** Clears what Add to deck… asked for, once the deck editor placed the copy: the request is used once. */
+export async function doneAddingToDeck() {
+  return attempt(async () => {
+    (await cookies()).delete({ name: DECK_ADD_COOKIE, path: "/decks" });
   });
 }
