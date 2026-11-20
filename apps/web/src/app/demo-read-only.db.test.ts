@@ -136,6 +136,7 @@ const CASES: Record<string, Case> = {
   "installation-actions:checkTelegram": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:sendTestEmail": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:startTelegramTest": { outside: "the Installation, not the demo Workspace" },
+  "installation-actions:setWorkspaceLimit": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:telegramTestStatus": { outside: "the Installation, not the demo Workspace" },
   "key-actions:createKey": { args: () => [{ name: "Visitor key", scopes: ["metrics:read"], expiresOn: day(30) }] },
   "key-actions:revokeKey": { nothing: "the demo has no Access Keys", args: () => [1] },
