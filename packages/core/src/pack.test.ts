@@ -42,6 +42,7 @@ export const PACK: Pack = {
 };
 
 const text = (v: unknown) => JSON.stringify(v, null, 2);
+const file = JSON.stringify(PACK, null, 2);
 const withContents = (contents: Record<string, unknown>) => text({ ...PACK, contents });
 const withMetric = (metric: Record<string, unknown>) => withContents({ metrics: [{ key: "mrr", metric: { ...METRIC, ...metric } }] });
 
@@ -102,7 +103,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a Workflow Template naming a person", withContents({ workflows: [{ key: "w", template: { ...WORKFLOW, steps: [{ type: "approve", approvers: ["user-1"] }] } }] }), "must be a whole number, not a list", '"approvers"'],
   ["a reference by number", withContents({ dashboards: [{ key: "d", template: { ...DASHBOARD, slots: [{ label: "MRR", suggests: 12 }] } }] }), "must be a text, not a whole number", "12"],
   ["a formula naming an entry not in the Pack", withContents({ metrics: [{ key: "arpa", metric: { ...METRIC, formula: "{revenue} / 2" } }] }), "{revenue} is not a Metric Catalog entry of this Pack", '"formula"'],
-  ["a formula naming itself", withContents({ metrics: [{ key: "arpa", metric: { ...METRIC, formula: "{arpa} + 1" } }] }), "{arpa} is this Metric itself", '"formula"'],
+  ["a formula naming itself", withContents({ metrics: [{ key: "arpa", metric: { ...METRIC, formula: "{arpa} + 1" } }] }), "{arpa} is this entry itself", '"formula"'],
   ["a formula of a Derived Metric", withContents({ metrics: [{ key: "a", metric: METRIC }, { key: "b", metric: { ...METRIC, formula: "{a} * 2" } }, { key: "c", metric: { ...METRIC, formula: "{b} * 2" } }] }), "is a Derived Metric itself", '"formula": "{b} * 2"'],
   ["a formula over another period", withContents({ metrics: [{ key: "a", metric: { ...METRIC, period: "week" } }, { key: "b", metric: { ...METRIC, formula: "{a} * 2" } }] }), "Its inputs are counted by week, it by month", '"formula"'],
 ];
@@ -152,6 +153,18 @@ describe("the Pack format", () => {
     expect(versionBelow("0.12.3", ">=0.12.4")).toBe(true);
     expect(versionBelow("1.0.0", ">=0.99.9")).toBe(false);
     expect(checkPack(text({ ...PACK, ziffr: ">=0.12" }), "0.12.0").ok).toBe(true);
+  });
+});
+
+describe("npx @ziffr/pack check", () => {
+  // The command creators run and the server run the same checks: they agree on every Pack of the table.
+  it("agrees with the server on the example and every hostile Pack", async () => {
+    const { run } = await import("@ziffr/pack/run");
+    const { version } = await import("../package.json");
+    for (const [name, text] of [["the example", file], ...HOSTILE.map(([n, t]) => [n, t] as const)] as const) {
+      const cli = run(["check", "p.json", "--ziffr", version], () => text);
+      expect(cli.code === 0, name).toBe(checkPack(text).ok);
+    }
   });
 });
 

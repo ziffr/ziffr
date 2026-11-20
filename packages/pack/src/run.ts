@@ -1,0 +1,24 @@
+// What the Pack kit's command does (GLOSSARY: Pack): `ziffr-pack check my.pack.json` runs on a file exactly the checks Ziffr runs
+// before it shows or installs a Pack, and says what is wrong, with each problem's line. It reads only the file named.
+import { readFileSync } from "node:fs";
+import { checkPack } from "./pack.js";
+
+/** What the command prints and the code it ends with, for the arguments it was given. */
+export function run(args: string[], read: (path: string) => string = (p) => readFileSync(p, "utf8")): { out: string[]; code: number } {
+  const [command, file, ...rest] = args;
+  if (command !== "check" || !file) return { out: ["Usage: ziffr-pack check <file.pack.json> [--ziffr <version>]", "Checks a Pack as Ziffr does before installing it. --ziffr also checks the Ziffr it needs."], code: 2 };
+  const z = rest.indexOf("--ziffr");
+  const ziffr = z >= 0 ? rest[z + 1] : undefined;
+  if (ziffr !== undefined && !/^\d+\.\d+\.\d+$/.test(ziffr)) return { out: ["--ziffr takes a version such as 0.12.0."], code: 2 };
+  let text: string;
+  try {
+    text = read(file);
+  } catch {
+    return { out: [`${file}: cannot be read.`], code: 2 };
+  }
+  const res = checkPack(text, ziffr);
+  if (!res.ok) return { out: res.problems.map((p) => `${file}${p.line ? `:${p.line}` : ""}: ${p.path ? `${p.path} ` : ""}${p.message}`), code: 1 };
+  const out = [`${file}: ${res.pack.name} ${res.pack.version} is a valid Pack, ${res.items} item${res.items === 1 ? "" : "s"}.${res.needsOwner ? " It holds Themes: an Owner installs it." : ""}`];
+  for (const t of res.assistantTexts) out.push(`${file}${t.line ? `:${t.line}` : ""}: ${t.path} reads like an instruction to an AI assistant; Ziffr shows it to whoever installs the Pack: “${t.text}”`);
+  return { out, code: 0 };
+}

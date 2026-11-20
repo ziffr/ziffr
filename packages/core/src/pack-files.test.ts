@@ -216,6 +216,20 @@ describe.each(formats)("%s", (format, hostile, _value, check, good, schema) => {
   });
 });
 
+describe("the Pack kit's lists", () => {
+  // @ziffr/pack keeps its own lists of what Ziffr knows, so it needs nothing of the app; they must be the app's.
+  it("are the app's: Views of a template, fonts, Attainment methods", async () => {
+    const { TEMPLATES } = await import("./widget-templates");
+    const { NOT_IN_DASHBOARD_TEMPLATES } = await import("./team-templates");
+    const { FONTS } = await import("./themes");
+    const { ATTAINMENT_METHODS } = await import("./attainment-method");
+    const kinds = await import("@ziffr/pack/kinds");
+    expect([...kinds.TEMPLATE_VIEWS]).toEqual(Object.keys(TEMPLATES).filter((t) => !NOT_IN_DASHBOARD_TEMPLATES.includes(t as never)));
+    expect([...kinds.FONT_IDS]).toEqual(Object.keys(FONTS));
+    expect([...kinds.ATTAINMENT_METHODS]).toEqual([...ATTAINMENT_METHODS]);
+  });
+});
+
 describe("what Ziffr has today, as files", () => {
   it("writes every built-in Dashboard Template as a ziffr.dashboard-template/1 file that passes", () => {
     for (const t of BUILT_IN_DASHBOARD_TEMPLATES) {
