@@ -162,6 +162,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
 | **Export View Design** | Everyone | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
 | **Duplicate as View Design** | Everyone | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
 | **Open metric** | Everyone | Opens the Metric's page. With several Metrics, there is one **Open** entry per Metric, with its name. |
 | **Remove from dashboard** | The owner and Editors, in edit mode | Takes the Widget off the dashboard, at once. **Versions** of the dashboard keep it. |
