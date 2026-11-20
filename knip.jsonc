@@ -9,6 +9,10 @@
       // scripts/code-health.mjs runs each package's own ESLint, from inside that package.
       "ignoreBinaries": ["eslint"]
     },
+    "packages/core": {
+      // The Marketplace's test makes a TLS certificate for its own server with the system's openssl, when there is one.
+      "ignoreBinaries": ["openssl"]
+    },
     "apps/web": {
       // The service worker is served from public/ and registered by its address, not imported.
       "entry": ["public/sw.js"],
