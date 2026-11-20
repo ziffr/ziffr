@@ -8,6 +8,7 @@ import { db } from "./db";
 import { createFeed } from "./feeds";
 import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialCleanup, trialValuesCsv } from "./trial-end";
 import { forgetStoredSettings } from "./settings-in-effect";
+import { keepTrial } from "./trials";
 import { workspace } from "./test/db-fixtures";
 import { setNumberStyle } from "./workspace-settings";
 import { destroyWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, workspaceCipher } from "./workspace-keys";
@@ -278,11 +279,28 @@ describe("when the Installation Settings cannot be read (fail closed)", () => {
     expect(data!.trial_closed_at).toBeNull();
   });
 
-  it("never deletes a trial that was kept", async () => {
-    const t = await trial(-8 * 24);
-    await db().from("workspaces").update({ trial_kept_at: new Date().toISOString() }).eq("id", t.id);
-    forgetStoredSettings();
-    await deleteExpiredTrials();
+  it("also refuses to end a trial at once, and to remind", async () => {
+    const t = await trial(12);
+    settingsDown();
+    await expect(endTrialNow(t.ownerActor)).rejects.toThrow(/could not be read/);
+    await expect(remindEndingTrials()).rejects.toThrow(/could not be read/);
+    vi.restoreAllMocks();
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
+  });
+
+  it("deletes nothing where trials are kept, and a trial that was kept is never deleted", async () => {
+    const old = await trial(-8 * 24);
+    const kept = await trial(-8 * 24);
+    await keepTrial(kept.id);
+    process.env.ZIFFR_TRIAL_THEN = "keep";
+    forgetStoredSettings();
+    try {
+      expect(await deleteExpiredTrials()).toBe(0);
+      delete process.env.ZIFFR_TRIAL_THEN;
+      forgetStoredSettings();
+      await deleteExpiredTrials();
+    } finally { delete process.env.ZIFFR_TRIAL_THEN; forgetStoredSettings(); }
+    expect((await db().from("workspaces").select("id").eq("id", kept.id).maybeSingle()).data).not.toBeNull();
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).toBeNull();
   });
 });

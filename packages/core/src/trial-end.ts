@@ -34,8 +34,8 @@ export async function trialStatus(workspaceId: string): Promise<{ endsAt: string
 }
 
 /** What a trial becomes at its end where trials are kept, else null. */
-async function keptAs(): Promise<KeptAs | null> {
-  const settings = await settingsInEffect();
+async function keptAs(settings?: Awaited<ReturnType<typeof settingsInEffect>>): Promise<KeptAs | null> {
+  settings ??= await settingsInEffect();
   if (trialThen(settings) !== "keep") return null;
   const d = defaultLimitFrom(settings);
   return { label: d.label, metrics: d.metrics };
@@ -57,6 +57,8 @@ async function ownerOf(workspaceId: string): Promise<string | null> {
 /** Reminds the Owners of trials that end within a day, once each, through their own Connector. Returns how many. */
 export async function remindEndingTrials(now = new Date()): Promise<number> {
   const soon = new Date(now.getTime() + DAY).toISOString();
+  // Read strictly before anything is claimed: a reminder with the wrong words is never sent again.
+  const settings = await settingsInEffectStrict();
   // Claimed first: only the run that sets the mark sends the reminder.
   const { data } = await db().from("workspaces").update({ trial_reminded_at: now.toISOString() })
     .gt("trial_ends_at", now.toISOString()).lte("trial_ends_at", soon).is("trial_reminded_at", null).select("id, trial_ends_at");
@@ -65,7 +67,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
     const owner = await ownerOf(w.id);
     if (!owner) continue;
     const day = String(w.trial_ends_at).slice(0, 10);
-    const kept = await keptAs();
+    const kept = await keptAs(settings);
     await deliverNotice(w.id, {
       recipientId: owner, senderId: null, subject: "Your Ziffr trial ends tomorrow",
       text: kept
@@ -174,6 +176,8 @@ export async function trialCleanup(now = new Date()): Promise<{ reminded: number
 /** The Owner ends their trial now: it is deleted at once with everything in it, and they with it. */
 export async function endTrialNow(actor: Actor): Promise<void> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can end it.");
+  // Fail closed like the cleanup: with the setting unreadable, an ended trial might be one to keep.
+  if (trialThen(await settingsInEffectStrict()) === "keep") throw new Forbidden("Trials are kept here, not deleted.");
   await deleteTrial(actor.workspaceId);
 }
 
