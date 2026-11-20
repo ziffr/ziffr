@@ -1,9 +1,13 @@
-# Typecheck, lint and test every pull request, and every push to main (CONTRIBUTING.md): main is the one branch, and
-# releases are its tags (ADR 0004). A newer push cancels the older run of the same branch, the quick checks share one
-# install, and a change to docs alone skips the database job.
+# Typecheck, lint and test every pull request, every group in the merge queue, and every push to main (CONTRIBUTING.md):
+# main is the one branch, and releases are its tags (ADR 0004). A newer push cancels the older run of the same branch,
+# the quick checks share one install, and a change to docs alone skips the database job on a pull request.
 name: CI
 on:
   pull_request:
+  # The merge queue tests each group of pull requests on top of main before it lands, with the same required checks
+  # (check, core-db, numbers). Steps about the pull request itself (its labels, docs, release note) ran on it already
+  # and are skipped here.
+  merge_group:
   push:
     branches: [main]
   # The Release button starts CI on its release branch by name: a pull request it opens starts no run of its own.
@@ -85,7 +89,7 @@ jobs:
       - name: Does this change touch a calculation path?
         id: changes
         env:
-          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^1' }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
         run: |
           base="$BASE"
           if .github/scripts/calculation-paths-touched.sh "$base"; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
@@ -115,7 +119,7 @@ jobs:
       - name: Mutation testing of the calculation modules this change touches
         if: steps.changes.outputs.run == 'true'
         env:
-          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^1' }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
         run: .github/scripts/mutation-pr.sh "$BASE" 1200
 
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions).
