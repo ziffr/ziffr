@@ -3,7 +3,7 @@
 // them; the values and their checks live on the server (settings-in-effect.ts, installation-settings.ts).
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "marketplace" | "bots" | "trials" | "demo";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "marketplace" | "bots" | "trials" | "demo" | "usage";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
@@ -21,6 +21,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "marketplace", title: "Marketplace", purpose: "Owners and Admins find, install and update Packs from the Marketplace. Off unless turned on: then this server, never a browser, asks the Marketplace for lists of Packs, their files and which installed Packs have newer versions. It sends a search, a Pack's id and version, the list of Packs installed on this Installation and Ziffr's version; never a Workspace's name, id or data, nor anyone's. Every Pack is checked in full, and its signature too, before it is shown.", ready: true },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page: a bot cannot make Ziffr send sign-in links to any address it likes. Worth it on any Ziffr strangers can reach, and more so with trials.", ready: true },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace of their own, for how long and how many at once. With trials on, every Workspace made here is a trial.", ready: true },
+  { id: "usage", title: "Usage", purpose: "What this Installation is used for, as daily counts: Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name, a person or a value. A Usage Key lets a program read the counts and nothing else; nothing is sent anywhere.", ready: true },
   { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo: a made-up company anyone can look around without an account, where nothing is saved.", ready: true },
 ];
 
@@ -66,6 +67,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "Where the Marketplace is; empty: Ziffr's own. https only, and never inside this server's own network." },
   { name: "ZIFFR_DELETE_UNUSED_AFTER_DAYS", section: "limits", label: "Delete unused Workspaces after", secret: false, placeholder: "Never",
     help: "Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own." },
+  { name: "ZIFFR_USAGE_EXCLUDE_WORKSPACE", section: "usage", label: "Workspace left out", secret: false, placeholder: "None",
+    help: "One Workspace, usually your own for the numbers, that is left out of every figure and of the count of Workspaces. Pick it by name; the setting holds its id." },
 ];
 
 /** The setting of this name, or undefined for any name the page does not know. */

@@ -126,6 +126,16 @@ With trials on, anyone who signs in may start a **Trial Workspace** of their own
 
 The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.
 
+## Usage
+
+The **Usage** section shows what this Installation is used for, as daily counts: how many Workspaces and people there are, how many Metrics, dashboards and decks, how many values arrived by each Source, how many calls programs made and how often dashboards, decks and Metrics were opened. It never shows a Workspace's or a Metric's name, a person or a value, and nothing is sent anywhere. Ziffr counts each day at 04:40 UTC, for the day before, so a new Installation shows figures from its second day.
+
+Under **The last 30 days**, the page lists the days newest first. With fewer than 3 Workspaces, only totals are shown, nothing split by kind, Source or Pack; and in a larger Installation a figure for one kind of Workspace or one Source is left out of a day when fewer than 3 Workspaces are behind it, so that nobody running a shared Installation gets a view of one small Workspace. Per-Pack figures appear only for Packs from the Marketplace that at least 3 Workspaces hold.
+
+**Usage Key.** A program can read the same figures from `GET /api/v1/installation/usage` with a Usage Key. Choose **Make a Usage Key**: the page shows the key once, with **Copy**, and keeps only a fingerprint of it. There is one key at a time; **Make a new Usage Key** replaces it at once, and **Revoke** ends it. The key opens that one address and nothing else: it is not an Access Key, it sees no Workspace, and the job secret does not open the address either. Anyone else, with a wrong or revoked key, gets "not found". A Usage Key may call it 60 times an hour. The changes list says when a key was made or revoked, never the key.
+
+**Workspace left out.** Pick a Workspace by name, usually the one that holds your own numbers, to leave it out of every figure and of the count of Workspaces, so those numbers do not count themselves. It takes effect with the next day's count. The setting holds the Workspace's id (`ZIFFR_USAGE_EXCLUDE_WORKSPACE`); the endpoint never names the Workspace.
+
 ## Demo
 
 **Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.

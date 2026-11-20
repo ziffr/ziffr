@@ -108,3 +108,17 @@ export async function opened<T extends Record<string, unknown>>(table: SealedTab
     return copy as T;
   });
 }
+
+/** An Installation Admin added on the page for one test (spec 0025): the person and a `cleanup` that removes them again
+ * (and any Usage Key left, so the Installation's one live key is free for the next test). */
+export async function installationAdmin() {
+  const pid = `t-${randomUUID()}`;
+  await must(db().from("profiles").insert({ id: pid, name: `Admin ${pid.slice(2, 6)}`, role: "", color: "#000", email: null, slack_handle: null }));
+  await must(db().from("installation_admins").insert({ person_id: pid }));
+  const cleanup = async () => {
+    await db().from("usage_keys").delete().neq("id", 0);
+    await db().from("installation_admins").delete().eq("person_id", pid);
+    await db().from("profiles").delete().eq("id", pid);
+  };
+  return { actor: { personId: pid }, cleanup };
+}

@@ -59,7 +59,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
 
 /** Route folders under /api/v1 that are deliberately not reachable from inside: a Feed's own endpoints, the public
  * OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
-export const NOT_IN_PROCESS = ["feed", "feed/observations", "openapi.json", "[...rest]"];
+export const NOT_IN_PROCESS = ["feed", "feed/observations", "installation/usage", "openapi.json", "[...rest]"];
 
 /** The handler and path parameters for a path under /api/v1, or null. Segments are matched as given, never decoded
  * into a pattern, so a crafted path cannot reach another route. */

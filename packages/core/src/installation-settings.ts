@@ -104,6 +104,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
+  ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
   ZIFFR_DELETE_UNUSED_AFTER_DAYS: (v) => (/^\d{1,4}$/.test(v) && Number(v) >= 30 && Number(v) <= 3650 ? null : "Unused Workspaces are deleted after a whole number of days from 30 to 3650, or never (empty)."),
@@ -253,6 +254,11 @@ export async function saveInstallationSettings(actor: InstallationActor, section
         if (e instanceof MailHostError && e.code === "EPRIVATEHOST") throw new Error("That mail server is inside this server's own network. To use one there, set ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1 on the server.");
         throw new Error("That mail server's name could not be found. Check its spelling.");
       }
+    }
+    // A Workspace that exists and is not the demo: a made-up id would only leave nothing out while looking set.
+    if (name === "ZIFFR_USAGE_EXCLUDE_WORKSPACE") {
+      const { data: ws } = await db().from("workspaces").select("id").eq("id", value.toLowerCase()).maybeSingle();
+      if (!ws || value.toLowerCase() === "d3e00000-0000-4000-8000-000000000001") throw new Error("Pick a Workspace by name.");
     }
     changes.push({ def, value });
   }

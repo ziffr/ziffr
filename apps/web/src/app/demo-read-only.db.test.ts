@@ -143,6 +143,8 @@ const CASES: Record<string, Case> = {
   "installation-actions:startTelegramTest": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:setWorkspaceLimit": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:makeInboundSecret": { outside: "the Installation, not the demo Workspace" },
+  "installation-actions:makeUsageKey": { outside: "the Installation, not the demo Workspace" },
+  "installation-actions:revokeUsageKey": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:startReplyTest": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:replyTestStatus": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:telegramTestStatus": { outside: "the Installation, not the demo Workspace" },
