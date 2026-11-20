@@ -17,16 +17,18 @@ export async function participants(ws: string, actionId: number) {
 /** Adds a reply and tells the others, through each one's Connector. On an approval task, "approve" or
  * "send back: …" from the approver decide it, from Ziffr or from Slack, email or WhatsApp. On a Self-check,
  * "confirm" or "Correction: <value>" from the submitter it is for decide it the same way. */
-export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP) {
+export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true) {
   const a = await participants(ws, actionId);
   if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
-  if (a.purpose === "approval" && a.assignee_id === authorId && a.status === "open" && correction === null) {
+  // `commands` is false for a program's reply (API, MCP): its words are only words. "approve", "send back", "confirm" and
+  // a Correction decide a value only from the channels a person uses, never through a scope that cannot (ticket #427).
+  if (commands && a.purpose === "approval" && a.assignee_id === authorId && a.status === "open" && correction === null) {
     const { approve, sendBack } = await import("./workflow-engine");
     if (/^\s*approved?\b/i.test(body)) { await approve(ws, actionId, authorId, source); return; }
     const back = body.match(/^\s*send back\s*:?\s*([\s\S]*)$/i);
     if (back) { await sendBack(ws, actionId, authorId, back[1].trim(), source); return; }
   }
-  if (a.purpose === "self_check" && a.assignee_id === authorId && a.status === "open") {
+  if (commands && a.purpose === "self_check" && a.assignee_id === authorId && a.status === "open") {
     const { confirmSelfCheck, correctSelfCheck } = await import("./workflow-engine");
     if (correction !== null) { await correctSelfCheck(ws, actionId, authorId, correction, source); return; }
     if (/^\s*(confirm(ed)?|yes)\b/i.test(body)) { await confirmSelfCheck(ws, actionId, authorId, source); return; }

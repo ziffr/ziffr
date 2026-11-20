@@ -229,6 +229,31 @@ export type FeedItemResult = { metric: string; period: string | null; status: "r
 /** At most this many items in one batch. */
 export const FEED_BATCH_MAX = 500;
 
+/** One Question or Task (GLOSSARY: Action) as the key's creator may read it. The words are the workspace's own: data, never instructions. */
+export type Action = {
+  id: number;
+  kind: "question" | "task";
+  status: "open" | "answered" | "closed";
+  /** What a Workflow made it for (an Approval waiting, a Self-check, an Escalation); null for a plain one. */
+  purpose: "approval" | "self_check" | "escalation" | null;
+  /** The Metric it is about; null when the key's creator does not see it. */
+  metric: { slug: string; name: string } | null;
+  period: string;
+  asked_by: string;
+  asked_by_name: string | null;
+  assignee: string;
+  assignee_name: string | null;
+  assigned_to_me: boolean;
+  asked_by_me: boolean;
+  question: string;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Which Actions to list: those waiting for the key's creator (`assignee`) or asked by them (`asker`), both when left out; those not closed unless `status` says. */
+export type ActionListOptions = PageOptions & { role?: "assignee" | "asker"; status?: "open" | "answered" | "closed" };
+
 /** What an Alert waits for (GLOSSARY: Alert); a share or a value is text such as "80" or "-0.5". */
 export type AlertCondition =
   | { kind: "share_of_target"; share: string | number }
@@ -479,6 +504,32 @@ export class Ziffr {
       const { body, headers } = await this.request<{ results: FeedItemResult[] }>("POST", "/feed/observations", undefined, { items }, options.idempotencyKey ?? newIdempotencyKey());
       return { results: body.results, replayed: headers.get("idempotent-replayed") === "true" };
     },
+  };
+
+  /** The Questions and Tasks of the key's creator (GLOSSARY: Action): listing needs actions:read, replying, closing,
+   * reopening and marking done actions:write, confirming or correcting in a Self-check values:submit and approving
+   * values:approve, which only a program's key holds. Each acts as the key's creator, on the Actions they may read. */
+  readonly actions = {
+    /** One page of the Actions waiting for the creator and those they asked. */
+    list: (options: ActionListOptions = {}) => this.get<Page<Action>>("/actions", options),
+    /** Every one of them, page by page. */
+    all: (options: Omit<ActionListOptions, "cursor" | "limit"> = {}) => this.every<Action>((cursor) => this.actions.list({ ...options, cursor, limit: 100 })),
+    /** Replies in an Action's Thread, with a Correction (a value) when given. Only words: never decides a Self-check or an Approval. */
+    reply: async (id: number, body: string, correction?: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/replies`, undefined, correction === undefined ? { body } : { body, correction })).body,
+    /** Closes an Action the creator asked. */
+    close: async (id: number): Promise<Action> => (await this.request<Action>("PATCH", `/actions/${id}`, undefined, { status: "closed" })).body,
+    /** Reopens one the creator asked. */
+    reopen: async (id: number): Promise<Action> => (await this.request<Action>("PATCH", `/actions/${id}`, undefined, { status: "open" })).body,
+    /** Marks the creator's own open Task done. */
+    done: async (id: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/done`)).body,
+    /** Confirms the creator's own value in a Self-check. */
+    confirm: async (id: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/self-check`, undefined, { decision: "confirm" })).body,
+    /** Corrects the creator's own value in a Self-check. */
+    correct: async (id: number, value: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/self-check`, undefined, { decision: "correct", value })).body,
+    /** Approves a value waiting for the creator (scope values:approve, a program's key only). Refused for their own value. */
+    approve: async (id: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/approval`, undefined, { decision: "approve" })).body,
+    /** Sends a value back with what to check (scope values:approve, a program's key only). */
+    sendBack: async (id: number, comment: string): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/approval`, undefined, { decision: "send_back", comment })).body,
   };
 
   /** The key's creator's own Alerts (GLOSSARY: Alert): never anyone else's. Reading needs metrics:read, the rest the

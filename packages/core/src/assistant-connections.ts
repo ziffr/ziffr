@@ -9,7 +9,7 @@
 // RFC 8252), a code works once for ten minutes, and a refresh token or code presented twice ends the connection.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
-import { Forbidden, SCOPES, type Actor, type KeyActor, type Scope } from "./actor";
+import { ASSISTANT_SCOPES, Forbidden, type Actor, type KeyActor, type Scope } from "./actor";
 import { actorOfKey, checkKeyRequest, hash, KEY_ROW, revokeAccessKey } from "./access-keys";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
@@ -79,7 +79,8 @@ export function redirectMatches(registered: string, given: string): boolean {
 /** The scopes a space-separated `scope` asks for that Ziffr knows; others (such as offline_access) are ignored. */
 export function requestedScopes(scope: unknown): Scope[] {
   const words = typeof scope === "string" && scope.length <= 1000 ? scope.split(/\s+/) : [];
-  return SCOPES.filter((s) => words.includes(s));
+  // Never "values:approve": approving is a person's check, not an assistant's (ticket #427).
+  return ASSISTANT_SCOPES.filter((s) => words.includes(s));
 }
 
 /** Whether a `resource` names this Installation's /mcp (RFC 8707): absent, or the same address, letter case of
@@ -177,7 +178,7 @@ export function redirectBack(req: Pick<AuthorizationRequest, "redirectUri" | "st
 export async function approveConnection(actor: Actor, params: Record<string, unknown>, choice: { scopes: unknown; endsOn: unknown }): Promise<{ redirect: string; keyId: number }> {
   if (actor.key) throw new Forbidden("A key cannot connect assistants.");
   const req = await checkAuthorizationRequest(params);
-  const { scopes, expires } = checkKeyRequest(actor, choice.scopes, choice.endsOn);
+  const { scopes, expires } = checkKeyRequest(actor, choice.scopes, choice.endsOn, { assistant: true });
   const code = secret("");
   const { data: keyId, error } = await db().rpc("make_assistant_connection", {
     p_workspace: actor.workspaceId, p_person: actor.personId, p_client: req.client.id, p_name: req.client.name.slice(0, 80),

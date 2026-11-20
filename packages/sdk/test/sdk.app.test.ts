@@ -22,7 +22,7 @@ async function setup(scopes: Scope[] = ["metrics:read", "values:submit"]) {
   const extra = await w.metric(ben, { name: "Visits" });
   await db().from("observations").insert(["2026-01-01", "2026-02-01", "2026-03-01"].map((p, i) => ({ metric_id: extra.id, period_start: p, value: i + 1, source: "api", workspace_id: w.id })));
   const { id, secret } = await createAccessKey(w.actor(ben, "member"), { name: "SDK test", scopes, expiresOn: inDays(30) });
-  return { ben, orders, extra, keyId: id, secret, ziffr: new Ziffr({ url: URL, accessKey: secret }) };
+  return { w, ben, orders, extra, keyId: id, secret, ziffr: new Ziffr({ url: URL, accessKey: secret }) };
 }
 
 describe("@ziffr/sdk against the app", () => {
@@ -87,6 +87,16 @@ describe("@ziffr/sdk against the app", () => {
     expect(await ziffr.alerts.remove(a.id)).toEqual({ removed: a.id });
     await expect(ziffr.alerts.create({ metric: "nothing-here", condition: { kind: "below", value: 5 } })).rejects.toMatchObject({ status: 404 });
     await expect((await setup(["metrics:read"])).ziffr.alerts.create({ metric: orders.slug, condition: { kind: "below", value: 5 } })).rejects.toMatchObject({ status: 403 });
+  });
+  it("lists, answers and closes the creator's own Questions and Tasks, and refuses an Approval without its scope (ticket #427)", async () => {
+    const { w, ben, orders, ziffr } = await setup(["actions:read", "actions:write"]);
+    const sara = await w.person("owner");
+    const task = await w.action({ metric_id: orders.id, period_start: "2026-03-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Send the report" });
+    expect((await ziffr.actions.list({ role: "assignee" })).items).toEqual([expect.objectContaining({ id: task, kind: "task", assigned_to_me: true })]);
+    expect((await collect(ziffr.actions.all())).map((a) => a.id)).toEqual([task]);
+    expect(await ziffr.actions.reply(task, "On it")).toMatchObject({ id: task, status: "answered" });
+    await expect(ziffr.actions.close(task)).rejects.toMatchObject({ status: 422 });
+    await expect(ziffr.actions.approve(task)).rejects.toMatchObject({ status: 403 });
   });
   it("throws a ZiffrError with the API's code", async () => {
     const { extra, ziffr } = await setup(["metrics:read"]);

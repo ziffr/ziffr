@@ -188,10 +188,6 @@ To come through the API only, behind a scope of their own, never ticked by defau
 - `removeContact` (team.ts): Groups and contacts, #434
 - `createViewLink` (view-links.ts): View Links publish data, #435
 - `revokeViewLink` (view-links.ts): View Links publish data, #435
-- `approveValue` (workflows.ts): approving a value, #427
-- `confirmOwnValue` (workflows.ts): confirming one's own value after a check, #427
-- `correctOwnValue` (workflows.ts): correcting one's own value after a check, #427
-- `sendValueBack` (workflows.ts): sending a value back, #427
 - `lockPeriod` (workflows.ts): locking a period, #427
 - `setStandIn` (workflows.ts): Stand-ins decide who approves, #427
 - `setAway` (workflows.ts): being away hands approvals to a Stand-in, #427
@@ -201,9 +197,6 @@ To come through the API only, behind a scope of their own, never ticked by defau
 Ticketed. MCP follows where the ticket says so.
 
 - `ask` (questions.ts): Questions and Tasks for programs, #427
-- `reply` (questions.ts): Questions and Tasks for programs, #427
-- `setActionStatus` (questions.ts): Questions and Tasks for programs, #427
-- `markTaskDone` (questions.ts): Questions and Tasks for programs, #427
 - `takeSnapshot` (snapshots.ts): Snapshots for programs, #435
 - `openSnapshot` (snapshots.ts): Snapshots for programs, #435
 - `editSnapshotWords` (snapshots.ts): Snapshots for programs, #435

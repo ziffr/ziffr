@@ -111,6 +111,17 @@ describe("/mcp", () => {
     expect(ben).toBeTruthy();
   });
 
+  it("lists and answers the creator's own Questions and Tasks, and has no tool to approve, even for a key that holds the scope (ticket #427)", async () => {
+    const { w, ben, sara, orders, key } = await setup(["metrics:read", "actions:read", "actions:write", "values:submit", "values:approve"]);
+    const task = await w.action({ metric_id: orders.id, period_start: "2026-11-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Send the report" });
+    const client = await remote(key.secret);
+    expect((await client.listTools()).tools.map((t) => t.name).filter((n) => /approv|send_back/.test(n))).toEqual([]);
+    expect(json(await client.callTool({ name: "list_actions", arguments: {} })).actions.map((a: { id: number }) => a.id)).toEqual([task]);
+    expect(json(await client.callTool({ name: "mark_task_done", arguments: { id: task } })).action).toMatchObject({ id: task, status: "answered" });
+    // Ben did not ask it, so he may not close it.
+    expect((await client.callTool({ name: "set_action_status", arguments: { id: task, status: "closed" } })).isError).toBe(true);
+  });
+
   it("limits tools by the key's scopes exactly as the API does", async () => {
     const { key, orders } = await setup(["metrics:read"]);
     const client = await remote(key.secret);
@@ -129,6 +140,11 @@ describe("/mcp", () => {
       ["create_alert", { metric: orders.slug, condition: { kind: "below", value: 1 } }],
       ["update_alert", { id: 1, paused: true }],
       ["delete_alert", { id: 1 }],
+      ["list_actions", {}],
+      ["reply_to_action", { id: 1, body: "x" }],
+      ["set_action_status", { id: 1, status: "closed" }],
+      ["mark_task_done", { id: 1 }],
+      ["self_check", { id: 1, decision: "confirm" }],
     ] as const) {
       const r = await client.callTool({ name, arguments: args });
       expect(r.isError, name).toBe(true);

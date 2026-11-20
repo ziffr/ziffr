@@ -5,7 +5,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { hash, insertKey } from "./internal/key-store";
-import { can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
+import { can, FEED_SCOPE, Forbidden, KEY_ONLY_SCOPES, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
 import { assertSeesMetrics } from "./sharing";
@@ -23,10 +23,12 @@ export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: 
 /** What any key the actor makes may hold, checked the same for keys made on the Team page and for assistants
  * connected by OAuth (spec 0023): never by a key, never in the demo, known scopes only, never more than the role
  * allows, and an end date within a year. */
-export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknown): { scopes: Scope[]; expires: string } {
+export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknown, opts: { assistant?: boolean } = {}): { scopes: Scope[]; expires: string } {
   if (actor.key) throw new Forbidden("A key cannot make keys.");
   const scopes = [...new Set(Array.isArray(wanted) ? wanted : [])] as Scope[];
   if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
+  // Approving is a person's check: an assistant's connection never holds it, whatever the request says (ticket #427).
+  if (opts.assistant && scopes.some((s) => KEY_ONLY_SCOPES.includes(s))) throw new Forbidden("An assistant cannot be allowed to approve values.");
   // A key never does what its creator's role does not allow (spec 0003); the role is checked again on every call.
   if (scopes.includes("metrics:write") && !can(actor, "create")) throw new Forbidden("Your role cannot create Metrics, so neither can a key of yours.");
   if (scopes.includes("metrics:edit") && !can(actor, "create")) throw new Forbidden("Your role cannot change Metrics, so neither can a key of yours.");
