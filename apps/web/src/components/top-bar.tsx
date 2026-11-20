@@ -29,6 +29,7 @@ const YOU: NavItem[] = [
   { href: "/settings/schedule", label: "My schedule" },
   { href: "/settings/profile", label: "Your profile" },
   { href: "/settings/deliveries", label: "Your Deliveries" },
+  { href: "/settings/alerts", label: "Your Alerts" },
 ];
 
 const iconButton = "flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";

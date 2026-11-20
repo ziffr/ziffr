@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { ALERTS_PER_METRIC, ALERTS_PER_PERSON, ALERTS_PER_WORKSPACE } from "./alert-limits";
 import type { AlertCondition } from "./alert-rules";
-import { ALERT_NO_ACCESS_DAYS, createAlert, deleteAlert, listMyAlerts, refreshAlertSight, updateAlert } from "./alerts";
+import { ALERT_NO_ACCESS_DAYS, alertChoices, createAlert, deleteAlert, listMyAlerts, refreshAlertSight, updateAlert } from "./alerts";
 import { db } from "./db";
 import { DemoReadOnly } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -271,5 +271,25 @@ describe("the demo", () => {
     expect(await refusal(deleteAlert(a, 1))).toBeInstanceOf(DemoReadOnly);
     // The database refuses it too, whatever the core says: its guard runs before any row is checked.
     expect(await refusal(Promise.resolve(db().from("alerts").insert({ workspace_id: DEMO_WORKSPACE_ID, person_id: a.personId, metric_id: 1, kind: "missing_after_due" })))).toBeInstanceOf(DemoReadOnly);
+  });
+});
+
+describe("what the editor may offer", () => {
+  it("says which kinds a Metric cannot give and how many Alerts the person holds", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara, { name: "Cash", target_min: null, target_max: null, polarity: "higher" });
+    const a = w.actor(sara);
+    await createAlert(a, { metricId: m.id, condition: above("5") });
+    const c = await alertChoices(a, m.id);
+    expect(c.unavailable.missing_after_due).toMatch(/no Workflow/);
+    expect(c.held).toMatchObject({ person: 1, metric: 1, perPerson: ALERTS_PER_PERSON, perMetric: ALERTS_PER_METRIC });
+  });
+
+  it("answers a Metric the person cannot see like one that is not there", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
+    const m = await w.metric(sara, { name: "Secret" });
+    const e = await refusal(alertChoices(w.actor(ann, "member"), m.id));
+    expect(e).toBeInstanceOf(Forbidden);
+    expect((await refusal(alertChoices(w.actor(ann, "member"), 999999)))?.message).toBe(e?.message);
   });
 });
