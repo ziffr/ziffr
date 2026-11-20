@@ -10,13 +10,12 @@ import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
 import { makeUsageKey, revokeUsageKey, saveInstallationSettings } from "@/app/installation-actions";
 import type { UsageDay, UsageKeyInfo } from "@ziffr/core/installation-usage";
-import type { WorkspaceLimitRow } from "@ziffr/core/workspace-limits-admin";
 
 const n = (x: unknown) => (typeof x === "number" ? x.toLocaleString("en-US") : "·");
 const sum = (d: UsageDay, ...keys: string[]) => (keys.some((k) => typeof d[k] === "number") ? keys.reduce((s, k) => s + (typeof d[k] === "number" ? (d[k] as number) : 0), 0) : null);
 
 /** The Usage Key, the exclusion and the table. */
-export function UsageSection({ keyInfo, days, workspaces, excluded, excludedFromServer }: { keyInfo: UsageKeyInfo | null; days: UsageDay[]; workspaces: WorkspaceLimitRow[]; excluded: string | null; excludedFromServer: boolean }) {
+export function UsageSection({ keyInfo, days, workspaces, excluded, excludedFromServer }: { keyInfo: UsageKeyInfo | null; days: UsageDay[]; workspaces: { workspaceId: string; name: string }[]; excluded: string | null; excludedFromServer: boolean }) {
   return (
     <div className="space-y-6">
       <UsageKey info={keyInfo} />
@@ -77,7 +76,7 @@ function UsageKey({ info }: { info: UsageKeyInfo | null }) {
 }
 
 /** Picks the Workspace left out of every figure, by name. */
-function Exclusion({ workspaces, excluded, fromServer }: { workspaces: WorkspaceLimitRow[]; excluded: string | null; fromServer: boolean }) {
+function Exclusion({ workspaces, excluded, fromServer }: { workspaces: { workspaceId: string; name: string }[]; excluded: string | null; fromServer: boolean }) {
   const [value, setValue] = useState(excluded ?? "");
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -90,13 +89,14 @@ function Exclusion({ workspaces, excluded, fromServer }: { workspaces: Workspace
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium">Workspace left out</h3>
-      <p className="max-w-[62ch] text-sm text-muted-foreground">Leave one Workspace out of every figure and of the count of Workspaces, usually the one that holds your own numbers, so they do not count themselves. It takes effect with the next day&apos;s count.</p>
+      <p className="max-w-[62ch] text-sm text-muted-foreground">Leave one Workspace you own out of every figure and of the count of Workspaces, usually the one that holds your own numbers, so they do not count themselves. It takes effect with the next day&apos;s count.</p>
       {fromServer ? <p className="text-sm">It is set on the server; change it there.</p> : (
         <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); save(); }}>
           <label className="text-xs">
             <span className="mb-1 block">Workspace</span>
             <select value={value} onChange={(e) => setValue(e.target.value)} className="h-9 w-64 rounded-[var(--radius-input)] border border-border bg-background px-2 text-sm">
               <option value="">None</option>
+              {excluded && !workspaces.some((w) => w.workspaceId === excluded) && <option value={excluded}>Another Workspace (set by someone else)</option>}
               {workspaces.map((w) => <option key={w.workspaceId} value={w.workspaceId}>{w.name}</option>)}
             </select>
           </label>

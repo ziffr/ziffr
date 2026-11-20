@@ -5,7 +5,7 @@ import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import {
-  usageExcludedWorkspace, authenticateUsageKey, installationUsage, makeUsageKey, revokeUsageKey, usageDayView, usageKeyInfo, usageRollupJob, USAGE_FIGURES, USAGE_KEY_CALLS_PER_HOUR, UsageRangeError, usageRange,
+  usageExcludedWorkspace, usageExclusionChoices, authenticateUsageKey, installationUsage, makeUsageKey, revokeUsageKey, usageDayView, usageKeyInfo, usageRollupJob, USAGE_FIGURES, USAGE_KEY_CALLS_PER_HOUR, UsageRangeError, usageRange,
 } from "./installation-usage";
 import { saveInstallationSettings } from "./installation-settings";
 import { forgetStoredSettings } from "./settings-in-effect";
@@ -130,6 +130,11 @@ describe("the Workspace left out", () => {
     await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: "00000000-0000-4000-8000-0000000000ee" })).rejects.toThrow(/by name/);
     await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: DEMO_WORKSPACE_ID })).rejects.toThrow(/by name/);
     await expect(saveInstallationSettings({ personId: "t-nobody" }, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id })).rejects.toBeInstanceOf(Forbidden);
+    // Not one the Admin owns: leaving it out would show its size by differencing two days.
+    await expect(saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id })).rejects.toThrow(/you own/);
+    expect(await usageExclusionChoices(a)).toEqual([]);
+    await db().from("memberships").insert({ workspace_id: w.id, user_id: a.personId, role: "owner" });
+    expect(await usageExclusionChoices(a)).toEqual([{ workspaceId: w.id, name: expect.any(String) }]);
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id });
     expect(await usageExcludedWorkspace()).toBe(w.id);
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null });

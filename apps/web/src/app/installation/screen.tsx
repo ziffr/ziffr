@@ -58,7 +58,7 @@ function Standing({ section }: { section: SectionView }) {
 /** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
 type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
 
-export function InstallationScreen({ view, admins, events, limits, replies, usage }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[] } }) {
+export function InstallationScreen({ view, admins, events, limits, replies, usage }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
   return (
     <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
       <nav aria-label="Sections" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -72,7 +72,7 @@ export function InstallationScreen({ view, admins, events, limits, replies, usag
       </nav>
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { ...usage, workspaces: limits } : undefined} />)}
+        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>
           <p className="text-sm text-muted-foreground">Who changed what here, by the setting&apos;s name. Values are never recorded.</p>
@@ -143,7 +143,7 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
 
 /** One section: what it is for, how it stands, and its form when the page can set it up yet. Slack gets its steps
  * around the form: make the app from the manifest, then what Slack has checked and what comes next. */
-function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[]; replies?: RepliesView; usage?: { key: UsageKeyInfo | null; days: UsageDay[]; workspaces: WorkspaceLimitRow[] } }) {
+function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[]; replies?: RepliesView; usage?: { key: UsageKeyInfo | null; days: UsageDay[]; workspaces: { workspaceId: string; name: string }[] } }) {
   return (
     <section id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">

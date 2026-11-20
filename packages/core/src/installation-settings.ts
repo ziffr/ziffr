@@ -259,6 +259,10 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     if (name === "ZIFFR_USAGE_EXCLUDE_WORKSPACE") {
       const { data: ws } = await db().from("workspaces").select("id").eq("id", value.toLowerCase()).maybeSingle();
       if (!ws || value.toLowerCase() === "d3e00000-0000-4000-8000-000000000001") throw new Error("Pick a Workspace by name.");
+      // Only one the Admin owns: leaving a Workspace out changes the next day's totals by exactly that Workspace, so
+      // comparing two days would show its size to an Admin who has no business seeing it. Removing it is always allowed.
+      const { data: owned } = await db().from("memberships").select("user_id").eq("workspace_id", ws.id).eq("user_id", actor.personId).eq("role", "owner").maybeSingle();
+      if (!owned) throw new Error("You can leave out a Workspace you own. Ask its Owner, or make yourself its Owner first.");
     }
     changes.push({ def, value });
   }
