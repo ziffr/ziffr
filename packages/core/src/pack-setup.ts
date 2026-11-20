@@ -9,9 +9,10 @@
 // (Approvers must be members). Everything asked for is checked before anything is made. Keys from the browser are
 // matched through Maps, never as fields of a plain object.
 import { db } from "./db";
+import { refuseInDemo } from "./demo";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
-import { addSubmitters, createMetric, deleteMetric } from "./metrics";
+import { addSubmitters, createMetric, deleteMetric, MetricKept } from "./metrics";
 import { checkFormula, formulaInputs, type FormulaInput } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
 import { createWorkflowFromTemplate } from "./workflow-templates";
@@ -19,7 +20,7 @@ import { fromWorkflowTemplate } from "./team-templates";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
-import { limitOf, limitRefusal, limitRule, metricCount } from "./workspace-limits";
+import { LimitReached, limitOf, limitRefusal, limitRule, metricCount } from "./workspace-limits";
 import { TRIAL_METRICS_MAX } from "./metrics";
 import type { Slot, WorkflowTemplateBody } from "./types";
 
@@ -62,10 +63,15 @@ const LONGEST_SLUG = 130;
 const KEY = /^[a-z][a-z0-9-]{0,39}$/;
 
 // A person who manages the Workspace, not a program: setting up creates Metrics and sends Prompts.
+/** An error's words when they are Ziffr's own, written for people: a plain Error, a refusal or a limit. */
+const wordsForPeople = (e: unknown): string | null =>
+  e instanceof Error && e.message && (Object.getPrototypeOf(e) === Error.prototype || e instanceof Forbidden || e instanceof LimitReached || e instanceof MetricKept) ? e.message : null;
+
 function assertManages(actor: Actor) {
   if ((actor as { key?: unknown }).key) throw new Forbidden();
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins set up from a Pack.");
   assertCan(actor, "create");
+  refuseInDemo(actor);
 }
 
 type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null };
@@ -237,7 +243,10 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
       : null;
   } catch (e) {
     const so = [...[...made.values()].map((m) => m.name), ...(workflowId !== null ? ["the Workflow"] : [])];
-    throw new Error(`${(e as Error).message}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
+    // Only Ziffr's own words reach a person; anything else (a database's or a provider's text) goes to the log.
+    if (!wordsForPeople(e)) console.error("Set up from a Pack stopped:", e);
+    const why = wordsForPeople(e) ?? "Setting up stopped on something unexpected.";
+    throw new Error(`${why}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
   }
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null } });
   return { metrics: [...made.values()], dashboardId, workflowId };

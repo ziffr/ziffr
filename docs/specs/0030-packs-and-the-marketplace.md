@@ -1,6 +1,6 @@
 # 0030 Packs and the Marketplace: ready-made Metrics, dashboards and looks, without anyone's code
 
-**Status:** draft. **Tracking issue:** #259 (label `tracking`); its tickets become sub-issues labelled `spec:0030` once the owner has read this spec. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
+**Status:** done. **Tracking issue:** #259 (label `tracking`); tickets #273 to #281 carry `spec:0030`, built in #294, #301, #309, #322, #326, #327, #337, #344, #346 and the closing pull request of #281. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
 ## Problem Statement
 
@@ -242,3 +242,14 @@ Proposed in the draft and accepted by the owner on 2026-11-19 as written; each i
 
 - **Why "like the Metric Catalog", but with a record.** A copy from the Metric Catalog has no link back, so nothing can ever change it from outside. An installed item keeps the same independence: nothing changes it unless a person takes an update. The record of its Pack, key and hash only lets Ziffr tell "unchanged" from "changed" and offer updates.
 - **Why no ratings yet.** With a handful of Packs, ratings say little and invite gaming. The person's review and Ziffr's own Packs set the bar first.
+
+## As built (2026-11-20)
+
+- **The format and its checks are the MIT package `@ziffr/pack`** (`packages/pack`, ADR 0002's "template and widget formats"); the core uses it, so `npx @ziffr/pack check` and the server run the same code. Its lists of Views, fonts and Attainment methods are its own, held to the app's by a test.
+- **Analysis Recipes install as View Designs that draw them**, since a Workspace keeps recipes inside designs.
+- **A catalog entry's name is unique within its Pack**, not the Workspace: two Packs may describe Revenue.
+- **Limits per Workspace:** 25 Packs, 1,000 catalog entries from Packs, 1,000 templates, 100 View Designs.
+- **The demo** reads, fetches and installs no Pack.
+- **The Marketplace's address** defaults to `https://marketplace.ziffr.app`; the owner picks the domain. **Its public key** ships once Ziffr Cloud signs (`MARKETPLACE_PUBLIC_KEYS` is empty; a server may trust its own with `ZIFFR_MARKETPLACE_PUBLIC_KEY`).
+- **Not built yet:** an update badge outside the Packs page, a Marketplace signature recognised on an uploaded file, paid Packs.
+

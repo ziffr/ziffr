@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { installPackFile } from "./packs";
+import { installPackFile, PACK_CAPS } from "./packs";
 import { offeredItems, readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "./pack-updates";
 import { saveTheme } from "./workspace-themes";
 import { renameTemplate } from "./templates";
@@ -21,6 +21,7 @@ async function ws(name?: string) { const w = await workspace(name); cleanups.pus
 const forbidden = expect.any(Forbidden);
 const file = (p: unknown = PACK) => JSON.stringify(p);
 const yes = { unsigned: true, assistantTexts: true };
+const count = async (table: string, workspaceId: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId)).count ?? 0;
 
 /** Version 1.3.0: MRR described anew, the dashboard and Theme changed, Customers gone, a new entry added. */
 const NEXT: Pack = {
@@ -179,5 +180,71 @@ describe("uninstalling a Pack", () => {
     const ada = await w.person("admin"); const sara = await w.person("member");
     await expect(uninstallPack(w.actor(ada, "admin"), id)).rejects.toThrow("only Owners change Themes");
     await expect(uninstallPack(w.actor(sara, "member"), id)).rejects.toEqual(forbidden);
+  });
+});
+
+describe("the caps on what Packs add, kept in the database", () => {
+  const fill = async (table: "catalog_metrics" | "team_templates", workspaceId: string, owner: string, n: number) => {
+    const rows = Array.from({ length: n }, (_, i) => table === "catalog_metrics"
+      ? { workspace_id: workspaceId, category: "x", name: `Filler ${i}`, description: "", format: "number", period: "month", submission_rule: "reject", polarity: "higher" }
+      : { workspace_id: workspaceId, owner_id: owner, kind: "dashboard", name: `Filler ${i}`, description: "", view: "dashboard", slots: [], body: {}, w: 0, h: 0 });
+    for (let i = 0; i < rows.length; i += 500) { const { error } = await db().from(table).insert(rows.slice(i, i + 500)); expect(error).toBeNull(); }
+  };
+  const emptyOps = () => ({ catalog: { insert: [] as unknown[], replace: [], offer: [], delete: [], unmark: [] }, templates: { insert: [] as unknown[], replace: [], offer: [], delete: [], unmark: [] }, designs: { insert: [], replace: [], offer: [], delete: [], unmark: [] }, themes: { insert: [], replace: [], offer: [], delete: [], unmark: [] }, guard: [] });
+  const entry = (name: string) => ({ key: name.toLowerCase().replace(/ /g, "-"), category: "x", name, description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "month", submission_rule: "reject", polarity: "higher", sources: [], aggregation: "sum", hash: "0".repeat(64) });
+  const small = (id: string): Pack => ({ ...PACK, id, contents: { metrics: [PACK.contents.metrics![0]] } });
+
+  it("refuses an update that takes the Metric Catalog past its cap, and the app says so first", async () => {
+    const { w, ann, id, actor } = await setUp();
+    await fill("catalog_metrics", w.id, ann, PACK_CAPS.entries - (await count("catalog_metrics", w.id)));
+    const more = { ...NEXT, contents: { ...NEXT.contents, metrics: [...NEXT.contents.metrics!, { key: "nrr", metric: { ...PACK.contents.metrics![0].metric, name: "NRR" } }, { key: "grr", metric: { ...PACK.contents.metrics![0].metric, name: "GRR" } }] } };
+    const res = await readPackUpdate(actor, id, file(more));
+    expect(res.ok && res.plan.blocked).toMatch(/at most 1000 Metric Catalog entries/);
+    // The database refuses it even when the app-side check is skipped.
+    const ops = emptyOps(); ops.catalog.insert.push(entry("One too many"));
+    const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: ann, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toMatch(/at most 1000/);
+    expect(await count("catalog_metrics", w.id)).toBe(PACK_CAPS.entries);
+    expect((await db().from("pack_installs").select("version").eq("id", id).single()).data!.version).toBe("1.2.0");
+  });
+
+  it("lets an update that makes room by removing as many as it adds pass at the cap", async () => {
+    const { w, ann, id } = await setUp();
+    await fill("catalog_metrics", w.id, ann, PACK_CAPS.entries - (await count("catalog_metrics", w.id)));
+    const mrr = await row("catalog_metrics", w.id, "mrr");
+    const ops = emptyOps(); ops.catalog.insert.push(entry("Swapped in")); (ops.catalog as { delete: number[] }).delete.push(mrr!.id);
+    const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: ann, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
+    expect(error).toBeNull();
+    expect(await count("catalog_metrics", w.id)).toBe(PACK_CAPS.entries);
+  });
+
+  it("refuses an update past the template cap", async () => {
+    const { w, ann, id } = await setUp();
+    await fill("team_templates", w.id, ann, PACK_CAPS.templates - (await count("team_templates", w.id)));
+    const ops = emptyOps(); ops.templates.insert.push({ key: "extra", kind: "dashboard", name: "Extra", description: "", slots: [], body: {}, hash: "0".repeat(64) });
+    const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: ann, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toMatch(/at most 1000/);
+    expect(await count("team_templates", w.id)).toBe(PACK_CAPS.templates);
+  });
+
+  it("lets parallel installs pass only up to the cap, never past it", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    await fill("catalog_metrics", w.id, ann, PACK_CAPS.entries - 2);
+    // Each Pack adds one entry under another name; the app-side check reads the same count for all of them.
+    const packs = Array.from({ length: 6 }, (_, i) => small(`someone/p${i}`)).map((p, i) => ({ ...p, contents: { metrics: [{ key: `m${i}`, metric: { ...PACK.contents.metrics![0].metric, name: `Parallel ${i}` } }] } }));
+    const results = await Promise.allSettled(packs.map((p) => installPackFile(actor, file(p), yes)));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(await count("catalog_metrics", w.id)).toBe(PACK_CAPS.entries);
+  });
+
+  it("lets parallel installs pass only up to the most Packs, never past it", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    await db().from("pack_installs").insert(Array.from({ length: PACK_CAPS.installs - 2 }, (_, i) => ({ workspace_id: w.id, pack_id: `someone/q${i}`, version: "1.0.0", license: "MIT", source: "upload", signed: false, manifest: {} })));
+    const packs = Array.from({ length: 6 }, (_, i) => small(`someone/r${i}`)).map((p, i) => ({ ...p, contents: { metrics: [{ key: `m${i}`, metric: { ...PACK.contents.metrics![0].metric, name: `Parallel ${i}` } }] } }));
+    const results = await Promise.allSettled(packs.map((p) => installPackFile(actor, file(p), yes)));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(await count("pack_installs", w.id)).toBe(PACK_CAPS.installs);
   });
 });

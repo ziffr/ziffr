@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/packs/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -26,7 +26,7 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 | **Connectors** | Everyone | Below |
 | **Workflows** | Everyone | In [Workflows](11-workflows.md) |
 | **Sources** | Everyone | Below |
-| **Packs** | Everyone but Guests | Below |
+| **Packs** | Everyone but Guests | In [Packs](19-packs.md) |
 | **Access Keys** | Everyone | Below |
 | **Feeds** | Owners and Admins | Below |
 | **Activity** | Everyone | [Actions and Activity](15-actions.md#the-activity-page) |
@@ -350,59 +350,7 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 
 ## Packs
 
-A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entries, Dashboard and Deck Templates, Workflow Templates, View Designs, Analysis Recipes and Themes. It holds no code. Open **Workspace → Packs**.
-
-**Installed in this Workspace** lists each Pack with its version, author and license, whether it was an uploaded file, when and by whom it was installed, and what it added: its Metric Catalog entries, templates, designs and Themes. A Pack's own page and help page open as plain links, when it has them. Owners, Admins and Members see the list; Guests see no Packs.
-
-Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club, and a Board meeting deck. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
-
-**Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs.
-
-1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
-2. Ziffr shows the Pack: its name, version, summary, author and license, and every item it adds. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
-3. It says **Uploaded file. The Marketplace did not check it.** Tick **I install a file the Marketplace did not check.**
-4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
-5. Choose **Install**. The Pack is installed whole or not at all, and the Audit log records it.
-
-Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry only through **Set up from this Pack**, below), its templates where you start a dashboard, deck or Workflow, its View Designs under **Analyze → View Designs** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
-
-### Set up from this Pack
-
-Installing adds only entries and templates. **Set up from this Pack**, under an installed Pack, turns them into things you use. It is for Owners and Admins.
-
-| Control | What it does |
-| --- | --- |
-| **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. |
-| **Ask me for their values** | Makes you the Submitter of the Metrics that take values, and sends you a first request for each now. Untick it to add Submitters later on each Metric's page. |
-| **Dashboard** | One of the Pack's Dashboard Templates, or none. Each Slot is filled with the Metric made from the entry it suggests; a Slot whose entry you do not make asks you to pick one of your Metrics. |
-| **Workflow** | One of the Pack's Workflow Templates, or none. If its Approve step asks for Approvers, pick each one, members of the Workspace. The Metrics that take values follow this Workflow. |
-| **Set up** | Makes it all. Ziffr checks everything first: if anything cannot be made, such as more Metrics than the Workspace's limit (see [Size and usage](#size-and-usage)) or a trial's 25, nothing is made and it says why. |
-
-What it makes are ordinary Metrics, a dashboard and a Workflow, as if you made them by hand: each counts towards the limit, is in the Audit Log, and stays as it is whatever happens to the Pack later. A Metric remembers the Pack's entry it came from.
-
-### From the Marketplace
-
-When an Installation Admin turned on the Marketplace connection, Owners and Admins see **From the Marketplace**: search free Packs by a word, and choose **See what it adds** to see one drawn with Sample Data. A Pack from the Marketplace says so ("its signature holds") and needs no warning about where it came from; texts aimed at assistants are still listed and need a tick. Installing works as from a file. Once a day Ziffr asks which installed Packs have newer versions; an installed Pack with one shows **Version … on the Marketplace…**, which shows what an update changes before it is done.
-
-### Updating a Pack
-
-Owners and Admins see **Update from a file…** on each installed Pack (an Owner, when it holds Themes). Choose the newer file: its version must be higher than the one installed. Ziffr checks the whole file and lists every item with what the new version does to it (added, changed, removed or the same) and what happens here:
-
-- an item nobody changed is replaced by the new version;
-- an item you changed, such as a renamed Dashboard Template or an edited Theme, stays as you made it, and the new version is offered beside it;
-- an item the new version drops is removed, or kept without being marked as from the Pack when you changed it or something uses it;
-- an item you removed is not added again.
-
-A new major version, such as 2.0.0 after 1.4.0, says first that it may change how things look or work. Confirm the same warnings as when installing and choose **Update to …**. The update happens whole or not at all, and the Audit log records it. Metrics, dashboards, decks and Workflows made from the Pack never change.
-
-**New versions offered**, at the top of the page, lists the items you changed that have a newer version waiting. **Take the new version** replaces yours with it; yours stays in its **Versions**, so you can bring it back.
-
-### Uninstalling a Pack
-
-**Uninstall…** first lists what goes and what stays. It removes every item nobody changed and nothing uses. It keeps, no longer marked as from the Pack, every item you changed and every Theme a dashboard, a deck or the Workspace's default uses. Metrics made from its catalog entries, and everything else made from the Pack, stay as they are. The Audit log records it.
-### Export as Pack
-
-**Export as Pack…** is for everyone but Guests. Pick Metrics, Metric Catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes; name the Pack, give it an id such as `northwind/saas-metrics`, a version, a summary, an author and a license; then choose **Download Pack**. The file holds descriptions and layouts, never a value or a person, and only Metrics you see. Anything a Pack may not hold, such as a description with a web address or a drawing on a slide, stays out, and the window lists it with the reason.
+Packs, ready-made Metric Catalog entries, templates, designs and Themes, have a chapter of their own: [Packs](19-packs.md). Open them with **Workspace → Packs**.
 
 ## Access Keys
 

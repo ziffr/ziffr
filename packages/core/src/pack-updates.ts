@@ -8,7 +8,7 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
-import { assertManages, itemHash, itemKeys, manifestOf, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { ensureBaseline, recordVersion } from "./versions";
 
 /** Where an installed item lives. */
@@ -110,6 +110,20 @@ type Ops = Record<Table, { insert: unknown[]; replace: unknown[]; offer: unknown
 type Guard = { table: "templates" | "themes"; id: number; updated_at: string | null };
 const guardOf = (c: Copy): Guard[] => (c.table === "templates" || c.table === "themes" ? [{ table: c.table, id: c.id, updated_at: c.updatedAt }] : []);
 
+/** Why an update would push the Workspace past a Pack cap, or null. Friendly message only: update_pack counts again in the
+ * database under the Workspace's lock, and that is what holds when two steps run at once. */
+async function overCaps(actor: Actor, ops: Ops): Promise<string | null> {
+  const [entries, templates] = await Promise.all([
+    db().from("catalog_metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId),
+    db().from("team_templates").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId),
+  ]);
+  const grow = (t: Table) => ops[t].insert.length - ops[t].delete.length;
+  const e = entries.count ?? 0, t = templates.count ?? 0;
+  if (grow("catalog") > 0 && e + grow("catalog") > PACK_CAPS.entries) return `A Workspace keeps at most ${PACK_CAPS.entries} Metric Catalog entries from Packs; this update would pass that.`;
+  if (grow("templates") > 0 && t + grow("templates") > PACK_CAPS.templates) return `A Workspace keeps at most ${PACK_CAPS.templates} templates; this update would pass that. Delete some first.`;
+  return null;
+}
+
 /** Works out an update: the plan for the page and the operations for the database. */
 async function planUpdate(actor: Actor, installId: number, text: string) {
   assertManages(actor);
@@ -165,7 +179,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   const blocked = pack.id !== install.pack_id ? `This file is the Pack “${pack.id}”, not “${install.pack_id}”.`
     : !versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
-        : null;
+        : await overCaps(actor, ops);
   const plan: UpdatePlan = { from: install.version, to: pack.version, name: pack.name, major: pack.version.split(".")[0] !== install.version.split(".")[0], items, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked };
   return { ok: true as const, plan, ops, pack, stored: next };
 }

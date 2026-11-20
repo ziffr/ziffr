@@ -7,6 +7,7 @@
 // plain object, so a key such as "constructor" is only a key.
 import { createHash } from "node:crypto";
 import { db } from "./db";
+import { refuseInDemo } from "./demo";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { canonical } from "./api-submissions";
@@ -51,6 +52,8 @@ export type PackRead = { ok: true; preview: PackPreview } | { ok: false; problem
 export function assertManages(actor: Actor) {
   if ((actor as { key?: unknown }).key) throw new Forbidden();
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins install Packs.");
+  // The demo installs nothing; refused before a file is read or fetched, so an anonymous visitor makes no work.
+  refuseInDemo(actor);
 }
 
 /** The hash of an item as installed: of what is stored, with its fields in a fixed order, so an unchanged copy hashes
@@ -90,10 +93,23 @@ export function storedItems(pack: Pack) {
 /** The keys of every item a Pack adds, so an update can tell what the Workspace removed since. */
 export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.catalog, ...stored.templates, ...stored.views, ...stored.themes].map((x) => x.key);
 
+/** The most a Workspace holds from Packs: installs, its own Metric Catalog entries, and templates of any kind. */
+export const PACK_CAPS = { installs: 25, entries: 1000, templates: 1000 } as const;
+
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
   const { data } = await db().from("pack_installs").select("version").eq("workspace_id", actor.workspaceId).eq("pack_id", pack.id).maybeSingle();
+  // A Workspace holds at most so many Packs and so many rows from them, so a taken-over Admin cannot fill the database.
+  const [installs, entries, templates] = await Promise.all([
+    db().from("pack_installs").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId),
+    db().from("catalog_metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId),
+    db().from("team_templates").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId),
+  ]);
+  if (!data && (installs.count ?? 0) >= PACK_CAPS.installs) return `A Workspace keeps at most ${PACK_CAPS.installs} Packs; uninstall one first.`;
+  const adds = (k: "metrics" | "dashboards" | "decks" | "workflows") => pack.contents[k]?.length ?? 0;
+  if ((entries.count ?? 0) + adds("metrics") > PACK_CAPS.entries) return `A Workspace keeps at most ${PACK_CAPS.entries} Metric Catalog entries from Packs; uninstall a Pack first.`;
+  if ((templates.count ?? 0) + adds("dashboards") + adds("decks") + adds("workflows") > PACK_CAPS.templates) return `A Workspace keeps at most ${PACK_CAPS.templates} templates; delete some first.`;
   if (data) return `${pack.name} ${data.version} is installed already. Updating an installed Pack comes in a later version of Ziffr.`;
   const views = (pack.contents.views?.length ?? 0) + (pack.contents.analyses?.length ?? 0);
   if (views) {
