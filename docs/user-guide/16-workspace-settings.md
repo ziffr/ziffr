@@ -356,8 +356,24 @@ Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer
 4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
 5. Choose **Install**. The Pack is installed whole or not at all, and the Audit log records it.
 
-Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry waits until setting up from a Pack comes), its templates where you start a dashboard, deck or Workflow, its View Designs under **Analyze → View Designs** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again; updating and uninstalling come later.
+Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry waits until setting up from a Pack comes), its templates where you start a dashboard, deck or Workflow, its View Designs under **Analyze → View Designs** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. Two Packs may describe the same Metric, such as Revenue: the Metric Catalog then lists both, each under its Pack. A Pack that is installed already is not installed again: update it instead.
 
+### Updating a Pack
+
+Owners and Admins see **Update from a file…** on each installed Pack (an Owner, when it holds Themes). Choose the newer file: its version must be higher than the one installed. Ziffr checks the whole file and lists every item with what the new version does to it (added, changed, removed or the same) and what happens here:
+
+- an item nobody changed is replaced by the new version;
+- an item you changed, such as a renamed Dashboard Template or an edited Theme, stays as you made it, and the new version is offered beside it;
+- an item the new version drops is removed, or kept without being marked as from the Pack when you changed it or something uses it;
+- an item you removed is not added again.
+
+A new major version, such as 2.0.0 after 1.4.0, says first that it may change how things look or work. Confirm the same warnings as when installing and choose **Update to …**. The update happens whole or not at all, and the Audit log records it. Metrics, dashboards, decks and Workflows made from the Pack never change.
+
+**New versions offered**, at the top of the page, lists the items you changed that have a newer version waiting. **Take the new version** replaces yours with it; yours stays in its **Versions**, so you can bring it back.
+
+### Uninstalling a Pack
+
+**Uninstall…** first lists what goes and what stays. It removes every item nobody changed and nothing uses. It keeps, no longer marked as from the Pack, every item you changed and every Theme a dashboard, a deck or the Workspace's default uses. Metrics made from its catalog entries, and everything else made from the Pack, stay as they are. The Audit log records it.
 ### Export as Pack
 
 **Export as Pack…** is for everyone but Guests. Pick Metrics, Metric Catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes; name the Pack, give it an id such as `northwind/saas-metrics`, a version, a summary, an author and a license; then choose **Download Pack**. The file holds descriptions and layouts, never a value or a person, and only Metrics you see. Anything a Pack may not hold, such as a description with a web address or a drawing on a slide, stays out, and the window lists it with the reason.

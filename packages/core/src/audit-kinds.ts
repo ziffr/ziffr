@@ -39,6 +39,8 @@ export const AUDIT_KINDS = {
   "view_design.added": "added the View Design",
   "view_design.removed": "removed the View Design",
   "pack.installed": "installed the Pack",
+  "pack.updated": "updated the Pack",
+  "pack.uninstalled": "uninstalled the Pack",
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",

@@ -5,6 +5,7 @@ import { isDemo } from "@/lib/auth";
 import { listInstalledPacks } from "@ziffr/core/packs";
 import { exportOptions } from "@ziffr/core/pack-export";
 import { can } from "@ziffr/core/actor";
+import { offeredItems } from "@ziffr/core/pack-updates";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import { getProfileMap } from "@/lib/data";
 import { PageHeader } from "@/components/page-header";
@@ -12,7 +13,7 @@ import { PacksScreen } from "./screen";
 
 export default async function PacksPage() {
   const actor = await currentActor();
-  const [installed, demo, numberStyle, people] = await Promise.all([listInstalledPacks(actor), isDemo(), numberStyleOf(actor.workspaceId), getProfileMap()]);
+  const [installed, demo, numberStyle, people, offers] = await Promise.all([listInstalledPacks(actor), isDemo(), numberStyleOf(actor.workspaceId), getProfileMap(), offeredItems(actor)]);
   const manages = !demo && (actor.role === "owner" || actor.role === "admin");
   // What this person may put into a Pack: names only, of what they see. Nothing for a Guest.
   const options = can(actor, "create") ? await exportOptions(actor) : null;
@@ -24,6 +25,7 @@ export default async function PacksPage() {
         installed={installed.map((p) => ({ ...p, installedBy: p.installedBy ? people[p.installedBy]?.name ?? null : null }))}
         manages={manages}
         exportable={options}
+        offers={offers}
         demo={demo}
         guest={actor.role === "guest"}
         viewer={actor.personId}
