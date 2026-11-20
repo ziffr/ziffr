@@ -259,7 +259,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | Column | What it shows |
 | --- | --- |
 | **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. |
-| **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "imported" is an **Import**: a **Feed**'s value for a past period, recorded without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
+| **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "pasted by …" came from [a paste](#paste-values-from-a-spreadsheet), and the name says who pasted it. A value marked "imported" is an **Import**: a **Feed**'s value for a past period, or a pasted one recorded as history, without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
 | **Submitted by** | The person, Contact or Feed who sent it. |
 

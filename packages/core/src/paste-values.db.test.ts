@@ -6,7 +6,8 @@ import fc from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
-import { PASTED_VALUES_PER_DAY, PASTED_VALUES_PER_DAY_IN_DEMO, pasteMetrics, previewValues, recordPastedValues, type PasteReport, type PasteRow } from "./paste-values";
+import { PASTED_VALUES_PER_DAY, PASTED_VALUES_PER_DAY_IN_DEMO, pastedValueIds, pasteMetrics, previewValues, recordPastedValues, type PasteReport, type PasteRow } from "./paste-values";
+import { sourcesView } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { valuesOf, workspace } from "./test/db-fixtures";
@@ -211,6 +212,25 @@ describe("the Metric's rules", () => {
     expect(preview.counts.recorded).toBe(1);
     ok(await recordPastedValues(w.actor(sara), { text, leaveOut: ["C2"] }, quiet()));
     expect((await valuesOf(m.id)).map((v) => v.value)).toEqual([1]);
+  });
+});
+
+describe("how pasted values show", () => {
+  it("names the pasted values among a Metric's, only for someone who sees it, and marks them in the intake log", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member"); const eve = await w.person("member");
+    const m = await w.metric(sara, { name: "Revenue" }); await w.token(m.id, sara);
+    const typed = await w.value(m.id, ago(3), 5, sara);
+    ok(await recordPastedValues(w.actor(sara), { text: `Revenue\t${cell(ago(2))}\t1\nRevenue\t${cell(ago(1))}\t2`, asHistory: [m.id] }, quiet()));
+    const all = (await db().from("observations").select("id, period_start").eq("metric_id", m.id).order("period_start")).data!;
+    expect(all).toHaveLength(3);
+    expect((await pastedValueIds(w.actor(sara), m.id, all.map((o) => o.id))).sort()).toEqual(all.filter((o) => o.id !== typed).map((o) => o.id).sort());
+    await expect(pastedValueIds(w.actor(eve, "member"), m.id, all.map((o) => o.id))).rejects.toThrow();
+    await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: m.id, user_id: ann, role: "viewer" });
+    expect(await pastedValueIds(w.actor(ann, "member"), m.id, [typed])).toEqual([]);
+    // The person's own intake log carries the marks; someone else's does not show theirs.
+    const mine = (await sourcesView(w.actor(sara))).log.filter((l) => l.source === "web_form");
+    expect(mine.map((l) => [l.raw, l.marks])).toEqual([["1", ["paste", "import"]], ["2", ["paste", "import"]]]);
+    expect((await sourcesView(w.actor(ann, "member"))).log).toEqual([]);
   });
 });
 

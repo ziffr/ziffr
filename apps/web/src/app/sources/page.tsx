@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { format } from "date-fns";
 import { FileInput } from "lucide-react";
 import { getMetrics, getProfiles } from "@/lib/data";
 import { currentActor } from "@/lib/viewer";
@@ -37,6 +38,7 @@ export default async function SourcesPage() {
           </div>
         </DemoControls>
       )}
+      <WebFormLog log={by("web_form").log} metricNames={metricNames} />
       <section className="stock rounded-[var(--radius-card)] p-5">
         <h2 className="mb-1 flex items-center gap-2 font-medium"><FileInput className="size-4" /> Form links</h2>
         <p className="mb-3 text-sm text-muted-foreground">Everyone who submits a metric has a personal form link for it. The link itself is the permission, so nobody needs to sign in.</p>
@@ -53,5 +55,42 @@ export default async function SourcesPage() {
         </ul>
       </section>
     </>
+  );
+}
+
+/** How many of the latest web form entries the Sources page lists. */
+const WEB_FORM_SHOWN = 20;
+
+/** The latest values sent on the web form, by a personal form link or a paste, newest first; a pasted one is marked
+ * "pasted", and "pasted as history" when it was recorded as one (spec 0026). Outside the demo the core passes only
+ * the person's own. */
+function WebFormLog({ log, metricNames }: { log: IntakeEntry[]; metricNames: Record<number, string> }) {
+  if (!log.length) return null;
+  const latest = [...log].reverse().slice(0, WEB_FORM_SHOWN);
+  return (
+    <section className="stock mb-6 rounded-[var(--radius-card)] p-5">
+      <h2 className="mb-1 font-medium">From the web form</h2>
+      <p className="mb-3 text-sm text-muted-foreground">The latest values sent with a personal form link or pasted from a spreadsheet, newest first.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-muted-foreground">
+            <tr><th scope="col" className="pb-2 font-normal">When</th><th scope="col" className="pb-2 font-normal">Metric</th><th scope="col" className="pb-2 font-normal">Sent</th><th scope="col" className="pb-2 font-normal">What happened</th></tr>
+          </thead>
+          <tbody>
+            {latest.map((l) => (
+              <tr key={l.id} className="border-t align-top">
+                <td className="whitespace-nowrap py-2 pr-3 text-muted-foreground">{format(new Date(l.at), "d MMM HH:mm")}</td>
+                <td className="py-2 pr-3">{l.metric_id ? (metricNames[l.metric_id] ?? "–") : "–"}</td>
+                <td className="py-2 pr-3">
+                  <span className="whitespace-pre-wrap">{l.raw}</span>
+                  {l.marks?.includes("paste") && <span className="block text-xs text-muted-foreground">{l.marks.includes("import") ? "pasted as history" : "pasted"}</span>}
+                </td>
+                <td className="py-2 text-xs text-muted-foreground">{l.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

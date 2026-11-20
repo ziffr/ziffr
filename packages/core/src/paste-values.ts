@@ -13,6 +13,7 @@ import { formatValue } from "./format";
 import { periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import { PASTE_LIMITS, pasteProblemText, pasteReadingText, readPaste, type PasteLayout, type PasteMetric, type PasteValue } from "./paste-reader";
 import { peopleIn, submissionEffects, submitValue, type SubmissionEffects, type SubmissionResult } from "./submissions";
+import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { tokenValid, type TokenRow } from "./tokens";
 import type { Metric } from "./types";
@@ -378,6 +379,17 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
     if (row && !row.leftOut && row.outcome !== outcome) row.changed = true;
   }
   return report({ ...s, leftToday: claimed }, read, read.values.map((v) => rows.get(v.place)!));
+}
+
+/** Which of a Metric's values came from a paste (spec 0026), among the ones given: the intake log marks each pasted
+ * value and names the value it became. Only for someone who sees the Metric, and only ids of its own values. */
+export async function pastedValueIds(actor: Actor, metricId: number, observationIds: number[]): Promise<number[]> {
+  await assertSeesMetrics(actor, [metricId]);
+  const ids = observationIds.filter((id) => Number.isSafeInteger(id)).slice(0, PASTE_LIMITS.values);
+  if (!ids.length) return [];
+  const { data, error } = await db().from("intake_log").select("observation_id").eq("workspace_id", actor.workspaceId).eq("metric_id", metricId).contains("marks", ["paste"]).in("observation_id", ids);
+  if (error) throw new Error("The values could not be read. Try again in a moment.");
+  return [...new Set((data ?? []).map((r) => Number(r.observation_id)))];
 }
 
 /** The Metrics the actor may paste values for: those they see and submit for on the web form, through their own Token
