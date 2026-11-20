@@ -184,6 +184,24 @@ async function sendOne(send: Send, dayCount: Map<string, number>): Promise<Outco
 /** Starts of the current UTC day, for the daily cap. */
 const dayStart = () => new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
 
+/** One claimed send, sent and written into its row; a send that breaks is a network failure, never an exception. */
+async function attemptSend(send: Send, dayCount: Map<string, number>): Promise<Outcome> {
+  let outcome: Outcome;
+  try { outcome = await sendOne(send, dayCount); } catch (e) { console.error("Webhooks: a send broke:", (e as Error).message); outcome = { state: "retrying", failure: "network", waitMs: retryWaitMs(send.attempts + 1) ?? undefined }; if (outcome.waitMs === undefined) outcome = { state: "failed", failure: "network" }; }
+  await settle(send, outcome);
+  return outcome;
+}
+
+/** Sends one queued message of one Workspace now, for the Webhooks page's test and Send again: claimed by the same
+ * conditional update as the job's, so it is sent once, and no other Workspace's sends are touched. */
+export async function sendWebhookNow(workspaceId: string, sendId: string): Promise<void> {
+  const { data } = await db().from("webhook_sends").update({ state: "sending", claimed_at: new Date().toISOString() }).eq("id", sendId).eq("workspace_id", workspaceId).eq("state", "queued").select("*").maybeSingle();
+  if (!data) return;
+  const send = data as Send;
+  const { count } = await db().from("webhook_sends").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gte("last_attempt_at", dayStart().toISOString());
+  await attemptSend(send, new Map([[workspaceId, count ?? 0]]));
+}
+
 /** Sends the Webhook messages that are due, for the deliveries job: at most `limit`, each claimed once by a conditional
  * update, at most a few at a time (WEBHOOK_SEND_CONCURRENCY). Answers only counts. */
 export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; failed: number }> {
@@ -202,9 +220,7 @@ export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; f
   const queue = [...sends];
   const worker = async () => {
     for (let send = queue.shift(); send; send = queue.shift()) {
-      let outcome: Outcome;
-      try { outcome = await sendOne(send, dayCount); } catch (e) { console.error("Webhooks: a send broke:", (e as Error).message); outcome = { state: "retrying", failure: "network", waitMs: retryWaitMs(send.attempts + 1) ?? undefined }; if (outcome.waitMs === undefined) outcome = { state: "failed", failure: "network" }; }
-      await settle(send, outcome);
+      const outcome = await attemptSend(send, dayCount);
       if (outcome.state === "delivered") sent++;
       else if (outcome.state === "failed" || outcome.state === "retrying") failed++;
     }

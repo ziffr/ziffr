@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/webhooks/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -425,6 +425,39 @@ To make a key, type a **Key name** (such as "Nightly run"; if you leave it empty
 
 Only Owners and Admins see Feed Keys and their Access Logs.
 
+## Webhooks
+
+**Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo and a trial have no Webhooks: they send a Workspace's data to addresses outside Ziffr.
+
+A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks.
+
+Messages leave Ziffr in **clear text over TLS**. Workspace Keys seal data in the database, not on its way out, and the receiving system keeps what it gets as it sees fit. This is not end-to-end encryption, and the page says so above the list. A message holds only what everyone in the Workspace may see; other things reach the Webhook with their words left out.
+
+### Adding a Webhook
+
+Type a **name**, ideally the system it feeds, such as "Microsoft To Do", and the **address**, which must start with `https://` and may not hold a user name, a password or a `#`. Tick the **events** it gets, then choose **Add Webhook**. Ziffr refuses an address inside its own network.
+
+The **secret** appears once, in a box above the list. Copy it before you choose **I have copied it**: Ziffr cannot show it again. The receiver uses it to check each message's signature.
+
+### Each Webhook
+
+| What you see | What it means |
+| --- | --- |
+| The name and the address | The address is shown as its start only, since many tools put a secret in its path |
+| **Gets** | The events it receives. **Name and events** changes them. |
+| **Send test event** | Sends a `ping` with nothing of the Workspace in it, at most once a minute |
+| **Replace secret** | Makes a new secret, shown once. The old one keeps signing for 24 hours, so the receiver can switch without a gap. |
+| **Switch off** / **Switch on** | A switched-off Webhook gets nothing. Switching on again resends nothing. |
+| The bin icon | Deletes the Webhook after asking |
+
+A Webhook that fails 20 sends in a row, or has had no success for three days, is switched off by Ziffr, and every Owner gets an email. One whose address answers "gone" (410) is switched off at once.
+
+### The log
+
+Under each Webhook, **Log** lists its sends of the last 14 days: when, the event, what it is about (a task's reference such as ZIF-12, or a Metric's number), the state (waiting, will try again, delivered, failed, not sent), the answer's status and how many tries it took. It holds no message text and no answer. A failed send has **Send again**.
+
+Every change to a Webhook is in the [Audit log](#audit-log), and the other Owners get an email.
+
 ## Usage
 
 **Workspace → Usage** is for Owners and Admins; Members and Guests do not see it, and the demo has none, because it counts nothing. It shows what could be tidied up, as lists with the reason beside each name:
@@ -448,7 +481,7 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days).
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days).
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 
