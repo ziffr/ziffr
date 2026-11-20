@@ -10,6 +10,7 @@ import { trialEndsAt } from "./trials";
 import { csvNumber } from "./export-values";
 import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
+import { destroyWorkspaceKeys } from "./workspace-keys";
 
 /** Days between a trial's end and its deletion: time to download its values. */
 export const TRIAL_GRACE_DAYS = 7;
@@ -64,16 +65,22 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
   return data?.length ?? 0;
 }
 
-/** Deletes one trial with everything in it: the workspace (its rows go with it), then the person rows of its Contacts
- * and Feeds, and its Owner with their sign-in when they are in no other workspace. */
+/** Deletes one trial with everything in it: first its Workspace Key (spec 0028), so that if anything below stops
+ * half-way what is left cannot be opened, with the Installation's one audit line by its id, never its name; then the
+ * workspace (its rows go with it), the person rows of its Contacts and Feeds, and its Owner with their sign-in when
+ * they are in no other workspace. A trial that is already gone is left as it is. */
 async function deleteTrial(workspaceId: string): Promise<void> {
-  const [{ data: members }, { data: contacts }, { data: feeds }] = await Promise.all([
+  const [{ data: members }, { data: contacts }, { data: feeds }, { data: trial }] = await Promise.all([
     db().from("memberships").select("user_id").eq("workspace_id", workspaceId),
     db().from("contacts").select("person_id").eq("workspace_id", workspaceId),
     db().from("feeds").select("person_id").eq("workspace_id", workspaceId),
+    db().from("workspaces").select("id").eq("id", workspaceId).not("trial_ends_at", "is", null).maybeSingle(),
   ]);
-  const { error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null);
-  if (error) throw new Error("The trial could not be deleted.");
+  // Only a trial is deleted here: its key is destroyed only once that is certain.
+  if (!trial) return;
+  await destroyWorkspaceKeys(workspaceId);
+  const { data: gone, error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null).select("id");
+  if (error || gone?.length !== 1) throw new Error("The trial could not be deleted.");
   // Contacts and Feeds are person rows made for this workspace alone, never with a sign-in.
   const others = [...(contacts ?? []).map((c) => c.person_id as string), ...(feeds ?? []).map((f) => f.person_id as string)];
   if (others.length) {
