@@ -649,3 +649,75 @@ export const ApprovalDecision = z.discriminatedUnion("decision", [
   z.object({ decision: z.literal("approve") }),
   z.object({ decision: z.literal("send_back"), comment: z.string().trim().max(1000).default("").describe("What the submitter should check.") }),
 ]);
+
+/** A Snapshot in a list (GLOSSARY: Snapshot; ticket #435): no author and no words. */
+export const ApiSnapshotSummary = z.object({
+  id: z.number().int(),
+  dashboard: z.number().int().describe("The dashboard it is of."),
+  kind: z.enum(["week", "month", "quarter", "half", "year"]),
+  start: z.string().describe("The period's first day, yyyy-mm-dd."),
+  end: z.string().describe("The period's last day, yyyy-mm-dd."),
+  label: z.string().describe("The period as people write it, such as \"Q3 2026\"."),
+  takenAt: z.string().describe("When it was taken, ISO 8601."),
+  automatic: z.boolean().describe("Taken by Ziffr's daily run instead of by a person or program."),
+  shown: z.boolean().describe("False while it is a draft only the dashboard's owner and Editors see."),
+  url: z.string().describe("Where to open it in Ziffr."),
+});
+
+/** GET /dashboards/{id}/snapshots answers this. */
+export const SnapshotList = z.object({ items: z.array(ApiSnapshotSummary).describe("Newest period first, at most 200.") });
+
+/** One Snapshot read, cut down to the Metrics its reader sees now. */
+export const ApiSnapshot = ApiSnapshotSummary.extend({
+  name: z.string().describe("The dashboard's name when it was taken."),
+  intro: z.string().describe("Its introduction: words written about it, editable by its owner."),
+  hiddenWidgets: z.number().int().describe("Widgets left out because they draw a Metric the key's creator does not see."),
+  widgets: z.array(z.object({
+    id: z.number().int(), view: z.string(), title: z.string().nullable(),
+    metrics: z.array(z.string()).describe("Slugs of the Metrics it draws."),
+    words: z.record(z.string(), z.string()).optional().describe("A Finding only: its words (kicker, headline, subline, footnote, source)."),
+  })),
+  metrics: z.array(z.object({
+    slug: z.string(), name: z.string(), unit: z.string(),
+    values: z.array(z.object({ period: z.string(), value: z.number() })).describe("The values it kept, at most the latest 240."),
+  })).describe("Only Metrics the key's creator sees now."),
+  corrections: z.array(z.object({ metric: z.string(), period: z.string(), was: z.number(), now: z.number().nullable() })).describe("Kept values that differ from the ones recorded now; `now` is null when the value was removed."),
+});
+
+/** POST /dashboards/{id}/snapshots takes this. */
+export const TakeSnapshot = z.object({
+  kind: z.enum(["week", "month", "quarter", "half", "year"]),
+  start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("The period's first day, yyyy-mm-dd, as the workspace counts it (GET /workspace)."),
+}).strict();
+
+/** A View Link as a program lists it: never its token or address. */
+export const ApiViewLink = z.object({
+  id: z.number().int(),
+  dashboard: z.number().int(),
+  label: z.string(),
+  expires: z.string().describe("The last day it works, yyyy-mm-dd."),
+  revoked: z.boolean().describe("It no longer opens: revoked, past its end, or its Snapshot was deleted."),
+  created: z.string(),
+  frozen: z.boolean().describe("Shows the dashboard or Snapshot as it was when made, not live."),
+  snapshot: z.number().int().nullable().describe("The Snapshot it shows, if any."),
+});
+
+/** GET /dashboards/{id}/view-links answers this. */
+export const ViewLinkList = z.object({ items: z.array(ApiViewLink).describe("Newest first, at most 200.") });
+
+/** POST /dashboards/{id}/view-links answers this: the one answer that carries the secret. */
+export const MadeViewLink = ApiViewLink.extend({
+  token: z.string().describe("The secret of the link. Shown this once; whoever has it may open the link."),
+  url: z.string().describe("The address to give to the people it is for: it opens without signing in. Shown this once."),
+});
+
+/** POST /dashboards/{id}/view-links takes this. */
+export const CreateViewLink = z.object({
+  label: z.string().trim().max(80).default("").describe("What it is for, shown to you only."),
+  expires: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("The last day it works, yyyy-mm-dd, within 90 days from today (UTC)."),
+  frozen: z.boolean().default(false).describe("True keeps the dashboard as it is now; false shows it live (ignored with `snapshot`, which is always as kept)."),
+  snapshot: z.number().int().positive().max(2 ** 31 - 1).optional().describe("Show one of the dashboard's Snapshots, which must be shown to everyone with access already."),
+}).strict();
+
+/** DELETE /view-links/{id} answers this. */
+export const RevokedViewLink = z.object({ revoked: z.number().int() });

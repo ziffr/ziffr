@@ -2117,6 +2117,252 @@ Changes a Finding's kicker, headline, subline, footnote or source. An empty text
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## List a dashboard's Snapshots
+
+`GET /dashboards/{id}/snapshots` · scope `dashboards:read`
+
+The Snapshots of one dashboard the key's creator may open, newest period first, at most 200: shown ones for everyone who may open the dashboard, drafts too for its owner and Editors who see every Metric they kept.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes | Newest period first, at most 200. |
+| `items[].id` | integer | yes |  |
+| `items[].dashboard` | integer | yes | The dashboard it is of. |
+| `items[].kind` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | yes |  |
+| `items[].start` | string | yes | The period's first day, yyyy-mm-dd. |
+| `items[].end` | string | yes | The period's last day, yyyy-mm-dd. |
+| `items[].label` | string | yes | The period as people write it, such as "Q3 2026". |
+| `items[].takenAt` | string | yes | When it was taken, ISO 8601. |
+| `items[].automatic` | boolean | yes | Taken by Ziffr's daily run instead of by a person or program. |
+| `items[].shown` | boolean | yes | False while it is a draft only the dashboard's owner and Editors see. |
+| `items[].url` | string | yes | Where to open it in Ziffr. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Take a Snapshot
+
+`POST /dashboards/{id}/snapshots` · scope `dashboards:write`
+
+Takes a Snapshot of the dashboard for a week, month, quarter, half-year or year that is over, as the key's creator, who must own or edit the dashboard and see every Metric on it. It keeps the dashboard's layout and the values up to the period's end, and starts as a draft that a person shows in Ziffr. The Audit Log names the key. Counts towards the 500 changes a day.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `kind` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | yes |  |
+| `start` | string | yes | The period's first day, yyyy-mm-dd, as the workspace counts it (GET /workspace). |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `dashboard` | integer | yes | The dashboard it is of. |
+| `kind` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | yes |  |
+| `start` | string | yes | The period's first day, yyyy-mm-dd. |
+| `end` | string | yes | The period's last day, yyyy-mm-dd. |
+| `label` | string | yes | The period as people write it, such as "Q3 2026". |
+| `takenAt` | string | yes | When it was taken, ISO 8601. |
+| `automatic` | boolean | yes | Taken by Ziffr's daily run instead of by a person or program. |
+| `shown` | boolean | yes | False while it is a draft only the dashboard's owner and Editors see. |
+| `url` | string | yes | Where to open it in Ziffr. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: The period is not over yet, is more than ten years back, a Snapshot of it exists already, or the dashboard holds too much to keep.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Read a Snapshot
+
+`GET /snapshots/{id}` · scope `dashboards:read`
+
+One Snapshot with its words and the values it kept, only for the Metrics the key's creator sees now (and at most the latest 240 values of each). A draft they may not open, or one of a dashboard they do not see, is not found.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Snapshot's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `dashboard` | integer | yes | The dashboard it is of. |
+| `kind` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | yes |  |
+| `start` | string | yes | The period's first day, yyyy-mm-dd. |
+| `end` | string | yes | The period's last day, yyyy-mm-dd. |
+| `label` | string | yes | The period as people write it, such as "Q3 2026". |
+| `takenAt` | string | yes | When it was taken, ISO 8601. |
+| `automatic` | boolean | yes | Taken by Ziffr's daily run instead of by a person or program. |
+| `shown` | boolean | yes | False while it is a draft only the dashboard's owner and Editors see. |
+| `url` | string | yes | Where to open it in Ziffr. |
+| `name` | string | yes | The dashboard's name when it was taken. |
+| `intro` | string | yes | Its introduction: words written about it, editable by its owner. |
+| `hiddenWidgets` | integer | yes | Widgets left out because they draw a Metric the key's creator does not see. |
+| `widgets` | array of object | yes |  |
+| `widgets[].id` | integer | yes |  |
+| `widgets[].view` | string | yes |  |
+| `widgets[].title` | string or null | yes |  |
+| `widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `widgets[].words` | object | no | A Finding only: its words (kicker, headline, subline, footnote, source). |
+| `metrics` | array of object | yes | Only Metrics the key's creator sees now. |
+| `metrics[].slug` | string | yes |  |
+| `metrics[].name` | string | yes |  |
+| `metrics[].unit` | string | yes |  |
+| `metrics[].values` | array of object | yes | The values it kept, at most the latest 240. |
+| `metrics[].values[].period` | string | yes |  |
+| `metrics[].values[].value` | number | yes |  |
+| `corrections` | array of object | yes | Kept values that differ from the ones recorded now; `now` is null when the value was removed. |
+| `corrections[].metric` | string | yes |  |
+| `corrections[].period` | string | yes |  |
+| `corrections[].was` | number | yes |  |
+| `corrections[].now` | number or null | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## List a dashboard's View Links
+
+`GET /dashboards/{id}/view-links` · scope `view-links:write`
+
+The View Links to a dashboard the key's creator owns, newest first: id, label, end, whether it still works. Never the link itself or its token, which only the answer that made it carried. Needs the scope `view-links:write`, which a key must be given on purpose and a connected assistant never is.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes | Newest first, at most 200. |
+| `items[].id` | integer | yes |  |
+| `items[].dashboard` | integer | yes |  |
+| `items[].label` | string | yes |  |
+| `items[].expires` | string | yes | The last day it works, yyyy-mm-dd. |
+| `items[].revoked` | boolean | yes | It no longer opens: revoked, past its end, or its Snapshot was deleted. |
+| `items[].created` | string | yes |  |
+| `items[].frozen` | boolean | yes | Shows the dashboard or Snapshot as it was when made, not live. |
+| `items[].snapshot` | integer or null | yes | The Snapshot it shows, if any. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Make a View Link
+
+`POST /dashboards/{id}/view-links` · scope `view-links:write`
+
+Makes a View Link to a dashboard the key's creator owns, as they would in the app: it shows people outside the workspace the dashboard (live, or as it is now with `frozen`) or one of its shown Snapshots (`snapshot`), only the Metrics on it, and works until the day given, within 90 days. **The answer carries the token and address once and is not stored: keep them, they cannot be read again.** Anyone with the address can open it, so treat it as a secret; revoke it with DELETE /view-links/{id}. At most 20 a day per creator. The Audit Log names the key. Needs the scope `view-links:write`, which a key must be given on purpose and a connected assistant never is.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The dashboard's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `label` | string, at most 80 characters, default "" | no | What it is for, shown to you only. |
+| `expires` | string | yes | The last day it works, yyyy-mm-dd, within 90 days from today (UTC). |
+| `frozen` | boolean, default false | no | True keeps the dashboard as it is now; false shows it live (ignored with `snapshot`, which is always as kept). |
+| `snapshot` | integer | no | Show one of the dashboard's Snapshots, which must be shown to everyone with access already. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `dashboard` | integer | yes |  |
+| `label` | string | yes |  |
+| `expires` | string | yes | The last day it works, yyyy-mm-dd. |
+| `revoked` | boolean | yes | It no longer opens: revoked, past its end, or its Snapshot was deleted. |
+| `created` | string | yes |  |
+| `frozen` | boolean | yes | Shows the dashboard or Snapshot as it was when made, not live. |
+| `snapshot` | integer or null | yes | The Snapshot it shows, if any. |
+| `token` | string | yes | The secret of the link. Shown this once; whoever has it may open the link. |
+| `url` | string | yes | The address to give to the people it is for: it opens without signing in. Shown this once. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not share (Guests).
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: The end date is past or more than 90 days away, the Snapshot is not shown yet or not of this dashboard, or the creator does not see every Metric on it.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds. 20 View Links made by the key's creator in the last 24 hours.
+- 500: `internal`: something went wrong on the server.
+
+## Revoke a View Link
+
+`DELETE /view-links/{id}` · scope `view-links:write`
+
+Revokes one of the key's creator's View Links to a dashboard, at once and for good. Another person's link, a deck's or a missing one is not found. Needs the scope `view-links:write`.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The View Link's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `revoked` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List templates
 
 `GET /templates` · scope `dashboards:read`

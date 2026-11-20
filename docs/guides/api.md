@@ -99,6 +99,24 @@ A Metric's **Sources** are the ways its values may arrive (`web_form`, `mail`, `
 - `GET /api/v1/metrics/{slug}/submitters` lists them by id, name and kind (`person`, `contact`, `feed`), never contact details. `POST` on it takes `add` and `remove`, at most 20 each, as the key's creator and only for a Metric they own or are an Editor of. A person or Contact added gets a Token and a first Prompt, by their own Delivery Preference, unless they were asked for this Metric in the last 24 hours, or already five times that day through keys: then the Workflow asks them next. A Feed added turns the API Source on. Someone removed keeps their earlier values.
 - People are named by id, never by email address: the API gives out no contact details, and would otherwise tell a program whose address is in the workspace.
 
+## Snapshots and View Links
+
+**Snapshots** are read with `dashboards:read` and taken with `dashboards:write`, by the same rules as in the app: a key reads what its creator may open (a draft only if they may open drafts, and only the Metrics they see now) and takes one only of a dashboard its creator owns or edits, for a week, month, quarter, half-year or year that is over. A new Snapshot is a draft; showing it, rewording it and deleting it stay with people.
+
+| Call | Scope | What it does |
+| --- | --- | --- |
+| `GET /api/v1/dashboards/{id}/snapshots` | `dashboards:read` | The dashboard's Snapshots, newest period first. |
+| `GET /api/v1/snapshots/{id}` | `dashboards:read` | One Snapshot: its words, widgets and the latest 240 kept values of each Metric, with the values corrected since. |
+| `POST /api/v1/dashboards/{id}/snapshots` | `dashboards:write` | `{ "kind": "month", "start": "2026-10-01" }`; `422` with the reason when the period is not over or the Snapshot exists. |
+
+**View Links** (create, list, revoke) have a scope of their own, "Manage View Links" (`view-links:write`), because a View Link publishes data to people outside the workspace. It is never ticked by default, only a program's Access Key can hold it (an assistant cannot be given it, the MCP Server has no tool for it and the remote one never reaches these endpoints), and a Guest cannot give it. A key makes View Links only to dashboards its creator owns, of Metrics they see, ending within 90 days, at most 20 a day. **The answer that makes a link is the only one with its `token` and `url`: keep it, it is not shown again** (lists carry the id, label, end and state only). Revoke with `DELETE /api/v1/view-links/{id}`.
+
+| Call | Scope | What it does |
+| --- | --- | --- |
+| `GET /api/v1/dashboards/{id}/view-links` | `view-links:write` | The dashboard's View Links, without their tokens. |
+| `POST /api/v1/dashboards/{id}/view-links` | `view-links:write` | `{ "expires": "2026-12-31", "label": "Board", "frozen": true, "snapshot": 12 }`; `snapshot` is one that is shown already. |
+| `DELETE /api/v1/view-links/{id}` | `view-links:write` | Revokes it at once. |
+
 ## Questions, Tasks and Approvals
 
 A key acts on the **Actions** (Questions and Tasks, including the Approvals and Self-checks a Workflow asks) of the person who made it, by the same rules as the app. Every answer holds only Actions that person may read: the ones they are on, and others by the Metric's visibility and the Action's Group. An Action they may not read, or one of another workspace, is `404`; one they may read but may not change that way is `422` with the reason in words.

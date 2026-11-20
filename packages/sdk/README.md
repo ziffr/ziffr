@@ -55,6 +55,8 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | `people.list(options)`, `people.all()` | `GET /api/v1/people` |
 | `groups.list(options)`, `groups.all()` | `GET /api/v1/groups` |
 | `actions.list(options)`, `actions.all(options)`, `actions.reply(id, body, correction)`, `actions.close(id)`, `actions.reopen(id)`, `actions.done(id)`, `actions.confirm(id)`, `actions.correct(id, value)`, `actions.approve(id)`, `actions.sendBack(id, comment)` | `GET /api/v1/actions`, `POST .../replies`, `PATCH /api/v1/actions/{id}`, `POST .../done`, `POST .../self-check`, `POST .../approval`: the key's creator's own Questions and Tasks; scopes `actions:read`, `actions:write`, `values:submit` (Self-check) and `values:approve` (Approval, a program's key only) |
+| `snapshots.list(dashboardId)`, `snapshots.get(id)`, `snapshots.take(dashboardId, { kind, start })` | `GET /api/v1/dashboards/{id}/snapshots`, `GET /api/v1/snapshots/{id}`, `POST /api/v1/dashboards/{id}/snapshots`: reading needs Read dashboards, taking Build dashboards |
+| `viewLinks.list(dashboardId)`, `viewLinks.create(dashboardId, { expires, label, frozen, snapshot })`, `viewLinks.revoke(id)` | `GET`, `POST /api/v1/dashboards/{id}/view-links`, `DELETE /api/v1/view-links/{id}`: scope Manage View Links (`view-links:write`, a program's key only); `create` answers with the `token` and `url` once |
 | `alerts.list({ metric })`, `alerts.create(input)`, `alerts.update(id, patch)`, `alerts.remove(id)` | `GET`, `POST /api/v1/alerts`, `PATCH`, `DELETE /api/v1/alerts/{id}`: the key's creator's own Alerts only; listing needs Read metrics, the rest Manage alerts |
 
 Fields, limits and errors of each are in the [API reference](https://github.com/ziffr/ziffr/blob/next/docs/reference/api.md).

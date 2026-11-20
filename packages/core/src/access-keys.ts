@@ -28,11 +28,12 @@ export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknow
   const scopes = [...new Set(Array.isArray(wanted) ? wanted : [])] as Scope[];
   if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
   // Approving is a person's check: an assistant's connection never holds it, whatever the request says (ticket #427).
-  if (opts.assistant && scopes.some((s) => KEY_ONLY_SCOPES.includes(s))) throw new Forbidden("An assistant cannot be allowed to approve values.");
+  if (opts.assistant && scopes.some((s) => KEY_ONLY_SCOPES.includes(s))) throw new Forbidden("An assistant cannot be allowed to approve values or manage View Links.");
   // A key never does what its creator's role does not allow (spec 0003); the role is checked again on every call.
   if (scopes.includes("metrics:write") && !can(actor, "create")) throw new Forbidden("Your role cannot create Metrics, so neither can a key of yours.");
   if (scopes.includes("metrics:edit") && !can(actor, "create")) throw new Forbidden("Your role cannot change Metrics, so neither can a key of yours.");
   if (scopes.includes("dashboards:write") && !can(actor, "create")) throw new Forbidden("Your role cannot build dashboards, so neither can a key of yours.");
+  if (scopes.includes("view-links:write") && !can(actor, "share")) throw new Forbidden("Your role cannot share, so neither can a key of yours.");
   const latest = new Date(Date.now() + 365 * DAY).toISOString().slice(0, 10);
   const expires = String(expiresOn ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires <= today() || expires > latest) throw new Error("Pick an end date within a year.");

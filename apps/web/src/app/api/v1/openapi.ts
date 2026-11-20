@@ -334,6 +334,41 @@ const ENDPOINTS: Endpoint[] = [
     errors: [{ status: 422, description: "A widget that is not a Finding: only a Finding has words." }],
   },
   {
+    method: "get", path: "/dashboards/{id}/snapshots", scope: "dashboards:read", ok: { status: 200, name: "SnapshotList", schema: S.SnapshotList },
+    summary: "List a dashboard's Snapshots", description: "The Snapshots of one dashboard the key's creator may open, newest period first, at most 200: shown ones for everyone who may open the dashboard, drafts too for its owner and Editors who see every Metric they kept.",
+  },
+  {
+    method: "post", path: "/dashboards/{id}/snapshots", scope: "dashboards:write", body: S.TakeSnapshot, ok: { status: 201, name: "SnapshotSummary", schema: S.ApiSnapshotSummary },
+    summary: "Take a Snapshot",
+    description: "Takes a Snapshot of the dashboard for a week, month, quarter, half-year or year that is over, as the key's creator, who must own or edit the dashboard and see every Metric on it. It keeps the dashboard's layout and the values up to the period's end, and starts as a draft that a person shows in Ziffr. The Audit Log names the key. Counts towards the 500 changes a day.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not create (Guests)." },
+      { status: 422, description: "The period is not over yet, is more than ten years back, a Snapshot of it exists already, or the dashboard holds too much to keep." },
+    ],
+  },
+  {
+    method: "get", path: "/snapshots/{id}", scope: "dashboards:read", ok: { status: 200, name: "Snapshot", schema: S.ApiSnapshot },
+    summary: "Read a Snapshot", description: "One Snapshot with its words and the values it kept, only for the Metrics the key's creator sees now (and at most the latest 240 values of each). A draft they may not open, or one of a dashboard they do not see, is not found.",
+  },
+  {
+    method: "get", path: "/dashboards/{id}/view-links", scope: "view-links:write", ok: { status: 200, name: "ViewLinkList", schema: S.ViewLinkList },
+    summary: "List a dashboard's View Links", description: "The View Links to a dashboard the key's creator owns, newest first: id, label, end, whether it still works. Never the link itself or its token, which only the answer that made it carried. Needs the scope `view-links:write`, which a key must be given on purpose and a connected assistant never is.",
+  },
+  {
+    method: "post", path: "/dashboards/{id}/view-links", scope: "view-links:write", body: S.CreateViewLink, ok: { status: 201, name: "MadeViewLink", schema: S.MadeViewLink },
+    summary: "Make a View Link",
+    description: "Makes a View Link to a dashboard the key's creator owns, as they would in the app: it shows people outside the workspace the dashboard (live, or as it is now with `frozen`) or one of its shown Snapshots (`snapshot`), only the Metrics on it, and works until the day given, within 90 days. **The answer carries the token and address once and is not stored: keep them, they cannot be read again.** Anyone with the address can open it, so treat it as a secret; revoke it with DELETE /view-links/{id}. At most 20 a day per creator. The Audit Log names the key. Needs the scope `view-links:write`, which a key must be given on purpose and a connected assistant never is.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not share (Guests)." },
+      { status: 422, description: "The end date is past or more than 90 days away, the Snapshot is not shown yet or not of this dashboard, or the creator does not see every Metric on it." },
+      { status: 429, description: "20 View Links made by the key's creator in the last 24 hours." },
+    ],
+  },
+  {
+    method: "delete", path: "/view-links/{id}", scope: "view-links:write", ok: { status: 200, name: "RevokedViewLink", schema: S.RevokedViewLink },
+    summary: "Revoke a View Link", description: "Revokes one of the key's creator's View Links to a dashboard, at once and for good. Another person's link, a deck's or a missing one is not found. Needs the scope `view-links:write`.",
+  },
+  {
     method: "get", path: "/templates", scope: "dashboards:read", query: S.templatesQuery, ok: { status: 200, name: "TemplateList", schema: S.TemplateList },
     summary: "List templates",
     description: "What a key can build with: the built-in views, the team's Widget Templates and the Dashboard Templates, with their Slots and the Metrics suggested for each that the key's creator sees.",
@@ -371,7 +406,7 @@ export function openApiDocument() {
   for (const e of ENDPOINTS) {
     schemas[e.ok.name] = json(e.ok.schema);
     const parameters: unknown[] = [];
-    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : name === "id" && e.path.startsWith("/actions") ? "The Action's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
+    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : name === "id" && e.path.startsWith("/actions") ? "The Action's id." : name === "id" && e.path.startsWith("/snapshots") ? "The Snapshot's id." : name === "id" && e.path.startsWith("/view-links") ? "The View Link's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
     if (e.query) {
       const q = json(e.query, "input") as { properties?: Record<string, Record<string, unknown>>; required?: string[] };
       for (const [name, schema] of Object.entries(q.properties ?? {})) {

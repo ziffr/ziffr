@@ -8,7 +8,7 @@
 // open the dashboard may open its Snapshots once they are shown, and sees in them only the Metrics they may see now,
 // as on the live dashboard; until then they are drafts for the dashboard's owner and Editors who see all they kept.
 // Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too.
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
@@ -99,21 +99,21 @@ function wordsOf(w: Widget): WidgetWords {
 /** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
-export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string } = {}): Promise<number> {
+export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string; accessKeyId?: number } = {}): Promise<number> {
   assertCan(actor, "create");
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(actor.workspaceId));
-  if (!p) throw new Error("Pick a week, month, quarter, half-year or year to take the Snapshot of.");
+  if (!p) throw new Refused("Pick a week, month, quarter, half-year or year to take the Snapshot of.");
   const dash = await roleOn(actor, dashboardId);
   if (!dash || (dash.role !== "owner" && dash.role !== "editor")) throw new Forbidden();
   const ws = actor.workspaceId;
   // Only a period that is over: one still running or to come would keep today's values under its name. And not
   // further back than anyone reports on, so nobody fills the database with Snapshots of the 1900s.
   const today = opts.today ?? (await workspaceToday(ws));
-  if (p.end >= today) throw new Error(`${p.label} is not over yet. Take its Snapshot once it is.`);
-  if (Number(p.start.slice(0, 4)) < Number(today.slice(0, 4)) - MAX_YEARS_BACK) throw new Error(`Snapshots go back ${MAX_YEARS_BACK} years at most.`);
+  if (p.end >= today) throw new Refused(`${p.label} is not over yet. Take its Snapshot once it is.`);
+  if (Number(p.start.slice(0, 4)) < Number(today.slice(0, 4)) - MAX_YEARS_BACK) throw new Refused(`Snapshots go back ${MAX_YEARS_BACK} years at most.`);
   const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("dashboard_id", dashboardId).is("deleted_at", null);
-  if ((count ?? 0) >= MAX_SNAPSHOTS) throw new Error(`A dashboard keeps ${MAX_SNAPSHOTS} Snapshots at most. Delete old ones first.`);
+  if ((count ?? 0) >= MAX_SNAPSHOTS) throw new Refused(`A dashboard keeps ${MAX_SNAPSHOTS} Snapshots at most. Delete old ones first.`);
   const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
   // Nothing in a free layout may load from another site when shown (spec 0009).
   const widgets = ((rows ?? []) as Widget[]).map(widgetWithoutOutside);
@@ -126,15 +126,15 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // Each widget keeps what drawing needs, nothing else.
   const kept = widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   const frozen: Frozen = { name: dash.name, themeId: dash.theme_id ?? null, widgets: kept, data };
-  if (JSON.stringify(frozen).length > MAX_FROZEN) throw new Error("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
+  if (JSON.stringify(frozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
   const words: SnapshotWords = { intro: String(dash.intro ?? ""), widgets: Object.fromEntries(kept.map((w) => [String(w.id), wordsOf(w)])) };
   const { data: made, error } = await db().from("dashboard_snapshots").insert({
     workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
     taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen, words,
   }).select("id").single();
-  if (error?.code === "23505") throw new Error(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
+  if (error?.code === "23505") throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
   if (error || !made) throw new Error("The Snapshot could not be taken.");
-  await audit(actor, { kind: "snapshot.taken", object: { type: "dashboard", id: dashboardId, name: dash.name }, details: { snapshot_id: made.id, period: p.label, automatic: Boolean(opts.automatic) } });
+  await audit(actor, { kind: "snapshot.taken", object: { type: "dashboard", id: dashboardId, name: dash.name }, accessKeyId: opts.accessKeyId, details: { snapshot_id: made.id, period: p.label, automatic: Boolean(opts.automatic), ...(opts.accessKeyId ? { via: "api" } : {}) } });
   return made.id as number;
 }
 
