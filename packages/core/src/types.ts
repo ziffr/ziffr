@@ -335,6 +335,18 @@ export type SlideTemplate = TemplateBase & { kind: "slide"; view: "slide"; body:
 /** A team's Widget Template: for one widget, or a whole slide. */
 export type TeamTemplate = WidgetTemplate | SlideTemplate;
 
+/** The slides a Deck Template keeps (GLOSSARY: Deck Template), all sharing the template's Slots, and the Theme a deck
+ * made from it starts with, if the Workspace still has it. */
+export type DeckTemplateBody = { slides: SlideBody[]; themeId?: number | null };
+/** A whole deck saved with its Metrics left open (GLOSSARY: Deck Template). */
+export type DeckTemplate = TemplateBase & { kind: "deck"; view: "deck"; body: DeckTemplateBody };
+/** A step of a Workflow Template: a Workflow's step with its Approvers left open, only how many to pick. */
+export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" }> | { type: "approve"; approvers: number; values?: ApprovalScope };
+/** What a Workflow Template keeps (GLOSSARY: Workflow Template): the Due Date and steps, with no person in them. */
+export type WorkflowTemplateBody = { dueWorkingDays: number; steps: WorkflowTemplateStep[] };
+/** A Workflow saved with its people left open (GLOSSARY: Workflow Template). */
+export type WorkflowTemplate = TemplateBase & { kind: "workflow"; view: "workflow"; body: WorkflowTemplateBody };
+
 /** One widget of a Dashboard Template: its view, its part of the template (slot numbers instead of Metrics) and where
  * it sits on the 12-column grid. */
 export type DashboardTemplateWidget = { view: TemplateId; metricSlots: number[]; settings: WidgetSettings; title: string | null; x: number; y: number; w: number; h: number };

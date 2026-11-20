@@ -1,0 +1,626 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.app/schemas/ziffr.deck-template-1.json",
+  "title": "Ziffr Deck Template (ziffr.deck-template/1)",
+  "description": "A starting point for a deck: its slides with their widgets, words and boxes, with the Metrics left open as Slots. It holds no code, image or link.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.deck-template/1",
+      "description": "The format and its version."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses"
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "description": "The Metrics it takes, in order; one Slot can fill several widgets.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+            "description": "plain text, without markup or web addresses",
+            "minLength": 1
+          },
+          "multiple": {
+            "type": "boolean",
+            "description": "Takes one or more Metrics (small multiples) instead of exactly one."
+          },
+          "suggests": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,39}$",
+            "description": "in a Pack: the key of one of its Metric Catalog entries, offered to fill the Slot"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "theme": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,39}$",
+      "description": "in a Pack: the key of one of its Themes, which a deck made from the template starts with"
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "description": "The slides, in order, each 1280 by 720 pixels.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "shapes": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "$ref": "#/$defs/shape"
+            }
+          }
+        },
+        "required": [
+          "shapes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "name",
+    "slots",
+    "slides"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "settings": {
+      "type": "object",
+      "description": "What the widget is set to; left out, the view's defaults.",
+      "properties": {
+        "window": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "How many periods it shows."
+        },
+        "display": {
+          "enum": [
+            "week",
+            "month",
+            "quarter",
+            "half",
+            "year"
+          ],
+          "description": "Show by: a period longer than the Metric's own."
+        },
+        "showTarget": {
+          "type": "boolean"
+        },
+        "showForecast": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "How many rows a table shows."
+        },
+        "fullPeriods": {
+          "type": "boolean",
+          "description": "Leave out a period that is not over yet."
+        },
+        "compare": {
+          "type": "array",
+          "maxItems": 7,
+          "items": {
+            "enum": [
+              "prev",
+              "dod",
+              "wow",
+              "mom",
+              "qoq",
+              "hoh",
+              "yoy"
+            ]
+          },
+          "description": "The Comparisons it shows."
+        },
+        "kicker": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "headline": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "subline": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "footnote": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "callouts": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule": {
+                "enum": [
+                  "max",
+                  "min",
+                  "last",
+                  "first",
+                  "largest-step"
+                ],
+                "description": "Where it sits: the highest or lowest value, the latest or first period shown, or the biggest change."
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+                "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+              }
+            },
+            "required": [
+              "rule"
+            ],
+            "additionalProperties": false
+          },
+          "description": "A story's callouts, each at the period a rule picks."
+        },
+        "panels": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/panel"
+          },
+          "description": "A story's Panels."
+        },
+        "design": {
+          "description": "For the view “design”: a View Design (ziffr.view/1) written out, or in a Pack the key of one of its View Designs.",
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,39}$",
+              "description": "in a Pack: the key of one of its View Designs"
+            },
+            {
+              "type": "object",
+              "description": "A View Design (ziffr.view/1), checked as one."
+            }
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "panel": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "period-bars",
+            "line",
+            "bridge",
+            "ranked",
+            "share",
+            "pictogram"
+          ]
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11,
+          "description": "A Slot of the template, counted from 0."
+        },
+        "measure": {
+          "enum": [
+            "value",
+            "pct-prev",
+            "pct-yoy",
+            "attainment"
+          ]
+        },
+        "periods": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "How many periods it shows."
+        },
+        "highlight": {
+          "enum": [
+            "last",
+            "projection"
+          ],
+          "description": "Which bars stand out: the latest period, or the Projections."
+        },
+        "projections": {
+          "type": "boolean"
+        },
+        "sharedScale": {
+          "type": "boolean"
+        },
+        "refLine": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "target",
+                "constant",
+                "average"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "minimum": -1000000000000000,
+              "maximum": 1000000000000000
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "bridge": {
+          "type": "object",
+          "description": "Walk the latest Breakdown's rows, or its change on the period before.",
+          "properties": {
+            "mode": {
+              "enum": [
+                "rows",
+                "variance"
+              ]
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+          "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+        },
+        "annotations": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "callout",
+                  "ring",
+                  "note"
+                ]
+              },
+              "arrow": {
+                "type": "boolean"
+              },
+              "rule": {
+                "enum": [
+                  "max",
+                  "min",
+                  "last",
+                  "first",
+                  "largest-step"
+                ],
+                "description": "Where it sits: the highest or lowest value, the latest or first period shown, or the biggest change."
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+                "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+              }
+            },
+            "required": [
+              "rule",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "shape": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A widget, as on a Dashboard Template.",
+          "properties": {
+            "shape": {
+              "const": "widget"
+            },
+            "view": {
+              "enum": [
+                "number",
+                "line",
+                "bars",
+                "gauge",
+                "table",
+                "forecast",
+                "correlation",
+                "matrix",
+                "drivers",
+                "ranked",
+                "share",
+                "pictogram",
+                "story",
+                "design",
+                "story-line"
+              ],
+              "description": "The View it is drawn with; “design” for a View Design. Free Layouts stay out of templates."
+            },
+            "slots": {
+              "type": "array",
+              "maxItems": 4,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 11,
+                "description": "A Slot of the template, counted from 0."
+              },
+              "description": "The Slots that fill it, in order."
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+              "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+            },
+            "settings": {
+              "$ref": "#/$defs/settings"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1279,
+              "description": "From the slide's left edge, in pixels."
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 719,
+              "description": "From the slide's top edge, in pixels."
+            },
+            "w": {
+              "type": "integer",
+              "minimum": 40,
+              "maximum": 1280
+            },
+            "h": {
+              "type": "integer",
+              "minimum": 40,
+              "maximum": 720
+            }
+          },
+          "required": [
+            "shape",
+            "view",
+            "slots",
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Words, a paragraph per entry.",
+          "properties": {
+            "shape": {
+              "const": "text"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1279,
+              "description": "From the slide's left edge, in pixels."
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 719,
+              "description": "From the slide's top edge, in pixels."
+            },
+            "w": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 1280
+            },
+            "text": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "maxLength": 300,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+                "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+              },
+              "description": "The words, a paragraph per entry."
+            },
+            "size": {
+              "enum": [
+                "s",
+                "m",
+                "l",
+                "xl"
+              ]
+            },
+            "scale": {
+              "type": "number",
+              "minimum": 0.25,
+              "maximum": 4
+            },
+            "align": {
+              "enum": [
+                "start",
+                "middle",
+                "end"
+              ]
+            },
+            "color": {
+              "enum": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red",
+                "white"
+              ]
+            }
+          },
+          "required": [
+            "shape",
+            "x",
+            "y",
+            "w",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A simple shape, with words in it if wanted.",
+          "properties": {
+            "shape": {
+              "const": "box"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1279,
+              "description": "From the slide's left edge, in pixels."
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 719,
+              "description": "From the slide's top edge, in pixels."
+            },
+            "w": {
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 1280
+            },
+            "h": {
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 720
+            },
+            "geo": {
+              "enum": [
+                "rectangle",
+                "ellipse",
+                "oval",
+                "triangle",
+                "diamond",
+                "hexagon",
+                "star"
+              ]
+            },
+            "fill": {
+              "enum": [
+                "none",
+                "semi",
+                "solid"
+              ]
+            },
+            "color": {
+              "enum": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red",
+                "white"
+              ]
+            },
+            "text": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "maxLength": 300,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
+                "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
+              },
+              "description": "The words, a paragraph per entry."
+            }
+          },
+          "required": [
+            "shape",
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

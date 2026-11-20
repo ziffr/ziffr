@@ -1,0 +1,86 @@
+// Deck Templates (spec 0030, GLOSSARY: Deck Template, Slot): listing them and starting a deck from one. Every
+// function takes the Actor first. A deck made from a template is the actor's own, independent copy, and every Metric
+// that fills a Slot must be one the actor sees. Saving a deck as a template is in templates.ts.
+import { db } from "./db";
+import { assertCan, can, Forbidden, type Actor } from "./actor";
+import { visibleMetricIds } from "./access";
+import { createDeck, setDeckTheme } from "./decks";
+import { metricChoices } from "./dashboard-templates";
+import { assertSeesMetrics } from "./sharing";
+import { fillsComplete, fromSlideLayout } from "./team-templates";
+import { widgetMetricIds } from "./widget-metrics";
+import { getMetrics } from "./workspace-data";
+import type { DeckTemplate, SlideBody, WidgetSettings } from "./types";
+
+/** A Deck Template as a person picks one: its Slots with the suggested Metrics this person sees, and its slides, which
+ * hold Slot numbers and never Metrics. */
+export type DeckTemplateSummary = Pick<DeckTemplate, "id" | "owner_id" | "name" | "description" | "slots"> & { slides: number };
+
+/** A Deck Template of the actor's Workspace by id, or null. */
+async function deckTemplate(actor: Pick<Actor, "workspaceId">, id: number): Promise<DeckTemplate | null> {
+  if (!Number.isInteger(id)) return null;
+  const { data } = await db().from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).eq("kind", "deck").maybeSingle();
+  return (data as DeckTemplate | null) ?? null;
+}
+
+/** The team's Deck Templates. A Slot's suggested Metrics are cut to the ones this person sees (rule 3). */
+export async function listDeckTemplates(actor: Pick<Actor, "workspaceId" | "personId">): Promise<DeckTemplateSummary[]> {
+  const { data } = await db().from("team_templates").select("id, owner_id, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "deck").order("name");
+  const rows = (data ?? []) as Pick<DeckTemplate, "id" | "owner_id" | "name" | "description" | "slots" | "body">[];
+  if (!rows.length) return [];
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
+  return rows.map((t) => ({
+    id: t.id, owner_id: t.owner_id, name: t.name, description: t.description, slides: t.body.slides.length,
+    slots: t.slots.map((s) => ({ label: s.label, multiple: s.multiple, exampleIds: (s.exampleIds ?? []).filter((id) => seen.has(id)) })),
+  }));
+}
+
+/** What starting a deck from a template offers: the team's Deck Templates, and the Metrics this person may fill Slots
+ * with (id and name only). Nothing for a Guest, who creates nothing. */
+export async function deckTemplateChoices(actor: Actor): Promise<{ templates: DeckTemplateSummary[]; metrics: { id: number; name: string }[] }> {
+  if (!can(actor, "create")) return { templates: [], metrics: [] };
+  const templates = await listDeckTemplates(actor);
+  return { templates, metrics: templates.length ? (await metricChoices(actor)).choices : [] };
+}
+
+/** Reads the fills of a Deck Template's Slots, as they travel in a link: Metric ids, Slots apart by ";", ids by ",". */
+export function readFills(text: unknown): number[][] {
+  return String(text ?? "").slice(0, 2000).split(";").slice(0, 50).map((f) => f.split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 50));
+}
+
+/** Writes the fills of a template's Slots for a link; `readFills` reads them back. */
+export const writeFills = (fills: number[][]) => fills.map((f) => f.join(",")).join(";");
+
+/** Checks a template's Slots filled with Metrics the actor sees, and answers the Metrics each widget would draw. */
+async function checkedFills(actor: Actor, t: DeckTemplate, fills: number[][]) {
+  if (!fillsComplete(t.slots, fills)) throw new Forbidden();
+  const made = t.body.slides.flatMap((s) => fromSlideLayout(s, fills, (x) => x));
+  const ids = made.filter((sh) => sh.type === "ziffr-widget").flatMap((sh) => {
+    let settings: WidgetSettings = {};
+    try { settings = JSON.parse(String(sh.props.settings ?? "{}")); } catch { /* a template's own settings are written by the core */ }
+    return widgetMetricIds((sh.props.metricIds as number[]) ?? [], settings);
+  });
+  await assertSeesMetrics(actor, ids);
+}
+
+/** Makes an empty deck owned by the actor for a Deck Template, its Slots filled; it starts with the template's Theme
+ * when the Workspace still has it. The deck's slides are laid out when it is first opened (`deckTemplateSeed`). */
+export async function createDeckFromTemplate(actor: Actor, input: { template: number; name: string; fills: number[][] }): Promise<number> {
+  assertCan(actor, "create");
+  const t = await deckTemplate(actor, Number(input.template));
+  if (!t) throw new Forbidden();
+  const fills = Array.isArray(input.fills) ? input.fills.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])).slice(0, t.slots.length) : [];
+  await checkedFills(actor, t, fills);
+  const id = await createDeck(actor, String(input.name ?? "").trim() || t.name);
+  if (t.body.themeId) await setDeckTheme(actor, id, t.body.themeId).catch(() => undefined); // a Theme removed since: the default
+  return id;
+}
+
+/** What a new deck lays out from a Deck Template: its slides and the fills, once the template exists in the actor's
+ * Workspace and every Metric is one the actor sees. The editor fills the words from today's data. */
+export async function deckTemplateSeed(actor: Actor, templateId: number, fills: number[][]): Promise<{ slides: SlideBody[]; fills: number[][] } | null> {
+  const t = await deckTemplate(actor, Number(templateId));
+  if (!t) return null;
+  await checkedFills(actor, t, fills);
+  return { slides: t.body.slides, fills };
+}

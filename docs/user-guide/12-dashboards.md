@@ -95,7 +95,7 @@ The **⋯** menu holds:
 3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
 4. Press **Create dashboard**. Ziffr makes the dashboard and opens it.
 
-The new dashboard is yours and independent of the template: changing the template later does not change it. The lists offer only Metrics you can see. If you see none, the window says so.
+The new dashboard is yours and independent of the template: changing the template later does not change it. The lists offer only Metrics you can see. If you see none, the window says so. A new deck from a Deck Template asks for its Slots the same way (see [Decks and Themes](14-decks-and-themes.md#the-decks-page)).
 
 ## Viewing and editing
 

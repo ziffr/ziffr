@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { DemoControls } from "@/components/demo-controls";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
+import { NewWorkflowFromTemplate, SaveWorkflowTemplate } from "./templates";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
 const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
@@ -36,7 +38,12 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart }: { yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true }: {
+  /** The team's Workflow Templates (spec 0030). */
+  templates?: WorkflowTemplateSummary[];
+  /** May make Workflows and templates: not a Guest. */
+  canCreate?: boolean;
+  yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -68,6 +75,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
           </Link>
         ))}
         <Button variant="ghost" className="w-full justify-start" disabled={pending} onClick={() => run(async () => { const id = unwrap(await saveWorkflow(null, "New workflow", BLANK)); router.push(`/workflows?id=${id}`); })}><Plus aria-hidden /> New workflow</Button>
+        {canCreate && templates.length > 0 && <NewWorkflowFromTemplate templates={templates} people={people.filter((p) => !p.contact).map((p) => ({ id: p.id, name: p.name }))} />}
       </nav>
 
       {current && (
@@ -113,6 +121,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button disabled={pending} onClick={() => run(async () => { unwrap(await saveWorkflow(current.id, name, cfg)); toast.success("Workflow saved"); router.refresh(); })}>Save workflow</Button>
+                {canCreate && <SaveWorkflowTemplate workflow={current} mine={templates.filter((t) => t.owner_id === viewer)} />}
                 {onIt.length === 0 && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete ${current.name}?`, description: "No metric uses this workflow. It goes away for everyone, with its steps.", confirmLabel: "Delete workflow" })) run(async () => { unwrap(await deleteWorkflow(current.id)); router.push("/workflows"); }); }}><Trash2 aria-hidden /> Delete</Button>}
               </div>
             )}

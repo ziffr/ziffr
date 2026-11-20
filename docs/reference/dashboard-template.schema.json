@@ -98,6 +98,9 @@
             "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}]\\.\\p{L}{2}|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))(?:[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]|\\{(?:metrics|metric|period|latest|change yoy|change prev|top row|target)(?: [1-9])?\\})*$",
             "description": "plain text, without markup or web addresses; Placeholders such as {metric} are allowed"
           },
+          "settings": {
+            "$ref": "#/$defs/settings"
+          },
           "x": {
             "type": "integer",
             "minimum": 0,
@@ -117,9 +120,6 @@
             "type": "integer",
             "minimum": 2,
             "maximum": 24
-          },
-          "settings": {
-            "$ref": "#/$defs/settings"
           }
         },
         "required": [

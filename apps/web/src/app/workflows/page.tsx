@@ -3,6 +3,8 @@ import { currentActor } from "@/lib/viewer";
 import { getProfiles, getYearStart } from "@/lib/data";
 import { workflowsView } from "@ziffr/core/page-data";
 import { workflowSchedule } from "@ziffr/core/workflows";
+import { listWorkflowTemplates } from "@ziffr/core/workflow-templates";
+import { can } from "@ziffr/core/actor";
 import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
@@ -37,6 +39,8 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         schedule={schedule}
         canRun={actor.role === "owner" || actor.role === "admin"}
         yearStart={yearStart}
+        templates={await listWorkflowTemplates(actor)}
+        canCreate={can(actor, "create")}
       />
     </>
   );

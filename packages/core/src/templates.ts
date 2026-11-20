@@ -1,17 +1,18 @@
-// Team Widget Templates, slide layouts and Dashboard Templates (GLOSSARY: Widget Template, Dashboard Template): everyone in the Workspace uses them, only
+// Team Widget Templates, slide layouts, Dashboard, Deck and Workflow Templates (GLOSSARY: Widget Template, Dashboard
+// Template, Deck Template, Workflow Template): everyone in the Workspace uses them, only
 // their creator changes them. A template is seen by the whole team, so only someone who may change the widget and
 // sees every Metric it draws publishes it. Every function takes the Actor first.
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
-import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toSlideLayout, toTemplate, type Choices } from "./team-templates";
+import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTemplate, toSlideLayout, toTemplate, toWorkflowTemplate, type Choices } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
 import { assertWidgetDesigns } from "./widget-designs";
-import type { AnchorRule, SlideShape, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, SlideShape, Widget, WidgetSettings, WorkflowConfig } from "./types";
 
 const RULES: AnchorRule[] = ["max", "min", "last", "first", "largest-step"];
 const cleanChoices = (c: Choices): Choices => Object.fromEntries(Object.entries(c ?? {}).filter(([, v]) => v === "drop" || RULES.includes(v as AnchorRule)));
@@ -21,14 +22,17 @@ const names = (name: string, description: string, fallback: string) => ({
   description: String(description ?? "").trim().slice(0, 300),
 });
 
+/** The kinds of template kept in one table: Widget Templates, slide layouts, Dashboard, Deck and Workflow Templates. */
+type TemplateKind = "widget" | "slide" | "dashboard" | "deck" | "workflow";
+
 /** A template of the actor's workspace that the actor created, or Forbidden. */
-async function ownTemplate(actor: Actor, id: number, kind?: "widget" | "slide" | "dashboard") {
+async function ownTemplate(actor: Actor, id: number, kind?: TemplateKind) {
   const { data } = await db().from("team_templates").select("owner_id, kind").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data || data.owner_id !== actor.personId || (kind && data.kind !== kind)) throw new Forbidden();
 }
 
 /** Writes a template, new or replacing one of the actor's own of the same kind, and records the version. */
-async function store(actor: Actor, kind: "widget" | "slide" | "dashboard", replaceId: number | null | undefined, row: Record<string, unknown>): Promise<number> {
+async function store(actor: Actor, kind: TemplateKind, replaceId: number | null | undefined, row: Record<string, unknown>): Promise<number> {
   if (replaceId) {
     await ownTemplate(actor, replaceId, kind);
     await ensureBaseline("template", replaceId, actor.personId);
@@ -43,17 +47,29 @@ async function store(actor: Actor, kind: "widget" | "slide" | "dashboard", repla
   return data.id;
 }
 
-/** Saves a slide of the actor's own deck as a team slide layout. The shapes come from the editor, so each is checked. */
-export async function saveSlideLayout(actor: Actor, input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
-  const { data: deck } = await db().from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
-  const shapes = Array.isArray(input.shapes) ? input.shapes : [];
-  if (shapes.length > 80 || JSON.stringify(shapes).length > 400_000) throw new Error("This slide is too large to save as a layout.");
-  assertWidgetDesigns(shapes);
+/** A shape's props without a web address: no `url`, and no link in its words. A template is seen by the whole team,
+ * so it carries no link of whoever made it. */
+function withoutLinks(props: Record<string, unknown>): Record<string, unknown> {
+  const strip = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(strip);
+    if (!node || typeof node !== "object") return node;
+    const n = node as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(n).flatMap(([k, v]) => (k === "marks" && Array.isArray(v) ? [[k, v.filter((m) => (m as { type?: unknown })?.type !== "link")]] : [[k, strip(v)]])));
+  };
+  const { url: _u, ...rest } = props; // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest.richText ? { ...rest, richText: strip(rest.richText) } : rest;
+}
+
+/** A slide's shapes as the editor sends them, each checked: known kinds only, numbers that are numbers, widgets of
+ * views that exist with their View Designs checked. Answers the shapes and every Metric their widgets draw. */
+function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
+  const list = Array.isArray(shapes) ? (shapes as SlideShape[]) : [];
+  if (list.length > 80 || JSON.stringify(list).length > 400_000) throw new Error("This slide is too large to save as a layout.");
+  assertWidgetDesigns(list);
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-  const clean: SlideShape[] = shapes
+  const clean: SlideShape[] = list
     .filter((sh) => sh && SLIDE_SHAPES.includes(String(sh.type)) && sh.props && typeof sh.props === "object")
-    .map((sh) => ({ type: String(sh.type), x: num(sh.x), y: num(sh.y), rotation: num(sh.rotation), opacity: Math.min(1, Math.max(0, num(sh.opacity) || 1)), props: sh.props }));
+    .map((sh) => ({ type: String(sh.type), x: num(sh.x), y: num(sh.y), rotation: num(sh.rotation), opacity: Math.min(1, Math.max(0, num(sh.opacity) || 1)), props: withoutLinks(sh.props) }));
   const metricIds: number[] = [];
   for (const sh of clean.filter((x) => x.type === "ziffr-widget")) {
     const template = String(sh.props.template);
@@ -63,9 +79,58 @@ export async function saveSlideLayout(actor: Actor, input: { deckId: number; sha
     const ids = Array.isArray(sh.props.metricIds) ? (sh.props.metricIds as unknown[]).map(Number) : [];
     metricIds.push(...widgetMetricIds(ids, settings));
   }
+  return { shapes: clean, metricIds };
+}
+
+/** Saves a slide of the actor's own deck as a team slide layout. The shapes come from the editor, so each is checked. */
+export async function saveSlideLayout(actor: Actor, input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
+  const { data: deck } = await db().from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
+  const { shapes, metricIds } = cleanSlideShapes(input.shapes);
   await assertSeesMetrics(actor, metricIds);
-  const t = toSlideLayout(clean, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
+  const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
   return store(actor, "slide", input.replaceId, { ...names(input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
+}
+
+/** Most slides and bytes a Deck Template keeps, so one cannot fill the database. */
+const MAX_DECK_TEMPLATE = { slides: 40, bytes: 2_000_000 };
+
+/** The slides of a stored deck document, in the order the editor shows them (top to bottom, then left to right), each
+ * with its own shapes in their order, in slide coordinates. */
+function storedSlides(document: unknown): SlideShape[][] {
+  type Rec = { id?: unknown; typeName?: unknown; type?: unknown; parentId?: unknown; index?: unknown; x?: unknown; y?: unknown; rotation?: unknown; opacity?: unknown; props?: unknown };
+  const records = Object.values(((document as { store?: Record<string, Rec> } | null)?.store ?? {})).filter((r) => r && r.typeName === "shape");
+  const at = (r: Rec) => [Number(r.y) || 0, Number(r.x) || 0];
+  const frames = records.filter((r) => r.type === "frame").sort((a, b) => at(a)[0] - at(b)[0] || at(a)[1] - at(b)[1]);
+  return frames.map((f) => records
+    .filter((r) => r.parentId === f.id)
+    .sort((a, b) => String(a.index ?? "").localeCompare(String(b.index ?? "")))
+    .map((r) => ({ type: String(r.type), x: Number(r.x) || 0, y: Number(r.y) || 0, rotation: Number(r.rotation) || 0, opacity: Number(r.opacity ?? 1), props: (r.props ?? {}) as Record<string, unknown> })));
+}
+
+/** Saves the actor's own deck as a team Deck Template, new or replacing one of the actor's own, as slide layouts are
+ * saved by the deck's owner only: the template shows the deck's words to the whole team. Built from the deck as
+ * stored, never from what the browser sends; each slide is checked as a slide layout is, and the actor must see every
+ * Metric on it. */
+export async function saveDeckTemplate(actor: Actor, input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
+  const { data: deck } = await db().from("decks").select("owner_id, theme_id, document").eq("id", Number(input.deckId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
+  const slides = storedSlides(deck.document);
+  if (!slides.length) throw new Error("This deck has no slides to keep.");
+  if (slides.length > MAX_DECK_TEMPLATE.slides || JSON.stringify(slides).length > MAX_DECK_TEMPLATE.bytes) throw new Error("This deck is too large to save as a template.");
+  const cleaned = slides.map(cleanSlideShapes);
+  await assertSeesMetrics(actor, cleaned.flatMap((c) => c.metricIds));
+  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
+  return store(actor, "deck", input.replaceId, { ...names(input.name, input.description, "Untitled deck template"), view: "deck", slots: t.slots, body: { ...t.body, themeId: deck.theme_id ?? null }, w: 0, h: 0, updated_at: new Date().toISOString() });
+}
+
+/** Saves a Workflow of the actor's Workspace as a team Workflow Template, new or replacing one of the actor's own. Its
+ * Approvers are left out, only how many there are kept: a template names no person (GLOSSARY: Workflow Template). */
+export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: number; name: string; description: string; replaceId?: number | null }): Promise<number> {
+  const { data } = await db().from("workflows").select("name, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!data) throw new Forbidden();
+  const body = toWorkflowTemplate(data.config as WorkflowConfig);
+  return store(actor, "workflow", input.replaceId, { ...names(input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
 /** Saves a widget as a team template, new or replacing one of the actor's own. Built from the stored widget, never

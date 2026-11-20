@@ -23,6 +23,10 @@ Each Workflow shows its name, who owns it and how many Metrics use it (counting 
 - an Approval step with nobody chosen yet,
 - publish and lock the period.
 
+**New from a template** starts a Workflow from one of the team's **Workflow Templates**, when there are any. Pick the template, give the Workflow a name, and pick the Approvers it asks for: a template keeps how many Approvers there are, never who. The Workflow is yours and independent of the template.
+
+**Save as template…**, next to **Save workflow**, saves the open Workflow as a team Workflow Template: its Due Date and steps, without its people. Owners, Admins and Members can save one; only you change or replace yours.
+
 ### Name and Due Date
 
 | Option | What it does |

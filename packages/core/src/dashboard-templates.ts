@@ -44,10 +44,15 @@ export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | 
  * name only). Nothing for a Guest, who creates nothing. */
 export async function dashboardTemplateChoices(actor: Actor): Promise<{ templates: DashboardTemplateSummary[]; metrics: { id: number; name: string }[] }> {
   if (!can(actor, "create")) return { templates: [], metrics: [] };
+  const { seen, choices } = await metricChoices(actor);
+  return { templates: await listDashboardTemplates(actor, seen), metrics: choices };
+}
+
+/** The Metrics a person may fill a template's Slots with, by id and name only, and the ids they see. */
+export async function metricChoices(actor: Pick<Actor, "workspaceId" | "personId">): Promise<{ seen: ReadonlySet<number>; choices: { id: number; name: string }[] }> {
   const metrics = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
-  const templates = await listDashboardTemplates(actor, seen);
-  return { templates, metrics: metrics.filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: m.name })) };
+  return { seen, choices: metrics.filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: m.name })) };
 }
 
 /** Makes a dashboard owned by the actor from a Dashboard Template, with one list of Metrics per Slot. Every Slot must

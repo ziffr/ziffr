@@ -8,7 +8,7 @@ import { itemKey, plainText, words } from "./file-text";
 import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design";
 import { NOT_IN_DASHBOARD_TEMPLATES } from "./team-templates";
 import { TEMPLATES } from "./widget-templates";
-import type { AnchorRule, MeasureId, PanelType, TemplateId } from "./types";
+import type { AnchorRule, DashboardTemplateBody, MeasureId, PanelType, Slot, TemplateId, WidgetSettings } from "./types";
 import type { CompareKey } from "./compare";
 import type { DisplayPeriod } from "./display-periods";
 
@@ -53,42 +53,26 @@ const slotNumber: Schema = { type: "integer", minimum: 0, maximum: L.slots - 1, 
 const count = (description: string): Schema => ({ type: "integer", minimum: 1, maximum: 120, description });
 const note = (extra: Record<string, Schema>): Schema => obj({ ...extra, rule: { enum: RULES, description: "Where it sits: the highest or lowest value, the latest or first period shown, or the biggest change." }, text: words(L.words) }, ["rule", ...Object.keys(extra).filter((k) => k === "kind")]);
 
-/** The JSON Schema of ziffr.dashboard-template/1: the one definition the checks run and docs/reference is generated from. */
-export const DASHBOARD_TEMPLATE_SCHEMA: Schema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://ziffr.app/schemas/ziffr.dashboard-template-1.json",
-  title: "Ziffr Dashboard Template (ziffr.dashboard-template/1)",
-  description: "A starting point for a dashboard: its widgets with their views, settings, words and places, with the Metrics left open as Slots. It holds no code.",
-  type: "object",
-  properties: {
-    format: { const: DASHBOARD_TEMPLATE_FORMAT, description: "The format and its version." },
-    name: { ...plainText(L.name), minLength: 1 },
-    description: plainText(L.description),
-    slots: {
-      type: "array", minItems: 1, maxItems: L.slots, description: "The Metrics it takes, in order; one Slot can fill several widgets.",
-      items: obj({
-        label: { ...plainText(L.label), minLength: 1 },
-        multiple: { type: "boolean", description: "Takes one or more Metrics (small multiples) instead of exactly one." },
-        suggests: itemKey("in a Pack: the key of one of its Metric Catalog entries, offered to fill the Slot"),
-      }, ["label"]),
-    },
-    widgets: {
-      type: "array", minItems: 1, maxItems: L.widgets, description: "What it shows, each on the 12-column grid.",
-      items: obj({
-        view: { enum: (Object.keys(TEMPLATES) as TemplateId[]).filter((t) => !NOT_IN_DASHBOARD_TEMPLATES.includes(t)), description: "The View it is drawn with; “design” for a View Design. Free Layouts stay out of templates." },
-        slots: { ...list(slotNumber, 4), description: "The Slots that fill it, in order." },
-        title: words(L.words),
-        x: { type: "integer", minimum: 0, maximum: 11 },
-        y: { type: "integer", minimum: 0, maximum: 400 },
-        w: { type: "integer", minimum: 1, maximum: 12 },
-        h: { type: "integer", minimum: 2, maximum: 24 },
-        settings: { $ref: "#/$defs/settings" },
-      }, ["view", "slots", "x", "y", "w", "h"]),
-    },
-  },
-  required: ["format", "name", "slots", "widgets"],
-  additionalProperties: false,
-  $defs: {
+/** The Slots of a template file: the Metrics it takes, in order. Shared by Dashboard and Deck Templates. */
+export const TEMPLATE_SLOTS: Schema = {
+  type: "array", minItems: 1, maxItems: L.slots, description: "The Metrics it takes, in order; one Slot can fill several widgets.",
+  items: obj({
+    label: { ...plainText(L.label), minLength: 1 },
+    multiple: { type: "boolean", description: "Takes one or more Metrics (small multiples) instead of exactly one." },
+    suggests: itemKey("in a Pack: the key of one of its Metric Catalog entries, offered to fill the Slot"),
+  }, ["label"]),
+};
+
+/** What a widget of a template file is: its view, its Slots, its title and its settings ($ref to WIDGET_DEFS). */
+export const WIDGET_FIELDS: Record<string, Schema> = {
+  view: { enum: (Object.keys(TEMPLATES) as TemplateId[]).filter((t) => !NOT_IN_DASHBOARD_TEMPLATES.includes(t)), description: "The View it is drawn with; “design” for a View Design. Free Layouts stay out of templates." },
+  slots: { ...list(slotNumber, 4), description: "The Slots that fill it, in order." },
+  title: words(L.words),
+  settings: { $ref: "#/$defs/settings" },
+};
+
+/** The settings of a template's widget and of a story's Panel, as `$defs` a template file's schema includes. */
+export const WIDGET_DEFS: Record<string, Schema> = {
     settings: obj({
       window: count("How many periods it shows."),
       display: { enum: ["week", "month", "quarter", "half", "year"], description: "Show by: a period longer than the Metric's own." },
@@ -118,31 +102,62 @@ export const DASHBOARD_TEMPLATE_SCHEMA: Schema = {
       title: words(L.words),
       annotations: list(note({ kind: { enum: ["callout", "ring", "note"] }, arrow: { type: "boolean" } }), L.notes),
     }, ["type"]),
-  },
 };
 
-/** What `meaning` reports through. */
-type At = (path: string, message: string) => void;
+/** The JSON Schema of ziffr.dashboard-template/1: the one definition the checks run and docs/reference is generated from. */
+export const DASHBOARD_TEMPLATE_SCHEMA: Schema = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://ziffr.app/schemas/ziffr.dashboard-template-1.json",
+  title: "Ziffr Dashboard Template (ziffr.dashboard-template/1)",
+  description: "A starting point for a dashboard: its widgets with their views, settings, words and places, with the Metrics left open as Slots. It holds no code.",
+  type: "object",
+  properties: {
+    format: { const: DASHBOARD_TEMPLATE_FORMAT, description: "The format and its version." },
+    name: { ...plainText(L.name), minLength: 1 },
+    description: plainText(L.description),
+    slots: TEMPLATE_SLOTS,
+    widgets: {
+      type: "array", minItems: 1, maxItems: L.widgets, description: "What it shows, each on the 12-column grid.",
+      items: obj({
+        ...WIDGET_FIELDS,
+        x: { type: "integer", minimum: 0, maximum: 11 },
+        y: { type: "integer", minimum: 0, maximum: 400 },
+        w: { type: "integer", minimum: 1, maximum: 12 },
+        h: { type: "integer", minimum: 2, maximum: 24 },
+      }, ["view", "slots", "x", "y", "w", "h"]),
+    },
+  },
+  required: ["format", "name", "slots", "widgets"],
+  additionalProperties: false,
+  $defs: WIDGET_DEFS,
+};
 
-/** What the schema cannot say: Slots that exist, widgets that do not overlap, View Designs that pass their own checks. */
-function meaning(t: DashboardTemplateFile, at: At) {
-  const slots = t.slots.length;
+/** What a check reports through: a path in the file and what is wrong there. */
+export type At = (path: string, message: string) => void;
+
+/** What the schema cannot say of one widget of a template: Slots that exist, at least one that fills it, and its View
+ * Design, held to a design's own size and checks as if it were pasted on its own. */
+export function checkTemplateWidget(w: Pick<TemplateWidgetFile, "view" | "slots" | "settings">, slots: number, here: string, at: At) {
   const bad = (n: number) => n >= slots;
+  w.slots.forEach((n, k) => bad(n) && at(`${here}.slots[${k}]`, `is Slot ${n}, but the template has Slots 0 to ${slots - 1}.`));
+  w.settings?.panels?.forEach((p, k) => p.slot !== undefined && bad(p.slot) && at(`${here}.settings.panels[${k}].slot`, `is Slot ${p.slot}, but the template has Slots 0 to ${slots - 1}.`));
+  if (!w.slots.length && !w.settings?.panels?.some((p) => p.slot !== undefined)) at(`${here}.slots`, "fills the widget with no Slot: name at least one.");
+  const design = w.settings?.design;
+  if ((w.view === "design") !== (design !== undefined)) at(w.view === "design" ? `${here}.settings` : `${here}.settings.design`, w.view === "design" ? "needs “design”: the View Design the widget is drawn with." : "is only for the view “design”.");
+  if (design && typeof design === "object") {
+    const path = `${here}.settings.design`;
+    const size = new TextEncoder().encode(JSON.stringify(design)).length;
+    const res = size > VIEW_LIMITS.bytes ? { ok: false as const, problems: [{ path: "", line: null, message: `is ${size.toLocaleString("en")} bytes; a View Design may have at most ${VIEW_LIMITS.bytes.toLocaleString("en")}.` }] } : checkViewDesignValue(design, new Map());
+    if (!res.ok) for (const p of res.problems) at(under(path, p).path, p.message);
+  }
+}
+
+/** What the schema cannot say: each widget as above, on the grid, and no two in one place. */
+function meaning(t: DashboardTemplateFile, at: At) {
   t.widgets.forEach((w, i) => {
     const here = `widgets[${i}]`;
-    w.slots.forEach((n, k) => bad(n) && at(`${here}.slots[${k}]`, `is Slot ${n}, but the template has Slots 0 to ${slots - 1}.`));
-    w.settings?.panels?.forEach((p, k) => p.slot !== undefined && bad(p.slot) && at(`${here}.settings.panels[${k}].slot`, `is Slot ${p.slot}, but the template has Slots 0 to ${slots - 1}.`));
+    checkTemplateWidget(w, t.slots.length, here, at);
     if (w.x + w.w > 12) at(here, `reaches column ${w.x + w.w}; the grid has 12.`);
-    if (!w.slots.length && !w.settings?.panels?.some((p) => p.slot !== undefined)) at(`${here}.slots`, "fills the widget with no Slot: name at least one.");
-    const design = w.settings?.design;
-    if ((w.view === "design") !== (design !== undefined)) at(w.view === "design" ? `${here}.settings` : `${here}.settings.design`, w.view === "design" ? "needs “design”: the View Design the widget is drawn with." : "is only for the view “design”.");
-    if (design && typeof design === "object") {
-      const path = `${here}.settings.design`;
-      const size = new TextEncoder().encode(JSON.stringify(design)).length;
-      // Held to a design's own size, as if it were pasted on its own.
-      const res = size > VIEW_LIMITS.bytes ? { ok: false as const, problems: [{ path: "", line: null, message: `is ${size.toLocaleString("en")} bytes; a View Design may have at most ${VIEW_LIMITS.bytes.toLocaleString("en")}.` }] } : checkViewDesignValue(design, new Map());
-      if (!res.ok) for (const p of res.problems) at(under(path, p).path, p.message);
-    }
     for (let j = 0; j < i; j++) {
       const o = t.widgets[j];
       if (w.x < o.x + o.w && o.x < w.x + w.w && w.y < o.y + o.h && o.y < w.y + w.h) at(here, `overlaps widget ${j}: two widgets cannot share a place.`);
@@ -165,12 +180,52 @@ export function checkDashboardTemplateFile(textIn: string): FormatCheck<Dashboar
   if (!parsed.ok) return parsed;
   const res = checkDashboardTemplateFileValue(parsed.value, parsed.lines);
   if (!res.ok) return res;
-  const refs = dashboardTemplateReferences(res.value);
-  const outside = [...refs.metrics, ...refs.views];
-  return outside.length ? { ok: false, problems: outside.map((r) => ({ path: r.path, line: parsed.lines.get(r.path) ?? null, message: `names “${r.key}”, which only a Pack holding it can give.` })) } : res;
+  return refusedOutsidePack(res, Object.values(dashboardTemplateReferences(res.value)).flat(), parsed.lines);
+}
+
+/** A template checked on its own, refused when it names Pack items: outside a Pack there is nothing to name. */
+export function refusedOutsidePack<T>(res: FormatCheck<T>, refs: { path: string; key: string }[], lines: Map<string, number>): FormatCheck<T> {
+  return refs.length ? { ok: false, problems: refs.map((r) => ({ path: r.path, line: lines.get(r.path) ?? null, message: `names “${r.key}”, which only a Pack holding it can give.` })) } : res;
 }
 
 /** Checks a Dashboard Template file already read from JSON; which Pack items it names is checked by its Pack. */
 export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<DashboardTemplateFile> {
   return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema: DASHBOARD_TEMPLATE_SCHEMA, meaning }, value, lines);
 }
+
+/** A template file's widget settings as a widget keeps them: callouts and notes tied to their rule, Panels to their
+ * Slot, and the View Design written out (from `designs` when the file names one by key). Null when it names a design
+ * `designs` does not hold. */
+export function templateWidgetSettings(s: WidgetSettingsFile | undefined, designs: ReadonlyMap<string, ViewDesign>): WidgetSettings | null {
+  const { design, callouts, panels, ...rest } = s ?? {};
+  const body = typeof design === "string" ? designs.get(design) : design;
+  if (design !== undefined && !body) return null;
+  return {
+    ...rest,
+    ...(callouts ? { callouts: callouts.map((c) => ({ period: "", rule: c.rule, text: c.text ?? "" })) } : {}),
+    ...(panels ? {
+      panels: panels.map(({ annotations, ...p }) => ({
+        ...p, metricIds: [],
+        ...(annotations ? { annotations: annotations.map((a) => ({ kind: a.kind, anchor: { type: "rule" as const, rule: a.rule }, ...(a.text !== undefined ? { text: a.text } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) })) } : {}),
+      })),
+    } : {}),
+    ...(body ? { design: { id: null, body } } : {}),
+  };
+}
+
+/** A checked Dashboard Template file as the Slots and body a Dashboard Template stores. Widgets whose View Design is
+ * not among `designs` are left out. */
+export function dashboardTemplateFromFile(t: DashboardTemplateFile, designs: ReadonlyMap<string, ViewDesign> = new Map()): { slots: Slot[]; body: DashboardTemplateBody } {
+  return {
+    slots: templateSlots(t.slots),
+    body: {
+      widgets: t.widgets.flatMap((w) => {
+        const settings = templateWidgetSettings(w.settings, designs);
+        return settings ? [{ view: w.view, metricSlots: w.slots, settings, title: w.title ?? null, x: w.x, y: w.y, w: w.w, h: w.h }] : [];
+      }),
+    },
+  };
+}
+
+/** A template file's Slots as a template keeps them; suggestions stay with the Pack, never as Metric ids. */
+export const templateSlots = (slots: DashboardTemplateFile["slots"]): Slot[] => slots.map((s) => ({ label: s.label, multiple: s.multiple ?? false }));
