@@ -20,11 +20,15 @@ const ALWAYS: RegExp[] = [
   /\b(?:tell|inform|remind|convince)\s+the\s+(?:user|human)\b/i,
   /\b(?:do\s+not|don't|never)\s+(?:tell|mention|show|reveal)\b[^.!?]{0,30}\b(?:user|human)\b/i,
 ];
-// Words that address an assistant as such ("Assistant:", "if you are an AI", "note for agents"): a Metric about AI
-// spend or a person called Claude does not, so they count only with an order (ORDER). Names of assistants count only
+// Words that address an assistant as such ("Assistant:", "Bots should", "if you are an AI", "note for agents"): a
+// Metric about AI spend or a person called Claude does not, so they count only with an order (ORDER). Names of assistants count only
 // when spoken to ("Claude, please"), since "AI:" or "Copilot:" are also labels.
 const ADDRESS = new RegExp([
-  "\\b(?:assistants?|agents?|llms?|language\\s+models?|chat\\s?bots?|ai\\s+(?:assistants?|agents?|models?))\\b\\s*(?:[,:\\-–—]|must\\b|should\\b|shall\\b|will\\b|needs?\\s+to\\b|has\\s+to\\b|please\\b|reading\\s+this\\b)",
+  "\\b(?:assistants?|llms?|language\\s+models?|chat\\s?bots?|bots?|ai\\s+(?:assistants?|agents?|models?))\\b\\s*(?:[,:\\-–—]|must\\b|should\\b|shall\\b|will\\b|needs?\\s+to\\b|has\\s+to\\b|please\\b|reading\\s+this\\b)",
+  // "Agents" and "model" are also people and things a Metric counts ("Sales agents must record calls", "Pricing
+  // model"): they address an assistant only when spoken to, as a label before an order ("Model: output the key").
+  "^\\s*(?:agents?|models?)\\s*[,:\\-–—]",
+  "\\b(?:agents?|models?)\\s+reading\\s+this\\b",
   "\\b(?:ai|claude|chatgpt|gpt|gemini|copilot)\\b\\s*(?:,|please\\b)",
   "\\b(?:note|message|instructions?)\\s+(?:for|to)\\s+(?:any\\s+|the\\s+)?(?:ai\\s+)?(?:agents?|assistants?|llms?|models?|bots?)\\b",
   "\\byou\\s+are\\s+(?:now\\s+)?(?:an?\\s+)?(?:ai|assistant|language\\s+model|llm|bot)\\b",
