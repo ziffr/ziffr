@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -30,9 +30,10 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 | **Access Keys** | Everyone | Below |
 | **Feeds** | Owners and Admins | Below |
 | **Activity** | Everyone | [Actions and Activity](15-actions.md#the-activity-page) |
+| **Usage** | Owners and Admins | Below |
 | **Audit log** | Owners and Admins | Below |
 
-General, Packs, Access Keys and Feeds open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
+General, Packs, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
 ## Starting a Workspace
 
@@ -422,6 +423,19 @@ Each Feed lists its keys with name, the start of the key, and the day it ends or
 To make a key, type a **Key name** (such as "Nightly run"; if you leave it empty, Ziffr names it after the Feed), pick **Until** (at most a year ahead) and choose **Create Feed Key**. The secret is shown once. Copy it and give it to whoever runs the Feed.
 
 Only Owners and Admins see Feed Keys and their Access Logs.
+
+## Usage
+
+**Workspace → Usage** is for Owners and Admins; Members and Guests do not see it, and the demo has none, because it counts nothing. It shows what could be tidied up, as lists with the reason beside each name:
+
+- **Dashboards, decks and Metrics not opened for 90 days.** A Metric counts as opened when its own page was opened or when it is on a dashboard or deck that was. A Metric that only a program reads, such as an assistant, is listed apart as **Only read by a program** and never suggested for archiving. Anything made less than 90 days ago is not listed.
+- **Metrics without values:** none ever, or none for 90 days or for the last two periods of the Metric's rhythm, whichever is longer, so a yearly Metric is not stale after three months. Derived Metrics have no values of their own and are not listed; a Metric with only a Projection is listed apart.
+- **Submitters without values:** each person, Contact or Feed asked for Metrics who has sent no value for 90 days, with those Metrics and who owns them.
+- **Most looked at:** the ten dashboards and ten Metrics opened most in the last 30 days, as numbers.
+
+Ziffr counts how often a dashboard, deck or Metric is opened per day, as a number and never by whom, and only for what you see. In a very small Workspace a count of one or two can still tell who it was. The page says "Counting since …": nothing is called not opened before 90 days of counting, and until then the page says when the lists fill in.
+
+Under the Metrics not opened, **Archive these Metrics?** lists the ones that are safe to archive, all ticked. Left out, with the reason, are Metrics that have a Target or that something still depends on, such as a Derived Metric, a Comparison or an Analysis. Untick any you want to keep, press **Archive**, and confirm. The Metrics are archived all or none, with each recorded in the Audit log, and they can be brought back (see [Metrics](10-metrics.md)). Nothing is ever archived or deleted by itself.
 
 ## Audit log
 

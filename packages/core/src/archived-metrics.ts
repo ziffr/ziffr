@@ -18,10 +18,10 @@ export const ARCHIVED_CODE = "ZF440";
 
 // Whether a Metric is archived, and the Metrics in use, are pure and live in metric-row, so browser code uses them too.
 
-/** The Metric, when the actor sees it and may archive it or bring it back: Owners and Admins of the workspace, and
+/** (Exported for the bulk archive of the Usage page.) The Metric, when the actor sees it and may archive it or bring it back: Owners and Admins of the workspace, and
  * the Metric's own Metric Owner. Never a Guest or a key (the API passes the key's creator), never in the demo, which every
  * visitor shares. A Metric of another workspace and a missing one are refused alike. */
-async function archivable(actor: Actor, metricId: number) {
+export async function archivableMetric(actor: Actor, metricId: number) {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
   const { data: m } = await db().from("metrics").select("id, name, owner_id, archived_at").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   // Only a Metric the actor sees: an Owner or Admin does not see every Metric, and a hidden one is refused like a
@@ -35,7 +35,7 @@ async function archivable(actor: Actor, metricId: number) {
 /** Archives a Metric: its values and history stay, it asks for nothing and takes no values from then on. Archiving
  * one that is archived already changes nothing. `origin.accessKeyId` names the key a program did it with. */
 export async function archiveMetric(actor: Actor, metricId: number, origin: { accessKeyId?: number } = {}): Promise<{ archived: boolean }> {
-  const m = await archivable(actor, metricId);
+  const m = await archivableMetric(actor, metricId);
   if (m.archived_at) return { archived: false };
   // Only a Metric that is not archived yet, so two presses at once archive (and record) it once.
   const { data, error } = await db().from("metrics").update({ archived_at: new Date().toISOString(), archived_by: actor.personId })
@@ -76,7 +76,7 @@ export class RestoreRefused extends Error {
 /** Brings an Archived Metric back: it is asked for and takes values again, and counts as a Metric in use, so the
  * Workspace Limit may refuse it (LimitReached). Bringing back one that is not archived changes nothing. */
 export async function restoreMetric(actor: Actor, metricId: number, origin: { accessKeyId?: number } = {}): Promise<{ restored: boolean }> {
-  const m = await archivable(actor, metricId);
+  const m = await archivableMetric(actor, metricId);
   if (!m.archived_at) return { restored: false };
   // Bringing it back counts again: the trigger checks the Workspace Limit against the default in effect.
   await syncDefaultLimit();
@@ -99,5 +99,5 @@ function restoreRefusal(code: string | undefined): string {
 
 /** Whether the actor may archive this Metric or bring it back, for showing the control; the core checks again. */
 export async function canArchiveMetric(actor: Actor, metricId: number): Promise<boolean> {
-  return archivable(actor, metricId).then(() => true, () => false);
+  return archivableMetric(actor, metricId).then(() => true, () => false);
 }
