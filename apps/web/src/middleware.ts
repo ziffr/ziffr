@@ -44,6 +44,10 @@ function ownOrigins(req: NextRequest): Set<string> {
 export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete("x-ziffr-view-link");
+  // A HEAD request opens nothing, but a page renders for it as for a GET: mark it so no View Count is made (spec 0031).
+  // Removed from every other request, so a browser cannot set it.
+  headers.delete("x-ziffr-no-count");
+  if (req.method === "HEAD") headers.set("x-ziffr-no-count", "1");
   const path = req.nextUrl.pathname;
   if (path.startsWith("/v/")) {
     headers.set("x-ziffr-view-link", "1");

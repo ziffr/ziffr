@@ -5,6 +5,7 @@ import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { peopleIn } from "./submissions";
+import { recordView } from "./usage";
 import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
 import type { BreakdownRow, Metric } from "./types";
 
@@ -72,6 +73,9 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   assertScope(actor, "metrics:read");
   const { metric, metrics } = await visibleMetric(actor, String(slug));
   const ws = actor.workspaceId;
+  // A program reading values (the API, and the MCP Server through it) keeps the Metric in use (spec 0031): counted
+  // apart from views, once per read of the first page, not per page. Never waited for, never an error.
+  if (actor.key && !range.after) void recordView(actor, { kind: "metric", id: metric.id }, "api");
   // A Derived Metric needs its inputs' values to be computed; only its own values leave this function. Only the
   // latest value of each period is read, and only of the periods asked for when they are real days (the comparison
   // below stays, so a malformed bound filters as before instead of reaching the query).

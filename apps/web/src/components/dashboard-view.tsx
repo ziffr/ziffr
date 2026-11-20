@@ -9,6 +9,7 @@ import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
 import { listSnapshots } from "@ziffr/core/snapshots";
+import { countView } from "@/lib/count-view";
 
 /** One dashboard of the viewer's, or their Home (spec 0010), with everything its screen needs; `view` is "read" for
  * its Read view (spec 0013), else the grid. */
@@ -18,6 +19,8 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const [dashboards, shares, saved] = await Promise.all([switchableDashboards(actor), getRawShares(), savedWidgets(actor)]);
   const home = await homeDashboard(actor, dashboards);
   const current = id ? dashboards.find((d) => d.id === id) ?? null : home;
+  // Opened by a signed-in person who sees it (Home counts as the dashboard it shows): one View Count, no person.
+  if (current) void countView(actor, { kind: "dashboard", id: current.id });
   const [ws, snapshots] = current ? await Promise.all([dashboardWidgets(actor, current.id), listSnapshots(actor, current.id)]) : [[], []];
   // Only the series this dashboard draws go to the browser; a widget placed or a Metric picked later fetches its own.
   const data = await getCanvasData(viewer, [...new Set(ws.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))]);
