@@ -2,7 +2,7 @@
 // without a login. Owners and admins manage both; every function takes the Actor first.
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { openNames, sealRow } from "./sealed-columns";
+import { openNames, sealRow, UNREADABLE_NAME } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { cleanContact } from "./people";
@@ -111,10 +111,11 @@ export async function removeContact(actor: Actor, personId: string) {
   const ws = actor.workspaceId;
   const { data } = await db().from("contacts").delete().eq("workspace_id", ws).eq("person_id", String(personId)).select("person_id");
   if (!data?.length) throw new Forbidden();
-  const { data: found } = await db().from("profiles").select("id, name").eq("id", String(personId)).maybeSingle();
-  const [p] = await openNames(ws, found ? [found] : []);
-  await audit(actor, { kind: "contact.removed", object: { type: "person", id: String(personId), name: (p?.name as string | undefined) ?? null } });
-  // Their form links and Slack or mail submissions stop: their Tokens go, and they stand in for nobody any more.
+  // Their form links and Slack or mail submissions stop: their Tokens go, and they stand in for nobody any more. First,
+  // so that nothing after it (such as a Workspace Key that cannot be opened) can leave them working.
   await db().from("tokens").delete().eq("workspace_id", ws).eq("submitter_id", String(personId));
   await db().from("tokens").update({ stand_in_id: null }).eq("workspace_id", ws).eq("stand_in_id", String(personId));
+  const { data: found } = await db().from("profiles").select("id, name").eq("id", String(personId)).maybeSingle();
+  const name = await openNames(ws, found ? [found] : []).then(([p]) => (p?.name as string | undefined) ?? null, () => UNREADABLE_NAME);
+  await audit(actor, { kind: "contact.removed", object: { type: "person", id: String(personId), name } });
 }

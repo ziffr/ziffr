@@ -74,9 +74,14 @@ export async function sealRow(table: SealedTable, workspaceId: string, row: Row)
 /** A row read from a table, its sealed columns opened (null for one that does not open). Rows without an id are
  * returned as they are: nothing sealed can be opened without knowing its row. */
 export function openRow<T extends Row>(cipher: WorkspaceCipher, table: SealedTable, row: T): T {
-  const key = row?.[ROW_KEY[table]];
-  if (row === null || row === undefined || key === undefined || key === null) return row;
+  if (row === null || row === undefined) return row;
+  const key = row[ROW_KEY[table]];
   const out: Row = { ...row };
+  // Without its row nothing sealed can be opened, and it must not pass on as it is either: it reads as missing.
+  if (key === undefined || key === null) {
+    for (const column of SEALED_COLUMNS[table]) if (isSealed(row[column] as string)) out[column] = null;
+    return out as T;
+  }
   for (const column of SEALED_COLUMNS[table]) {
     if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: key as string | number }, row[column] as string);
   }
@@ -99,5 +104,10 @@ export async function openNames<T extends { id?: unknown; name?: unknown }>(work
   if (!people?.length) return people ?? [];
   if (!people.some((p) => isSealed(p.name as string))) return people;
   const cipher = await workspaceCipher(workspaceId);
-  return people.map((p) => (isSealed(p.name as string) ? { ...p, name: openRow(cipher, "profiles", p as Row).name ?? UNREADABLE_NAME } : p));
+  return people.map((p) => {
+    if (!isSealed(p.name as string)) return p;
+    const name = openRow(cipher, "profiles", p as Row).name;
+    // Never its ciphertext: whatever did not open reads as a Contact.
+    return { ...p, name: typeof name === "string" && !isSealed(name) ? name : UNREADABLE_NAME };
+  });
 }

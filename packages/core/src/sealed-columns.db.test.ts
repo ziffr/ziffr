@@ -11,7 +11,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { getActions } from "./workspace-data";
 import { forgetWorkspaceKey, isSealed } from "./workspace-keys";
-import { insertSealed, SEALED_COLUMNS } from "./sealed-columns";
+import { insertSealed, openNames, SEALED_COLUMNS } from "./sealed-columns";
 
 const saved = process.env.ZIFFR_SECRETS_KEY;
 const cleanups: (() => Promise<void>)[] = [];
@@ -171,6 +171,24 @@ describe("Contacts", () => {
     const elsewhere = await addContact(w.actor(w.owner), { name: "Target", email: "t@example.test" });
     await db().from("profiles").update({ name: p!.name }).eq("id", elsewhere);
     expect((await peopleIn(w.id)).find((x) => x.id === elsewhere)?.name).toBe("A Contact");
+  });
+
+  it("removed while the Workspace's key cannot be opened still lose their form links", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Leaving", email: "l@example.test" });
+    const code = await w.token(w.m.id, id);
+    await db().from("workspace_keys").delete().eq("workspace_id", w.id);
+    forgetWorkspaceKey(w.id);
+    await removeContact(w.actor(w.owner), id);
+    expect((await db().from("tokens").select("code").eq("code", code)).data).toEqual([]);
+  });
+
+  it("never show a sealed name read without its row, nor take a name in the sealed format", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Hidden", email: "h@example.test" });
+    const { data: p } = await db().from("profiles").select("name").eq("id", id).single();
+    expect(await openNames(w.id, [{ name: p!.name }])).toEqual([{ name: "A Contact" }]);
+    await expect(addContact(w.actor(w.owner), { name: p!.name, email: "x@example.test" })).rejects.toThrow(/cannot be shown/);
   });
 
   it("stay in clear without ZIFFR_SECRETS_KEY, kept unique as before", async () => {
