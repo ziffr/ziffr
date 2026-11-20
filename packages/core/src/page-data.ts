@@ -40,7 +40,8 @@ export async function connectorsView(actor: Actor) {
   const can = new Set(readable.map((a) => a.id));
   // Deliveries about a thread the person may not read stay hidden; prompts and notices are private to their sender
   // and recipient, except in the demo, where anyone plays them.
-  const visible = (deliveries ?? []).filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
+  const opened = await openRows("deliveries", ws, deliveries);
+  const visible = opened.filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser (in the demo, all of the demo).
   const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
   // A form link in an older Prompt's text opens its recipient's form: only they (and the demo) see it.
@@ -72,7 +73,7 @@ export async function sourcesView(actor: Actor) {
   // On a form or API entry the sender is that code too, so it goes with it.
   const mine = new Set((own ?? []).map((t) => t.code));
   const viaCode = (source: string) => source === "web_form" || source === "api";
-  const shown = (log ?? []).map((l) => (inDemo(actor) || !l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
+  const shown = (await openRows("intake_log", ws, log)).map((l) => (inDemo(actor) || !l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
   return { prompts: (asked ?? []).reverse(), log: shown.reverse(), tokens: own ?? [] };
 }
 

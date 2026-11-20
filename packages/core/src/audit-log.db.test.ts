@@ -18,7 +18,7 @@ import { setWorkspaceClock } from "./workspace-clock";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { renameWorkspace, setAnswerLanguages, setNumberStyle, setWorkspaceProfile } from "./workspace-settings";
 import { setYearStart } from "./fiscal-year";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 import { JANUARY, periodStart } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -28,7 +28,7 @@ const forbidden = expect.any(Forbidden);
 const month = periodStart(new Date(), "month", JANUARY);
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const quiet = { recordCreated: async () => {}, promptSubmitter: async () => {} };
-const stored = async (wsId: string) => (await db().from("audit_events").select("*").eq("workspace_id", wsId).order("id")).data ?? [];
+const stored = async (wsId: string) => opened("audit_events", wsId, (await db().from("audit_events").select("*").eq("workspace_id", wsId).order("id")).data);
 const kinds = async (wsId: string) => (await stored(wsId)).map((e) => e.kind);
 async function text(lines: AsyncIterable<string>) { let s = ""; for await (const l of lines) s += l; return s; }
 

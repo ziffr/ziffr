@@ -6,7 +6,7 @@ import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { share } from "./sharing";
 import { deleteSnapshot, editSnapshotWords, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
 import { createViewLink, listViewLinks, openViewLink } from "./view-links";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -65,7 +65,7 @@ describe("a View Link to a Snapshot", () => {
     expect(await createViewLink(owner, "dashboard", dash, input)).toMatch(/^[A-Za-z0-9_-]{20,}$/);
     const [link] = await listViewLinks(owner, "dashboard", dash);
     expect(link).toMatchObject({ label: "Board", snapshotLabel: "October 2026", revoked: false });
-    const { data } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "view_link.created").single();
+    const [data] = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "view_link.created")).data, { dropId: true });
     expect(data?.details).toMatchObject({ snapshot_id: snap, period: "October 2026", frozen: true });
   });
 

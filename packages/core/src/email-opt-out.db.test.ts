@@ -9,7 +9,7 @@ import { emailOptedOut, optBackIn, optOutByToken, unsubscribeTokenValid } from "
 import { MAIL_PER_RECIPIENT_PER_HOUR, MAIL_PER_SENDER_PER_DAY, MAIL_PER_WORKSPACE_PER_DAY, sendDelivery, sendWaiting } from "./mail";
 import { connectorsView } from "./page-data";
 import { ask } from "./questions";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
 const SETTINGS = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
@@ -23,7 +23,7 @@ const address = (who: string) => `${who}-${randomUUID().slice(0, 8)}@example.tes
 const latest = async (wsId: string, recipient: string, kind?: string) => {
   let q = db().from("deliveries").select("*").eq("workspace_id", wsId).eq("recipient_id", recipient);
   if (kind) q = q.eq("kind", kind);
-  return (await q.order("id", { ascending: false }).limit(1).single()).data!;
+  return (await opened("deliveries", wsId, [(await q.order("id", { ascending: false }).limit(1).single()).data!]))[0];
 };
 const emailOf = async (person: string) => (await db().from("profiles").select("email").eq("id", person).single()).data!.email as string;
 

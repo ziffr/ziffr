@@ -5,7 +5,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { numberStyleOf, setNumberStyle, setWorkspaceProfile, workspaceNumberStyle } from "./workspace-settings";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -32,7 +32,7 @@ describe("the Number Style", () => {
     expect(await numberStyleOf(w.id)).toBe("1,234.5");
     // The same style again changes nothing and records nothing.
     await setNumberStyle(owner, "1,234.5");
-    const { data } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).eq("kind", "workspace.number_style_changed").order("id");
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).eq("kind", "workspace.number_style_changed").order("id")).data, { dropId: true });
     expect(data?.map((r) => r.details)).toEqual([{ from: null, followed: "country", to: "1 234,5" }, { from: "1 234,5", to: "1,234.5" }]);
   });
 

@@ -10,7 +10,7 @@ import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderVerified
 import { connectorsView } from "./page-data";
 import { ask } from "./questions";
 import type { SubmissionEffects } from "./submissions";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { valuesOf, workspace, opened } from "./test/db-fixtures";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
 const DOMAIN = "in.ziffr.example.test";
@@ -38,7 +38,7 @@ async function promptFor(sources: string[] = ["web_form", "mail"]) {
   const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ann = await w.person("member", { email: address("ann") });
   const m = await w.metric(sara, { name: "Field visits", sources, submission_rule: "overwrite" }); await w.token(m.id, ann);
   await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
-  const { data: d } = await db().from("deliveries").select("id, reply_token, mail_state, body").eq("workspace_id", w.id).eq("recipient_id", ann).single();
+  const [d] = await opened("deliveries", w.id, (await db().from("deliveries").select("id, reply_token, mail_state, body").eq("workspace_id", w.id).eq("recipient_id", ann)).data);
   return { w, sara, ann, m, d: d!, annMail: await emailOf(ann) };
 }
 
@@ -74,7 +74,7 @@ describe("replies by email", () => {
     expect(await valuesOf(m.id)).toEqual([]);
     expect(await send("this month we had 12,5 visits")).toBe("recorded");
     expect(await valuesOf(m.id)).toMatchObject([{ value: 12.5, source: "mail" }]);
-    const { data: log } = await db().from("intake_log").select("outcome, detail").eq("workspace_id", w.id).order("id");
+    const log = await opened("intake_log", w.id, (await db().from("intake_log").select("id, outcome, detail").eq("workspace_id", w.id).order("id")).data, { dropId: true });
     expect(log!.map((l) => l.outcome)).toEqual(["rejected_several_numbers", "rejected_other_period", "recorded"]);
     expect(log![0].detail).toContain("“2” and “1”");
     expect(log![1].detail).toMatch(/^This Prompt asks for \w+ \d{4}, but “last month” is \w+ \d{4}\./);

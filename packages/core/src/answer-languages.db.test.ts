@@ -8,7 +8,7 @@ import { periodStart, shiftPeriod, JANUARY } from "./periods";
 import { submitValue } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { answerReadingOf, setAnswerLanguages, setWorkspaceProfile, workspaceAnswerLanguages } from "./workspace-settings";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -31,7 +31,7 @@ describe("the Answer Languages", () => {
     await setAnswerLanguages(w.actor(ann, "admin"), ["es"]);
     // The same languages again change nothing and record nothing.
     await setAnswerLanguages(owner, ["es"]);
-    const { data } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "workspace.answer_languages_changed").order("id");
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "workspace.answer_languages_changed").order("id")).data, { dropId: true });
     expect(data?.map((r) => r.details)).toEqual([{ from: null, followed: "country", to: ["en", "fr"] }, { from: ["en", "fr"], to: ["es"] }]);
   });
 

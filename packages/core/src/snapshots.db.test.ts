@@ -13,7 +13,7 @@ import { activityView } from "./page-data";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { seedDemoSnapshots } from "./demo-snapshots";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -133,7 +133,7 @@ describe("taking a Snapshot", () => {
     const id = await takeSnapshot(owner, dash, october);
     await showSnapshot(owner, id);
     await deleteSnapshot(owner, id);
-    const { data } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).like("kind", "snapshot.%").order("id");
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).like("kind", "snapshot.%").order("id")).data, { dropId: true });
     expect(data!.map((e) => e.kind)).toEqual(["snapshot.taken", "snapshot.shown", "snapshot.deleted"]);
     expect(data![0].details).toMatchObject({ snapshot_id: id, period: "October 2026", automatic: false });
   });
@@ -257,7 +257,7 @@ describe("half-year and annual Snapshots (spec 0020)", () => {
     expect(list.map((s) => s.kind).slice(0, 2)).toEqual(["year", "half"]);
     expect(list.find((s) => s.id === h2)).toMatchObject({ start: "2026-07-01", end: "2026-12-31" });
     expect((await snapshotDeckSeed(owner, year)).name).toBe("Monthly overview, 2026");
-    const { data } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "snapshot.taken").order("id").limit(1);
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "snapshot.taken").order("id").limit(1)).data, { dropId: true });
     expect(data?.[0].details).toMatchObject({ snapshot_id: year, period: "2026" });
   });
 

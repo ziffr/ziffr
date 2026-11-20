@@ -8,7 +8,7 @@ import { linkSlackByCode, mySlackLink, slackUserFor, startSlackLink } from "./sl
 import { DEMO_WORKSPACE_ID } from "./team";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 let slack: Awaited<ReturnType<typeof fakeSlack>>;
 beforeAll(async () => { slack = await fakeSlack(); });
@@ -118,7 +118,7 @@ describe("connecting Slack", () => {
     expect(await slackBot(w.id)).toBeNull();
     expect((await slackConnection(w.actor(sara))).team).toBeNull();
     // The Audit Log has both, with the Slack workspace's name and never its token.
-    const { data: events } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).order("id");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).order("id")).data, { dropId: true });
     expect(events?.map((e) => e.kind)).toEqual(["slack.connected", "slack.disconnected"]);
     expect(events?.[0].details).toEqual({ slack_team: "Acme" });
     expect(JSON.stringify(events)).not.toContain("xoxb");

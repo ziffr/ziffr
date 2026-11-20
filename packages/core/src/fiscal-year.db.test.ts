@@ -8,7 +8,7 @@ import { setYearStart, workspaceYearStart, yearStartChoices, yearStartFor } from
 import { getCanvasData } from "./access";
 import { listSnapshots, openSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -24,7 +24,7 @@ describe("the year start", () => {
     expect(await workspaceYearStart(w.actor(sara))).toBe(10);
     // The same month again changes nothing and records nothing.
     await setYearStart(w.actor(sara), 10);
-    const { data } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).eq("kind", "workspace.year_start_changed").order("id");
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).eq("kind", "workspace.year_start_changed").order("id")).data, { dropId: true });
     expect(data?.map((r) => r.details)).toEqual([{ from: 1, to: 4 }, { from: 4, to: 10 }]);
   });
   it("refuses Members, Guests, the demo and anything that is not a month", async () => {

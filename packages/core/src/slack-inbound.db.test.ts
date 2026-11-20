@@ -15,7 +15,7 @@ import { submitValue } from "./submissions";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { valuesOf, workspace, opened } from "./test/db-fixtures";
 
 let slack: Awaited<ReturnType<typeof fakeSlack>>;
 beforeAll(async () => { slack = await fakeSlack(); });
@@ -168,7 +168,7 @@ describe("answers by Slack", () => {
     const prompt = await sent(w.id, ann);
     expect(await receiveSlackInteraction(press(bot, annSlack, prompt, "ziffr_stop"))).toBe("stopped");
     expect((await db().from("slack_opt_outs").select("person_id").eq("workspace_id", w.id)).data).toEqual([{ person_id: ann }]);
-    const { data: notice } = await db().from("deliveries").select("subject").eq("workspace_id", w.id).eq("recipient_id", sara).eq("kind", "notice");
+    const notice = await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject").eq("workspace_id", w.id).eq("recipient_id", sara).eq("kind", "notice")).data, { dropId: true });
     expect(notice?.[0]?.subject).toMatch(/stopped reminders on Slack/);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
     expect((await sent(w.id, ann)).mail_state).toBe("failed");

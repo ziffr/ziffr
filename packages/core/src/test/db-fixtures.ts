@@ -2,6 +2,7 @@
 // each other's rows or the demo's.
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
+import { openRows, type SealedTable } from "../sealed-columns";
 import type { Actor } from "../actor";
 
 /** A workspace with an owner, made for one test; `cleanup` deletes everything in it and its people. */
@@ -94,4 +95,16 @@ async function must<T extends { error: unknown }>(p: PromiseLike<T>): Promise<T>
   const r = await p;
   if (r.error) throw new Error(`Test setup failed: ${JSON.stringify(r.error)}`);
   return r;
+}
+
+/** Rows read straight from a table with sealed columns, opened as the core reads them (spec 0028), so a test checks
+ * the words and not whether this run has a ZIFFR_SECRETS_KEY. `dropId` leaves out the id the opening needed. */
+export async function opened<T extends Record<string, unknown>>(table: SealedTable, workspaceId: string, rows: T[] | null | undefined, options: { dropId?: boolean } = {}): Promise<T[]> {
+  const open = await openRows(table, workspaceId, rows ?? []);
+  if (!options.dropId) return open;
+  return open.map((r) => {
+    const copy: Record<string, unknown> = { ...r };
+    delete copy.id;
+    return copy as T;
+  });
 }

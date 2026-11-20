@@ -3,12 +3,14 @@
 // Installation without ZIFFR_SECRETS_KEY stay in clear, and no sealed column holds the words people wrote.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db, seedingDemo } from "./db";
-import { actionThread } from "./page-data";
+import { actionThread, connectorsView, sourcesView } from "./page-data";
+import { auditLog, recordAudit } from "./audit-log";
+import { sendDelivery } from "./mail";
 import { ask, reply } from "./questions";
-import { peopleIn } from "./submissions";
+import { peopleIn, submitValue } from "./submissions";
 import { addContact, removeContact } from "./team";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { getActions } from "./workspace-data";
 import { forgetWorkspaceKey, isSealed } from "./workspace-keys";
 import { insertSealed, openNames, SEALED_COLUMNS } from "./sealed-columns";
@@ -164,7 +166,7 @@ describe("Contacts", () => {
     const w = await setup();
     const id = await addContact(w.actor(w.owner), { name: "Kept Name", email: "k@example.test" });
     await removeContact(w.actor(w.owner), id);
-    const { data: ev } = await db().from("audit_events").select("object_name").eq("workspace_id", w.id).eq("kind", "contact.removed").single();
+    const [ev] = await opened("audit_events", w.id, (await db().from("audit_events").select("id, object_name").eq("workspace_id", w.id).eq("kind", "contact.removed")).data);
     expect(ev?.object_name).toBe("Kept Name");
     const other = await setup();
     const moved = await addContact(other.actor(other.owner), { name: "Moved", email: "m@example.test" });
@@ -199,6 +201,47 @@ describe("Contacts", () => {
     const { data: c } = await db().from("contacts").select("email, email_index").eq("person_id", id).single();
     expect(c).toEqual({ email: "p@example.test", email_index: null });
     await expect(addContact(w.actor(w.owner), { name: "Again", email: "p@example.test" })).rejects.toThrow(/already uses/);
+  });
+});
+
+describe("the Outbox, the intake log and the Audit Log", () => {
+  it("keep a Delivery's subject and text sealed, shown opened on the Connectors page, and never send one that does not open", async () => {
+    const w = await setup();
+    const id = await ask(w.actor(w.owner), { metricId: w.m.id, period: "2026-10-01", assigneeId: w.ana, text: "Outbox words here" });
+    const { data: raw } = await db().from("deliveries").select("id, subject, body").eq("action_id", id);
+    expect(raw!.length).toBeGreaterThan(0);
+    for (const d of raw!) expect([isSealed(d.subject), isSealed(d.body)]).toEqual([true, true]);
+    const view = await connectorsView(w.actor(w.owner));
+    expect(view.deliveries.some((d) => String(d.body).includes("Outbox words here"))).toBe(true);
+    // A body copied from another Delivery does not open: it is failed for good, never sent as "null".
+    const [first] = raw!;
+    const { data: queued } = await db().from("deliveries").insert({ connector: "email", recipient_id: w.ana, sender_id: w.owner, kind: "notice", workspace_id: w.id, subject: first.subject, body: first.body, mail_state: "queued" }).select("id").single();
+    expect(await sendDelivery(queued!.id, async () => { throw new Error("must not send"); })).not.toBe("sent");
+    expect((await db().from("deliveries").select("mail_state").eq("id", queued!.id).single()).data?.mail_state).toBe("failed");
+  });
+
+  it("keep what came in sealed, shown opened on the Sources page", async () => {
+    const w = await setup();
+    const code = await w.token(w.m.id, w.owner);
+    await submitValue({ source: "web_form", sender: code, text: "Revenue was 4711 intake words" });
+    const { data: raw } = await db().from("intake_log").select("sender, raw, detail").eq("workspace_id", w.id);
+    expect(raw).toHaveLength(1);
+    expect([isSealed(raw![0].sender), isSealed(raw![0].raw), isSealed(raw![0].detail)]).toEqual([true, true, true]);
+    const view = await sourcesView(w.actor(w.owner));
+    expect(view.log.map((l) => l.raw)).toEqual(["Revenue was 4711 intake words"]);
+  });
+
+  it("keep an event's name and details sealed, read as recorded, and older plain events as they were", async () => {
+    const w = await setup();
+    await recordAudit(w.id, w.owner, { kind: "contact.added", object: { type: "person", id: "p-1", name: "Audit Name" }, details: { role: "viewer" } });
+    const { data: raw } = await db().from("audit_events").select("object_name, details").eq("workspace_id", w.id).eq("object_id", "p-1").single();
+    expect(isSealed(raw!.object_name)).toBe(true);
+    expect(Object.keys(raw!.details)).toEqual(["sealed"]);
+    expect(JSON.stringify(raw)).not.toMatch(/Audit Name|viewer/);
+    await db().from("audit_events").insert({ workspace_id: w.id, actor_id: w.owner, actor_name: "Owner", kind: "contact.removed", object_type: "person", object_id: "p-2", object_name: "Plain Before", details: { role: "member" } });
+    const { events } = await auditLog(w.actor(w.owner));
+    expect(events.find((e) => e.objectId === "p-1")).toMatchObject({ objectName: "Audit Name", details: { role: "viewer" } });
+    expect(events.find((e) => e.objectId === "p-2")).toMatchObject({ objectName: "Plain Before", details: { role: "member" } });
   });
 });
 

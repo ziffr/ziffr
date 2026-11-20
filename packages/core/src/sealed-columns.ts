@@ -14,16 +14,20 @@ export const SEALED_COLUMNS = {
   actions: ["question"],
   contacts: ["email", "slack_handle", "phone"],
   profiles: ["name"],
+  deliveries: ["subject", "body"],
+  intake_log: ["sender", "raw", "detail"],
+  // An event's details are sealed as a whole, in audit-log.ts: the column is an object the database checks.
+  audit_events: ["object_name"],
 } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id" };
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events";
 
 type Row = Record<string, unknown>;
 
@@ -46,11 +50,12 @@ function sealed(cipher: WorkspaceCipher, table: SealedTable, row: Row): Row {
 
 /** Inserts rows into one Workspace with their sealed columns sealed: ids are taken first, the Workspace is set on
  * every row. Answers what `select` names of the inserted rows, opened, in the order given. */
-export async function insertSealed(table: InsertedTable, workspaceId: string, rows: Row[], select = "id"): Promise<Row[]> {
+export async function insertSealed(table: InsertedTable, workspaceId: string, rows: Row[], select = "id", prepare?: (cipher: WorkspaceCipher, row: Row) => Row): Promise<Row[]> {
   if (!rows.length) return [];
   const cipher = await workspaceCipher(workspaceId);
   const ids = await reserveIds(table, rows.length);
-  const prepared = rows.map((r, i) => sealed(cipher, table, { ...r, id: ids[i], workspace_id: workspaceId }));
+  // `prepare` seals what is not a plain column (an event's details), with the row's id already in it.
+  const prepared = rows.map((r, i) => sealed(cipher, table, (prepare ?? ((_c, x) => x))(cipher, { ...r, id: ids[i], workspace_id: workspaceId })));
   const columns = select.split(",").map((c) => c.trim());
   const wanted = ["id", "workspace_id", ...columns.filter((c) => c !== "id" && c !== "workspace_id")].join(", ");
   const { data, error } = await db().from(table).insert(prepared).select(wanted);
@@ -85,7 +90,23 @@ export function openRow<T extends Row>(cipher: WorkspaceCipher, table: SealedTab
   for (const column of SEALED_COLUMNS[table]) {
     if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: key as string | number }, row[column] as string);
   }
+  // An event's details are an object holding them sealed ({"sealed": "w1..."}): opened back into the object; ones
+  // that do not open read as none, never as their ciphertext.
+  const sealedDetails = table === "audit_events" ? (row.details as Row | null | undefined)?.sealed : undefined;
+  if (typeof sealedDetails === "string") {
+    const text = isSealed(sealedDetails) ? cipher.open({ table, column: "details", row: key as number }, sealedDetails) : null;
+    try {
+      out.details = text === null ? {} : JSON.parse(text);
+    } catch {
+      out.details = {};
+    }
+  }
   return out as T;
+}
+
+/** An event's details sealed for its row, as audit-log.ts stores them; as they are where nothing is sealed. */
+export function sealDetails(cipher: WorkspaceCipher, row: Row): Row {
+  return cipher.sealing ? { ...row, details: { sealed: cipher.seal({ table: "audit_events", column: "details", row: row.id as number }, JSON.stringify(row.details ?? {})) } } : row;
 }
 
 /** Rows of one Workspace read from a table, their sealed columns opened, with one key lookup. */

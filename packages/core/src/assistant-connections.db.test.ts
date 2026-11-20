@@ -12,7 +12,7 @@ import {
 import { removeMember } from "./handover";
 import { admitCall } from "./access-log";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -128,7 +128,7 @@ describe("the authorization request", () => {
     expect(url.searchParams.get("iss")).toBe(mcpResource().replace(/\/mcp$/, ""));
     const { data: key } = await db().from("access_keys").select("kind, name, scopes, created_by, workspace_id, oauth_client_id").eq("id", keyId).single();
     expect(key).toEqual({ kind: "assistant", name: "Claude", scopes: ["metrics:read", "values:submit"], created_by: s.ben, workspace_id: s.w.id, oauth_client_id: s.client.id });
-    const { data: events } = await db().from("audit_events").select("kind, object_id, details").eq("workspace_id", s.w.id);
+    const events = await opened("audit_events", s.w.id, (await db().from("audit_events").select("id, kind, object_id, details").eq("workspace_id", s.w.id)).data, { dropId: true });
     expect(events).toContainEqual({ kind: "assistant.connected", object_id: String(keyId), details: expect.objectContaining({ redirect_host: "claude.ai" }) });
     expect(JSON.stringify(events)).not.toContain(url.searchParams.get("code"));
     const { data: row } = await db().from("access_keys").select("prefix").eq("id", keyId).single();
@@ -274,7 +274,7 @@ describe("Connected assistants (ticket #141)", () => {
     // Ben disconnects from his other workspace's settings: the key is revoked where it lives, audited there.
     await disconnectMine(other.actor(s.ben, "member"), keyId);
     expect((await listMyConnections(other.actor(s.ben, "member"))).map((c) => c.id)).not.toContain(keyId);
-    const { data: events } = await db().from("audit_events").select("kind, object_id, actor_id").eq("workspace_id", s.w.id).eq("kind", "assistant.disconnected");
+    const events = await opened("audit_events", s.w.id, (await db().from("audit_events").select("id, kind, object_id, actor_id").eq("workspace_id", s.w.id).eq("kind", "assistant.disconnected")).data, { dropId: true });
     expect(events).toEqual([{ kind: "assistant.disconnected", object_id: String(keyId), actor_id: s.ben }]);
   });
   it("shows connections to Owners and Admins next to keys; an Owner ends one, its tokens forgotten", async () => {
