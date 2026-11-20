@@ -155,6 +155,28 @@ export async function listMyAlerts(actor: Actor, metricId?: number): Promise<MyA
   return out;
 }
 
+/** What the editor needs for one Metric before the person asks: which kinds the Metric can give (with the reason it
+ * cannot) and how near the person is to the limits. Only for a Metric they see; counts are theirs alone. */
+export type AlertChoices = {
+  unavailable: Partial<Record<AlertKind, string>>;
+  held: { person: number; metric: number; perPerson: number; perMetric: number };
+  archived: boolean;
+};
+
+/** The kinds an Alert on this Metric can use and the limits, so the editor says so instead of offering what would be
+ * refused. Needs sight of the Metric, answered like a Metric that is not there otherwise. */
+export async function alertChoices(actor: Actor, metricId: number): Promise<AlertChoices> {
+  const metric = await seen(actor, metricId);
+  const unavailable: AlertChoices["unavailable"] = {};
+  for (const c of [{ kind: "share_of_target", share: "80" }, { kind: "missing_after_due" }] as const) {
+    try { await checkPossible(actor, metric, c); } catch (e) { if (e instanceof Forbidden) throw e; unavailable[c.kind] = (e as Error).message; }
+  }
+  // Counted as the database counts them, Alerts on Metrics the person can no longer see included.
+  const mine = await db().from("alerts").select("metric_id").eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
+  const rows = mine.data ?? [];
+  return { unavailable, held: { person: rows.length, metric: rows.filter((r) => Number(r.metric_id) === metric.id).length, perPerson: ALERTS_PER_PERSON, perMetric: ALERTS_PER_METRIC }, archived: Boolean(metric.archived_at) };
+}
+
 /** What may be changed on an Alert: its condition, way of delivery, option, and whether it is paused. */
 export type AlertChange = { condition?: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean; paused?: boolean };
 

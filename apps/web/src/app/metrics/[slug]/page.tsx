@@ -39,6 +39,7 @@ import { AskNow } from "./ask-now";
 import { canAskNow } from "@ziffr/core/ask-now";
 import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
+import { AlertMeButton } from "./alert-me";
 import { RequestAccess } from "@/components/who-can-see";
 import { ObjectToolbar } from "@/components/object-toolbar";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
@@ -172,7 +173,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Only the owner shares a metric, so only they get the Share button; everyone gets the ⋯ menu. */}
         <ObjectToolbar type="metric" id={metric.id} people={people} share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null}>
-          {askable && <AskNow metricId={metric.id} />}
+          {askable && <AskNow metricId={metric.id} />}<AlertMeButton metric={{ id: metric.id, name: metric.name }} demo={demo} />
           <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
           {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
           {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
