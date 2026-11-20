@@ -12,7 +12,7 @@ So someone evaluating Ziffr can only try the real thing by installing it. ADR 00
 
 An Installation can offer **Trial Workspaces**. Anyone may sign in with their email address, which proves it, and make one Trial Workspace. It comes with sample Metrics, a dashboard and Workflows that ask its Owner. Every Connector works in it for real, but only towards that one person: email to their proven address, Slack in a Slack workspace they connect, Telegram after they link themselves, Access Keys for the API and the MCP Server, and Feeds with Feed Keys (with the n8n automation from the Feeds guide). Nothing in a Trial Workspace reaches anyone else: no invitations go out, and Contacts stay simulated. A Trial Workspace ends after a set number of days and is then deleted.
 
-The shared demo stays as it is, for people who want to look around without signing in. The public demo at ziffr-demo.stefansonntag.com offers both.
+The shared demo stays as it is, for people who want to look around without signing in. The public demo at demo.ziffr.net offers both.
 
 ## User Stories
 
