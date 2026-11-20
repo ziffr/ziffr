@@ -173,12 +173,30 @@ export function wordsFor(languages: readonly string[]): AnswerWords[] {
   return languages.filter((c) => Object.hasOwn(ANSWER_LANGUAGES, c)).map((c) => ANSWER_LANGUAGES[c]);
 }
 
+/** How many sets of rules are kept: one per Workspace's languages, day, year start and date order in use at once. */
+const RULES_KEPT = 16;
+const built = new Map<string, Rule[]>();
+
+/** The rules for these languages, day, year start and date order, built once and reused: building them compiles
+ * every pattern, which is most of the time a reading takes, and a paste reads thousands of cells (spec 0026). The
+ * patterns are only used one at a time and each use starts from the beginning (lastIndex is reset), so sharing them
+ * is safe. The oldest set goes when more are kept than RULES_KEPT. */
+function rulesFor(languages: readonly string[], today: string, yearStart: YearStart, monthFirst: boolean): Rule[] {
+  const key = `${languages.join(",")}|${today}|${yearStart}|${monthFirst}`;
+  const kept = built.get(key);
+  if (kept) return kept;
+  const made = rules(wordsFor(languages), today, yearStart, monthFirst);
+  built.set(key, made);
+  if (built.size > RULES_KEPT) built.delete(built.keys().next().value!);
+  return made;
+}
+
 /** Every stretch of `text` that names a period, in the order they stand, none overlapping: where two overlap, the
  * longer one wins ("October 2026" over "2026"), and of two as long the earlier. `today` is a yyyy-mm-dd;
  * `monthFirst` reads "11/12" as 12 November. */
 export function findPeriodWords(text: string, today: string, yearStart: YearStart, languages: readonly string[], monthFirst = false): PeriodWords[] {
   const found: PeriodWords[] = [];
-  for (const rule of rules(wordsFor(languages), today, yearStart, monthFirst)) {
+  for (const rule of rulesFor(languages, today, yearStart, monthFirst)) {
     rule.re.lastIndex = 0;
     for (let m = rule.re.exec(text); m; m = rule.re.exec(text)) {
       const read = rule.read(m);

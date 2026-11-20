@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   cellName,
   findMetric,
+  GRID_LIMITS,
   PASTE_LIMITS,
   pasteProblemText,
   pasteReadingText,
@@ -346,6 +347,29 @@ describe("readPaste: values", () => {
   });
 });
 
+describe("readPaste: bounded work", () => {
+  it("refuses a paste of many tiny cells before trying any layout, quickly", () => {
+    // Just under 256 KB of one-character cells: about 130,000 cells in rows of 400.
+    const row = Array.from({ length: 400 }, () => "1").join("\t");
+    const text = Array.from({ length: 320 }, () => row).join("\n");
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(PASTE_LIMITS.bytes);
+    const started = performance.now();
+    expect(readPaste(text, CTX)).toEqual({ ok: false, reason: "too_many_cells", count: 128_000 });
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+  it("refuses a grid that spans too many cells, even when most are empty", () => {
+    const text = `a${"\t".repeat(GRID_LIMITS.cells)}b\nc\td`;
+    expect(readPaste(text, CTX)).toEqual({ ok: false, reason: "too_many_cells", count: 2 * (GRID_LIMITS.cells + 1) });
+  });
+  it("still reads the largest paste the limits allow: 2,000 rows of a Metric, a period and a value", () => {
+    const rows = Array.from({ length: PASTE_LIMITS.values }, (_, i) => `visits\t${new Date(Date.UTC(2021, 0, 1 + i)).toISOString().slice(0, 10)}\t${i}`);
+    const started = performance.now();
+    const r = read(["Metric\tDay\tValue", ...rows].join("\n"));
+    expect(r.values).toHaveLength(PASTE_LIMITS.values);
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
+});
+
 describe("readPaste: what each spreadsheet program puts on the clipboard", () => {
   const expected = [
     ["revenue", "2026-08-01", 1200],
@@ -397,6 +421,7 @@ describe("pasteProblemText", () => {
     expect(pasteReadingText({ ok: false, reason: "empty" })).toMatch(/nothing to read/);
     expect(pasteReadingText({ ok: false, reason: "too_large" })).toMatch(/256 KB/);
     expect(pasteReadingText({ ok: false, reason: "not_cells" })).toBe("Copy the cells from the spreadsheet itself.");
+    expect(pasteReadingText({ ok: false, reason: "too_many_cells", count: 9000 })).toMatch(/^That paste spans 9,000 cells/);
     expect(pasteReadingText({ ok: false, reason: "too_many_values", count: 2400 })).toBe("That is 2,400 values; a paste may hold at most 2,000. Paste fewer at a time.");
   });
 });
