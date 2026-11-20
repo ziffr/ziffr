@@ -6,6 +6,7 @@ import { assertCan, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { openSecretRotating, sealSecret } from "./secrets";
+import { isSealed, workspaceCipher } from "./workspace-keys";
 import { settingsInEffect } from "./settings-in-effect";
 import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./slack-api";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -24,6 +25,16 @@ export type SlackConnectionView = { enabled: boolean; canManage: boolean; team: 
 export type SlackBot = { workspaceId: string; teamId: string; appId: string; botUserId: string; token: string };
 
 const sealContext = (workspaceId: string) => `slack-bot:${workspaceId}`;
+
+/** Where a Workspace's bot token is sealed with its Workspace Key (spec 0028): the token dies with the Workspace. */
+const tokenAt = (workspaceId: string) => ({ table: "slack_installations", column: "bot_token", row: workspaceId.toLowerCase() });
+
+/** A bot token sealed for its Workspace: with the Workspace Key, or with ZIFFR_SECRETS_KEY where the Workspace has
+ * none (it cannot be sealed otherwise, and Slack needs ZIFFR_SECRETS_KEY anyway). */
+async function sealToken(workspaceId: string, token: string): Promise<string> {
+  const cipher = await workspaceCipher(workspaceId);
+  return cipher.sealing ? cipher.seal(tokenAt(workspaceId), token) : sealSecret(token, sealContext(workspaceId));
+}
 const redirectUri = () => `${String(process.env.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/slack/oauth`;
 
 function mayManage(actor: Actor) {
@@ -89,7 +100,7 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   if (other) return "elsewhere";
   const row = {
     workspace_id: actor.workspaceId, team_id: teamId, team_name: String(team?.name ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120),
-    app_id: appId, bot_user_id: botUserId, bot_token: sealSecret(token, sealContext(actor.workspaceId)), scopes: String(r.scope ?? "").slice(0, 500),
+    app_id: appId, bot_user_id: botUserId, bot_token: await sealToken(actor.workspaceId, token), scopes: String(r.scope ?? "").slice(0, 500),
     installed_by: actor.personId, installed_at: new Date().toISOString(), revoked_at: null,
   };
   const { error } = await db().from("slack_installations").upsert(row, { onConflict: "workspace_id" });
@@ -131,10 +142,18 @@ export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
   if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn())) return null;
   const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
-  const opened = openSecretRotating(data.bot_token, sealContext(workspaceId));
-  const token = opened?.plain ?? null;
-  // Sealed under the key being retired: seal it again under the current one, so that key can go (spec 0009).
-  if (opened?.stale) await db().from("slack_installations").update({ bot_token: sealSecret(opened.plain, sealContext(workspaceId)) }).eq("workspace_id", workspaceId).eq("bot_token", data.bot_token);
+  let token: string | null;
+  if (isSealed(data.bot_token)) token = (await workspaceCipher(workspaceId)).open(tokenAt(workspaceId), data.bot_token);
+  else {
+    // Sealed before spec 0028 with ZIFFR_SECRETS_KEY (or its previous value): sealed again with the Workspace Key, so
+    // it dies with the Workspace and the retiring key can go (spec 0009). Only if nobody changed it meanwhile.
+    const opened = openSecretRotating(data.bot_token, sealContext(workspaceId));
+    token = opened?.plain ?? null;
+    if (opened) {
+      const again = await sealToken(workspaceId, opened.plain);
+      if (again !== data.bot_token && (isSealed(again) || opened.stale)) await db().from("slack_installations").update({ bot_token: again }).eq("workspace_id", workspaceId).eq("bot_token", data.bot_token);
+    }
+  }
   return token ? { workspaceId, teamId: data.team_id, appId: data.app_id, botUserId: data.bot_user_id, token } : null;
 }
 

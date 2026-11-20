@@ -9,6 +9,7 @@ import { yearStartChoices } from "@ziffr/core/fiscal-year";
 import { workspaceAnswerLanguages, workspaceAttainmentMethod, workspaceName, workspaceNumberStyle, workspaceProfile } from "@ziffr/core/workspace-settings";
 import { ANSWER_LANGUAGES } from "@ziffr/core/numbers";
 import { COUNTRIES, CURRENCIES } from "@ziffr/core/workspace-profile";
+import { workspaceEncrypted } from "@ziffr/core/workspace-keys";
 import { PageHeader } from "@/components/page-header";
 import { WorkspaceClock } from "./clock";
 import { quietHours } from "@ziffr/core/quiet-hours";
@@ -36,7 +37,7 @@ const named = (codes: readonly string[], type: "region" | "currency") => {
 
 export default async function WorkspaceSettingsPage() {
   const actor = await currentActor();
-  const [name, time, profile, demo, year, numbers, answers, attainment, usage, quiet] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null), quietHours(actor)]);
+  const [name, time, profile, demo, year, numbers, answers, attainment, usage, quiet, encrypted] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null), quietHours(actor), workspaceEncrypted(actor)]);
   // The default Retention is for Owners and Admins to read, and for Owners to set (spec 0033); everyone else sees no section.
   const retention = actor.role === "owner" || actor.role === "admin" ? await defaultRetention(actor) : null;
   // The limits Owners and Admins may lower for the Workspace (ticket #518); the demo shows none.
@@ -69,6 +70,8 @@ export default async function WorkspaceSettingsPage() {
         {(actor.role === "owner" || actor.role === "admin") && !demo && <WorkspaceRetention retention={retention} canSet={actor.role === "owner"} />}
         {limits && <LimitsForm title="Limits" intro="What the people of this Workspace may do in a day or at most, within what this Installation allows. Lowering a limit never deletes or stops what exists: only what is new waits. Empty follows the Installation." limits={limits} canEdit save={setWorkspaceSettableLimit} />}
         <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
+        {/* Owners only, in these words (spec 0028): no key, version or progress. */}
+        {encrypted && <p className="text-sm text-muted-foreground">Encrypted with a key of its own. Deleting this Workspace destroys it.</p>}
       </div>
     </>
   );
