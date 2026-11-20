@@ -50,7 +50,7 @@ export async function createTrialWorkspace(personId: string, name: string, setti
 /** What becomes of a trial at its end (spec 0029, ZIFFR_TRIAL_THEN): "delete", as spec 0021 has it (the default), or
  * "keep", which turns it into an ordinary Workspace on the Installation's default limit. A value that is set but
  * neither throws, like a wrong ZIFFR_TRIAL_DAYS: an operator must never delete Workspaces they meant to keep. */
-export function trialThen(env: Record<string, string | undefined> = process.env): "delete" | "keep" {
+export function trialThen(env: Record<string, string | undefined>): "delete" | "keep" {
   const raw = env.ZIFFR_TRIAL_THEN?.trim().toLowerCase();
   if (!raw || raw === "delete") return "delete";
   if (raw === "keep") return "keep";
@@ -71,7 +71,7 @@ export async function keepTrial(workspaceId: string): Promise<boolean> {
 export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
   const { data } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
   const ends = data?.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
-  if (ends && ends.getTime() <= Date.now() && trialThen() === "keep") {
+  if (ends && ends.getTime() <= Date.now() && trialThen(await settingsInEffect()) === "keep") {
     await keepTrial(workspaceId);
     return null;
   }

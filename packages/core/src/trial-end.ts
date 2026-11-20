@@ -35,8 +35,9 @@ export async function trialStatus(workspaceId: string): Promise<{ endsAt: string
 
 /** What a trial becomes at its end where trials are kept, else null. */
 async function keptAs(): Promise<KeptAs | null> {
-  if (trialThen() !== "keep") return null;
-  const d = defaultLimitFrom(await settingsInEffect());
+  const settings = await settingsInEffect();
+  if (trialThen(settings) !== "keep") return null;
+  const d = defaultLimitFrom(settings);
   return { label: d.label, metrics: d.metrics };
 }
 
@@ -83,7 +84,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
 export async function closeEndedTrials(now = new Date()): Promise<number> {
   const at = now.toISOString();
   // Where trials are kept (spec 0029), an ended one becomes an ordinary Workspace instead: nothing is revoked.
-  if (trialThen() === "keep") {
+  if (trialThen(await settingsInEffect()) === "keep") {
     const { data: ended } = await db().from("workspaces").select("id").lte("trial_ends_at", at).is("trial_closed_at", null);
     let kept = 0;
     for (const w of ended ?? []) if (await keepTrial(w.id as string)) kept++;
