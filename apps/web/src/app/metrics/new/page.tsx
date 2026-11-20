@@ -11,7 +11,7 @@ import { UnitFields } from "../unit-fields";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
 import { newMetricRefusal } from "@ziffr/core/workspace-limits";
-import { nearLimitNote, workspaceUsage } from "@ziffr/core/workspace-usage";
+import { metricsOfLimit, nearLimitNote } from "@ziffr/core/workspace-usage";
 import { PageHeader } from "@/components/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   if (sp.copy && !copy) notFound();
 
   // Near the Workspace Limit, everyone sees how many it holds of how many (spec 0029), on the Catalog and the form.
-  const note = nearLimitNote(await workspaceUsage(await currentActor()));
+  const note = nearLimitNote(await metricsOfLimit(await currentActor()));
   if (!picked && !sp.scratch && !copy) {
     // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
     const [profile, numberStyle, refusal] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle(), newMetricRefusal(await currentActor())]);

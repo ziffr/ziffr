@@ -5,7 +5,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { workspace } from "./test/db-fixtures";
 import { GRACE_DAYS } from "./workspace-limits";
-import { nearLimitNote, overLimitBanner, sendLimitNotices, sizeAndUsage, workspaceUsage } from "./workspace-usage";
+import { metricsOfLimit, nearLimitNote, overLimitBanner, sendLimitNotices, sizeAndUsage } from "./workspace-usage";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -30,9 +30,13 @@ describe("Size and usage", () => {
     expect(new Date(u.graceEnds!).getTime() - new Date(u.overSince!).getTime()).toBe(GRACE_DAYS * DAY);
     expect((await sizeAndUsage(w.actor(sara))).metrics).toBe(21);
     await expect(sizeAndUsage(w.actor(ben, "member"))).rejects.toThrow(Forbidden);
+    // The New Metric form's numbers: for people who may create, nothing for a Guest.
+    expect(await metricsOfLimit(w.actor(ben, "member"))).toEqual({ metrics: 21, limit: 20 });
+    const gus = await w.person("guest");
+    expect(await metricsOfLimit(w.actor(gus, "guest"))).toEqual({ metrics: 0, limit: null });
     expect(overLimitBanner(u)).toMatch(/^This Workspace holds 21 Metrics, more than the 20 its Size Small allows\. New Metrics can be made until \d+ \w+ \d{4}\./);
     await db().from("workspaces").update({ over_limit_since: new Date(Date.now() - (GRACE_DAYS + 1) * DAY).toISOString() }).eq("id", w.id);
-    expect(overLimitBanner(await workspaceUsage({ workspaceId: w.id }))).toBe("This Workspace holds 21 Metrics, more than the 20 its Size Small allows. New Metrics wait now. Everything else keeps working.");
+    expect(overLimitBanner(await sizeAndUsage(w.actor(sara)))).toBe("This Workspace holds 21 Metrics, more than the 20 its Size Small allows. New Metrics wait now. Everything else keeps working.");
   });
 
   it("without a limit shows only the count, and says nothing near or over", async () => {
@@ -51,6 +55,13 @@ describe("Size and usage", () => {
 });
 
 describe("the Owners' emails", () => {
+  it("tell a Workspace whose days ended before it was told only that new Metrics wait", async () => {
+    const { w } = await setup(11, 10);
+    await db().from("workspaces").update({ over_limit_since: new Date(Date.now() - (GRACE_DAYS + 3) * DAY).toISOString() }).eq("id", w.id);
+    await sendLimitNotices();
+    expect((await notices(w.id)).map((n) => n.subject)).toEqual(["New Metrics now wait in your Workspace", "New Metrics now wait in your Workspace"]);
+  });
+
   it("go to Owners only, once when the grace starts and once when it ends, and again for a new time over", async () => {
     const { w, sara, olga } = await setup(11, 10);
     await sendLimitNotices();

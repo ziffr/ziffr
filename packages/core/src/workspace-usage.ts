@@ -2,7 +2,7 @@
 // of its limit, the note people see on the New Metric form near the limit, the banner while it is over, and the two
 // emails to Owners when the 14 days over the limit start and end. Only numbers of the actor's own Workspace: never
 // another Workspace's, never a price or a payment detail, which Ziffr does not hold (ADR 0013).
-import { Forbidden, type Actor } from "./actor";
+import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -23,9 +23,8 @@ export type Usage = {
 
 const DAY = 86_400_000;
 
-/** The actor's Workspace's usage, for everyone in it (the New Metric form shows it to Members too). */
-export async function workspaceUsage(actor: Pick<Actor, "workspaceId">): Promise<Usage> {
-  const ws = actor.workspaceId;
+/** A Workspace's usage, for the core's own callers only: the checked functions below and the Owners' emails. */
+async function usageOf(ws: string): Promise<Usage> {
   const [metrics, limit, { data: w }, { data: own }] = await Promise.all([
     metricCount(ws), limitOf(ws),
     db().from("workspaces").select("id, over_limit_since").eq("id", ws).maybeSingle(),
@@ -41,10 +40,18 @@ export async function workspaceUsage(actor: Pick<Actor, "workspaceId">): Promise
   };
 }
 
-/** Size and usage for Workspace settings: Owners and Admins only, never in the demo. */
+/** Size and usage for Workspace settings and the banner: Owners and Admins only. */
 export async function sizeAndUsage(actor: Actor): Promise<Usage> {
   if (actor.key || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden("Only Owners and Admins see the Size and usage.");
-  return workspaceUsage(actor);
+  return usageOf(actor.workspaceId);
+}
+
+/** How many Metrics the actor's Workspace holds of how many, for the New Metric form near the limit: only for
+ * someone who may create Metrics, and only those two numbers. */
+export async function metricsOfLimit(actor: Actor): Promise<Pick<Usage, "metrics" | "limit">> {
+  if (!can(actor, "create")) return { metrics: 0, limit: null };
+  const { metrics, limit } = await usageOf(actor.workspaceId);
+  return { metrics, limit };
 }
 
 /** "48 of 50 Metrics" once the Workspace holds 90 % of its limit or more, else null. Pure. */
@@ -67,31 +74,34 @@ export function overLimitBanner(u: Usage): string | null {
 }
 
 /** The two emails to a Workspace's Owners: when the 14 days over the limit start and when they end. Each goes once
- * per time over (keyed by over_limit_since), so a Workspace that goes back under and over again is told again. Run
- * by the hourly Workflows job; returns how many notices went out. */
+ * per time over (keyed by over_limit_since), so a Workspace that goes back under and over again is told again. The
+ * database picks only Workspaces with an email due and claims each before it is sent, so two jobs at once send it
+ * once; a send that fails is not tried again, which is better than twice. A Workspace whose 14 days ended before it
+ * was told they started (the first run after an upgrade) gets only the second email. Run by the hourly Workflows job;
+ * returns how many notices went out. */
 export async function sendLimitNotices(now: Date = new Date()): Promise<number> {
-  const { data } = await db().from("workspaces").select("id, over_limit_since, limit_started_told, limit_ended_told").not("over_limit_since", "is", null).neq("id", DEMO_WORKSPACE_ID).limit(500);
+  const { data, error } = await db().rpc("limit_notices_due", { p_now: now.toISOString(), p_grace_days: GRACE_DAYS, p_limit: 500 });
+  if (error) throw new Error("The Workspace Limit's notices could not be read.");
   let sent = 0;
-  for (const w of data ?? []) {
-    const since = w.over_limit_since as string;
-    const ended = now.getTime() >= new Date(since).getTime() + GRACE_DAYS * DAY;
-    const kind = w.limit_started_told !== since ? "started" : ended && w.limit_ended_told !== since ? "ended" : null;
-    if (!kind) continue;
-    // Claimed first in the database, only while still unclaimed for this time over, so two jobs at once send it once.
-    const { data: claimed } = await db().rpc("claim_limit_notice", { p_workspace: w.id, p_kind: kind, p_since: since });
+  for (const due of (data ?? []) as { workspace_id: string; kind: "started" | "ended"; since: string }[]) {
+    const { data: claimed } = await db().rpc("claim_limit_notice", { p_workspace: due.workspace_id, p_kind: due.kind, p_since: due.since });
     if (claimed !== true) continue;
-    const u = await workspaceUsage({ workspaceId: w.id as string });
+    const u = await usageOf(due.workspace_id);
     if (u.limit === null) continue;
-    const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", w.id).eq("role", "owner");
-    const size = u.label ? `its Size ${u.label}` : "its limit";
-    const subject = kind === "started" ? "Your Workspace is over its limit" : "New Metrics now wait in your Workspace";
-    const text = kind === "started"
-      ? `Your Workspace holds ${u.metrics} Metrics, more than the ${u.limit} ${size} allows. Until ${dayWords(u.graceEnds!)} new Metrics can still be made, up to ${u.room}. After that they wait until it holds fewer than ${u.limit}. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.`
-      : `The 14 days over the limit have ended. Your Workspace holds ${u.metrics} Metrics and ${size} allows ${u.limit}, so new Metrics wait until it holds fewer. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.`;
+    const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", due.workspace_id).eq("role", "owner");
+    const { subject, text } = noticeWords(due.kind, u);
     for (const o of owners ?? []) {
-      await deliverNotice(w.id as string, { recipientId: o.user_id as string, senderId: null, subject, text, link: "/settings/workspace#size" });
+      await deliverNotice(due.workspace_id, { recipientId: o.user_id as string, senderId: null, subject, text, link: "/settings/workspace#size" });
       sent++;
     }
   }
   return sent;
+}
+
+/** The words of the two emails. */
+function noticeWords(kind: "started" | "ended", u: Usage): { subject: string; text: string } {
+  const size = u.label ? `its Size ${u.label}` : "its limit";
+  return kind === "started"
+    ? { subject: "Your Workspace is over its limit", text: `Your Workspace holds ${u.metrics} Metrics, more than the ${u.limit} ${size} allows. Until ${dayWords(u.graceEnds!)} new Metrics can still be made, up to ${u.room}. After that they wait until it holds fewer than ${u.limit}. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.` }
+    : { subject: "New Metrics now wait in your Workspace", text: `The 14 days over the limit have ended. Your Workspace holds ${u.metrics} Metrics and ${size} allows ${u.limit}, so new Metrics wait until it holds fewer. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.` };
 }

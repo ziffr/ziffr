@@ -15,7 +15,7 @@ import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { OverLimitBar } from "@/components/over-limit-bar";
-import { overLimitBanner, workspaceUsage } from "@ziffr/core/workspace-usage";
+import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
@@ -77,7 +77,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
-  const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await workspaceUsage({ workspaceId })) : null;
+  const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await sizeAndUsage(await currentActor())) : null;
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
