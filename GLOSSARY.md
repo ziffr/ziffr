@@ -62,6 +62,14 @@ _Avoid_: Template library, presets
 A Metric kept with its description, values and history that asks for nothing and takes no values, shown only under Archived. It does not count towards the Workspace Limit; bringing it back counts again. Not a Snapshot, which keeps what a dashboard showed; that is why "archive" belongs to Metrics and a Snapshot is never called an archived copy.
 _Avoid_: Deleted metric, inactive metric, hidden metric
 
+**Retention**:
+How long a Metric's values are kept, set per Metric with a default for the Workspace: none (the default, so nothing is ever lost unasked), or after a number of months either condensed into a Condensed Value or deleted. Condensing needs an Aggregation other than none. Snapshots, decks and View Links keep what they showed; the Audit Log has its own keeping. Not archiving, which sets a whole Metric aside.
+_Avoid_: Expiry, TTL, clean-up, purge, archiving
+
+**Condensed Value**:
+The one value, with its target, that stands for a longer period (a month for its days) after the periods inside it were condensed by the Metric's Aggregation. It keeps the exact sum and count, so any longer period still comes out as it did before, and is shown as "condensed from daily values". It takes no more values.
+_Avoid_: Roll-up, summary value, compaction, downsampled value
+
 **Observation**:
 One value of a metric for one period.
 _Avoid_: Number, entry, data point, upload
@@ -115,7 +123,7 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Workflow**:
-A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
 _Avoid_: Process, pipeline, flow
 
 **Workflow Template**:
@@ -140,7 +148,7 @@ _Avoid_: Absence, out of office, leave
 
 **Escalation**:
 A Workflow step that, when a value is still missing, asks the Stand-in or tells the metric owner.
-_Avoid_: Alert, warning
+_Avoid_: Warning. Not an Alert, which a person sets for themselves and which asks nobody for anything
 
 **Unusual Value**:
 A value that changes more than a set share against the period before, or falls outside the target. Only unusual values need Approval. An Import is not checked.
@@ -455,6 +463,10 @@ _Avoid_: Notification, outbox item, message
 **Outbox**:
 Every Delivery, newest first, with what it said and where it went. An email, Slack or Telegram one also shows whether it was really sent, is waiting or failed; the other Connectors only record it.
 _Avoid_: Sent items, log
+
+**Alert**:
+A person's own standing request, on one Metric they may see, to be told through their Delivery Preference when its latest value reaches a share of its target, reaches or falls below a value, changes more than a share against the period before, or is still missing after its Due Date. It fires once per crossing, only about values that are published or approved (unless the person includes the rest), never for an Import, and stops silently when the person can no longer see the Metric. It asks nobody for anything and cannot be answered. Not an Unusual Value, which needs Approval, nor an Escalation, which acts on a missing value for the people responsible. A team is told by a Workflow's Tell step, never by Alerts set for others.
+_Avoid_: Notification, subscription, trigger, watch, threshold
 
 **Delivery Preference**:
 Where a person wants to get questions, tasks, reminders and replies. The team sets a default; whoever sends may choose another for one message.
