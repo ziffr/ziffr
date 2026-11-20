@@ -4,13 +4,10 @@
 // own refusal and the seed are tested in the core (packages/core/src/demo-read-only.db.test.ts).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { db } from "@ziffr/core/db";
 import { demoReadOnlyWords } from "@ziffr/core/demo";
-import { DEMO_WORKSPACE_ID } from "@ziffr/core/team";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
-import { seedDemoSnapshots } from "@ziffr/core/demo-snapshots";
+import { demoFingerprint, demoWalkIds } from "@ziffr/core/test/demo-walk";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
@@ -29,7 +26,7 @@ const files = (function walk(dir: string): string[] {
 })(APP);
 
 /** The demo's ids the actions are called with, read once. */
-type Ids = Record<string, number | string>;
+type Ids = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- ids and seed objects of every shape
 let ids: Ids = {};
 const form = (o: Record<string, string | string[]>) => {
   const f = new FormData();
@@ -64,6 +61,9 @@ const CASES: Record<string, Case> = {
   "auth-actions:acceptInvite": { outside: "joins a real Workspace by its invitation" },
   "auth-actions:askToJoin": { outside: "asks to join a real Workspace" },
   "auth-actions:endMyTrial": { outside: "a Trial Workspace, never the demo" },
+  "calendar-link-actions:makeCalendarLink": { args: () => [{}] },
+  "calendar-link-actions:setCalendarNoNames": { nothing: "nobody in the demo has a Calendar Link", args: () => [true] },
+  "calendar-link-actions:revokeCalendarLink": { nothing: "nobody in the demo has a Calendar Link", args: () => [] },
   "canvas-actions:placeWidget": { args: (i) => [i.dashboard, { type: "metric", id: i.metric }] },
   "canvas-actions:saveDashboardText": { args: (i) => [i.dashboard, { name: "Renamed by a visitor" }] },
   "canvas-actions:saveLayout": { args: (i) => [i.dashboard, [{ i: String(i.widget), x: 0, y: 0, w: 4, h: 3 }]] },
@@ -134,6 +134,8 @@ const CASES: Record<string, Case> = {
   "key-actions:createKey": { args: () => [{ name: "Visitor key", scopes: ["metrics:read"], expiresOn: day(30) }] },
   "key-actions:revokeKey": { nothing: "the demo has no Access Keys", args: () => [1] },
   "oauth/authorize/actions:answerConsent": { outside: "connects an assistant to one's own Workspace; refused during a demo visit" },
+  "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
+  "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
   "series-actions:saveSeriesRows": { args: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
   "series-actions:removeSeriesRows": { args: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },
@@ -204,78 +206,15 @@ const CASES: Record<string, Case> = {
   "workflow-actions:setAway": { args: () => ["sara", day(1), day(5)] },
 };
 
-/** One row per demo row of every table with a workspace, and the demo's people: changed by anything at all. */
-async function fingerprint(): Promise<Record<string, string>> {
-  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/`, { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!, authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } });
-  const spec = (await res.json()) as { definitions: Record<string, { properties?: Record<string, unknown> }> };
-  const tables = Object.entries(spec.definitions).filter(([, d]) => d.properties && "workspace_id" in d.properties).map(([t]) => t).sort();
-  const out: Record<string, string> = {};
-  for (const t of tables) {
-    const { data, error } = await db().from(t).select("*").eq("workspace_id", DEMO_WORKSPACE_ID);
-    if (error) continue; // A view that cannot be filtered so; its tables are counted on their own.
-    out[t] = createHash("sha256").update(JSON.stringify([...(data ?? [])].map((r) => JSON.stringify(r)).sort())).digest("hex");
-  }
-  const { data: people } = await db().from("profiles").select("*").in("id", ["sara", "ben", "anna"]);
-  out.profiles = createHash("sha256").update(JSON.stringify(people)).digest("hex");
-  const { count } = await db().from("profiles").select("id", { count: "exact", head: true });
-  out["profiles (count)"] = String(count);
-  const { count: ws } = await db().from("workspaces").select("id", { count: "exact", head: true });
-  out["workspaces (count)"] = String(ws);
-  return out;
-}
-
-/** What the walk needs from the demo's seed, or a clear failure when the seed lacks it. */
-function must<T>(data: T | null | undefined): T {
-  if (data === null || data === undefined) throw new Error("The demo seed lacks what the walk needs.");
-  return data;
-}
-
 let before: Record<string, string>;
 beforeAll(async () => {
-  const D = DEMO_WORKSPACE_ID;
-  const metric = must((await db().from("metrics").select("id, name").eq("workspace_id", D).eq("owner_id", "sara").is("formula", null).order("id").limit(1).single()).data);
-  const dashboard = must((await db().from("dashboards").select("id").eq("workspace_id", D).eq("owner_id", "sara").order("id").limit(1).single()).data);
-  const otherDashboard = await db().from("dashboards").select("id").eq("workspace_id", D).neq("owner_id", "sara").order("id").limit(1).maybeSingle();
-  const widget = must((await db().from("widgets").select("id").eq("workspace_id", D).eq("dashboard_id", dashboard.id).order("id").limit(1).single()).data);
-  const deck = must((await db().from("decks").select("id").eq("workspace_id", D).order("id").limit(1).single()).data);
-  const template = await db().from("team_templates").select("id").eq("workspace_id", D).order("id").limit(1).maybeSingle();
-  const savedWidget = await db().from("widgets").select("id").eq("workspace_id", D).is("dashboard_id", null).order("id").limit(1).maybeSingle();
-  const group = await db().from("groups").select("id").eq("workspace_id", D).eq("everyone", false).order("id").limit(1).maybeSingle();
-  const themes = (await db().from("themes").select("id, tokens, slides, is_default").eq("workspace_id", D).order("id")).data ?? [];
-  const workflow = must((await db().from("workflows").select("id, config").eq("workspace_id", D).order("id").limit(1).single()).data);
-  // The SQL seed makes no Snapshots (the nightly job's core seed does): make them as it would, if there are none.
-  const live = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", D).is("deleted_at", null);
-  if (!live.count) await seedDemoSnapshots();
-  const snapshot = await db().from("dashboard_snapshots").select("id, dashboard_id").eq("workspace_id", D).is("deleted_at", null).order("id").limit(1).maybeSingle();
-  const action = await db().from("actions").select("id").eq("workspace_id", D).eq("kind", "question").order("id").limit(1).maybeSingle();
-  const task = await db().from("actions").select("id").eq("workspace_id", D).eq("kind", "task").eq("assignee_id", "sara").eq("status", "open").order("id").limit(1).maybeSingle();
-  const approval = await db().from("actions").select("id").eq("workspace_id", D).eq("purpose", "approval").order("id").limit(1).maybeSingle();
-  const message = await db().from("thread_messages").select("id").eq("workspace_id", D).order("id").limit(1).maybeSingle();
-  const token = await db().from("tokens").select("code").eq("workspace_id", D).order("id").limit(1).maybeSingle();
-  const version = await db().from("versions").select("id").eq("workspace_id", D).order("id").limit(1).maybeSingle();
-  const target = await db().from("series_values").select("metric_id, period_start").eq("workspace_id", D).eq("kind", "target").order("id").limit(1).maybeSingle();
-  const canvas = await db().from("analysis_canvas").select("metric_id").eq("workspace_id", D).limit(1).maybeSingle();
-  const deliveries = (await db().from("deliveries").select("id, connector, kind, action_id").eq("workspace_id", D).order("id")).data ?? [];
-  const m = new Date();
-  ids = {
-    metric: metric.id, ownMetric: metric.id, ownMetricName: metric.name, dashboard: dashboard.id, otherDashboard: otherDashboard.data?.id ?? dashboard.id,
-    widget: widget.id, deck: deck.id, template: template.data?.id ?? 1, savedWidget: savedWidget.data?.id ?? 1, group: group.data?.id ?? 1,
-    theme: themes[0]?.id ?? 1, otherTheme: themes.find((t) => !t.is_default)?.id ?? 1, workflow: workflow.id, snapshot: snapshot.data?.id ?? 1, snapshotDashboard: snapshot.data?.dashboard_id ?? dashboard.id,
-    action: action.data?.id ?? 1, task: task.data?.id ?? 1, approval: approval.data?.id ?? 1, message: message.data?.id ?? 1, formCode: token.data?.code ?? "tk-none",
-    version: version.data?.id ?? 1, targetMetric: target.data?.metric_id ?? metric.id, targetPeriod: target.data?.period_start ?? day(),
-    canvasMetric: canvas.data?.metric_id ?? metric.id,
-    actionDelivery: deliveries.find((d) => d.action_id && d.connector !== "tickets")?.id ?? 0, ticketDelivery: deliveries.find((d) => d.connector === "tickets")?.id ?? 0,
-    promptDelivery: deliveries.find((d) => d.kind === "prompt")?.id ?? 0,
-    period: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), 1)).toISOString().slice(0, 10),
-    lastMonth: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)).toISOString().slice(0, 10),
-  };
-  Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {} });
-  before = await fingerprint();
+  ids = (await demoWalkIds()) as Ids;
+  before = await demoFingerprint();
 });
 
 afterAll(async () => {
   // Whatever any action did, the demo is as it was.
-  expect(await fingerprint()).toEqual(before);
+  expect(await demoFingerprint()).toEqual(before);
 });
 
 const exportsOf = async (file: string) => Object.entries(await import(file)).filter(([, v]) => typeof v === "function") as [string, (...a: unknown[]) => Promise<unknown>][];

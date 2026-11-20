@@ -154,3 +154,20 @@ end $$;
 
 revoke execute on function demo_reset(interval) from public, anon, authenticated;
 grant execute on function demo_reset(interval) to service_role;
+
+-- A value's history when its Workspace or its Metric is deleted with it: nothing is left to show it, so none is kept.
+-- Before, such a row found no Metric to take its workspace from and fell back to the column's old default, the demo,
+-- where the read-only demo now refuses it (and where it never belonged).
+create or replace function keep_observation_history() returns trigger
+language plpgsql as $$
+begin
+  if tg_op = 'DELETE' and (not exists (select 1 from workspaces where id = old.workspace_id) or not exists (select 1 from metrics where id = old.metric_id)) then
+    return old;
+  end if;
+  if tg_op = 'DELETE' or old.value is distinct from new.value then
+    insert into observation_history (observation_id, metric_id, period_start, value, submitter_id, source, recorded_at, change)
+      values (old.id, old.metric_id, old.period_start, old.value, old.submitter_id, old.source, old.created_at, case tg_op when 'UPDATE' then 'updated' else 'deleted' end);
+  end if;
+  return coalesce(new, old);
+end;
+$$;

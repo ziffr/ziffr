@@ -10,6 +10,7 @@ import { calendarFile } from "./calendar-ics";
 import { db } from "./db";
 import { calendarEntries } from "./schedule";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { refuseInDemo } from "./demo";
 
 /** Most fetches of one link in an hour; more are refused (429) until the hour is over. */
 export const CALENDAR_FETCHES_PER_HOUR = 60;
@@ -27,7 +28,7 @@ export type CalendarLinkListed = { personId: string; name: string; createdAt: st
 /** Refuses keys and the demo: the demo's made-up people are shared by every visitor, so a link there would be anyone's. */
 function assertMayHaveLink(actor: Actor): void {
   if (actor.key) throw new Forbidden();
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Calendar Links. Make one in your own Workspace.");
+  refuseInDemo(actor);
 }
 
 /** The actor's own Calendar Link in this Workspace, or null. */
