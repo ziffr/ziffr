@@ -55,3 +55,27 @@ test("a note added and removed again since the tag is not released, and nothing 
   r.commit("remove");
   assert.throws(() => releaseOf({ cwd: r.dir, day: "2026-11-20" }), /No release notes were added to \.changeset\/ since v0\.12\.0/);
 });
+
+test("a tag whose run failed before publishing is skipped: its notes come along and its version is not reused", (t) => {
+  const r = repo();
+  t.after(r.done);
+  r.write("README.md", "x\n");
+  r.commit("first");
+  r.git("tag", "-a", "v0.11.0", "-m", "Ziffr 0.11.0");
+  r.write(".changeset/feature.md", note("minor", "A feature."));
+  r.commit("feature");
+  // The run tagged v0.12.0, then its image check failed: no GitHub release.
+  r.git("tag", "-a", "v0.12.0", "-m", "Ziffr 0.12.0");
+  r.write(".changeset/fix.md", note("patch", "The fix for that check."));
+  r.commit("fix");
+
+  const saved = process.env.ZIFFR_RELEASE_PUBLISHED_TAGS;
+  process.env.ZIFFR_RELEASE_PUBLISHED_TAGS = "v0.11.0";
+  t.after(() => { if (saved === undefined) delete process.env.ZIFFR_RELEASE_PUBLISHED_TAGS; else process.env.ZIFFR_RELEASE_PUBLISHED_TAGS = saved; });
+  const release = releaseOf({ cwd: r.dir, day: "2026-11-20" });
+  assert.equal(release.previous, "v0.11.0");
+  assert.equal(release.count, 2);
+  assert.match(release.notes, /- A feature\./);
+  assert.match(release.notes, /- The fix for that check\./);
+  assert.equal(release.tag, "v0.12.1");
+});
