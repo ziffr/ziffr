@@ -55,7 +55,7 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 - a reference and tests against it;
 - its paths in `.github/calculation-paths.txt`.
 
-`pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path. Every night and before a release, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
+`pnpm test` runs the references on every change. `pnpm --filter @ziffr/core test:numbers` is the full-strength run. CI's `numbers` job runs it whenever a change touches a calculation path, and mutates the calculation modules the change touches, starting from the nightly run's results, in at most 20 minutes. Every night and before a release, every module is mutated, and the score must stay at least 95 %. How the tests work, what to do when one fails or a mutant survives, and how to add a case: `docs/guides/calculation-tests.md`.
 
 ## Code health
 
