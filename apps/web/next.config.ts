@@ -36,7 +36,8 @@ const nextConfig: NextConfig = {
   webpack(config, { isServer, webpack }) {
     // @ziffr/pack is written to be published as plain ES modules, so its imports name ".js" files; here its TypeScript
     // source is bundled, and "./pack.js" means "./pack.ts".
-    config.resolve.extensionAlias = { ...config.resolve.extensionAlias, ".js": [".ts", ".tsx", ".js"] };
+    // Only for its own modules: no dependency gets a ".ts" file in place of the ".js" it asked for.
+    config.module.rules.push({ include: /packages[\\/]pack[\\/]src[\\/]/, resolve: { extensionAlias: { ".js": [".ts", ".js"] } } });
     if (!isServer) {
       // pptxgenjs imports "node:fs" etc. for its Node build; its package.json `browser` field
       // maps them to false, but webpack rejects the node: scheme before reading that field.

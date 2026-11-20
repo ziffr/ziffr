@@ -47,7 +47,7 @@ export function ExportPack({ options }: { options: ExportOptions }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
           <DialogTitle>Export as Pack</DialogTitle>
-          <DialogDescription>Pick what goes in and name the Pack. Words with web addresses or markup, images, logos and drawings stay out, and Ziffr says so.</DialogDescription>
+          <DialogDescription>Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images, logos and drawings stay out, and Ziffr says so.</DialogDescription>
           <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
               {field("name", "Name", "e.g. SaaS metrics")}
