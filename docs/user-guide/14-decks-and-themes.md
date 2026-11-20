@@ -71,7 +71,7 @@ The **Pool** on the left holds the Metrics you can see, your saved Widgets and t
 
 You can only place Metrics you may see. Everyone you share the deck with can see the Metrics on its slides.
 
-From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to deck…**. Pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered.
+From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to deck…**. Pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
 
 ### Text, arrows, shapes and images
 

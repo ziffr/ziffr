@@ -46,7 +46,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   // A widget added from its menu (ticket #1), only when the person's own menu asked for it (deck-add-intent.ts): the
   // core checks again that they may change the deck, open the widget and see its Metrics; the editor places the
   // copy on that slide or a new one and saves.
-  const intent = readIntent((await cookies()).get(DECK_ADD_COOKIE)?.value, id, sp.add);
+  const intent = readIntent((await cookies()).get(DECK_ADD_COOKIE)?.value, actor.personId, id, sp.add);
   const addition = intent ? await deckAddition(actor, id, intent.widgetId, intent.slide).catch(() => null) : null;
   const [data, saved, shares, groups] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
