@@ -162,7 +162,7 @@ Choose **Remove…** next to a person. Ziffr asks **Who takes over?**: pick anot
 When you remove someone:
 
 - Everything they own, such as their Metrics, dashboards, decks, Workflows, Themes and saved templates, goes to the person who takes over. Nothing others built on is deleted, and the handover shows in each item's Version history.
-- Their Tokens, Stand-in roles, Shares, Group memberships and Access Keys end at once.
+- Their Tokens, Stand-in roles, Shares, Group memberships, Access Keys and Calendar Link end at once.
 - A dashboard that took **Snapshots** by itself stops doing so, so the new owner can choose again.
 
 You cannot remove yourself: ask another Owner or Admin. Only an Owner can remove an Owner. In the demo nobody can be removed.
@@ -363,6 +363,10 @@ Each key shows its name, what it may do, the day it ends (or "revoked") and, for
 | Member or Guest | Their own keys | Their own keys |
 
 The demo has no Access Keys, because a key there would act as a made-up person for anyone.
+
+### Calendar Links
+
+Owners and Admins also see, below the keys, who has a **Calendar Link**: a secret address that shows a person's schedule in their calendar app (see [My schedule and your calendar](17-your-settings.md#my-schedule-and-your-calendar)). Each line shows the person's name, when they made it, and when a calendar last fetched it. The address itself is never shown. The bin icon revokes the link at once, and it then answers "not found". Its person can make a new one. A Calendar Link also ends when its person leaves the Workspace.
 
 ## Feeds
 

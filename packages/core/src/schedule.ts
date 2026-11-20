@@ -267,15 +267,27 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   // A Feed Key is nobody and has no Schedule; its actor has no person.
   if ((actor as { feed?: boolean }).feed || typeof actor.personId !== "string") throw new Forbidden();
   assertScope(actor, "metrics:read");
-  const ws = actor.workspaceId;
   const person = await whose(actor, span.personId);
-  const base = await loadContext(ws, now);
+  const base = await loadContext(actor.workspaceId, now);
   const week = weekOf(base.today);
   const { from, to } = checkSpan({ from: span.from ?? week.from, to: span.to ?? week.to }, base.today);
+  const entries = await entriesOf(actor, person, base, from, to);
+  const overdue = entries.filter((e) => e.overdue && e.date !== null && e.date >= plusDays(base.today, -OVERDUE_DAYS_BACK))
+    .sort((a, b) => b.overdueWorkingDays - a.overdueWorkingDays || a.date!.localeCompare(b.date!) || byKindAndName(a, b));
+  const byDay = new Map<string, ScheduleEntry[]>();
+  for (const e of entries) if (!e.overdue && e.date !== null && e.date >= from && e.date <= to) (byDay.get(e.date) ?? byDay.set(e.date, []).get(e.date)!).push(e);
+  const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, list]) => ({ date, entries: list.sort(byKindAndName) }));
+  const undated = entries.filter((e) => e.date === null).sort(byKindAndName);
+  return { today: base.today, personId: person, overdue, days, undated };
+}
+
+/** Every entry of a person's Schedule dated from the overdue limit (or `from`, if earlier) to `to`, and the undated,
+ * after the visibility checks. The span is checked by the caller. */
+async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<ReturnType<typeof loadContext>>, from: string, to: string): Promise<ScheduleEntry[]> {
+  const ws = actor.workspaceId;
   const lo = [from, plusDays(base.today, -OVERDUE_DAYS_BACK)].sort()[0];
   const hi = [to, base.today].sort().at(-1)!;
   const ctx: Ctx = { ...base, lo, hi };
-
   const all = await getMetrics(ws);
   // Only Metrics the person may see now; for a teammate's, only those the asking Owner or Admin may see too.
   const seen = await visibleMetricIds(ws, person, all);
@@ -287,15 +299,24 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
     const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws);
     readable = (a) => can(a);
   }
-  const entries = [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, metrics, ctx, readable))];
+  return [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, metrics, ctx, readable))];
+}
 
-  const overdue = entries.filter((e) => e.overdue && e.date !== null && e.date >= plusDays(base.today, -OVERDUE_DAYS_BACK))
-    .sort((a, b) => b.overdueWorkingDays - a.overdueWorkingDays || a.date!.localeCompare(b.date!) || byKindAndName(a, b));
-  const byDay = new Map<string, ScheduleEntry[]>();
-  for (const e of entries) if (!e.overdue && e.date !== null && e.date >= from && e.date <= to) (byDay.get(e.date) ?? byDay.set(e.date, []).get(e.date)!).push(e);
-  const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, list]) => ({ date, entries: list.sort(byKindAndName) }));
-  const undated = entries.filter((e) => e.date === null).sort(byKindAndName);
-  return { today: base.today, personId: person, overdue, days, undated };
+/** How far back a Calendar Link's events reach, in days. */
+export const CALENDAR_DAYS_BACK = 30;
+/** How far ahead a Calendar Link's events reach, in days. */
+export const CALENDAR_DAYS_AHEAD = 90;
+
+/** The dated entries a Calendar Link shows: the person's own, from 30 days back to 90 days ahead, overdue ones on
+ * their own date, in date order. Undated Tasks and Questions are never in a calendar. Only for the person themselves:
+ * the caller has checked the link and that they still belong to the Workspace. */
+export async function calendarEntries(actor: Actor, now = new Date()): Promise<{ today: string; timeZone: string; entries: ScheduleEntry[] }> {
+  const base = await loadContext(actor.workspaceId, now);
+  const from = plusDays(base.today, -CALENDAR_DAYS_BACK);
+  const to = plusDays(base.today, CALENDAR_DAYS_AHEAD);
+  const entries = (await entriesOf(actor, actor.personId, base, from, to)).filter((e) => e.date !== null && e.date >= from && e.date <= to)
+    .sort((a, b) => a.date!.localeCompare(b.date!) || byKindAndName(a, b));
+  return { today: base.today, timeZone: base.timeZone, entries };
 }
 
 /** Where a value due of the Schedule is entered: the person's own form link for the Metric (their Token, or their

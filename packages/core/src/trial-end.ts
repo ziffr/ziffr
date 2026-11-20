@@ -51,7 +51,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
   return n;
 }
 
-/** Closes trials that have ended: their keys are revoked, Slack is disconnected and Telegram links removed. Returns
+/** Closes trials that have ended: their keys are revoked, Slack is disconnected, Telegram and Calendar Links removed. Returns
  * how many. Nothing could go out or come in after the end anyway; this tidies up what would otherwise wait for the
  * deletion. */
 export async function closeEndedTrials(now = new Date()): Promise<number> {
@@ -61,6 +61,8 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
     await db().from("access_keys").update({ revoked_at: at }).eq("workspace_id", w.id).is("revoked_at", null);
     await db().from("slack_installations").update({ revoked_at: at }).eq("workspace_id", w.id).is("revoked_at", null);
     await db().from("telegram_links").delete().eq("workspace_id", w.id);
+    // Calendar Links end with the trial (spec 0027); fetches already answer "not found" once it has ended.
+    await db().from("calendar_links").delete().eq("workspace_id", w.id);
   }
   return data?.length ?? 0;
 }

@@ -1,11 +1,14 @@
 // My schedule (spec 0027, ticket #242; GLOSSARY: Schedule, Due Date, Stand-in, Approval, Task, Question): what you have
 // to do in this Workspace, overdue first, then the next 14 days, then what has no date. It shows the core's Schedule
-// as it is; every entry links to where it is done.
+// as it is; every entry links to where it is done. Below it, the Calendar Link (ticket #243).
 import Link from "next/link";
 import { addDays, format, parseISO } from "date-fns";
 import { entryTitle, schedule, type ScheduleEntry } from "@ziffr/core/schedule";
 import { localTime, workspaceClock } from "@ziffr/core/workspace-clock";
+import { myCalendarLink } from "@ziffr/core/calendar-links";
 import { currentActor } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
+import { CalendarLink } from "./calendar-link";
 import { PageHeader } from "@/components/page-header";
 
 /** How many days ahead the page shows, today included. */
@@ -54,7 +57,7 @@ export default async function MySchedulePage() {
   const actor = await currentActor();
   // Today is the Workspace's, as the core counts it.
   const today = localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
-  const s = await schedule(actor, { from: today, to: format(addDays(parseISO(today), DAYS_SHOWN - 1), "yyyy-MM-dd") });
+  const [s, link, demo] = await Promise.all([schedule(actor, { from: today, to: format(addDays(parseISO(today), DAYS_SHOWN - 1), "yyyy-MM-dd") }), myCalendarLink(actor), isDemo()]);
   const nothing = !s.overdue.length && !s.days.length && !s.undated.length;
   return (
     <>
@@ -67,6 +70,7 @@ export default async function MySchedulePage() {
         ))}
         {!nothing && !s.days.length && <p className="text-sm text-muted-foreground">Nothing due in the next {DAYS_SHOWN} days.</p>}
         {s.undated.length > 0 && <Section title="No date" hint="Tasks without a due date and Questions"><Entries list={s.undated} /></Section>}
+        <CalendarLink link={link} demo={demo} />
       </div>
     </>
   );

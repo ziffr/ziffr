@@ -12,7 +12,8 @@
 //   (/api/telegram/updates), which carries the secret this Ziffr registered. The remote MCP Server (/mcp, spec 0023) takes
 //   only a bearer credential in each request, like the API; the OAuth endpoints assistants call from their servers
 //   (/oauth/register, /oauth/token, /oauth/revoke) and the metadata under /.well-known/ take no session either. The
-//   consent screen (/oauth/authorize) needs the session like any page. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
+//   consent screen (/oauth/authorize) needs the session like any page. A Calendar Link (/cal/<secret>.ics, spec 0027) is its own
+//   secret, fetched by calendar apps without cookies; its route handler checks it on every fetch. Slack's OAuth callback (/api/slack/oauth) needs the session like any page.
 // - Everyone else: keep the sign-in session fresh and send anyone without one to sign in. The sign-in pages,
 //   View Links, the personal submission form (used by Contacts, who have no login) and the user guide stay open.
 import { NextResponse, type NextRequest } from "next/server";
@@ -48,7 +49,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/mcp" || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
   // As demoEnabled() in lib/auth.ts.
   const demoOffered = process.env.ZIFFR_DEMO_ONLY === "1" || process.env.ZIFFR_DEMO !== "0";

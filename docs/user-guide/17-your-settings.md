@@ -121,6 +121,27 @@ A value due leaves the list as soon as the value is in. While a colleague is Awa
 
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).
 
+### In your calendar
+
+A **Calendar Link** puts your schedule in your calendar app, next to your meetings: each date as an all-day entry, such as "Revenue for October 2026 due" or "Approve: Cost for October 2026", from 30 days back to 90 days ahead. Something late stays on its own date, with "(overdue)" in its title. Entries without a date are left out. Each entry links to where you do it in Ziffr, and the link asks you to sign in. Nothing you do in the calendar changes anything in Ziffr.
+
+| Option | What it does |
+| --- | --- |
+| **Get a calendar link** | Makes the address, once per Workspace. It is shown this once with **Copy**: copy it straight away. Ziffr keeps only a fingerprint of it, so nobody can show it to you again, not even an Owner. |
+| **No names** | Entries then say only what and how many, such as "Ziffr: 2 values due" or "Ziffr: 1 Approval", one per kind and day, and link only to My schedule. Choose this if others can see your calendar, such as colleagues or family. You can switch it later; the address stays the same. |
+| **Make a new link** | Makes a new address. The old one stops working at once. Use it if the address reached someone it should not have. |
+| **Turn off** | Ends the link at once. |
+
+To subscribe, paste the address:
+
+- **Apple Calendar:** File → New Calendar Subscription. Choose to refresh every hour.
+- **Google Calendar:** Other calendars → **+** → From URL, then Add calendar.
+- **Outlook:** Add calendar → Subscribe from web, then Import.
+
+Ziffr builds the calendar anew whenever your calendar app fetches it, with what you may see at that moment. Your calendar app decides how often that is: Apple Calendar and Outlook every hour or so, Google Calendar sometimes only once a day.
+
+Anyone who has the address sees what it shows, like a View Link. A link ends when you leave the Workspace, and the Workspace's Owners and Admins can revoke it (see [Calendar Links](16-workspace-settings.md#calendar-links)). The demo has no Calendar Links.
+
 ## Your profile
 
 Open it from the menu under your name, or from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
