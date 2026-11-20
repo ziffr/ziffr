@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { ChevronDown, CircleHelp, Inbox, LogOut, Menu, Plus, X } from "lucide-react";
 import { NavLink } from "@/components/nav-link";
+import { SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, switchWorkspace } from "@/app/auth-actions";
 import { told } from "@/lib/action-toast";
@@ -76,6 +77,7 @@ export function TopBar({ workspace, open, account, guide, demo }: { workspace: N
         </nav>
         <div className="ml-auto flex items-center gap-1">
           {demo && <div className="hidden items-center gap-2 lg:flex">{demo}</div>}
+          <SearchDialog />
           <Link href="/actions" className={cn(iconButton, "relative w-auto gap-1 px-2", path.startsWith("/actions") && "bg-muted text-foreground")} aria-label={open ? `Actions, ${open} waiting for you` : "Actions"} title="Actions">
             <Inbox aria-hidden className="size-4" />
             {open > 0 && <span className="fig text-xs">{open}</span>}

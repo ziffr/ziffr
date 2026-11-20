@@ -186,6 +186,10 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/find", scope: "metrics:read", query: S.findQuery, ok: { status: 200, name: "FindAnswer", schema: S.FindAnswer },
+    summary: "Find a Metric and period by name", description: "Finds Metrics by name, and \"Metric + period\" when the words include a period (\"churn march 2026\", \"revenue Q3\", \"besuche KW 46\"), read in the workspace's Answer Languages and Fiscal Year. Only Metrics the key's creator sees, Archived Metrics after those in use and marked; period results first. A period is named only where the words name one of the Metric's own periods (not \"2026\" for a monthly Metric) and it has begun. Dashboards and decks are not searched here.",
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },

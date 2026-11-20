@@ -6,7 +6,8 @@ import { db } from "./db";
 import type { Actor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { getMetrics, getSeriesOf } from "./workspace-data";
-import { openNames, openRows } from "./sealed-columns";
+import { openRows } from "./sealed-columns";
+import { peopleIn } from "./submissions";
 import { yearStartOf } from "./fiscal-year";
 import { periodStart } from "./periods";
 import { SOURCE_LABEL } from "./format";
@@ -96,18 +97,22 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const messages = (ids.length ? await openRows("thread_messages", ws, (await db().from("thread_messages").select("id, action_id, author_id, body, correction_value, correction_status, created_at").eq("workspace_id", ws).in("action_id", ids).order("created_at").order("id")).data) : []) as unknown as Message[];
   const events = ((await openRows("audit_events", ws, (auditRows ?? []) as Record<string, unknown>[])) as unknown as Event[]).filter((e) => e.details?.period === period).reverse();
 
-  // Names of the people on these steps only: a Contact's sealed name opened, a Feed named as itself.
+  // Names of the people on these steps only, and only of people in the Workspace now (members and Contacts, a Contact's
+  // sealed name opened) and its Feeds, as the API does: anyone else, such as a former member, is "A former member".
   const people = new Set<string>([metric.owner_id]);
   for (const o of obsRows ?? []) if (o.submitter_id) people.add(String(o.submitter_id));
   for (const m of messages) people.add(m.author_id);
-  const [{ data: profiles }, { data: feeds }] = await Promise.all([
-    db().from("profiles").select("id, name").in("id", [...people]),
+  for (const e of events) if (e.actor_id) people.add(e.actor_id);
+  const [inWorkspace, { data: feeds }] = await Promise.all([
+    peopleIn(ws),
     db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...people]),
   ]);
   const names = new Map<string, string>();
-  for (const p of await openNames(ws, (profiles ?? []) as { id: string; name: string }[])) names.set(p.id, p.name);
   for (const f of feeds ?? []) names.set(f.person_id as string, f.name as string);
+  for (const p of inWorkspace) if (people.has(p.id)) names.set(p.id, p.name);
   const who = (id: unknown): string | null => (id ? names.get(String(id)) ?? "A former member" : null);
+  // An Audit Log event keeps the name it was written with: a person who has left is a former member, not that name.
+  const actorOf = (e: Event): string => (e.actor_id ? who(e.actor_id)! : e.actor_name);
 
   const drafts: Draft[] = [];
   const push = (d: Partial<PeriodStep> & Pick<PeriodStep, "kind" | "at" | "person">) => drafts.push({ channel: null, value: null, superseded: false, reason: null, ...d, sort: drafts.length });
@@ -142,7 +147,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
     if (m.correction_status === "accepted" || m.correction_status === "declined") {
       const e = decided([m.correction_status === "accepted" ? "correction.accepted" : "correction.declined"], m.author_id, m.action_id);
       // Without a kept event (the demo, or one past the Audit Log's retention) the owner decided, at an unknown time.
-      push({ kind: m.correction_status === "accepted" ? "correction_accepted" : "correction_declined", at: e?.at ?? null, person: e ? e.actor_name : who(metric.owner_id), value: m.correction_status === "accepted" ? value : null });
+      push({ kind: m.correction_status === "accepted" ? "correction_accepted" : "correction_declined", at: e?.at ?? null, person: e ? actorOf(e) : who(metric.owner_id), value: m.correction_status === "accepted" ? value : null });
     }
   }
 
@@ -152,7 +157,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   let lockedSeen = false;
   let lastUnlock = -1;
   for (const e of events) {
-    const base = { at: e.at, person: e.actor_name };
+    const base = { at: e.at, person: actorOf(e) };
     if (e.kind === "approval.given" || e.kind === "approval.skipped" || e.kind === "self_check.confirmed") push({ ...base, kind: "approved" });
     else if (e.kind === "approval.sent_back") push({ ...base, kind: "sent_back" });
     else if (e.kind === "period.locked") { lockedSeen = true; push({ ...base, kind: "locked" }); }

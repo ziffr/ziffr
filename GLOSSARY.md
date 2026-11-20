@@ -166,6 +166,10 @@ _Avoid_: Self-approval, own approval
 One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
+**Search**:
+Finding a Metric, dashboard or deck by name from the top bar (⌘K or Ctrl+K), or a Metric's value for a period by words such as "churn march 2026": the period words are read like replies, in the Workspace's Answer Languages, and lead to the Period Record. It only finds what the person may see, in their own Workspace; Archived Metrics are marked. Programs use the MCP tool `find` and `GET /api/v1/find`.
+_Avoid_: Global search, omnibox, command palette
+
 **Lock**:
 A published period of a metric that takes no more values. A late value or a correction becomes a proposal that needs Approval again; only the metric owner unlocks it, with a reason.
 _Avoid_: Freeze, finalize, close

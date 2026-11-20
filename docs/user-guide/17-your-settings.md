@@ -81,6 +81,7 @@ The top bar is on every page once you are in a Workspace.
 | **Ziffr** | Goes to your Home dashboard |
 | **Dashboards**, **Decks**, **Metrics**, **Analyze** | The main pages most people use every day |
 | **Workspace** | A menu with the Workspace's own pages. Which pages you see depends on your role; see [Workspace settings](16-workspace-settings.md#the-workspace-menu). |
+| The magnifying glass (**Search**) | Finds Metrics, dashboards and decks by name; see [Search](#search). Press **⌘K** (Mac) or **Ctrl+K** from any page. |
 | The inbox icon (**Actions**) | Your **Actions**: questions and tasks waiting for you. A number shows how many are open. |
 | The question mark (**User guide**) | Opens this guide. Your team may have pointed it at its own page instead, which opens in a new tab. |
 | Your name and the Workspace's name | The menu under your name |
@@ -97,9 +98,19 @@ The top bar is on every page once you are in a Workspace.
 | **Installation settings** | Only for Installation Admins: what this Ziffr talks to and who runs it; see [Installation settings](18-installation-settings.md) |
 | **Sign out** | Signs you out on this device |
 
+### Search
+
+Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards and decks whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use.
+
+Add a period and Ziffr finds that Metric's value for it: "churn march 2026", "revenue Q3", "visits last week" or, in German, "Besuche KW 46". Ziffr reads the period the way it reads replies, in the Workspace's Answer Languages and with its Fiscal Year (see [Workspace settings](16-workspace-settings.md)). The result, marked **Value**, opens the Period Record: that value, how it came to be, and the Threads about it. A period is only found when it is one of the Metric's own periods ("March 2026" for a monthly Metric, not "2026"), and has begun.
+
+Move through the results with the arrow keys, open one with **Enter**, and close the search with **Esc**. Nothing you type is kept.
+
+Your assistant can do the same: ask it for "churn march 2026" and it looks the Metric and period up before it reads the value (see [Working with an assistant](#working-with-an-assistant)).
+
 ### On a phone
 
-On a phone the bar keeps the Ziffr name, the Actions icon and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
+On a phone the bar keeps the Ziffr name, the Search and Actions icons and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same top bar. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 

@@ -35,6 +35,9 @@ describe("@ziffr/sdk against the app", () => {
     expect((await collect(ziffr.observations.all(extra.slug, { to: "2026-02-01" }))).map((o) => o.period)).toEqual(["2026-01-01", "2026-02-01"]);
     expect(await collect(ziffr.people.all())).toEqual([{ id: ben, name: expect.any(String), contact: false }]);
     expect((await ziffr.groups.list()).items).toEqual([expect.objectContaining({ everyone: true })]);
+    // Words into a Metric and a period: "visits february 2026" is Visits' February.
+    expect((await ziffr.find("visits february 2026"))[0]).toEqual({ slug: extra.slug, name: "Visits", archived: false, period: "2026-02-01", period_label: "February 2026" });
+    expect(await ziffr.find("nothing like this")).toEqual([]);
     // Where the workspace's quarters and years start: January unless an Owner set another month.
     expect(await ziffr.workspace()).toEqual({ year_start_month: 1 });
     // What the key's creator has to do: nothing yet in a workspace made a moment ago.

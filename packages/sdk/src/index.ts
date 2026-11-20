@@ -131,6 +131,9 @@ export type FeedOverview = { name: string; year_start_month: number; metrics: Pa
 /** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12. */
 export type Workspace = { year_start_month: number };
 
+/** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone). */
+export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };
+
 /** One duty in a Schedule: a value to submit, an Approval waiting, or a Task or Question assigned to the person. */
 export type ScheduleEntry = {
   kind: "value_due" | "approval" | "task" | "question";
@@ -336,6 +339,10 @@ export class Ziffr {
   /** What the key's creator has to do, by day (scope metrics:read). `from` and `to` are days, YYYY-MM-DD, at most 90
    * days apart; this week when left out. An Owner or Admin may name a teammate with `person_id` (from `people`). */
   schedule = (span: { from?: string; to?: string; person_id?: string } = {}): Promise<Schedule> => this.get<Schedule>("/schedule", span);
+
+  /** Finds Metrics by name, and "Metric + period" for words such as "churn march 2026" (scope metrics:read). Period
+   * results come first; `slug` and `period` are what `metrics.get` and `observations` take. */
+  find = async (words: string): Promise<Found[]> => (await this.get<{ items: Found[] }>("/find", { q: words })).items;
 
   /** The workspace's people and Contacts. */
   readonly people = {

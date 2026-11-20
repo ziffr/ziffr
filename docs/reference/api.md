@@ -960,6 +960,38 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Find a Metric and period by name
+
+`GET /find` · scope `metrics:read`
+
+Finds Metrics by name, and "Metric + period" when the words include a period ("churn march 2026", "revenue Q3", "besuche KW 46"), read in the workspace's Answer Languages and Fiscal Year. Only Metrics the key's creator sees, Archived Metrics after those in use and marked; period results first. A period is named only where the words name one of the Metric's own periods (not "2026" for a monthly Metric) and it has begun. Dashboards and decks are not searched here.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `q` | query | string, at most 100 characters | yes | What to find: a Metric's name, with period words if wanted, such as "churn march 2026", "revenue Q3" or "besuche KW 46". Period words are read in the workspace's Answer Languages. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].slug` | string | yes | The Metric's slug, as in /metrics/{slug}. |
+| `items[].name` | string | yes |  |
+| `items[].archived` | boolean | yes | An Archived Metric: kept with its values, asked for nothing. |
+| `items[].period` | string or null | yes | The period's first day, YYYY-MM-DD, when the words named a period of this Metric; null for the Metric alone. Pass it as `from` and `to` to /metrics/{slug}/observations. |
+| `items[].period_label` | string or null | yes | The period's name, such as "March 2026"; null for the Metric alone. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List people
 
 `GET /people` · scope `metrics:read`
