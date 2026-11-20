@@ -169,6 +169,39 @@ async function beforeWorkingPeriod(ctx: Ctx, period: string): Promise<boolean> {
   return period < workingPeriod(today, ctx.m.period, ctx.yearStart);
 }
 
+/** What a Metric's Workflow would do with a new value from a submitter, for a preview that writes nothing (spec 0026):
+ * its check step, whether it approves every value, whether it has Approvers at all, who would be asked first (null
+ * when nobody but the submitter could approve, and the value would wait), and the period it works on, before which
+ * an Import counts at once. Null when the Metric has no Workflow: its values are published as they come. */
+export type ValueOutlook = {
+  check: Extract<WorkflowStep, { type: "check" }> | null;
+  every: boolean;
+  approves: boolean;
+  approver: string | null;
+  working: string;
+  yearStart: YearStart;
+};
+
+/** The ValueOutlook of a Metric for a submitter; mirrors onValue, so the preview and the recording agree. */
+export async function valueOutlook(metricId: number, submitterId: string): Promise<ValueOutlook | null> {
+  const ctx = await metricCtx(metricId, "");
+  if (!ctx) return null;
+  const steps = ctx.wf.config.steps;
+  const check = steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check") ?? null;
+  const approve = steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
+  const { data } = await db().from("workspaces").select("time_zone").eq("id", ctx.ws).maybeSingle();
+  const today = localTime(new Date(), String(data?.time_zone ?? "UTC")).day;
+  const approves = Boolean(approve?.approvers.length);
+  return {
+    check,
+    every: approve?.values === "every",
+    approves,
+    approver: approves ? ((await approversFor(ctx, approve, submitterId))[0] ?? null) : null,
+    working: workingPeriod(today, ctx.m.period, ctx.yearStart),
+    yearStart: ctx.yearStart,
+  };
+}
+
 /** A value came in (or was corrected): check it, then ask for Approval or publish. Returns what happened, in words.
  * An Unusual Value waits for the Approvers; with an Approve step for every value, every value does. An Import
  * (GLOSSARY: Import) is not checked: a Feed's history should not raise an Approval per period, and its values are

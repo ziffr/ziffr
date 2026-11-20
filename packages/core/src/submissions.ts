@@ -34,6 +34,11 @@ export type SubmissionInput = {
   /** Set only by a Feed's batch (feeds.ts), never from what a program sends: a value for a past period that has none
    * yet is then an Import and skips the Unusual Value check (spec 0012). Ignored unless the sender is a Feed. */
   import?: boolean;
+  /** Set only by recordPastedValues (paste-values.ts), never from what a browser sends: the value is a cell of a
+   * paste (spec 0026), already read into `value` and `period`, and `text` is the cell as it was. With `import`, its
+   * Metric Owner or an Owner or Admin chose to record it as history: for a past period with no value yet it is an
+   * Import. Honoured on the web form only, the Source a signed-in person's own values arrive on. */
+  paste?: { import?: boolean };
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
@@ -41,6 +46,10 @@ export type SubmissionInput = {
 
 /** What became of a submission, in words for the sender. */
 export type SubmissionResult = { outcome: string; detail: string; ok: boolean; metricSlug?: string; imported?: boolean };
+
+/** What the intake log marks a value with: `paste` for a cell of a paste, and `import` beside it when it was recorded
+ * as history (spec 0026). Read by the Metric's history and the intake log. */
+export type IntakeMark = "paste" | "import";
 
 /** What a submission sets off: the owner hears about a late value, a new value goes to its Workflow. Tests pass
  * their own; everyone else gets the core's. */
@@ -58,7 +67,10 @@ export type SubmissionEffects = {
  * that person of the workspace, not whoever `sender` names. It is never taken from what a browser sends. */
 export async function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects, provenSenderId?: string): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
+  // A paste arrives on the web form only; anywhere else the field is ignored, as `import` is for anyone but a Feed.
+  const pasted = input.source === "web_form" && input.paste ? input.paste : null;
   const log = async (r: SubmissionResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
+    const marks: IntakeMark[] = pasted ? (r.imported ? ["paste", "import"] : ["paste"]) : [];
     // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
     if (workspaceId) await db().from("intake_log").insert({
       workspace_id: workspaceId,
@@ -71,6 +83,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       outcome: r.outcome,
       detail: r.detail,
       observation_id: r.observationId ?? null,
+      marks,
     });
     return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}) };
   };
@@ -139,7 +152,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       how = "metric named in the message";
     } else if (candidates.length === 1) {
       token = candidates[0];
-      how = input.source === "web_form" ? "personal form link" : input.source === "api" ? (feed ? "Feed" : "Access Key") : "sender’s only Token";
+      how = viaWords(input.source, pasted !== null, feed !== null);
     } else {
       const names = candidates.map((t) => metricById[t.metric_id]?.name).join(", ");
       return log({ ok: false, senderId, outcome: "rejected_ambiguous", detail: `${sender?.name} has Tokens for ${names}. Reply to a Prompt or name the metric.` });
@@ -159,7 +172,9 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   // A day, week or month is the same whatever the year start; quarters and years follow the workspace's.
   const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
   const current = periodStart(new Date(), metric.period, ys);
-  const sent = input.source === "api" ? input.value : undefined;
+  // A program names its value and period; so does a paste, whose cells the paste reader has read already.
+  const given = input.source === "api" || pasted !== null;
+  const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
   let value: number | null;
@@ -167,7 +182,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   if (sent || breakdown) {
     value = sent ? (Number.isFinite(sent.value) ? sent.value : null) : breakdown ? (breakdown.total ?? rowsSum) : null;
     if (value === null) return log({ ...base, ok: false, outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." });
-    const named = input.source === "api" && input.period ? input.period : null;
+    const named = given && input.period ? input.period : null;
     if (named && periodStart(new Date(`${named}T00:00:00`), metric.period, ys) !== named)
       return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is not the first day of a ${metric.period} of ${metric.name}.` });
     if (named && named > current) return log({ ...base, ok: false, outcome: "rejected_period", detail: `${named} is in the future.` });
@@ -203,9 +218,13 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   // two values arriving together wait for each other there, so both count under "add", the second is rejected under
   // "reject" and replaces the first under "overwrite", and no Breakdown row is lost or mixed with another value's.
   const row = { submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
-  // An Import: a Feed's value for a past period with no value yet. Only a Feed, only the past, only an empty period
-  // (the database checks that one): the current period and anything that replaces a value are checked as anyone's.
-  const mayImport = Boolean(input.import && feed && period < current && period >= importFloor(current, metric.period));
+  // An Import: a Feed's value, or a paste recorded as history, for a past period with no value yet. Only those, only
+  // the past, only an empty period (the database checks that one): the current period and anything that replaces a
+  // value are checked as anyone's. Who may record a paste as history is checked before (paste-values.ts).
+  // A paste as history is checked here again, not only by its caller: its sender owns the Metric or is an Owner or
+  // Admin of the Workspace (spec 0026).
+  const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
+  const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
   const { data, error } = await db()
     .rpc("record_observation", {
       p_metric: metric.id, p_period: period, p_rule: metric.submission_rule, p_value: value, p_submitter: row.submitter_id, p_source: row.source,
@@ -238,7 +257,29 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     const next = await effects.afterValue(metric.id, period, senderId, { imported });
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
-  return log({ ...base, ...result });
+  // The value it became, so the intake log and the Metric's history can say how it arrived.
+  return log({ ...base, ...result, observationId: result.ok ? data.observation_id : null });
+}
+
+/** How a value with the sender's only Token arrived, in words for the reply. */
+function viaWords(source: SourceId, pasted: boolean, feed: boolean): string {
+  if (pasted) return "paste";
+  if (source === "web_form") return "personal form link";
+  if (source === "api") return feed ? "Feed" : "Access Key";
+  return "sender’s only Token";
+}
+
+/** Whether a person may record a paste as history for a Metric: its Metric Owner, or an Owner or Admin. */
+async function mayRecordHistory(ws: string, personId: string | null, metric: Metric): Promise<boolean> {
+  if (!personId) return false;
+  if (metric.owner_id === personId) return true;
+  const { data } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", personId).maybeSingle();
+  return data?.role === "owner" || data?.role === "admin";
+}
+
+/** Whether a value asked to be an Import may be one: for a past period, at most 1,000 periods back. */
+function importable(asked: boolean, period: string, current: string, span: Metric["period"]): boolean {
+  return asked && period < current && period >= importFloor(current, span);
 }
 
 /** A period's name inside a sentence: "week of 9 Nov 2026". */
