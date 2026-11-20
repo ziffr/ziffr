@@ -33,6 +33,37 @@ describe("GET /api/v1/schedule", () => {
     expect(await accessLogOf(id)).toEqual([{ method: "GET", route: "/api/v1/schedule", status: 200, submitted: 0 }]);
   });
 
+  it("gives an Owner or Admin a teammate's Schedule, only about Metrics they see, and refuses everyone else", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner"); const ann = await w.person("admin"); const ben = await w.person("member"); const eve = await w.person("member");
+    const shared = await w.metric(sara, { name: "Revenue", created_at: "2025-01-01T00:00:00Z" });
+    const own = await w.metric(ben, { name: "Ben's own", created_at: "2025-01-01T00:00:00Z" });
+    await w.token(shared.id, ben, { created_at: "2025-01-01T00:00:00Z" }); await w.token(own.id, ben, { created_at: "2025-01-01T00:00:00Z" });
+    const key = async (who: string, role: "owner" | "admin" | "member") => createAccessKey(w.actor(who, role), { name: "Read", scopes: ["metrics:read"], expiresOn: inDays(30) });
+    const names = (body: { overdue: { metric: { name: string } }[]; days: { entries: { metric: { name: string } }[] }[] }) => [...body.overdue, ...body.days.flatMap((d) => d.entries)].map((e) => e.metric.name).sort();
+    const today = inDays(0);
+    const saras = await key(sara, "owner");
+    const res = await get(saras.secret, `?from=${today}&to=${today}&person_id=${ben}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.person_id).toBe(ben);
+    // Sara sees Revenue (hers), not Ben's own Metric.
+    expect(names(body)).toEqual(["Revenue"]);
+    expect(names(await (await get((await key(ben, "member")).secret, `?from=${today}&to=${today}`)).json())).toEqual(["Ben's own", "Revenue"]);
+    // Ann, an Admin, sees neither.
+    expect(names(await (await get((await key(ann, "admin")).secret, `?person_id=${ben}`)).json())).toEqual([]);
+    const eves = await key(eve, "member");
+    const refused = await get(eves.secret, `?person_id=${ben}`);
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).error.message).toMatch(/Only Owners and Admins/);
+    // Naming yourself is your own Schedule; someone not in the workspace is not found.
+    expect((await get(eves.secret, `?person_id=${eve}`)).status).toBe(200);
+    expect((await get(saras.secret, "?person_id=t-nobody")).status).toBe(404);
+    expect((await get(saras.secret, "?person_id=a%2Cb")).status).toBe(400);
+    expect(await accessLogOf(saras.id)).toEqual(expect.arrayContaining([{ method: "GET", route: "/api/v1/schedule", status: 200, submitted: 0 }, { method: "GET", route: "/api/v1/schedule", status: 404, submitted: 0 }]));
+    expect(await accessLogOf(eves.id)).toEqual(expect.arrayContaining([{ method: "GET", route: "/api/v1/schedule", status: 403, submitted: 0 }]));
+  });
+
   it("refuses a key that may only submit values, a Feed Key, and spans the Schedule cannot cover", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const sara = await w.person("owner");

@@ -51,7 +51,7 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | `observations.list(slug, { from, to, limit, cursor })`, `observations.all(slug, { from, to })` | `GET /api/v1/metrics/{slug}/observations` |
 | `observations.submit(slug, { value, period, breakdown }, { idempotencyKey })` | `POST /api/v1/metrics/{slug}/observations` |
 | `workspace()` | `GET /api/v1/workspace`: the month the fiscal year starts in, where quarters and years begin |
-| `schedule({ from, to })` | `GET /api/v1/schedule`: what the key's creator has to do, overdue first, then by day |
+| `schedule({ from, to, person_id })` | `GET /api/v1/schedule`: what the key's creator has to do, overdue first, then by day; an Owner or Admin may name a teammate |
 | `people.list(options)`, `people.all()` | `GET /api/v1/people` |
 | `groups.list(options)`, `groups.all()` | `GET /api/v1/groups` |
 

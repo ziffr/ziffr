@@ -44,7 +44,7 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 | `list_metrics` | Read metrics | Every Metric the key may read: slug, name, period, unit, format, Target Range, Sources |
 | `get_metric` | Read metrics | One Metric's description and its values for a range of periods (at most the 500 newest) |
 | `get_workspace` | Read metrics | The month the workspace's fiscal year starts in, where quarterly and yearly Metrics' periods begin |
-| `my_schedule` | Read metrics | What the key's creator has to do, overdue first, then by day: values due by their Due Dates, Approvals waiting for them, their Tasks and Questions, each with its link; this week unless `from` and `to` (at most 90 days apart) say otherwise |
+| `my_schedule` | Read metrics | What the key's creator has to do, overdue first, then by day: values due by their Due Dates, Approvals waiting for them, their Tasks and Questions, each with its link; this week unless `from` and `to` (at most 90 days apart) say otherwise. An Owner or Admin may name a teammate (`person_id` from `list_people`) |
 | `list_people` | Read metrics | The workspace's people and Contacts by id and name, to say who submitted a value or name a Submitter |
 | `list_target_series`, `list_projections` | Read metrics | A Metric's Target Series (targets for single periods, such as a monthly budget) and its Projections |
 | `get_unusual_value_check` | Read metrics | When a value counts as an Unusual Value in the Metric's Workflow, and how many Metrics share that Workflow |

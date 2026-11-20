@@ -154,8 +154,12 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/schedule", scope: "metrics:read", query: S.scheduleQuery, ok: { status: 200, name: "Schedule", schema: S.ScheduleAnswer },
     summary: "What the key's creator has to do",
-    description: "The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's.",
-    errors: [{ status: 400, description: "Or `from` is after `to`, they are more than 90 days apart, or `to` is more than 366 days ahead." }],
+    description: "The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's. An Owner or Admin may name a teammate with `person_id` (from GET /people) to see their Schedule, with only the Metrics the key's creator sees too and without the words of Tasks and Questions whose Thread the key's creator may not read; no other scope is needed, the role decides. Every call is in the Access Log.",
+    errors: [
+      { status: 400, description: "Or `from` is after `to`, they are more than 90 days apart, `from` is more than 90 days back, or `to` is more than 366 days ahead." },
+      { status: 403, description: "Or `person_id` names someone else and the key's creator is not an Owner or Admin." },
+      { status: 404, description: "Or `person_id` is not a member of the workspace." },
+    ],
   },
   {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },

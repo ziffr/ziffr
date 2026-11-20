@@ -157,7 +157,7 @@ export type ScheduleEntry = {
 
 /** What GET /schedule answers: overdue first (the last 90 days, whatever the span), the span's days that have
  * entries, and the undated Tasks and Questions. */
-export type Schedule = { today: string; overdue: ScheduleEntry[]; days: { date: string; entries: ScheduleEntry[] }[]; undated: ScheduleEntry[] };
+export type Schedule = { today: string; /** Whose Schedule it is. */ person_id: string; overdue: ScheduleEntry[]; days: { date: string; entries: ScheduleEntry[] }[]; undated: ScheduleEntry[] };
 
 /** One value in a Feed's batch; `period` is the period's first day, the current period if left out. */
 export type FeedItem = { metric: string; period?: string; value: number; breakdown?: BreakdownRow[] };
@@ -324,8 +324,8 @@ export class Ziffr {
   workspace = (): Promise<Workspace> => this.get<Workspace>("/workspace");
 
   /** What the key's creator has to do, by day (scope metrics:read). `from` and `to` are days, YYYY-MM-DD, at most 90
-   * days apart; this week when left out. */
-  schedule = (span: { from?: string; to?: string } = {}): Promise<Schedule> => this.get<Schedule>("/schedule", span);
+   * days apart; this week when left out. An Owner or Admin may name a teammate with `person_id` (from `people`). */
+  schedule = (span: { from?: string; to?: string; person_id?: string } = {}): Promise<Schedule> => this.get<Schedule>("/schedule", span);
 
   /** The workspace's people and Contacts. */
   readonly people = {
