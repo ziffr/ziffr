@@ -67,12 +67,6 @@ export function digestText(report: UsageReport, workspaceName: string): string |
   return out.join("\n");
 }
 
-/** Whether the person switched the usage digest off. */
-export async function usageDigestOptedOut(actor: Actor): Promise<boolean> {
-  const { data } = await db().from("usage_digest_opt_outs").select("person_id").eq("person_id", actor.personId).maybeSingle();
-  return Boolean(data);
-}
-
 /** The actor switches the usage digest on or off for themselves, in every Workspace. Only their own, and refused in the
  * demo, whose made-up people get no email. */
 export async function setUsageDigest(actor: Actor, on: boolean): Promise<void> {

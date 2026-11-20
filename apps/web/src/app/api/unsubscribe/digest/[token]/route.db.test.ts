@@ -2,9 +2,8 @@
 // client's one-click) stops; a changed or unknown token is 404 and the page names nobody. The rest is in
 // usage-digest.db.test.ts.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { usageDigestOptedOut } from "@ziffr/core/usage-digest";
 import { signDigestToken } from "@ziffr/core/usage-digest-token";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { digestOptedOut, workspace } from "@ziffr/core/test/db-fixtures";
 import { GET, POST } from "./route";
 
 const saved = process.env.ZIFFR_JOB_SECRET;
@@ -25,9 +24,9 @@ describe("/api/unsubscribe/digest/{token}", () => {
     const html = await asked.text();
     expect(html).toMatch(/<form method="post">/);
     expect(html).not.toMatch(/Secret Project|sara-digest/);
-    expect(await usageDigestOptedOut(w.actor(sara))).toBe(false);
+    expect(await digestOptedOut(sara)).toBe(false);
     expect((await POST(req("POST"), ctx(token))).status).toBe(200);
-    expect(await usageDigestOptedOut(w.actor(sara))).toBe(true);
+    expect(await digestOptedOut(sara)).toBe(true);
   });
 
   it("answers 404 for a token it did not sign, and the same page for each kind of failure", async () => {
@@ -46,6 +45,6 @@ describe("/api/unsubscribe/digest/{token}", () => {
     expect((await GET(req("GET"), ctx(gone))).status).toBe(200);
     expect((await POST(req("POST"), ctx(gone))).status).toBe(200);
     expect(new Set(pages).size).toBe(1);
-    expect(await (await import("@ziffr/core/usage-digest")).usageDigestOptedOut(w.actor(sara))).toBe(false);
+    expect(await digestOptedOut(sara)).toBe(false);
   });
 });

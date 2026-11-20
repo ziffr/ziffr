@@ -5,9 +5,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { hash, insertKey } from "./internal/key-store";
-import { assertScope, can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
-import { getAllSeries } from "./workspace-data";
-import { visibleMetricIds } from "./access";
+import { can, FEED_SCOPE, Forbidden, SCOPES, type Actor, type FeedActor, type KeyActor, type Scope, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
 import { assertSeesMetrics } from "./sharing";
@@ -120,14 +118,6 @@ export async function actorOfKey(k: { id: number; workspace_id: string; created_
   if (!membership) return null;
   await db().from("access_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
   return { personId: k.created_by, workspaceId: k.workspace_id, role: membership.role as WorkspaceRoleName, key: { id: String(k.id), scopes: k.scopes } };
-}
-
-/** The Metrics the actor sees, with their series (scope metrics:read for keys). */
-export async function readMetrics(actor: Actor | KeyActor) {
-  assertScope(actor, "metrics:read");
-  const { metrics, series } = await getAllSeries(actor.workspaceId);
-  const visible = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
-  return metrics.filter((m) => visible.has(m.id)).map((m) => ({ id: m.id, slug: m.slug, name: m.name, unit: m.unit, period: m.period, series: series[m.slug] ?? [] }));
 }
 
 /** The names of the Access Keys that submitted values to a Metric, by key id, for someone who sees the Metric: its

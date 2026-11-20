@@ -124,6 +124,7 @@ const CASES: Record<string, Case> = {
   "deck-actions:createDeck": { args: () => [form({ name: "Visitor deck" })] },
   "deck-actions:saveDeck": { args: (i) => [i.deck, { store: {}, schema: {} }] },
   "deck-actions:renameDeck": { args: (i) => [i.deck, "Renamed deck"] },
+  "deck-actions:deleteDeck": { args: (i) => [i.deck] },
   "deck-actions:setDeckFooter": { args: (i) => [i.deck, "A footer"] },
   "deck-actions:noteDeckExport": { nothing: "it only records an Audit event, and the demo keeps no Audit Log", args: (i) => [i.deck, "pdf"] },
   "design-actions:addViewDesign": { args: () => [JSON.stringify(BUILT_IN_DESIGNS.number)] },

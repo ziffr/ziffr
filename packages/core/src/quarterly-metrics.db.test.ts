@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { setYearStart, yearStartChoices } from "./fiscal-year";
-import { createMetric, metricEffects, saveSeriesRows, updateMetricDetails, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, metricEffects, saveSeriesRows, updateMetricDetails, type MetricEffects } from "./metrics";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -33,7 +33,7 @@ describe("quarterly and yearly Metrics", () => {
     await w.value(a.id, "2026-07-01", 10);
     await expect(updateMetricDetails(owner, a.id, { period: "quarter" })).rejects.toThrow(/values/);
     const b = await createMetric(owner, { name: "Budget", period: "month" }, fx());
-    await uploadSeries(owner, b.id, "target", "2026-08 100", "");
+    await saveSeriesRows(owner, b.id, "target", [{ period: "2026-08-01", value: 100 }], "");
     await expect(updateMetricDetails(owner, b.id, { period: "quarter" })).rejects.toThrow(/targets/);
     expect(await periodOf(b.id)).toBe("month");
   });
@@ -44,7 +44,7 @@ describe("quarterly and yearly Metrics", () => {
     const y = await createMetric(owner, { name: "Revenue target", period: "year" }, fx());
     // A day inside the quarter counts as the quarter: August is in the quarter from July.
     await saveSeriesRows(owner, q.id, "target", [{ period: "2026-08-15", value: 40 }], "");
-    await uploadSeries(owner, y.id, "target", "2027-02 1200000", "");
+    await saveSeriesRows(owner, y.id, "target", [{ period: "2027-02-01", value: 1200000 }], "");
     const { data } = await db().from("series_values").select("metric_id, period_start").in("metric_id", [q.id, y.id]).order("metric_id");
     expect(data?.map((r) => r.period_start)).toEqual(["2026-07-01", "2026-04-01"]);
   });

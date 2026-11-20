@@ -6,9 +6,9 @@ import { db } from "./db";
 import { sendDelivery, type OutgoingMail } from "./mail";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { digestOptedOut, workspace } from "./test/db-fixtures";
 import { DemoReadOnly } from "./demo";
-import { DIGEST_NAMES, optOutOfUsageDigestByToken, setUsageDigest, usageDigestJob, usageDigestOptedOut, usageDigestTokenValid } from "./usage-digest";
+import { DIGEST_NAMES, optOutOfUsageDigestByToken, setUsageDigest, usageDigestJob, usageDigestTokenValid } from "./usage-digest";
 import { signDigestToken, verifyDigestToken } from "./usage-digest-token";
 
 const ENV = { ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "ziffr@example.test", ZIFFR_SITE_URL: "https://ziffr.example.test", ZIFFR_JOB_SECRET: "j".repeat(40) };
@@ -137,11 +137,11 @@ describe("opting out and unsubscribing", () => {
   it("an Owner who switched it off gets none, and one who switches it on again gets it", async () => {
     const { w, sara } = await setup();
     await setUsageDigest(w.actor(sara), false);
-    expect(await usageDigestOptedOut(w.actor(sara))).toBe(true);
+    expect(await digestOptedOut(sara)).toBe(true);
     await usageDigestJob(early());
     expect(await digests(w.id)).toEqual([]);
     await setUsageDigest(w.actor(sara), true);
-    expect(await usageDigestOptedOut(w.actor(sara))).toBe(false);
+    expect(await digestOptedOut(sara)).toBe(false);
     await usageDigestJob(early());
     expect(await digests(w.id)).toHaveLength(1);
   });
@@ -165,11 +165,11 @@ describe("opting out and unsubscribing", () => {
     expect(verifyDigestToken(token)).toBe(sara);
     // Checking it changes nothing; using it stops the digest, twice without harm, and not for a changed token.
     expect(usageDigestTokenValid(token)).toBe(true);
-    expect(await usageDigestOptedOut(w.actor(sara))).toBe(false);
+    expect(await digestOptedOut(sara)).toBe(false);
     expect(await optOutOfUsageDigestByToken(`${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`)).toBe(false);
     expect(await optOutOfUsageDigestByToken(token)).toBe(true);
     expect(await optOutOfUsageDigestByToken(token)).toBe(true);
-    expect(await usageDigestOptedOut(w2.actor(sara))).toBe(true);
+    expect(await digestOptedOut(sara)).toBe(true);
   });
 
   it("one queued for an Owner who was demoted since is never sent", async () => {
