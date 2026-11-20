@@ -2,6 +2,7 @@
 // by the core next to each action, read and exported by the workspace's Owners and Admins. It keeps who, what kind,
 // which object (with its name at the time) and when, plus small details; never values, message bodies or secrets.
 import { db } from "./db";
+import { touchWorkspace } from "./unused-workspaces";
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -77,7 +78,11 @@ export async function audit(actor: Actor, event: AuditInput): Promise<void> {
 export async function recordSignIn(personId: string): Promise<void> {
   try {
     const { data } = await db().from("memberships").select("workspace_id").eq("user_id", String(personId));
-    for (const m of data ?? []) await recordAudit(m.workspace_id as string, personId, { kind: "person.signed_in", object: { type: "person", id: personId } });
+    for (const m of data ?? []) {
+      await recordAudit(m.workspace_id as string, personId, { kind: "person.signed_in", object: { type: "person", id: personId } });
+      // A sign-in is use: a Workspace someone signs in to is never deleted as unused (spec 0029).
+      await touchWorkspace(m.workspace_id as string);
+    }
   } catch {
     console.error("Audit Log: could not record a sign-in");
   }

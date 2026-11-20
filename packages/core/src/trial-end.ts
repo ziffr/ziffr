@@ -172,10 +172,17 @@ export async function endTrialNow(actor: Actor): Promise<void> {
  * are separated by ";" when the decimal mark is a comma, as spreadsheets set to that style expect (spec 0022). */
 export async function trialValuesCsv(actor: Actor): Promise<string> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can download it this way.");
-  const [{ data: metrics }, style] = await Promise.all([
-    db().from("metrics").select("id, slug, name, period, unit").eq("workspace_id", actor.workspaceId).order("name"),
-    numberStyleOf(actor.workspaceId),
+  return valuesCsv(actor.workspaceId, null);
+}
+
+/** A Workspace's values as CSV (see trialValuesCsv), of every Metric or only of the ones given. For callers that
+ * checked who may read them. */
+export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> | null): Promise<string> {
+  const [{ data: all }, style] = await Promise.all([
+    db().from("metrics").select("id, slug, name, period, unit").eq("workspace_id", workspaceId).order("name"),
+    numberStyleOf(workspaceId),
   ]);
+  const metrics = (all ?? []).filter((m) => !only || only.has(m.id as number));
   const sep = NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",";
   const cell = (v: unknown) => {
     const s = String(v ?? "");
@@ -184,9 +191,9 @@ export async function trialValuesCsv(actor: Actor): Promise<string> {
   // A value is ours, never text someone typed: a minus is a negative number, not a formula.
   const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
   const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at"].map(cell).join(sep)];
-  for (const m of metrics ?? []) {
+  for (const m of metrics) {
     for (let from = 0; ; from += 1000) {
-      const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", actor.workspaceId).eq("metric_id", m.id)
+      const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
       for (const r of rows ?? []) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at)].join(sep));
       if (!rows || rows.length < 1000) break;

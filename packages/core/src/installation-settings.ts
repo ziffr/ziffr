@@ -106,6 +106,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
+  ZIFFR_DELETE_UNUSED_AFTER_DAYS: (v) => (/^\d{1,4}$/.test(v) && Number(v) >= 30 && Number(v) <= 3650 ? null : "Unused Workspaces are deleted after a whole number of days from 30 to 3650, or never (empty)."),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
