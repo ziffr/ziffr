@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { archiveMetric } from "@ziffr/core/archived-metrics";
-import { db } from "@ziffr/core/db";
+import { getMetrics } from "@ziffr/core/workspace-data";
 import { workspace } from "@ziffr/core/test/db-fixtures";
 import { POST as create } from "./route";
 import { POST as restore } from "./[slug]/restore/route";
@@ -18,15 +18,14 @@ describe("the Workspace Limit through the API", () => {
     const sara = await w.person("owner");
     const a = await w.metric(sara, { name: "A" }); await w.metric(sara, { name: "B" });
     await archiveMetric(w.actor(sara), a.id);
-    await db().from("workspace_limits").insert({ workspace_id: w.id, metrics: 1, label: "Free", set_by: "installation_admin" });
-    await db().from("workspaces").update({ over_limit_since: new Date(Date.now() - 20 * 86400000).toISOString() }).eq("id", w.id);
+    await w.limit(1, "Free", 20);
     const { secret } = await createAccessKey(w.actor(sara), { name: "Builder", scopes: ["metrics:read", "metrics:write"], expiresOn: inDays(30) });
     const headers = { authorization: `Bearer ${secret}`, "content-type": "application/json" };
 
     const refused = await create(new Request("http://ziffr.test/api/v1/metrics", { method: "POST", headers, body: JSON.stringify({ name: "C" }) }), undefined as never);
     expect(refused.status).toBe(403);
     expect(await refused.json()).toEqual({ error: { code: "workspace_limit", message: "This Workspace holds 1 Metric, as many as its Size Free allows. Archive a Metric, or ask an Owner to change the Size.", count: 1, limit: 1 } });
-    expect((await db().from("metrics").select("id").eq("workspace_id", w.id)).data).toHaveLength(2);
+    expect(await getMetrics(w.id)).toHaveLength(2);
 
     const back = await restore(new Request(`http://ziffr.test/api/v1/metrics/${a.slug}/restore`, { method: "POST", headers }), { params: Promise.resolve({ slug: a.slug }) });
     expect(back.status).toBe(403);
