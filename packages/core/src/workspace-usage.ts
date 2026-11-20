@@ -5,7 +5,6 @@
 import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { GRACE_DAYS, limitOf, limitRule, metricCount, roomOf } from "./workspace-limits";
 
 /** A Workspace's Size and usage: how many Metrics it holds, its limit and the name to show, its room over the limit,
