@@ -169,6 +169,7 @@ const CASES: Record<string, Case> = {
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },
   "series-actions:archiveMetric": { args: (i) => [i.ownMetric] },
   "series-actions:restoreMetric": { nothing: "no Metric of the demo is archived", args: (i) => [i.ownMetric] },
+  "size-actions:archiveForRoom": { args: (i) => [[i.ownMetric]] },
   "series-actions:setMetricSources": { args: (i) => [i.ownMetric, ["web_form", "slack"]] },
   "series-actions:updateMetricDetails": { args: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
   "series-actions:askMeNow": { args: (i) => [i.ownMetric] },

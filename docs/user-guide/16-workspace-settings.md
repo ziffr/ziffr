@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/packs/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/packs/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -84,6 +84,7 @@ Over its limit, the section says since when and until when new Metrics can still
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
 On hosted Ziffr, Owners also see **Change Size** and **Billing and invoices**. Both take you to Ziffr Cloud, where you book, change or cancel the Size and see invoices; Ziffr hands you over with a token that works for five minutes and knows only the Workspace, its name and your address. Admins see the section without these buttons, and Ziffr never holds payment details.
+**Make room** opens when a smaller Size needs fewer Metrics than the Workspace holds, such as when an Owner moves to a smaller Size on hosted Ziffr. It says how many Metrics the smaller Size allows, how many the Workspace holds and how many to archive, and lists the Metrics you see with the month of their latest value. The ones whose latest value is oldest, or that have none, are ticked first, as many as needed; change the ticks as you like, and the line below says how many more are needed. **Archive** archives the ticked ones and takes you back here. Metrics not shared with you are only counted: their owners archive them. Owners and Admins only.
 
 Members and Guests do not see this section. Who sets a limit: see the Installation settings chapter.
 
