@@ -462,3 +462,20 @@ const UsageDayShape = z.object({
 export const UsageResponse = z.object({ days: z.array(UsageDayShape) }).meta({
   examples: [{ days: [{ day: "2026-11-19", workspaces: 12, workspaces_trial: 3, workspaces_free: 8, workspaces_paid: 1, people: 41, metrics: 380, dashboards: 55, values_web: 96, values_api: 210, api_calls: 1480, views_dashboards: 322, packs: [{ id: "sales-basics", installs: 5 }], withheld: [] }] }],
 });
+
+/** What GET /find takes (GLOSSARY: Metric, Period Record): words, with period words in the workspace's Answer Languages. */
+export const findQuery = z.object({
+  q: z.string().min(1).max(100).describe("What to find: a Metric's name, with period words if wanted, such as \"churn march 2026\", \"revenue Q3\" or \"besuche KW 46\". Period words are read in the workspace's Answer Languages."),
+});
+
+/** One thing GET /find found: a Metric, or a Metric's value for one period. */
+const FoundMetric = z.object({
+  slug: z.string().describe("The Metric's slug, as in /metrics/{slug}."),
+  name: z.string(),
+  archived: z.boolean().describe("An Archived Metric: kept with its values, asked for nothing."),
+  period: z.string().nullable().describe("The period's first day, YYYY-MM-DD, when the words named a period of this Metric; null for the Metric alone. Pass it as `from` and `to` to /metrics/{slug}/observations."),
+  period_label: z.string().nullable().describe("The period's name, such as \"March 2026\"; null for the Metric alone."),
+});
+
+/** GET /api/v1/find answers this: Metric + period matches first, then Metrics, at most 14. */
+export const FindAnswer = z.object({ items: z.array(FoundMetric) });

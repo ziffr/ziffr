@@ -169,6 +169,7 @@ const CASES: Record<string, Case> = {
   "pack-actions:takeOffer": { nothing: "the demo has no new version of a Pack's item waiting", args: () => ["templates", 1] },
   "pack-setup-actions:packSetup": { args: () => [1] },
   "pack-setup-actions:setUpPack": { nothing: "the demo has no installed Pack to set up from", args: () => [1, { metrics: ["orders"] }] },
+  "search-actions:searchEverything": { reads: () => ["churn march 2026"] },
   "series-actions:saveSeriesRows": { args: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
   "series-actions:removeSeriesRows": { args: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },

@@ -116,4 +116,21 @@ describe("what a viewer may see", () => {
     // A period without a value is still a page: there is nothing to show yet.
     expect(await periodRecord(w.actor(sara), m.slug, P)).toMatchObject({ value: null, steps: [], threads: [] });
   });
+
+  it("names only people in the Workspace now: a former member is \"A former member\", in the steps and the Thread", async () => {
+    const { w, sara, ann, m } = await setup();
+    const gone = await w.person("member");
+    await db().from("observations").insert({ metric_id: m.id, period_start: P, value: 3.4, submitter_id: gone, source: "mail", workspace_id: w.id, created_at: daysAgo(9) });
+    const action = await w.action({ metric_id: m.id, period_start: P, asker_id: sara, assignee_id: ann, question: "Is 3.4 right?" });
+    await say(w.id, action, gone, "It is right.", daysAgo(8));
+    await recordAudit(w.id, gone, { kind: "approval.given", object: { type: "metric", id: m.id, name: "Churn rate" }, details: { period: P } });
+    const before = await periodRecord(w.actor(sara), m.slug, P);
+    expect(before!.steps[0].person).toContain("member");
+    // They leave the Workspace: their profile stays (they may be in others), their name does not.
+    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", gone);
+    const after = await periodRecord(w.actor(sara), m.slug, P);
+    expect(after!.steps.map((s) => s.person)).toEqual(["A former member", "A former member"]);
+    expect(after!.threads[0].first!.person).toBe("A former member");
+    expect(JSON.stringify(after)).not.toContain(before!.steps[0].person!);
+  });
 });

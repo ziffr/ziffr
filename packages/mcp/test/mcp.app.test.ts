@@ -36,7 +36,7 @@ describe("@ziffr/mcp against the app", () => {
     const { client, ben, orders, hidden } = await connect();
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
-      "add_finding", "add_widget", "archive_metric", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "get_dashboard", "get_metric", "get_unusual_value_check", "get_workspace",
+      "add_finding", "add_widget", "archive_metric", "create_dashboard", "create_dashboard_from_template", "create_metric", "delete_metric", "find", "get_dashboard", "get_metric", "get_unusual_value_check", "get_workspace",
       "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_submitters", "list_target_series", "list_templates", "my_schedule", "remove_widget", "restore_metric", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
       "submit_value", "update_dashboard", "update_finding", "update_metric", "update_widget",
     ]);
@@ -48,6 +48,10 @@ describe("@ziffr/mcp against the app", () => {
     const got = json(await client.callTool({ name: "get_metric", arguments: { slug: orders.slug, from: "2026-01-01" } }));
     expect(got).toMatchObject({ metric: { slug: orders.slug, name: "Orders" }, values: [{ period: "2026-01-01", value: 3 }] });
     expect(json(await client.callTool({ name: "submit_value", arguments: { slug: orders.slug, value: 42, period: "2026-02-01" } }))).toMatchObject({ status: "recorded", value: 42 });
+    // find turns words into a slug and a period, and never names a Metric the key's creator does not see.
+    const found = json(await client.callTool({ name: "find", arguments: { words: "orders january 2026" } })).found;
+    expect(found[0]).toEqual({ slug: orders.slug, name: "Orders", archived: false, period: "2026-01-01", period_label: "January 2026" });
+    expect(json(await client.callTool({ name: "find", arguments: { words: "payroll" } })).found).toEqual([]);
     const people = json(await client.callTool({ name: "list_people", arguments: {} })).people;
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
