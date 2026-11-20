@@ -19,6 +19,8 @@ On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** to
 | **Continue with** Google, Microsoft, GitHub or LinkedIn | Shown only for the ways of signing in your Ziffr has set up. Signs you in with that account. |
 | **Try the demo** | Opens the demo without an account, where your Ziffr offers it |
 
+Whether the page offers the demo, Trial Workspaces and the check against bots is up to whoever runs your Ziffr, on its [Installation settings](18-installation-settings.md) page; a change there shows here at once. While a check against bots is set up, the page shows it above the button, and no link is sent until it is passed.
+
 If the link cannot be sent, the page says why under the button, such as **The link could not be sent. Try again.** or that the check against bots did not pass.
 
 After you ask for a link, the page says "Check your inbox". If a link has been used already or does not work, the page says so: ask for a new one. If you ask for many links in a short time, Ziffr asks you to wait a minute.
