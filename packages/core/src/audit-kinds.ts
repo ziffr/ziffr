@@ -43,6 +43,7 @@ export const AUDIT_KINDS = {
   "webhook.switched_on": "switched on the Webhook",
   "webhook.switched_off": "switched off the Webhook",
   "webhook.deleted": "deleted the Webhook",
+  "webhook.resent": "sent a message again to the Webhook",
   "view_design.added": "added the View Design",
   "view_design.removed": "removed the View Design",
   "pack.installed": "installed the Pack",
