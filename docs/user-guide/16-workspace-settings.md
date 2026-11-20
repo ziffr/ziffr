@@ -31,7 +31,7 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 | **Activity** | Everyone | [Actions and Activity](15-actions.md#the-activity-page) |
 | **Audit log** | Owners and Admins | Below |
 
-General, Access Keys and Feeds open inside the settings area. It has a side list with two parts: **You** (your **Profile** and your **Deliveries**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
+General, Access Keys and Feeds open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
 ## Starting a Workspace
 
