@@ -19,6 +19,7 @@ import { Offers, PackActions } from "./manage";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
 import { ExportPack } from "./export";
+import { SetUpFromPack } from "./setup";
 import type { Problem } from "@ziffr/core/json-check";
 
 const KIND_LABEL: Record<PackPreviewItem["kind"], string> = { metric: "Metric Catalog entries", dashboard: "Dashboard Templates", deck: "Deck Templates", workflow: "Workflow Templates", view: "View Designs", theme: "Themes" };
@@ -55,6 +56,7 @@ export function PacksScreen({ installed, manages, exportable = null, offers = []
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage}>Its page</ListingLink><ListingLink href={p.listing.support}>Help</ListingLink></p>
                     <AddedList added={p.added} />
                     {manages && <PackActions installId={p.id} name={p.name} />}
+                    {manages && <SetUpFromPack installId={p.id} viewer={viewer} />}
                   </li>
                 ))}
               </ul>

@@ -41,6 +41,7 @@ export const AUDIT_KINDS = {
   "pack.installed": "installed the Pack",
   "pack.updated": "updated the Pack",
   "pack.uninstalled": "uninstalled the Pack",
+  "pack.set_up": "set up Metrics, a dashboard or a Workflow from the Pack",
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
