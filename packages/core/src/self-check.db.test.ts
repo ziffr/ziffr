@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
+import { setActionStatus } from "./questions";
 import { finishTask, postReply } from "./threads";
 import { workspace } from "./test/db-fixtures";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
@@ -141,6 +142,8 @@ describe("the Self-check", () => {
     const check = await openCheck(m.id);
     await postReply(w.id, check.id, sara, "Looks about right, let me look again", null);
     expect(await finishTask(w.id, check.id, sara)).toBe(false);
+    // Sara asked it too, but closing it by hand would leave the value waiting.
+    await expect(setActionStatus(w.actor(sara), check.id, "closed")).rejects.toThrow();
     expect((await tasks(m.id, "self_check")).find((t) => t.id === check.id)?.status).toBe("open");
     expect(await confirmSelfCheck(w.id, check.id, sara)).toBe("Confirmed by you; published.");
   });

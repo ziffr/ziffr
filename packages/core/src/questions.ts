@@ -55,10 +55,11 @@ export async function reply(actor: Actor, actionId: number, body: string, correc
   await postReply(actor.workspaceId, Number(actionId), actor.personId, String(body ?? "").trim().slice(0, 5000), value);
 }
 
-/** The asker closes or reopens an Action. */
+/** The asker closes or reopens an Action. Never a Self-check: its submitter is its asker too, and one closed by hand
+ * would leave the value waiting; reopened, it would decide nothing. Confirm or Correct decide it. */
 export async function setActionStatus(actor: Actor, actionId: number, status: "open" | "closed") {
   if (status !== "open" && status !== "closed") throw new Forbidden();
-  const { data } = await db().from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", actor.workspaceId).eq("asker_id", actor.personId).select("assignee_id");
+  const { data } = await db().from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", actor.workspaceId).eq("asker_id", actor.personId).or("purpose.is.null,purpose.neq.self_check").select("assignee_id");
   if (!data?.length) throw new Forbidden();
   if (status === "closed") await deliver({ kind: "closed", actionId, senderId: actor.personId, recipientId: data[0].assignee_id });
 }

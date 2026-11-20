@@ -34,6 +34,9 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   const idx = pts.findIndex((p) => p.period === a.period_start);
   const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));
   const isAsker = viewer === a.asker_id;
+  // A Self-check is decided only by Confirm or Correct: closed or reopened by hand, it would decide nothing and leave
+  // the value waiting (the core refuses it too).
+  const canCloseOrReopen = isAsker && a.purpose !== "self_check";
   const isAssignee = viewer === a.assignee_id;
   const isOwner = viewer === m.owner_id;
   const thread = msgs as ThreadMessage[];
@@ -117,7 +120,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             <div className="ml-auto flex gap-2">
               {/* An Approval or Self-check is decided by its own buttons: marking it done would leave the value waiting. */}
               {isAssignee && a.kind === "task" && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check" && <AnsweredButton action={markTaskDone.bind(null, a.id)} variant="outline">Mark done</AnsweredButton>}
-              {isAsker && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
+              {canCloseOrReopen && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
               <Button type="submit">Reply</Button>
             </div>
           </div>
@@ -125,7 +128,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
       ) : a.status === "closed" ? (
         <div className="mt-4 flex items-center justify-between rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">
           Closed.
-          {isAsker && <form action={setActionStatus.bind(null, a.id, "open")}><Button type="submit" variant="outline" size="sm">Reopen</Button></form>}
+          {canCloseOrReopen && <form action={setActionStatus.bind(null, a.id, "open")}><Button type="submit" variant="outline" size="sm">Reopen</Button></form>}
         </div>
       ) : (
         <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">

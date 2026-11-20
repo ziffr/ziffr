@@ -142,7 +142,7 @@ When a value needs Approval but nobody but you could give it, and the Approve st
 | **Confirm** | The value counts. It is published, and locked if the Workflow says so. The Thread says "Confirmed by the submitter.", the Workflow box notes it on the period, and the Audit Log lists it under **Self-checks**, never as an Approval. |
 | **Correct** | Opens a field for the right value; **Correct** replaces the value with it, keeps the first as the original, like an accepted Correction, and counts the new one as confirmed by you. **Cancel** closes the field. |
 
-You can also reply "confirm", or "Correction: 6", to the task's message by email, Slack or Telegram. While the check waits, the period cannot be locked or closed, as with any value waiting for Approval. If someone else can approve by the time you press **Confirm**, such as an Approver added in the meantime, they are asked instead and the value waits for them.
+You can also reply "confirm", or "Correction: 6", to the task's message by email, Slack or Telegram. The task has no **Mark done**, **Close Action** or **Reopen**: only Confirm and Correct decide it. While the check waits, the period cannot be locked or closed, as with any value waiting for Approval. If someone else can approve by the time you press **Confirm**, such as an Approver added in the meantime, they are asked instead and the value waits for them.
 
 Every Approval and every send back is recorded in the **Audit Log**, without the comment.
 
