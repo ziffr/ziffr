@@ -332,6 +332,14 @@ _Avoid_: Plugin, extension, add-on, integration, app, bundle
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
 _Avoid_: Store, app store, gallery, hub
 
+**Webhook**:
+An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it. Not a Connector, which reaches a person.
+_Avoid_: Callback, trigger, integration, subscription
+
+**Automation Template**:
+An importable file for an automation tool such as n8n that joins a Webhook to another system, such as Microsoft To Do, Google Tasks, Slack, Asana or Todoist. It lives in the repository; Ziffr never runs it or holds the other system's credentials.
+_Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow
+
 **Workspace Key**:
 The key a Workspace's sensitive data is encrypted with in the database: its values, the words people write and its Contacts' details. Each Workspace has its own, kept only wrapped by the Installation's key, and deleting the Workspace destroys it, so what is left of the Workspace can no longer be read. It is not end-to-end encryption: the Installation reads the data to check, combine and send it. The demo has none.
 _Avoid_: Tenant key, encryption key, data key, customer key
