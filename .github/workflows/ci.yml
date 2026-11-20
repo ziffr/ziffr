@@ -152,7 +152,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Local Supabase (database, API, auth and the test mail server)
         # A runner sometimes has one of Supabase's ports (554xx) taken for a moment by an outgoing connection: try again.
-        run: for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
+        # Supabase's ports (554xx) lie in Linux's range for outgoing connections (32768-60999), so now and then one is
+        # taken when the database starts ("address already in use"). Outgoing connections get 60000-65535 instead.
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="60000 65535" >/dev/null; for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
       - name: The core's database tests, shard ${{ matrix.shard }} of 3
         run: pnpm --filter @ziffr/core test:db --shard=${{ matrix.shard }}/3
 
@@ -172,7 +174,9 @@ jobs:
           version: 2.116.0
       - run: pnpm install --frozen-lockfile
       - name: Local Supabase (database, API, auth and the test mail server)
-        run: for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
+        # Supabase's ports (554xx) lie in Linux's range for outgoing connections (32768-60999), so now and then one is
+        # taken when the database starts ("address already in use"). Outgoing connections get 60000-65535 instead.
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="60000 65535" >/dev/null; for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
       - name: The API over HTTP (route handlers against the same database)
         run: pnpm --filter @ziffr/web test:db
       # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).
