@@ -8,6 +8,7 @@ import { Forbidden } from "@ziffr/core/actor";
 import * as admins from "@ziffr/core/installation-admins";
 import * as settings from "@ziffr/core/installation-settings";
 import * as telegramTest from "@ziffr/core/installation-telegram-test";
+import * as limits from "@ziffr/core/workspace-limits-admin";
 import { installationActor } from "@/lib/installation";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
@@ -95,4 +96,9 @@ export async function telegramTestStatus(): Promise<telegramTest.TelegramTestSta
   } catch {
     return { error: "Not found." };
   }
+}
+
+/** Sets one Workspace's own limit (`metrics` empty for none), or with null gives it back to the default. */
+export async function setWorkspaceLimit(workspaceId: string, value: { metrics: string; label: string } | null): Promise<Result> {
+  return run((a) => limits.setWorkspaceLimit(a, String(workspaceId ?? ""), value === null ? null : { metrics: String(value?.metrics ?? ""), label: String(value?.label ?? "") }));
 }

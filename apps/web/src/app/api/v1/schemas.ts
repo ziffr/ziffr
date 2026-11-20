@@ -209,7 +209,12 @@ export const slugParam = z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/, "Not a Me
 export const IdempotencyKey = z.string().regex(/^[\x21-\x7e]{1,200}$/, "1 to 200 visible ASCII characters.");
 
 /** Every error answer. */
-export const ApiErrorBody = z.object({ error: z.object({ code: z.string().describe("Stable; handle errors by it."), message: z.string().describe("For people; may change.") }) });
+export const ApiErrorBody = z.object({ error: z.object({
+  code: z.string().describe("Stable; handle errors by it."),
+  message: z.string().describe("For people; may change."),
+  count: z.number().int().optional().describe("With workspace_limit: the Metrics the workspace holds, Archived Metrics not counted."),
+  limit: z.number().int().optional().describe("With workspace_limit: the most Metrics its Workspace Limit allows."),
+}) });
 
 /** What DELETE /metrics/{slug} needs: the Metric's exact name, so a wrong slug deletes nothing. */
 export const deleteMetricQuery = z.object({ confirm: z.string().min(1).max(200).describe("The Metric's exact name, repeated to confirm.") });

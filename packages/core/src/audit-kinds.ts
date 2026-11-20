@@ -55,6 +55,7 @@ export const AUDIT_KINDS = {
   "correction.declined": "declined a Correction to",
   "workspace.clock_changed": "changed the workspace's time zone or run hour",
   "workspace.renamed": "renamed the workspace",
+  "workspace.limit_changed": "changed the Workspace Limit",
   "workspace.profile_changed": "changed the Workspace Profile",
   "workspace.year_start_changed": "changed the month the workspace's year starts in",
   "workspace.number_style_changed": "changed how the workspace writes numbers",

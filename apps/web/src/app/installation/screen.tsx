@@ -12,6 +12,8 @@ import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInsta
 import type { TelegramTestStatus } from "@ziffr/core/installation-telegram-test";
 import type { InstallationAdminRow, InstallationEvent } from "@ziffr/core/installation-admins";
 import type { InstallationSettingsView, SectionView, SettingView, SlackSetupView } from "@ziffr/core/installation-settings";
+import type { WorkspaceLimitRow } from "@ziffr/core/workspace-limits-admin";
+import { WorkspaceLimits } from "./workspace-limits";
 
 /** The words the page uses for each kind of event of the Installation's audit. */
 const EVENT_WORDS: Record<string, string> = {
@@ -23,6 +25,8 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.test_email": "sent a test email with",
   "setting.test_telegram": "tested Telegram with",
   "workspace.key_destroyed": "destroyed the key of a Workspace it is deleting:",
+  "workspace_limit.set": "set the Workspace Limit of",
+  "workspace_limit.removed": "gave the default limit back to",
 };
 
 type Result = { error: string } | { ok: true; message?: string; warning?: string };
@@ -44,7 +48,7 @@ function Standing({ section }: { section: SectionView }) {
 }
 
 /** The whole page: the sections in a side list, the Installation Admins, each section, and the latest changes. */
-export function InstallationScreen({ view, admins, events }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[] }) {
+export function InstallationScreen({ view, admins, events, limits }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[] }) {
   return (
     <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
       <nav aria-label="Sections" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -58,7 +62,7 @@ export function InstallationScreen({ view, admins, events }: { view: Installatio
       </nav>
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} />)}
+        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} />)}
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>
           <p className="text-sm text-muted-foreground">Who changed what here, by the setting&apos;s name. Values are never recorded.</p>
@@ -129,7 +133,7 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
 
 /** One section: what it is for, how it stands, and its form when the page can set it up yet. Slack gets its steps
  * around the form: make the app from the manifest, then what Slack has checked and what comes next. */
-function Section({ section, canSeal, slack, siteUrl }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null }) {
+function Section({ section, canSeal, slack, siteUrl, limits }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[] }) {
   return (
     <section id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -143,6 +147,7 @@ function Section({ section, canSeal, slack, siteUrl }: { section: SectionView; c
         ? <SectionForm section={section} canSeal={canSeal} />
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
       {slack && <SlackChecked slack={slack} section={section} />}
+      {limits && <WorkspaceLimits rows={limits} />}
     </section>
   );
 }

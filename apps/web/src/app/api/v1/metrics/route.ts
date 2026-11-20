@@ -6,7 +6,8 @@ import { Forbidden } from "@ziffr/core/actor";
 import { admitMetric, createMetricWithKey, MetricChangeRefused, METRICS_PER_DAY, TooManyMetrics } from "@ziffr/core/api-metrics";
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listMetrics } from "@ziffr/core/api";
-import { errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
+import { errorBody, json, jsonBody, keyRoute, limitErrorBody, query, toCursor } from "@/lib/api";
+import { LimitReached } from "@ziffr/core/workspace-limits";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
 import { CreateMetric, MetricDescription, MetricList, metricsQuery } from "../schemas";
 
@@ -42,6 +43,8 @@ export const POST = keyRoute("metrics:write", async (actor, req) => {
       if (e instanceof Forbidden) return errorBody("forbidden", e.message === "Forbidden" ? "The key's creator may not create Metrics." : e.message);
       // A Source or Submitter refused: checked before the Metric exists, so nothing was created.
       if (e instanceof MetricChangeRefused) return errorBody("unprocessable", e.message);
+      // The Workspace Limit (spec 0029): nothing was created; the same words as the app, with the count and limit.
+      if (e instanceof LimitReached) return { ...limitErrorBody(e), keep: false };
       throw e;
     }
   };

@@ -22,6 +22,7 @@ import { yearStartFor } from "./fiscal-year";
 import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
+import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -107,6 +108,8 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const unit = input.unit !== undefined ? { unit: String(input.unit ?? "").slice(0, 20), unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") }
     : format === "currency" ? moneyUnit((await workspaceProfile(actor)).currency)
     : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
+  // The trigger checks the Workspace Limit against the Installation's default in effect.
+  await syncDefaultLimit();
   const { data: metric, error } = await db().from("metrics").insert({
     slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId,
     description: String(input.description ?? "").slice(0, 2000),
@@ -126,6 +129,8 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   }).select("id, slug, from_catalog_id").single();
   if (error?.code === "ZF429") throw new TooManyMetrics();
   if (error?.code === "ZF430") throw new Error(`A trial holds at most ${TRIAL_METRICS_MAX} Metrics. Delete one to make another.`);
+  const reached = await limitReachedFrom(error, actor.workspaceId);
+  if (reached) throw reached;
   if (error || !metric) throw new Error("The Metric could not be created.");
   await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });

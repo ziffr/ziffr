@@ -5,13 +5,14 @@ import { z } from "zod";
 import { actorForSecret } from "@ziffr/core/access-keys";
 import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
 import { calledFromMcp } from "@/lib/mcp-context";
+import { LimitReached } from "@ziffr/core/workspace-limits";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
 import { Forbidden, scopeRefusal, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
-export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "internal";
+export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "workspace_limit" | "internal";
 
-const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, locked: 422, rate_limited: 429, internal: 500 };
+const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, locked: 422, rate_limited: 429, workspace_limit: 403, internal: 500 };
 
 /** An error answer's body, for answers that are stored before they are sent (idempotency). */
 export const errorBody = (code: ApiErrorCode, message: string) => ({ status: STATUS[code], body: { error: { code, message } } });
@@ -24,6 +25,13 @@ const HEADERS = { "content-type": "application/json; charset=utf-8", "cache-cont
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...HEADERS, ...headers } });
 }
+
+/** The answer when the Workspace Limit refuses a new Metric or bringing one back (spec 0029): 403 with the code
+ * `workspace_limit`, the same words as the app, and the count and limit, so a program can say what to archive. */
+export const limitErrorBody = (e: LimitReached) => ({
+  status: STATUS.workspace_limit,
+  body: { error: { code: "workspace_limit" as const, message: e.message, count: e.count, limit: e.limit.metrics } },
+});
 
 /** An error answer: `{ error: { code, message } }`. */
 export function apiError(code: ApiErrorCode, message: string, headers: Record<string, string> = {}): Response {
@@ -87,6 +95,7 @@ async function run<A, C>(actor: A, req: Request, ctx: C, handler: (actor: A, req
     return await handler(actor, req, ctx);
   } catch (e) {
     if (e instanceof ApiError) return apiError(e.code, e.message);
+    if (e instanceof LimitReached) { const { status, body } = limitErrorBody(e); return json(body, status); }
     if (e instanceof z.ZodError) return apiError("invalid_request", e.issues.map((i) => `${i.path.join(".") || "request"}: ${i.message}`).join("; "));
     if (e instanceof Forbidden) return apiError("not_found", "Not found.");
     console.error("API error", e);
