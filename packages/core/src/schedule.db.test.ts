@@ -174,14 +174,22 @@ describe("Approvals, Tasks and Questions", () => {
     expect(brief(s)).toEqual(["task Old 2026-10-01 2026-11-13 overdue 4"]);
   });
 
-  it("leaves out everything about a Metric the person no longer sees", async () => {
-    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+  it("keeps the Actions a person is assigned on a Metric they do not see, as the Actions page does, and only those", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("admin");
     const m = await w.metric(sara, { name: "Secret", created_at: LONG_AGO });
     await share(w, m.id, ben);
-    await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Look", due_date: "2026-11-20" });
+    const task = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ben, kind: "task", question: "Look", due_date: "2026-11-20" });
     expect(brief(await schedule(w.actor(ben, "member"), {}, NOW))).toHaveLength(1);
     await db().from("shares").delete().eq("object_id", m.id).eq("workspace_id", w.id);
-    expect(brief(await schedule(w.actor(ben, "member"), {}, NOW))).toEqual([]);
+    // Ticket 323: Ben is its Assignee, so he may read it and it stays on his Schedule, with its words.
+    const own = flat(await schedule(w.actor(ben, "member"), {}, NOW));
+    expect(own.map((e) => [e.kind, e.actionId, e.text])).toEqual([["task", task, "Look"]]);
+    // An Approval of a Metric never shared with its Approver shows too.
+    const approval = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ann, kind: "task", purpose: "approval", question: "Approve Secret: 5" });
+    expect(flat(await schedule(w.actor(ann, "admin"), {}, NOW)).map((e) => [e.kind, e.actionId])).toEqual([["approval", approval]]);
+    // A teammate's Schedule still shows only what the asker sees: an Admin who does not see it gets nothing of Ben's.
+    expect(brief(await schedule(w.actor(ann, "admin"), { personId: ben }, NOW))).toEqual([]);
+    expect(flat(await schedule(w.actor(sara), { personId: ben }, NOW)).map((e) => e.actionId)).toEqual([task]);
   });
 });
 

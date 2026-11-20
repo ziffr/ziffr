@@ -208,7 +208,8 @@ function noDueDatePeriod(m: Metric, since: string, ctx: Ctx): { start: string; d
   return due >= ctx.lo && due <= ctx.hi ? [{ start, due }] : [];
 }
 
-/** The open Approvals, Tasks and Questions assigned to the person. */
+/** The open Approvals, Tasks and Questions assigned to the person. `metrics` are the Metrics their Actions may be
+ * about: being the Assignee is enough to have one (as on the Actions page), even on a Metric they do not see. */
 async function actionEntries(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx, readable: (a: ActionRow) => boolean): Promise<ScheduleEntry[]> {
   const rows = await openRows("actions", ws, await allRows<ActionRow>((from, to) => db().from("actions").select("id, metric_id, period_start, kind, purpose, due_date, question, created_at, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).eq("assignee_id", person).eq("status", "open").order("id").range(from, to)));
   const out: ScheduleEntry[] = [];
@@ -294,13 +295,16 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
   const seen = await visibleMetricIds(ws, person, all);
   const asker = person === actor.personId ? seen : await visibleMetricIds(ws, actor.personId, all);
   const metrics = new Map(all.filter((m) => seen.has(m.id) && asker.has(m.id)).map((m) => [m.id, m]));
+  // An Action the person is assigned shows even on a Metric they do not see, such as an Approval of one never shared
+  // with them (ticket 323): they may read it as its Assignee. For a teammate's, the asker must see the Metric still.
+  const onActions = new Map(all.filter((m) => person === actor.personId || asker.has(m.id)).map((m) => [m.id, m]));
   let readable: (a: ActionRow) => boolean = () => true;
   if (person !== actor.personId) {
     const groups = await getGroups(ws);
     const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker);
     readable = (a) => can(a);
   }
-  return [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, metrics, ctx, readable))];
+  return [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, onActions, ctx, readable))];
 }
 
 /** How far back a Calendar Link's events reach, in days. */

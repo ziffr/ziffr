@@ -4,6 +4,7 @@ import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
 import { actionThread } from "@ziffr/core/page-data";
 import { formatDate, formatValue } from "@ziffr/core/format";
 import { decideCorrection, replyToAction, setActionStatus } from "@/app/actions";
@@ -25,7 +26,8 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   const id = Number((await params).id);
   // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core: the value it is
   // about, and the periods around it only for a viewer who sees the Metric (ticket 323).
-  const [thread0, people, viewer, yearStart, numberStyle] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
+  // "View as" exists only in the demo: elsewhere nobody can answer as someone else, so the hint is left out.
+  const [thread0, people, viewer, yearStart, numberStyle, demo] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), isDemo()]);
   if (!thread0) notFound();
   const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent } = thread0;
   const isAsker = viewer === a.asker_id;
@@ -101,7 +103,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
         <form action={replyToAction.bind(null, a.id)} className="mt-4 stock rounded-[var(--radius-card)] p-4">
           {isAsker && !isAssignee && a.status === "open" && (
             <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-              Waiting for {people[a.assignee_id]?.name.split(" ")[0]}. To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “View as” (top right).
+              Waiting for {people[a.assignee_id]?.name.split(" ")[0]}.{demo && <> To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “View as” (top right).</>}
             </p>
           )}
           <Textarea name="body" rows={3} placeholder={isAssignee ? "Explain what happened…" : "Reply…"} />
