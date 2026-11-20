@@ -140,12 +140,12 @@ export async function deliverNotice(ws: string, input: { recipientId: string; se
  * that nothing can answer it. It has no Action, no Prompt and no reference, and the email carries no reply address
  * (mail.ts), so a reply to it records nothing (reply-routing.ts). Returns the Delivery's id. The caller has checked, a
  * moment before, that the person may still see the Metric; `text` holds nothing of any other Metric. */
-export async function deliverAlert(ws: string, input: { recipientId: string; subject: string; text: string; link: string; via?: ConnectorId; metricId: number | null; alertId: number }): Promise<number | null> {
+export async function deliverAlert(ws: string, input: { recipientId: string; subject: string; text: string; link: string; via?: ConnectorId; metricId: number | null; alertId: number | null }): Promise<number | null> {
   return deliverPlain(ws, "alert", { ...input, senderId: null, alertMetricId: input.metricId, alertId: input.alertId, queue: true });
 }
 
 /** One plain message of a kind that is not about an Action: a notice or an Alert. */
-async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; alertId?: number; queue?: boolean }): Promise<number | null> {
+async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; alertId?: number | null; queue?: boolean }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
   const [d] = await insertSealed("deliveries", ws, [{
