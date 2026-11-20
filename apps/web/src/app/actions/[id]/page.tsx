@@ -29,7 +29,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   // "View as" exists only in the demo: elsewhere nobody can answer as someone else, so the hint is left out.
   const [thread0, people, viewer, yearStart, numberStyle, demo] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), isDemo()]);
   if (!thread0) notFound();
-  const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent } = thread0;
+  const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent, externalLinks } = thread0;
   const isAsker = viewer === a.asker_id;
   // A Self-check is decided only by Confirm or Correct: closed or reopened by hand, it would decide nothing and leave
   // the value waiting (the core refuses it too).
@@ -58,6 +58,11 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         {chartMetric && window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={chartMetric} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
+        {externalLinks.length > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Also in {externalLinks.map((l, i) => <span key={`${l.system}-${i}`}>{i > 0 && ", "}{l.url ? <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="underline">{l.system}</a> : l.system}</span>)}
+          </p>
+        )}
         {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
         {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}
         {sent.length > 0 && (
@@ -78,7 +83,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <li key={t.id} className="flex gap-3 stock rounded-[var(--radius-card)] p-4">
             <Avatar p={people[t.author_id]} />
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span>, {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
+              <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span>{t.via && <> via {t.via}</>}, {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
               <p className="mt-0.5 text-sm whitespace-pre-wrap">{t.body}</p>
               {t.correction_value !== null && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-2 text-sm">

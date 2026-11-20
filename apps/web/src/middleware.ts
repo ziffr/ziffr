@@ -6,7 +6,7 @@
 // - The API (/api/v1/, spec 0002): programs sign in with an Access Key in each request, never with a session or the
 //   demo cookie, so nothing here applies to it; the route handlers check the key. The same for the jobs a scheduler
 //   calls (/api/jobs/, spec 0004), which check ZIFFR_JOB_SECRET themselves, and the inbound mail webhook
-//   (/api/inbound/), which checks its signature, the Ziffr Cloud API (/api/cloud/, spec 0029), which checks its own, and the one-click unsubscribe link (/api/unsubscribe/), which is
+//   (/api/inbound/), which checks its signature, a Webhook's status back (/api/webhooks/{id}/in), signed with that Webhook's own secret, the Ziffr Cloud API (/api/cloud/, spec 0029), which checks its own, and the one-click unsubscribe link (/api/unsubscribe/), which is
 //   its own token, and the health check (/api/health), which says only "ok", and Slack's events and button
 //   presses (/api/slack/events, /api/slack/interactions), which Slack signs, and Telegram's webhook
 //   (/api/telegram/updates), which carries the secret this Ziffr registered, and Supabase Auth's Send Email Hook
@@ -54,7 +54,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
   // Whether the demo is offered is an Installation Setting (spec 0025). The middleware reads only the environment,
   // which wins over the page: there ZIFFR_DEMO=0 closes the demo outright. Otherwise the page may decide, so the

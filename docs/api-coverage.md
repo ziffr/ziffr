@@ -212,6 +212,7 @@ Ticketed. MCP follows where the ticket says so.
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels

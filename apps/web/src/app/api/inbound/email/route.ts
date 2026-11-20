@@ -4,37 +4,17 @@
 // up, unsigned, stale or too large, it answers 404 or 413 and reads nothing; the core decides the rest.
 import { inboundSigned, MAX_INBOUND_BYTES, parseInbound, receiveEmail } from "@ziffr/core/inbound-email";
 import { inboundOn } from "@ziffr/core/mail";
+import { readLimited } from "@/lib/read-limited";
 
 const answer = (status: number, body?: unknown) => (body === undefined ? new Response(null, { status, headers: { "cache-control": "no-store" } }) : Response.json(body, { status, headers: { "cache-control": "no-store" } }));
 
 /** Whether the body was signed with the secret, a moment ago; the core holds the secret. */
 const signed = (req: Request, body: Uint8Array) => inboundSigned(req.headers.get("x-ziffr-timestamp") ?? "", req.headers.get("x-ziffr-signature") ?? "", body);
 
-/** The body, read until it passes the limit (then null), so a large or endless body is never held whole. */
-async function readLimited(req: Request): Promise<Uint8Array | null> {
-  const declared = req.headers.get("content-length");
-  if (declared !== null && (!/^\d{1,10}$/.test(declared) || Number(declared) > MAX_INBOUND_BYTES)) return null;
-  if (!req.body) return new Uint8Array();
-  const reader = req.body.getReader();
-  const parts: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_INBOUND_BYTES) { await reader.cancel(); return null; }
-    parts.push(value);
-  }
-  const body = new Uint8Array(size);
-  let at = 0;
-  for (const p of parts) { body.set(p, at); at += p.byteLength; }
-  return body;
-}
-
 /** Takes one forwarded email. */
 export async function POST(req: Request) {
   if (!(await inboundOn())) return answer(404);
-  const body = await readLimited(req);
+  const body = await readLimited(req, MAX_INBOUND_BYTES);
   if (!body) return answer(413);
   if (!(await signed(req, body))) return answer(404);
   let email;

@@ -16,8 +16,10 @@ export async function participants(ws: string, actionId: number) {
 
 /** Adds a reply and tells the others, through each one's Connector. On an approval task, "approve" or
  * "send back: …" from the approver decide it, from Ziffr or from Slack, email or WhatsApp. On a Self-check,
- * "confirm" or "Correction: <value>" from the submitter it is for decide it the same way. */
-export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true) {
+ * "confirm" or "Correction: <value>" from the submitter it is for decide it the same way. `commands` is false for words that
+ * are only words (a program's reply, a Webhook's). `opts.via` names the Webhook a reply came through (shown as "via <name>");
+ * `opts.keepState` adds the message without moving the Action to answered. */
+export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true, opts: { via?: string; keepState?: boolean } = {}) {
   const a = await participants(ws, actionId);
   if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
   // `commands` is false for a program's reply (API, MCP): its words are only words. "approve", "send back", "confirm" and
@@ -39,12 +41,13 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     body: body || (correction !== null ? "Proposing a correction." : "…"),
     correction_value: correction,
     correction_status: correction !== null ? "proposed" : null,
+    via: opts.via ?? null,
   }]);
   const messageId = Number(message?.id) || null;
   // The Assignee replying moves an open Action to answered; not an Approval or Self-check, which only their own
   // commands decide: answered, it could no longer be decided and the value would wait for good. The change tells the
   // Webhooks (with the reply); a reply that changes no state is an update of its own.
-  const moved = a.assignee_id === authorId && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check"
+  const moved = !opts.keepState && a.assignee_id === authorId && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check"
     ? await changeActionState(ws, actionId, { to: "answered", from: ["open"], guard: { assigneeId: authorId, purpose: "plain_or_escalation" }, messageId }, source)
     : null;
   if (!moved?.changed) {

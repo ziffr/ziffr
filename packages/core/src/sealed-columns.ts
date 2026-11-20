@@ -23,10 +23,13 @@ export const SEALED_COLUMNS = {
   // A Webhook's address (automation tools put a secret in its path), its secret and its previous secret (spec 0034),
   // written by webhooks.ts with its id (a uuid) made first.
   webhooks: ["url", "secret", "secret_previous"],
+  // The external task an Action is in another system, per Webhook (spec 0034, ticket 5): its id and address, written by
+  // webhook-inbound.ts with the row's uuid made first.
+  webhook_external_ids: ["external_id", "url"],
 } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id" };
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;

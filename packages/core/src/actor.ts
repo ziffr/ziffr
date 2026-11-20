@@ -21,6 +21,11 @@ export type KeyActor = Omit<Actor, "key"> & { key: { id: string; scopes: string[
  * so no function written for people or their keys accepts it (they need `personId`). Only the Feed functions take it. */
 export type FeedActor = { feedId: string; workspaceId: string; feed: true; key: { id: string; scopes: string[] } };
 
+/** A Webhook that called back, signed with its own secret (GLOSSARY: Webhook; spec 0034). Like a Feed it is nobody: no
+ * person and no role, so no function written for people accepts it (they need `personId`); only the inbound Webhook
+ * functions take it, and they act on Actions sent to that Webhook only. `name` is the Webhook's name at that moment. */
+export type WebhookActor = { webhookId: string; workspaceId: string; webhook: true; name: string };
+
 /** The only thing a Feed Key may do: record values for its Feed's Metrics. Never given to a person's key. */
 export const FEED_SCOPE = "feed:submit";
 

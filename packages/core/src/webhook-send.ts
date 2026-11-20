@@ -86,6 +86,9 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
     if (!data) return null;
     [action] = await openRows("actions", ws, [data as Record<string, unknown>]);
     metricId = action.metric_id as number;
+    // Only the links this Webhook made, never another Webhook's, so its recipe closes the right external task.
+    const { data: links } = await db().from("webhook_external_ids").select("id, system, external_id, url").eq("webhook_id", send.webhook_id).eq("workspace_id", ws).eq("action_id", send.action_id).order("created_at").limit(10);
+    env.externalIds = (await openRows("webhook_external_ids", ws, (links ?? []) as Record<string, unknown>[])).filter((l) => typeof l.external_id === "string").map((l) => ({ system: String(l.system), external_id: String(l.external_id), url: typeof l.url === "string" ? l.url : null }));
   }
   if (metricId === null) return null;
   const { data: metric } = await db().from("metrics").select("id, name").eq("id", metricId).eq("workspace_id", ws).maybeSingle();

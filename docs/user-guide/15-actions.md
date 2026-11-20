@@ -79,6 +79,8 @@ At the top you see the status, whether it is a Question or Task, the Due Date, t
 
 **Sent through connectors** lists each time Ziffr sent this Action or a reply to someone: what kind of message, to whom, through which Connector and when. The **Outbox** link there shows all of them (see [Workspace settings](16-workspace-settings.md)).
 
+If a Workspace Owner has connected a Webhook to another system, such as a task list, the Action can also be a task there. A line under the Action then says **Also in** that system, with a link when the system gave one. A task you tick off in that system is marked done here, as you, and the Thread shows a message "Marked done in" the Webhook's name; a reply or answer that comes from there shows "via" the Webhook's name. Un-ticking a task there reopens it here, unless it was closed in Ziffr by the asker or by Ziffr itself.
+
 Some Tasks come from a Workflow: they ask the Approver to approve an Unusual Value, or every value where the Workflow says so. The Approver sees **Approve** and **Send back** on them. When nobody but you could approve your own value, the Task asks you to check it instead, with **Confirm** and **Correct**. Neither kind has **Mark done**: their own buttons decide the value. See [Workflows](11-workflows.md).
 
 ### Replying

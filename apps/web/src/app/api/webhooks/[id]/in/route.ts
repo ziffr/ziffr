@@ -1,0 +1,40 @@
+// POST /api/webhooks/{id}/in (GLOSSARY: Webhook; spec 0034, ticket #402): a Webhook's recipe reports status back, signed
+// with the Webhook's own secret (the scheme the messages it gets are signed with: `X-Ziffr-Timestamp`,
+// `X-Ziffr-Signature: sha256=<hex>`; a request is taken once, by its signature, so a retry is signed again with a new timestamp). Anything unknown,
+// unsigned, old, replayed or off answers 404 alike, with no hint whether the id exists; the body is read to 16 KB
+// and no further, and the core decides the rest. Answers only `{ changed, status }`.
+import { applyWebhookAction, authenticateWebhookRequest, WebhookRequestError } from "@ziffr/core/webhook-inbound";
+import { WEBHOOK_INBOUND_MAX_BYTES } from "@ziffr/core/webhook-limits";
+import { readLimited } from "@/lib/read-limited";
+
+const answer = (status: number, body?: unknown, extra: Record<string, string> = {}) =>
+  Response.json(body ?? { error: status === 404 ? "not_found" : "error" }, { status, headers: { "cache-control": "no-store", ...extra } });
+
+/** Takes one report from a Webhook's recipe. */
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const bytes = await readLimited(req, WEBHOOK_INBOUND_MAX_BYTES);
+  if (!bytes) return answer(413, { error: "too_large" });
+  let body: string;
+  try {
+    // The exact text that was signed: a byte order mark is kept, bytes that are not text are refused.
+    body = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return answer(404);
+  }
+  const who = await authenticateWebhookRequest(id, { timestamp: req.headers.get("x-ziffr-timestamp"), signature: req.headers.get("x-ziffr-signature"), body });
+  if (!who.ok) return who.why === "limit" ? answer(429, { error: "too_many_requests" }, { "retry-after": "60" }) : answer(404);
+  let input: unknown;
+  try {
+    input = JSON.parse(body);
+  } catch {
+    return answer(400, { error: "invalid", message: "The body must be JSON." });
+  }
+  try {
+    return answer(200, await applyWebhookAction(who.actor, input));
+  } catch (e) {
+    if (e instanceof WebhookRequestError) return answer(e.code === "invalid" ? 400 : e.code === "not_found" ? 404 : 409, { error: e.code, message: e.message });
+    console.error("Webhook status back failed:", (e as Error).message);
+    return answer(500, { error: "error" });
+  }
+}
