@@ -106,6 +106,9 @@ const CASES: Record<string, Case> = {
   "connector-actions:simulatePromptAnswer": { reads: (i) => [i.promptDelivery, "42"] },
   "convert-actions:makeDeckFromSnapshot": { args: (i) => [i.snapshot] },
   "convert-actions:makeDeck": { args: (i) => [i.dashboard] },
+  "convert-actions:deckChoices": { reads: () => [] },
+  // Onto a new deck: making it is the change refused.
+  "convert-actions:addToDeck": { args: (i) => [i.widget, null, null] },
   "dashboard-template-actions:createFromDashboardTemplate": { args: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
   "dashboard-template-actions:draftDashboardTemplate": { reads: (i) => [i.dashboard] },
   "dashboard-template-actions:saveAsDashboardTemplate": { args: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { isArchived } from "@ziffr/core/metric-row";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
+import { AddToDeckDialog } from "@/components/add-to-deck-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
@@ -73,6 +74,7 @@ export function WidgetFrame(props: Props) {
 function InteractiveFrame({ widget, data, targets, editable = false, className, dragHandle, saved = [] }: Props) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [deckOpen, setDeckOpen] = useState(false);
   const slotFill = useSlotFill(data);
   const router = useRouter();
   const frame = useRef<HTMLDivElement>(null);
@@ -230,6 +232,8 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
         </>
       )}
+      {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
+      {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
       {targets.length > 0 && (
         <K.Sub>
           <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
@@ -283,6 +287,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       </ContextMenu>
 
       {slotFill.dialog}
+      {deckOpen && widget.id && <AddToDeckDialog widgetId={widget.id} open={deckOpen} onOpenChange={setDeckOpen} />}
       {saveTemplateOpen && widget.id && <SaveTemplateDialog widget={widget as Widget} data={data} onClose={() => setSaveTemplateOpen(false)} />}
       {layoutOpen && widget.id && (
         <Dialog

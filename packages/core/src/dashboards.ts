@@ -90,8 +90,8 @@ async function fromTeamTemplate(actor: Actor, id: number, fills: number[][] | un
   return { ...w, w: t.w, h: t.h };
 }
 
-/** What a dropped thing becomes as a widget. */
-async function specFrom(actor: Actor, source: DropSource) {
+/** What a dropped thing becomes as a widget: checked that the actor may open it and sees every Metric it draws. */
+export async function specFrom(actor: Actor, source: DropSource) {
   if (source?.type === "metric") {
     await assertSeesMetrics(actor, [Number(source.id)]);
     const t = TEMPLATES[DEFAULT_TEMPLATE];

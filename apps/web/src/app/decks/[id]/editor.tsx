@@ -20,6 +20,7 @@ import { useSlotFill } from "@/components/slot-dialog";
 import { SaveDeckDialog, SaveSlideDialog } from "@/components/save-template-dialog";
 import { fromDeckTemplate, fromSlideLayout } from "@ziffr/core/team-templates";
 import type { DeckTemplateSummary } from "@ziffr/core/deck-templates";
+import type { DeckAddition } from "@ziffr/core/deck-additions";
 import { fillText } from "@ziffr/core/placeholders";
 import type { SlideBody, SlideShape, SlideTemplate } from "@ziffr/core/types";
 import { DEFAULT_TEMPLATE, TEMPLATES, templatesFor } from "@/views/templates";
@@ -47,7 +48,9 @@ type Props = { deck: { id: number; name: string; document: unknown; theme_id: nu
   /** Made from a Deck Template (spec 0030): its slides with Slot numbers, and the Metrics that fill each Slot. */
   templateSeed?: { slides: SlideBody[]; fills: number[][] } | null;
   /** The viewer's own Deck Templates, which saving the deck as one may replace. */
-  deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[] };
+  deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[];
+  /** A widget added from its menu (ticket #1), checked by the core: placed once on its slide or a new one. */
+  addition?: DeckAddition | null };
 
 /** The deck editor. The page sends the series of the deck's widgets; a widget placed since fetches its own
  * (ticket #125). */
@@ -56,7 +59,7 @@ export function DeckEditor(props: Props) {
   return <SeriesProvider ensure={ensure}><DeckCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTemplates = [] }: Props) {
+function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTemplates = [], addition = null }: Props) {
   const ensure = useEnsure();
   // The newest data, for an export that first fetched what it lacked.
   const latest = useRef(data);
@@ -76,9 +79,11 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   masterRef.current = master;
   // What onMount lays out a new deck from, read through a ref: onMount sets the editor up once, and a dependency on
   // them would set it up again (and listen twice) whenever the metrics change (#3).
-  const firstLayout = useRef({ seed, templateSeed, data });
-  firstLayout.current = { seed, templateSeed, data };
+  const firstLayout = useRef({ seed, templateSeed, data, addition });
+  firstLayout.current = { seed, templateSeed, data, addition };
 
+  // A widget added from its menu is placed once, even if the editor mounts twice.
+  const placed = useRef(false);
   // Read once: a new snapshot object on every render would make tldraw reload its store.
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
 
@@ -116,7 +121,20 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             .catch(() => setStatus("unsaved"));
         }, 800);
       };
-      // Slides laid out from a Deck Template are the deck now: kept at once, so opening it again shows the same.
+      // A widget added from its menu goes on its slide, or a new one at the end, and the deck opens there.
+      const added = firstLayout.current.addition;
+      if (added && !placed.current) {
+        placed.current = true;
+        const slide = placeAddition(ed, masterRef.current, added, firstLayout.current.data);
+        ed.select(slide);
+        ed.zoomToBounds(ed.getShapePageBounds(slide)!, { inset: 48 });
+        seeded = true;
+        // Placed once: the address no longer asks for it, so reloading adds nothing more. Back still leads where it
+        // came from.
+        window.history.replaceState(null, "", `/decks/${deck.id}`);
+        toast.success("Added to the deck", { description: "It is a copy: changes here leave the original as it is.", action: { label: "Go back", onClick: () => window.history.back() } });
+      }
+      // Slides laid out from a Deck Template, or a widget added, are the deck now: kept at once.
       if (seeded) save();
       // Autosave the document (not the camera or selection) a moment after each user change.
       return ed.store.listen(
@@ -451,3 +469,21 @@ function SelectionPanel({ editor, data, onSaveLayout }: { editor: Editor; data: 
   );
 }
 
+
+/** Places a widget added from its menu (ticket #1): on its slide at the first free spot, never on top of what is
+ * there, or on a new slide at the end titled after it. Answers the slide. */
+function placeAddition(ed: Editor, master: SlideDesign | null, added: DeckAddition, data: CanvasData) {
+  const w = added.widget;
+  const title = w.title || data.metrics.find((m) => m.id === w.metric_ids[0])?.name || "";
+  const existing = added.slide ? orderedSlides(ed).find((f) => f.id === added.slide) : undefined;
+  const slide = existing?.id ?? addSlide(ed, "title-content", master, { title });
+  const area = contentAreas()[0];
+  const fb = ed.getShapePageBounds(slide)!;
+  const taken = existing ? ed.getSortedChildIdsForParent(slide).map((child) => {
+    const b = ed.getShapePageBounds(child)!;
+    return { x: b.x - fb.x, y: b.y - fb.y, w: b.w, h: b.h };
+  }) : [];
+  const spot = existing ? freeSpot(area, taken, { w: 560, h: 320 }, { w: SLIDE_W, h: SLIDE_H }) : area;
+  ed.createShape<WidgetShape>({ id: createShapeId(), type: WIDGET_SHAPE, parentId: slide, x: spot.x, y: spot.y, props: { w: spot.w, h: spot.h, template: w.template, metricIds: w.metric_ids, settings: JSON.stringify(w.settings ?? {}), title: existing ? w.title ?? "" : "" } });
+  return slide;
+}

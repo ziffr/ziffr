@@ -9,8 +9,9 @@ import { deckSeed } from "@ziffr/core/conversions";
 import { snapshotDeckSeed } from "@ziffr/core/snapshots";
 import { deckTemplateSeed, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
+import { deckAddition } from "@ziffr/core/deck-additions";
 
-export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string }> }) {
+export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; widget?: string; slide?: string }> }) {
   const id = Number((await params).id);
   const sp = await searchParams;
   const from = Number(sp.from);
@@ -40,9 +41,13 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   // Made from a Deck Template (spec 0030): its slides with its Slots filled; the core checks every Metric again.
   const fromTemplate = Number(sp.template);
   const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null) : null;
+  // A widget added from its menu (ticket #1): the core checks again that the person may change the deck, open the
+  // widget and see its Metrics; the editor places the copy on that slide or a new one and saves.
+  const widgetId = Number(sp.widget);
+  const addition = Number.isInteger(widgetId) && widgetId > 0 ? await deckAddition(actor, id, widgetId, sp.slide ?? null).catch(() => null) : null;
   const [data, saved, shares, groups] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
-    getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? [])]),
+    getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? []), ...(addition ? widgetMetricIds(addition.widget.metric_ids, addition.widget.settings) : [])]),
     savedWidgets(actor),
     getRawShares(),
     getGroups(),
@@ -54,6 +59,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
       saved={saved}
       seed={seed}
       templateSeed={templateSeed}
+      addition={addition}
       deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
       sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
     />
