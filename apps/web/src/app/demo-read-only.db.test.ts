@@ -149,7 +149,6 @@ const CASES: Record<string, Case> = {
   "pack-actions:readPack": { reads: () => [PACK] },
   "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/export", name: "Export", version: "1.0.0", summary: "An export.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },
   "pack-actions:installPack": { args: () => [PACK, { unsigned: true, assistantTexts: true }] },
-  "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/demo", name: "Demo", version: "1.0.0", summary: "The demo's numbers.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },
   "pack-actions:readUpdate": { nothing: "the demo has no Pack installed to update", args: () => [1, PACK] },
   "pack-actions:updatePack": { nothing: "the demo has no Pack installed to update", args: () => [1, PACK, { unsigned: true, assistantTexts: true }] },
   "pack-actions:readUninstallPlan": { nothing: "the demo has no Pack installed to uninstall", args: () => [1] },
