@@ -50,6 +50,10 @@ ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_... npx ziffr-feed run hub
 
 Each run fetches the current period of every Metric, plus any of the `--backfill N` periods before it that have no value yet, and records them. The run asks Ziffr which period is current, so a Feed in another time zone fetches the same periods Ziffr counts. A repeated run with the same values records nothing twice. `--dry-run` shows what would be sent and sends nothing. The command exits with 1 when a fetch failed or Ziffr refused a value, so cron or a CI job reports it.
 
+## With the Usage Feed
+
+[`@ziffr/feed-usage`](../../packages/feed-usage/README.md) is a Feed that brings an Installation's own daily Usage totals into a Workspace of your choice. See [Usage](usage.md).
+
 ## With the SQL Feed (no code)
 
 [`@ziffr/feed-sql`](../../packages/feed-sql/README.md) runs one Postgres query per Metric. The file names the environment variable that holds the connection string, never the string itself:

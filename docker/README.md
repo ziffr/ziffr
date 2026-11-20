@@ -39,7 +39,7 @@ curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/install.sh | 
 | `rest` | PostgREST, which Ziffr's core reads and writes through | inside only |
 | `init` | Makes the keys on the first start, then on every start writes each service a settings file only that service can read, then stops | — |
 | `migrate` | Applies new migrations on every start and fills in the demo the first time, then stops | — |
-| `clock` | Calls the jobs: Workflows every hour, emails due every five minutes | — |
+| `clock` | Calls the jobs: Workflows every hour, emails due every five minutes; with the two Usage Feed keys set, also starts the Usage Feed daily at 05:00 UTC | — |
 | `mail` | Mailpit: catches every email while no mail server is set. Anyone with a shell on the machine can read it, so on a server set a mail server before anyone else signs in | 127.0.0.1:8025 |
 
 ## Settings
@@ -55,6 +55,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
 | `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC |
 | `ZIFFR_TRIAL_DAYS` | Offers Trial Workspaces (spec 0021): anyone may sign in and make one of their own, for this many days (1 to 30). Every Connector works in it, reaching only its Owner; it is deleted a week after it ends. The clock then also cleans trials up hourly and resets the demo nightly. Leave `ZIFFR_DEMO_ONLY` unset and set `ZIFFR_DEMO=1` to offer the demo beside it. See [Offering trials](../docs/guides/self-hosting.md#offering-trials) |
+| `ZIFFR_USAGE_KEY`, `ZIFFR_USAGE_FEED_KEY` | Turn on the Usage Feed (spec 0031): the Installation's daily totals, sent into a Workspace of your own. A Usage Key from the Installation Settings page and a Feed Key from that Workspace; both are needed, and with one missing nothing runs and nothing is sent. Only the clock reads them. `ZIFFR_USAGE_SOURCE_URL` and `ZIFFR_USAGE_FEED_URL` name another Installation to read or to send to. See [Usage](../docs/guides/usage.md) |
 | `ZIFFR_TRIAL_MAX` | How many trials may run at once; default 200 |
 | `ZIFFR_TRIAL_THEN` | What becomes of a trial at its end: `delete` (the default) or `keep`, which turns it into an ordinary Workspace on the default Workspace Limit |
 | `ZIFFR_ONE_DEFAULT_PER_PERSON` | `1`: each person may own only one Workspace on the default Workspace Limit |
