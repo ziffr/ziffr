@@ -45,6 +45,8 @@ export function PackActions({ installId, name }: { installId: number; name: stri
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const close = () => { setText(null); setPlan(null); setProblems([]); setOkUnsigned(false); setOkAssistant(false); if (input.current) input.current.value = ""; };
   const read = (f: File | undefined) => {
+    // The same file chosen again, once fixed, is read again.
+    if (input.current) input.current.value = "";
     if (!f) return;
     if (f.size > PACK_LIMITS.bytes) { setProblems([{ path: "", line: null, message: `The file is ${f.size.toLocaleString("en")} bytes; at most ${PACK_LIMITS.bytes.toLocaleString("en")} are allowed.` }]); return; }
     run(async () => {

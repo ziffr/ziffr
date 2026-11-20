@@ -93,6 +93,8 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
   const [pending, start] = useTransition();
   const reset = () => { setText(null); setPreview(null); setProblems([]); setOkUnsigned(false); setOkAssistant(false); if (input.current) input.current.value = ""; };
   const read = (f: File | undefined) => {
+    // The same file chosen again, once fixed, is read again.
+    if (input.current) input.current.value = "";
     if (!f) return;
     if (f.size > PACK_LIMITS.bytes) { reset(); setProblems([{ path: "", line: null, message: `The file is ${f.size.toLocaleString("en")} bytes; at most ${PACK_LIMITS.bytes.toLocaleString("en")} are allowed.` }]); return; }
     start(async () => {
