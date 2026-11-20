@@ -53,7 +53,7 @@ function detailText(e: AuditEvent): string {
     case "metric.deleted": return `${d.values ?? 0} values went with it`;
     case "metric.workflow_set": return d.workflow_name ? `now ${d.workflow_name}` : "no Workflow now";
     case "period.locked": case "period.unlocked": case "approval.given": case "approval.sent_back": case "approval.skipped": case "self_check.confirmed": case "self_check.corrected": case "correction.accepted": case "correction.declined": return String(d.period ?? "");
-    case "schedule.read": return d.from && d.to ? `${d.from} to ${d.to}` : "";
+    case "schedule.read": return `${d.from && d.to ? `${d.from} to ${d.to}` : ""}${d.key_name ? `, with the key ${d.key_name}` : ""}`;
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
