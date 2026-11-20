@@ -549,3 +549,53 @@ export const PeriodStatus = z.object({
   workflow: { id: 3, name: "Weekly numbers" }, period: { start: "2026-11-16", name: "Week 47, 2026" }, in: 5, of: 6, published: 0, locked: 0,
   events: [{ at: "2026-11-16T08:00:00.000Z", day: "2026-11-16", time: "08:00", kind: "asked", text: "Asked 6 people by Email and Slack", count: 6, in: null, items: ["Mia: Revenue"], url: null }],
 }] });
+/** What an Alert waits for (GLOSSARY: Alert): one of five kinds; a level or share is text such as "80" or "-0.5", or a finite number. */
+const alertNumber = z.union([z.string().trim().min(1).max(40), z.number().finite()]).transform((v) => String(v)).describe("A plain number, as text such as \"80\" or \"-0.5\", or a finite number.");
+const AlertCondition = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("share_of_target"), share: alertNumber.describe("A share of target in per cent, 1 to 1,000: at or above it fires.") }).strict(),
+  z.object({ kind: z.literal("at_or_above"), value: alertNumber.describe("Fires when the latest value is at or above it.") }).strict(),
+  z.object({ kind: z.literal("below"), value: alertNumber.describe("Fires when the latest value falls strictly below it.") }).strict(),
+  z.object({ kind: z.literal("changed_more"), share: alertNumber.describe("A change in per cent against the period before, 1 to 1,000: strictly more fires.") }).strict(),
+  z.object({ kind: z.literal("missing_after_due") }).strict(),
+]);
+
+const alertDelivery = z.enum(["usual", "email", "slack", "telegram"]).describe("The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them.");
+
+/** One of the key's creator's own Alerts (GLOSSARY: Alert): its Metric, condition, state and when it last fired; never a value. */
+export const ApiAlert = z.object({
+  id: z.number().int(),
+  metric: z.object({ slug: z.string(), name: z.string() }),
+  condition: AlertCondition,
+  delivery: alertDelivery,
+  include_unapproved: z.boolean().describe("Whether values not approved yet count."),
+  paused_by_person: z.boolean(),
+  paused: z.enum(["no_access", "archived", "no_target", "no_workflow"]).nullable().describe("Why Ziffr does not let it fire, or null."),
+  state: z.enum(["armed", "fired"]),
+  fired_at: z.string().nullable(),
+  created_at: z.string(),
+});
+
+/** GET /alerts answers this: at most the 20 a person may hold, so there is no paging. */
+export const AlertList = z.object({ items: z.array(ApiAlert) });
+
+/** GET /alerts takes this. */
+export const alertsQuery = z.object({ metric: z.string().max(120).optional().describe("Only the Alerts on the Metric with this slug.") });
+
+/** POST /alerts takes this. */
+export const CreateAlert = z.object({
+  metric: z.string().min(1).max(120).describe("The Metric's slug, from GET /metrics."),
+  condition: AlertCondition,
+  delivery: alertDelivery.optional(),
+  include_unapproved: z.boolean().optional().describe("Also count values waiting for Approval. Off by default."),
+}).strict();
+
+/** PATCH /alerts/{id} takes this. Each part left out stays. A new condition arms the Alert again. */
+export const UpdateAlert = z.object({
+  condition: AlertCondition.optional(),
+  delivery: alertDelivery.optional(),
+  include_unapproved: z.boolean().optional(),
+  paused: z.boolean().optional().describe("The person's own pause switch."),
+}).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
+
+/** What DELETE /alerts/{id} answers. */
+export const RemovedAlert = z.object({ removed: z.number().int() });

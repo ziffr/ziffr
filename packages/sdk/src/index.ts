@@ -229,6 +229,38 @@ export type FeedItemResult = { metric: string; period: string | null; status: "r
 /** At most this many items in one batch. */
 export const FEED_BATCH_MAX = 500;
 
+/** What an Alert waits for (GLOSSARY: Alert); a share or a value is text such as "80" or "-0.5". */
+export type AlertCondition =
+  | { kind: "share_of_target"; share: string | number }
+  | { kind: "at_or_above"; value: string | number }
+  | { kind: "below"; value: string | number }
+  | { kind: "changed_more"; share: string | number }
+  | { kind: "missing_after_due" };
+
+/** The way an Alert's message is sent: the person's Delivery Preference (usual) or one way. */
+export type AlertDelivery = "usual" | "email" | "slack" | "telegram";
+
+/** One of the key's creator's own Alerts: its Metric, condition, state and when it last fired; never a value. */
+export type Alert = {
+  id: number;
+  metric: { slug: string; name: string };
+  condition: AlertCondition;
+  delivery: AlertDelivery;
+  include_unapproved: boolean;
+  paused_by_person: boolean;
+  /** Why Ziffr does not let it fire, or null. */
+  paused: "no_access" | "archived" | "no_target" | "no_workflow" | null;
+  state: "armed" | "fired";
+  fired_at: string | null;
+  created_at: string;
+};
+
+/** What to say to make an Alert. */
+export type NewAlert = { metric: string; condition: AlertCondition; delivery?: AlertDelivery; include_unapproved?: boolean };
+
+/** What to say to change one; each part left out stays. */
+export type AlertPatch = { condition?: AlertCondition; delivery?: AlertDelivery; include_unapproved?: boolean; paused?: boolean };
+
 /** A dashboard in a list (spec 0014): the key's creator's role on it and where to open it. */
 export type DashboardSummary = { id: number; name: string; role: "owner" | "editor" | "viewer"; url: string };
 
@@ -447,6 +479,19 @@ export class Ziffr {
       const { body, headers } = await this.request<{ results: FeedItemResult[] }>("POST", "/feed/observations", undefined, { items }, options.idempotencyKey ?? newIdempotencyKey());
       return { results: body.results, replayed: headers.get("idempotent-replayed") === "true" };
     },
+  };
+
+  /** The key's creator's own Alerts (GLOSSARY: Alert): never anyone else's. Reading needs metrics:read, the rest the
+   * scope alerts:write. */
+  readonly alerts = {
+    /** Their Alerts on Metrics they still see, newest first; of one Metric when its slug is given. At most 20. */
+    list: async (options: { metric?: string } = {}): Promise<Alert[]> => (await this.get<{ items: Alert[] }>("/alerts", options)).items,
+    /** Makes one for the key's creator. Refused (ZiffrError 422) at a limit or for a condition the Metric cannot give. */
+    create: async (input: NewAlert): Promise<Alert> => (await this.request<Alert>("POST", "/alerts", undefined, input)).body,
+    /** Changes one of theirs: condition, way of delivery, option or pause. */
+    update: async (id: number, patch: AlertPatch): Promise<Alert> => (await this.request<Alert>("PATCH", `/alerts/${id}`, undefined, patch)).body,
+    /** Removes one of theirs. */
+    remove: async (id: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/alerts/${id}`)).body,
   };
 
   /** The dashboards the key's creator sees (scope dashboards:read), and building them as the creator (scope

@@ -45,14 +45,17 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
  * and only while the creator's role may create. "metrics:edit" changes the Metrics the creator owns or edits: their
  * Target Range, Target Series, Projections and Unusual Value check (ticket #211), only while the creator's role may
  * create; a scope of its own, so keys made before it can do no more than they could. "dashboards:read" reads the dashboards the creator sees,
- * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write";
+ * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change.
+ * "alerts:write" makes, changes and removes the creator's own Alerts (spec 0032): a scope of its own because an Alert sends
+ * messages, and apart from "values:submit" and "metrics:edit" because it records and changes no Metric; any role that
+ * signs in may hold it, since an Alert is only ever the creator's own. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write"];
 
 /** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
-export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts" };
 
 /** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;

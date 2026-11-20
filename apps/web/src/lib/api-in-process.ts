@@ -3,6 +3,8 @@
 // to its SDK client, so every tool still goes through the API's key check, limit and Access Log, without a second
 // trip through the network or an internal address to configure. Only the endpoints for people's keys are here: a
 // Feed's endpoints and the OpenAPI document are not tools.
+import * as alerts from "@/app/api/v1/alerts/route";
+import * as alert from "@/app/api/v1/alerts/[id]/route";
 import * as dashboards from "@/app/api/v1/dashboards/route";
 import * as dashboard from "@/app/api/v1/dashboards/[id]/route";
 import * as findings from "@/app/api/v1/dashboards/[id]/findings/route";
@@ -37,6 +39,8 @@ type RouteModule = Partial<Record<"GET" | "POST" | "PATCH" | "DELETE", unknown>>
 
 /** The routes, as path patterns under /api/v1 (`[name]` is one segment), static ones before the ones they shadow. */
 export const ROUTES: [pattern: string, module: RouteModule][] = [
+  ["alerts", alerts],
+  ["alerts/[id]", alert],
   ["dashboards", dashboards],
   ["dashboards/from-template", fromTemplate],
   ["dashboards/[id]", dashboard],

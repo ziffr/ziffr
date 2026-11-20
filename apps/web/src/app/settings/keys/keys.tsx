@@ -13,7 +13,7 @@ import { RecentCalls } from "@/components/recent-calls";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts" };
 /** What a scope covers, where its label alone does not say. */
 const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);

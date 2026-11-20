@@ -208,6 +208,30 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/alerts", scope: "metrics:read", query: S.alertsQuery, ok: { status: 200, name: "AlertList", schema: S.AlertList },
+    summary: "List the key's creator's Alerts",
+    description: "The creator's own Alerts (a person's standing request to be told when a Metric's latest value meets a condition) on Metrics they still see, newest first; at most 20, so there is no paging. Nobody else's are ever listed. An Alert holds its condition and state, never a value.",
+  },
+  {
+    method: "post", path: "/alerts", scope: "alerts:write", body: S.CreateAlert, ok: { status: 201, name: "Alert", schema: S.ApiAlert },
+    summary: "Make an Alert",
+    description: "Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values, and Read metrics, since it answers with the Metric.",
+    errors: [
+      { status: 404, description: "A Metric the key's creator does not see; the answer is the same whether it exists or not." },
+      { status: 422, description: "A limit, an archived Metric, or a condition the Metric cannot give (a share of target without a target; not in by its Due Date without a Workflow); the message says which." },
+    ],
+  },
+  {
+    method: "patch", path: "/alerts/{id}", scope: "alerts:write", body: S.UpdateAlert, ok: { status: 200, name: "Alert", schema: S.ApiAlert },
+    summary: "Change an Alert",
+    description: "Changes the condition, way of delivery, option or pause of one of the creator's own Alerts. A new condition arms it again. Another person's Alert is not found.",
+    errors: [{ status: 422, description: "A condition the Metric cannot give, or a way of delivery that is not one." }],
+  },
+  {
+    method: "delete", path: "/alerts/{id}", scope: "alerts:write", ok: { status: 200, name: "RemovedAlert", schema: S.RemovedAlert },
+    summary: "Remove an Alert", description: "Removes one of the creator's own Alerts. Another person's Alert is not found.",
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },
@@ -312,7 +336,7 @@ export function openApiDocument() {
   for (const e of ENDPOINTS) {
     schemas[e.ok.name] = json(e.ok.schema);
     const parameters: unknown[] = [];
-    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
+    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
     if (e.query) {
       const q = json(e.query, "input") as { properties?: Record<string, Record<string, unknown>>; required?: string[] };
       for (const [name, schema] of Object.entries(q.properties ?? {})) {

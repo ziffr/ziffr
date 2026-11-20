@@ -253,6 +253,7 @@ Ziffr offers the assistant a few **Starters**, ready-made requests you pick inst
 | **Explain a Metric** (`explain_metric`) | Explains one Metric: what it measures, its values over time and where it is heading. It only reads. | none, it only reads |
 | **Start tracking** (`start_tracking`) | Sets up a new Metric with you: its name, how often, its unit and target, how its values come in and who sends them. It shows you the whole Metric and creates it once you agree. | Create metrics, and Change metrics to name who sends values |
 | **Set targets** (`set_targets`) | Takes a sentence such as "budget 5000 a month for revenue in 2027", shows which Metric gets which Target Range, Target Series or Projection for which periods, and sets them once you agree. It can also change when a value counts as unusual. | Change metrics |
+| **Alert me** (`alert_me`) | Takes a sentence such as "tell me when churn goes above 3 %", shows which Metric and condition each Alert would have and how you are told, and makes them once you agree. Only ever your own Alerts. | Manage alerts, and Read metrics |
 
 Where to find them:
 
@@ -276,6 +277,7 @@ You do not need a Starter. Some examples:
 - **Create metrics:** create Metrics owned by you. Before it creates one, it asks you how the values should come in (the Metric's **Sources**: web form, email, Slack, Telegram or programs) and who sends them (its **Submitters**), unless you already said. It can also delete a Metric you own, with all its values, when you ask and confirm the Metric's name. That cannot be undone, so leave this unticked unless you need it.
 - **Change metrics:** change the **Target Range** (the range a value should be in), the Polarity and the Attainment method, the **Target Series** and the **Projections** of the Metrics you own or are an Editor of. A Projection is only for the current period or a later one. It can also change when a value counts as an **Unusual Value**, in the check of a Workflow you own. That Workflow may be shared by several Metrics, and the change applies to all of them: the assistant tells you which Workflow and how many Metrics before it changes anything. It can also change a Metric's Sources and add or remove its Submitters, up to 20 at a time. Each person it adds is asked for the value at once, the way they chose to be asked, so it names them to you first. Nobody is asked this way more than once a day for a Metric, or five times a day in all.
 - **Build dashboards:** make dashboards, and change the dashboards you may change yourself, not only the ones it made. Every change is in the dashboard's history under its name, so you can restore what came before.
+- **Manage alerts:** set, change and remove **your own Alerts**, on Metrics you may see, such as "tell me when churn goes above 3 %". An Alert tells only you, through your Delivery Preference, and the assistant cannot make one for anyone else. The same limits apply as in the app.
 
 #### What the assistant cannot do
 

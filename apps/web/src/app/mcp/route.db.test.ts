@@ -68,7 +68,7 @@ describe("/mcp", () => {
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual((await local.listResourceTemplates()).resourceTemplates);
     expect(client.getServerVersion()).toEqual(local.getServerVersion());
     // The Starters too, filled in and refused the same way.
-    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "my_week", "weekly_review", "record_values", "build_dashboard", "explain_metric", "start_tracking", "set_targets"]);
+    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "my_week", "weekly_review", "record_values", "build_dashboard", "explain_metric", "start_tracking", "set_targets", "alert_me"]);
     expect((await client.listPrompts()).prompts).toEqual((await local.listPrompts()).prompts);
     const args = { name: "record_values", arguments: { text: "3 coffees today" } };
     expect(await client.getPrompt(args)).toEqual(await local.getPrompt(args));
@@ -90,6 +90,27 @@ describe("/mcp", () => {
     expect(log.map((l) => `${l.method} ${l.status}`)).toEqual(expect.arrayContaining(["GET 200", "POST 201", "GET 404"]));
   });
 
+  it("makes, lists, changes and removes only the creator's own Alerts, with the scope Manage alerts (spec 0032)", async () => {
+    const { w, ben, sara, orders, hidden, key } = await setup(["metrics:read", "alerts:write"]);
+    const client = await remote(key.secret);
+    const made = json(await client.callTool({ name: "create_alert", arguments: { metric: orders.slug, condition: { kind: "below", value: 5 } } })).alert;
+    expect(made).toMatchObject({ metric: { slug: orders.slug }, condition: { kind: "below", value: "5" }, state: "armed" });
+    expect(json(await client.callTool({ name: "list_alerts", arguments: {} })).alerts).toEqual([made]);
+    expect(json(await client.callTool({ name: "update_alert", arguments: { id: made.id, paused: true } })).alert.paused_by_person).toBe(true);
+    // A Metric the creator cannot see is the API's 404; a share outside 1 to 1,000 is refused by the tool's own schema.
+    const blind = await client.callTool({ name: "create_alert", arguments: { metric: hidden.slug, condition: { kind: "below", value: 5 } } });
+    expect(blind.isError).toBe(true);
+    expect(text(blind)).toContain("not_found");
+    expect((await client.callTool({ name: "create_alert", arguments: { metric: orders.slug, condition: { kind: "changed_more", share: 5000 } } })).isError).toBe(true);
+    // Another person's key, even an Owner's, reaches none of it.
+    const other = await createAccessKey(w.actor(sara, "owner"), { name: "Other", scopes: ["metrics:read", "alerts:write"], expiresOn: inDays(30) });
+    const them = await remote(other.secret);
+    expect(json(await them.callTool({ name: "list_alerts", arguments: {} })).alerts).toEqual([]);
+    expect((await them.callTool({ name: "delete_alert", arguments: { id: made.id } })).isError).toBe(true);
+    expect(json(await client.callTool({ name: "delete_alert", arguments: { id: made.id } }))).toEqual({ removed: made.id });
+    expect(ben).toBeTruthy();
+  });
+
   it("limits tools by the key's scopes exactly as the API does", async () => {
     const { key, orders } = await setup(["metrics:read"]);
     const client = await remote(key.secret);
@@ -105,6 +126,9 @@ describe("/mcp", () => {
       ["set_unusual_value_check", { slug: orders.slug, change_pct: 10 }],
       ["set_submitters", { slug: orders.slug, add: ["x"] }],
       ["list_feeds", {}],
+      ["create_alert", { metric: orders.slug, condition: { kind: "below", value: 1 } }],
+      ["update_alert", { id: 1, paused: true }],
+      ["delete_alert", { id: 1 }],
     ] as const) {
       const r = await client.callTool({ name, arguments: args });
       expect(r.isError, name).toBe(true);
