@@ -126,6 +126,8 @@ A value due leaves the list as soon as the value is in. While a colleague is Awa
 
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).
 
+Owners and Admins can read a teammate's Schedule through the API or an assistant, for example to cover for them. It lists only Metrics they may see themselves. A Task or Question whose Thread is kept to a Group they are not in is still listed, with its date and link, but without its words. Each such read is in the Audit Log, naming whose Schedule it was and for which days; reading your own is not.
+
 ### In your calendar
 
 A **Calendar Link** puts your schedule in your calendar app, next to your meetings: each date as an all-day entry, such as "Revenue for October 2026 due" or "Approve: Cost for October 2026", from 30 days back to 90 days ahead. Something late stays on its own date, with "(overdue)" in its title. Entries without a date are left out. Each entry links to where you do it in Ziffr, and the link asks you to sign in. Nothing you do in the calendar changes anything in Ziffr.

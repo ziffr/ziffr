@@ -90,3 +90,8 @@ The open questions of the draft, answered as recommended and folded into the dec
 2. **Names in the calendar:** shown by default, with a "no names" choice next to the copy button.
 3. **Metrics without a Workflow:** they appear, with the latest ended period without a value only, on the first working day after it ends, marked "no Due Date set".
 4. **Questions:** Escalations are dated in the Schedule; other open Questions are in the undated list of the API and the page only, never in the calendar.
+
+Later (2026-11-20, by the owner):
+
+5. **Reading a teammate's Schedule is audited.** Each request of an Owner or Admin for a teammate's Schedule (API or MCP `person_id`) writes one Audit Log event, `schedule.read`, naming whose Schedule, the span and the key it came through. Per request, not per entry, so a program asking often costs one insert each time. Reading one's own Schedule is not recorded.
+6. **Actions whose Thread the reader may not open** stay on a teammate's Schedule as existing: kind, date, Metric, period and link, without their words. Pinned by a database test.
