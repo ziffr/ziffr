@@ -174,13 +174,16 @@ describe("Approvals", () => {
     // Sara owns the Metric and may read the task, but the Approver the Workflow names is Ada.
     await expect(decideApprovalWithKey(await keyOf(w, sara, "owner", ALL), approval, { decision: "approve" }, API)).rejects.toThrow(ActionRefused);
     await expect(decideApprovalWithKey(await keyOf(w, ann, "member", ALL), approval, { decision: "approve" }, API)).rejects.toBeInstanceOf(Forbidden);
-    // A key made for an assistant never holds the scope; even one that somehow did is refused by its kind.
+    // A key made for an assistant never holds the scope (the database refuses it; the core also checks the key's kind).
     const adaKey = await keyOf(w, ada, "admin", ALL);
     const client = "zc_" + "A".repeat(22);
     await db().from("oauth_clients").insert({ id: client, name: "Assistant", redirect_uris: ["https://assistant.example.test/cb"] });
     cleanups.push(async () => { await db().from("access_keys").delete().eq("id", Number(adaKey.key.id)); await db().from("oauth_clients").delete().eq("id", client); });
-    const { error } = await db().from("access_keys").update({ kind: "assistant", oauth_client_id: client }).eq("id", Number(adaKey.key.id));
+    const { error } = await db().from("access_keys").update({ kind: "assistant", oauth_client_id: client, scopes: ["actions:read"] }).eq("id", Number(adaKey.key.id));
     expect(error).toBeNull();
+    // Not even the database takes an assistant's key with the scope.
+    const { error: backstop } = await db().from("access_keys").update({ scopes: ["values:approve"] }).eq("id", Number(adaKey.key.id));
+    expect(backstop?.message).toMatch(/access_keys_assistant_never_approves/);
     await expect(decideApprovalWithKey(adaKey, approval, { decision: "approve" }, API)).rejects.toBeInstanceOf(Forbidden);
     expect(await statusOf(approval)).toBe("open");
   });
@@ -193,14 +196,16 @@ describe("Approvals", () => {
   });
 
   it("is not decided by a reply that says approve, from a key that may only answer", async () => {
-    const { w, ada, approval, revenue } = await setup();
+    const { w, ada, sam, approval, revenue } = await setup();
     await replyWithKey(await keyOf(w, ada, "admin", ["actions:write"]), approval, { body: "Approved" }, API);
     await replyWithKey(await keyOf(w, ada, "admin", ["actions:write"]), approval, { body: "send back: no" }, API);
     expect(await statusOf(approval)).toBe("open");
     const { data } = await db().from("period_states").select("state").eq("metric_id", revenue.id).eq("period_start", month()).single();
     expect(data?.state).toBe("approval");
-    // Nor can the task be marked done or closed by hand to get round it.
+    // Nor can the task be marked done or closed by hand to get round it, not even by the submitter who asked for it.
     await expect(markDoneWithKey(await keyOf(w, ada, "admin", ["actions:write"]), approval, API)).rejects.toThrow(ActionRefused);
+    await expect(setStatusWithKey(await keyOf(w, sam, "member", ["actions:write"]), approval, "closed", API)).rejects.toThrow(/decided by approving/);
+    expect(await statusOf(approval)).toBe("open");
   });
 });
 

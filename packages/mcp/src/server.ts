@@ -285,7 +285,7 @@ function registerActionTools(server: McpServer, ziffr: Ziffr): void {
   server.registerTool("reply_to_action", {
     title: "Reply in a Thread",
     description: "Replies in an Action's Thread as the user, and proposes a Correction (a value) when `correction` is given. Only when the user asked to reply, in the words they confirmed. A reply is only words: it does not approve, send back or confirm anything. Needs a key that may answer questions and tasks.",
-    inputSchema: { id: actionId, body: z.string().min(1).max(5000), correction: z.number().optional().describe("A value this reply proposes in place of the one in question.") },
+    inputSchema: { id: actionId, body: z.string().min(1).max(5000), correction: z.number().min(-999999999999999).max(999999999999999).optional().describe("A value this reply proposes in place of the one in question.") },
     annotations: own,
   }, ({ id, body, correction }) => guarded(async () => answer({ action: await ziffr.actions.reply(id, body, correction) })));
 
@@ -306,7 +306,7 @@ function registerActionTools(server: McpServer, ziffr: Ziffr): void {
   server.registerTool("self_check", {
     title: "Confirm or correct my value",
     description: "In a Self-check (a task whose purpose is self_check) the user confirms the value they submitted as it is, or corrects it. Only after the user told you which, and the corrected number. Needs a key that may submit values.",
-    inputSchema: { id: actionId, decision: z.enum(["confirm", "correct"]), value: z.number().optional().describe("The corrected value; needed for `correct`.") },
+    inputSchema: { id: actionId, decision: z.enum(["confirm", "correct"]), value: z.number().min(-999999999999999).max(999999999999999).optional().describe("The corrected value; needed for `correct`.") },
     annotations: own,
   }, ({ id, decision, value }) => guarded(async () => {
     if (decision === "correct" && value === undefined) throw new Error("Give the corrected value.");

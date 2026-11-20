@@ -159,6 +159,9 @@ export async function setStatusWithKey(actor: KeyActor, id: number, status: "ope
   assertScope(actor, "actions:write");
   const a = await load(actor, id);
   if (a.asker_id !== actor.personId) throw new ActionRefused("Only the person who asked can close or reopen this.");
+  // An Approval or a Self-check is decided by its own call (approve, send back, confirm, correct): closed by hand it
+  // would leave its value waiting for good, and the key's scope for answering must not decide a value.
+  if (a.purpose === "approval" || a.purpose === "self_check") throw new ActionRefused("An approval or a check is decided by approving, sending back, confirming or correcting it.");
   await refusing(() => setActionStatus(creatorOf(actor), a.id, status, source));
   return answer(actor, id);
 }
