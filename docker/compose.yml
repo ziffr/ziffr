@@ -207,6 +207,10 @@ configs:
       	handle /rest/v1/* {
       		respond 404
       	}
+      	# Auth calls the Send Email Hook on the stack's own network (authhook): from outside it is not there.
+      	handle /api/auth/send-email {
+      		respond 404
+      	}
       	handle {
       		reverse_proxy app:3000
       	}

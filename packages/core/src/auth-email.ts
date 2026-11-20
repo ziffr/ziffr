@@ -23,28 +23,42 @@ export class AuthEmailRefused extends Error {
   }
 }
 
-/** The hook's secret as bytes, from `v1,whsec_<base64>` (as Auth takes it) or `whsec_<base64>`; null when unset or
- * malformed, and then the hook route answers "not found". */
-export function authHookSecret(env: Record<string, string | undefined> = process.env): Buffer | null {
-  const raw = (env.ZIFFR_AUTH_HOOK_SECRET ?? "").trim();
-  const b64 = /^(?:v1,)?whsec_([A-Za-z0-9+/=]{24,200})$/.exec(raw)?.[1];
-  if (!b64) return null;
-  const key = Buffer.from(b64, "base64");
-  return key.length >= 16 ? key : null;
+/** The hook's secrets as bytes, from `v1,whsec_<base64>` (as Auth takes it) or `whsec_<base64>`, several separated
+ * by `|` while one replaces another; none when unset or any is malformed, and then the hook route answers "not
+ * found". */
+export function authHookSecrets(env: Record<string, string | undefined> = process.env): Buffer[] {
+  const parts = (env.ZIFFR_AUTH_HOOK_SECRET ?? "").split("|").map((p) => p.trim()).filter(Boolean).slice(0, 5);
+  const keys = parts.map((part) => {
+    const b64 = /^(?:v1,)?whsec_([A-Za-z0-9+/=]{24,200})$/.exec(part)?.[1];
+    const key = b64 ? Buffer.from(b64, "base64") : null;
+    return key && key.length >= 16 ? key : null;
+  });
+  return keys.length && keys.every(Boolean) ? (keys as Buffer[]) : [];
+}
+
+const seen = new Map<string, number>();
+
+/** Whether this is the first time this process takes the call with this id in its five minutes, so a call sent again
+ * (a replay of one that leaked) sends nothing more. Ids older than the window are forgotten. */
+export function firstHookCall(id: string, now = Date.now()): boolean {
+  for (const [k, at] of seen) if (now - at > 2 * AUTH_HOOK_TOLERANCE_SECONDS * 1000) seen.delete(k);
+  if (seen.has(id)) return false;
+  if (seen.size < 10_000) seen.set(id, now);
+  return true;
 }
 
 /** Whether a hook call was signed with the secret, a moment ago (Standard Webhooks: the HMAC-SHA256 of
  * `<id>.<timestamp>.<body>`, base64, as `v1,<signature>`, several separated by spaces). Compared in constant time. */
-export function authHookSigned(secret: Buffer, headers: { id: string | null; timestamp: string | null; signature: string | null }, body: string, now = Date.now()): boolean {
+export function authHookSigned(secrets: Buffer[], headers: { id: string | null; timestamp: string | null; signature: string | null }, body: string, now = Date.now()): boolean {
   const { id, timestamp, signature } = headers;
   if (!id || !/^[\w.-]{1,200}$/.test(id) || !timestamp || !/^\d{9,11}$/.test(timestamp) || !signature) return false;
   if (Math.abs(now / 1000 - Number(timestamp)) > AUTH_HOOK_TOLERANCE_SECONDS) return false;
-  const mac = createHmac("sha256", secret).update(`${id}.${timestamp}.${body}`).digest();
+  const macs = secrets.map((secret) => createHmac("sha256", secret).update(`${id}.${timestamp}.${body}`).digest());
   return signature.split(" ").slice(0, 10).some((part) => {
     const given = /^v1,([A-Za-z0-9+/=]{1,200})$/.exec(part)?.[1];
     if (!given) return false;
     const bytes = Buffer.from(given, "base64");
-    return bytes.length === mac.length && timingSafeEqual(bytes, mac);
+    return macs.some((mac) => bytes.length === mac.length && timingSafeEqual(bytes, mac));
   });
 }
 

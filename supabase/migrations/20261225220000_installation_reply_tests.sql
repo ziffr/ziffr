@@ -20,17 +20,19 @@ alter table installation_reply_tests enable row level security;
 revoke all on table installation_reply_tests from public, anon, authenticated;
 
 -- Makes a test for the person when they made fewer than p_limit in the last hour, under a lock per person, so
--- parallel clicks count one after the other. Earlier unanswered tests of theirs stop working; day-old tests go.
+-- parallel clicks count one after the other. Earlier unanswered tests of theirs stop working once a new one is made;
+-- day-old tests go.
 create or replace function make_installation_reply_test(p_person text, p_token_hash text, p_limit int)
 returns bigint language plpgsql security definer set search_path = public as $$
 declare made bigint;
 begin
   perform pg_advisory_xact_lock(hashtext('installation:reply-test:' || p_person));
   delete from installation_reply_tests where created_at < now() - interval '1 day';
-  update installation_reply_tests set token_hash = null where person_id = p_person and received_at is null;
+  -- The limit first: a refused click leaves the test that waits alone.
   if (select count(*) from installation_reply_tests where person_id = p_person and created_at > now() - interval '1 hour') >= p_limit then
     return null;
   end if;
+  update installation_reply_tests set token_hash = null where person_id = p_person and received_at is null;
   insert into installation_reply_tests (person_id, token_hash) values (p_person, p_token_hash) returning id into made;
   return made;
 end $$;

@@ -75,6 +75,20 @@ describe("POST /api/auth/send-email", () => {
     }
   });
 
+  it("sends nothing more when the same call comes again", async () => {
+    const to = address();
+    const body = payload(to);
+    const id = `msg_${randomUUID()}`;
+    expect((await call(body, { id })).status).toBe(200);
+    expect((await call(body, { id })).status).toBe(200);
+    expect(await inbox(to)).toHaveLength(1);
+  });
+
+  it("refuses a body over 64 KB, also without a Content-Length", async () => {
+    const res = await POST(new Request("http://app:3000/api/auth/send-email", { method: "POST", body: new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode("x".repeat(70_000))); c.close(); } }), duplex: "half" } as RequestInit));
+    expect(res.status).toBe(413);
+  });
+
   it("refuses a link that would lead off this Ziffr, a kind it does not send, and a bad token, and sends nothing", async () => {
     for (const data of [{ redirect_to: "https://evil.example.test/" }, { redirect_to: `${SITE}.evil.example.test/` }, { email_action_type: "reauthentication" }, { token_hash: "<script>" }]) {
       const to = address();
