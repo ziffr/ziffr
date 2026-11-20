@@ -6,6 +6,7 @@ import { Forbidden, type Actor } from "./actor";
 import { DEMO_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialSettings } from "./trials";
+import { settingsInEffectNow } from "./settings-in-effect";
 
 /** The error code the database raises for a write to the demo. */
 export const DEMO_READ_ONLY_CODE = "ZF4D0";
@@ -16,7 +17,7 @@ function trialsOffered(env: Record<string, string | undefined>): boolean {
 }
 
 /** The one sentence a refused change in the demo says, pointing to a trial where this Installation offers them. */
-export function demoReadOnlyWords(env: Record<string, string | undefined> = process.env): string {
+export function demoReadOnlyWords(env: Record<string, string | undefined> = settingsInEffectNow()): string {
   return trialsOffered(env) ? DEMO_READ_ONLY_TRIAL : DEMO_READ_ONLY;
 }
 
@@ -25,7 +26,7 @@ export class DemoReadOnly extends Forbidden {
   /** Kept by Next.js in production, where it replaces the message of an error from a plain form's server action: the
    * error screen reads this fixed code and says the sentence (demo-words.ts). */
   readonly digest: string;
-  constructor(env: Record<string, string | undefined> = process.env) {
+  constructor(env: Record<string, string | undefined> = settingsInEffectNow()) {
     super(demoReadOnlyWords(env));
     this.name = "DemoReadOnly";
     this.digest = trialsOffered(env) ? DEMO_DIGEST.trial : DEMO_DIGEST.plain;

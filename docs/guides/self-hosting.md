@@ -87,7 +87,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `SUPABASE_ANON_KEY` | The public anon key, for sign-in; Row Level Security lets it read nothing. Read when the app starts, so one build serves any project. Before 0.8, `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` did this, and they still work |
 | `ZIFFR_SITE_URL` | Where Ziffr is reached, with `https://`; links in emails and sign-in lead here |
 | `ZIFFR_AUTH_PROVIDERS` | Sign-in providers besides the email link, if any |
-| `ZIFFR_DEMO` | `0` to offer no demo |
+| `ZIFFR_DEMO` | `0` to offer no demo, `1` to offer it; or choose on the Installation settings page |
 | `ZIFFR_USER_GUIDE_URL` | Where the app's "User guide" link leads, if your team keeps its guide elsewhere; without it, Ziffr's own guide at `/guide` ([user guide](../user-guide/README.md)) |
 | `ZIFFR_USER_GUIDE_DIR` | A folder of guide chapters other than `docs/user-guide`, such as a translated copy, optional |
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)); or set them on the [Installation settings](#installation-settings) page |
@@ -131,6 +131,7 @@ Some of what an Installation talks to can be set on a page instead of in the set
 - **Secrets.** The mail server's address holds its password, so it is sealed with `ZIFFR_SECRETS_KEY` before it is stored, and never shown again. Docker makes that key on the first start; elsewhere set it before saving secrets on the page. Back it up with the database: without it, sealed settings no longer open and must be saved again.
 - **The mail server's address** is read for its host, port, user and password only, also from the environment: options in a query (`?…`) are ignored, and the page refuses them. A host inside your own network, written so or resolving there, is refused on the page unless `ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1`; Ziffr connects to the address it checked.
 - **Sign-in links** go through Ziffr's mail settings too: Supabase Auth hands each one to Ziffr (its Send Email Hook), which Docker sets up by itself. With your own Supabase project, add the hook as above; without it, Auth keeps its own mail settings for sign-in links.
+- **The check against bots, trials and the demo** are set up on the page too, as the user guide's Installation settings chapter shows. `ZIFFR_DEMO_ONLY` stays a server setting, since it also stops Supabase Auth from making accounts. With Docker, `ZIFFR_DEMO` in the settings file wins; without it, the page decides over Docker's default (offered on a laptop, not on a domain).
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 
@@ -138,12 +139,12 @@ Some of what an Installation talks to can be set on a page instead of in the set
 
 A public Ziffr can let anyone try it for real with a **Trial Workspace** of their own ([spec 0021](../specs/0021-trial-workspaces.md), [ADR 0010](../adr/0010-trial-workspaces-reach-only-their-owner.md)). A visitor signs in with their email address and gets one workspace, filled with made-up Metrics, a dashboard and a Workflow that asks them. Email, Slack, Telegram, the API, the MCP Server and Feeds work in it for real, but reach only its Owner; nobody can be invited, Contacts stay simulated, and it sends at most 50 messages a day. It ends after the days you set and is deleted a week later, with its Owner's account. The shared demo stays beside it for people who only want to look.
 
-1. Set `ZIFFR_TRIAL_DAYS` (1 to 30) and, if you like, `ZIFFR_TRIAL_MAX` (default 200). Leave `ZIFFR_DEMO_ONLY` unset; with Docker on a domain, set `ZIFFR_DEMO=1` to keep offering the demo. Every workspace made on this Ziffr is then a trial, so use an Installation of its own, never one your team works in.
-2. Set up Cloudflare Turnstile: make a widget for your domain in the Cloudflare dashboard (Turnstile, Add widget, mode Managed) and set `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET`. With your own Supabase project, also turn on its bot protection (Auth, Bot protection, Turnstile) with the same secret, since Supabase's sign-in endpoint can be called without Ziffr.
+1. Set `ZIFFR_TRIAL_DAYS` (1 to 30) and, if you like, `ZIFFR_TRIAL_MAX` (default 200), or set them in the **Trials** section of the [Installation settings](#installation-settings) page. Leave `ZIFFR_DEMO_ONLY` unset; with Docker on a domain, offer the demo with `ZIFFR_DEMO=1` or in the page's **Demo** section. Every workspace made on this Ziffr is then a trial, so use an Installation of its own, never one your team works in.
+2. Set up Cloudflare Turnstile: make a widget for your domain in the Cloudflare dashboard (Turnstile, Add widget, mode Managed) and set `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET`, or save them in the page's **Check against bots** section, which asks Cloudflare whether it knows the secret first. With your own Supabase project, also turn on its bot protection (Auth, Bot protection, Turnstile) with the same secret, since Supabase's sign-in endpoint can be called without Ziffr.
 3. Real email: set `ZIFFR_SMTP_URL` and `ZIFFR_MAIL_FROM` for a mail provider that allows this volume, and replies by email ([email guide](email.md)) if you want them. Without a mail server, trials still work and say that email is simulated.
 4. Slack, if you want it: set up the app ([Slack guide](slack.md)) and, under Manage Distribution, turn on public distribution, so any Slack workspace can add it. It does not need to be listed in the Slack Marketplace.
 5. Telegram, if you want it: one bot for the Installation ([Telegram guide](telegram.md)).
-6. The scheduler must call `POST /api/jobs/trial-cleanup` every hour ([jobs](jobs.md)); Docker Compose does it when `ZIFFR_TRIAL_DAYS` is set.
+6. The scheduler must call `POST /api/jobs/trial-cleanup` every hour ([jobs](jobs.md)); Docker Compose does it, and the job answers 404 while no trials are offered.
 
 The sign-in page then shows the trial next to the demo, with what works in a trial on this Ziffr and what it asks for. A setting that is set but wrong (`ZIFFR_TRIAL_DAYS=14d`) stops workspaces from being made rather than offering ordinary ones.
 

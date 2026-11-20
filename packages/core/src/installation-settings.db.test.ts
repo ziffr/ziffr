@@ -6,7 +6,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
-import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR } from "./installation-settings";
+import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR, turnstileVerifier } from "./installation-settings";
+import { trialSettingsInEffect, trialsOpen } from "./trials";
+import { demoReadOnlyWords } from "./demo";
+import { DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL } from "./demo-words";
 import { inboundOn, mailOn, smtpOptions, smtpTransportWith } from "./mail";
 import { mailHostResolver } from "./mail-hosts";
 import { openSecret } from "./secrets";
@@ -19,7 +22,7 @@ import type { OutgoingMail } from "./mail";
 
 const SMTP = process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425";
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
-const KEYS = ["ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS", "ZIFFR_ALLOW_PRIVATE_MAIL_HOST"];
+const KEYS = ["ZIFFR_TURNSTILE_SITE_KEY", "ZIFFR_TURNSTILE_SECRET", "ZIFFR_TRIAL_MAX", "ZIFFR_DEMO", "ZIFFR_DEMO_DEFAULT", "ZIFFR_DEMO_ONLY", "ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS", "ZIFFR_ALLOW_PRIVATE_MAIL_HOST"];
 const savedEnv: Record<string, string | undefined> = {};
 let savedAdmins: Record<string, unknown>[] = [];
 let savedSettings: Record<string, unknown>[] = [];
@@ -112,7 +115,7 @@ describe("who may see and change Installation Settings", () => {
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_SMTP_URL: "smtp://smtp.example.test:587?logger=true&debug=true" })).rejects.toThrow(/no \?options/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "two@example.test, three@example.test" })).rejects.toThrow(/one email address/);
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "x".repeat(2000) })).rejects.toThrow(/too long/);
-    await expect(saveInstallationSettings(a, "bots", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/cannot be set up here yet/);
+    await expect(saveInstallationSettings(a, "nonsense", { ZIFFR_INBOUND_DOMAIN: "in.example.test" })).rejects.toThrow(/cannot be set up here yet/);
     // One bad value: nothing of the batch is stored.
     await expect(saveInstallationSettings(a, "mail", { ZIFFR_MAIL_FROM: "Ziffr <z@example.test>", ZIFFR_SMTP_URL: "ftp://x" })).rejects.toThrow();
     expect((await db().from("installation_settings").select("name")).data).toEqual([]);
@@ -471,5 +474,64 @@ describe("replies by email on the page (#198)", () => {
     expect(messages[0].ReplyTo[0].Address).toMatch(/^reply\+[A-Za-z0-9_-]{32}@in\.example\.test$/);
     for (let i = 1; i < REPLY_TESTS_PER_HOUR; i++) await startReplyTest(a, async () => ({ messageId: "x" }));
     await expect(startReplyTest(a, async () => ({ messageId: "x" }))).rejects.toThrow(/At most 5 reply tests an hour/);
+  });
+});
+
+describe("the check against bots, trials and the demo on the page (#201)", () => {
+  const realAsk = turnstileVerifier.ask;
+  afterEach(() => { turnstileVerifier.ask = realAsk; });
+
+  it("saves Turnstile's keys only once Cloudflare knows the secret, and the sign-in form uses them", async () => {
+    const a = await admin();
+    turnstileVerifier.ask = async (secret) => (secret === "0x4AAAAAAAknownsecret" ? ["invalid-input-response"] : ["invalid-input-secret"]);
+    await expect(saveInstallationSettings(a, "bots", { ZIFFR_TURNSTILE_SECRET: "0x4AAAAAAAwrongsecret" })).rejects.toThrow(/does not know this secret key/);
+    turnstileVerifier.ask = async () => { throw new Error("offline"); };
+    await expect(saveInstallationSettings(a, "bots", { ZIFFR_TURNSTILE_SECRET: "0x4AAAAAAAknownsecret" })).rejects.toThrow(/could not be reached/);
+    await expect(saveInstallationSettings(a, "bots", { ZIFFR_TURNSTILE_SITE_KEY: "not a key!" })).rejects.toThrow(/site key/);
+    expect((await installationSettingsView(a)).sections.find((x) => x.id === "bots")!.working).toBe(false);
+    turnstileVerifier.ask = async () => ["invalid-input-response"];
+    await saveInstallationSettings(a, "bots", { ZIFFR_TURNSTILE_SITE_KEY: "0x4AAAAAAAsitekey", ZIFFR_TURNSTILE_SECRET: "0x4AAAAAAAknownsecret" });
+    const s = await settingsInEffect();
+    expect([s.ZIFFR_TURNSTILE_SITE_KEY, s.ZIFFR_TURNSTILE_SECRET]).toEqual(["0x4AAAAAAAsitekey", "0x4AAAAAAAknownsecret"]);
+    const bots = (await installationSettingsView(a)).sections.find((x) => x.id === "bots")!;
+    expect(bots.working).toBe(true);
+    // The secret is sealed and never sent back.
+    expect(JSON.stringify(bots)).not.toContain("knownsecret");
+    const { data } = await db().from("installation_settings").select("sealed").eq("name", "ZIFFR_TURNSTILE_SECRET").single();
+    expect(data!.sealed).toBe(true);
+  });
+
+  it("turns trials on and off, and every place that asks sees it, the demo's sentence included", async () => {
+    const a = await admin();
+    expect(await trialSettingsInEffect()).toBeNull();
+    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "45" })).rejects.toThrow(/1 to 30 days/);
+    await saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "14", ZIFFR_TRIAL_MAX: "3" });
+    expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 3 });
+    expect((await whatThisZiffrOffers()).trial?.days).toBe(14);
+    expect(typeof (await trialsOpen())).toBe("boolean");
+    expect(demoReadOnlyWords()).toBe(DEMO_READ_ONLY_TRIAL);
+    expect((await installationSettingsView(a)).sections.find((x) => x.id === "trials")).toMatchObject({ working: true, detail: expect.stringContaining("Trials of 14 days, at most 3 at once") });
+    await saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: null, ZIFFR_TRIAL_MAX: null });
+    expect(await trialSettingsInEffect()).toBeNull();
+    expect(demoReadOnlyWords()).toBe(DEMO_READ_ONLY);
+    // The server's value wins.
+    process.env.ZIFFR_TRIAL_DAYS = "7";
+    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "3" })).rejects.toThrow(/set on the server/);
+    expect((await trialSettingsInEffect())?.days).toBe(7);
+  });
+
+  it("offers the demo or not, over Docker's default, and never against the server", async () => {
+    const a = await admin();
+    process.env.ZIFFR_DEMO_DEFAULT = "0";
+    expect((await whatThisZiffrOffers()).demo).toBe(false);
+    await expect(saveInstallationSettings(a, "demo", { ZIFFR_DEMO: "maybe" })).rejects.toThrow(/Pick whether/);
+    await saveInstallationSettings(a, "demo", { ZIFFR_DEMO: "1" });
+    expect((await whatThisZiffrOffers()).demo).toBe(true);
+    expect((await installationSettingsView(a)).sections.find((x) => x.id === "demo")!.working).toBe(true);
+    await saveInstallationSettings(a, "demo", { ZIFFR_DEMO: "0" });
+    expect((await whatThisZiffrOffers()).demo).toBe(false);
+    process.env.ZIFFR_DEMO = "1";
+    await expect(saveInstallationSettings(a, "demo", { ZIFFR_DEMO: "0" })).rejects.toThrow(/set on the server/);
+    expect((await whatThisZiffrOffers()).demo).toBe(true);
   });
 });

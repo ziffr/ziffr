@@ -3,9 +3,16 @@
 // they want a trial. The cap and "one per person" are checked in one locked database step (create_trial_workspace).
 import { db } from "./db";
 import { Forbidden } from "./actor";
+import { settingsInEffect } from "./settings-in-effect";
 
 /** Live Trial Workspaces an Installation holds unless ZIFFR_TRIAL_MAX says otherwise. */
 export const DEFAULT_TRIAL_MAX = 200;
+
+/** The trial settings the Installation has now, from the environment, the Installation settings page or the
+ * default; null when trials are not offered. A wrong value throws, as trialSettings says. */
+export async function trialSettingsInEffect(): Promise<{ days: number; max: number } | null> {
+  return trialSettings(await settingsInEffect());
+}
 
 /** The Installation's trial settings: null when ZIFFR_TRIAL_DAYS is not set. A setting that is there but wrong (days
  * outside 1 to 30, a cap that is not a positive whole number) throws instead of counting as unset: an operator who
@@ -106,7 +113,8 @@ export async function claimTrialSend(deliveryId: number): Promise<"ok" | "wait" 
 
 /** Whether a new trial can be made right now on this Installation: false when trials are off or the cap is reached.
  * A count only, never which workspaces, so the login page may ask it for anyone. */
-export async function trialsOpen(env: Record<string, string | undefined> = process.env): Promise<boolean> {
+export async function trialsOpen(given?: Record<string, string | undefined>): Promise<boolean> {
+  const env = given ?? (await settingsInEffect());
   let settings: { days: number; max: number } | null = null;
   try { settings = trialSettings(env); } catch { return false; }
   if (!settings) return false;

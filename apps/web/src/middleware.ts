@@ -52,7 +52,10 @@ export async function middleware(req: NextRequest) {
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
   if (path.startsWith("/api/v1/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
   let res = NextResponse.next({ request: { headers } });
-  // As demoEnabled() in lib/auth.ts.
+  // Whether the demo is offered is an Installation Setting (spec 0025). The middleware reads only the environment,
+  // which wins over the page: there ZIFFR_DEMO=0 closes the demo outright. Otherwise the page may decide, so the
+  // middleware sets and passes the demo's cookie and every page and action asks isDemo(), which reads the setting in
+  // effect: a visit to a demo that is not offered counts as no visit and is sent to sign in.
   const demoOffered = process.env.ZIFFR_DEMO_ONLY === "1" || process.env.ZIFFR_DEMO !== "0";
   if (path === "/demo" || path === "/demo/leave") {
     // A signed-in person enters the shared demo, where they might type real numbers, only by its confirm page's

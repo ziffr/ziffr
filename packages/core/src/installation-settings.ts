@@ -6,6 +6,7 @@
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
+import { trialSettings } from "./trials";
 import { headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
@@ -96,6 +97,11 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_SLACK_SIGNING_SECRET: (v) => (/^[A-Za-z0-9]{32,128}$/.test(v) ? null : "The Signing Secret is letters and digits, as Slack shows it under App Credentials."),
   ZIFFR_DEFAULT_METRICS_LIMIT: (v) => problemOf(() => limitNumber(v)),
   ZIFFR_DEFAULT_LIMIT_LABEL: (v) => problemOf(() => limitLabel(v)),
+  ZIFFR_TURNSTILE_SITE_KEY: (v) => (/^[A-Za-z0-9_-]{10,100}$/.test(v) ? null : "The site key is letters, digits, - and _, as Cloudflare shows it, such as 0x4AAAAAAA…."),
+  ZIFFR_TURNSTILE_SECRET: (v) => (/^[A-Za-z0-9_-]{10,200}$/.test(v) ? null : "The secret key is letters, digits, - and _, as Cloudflare shows it."),
+  ZIFFR_TRIAL_DAYS: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30 ? null : "A trial lasts 1 to 30 days."),
+  ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
+  ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
@@ -112,6 +118,20 @@ async function telegramCannotReach(settings: Record<string, string | undefined>)
     return null;
   }
 }
+
+/** Asks Cloudflare whether it knows a Turnstile secret key, before it is saved: a siteverify call with an answer no
+ * widget gave tells a known secret ("invalid-input-response") from an unknown one ("invalid-input-secret"). Only
+ * Cloudflare's own address is called. Replaced in tests. */
+export const turnstileVerifier = {
+  /** Cloudflare's error codes for the secret with an answer no widget gave. */
+  ask: async (secret: string): Promise<string[]> => {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST", body: new URLSearchParams({ secret, response: "ziffr-settings-check" }), signal: AbortSignal.timeout(5000), cache: "no-store",
+    });
+    const data = (await res.json()) as { "error-codes"?: unknown };
+    return Array.isArray(data["error-codes"]) ? data["error-codes"].map(String) : [];
+  },
+};
 
 /** The message a check throws, or null when the value passes. */
 function problemOf(check: () => unknown): string | null {
@@ -143,6 +163,24 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     if (!secretsKey(settings)) return { working: false, detail: "Needs ZIFFR_SECRETS_KEY on the server, which seals the Slack workspaces' bot tokens." };
     if (!/^https?:\/\/[^\s/]+/.test(settings.ZIFFR_SITE_URL ?? "")) return { working: false, detail: "Needs ZIFFR_SITE_URL on the server." };
     return { working: false, detail: "Needs all three values from Slack." };
+  }
+  if (id === "bots") {
+    const site = settings.ZIFFR_TURNSTILE_SITE_KEY;
+    const secret = settings.ZIFFR_TURNSTILE_SECRET;
+    if (site && secret) return { working: true, detail: "The sign-in form shows the check, and Ziffr sends no link without a passed one." };
+    return { working: false, detail: site || secret ? "Needs both the site key and the secret key." : null };
+  }
+  if (id === "trials") {
+    try {
+      const t = trialSettings(settings);
+      return t ? { working: true, detail: `Trials of ${t.days} day${t.days === 1 ? "" : "s"}, at most ${t.max.toLocaleString("en-US")} at once. Every Workspace made here is one.` } : { working: false, detail: null };
+    } catch (e) {
+      return { working: false, detail: (e as Error).message };
+    }
+  }
+  if (id === "demo") {
+    if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: "This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here." };
+    return settings.ZIFFR_DEMO !== "0" ? { working: true, detail: "The login page offers Try the demo." } : { working: false, detail: "The login page does not offer the demo." };
   }
   if (id === "limits") {
     const d = defaultLimitFrom(settings);
@@ -207,6 +245,13 @@ export async function saveInstallationSettings(actor: InstallationActor, section
       }
     }
     changes.push({ def, value });
+  }
+  // Turnstile: a new secret is asked of Cloudflare before it is stored, so a wrong one never shuts everyone out of signing in.
+  const turnstile = changes.find((c) => c.def.name === "ZIFFR_TURNSTILE_SECRET");
+  if (turnstile?.value) {
+    let codes: string[];
+    try { codes = await turnstileVerifier.ask(turnstile.value); } catch { throw new Error("Cloudflare could not be reached to check the secret key. Try again in a moment."); }
+    if (codes.includes("invalid-input-secret")) throw new Error("Cloudflare does not know this secret key. Copy it again from the widget in the Cloudflare dashboard.");
   }
   // Telegram: a new token is asked of Telegram before it is stored, so a wrong one never replaces a working one.
   const telegram = changes.find((c) => c.def.name === "ZIFFR_TELEGRAM_BOT_TOKEN");

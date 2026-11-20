@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 import { demoEnabled } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 
-export default function DemoConfirmPage() {
-  if (!demoEnabled()) redirect("/");
+export default async function DemoConfirmPage() {
+  if (!(await demoEnabled())) redirect("/");
   return (
     <div className="mx-auto mt-16 max-w-sm">
       <h1 className="text-[length:var(--text-2xl)] leading-tight">Open the demo?</h1>

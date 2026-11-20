@@ -18,7 +18,7 @@ export const DEMO_COOKIE = "ziffr-demo";
 /** Whether this request is a visit to the demo (ADR 0005): the demo is offered and the visitor chose it. It only ever
  * reaches the demo workspace and its made-up people, never a real workspace or account. */
 export async function isDemo(): Promise<boolean> {
-  return demoEnabled() && (await cookies()).get(DEMO_COOKIE)?.value === "1";
+  return (await cookies()).get(DEMO_COOKIE)?.value === "1" && (await demoEnabled());
 }
 
 /** A Supabase client acting with the signed-in person's session, read from and written to cookies. */

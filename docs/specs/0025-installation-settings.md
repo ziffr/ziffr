@@ -1,6 +1,6 @@
 # 0025 Installation Settings: set up mail, Telegram, Slack and the rest in Ziffr, not in a file
 
-**Status:** draft. **Tracking issue:** #195 (label `tracking`); tickets carry `spec:0025`.
+**Status:** done. **Tracking issue:** #195 (label `tracking`); tickets carry `spec:0025`.
 
 ## Problem Statement
 

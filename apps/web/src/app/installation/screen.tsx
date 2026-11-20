@@ -45,7 +45,8 @@ async function report(p: Promise<Result>, done: string): Promise<boolean> {
 /** A word for how a section stands, never a coloured dot alone. */
 function Standing({ section }: { section: SectionView }) {
   // A section with a reason below it (a bot Telegram cannot send answers through, say) is not merely unset.
-  const word = section.working ? "Working" : !section.ready ? "Set on the server for now" : section.detail ? "Not working" : "Not set up";
+  // The demo not offered is a choice, not a fault.
+  const word = section.working ? "Working" : !section.ready ? "Set on the server for now" : section.id === "demo" ? "Off" : section.detail ? "Not working" : "Not set up";
   return <span className={section.working ? "pressed text-xs" : "inline-flex items-center rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]"}>{word}</span>;
 }
 
@@ -247,11 +248,17 @@ function Field({ setting: s, value, disabled, onChange, onRemove }: { setting: S
       <label htmlFor={id} className="block text-sm font-medium">{s.label} <span className="font-mono text-xs font-normal text-muted-foreground">{s.name}</span></label>
       <p className="text-xs text-muted-foreground">{s.help}</p>
       {s.source === "server" ? (
-        <p id={id} className="rounded-[var(--radius-input)] border border-dashed border-border px-2 py-1.5 text-sm">{s.secret ? "Set on the server" : s.value}</p>
+        <p id={id} className="rounded-[var(--radius-input)] border border-dashed border-border px-2 py-1.5 text-sm">{s.secret ? "Set on the server" : s.choices?.find((c) => c.value === s.value)?.label ?? s.value}</p>
       ) : (
         <div className="flex gap-2">
-          <Input id={id} type={s.secret ? "password" : "text"} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={1000}
-            autoComplete={s.secret ? "new-password" : "off"} spellCheck={false} placeholder={s.secret && s.source === "page" ? "Saved: leave empty to keep it" : s.placeholder} />
+          {s.choices ? (
+            <select id={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
+              className="h-9 min-w-0 flex-1 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
+              <option value="">{s.source === "default" ? "The Installation's default" : "Choose"}</option>
+              {s.choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          ) : <Input id={id} type={s.secret ? "password" : "text"} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={1000}
+            autoComplete={s.secret ? "new-password" : "off"} spellCheck={false} placeholder={s.secret && s.source === "page" ? "Saved: leave empty to keep it" : s.placeholder} />}
           {s.source === "page" && <Button type="button" variant="outline" disabled={disabled} onClick={onRemove}>Remove</Button>}
         </div>
       )}
