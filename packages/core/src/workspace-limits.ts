@@ -71,15 +71,25 @@ export function limitLabel(raw: unknown): string | null {
   return text;
 }
 
-/** The Installation's default from the settings in effect (ZIFFR_DEFAULT_METRICS_LIMIT, ZIFFR_DEFAULT_LIMIT_LABEL);
- * a value that cannot be read counts as none and is said in the server log, never guessed. */
-export function defaultLimitFrom(settings: Settings): { metrics: number | null; label: string | null } {
+/** The Installation's default from the settings in effect (ZIFFR_DEFAULT_METRICS_LIMIT, ZIFFR_DEFAULT_LIMIT_LABEL),
+ * each read on its own: a name that cannot be read only loses the name. A limit that cannot be read (such as "10k" in
+ * the server's environment; the page checks what it saves) cannot be guessed, so no default applies, and `problem`
+ * says so on the Installation Settings page and in the server log. */
+export function defaultLimitFrom(settings: Settings): { metrics: number | null; label: string | null; problem: string | null } {
+  let metrics: number | null = null;
+  let problem: string | null = null;
   try {
-    return { metrics: limitNumber(settings.ZIFFR_DEFAULT_METRICS_LIMIT), label: limitLabel(settings.ZIFFR_DEFAULT_LIMIT_LABEL) };
+    metrics = limitNumber(settings.ZIFFR_DEFAULT_METRICS_LIMIT);
   } catch {
-    console.error("Workspace Limits: ZIFFR_DEFAULT_METRICS_LIMIT or ZIFFR_DEFAULT_LIMIT_LABEL cannot be read; no default limit applies.");
-    return { metrics: null, label: null };
+    problem = "ZIFFR_DEFAULT_METRICS_LIMIT cannot be read: write a whole number of Metrics. Until then no default limit applies.";
   }
+  let label: string | null = null;
+  try {
+    label = limitLabel(settings.ZIFFR_DEFAULT_LIMIT_LABEL);
+  } catch {
+    label = limitLabel(String(settings.ZIFFR_DEFAULT_LIMIT_LABEL).slice(0, LABEL_MAX));
+  }
+  return { metrics, label, problem };
 }
 
 // The default as last written to the database, so it is written only when it changed.
@@ -91,7 +101,8 @@ const SYNC_EVERY_MS = 5_000;
  * made or brought back, and when the setting is saved. */
 export async function syncDefaultLimit(force = false): Promise<void> {
   const d = defaultLimitFrom(await settingsInEffect());
-  const key = JSON.stringify(d);
+  if (d.problem && !synced) console.error(`Workspace Limits: ${d.problem}`);
+  const key = JSON.stringify([d.metrics, d.label]);
   if (!force && synced && synced.key === key && Date.now() - synced.at < SYNC_EVERY_MS) return;
   const { data } = await db().from("installation_limit_default").select("metrics, label").eq("only_row", true).maybeSingle();
   if (!data || data.metrics !== d.metrics || data.label !== d.label) {

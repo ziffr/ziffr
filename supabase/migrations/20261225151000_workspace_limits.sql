@@ -81,6 +81,8 @@ language plpgsql security definer set search_path = public as $$
 declare
   v_limit int;
 begin
+  -- The Workspace's row first, as the trigger before a new Metric takes it, so a count and a creation never cross.
+  perform 1 from workspaces where id = p_workspace for update;
   select metrics into v_limit from workspace_limit_of(p_workspace);
   if v_limit is not null and workspace_metric_count(p_workspace) > v_limit then
     update workspaces set over_limit_since = now() where id = p_workspace and over_limit_since is null;
@@ -99,7 +101,9 @@ declare
   v_count int;
   v_rule text;
 begin
-  if tg_op = 'UPDATE' and not (old.archived_at is not null and new.archived_at is null) then return new; end if;
+  -- An update counts only when it brings an Archived Metric back or moves a Metric into another Workspace.
+  if tg_op = 'UPDATE' and not (old.archived_at is not null and new.archived_at is null)
+    and new.workspace_id is not distinct from old.workspace_id then return new; end if;
   if new.archived_at is not null then return new; end if;
   select over_limit_since into v_since from workspaces where id = new.workspace_id for update;
   select metrics into v_limit from workspace_limit_of(new.workspace_id);
@@ -115,7 +119,7 @@ begin
   return new;
 end $$;
 
-create trigger metrics_within_limit before insert or update of archived_at on metrics
+create trigger metrics_within_limit before insert or update of archived_at, workspace_id on metrics
   for each row execute function metrics_within_limit();
 
 -- After a Metric is deleted or archived: back under the limit clears the grace.
@@ -126,7 +130,7 @@ begin
   return null;
 end $$;
 
-create trigger metrics_limit_settle after delete or update of archived_at on metrics
+create trigger metrics_limit_settle after delete or update of archived_at, workspace_id on metrics
   for each row execute function metrics_limit_settle();
 
 -- A limit set, changed or removed: a limit below the count starts the grace, one above it ends it.

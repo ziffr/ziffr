@@ -13,7 +13,7 @@ import { forgetStoredSettings } from "./settings-in-effect";
 import { submitValue } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
-import { GRACE_DAYS, LimitReached, limitOf, limitRule, metricCount, syncDefaultLimit } from "./workspace-limits";
+import { defaultLimitFrom, GRACE_DAYS, LimitReached, limitOf, limitRule, metricCount, syncDefaultLimit } from "./workspace-limits";
 import { setWorkspaceLimit, workspaceLimitRows } from "./workspace-limits-admin";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -142,6 +142,14 @@ describe("over the limit nothing else stops", () => {
     expect((await submitValue({ source: "web_form", sender: code, text: "4" }, { notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).ok).toBe(true);
     expect((await submitValue({ source: "mail", sender: "cleo@field.test", text: "5", workspaceId: w.id }, { notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).ok).toBe(true);
     expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara })).toBe(true);
+  });
+});
+
+describe("reading the default", () => {
+  it("reads the limit and its name each on its own; a limit it cannot read is said, never guessed", () => {
+    expect(defaultLimitFrom({ ZIFFR_DEFAULT_METRICS_LIMIT: "1,000", ZIFFR_DEFAULT_LIMIT_LABEL: "x".repeat(40) })).toEqual({ metrics: 1000, label: "x".repeat(30), problem: null });
+    expect(defaultLimitFrom({ ZIFFR_DEFAULT_METRICS_LIMIT: "10k", ZIFFR_DEFAULT_LIMIT_LABEL: "Free" })).toEqual({ metrics: null, label: "Free", problem: expect.stringContaining("cannot be read") });
+    expect(defaultLimitFrom({})).toEqual({ metrics: null, label: null, problem: null });
   });
 });
 

@@ -138,6 +138,7 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
   }
   if (id === "limits") {
     const d = defaultLimitFrom(settings);
+    if (d.problem) return { working: false, detail: d.problem };
     return d.metrics === null
       ? { working: false, detail: "No default: a Workspace has no limit unless it has one of its own below." }
       : { working: true, detail: `A Workspace without a limit of its own may hold ${d.metrics.toLocaleString("en-US")} Metrics${d.label ? ` (${d.label})` : ""}.` };
