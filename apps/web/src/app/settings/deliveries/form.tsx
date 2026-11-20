@@ -4,7 +4,7 @@ import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { setPreference } from "@/app/connector-actions";
-import { setEmailReminders } from "@/app/settings-actions";
+import { setEmailReminders, setUsageDigestOn } from "@/app/settings-actions";
 import { AwayDates } from "@/app/team/screen";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 
@@ -18,9 +18,10 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 type Pref = { kind: string; connector: string };
 
 /** Your own Delivery Preferences, the switch for email, and your Away dates. `email` says whether Ziffr sends email. */
-export function DeliveriesForm({ viewer, mine, team, optedOut, away, email }: { viewer: string; mine: Pref[]; team: Pref[]; optedOut: boolean; away: { starts: string; ends: string } | null; email: boolean }) {
+export function DeliveriesForm({ viewer, mine, team, optedOut, away, email, usageDigest }: { viewer: string; mine: Pref[]; team: Pref[]; optedOut: boolean; away: { starts: string; ends: string } | null; email: boolean; usageDigest: { on: boolean } | null }) {
   const [pending, start] = useTransition();
   const [stopped, setStopped] = useState(optedOut);
+  const [digestOn, setDigestOn] = useState(usageDigest?.on ?? false);
   const teamFor = (k: PreferenceKind) => (team.find((p) => p.kind === k)?.connector ?? "email") as ConnectorId;
   return (
     <div className="max-w-xl space-y-8">
@@ -64,6 +65,26 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email }: { 
         </label>
         {!email && <p className="text-sm text-muted-foreground">This Ziffr sends no email{stopped ? "; you stopped it before." : "."}</p>}
       </section>
+
+      {usageDigest && (
+        <section aria-labelledby="digest-heading" className="space-y-2 border-t border-border pt-6">
+          <h2 id="digest-heading" className="font-medium">Unused Metrics by email</h2>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={digestOn}
+              disabled={pending}
+              onChange={(e) => { const on = e.target.checked; start(async () => { try { unwrap(await setUsageDigestOn(on)); setDigestOn(on); toast.success(on ? "You get the monthly email again" : "Stopped"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } }); }}
+              className="mt-0.5 size-4 accent-[var(--color-ink)]"
+            />
+            <span>
+              Email me when Metrics, dashboards or decks go unused
+              <span className="block text-muted-foreground">One email a month at most, only when something is unused, to Owners. It counts and names, never shows values, and links to Usage. It applies to every workspace of yours.</span>
+            </span>
+          </label>
+          {!email && <p className="text-sm text-muted-foreground">This Ziffr sends no email.</p>}
+        </section>
+      )}
 
       <section aria-labelledby="away-heading" className="space-y-2 border-t border-border pt-6">
         <h2 id="away-heading" className="font-medium">Away</h2>

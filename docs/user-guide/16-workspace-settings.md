@@ -437,6 +437,10 @@ Ziffr counts how often a dashboard, deck or Metric is opened per day, as a numbe
 
 Under the Metrics not opened, **Archive these Metrics?** lists the ones that are safe to archive, all ticked. Left out, with the reason, are Metrics that have a Target or that something still depends on, such as a Derived Metric, a Comparison or an Analysis. Untick any you want to keep, press **Archive**, and confirm. The Metrics are archived all or none, with each recorded in the Audit log, and they can be brought back (see [Metrics](10-metrics.md)). Nothing is ever archived or deleted by itself.
 
+### The monthly email
+
+Owners (not Admins) get one plain-text email a month about the same lists, in the first days of the month, only when something is unused. It says how many dashboards, decks and Metrics were not opened for 90 days, how many Metrics have no values and how many Submitters have sent none, names at most five of each ("and 3 more") and links to this page. It holds no values, no counts per item and no answers, and it names only what that Owner sees on the page. It is never sent for the demo, for a trial, for a workspace still within its first 90 days of counting, or when nothing is unused, and never twice in a month. Each Owner can switch it off under **Your Deliveries** (one setting for all their workspaces, see [Your settings](17-your-settings.md)) or with the unsubscribe link in the email, which needs no sign-in. Where Ziffr sends no email, nothing is sent. Self-hosters with Docker Compose get it from the clock; others call `POST /api/jobs/usage-digest` daily ([jobs](../guides/jobs.md)).
+
 ## Audit log
 
 **Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years. Times are shown in the Workspace's time zone.

@@ -13,7 +13,7 @@ export default async function DeliveriesPage() {
   return (
     <>
       <PageHeader title="Your Deliveries" sub="Where Ziffr sends you questions, tasks, reminders and replies, and when someone else is asked instead." />
-      <DeliveriesForm viewer={actor.personId} mine={mine.mine} team={mine.team} optedOut={mine.optedOut} away={mine.away} email={!demo && (await mailOn())} />
+      <DeliveriesForm viewer={actor.personId} mine={mine.mine} team={mine.team} optedOut={mine.optedOut} away={mine.away} usageDigest={mine.usageDigest} email={!demo && (await mailOn())} />
     </>
   );
 }

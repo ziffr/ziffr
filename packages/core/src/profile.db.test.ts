@@ -97,6 +97,8 @@ describe("your Deliveries", () => {
       mine: [{ kind: "reminder", connector: "email" }],
       team: [{ kind: "question", connector: "slack" }],
       optedOut: false,
+      // Only Owners are offered the monthly usage email (spec 0031).
+      usageDigest: null,
       away: { starts: "2026-12-01", ends: "2026-12-05" },
     });
     await db().from("away").delete().in("user_id", [sara, ben]);

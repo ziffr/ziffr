@@ -188,6 +188,10 @@ The box **Send me Prompts and reminders by email in this workspace** is ticked w
 
 If your Ziffr sends no email, the box cannot be ticked and the page says so.
 
+### Unused Metrics by email
+
+Owners also see **Email me when Metrics, dashboards or decks go unused**. It is ticked at first. It is the monthly usage email described under Usage in [Workspace settings](16-workspace-settings.md), and it is one setting for all the workspaces you own, not one per workspace. Untick it to stop the email, tick it again to get it back. The unsubscribe link at the bottom of every such email does the same with no sign-in. Admins, Members and Guests never get the email and do not see the box.
+
 ### Away
 
 Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.

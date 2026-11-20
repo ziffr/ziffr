@@ -77,6 +77,9 @@ setInterval(() => {
   if (now.getUTCHours() === 4 && now.getUTCMinutes() === 40) void call("usage-rollup");
   // ...and the Usage Feed at 05:00 UTC, after the rollup, only where it was turned on with its two keys.
   if (USAGE_FEED && now.getUTCHours() === 5 && now.getUTCMinutes() === 0) runUsageFeed();
+  // The monthly usage digest (spec 0031): daily at 07:00 UTC; the job acts on days 1 to 7 of a month, once per Owner and
+  // month, queues the emails and does nothing without working email.
+  if (now.getUTCHours() === 7 && now.getUTCMinutes() === 0) void call("usage-digest");
 }, 15_000);
 writeFileSync(ALIVE, "");
 console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);

@@ -488,6 +488,10 @@ _Avoid_: Notification settings, routing
 What a Workspace or an Installation is used for, as counts: what is looked at, which Metrics have values, what arrives by which Source. It never says who looked. A Workspace's Owners and Admins see theirs on the Usage page; an Installation Admin sees only totals across all Workspaces.
 _Avoid_: Analytics, telemetry, tracking, statistics, activity
 
+**Usage Digest**:
+The monthly email to a Workspace's Owners that says how many dashboards, decks, Metrics and Submitters are unused, with at most five names a list and a link to the Usage page. It holds no values, goes only when something is unused, and each Owner can switch it off for all their Workspaces.
+_Avoid_: Newsletter, report, alert
+
 **View Count**:
 How many times a dashboard, deck or Metric was opened on one day, kept only as a number per day: never by whom, and nothing in the demo. It is what lets the Usage page say a dashboard was not opened for 90 days.
 _Avoid_: Page views, hits, visitors, tracking
