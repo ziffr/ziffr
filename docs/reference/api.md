@@ -1117,6 +1117,162 @@ A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline):
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## List the key's creator's Alerts
+
+`GET /alerts` · scope `metrics:read`
+
+The creator's own Alerts (a person's standing request to be told when a Metric's latest value meets a condition) on Metrics they still see, newest first; at most 20, so there is no paging. Nobody else's are ever listed. An Alert holds its condition and state, never a value.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `metric` | query | string, at most 120 characters | no | Only the Alerts on the Metric with this slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes |  |
+| `items[].id` | integer | yes |  |
+| `items[].metric` | object | yes |  |
+| `items[].metric.slug` | string | yes |  |
+| `items[].metric.name` | string | yes |  |
+| `items[].condition` | any | yes |  |
+| `items[].delivery` | `"usual"`, `"email"`, `"slack"`, `"telegram"` | yes | The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them. |
+| `items[].include_unapproved` | boolean | yes | Whether values not approved yet count. |
+| `items[].paused_by_person` | boolean | yes |  |
+| `items[].paused` | `"no_access"`, `"archived"`, `"no_target"`, `"no_workflow"` or null | yes | Why Ziffr does not let it fire, or null. |
+| `items[].state` | `"armed"`, `"fired"` | yes |  |
+| `items[].fired_at` | string or null | yes |  |
+| `items[].created_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Make an Alert
+
+`POST /alerts` · scope `alerts:write`
+
+Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values.
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `metric` | string, at most 120 characters | yes | The Metric's slug, from GET /metrics. |
+| `condition` | any | yes |  |
+| `delivery` | `"usual"`, `"email"`, `"slack"`, `"telegram"` | no | The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them. |
+| `include_unapproved` | boolean | no | Also count values waiting for Approval. Off by default. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `metric` | object | yes |  |
+| `metric.slug` | string | yes |  |
+| `metric.name` | string | yes |  |
+| `condition` | any | yes |  |
+| `delivery` | `"usual"`, `"email"`, `"slack"`, `"telegram"` | yes | The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them. |
+| `include_unapproved` | boolean | yes | Whether values not approved yet count. |
+| `paused_by_person` | boolean | yes |  |
+| `paused` | `"no_access"`, `"archived"`, `"no_target"`, `"no_workflow"` or null | yes | Why Ziffr does not let it fire, or null. |
+| `state` | `"armed"`, `"fired"` | yes |  |
+| `fired_at` | string or null | yes |  |
+| `created_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. A Metric the key's creator does not see; the answer is the same whether it exists or not.
+- 422: A limit, an archived Metric, or a condition the Metric cannot give (a share of target without a target; not in by its Due Date without a Workflow); the message says which.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change an Alert
+
+`PATCH /alerts/{id}` · scope `alerts:write`
+
+Changes the condition, way of delivery, option or pause of one of the creator's own Alerts. A new condition arms it again. Another person's Alert is not found.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Alert's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `condition` | any | no |  |
+| `delivery` | `"usual"`, `"email"`, `"slack"`, `"telegram"` | no | The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them. |
+| `include_unapproved` | boolean | no |  |
+| `paused` | boolean | no | The person's own pause switch. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `metric` | object | yes |  |
+| `metric.slug` | string | yes |  |
+| `metric.name` | string | yes |  |
+| `condition` | any | yes |  |
+| `delivery` | `"usual"`, `"email"`, `"slack"`, `"telegram"` | yes | The way the message is sent: the person's Delivery Preference (usual) or one way that reaches them. |
+| `include_unapproved` | boolean | yes | Whether values not approved yet count. |
+| `paused_by_person` | boolean | yes |  |
+| `paused` | `"no_access"`, `"archived"`, `"no_target"`, `"no_workflow"` or null | yes | Why Ziffr does not let it fire, or null. |
+| `state` | `"armed"`, `"fired"` | yes |  |
+| `fired_at` | string or null | yes |  |
+| `created_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A condition the Metric cannot give, or a way of delivery that is not one.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Remove an Alert
+
+`DELETE /alerts/{id}` · scope `alerts:write`
+
+Removes one of the creator's own Alerts. Another person's Alert is not found.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Alert's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `removed` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List people
 
 `GET /people` · scope `metrics:read`

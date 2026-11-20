@@ -27,7 +27,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 ## Tools and scopes
 
-Both servers list the same 30 tools, 8 Starters and one resource template (`ziffr://metrics/{slug}`). The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading, also `find` and `my_schedule`, needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards `dashboards:write`. To compare a running server with the table:
+Both servers list the same 34 tools, 9 Starters and one resource template (`ziffr://metrics/{slug}`). The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading, also `find` and `my_schedule`, needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards `dashboards:write`, and making, changing and removing the creator's own Alerts `alerts:write` (listing them needs `metrics:read`). To compare a running server with the table:
 
 ```sh
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
@@ -38,7 +38,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 
 Reading values and Threads: `get_metric` says per value who submitted it (id and name), when, through which Source, and whether it has a Thread the key's creator may read (`has_thread`). `get_thread` (API: `GET /api/v1/metrics/{slug}/thread?period=`) answers why: the question and the replies with author, time and words, sealed words opened (spec 0028). Both go through `listObservations` and `getThreads` in `packages/core/src/api.ts`, which keep only the Threads the creator may read by the app's own rule (`canReadThread`: the people on it, the Metric's owner, a Group) and drop the rest before counting or opening anything, so a hidden Thread is not revealed, not even that it exists. Its words are data: the server's instructions and `explain_metric` tell the assistant never to follow them.
 
-Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking` and `set_targets`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
+Both servers offer the same Starters (GLOSSARY: Starter), ready-made requests as MCP prompts: `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking`, `set_targets` and `alert_me`. The table, with their arguments and limits, is in [`packages/mcp/README.md`](../../packages/mcp/README.md#starters); what people see is in the user guide, [Working with an assistant](../user-guide/17-your-settings.md#working-with-an-assistant).
 
 - They are registered in `createServer` (`packages/mcp/src/server.ts`), so `/mcp` gets them with the tools; `apps/web/src/app/mcp/route.db.test.ts` checks that both servers list and fill them in alike.
 - A Starter calls nothing itself. `prompts/get` returns one user message; the assistant then uses the tools, with the credential's scopes, like for any request.
@@ -70,7 +70,7 @@ Ziffr is its own authorization server (ADR 0011), following the [MCP authorizati
 
 What holds, so an assistant knows what to expect:
 
-- Scopes are the Access Key scopes: `metrics:read`, `values:submit`, `metrics:write` (create Metrics), `metrics:edit` (change Metrics: Target Range, Target Series, Projections, the Unusual Value check, Sources and Submitters), `dashboards:read`, `dashboards:write`. The person picks them on the consent screen, never more than their role allows.
+- Scopes are the Access Key scopes: `metrics:read`, `values:submit`, `metrics:write` (create Metrics), `metrics:edit` (change Metrics: Target Range, Target Series, Projections, the Unusual Value check, Sources and Submitters), `dashboards:read`, `dashboards:write`, `alerts:write` (Manage alerts: the person's own Alerts only, never anyone else's). The person picks them on the consent screen, never more than their role allows.
 - Redirect addresses are https, or http on `localhost`, `127.0.0.1` or `[::1]`, at most five, matched exactly; on those loopback addresses the port may differ.
 - A code works once, for ten minutes; presented again, it ends the connection it made.
 - Access tokens work for an hour, and only at `/mcp`, never on `/api/v1` directly. Refresh tokens rotate on every use; one used twice ends the connection. A refusal is `invalid_grant`.

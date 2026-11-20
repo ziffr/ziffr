@@ -78,6 +78,16 @@ describe("@ziffr/sdk against the app", () => {
     expect((await ziffr.dashboards.updateFinding(s.id, f.id, { kicker: "March" })).words).toMatchObject({ kicker: "March", headline: "{metric} grew" });
     expect(await ziffr.dashboards.update(s.id, { intro: "First draft." })).toMatchObject({ intro: "First draft." });
   });
+  it("makes, lists, changes and removes the creator's own Alerts (spec 0032)", async () => {
+    const { orders, ziffr } = await setup(["metrics:read", "alerts:write"]);
+    const a = await ziffr.alerts.create({ metric: orders.slug, condition: { kind: "below", value: 5 }, delivery: "email" });
+    expect(a).toMatchObject({ metric: { slug: orders.slug }, condition: { kind: "below", value: "5" }, delivery: "email", state: "armed" });
+    expect(await ziffr.alerts.list({ metric: orders.slug })).toEqual([a]);
+    expect(await ziffr.alerts.update(a.id, { paused: true })).toMatchObject({ id: a.id, paused_by_person: true });
+    expect(await ziffr.alerts.remove(a.id)).toEqual({ removed: a.id });
+    await expect(ziffr.alerts.create({ metric: "nothing-here", condition: { kind: "below", value: 5 } })).rejects.toMatchObject({ status: 404 });
+    await expect((await setup(["metrics:read"])).ziffr.alerts.create({ metric: orders.slug, condition: { kind: "below", value: 5 } })).rejects.toMatchObject({ status: 403 });
+  });
   it("throws a ZiffrError with the API's code", async () => {
     const { extra, ziffr } = await setup(["metrics:read"]);
     await expect(ziffr.metrics.get("no-such-metric")).rejects.toMatchObject({ status: 404, code: "not_found" });
