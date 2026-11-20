@@ -26,6 +26,18 @@ import { ensureWorkspaceKey } from "./workspace-keys";
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
 const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role === "admin";
 
+/** The latest 80 Deliveries the person may be shown, taken per person first (their own, those they sent, those about a
+ * thread), so other people's messages, such as Alerts, can never push theirs out of the 80; in the demo, anyone's. */
+async function recentDeliveries(actor: Actor) {
+  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, submitter_id, metric_id)";
+  const base = () => db().from("deliveries").select(columns).eq("workspace_id", actor.workspaceId).order("id", { ascending: false }).limit(80);
+  if (inDemo(actor)) return base();
+  const [mine, sent, threads] = await Promise.all([base().eq("recipient_id", actor.personId), base().eq("sender_id", actor.personId), base().not("action_id", "is", null)]);
+  const rows = new Map<number, NonNullable<typeof mine.data>[number]>();
+  for (const r of [...(mine.data ?? []), ...(sent.data ?? []), ...(threads.data ?? [])]) rows.set(r.id as number, r);
+  return { data: [...rows.values()].sort((a, b) => (b.id as number) - (a.id as number)).slice(0, 80) };
+}
+
 /** The Connectors page: preferences, the Deliveries the person may read, and the Token codes that are theirs. */
 export async function connectorsView(actor: Actor) {
   const ws = actor.workspaceId;
@@ -33,7 +45,7 @@ export async function connectorsView(actor: Actor) {
     db().from("delivery_preferences").select("user_id, kind, connector").eq("workspace_id", ws),
     // Named columns only: a Delivery's reply token answers as its recipient, and its Message-ID is for the provider's
     // logs; neither may reach a browser.
-    db().from("deliveries").select("id, connector, recipient_id, sender_id, kind, action_id, prompt_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, submitter_id, metric_id)").eq("workspace_id", ws).order("id", { ascending: false }).limit(80),
+    recentDeliveries(actor),
     db().from("tokens").select("code, metric_id, submitter_id").eq("workspace_id", ws),
     readableActions(ws, actor.personId),
   ]);

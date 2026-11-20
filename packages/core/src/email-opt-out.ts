@@ -15,10 +15,15 @@ export async function unsubscribeTokenValid(token: string): Promise<boolean> {
   return Boolean(await deliveryFor(token));
 }
 
+/** Whether a token belongs to an Alert message, whose link pauses that Alert and not reminders (for the page that asks). */
+export async function unsubscribeIsAlert(token: string): Promise<boolean> {
+  return (await deliveryFor(token))?.kind === "alert";
+}
+
 async function deliveryFor(token: string) {
   if (!TOKEN.test(String(token))) return null;
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id").eq("unsubscribe_token", token).maybeSingle();
-  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !OPT_OUT_KINDS.includes(d.kind)) return null;
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, alert_id").eq("unsubscribe_token", token).maybeSingle();
+  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && d.alert_id))) return null;
   return d;
 }
 
@@ -27,6 +32,12 @@ async function deliveryFor(token: string) {
 export async function optOutByToken(token: string): Promise<boolean> {
   const d = await deliveryFor(token);
   if (!d) return false;
+  if (d.kind === "alert") {
+    // One Alert, the one this message was about and only if it is still its recipient's (GLOSSARY: Alert): paused by the
+    // person's own switch, which nothing but the person undoes. Using the link again changes nothing.
+    await db().from("alerts").update({ paused_by_person: true, updated_at: new Date().toISOString() }).eq("id", d.alert_id).eq("workspace_id", d.workspace_id).eq("person_id", d.recipient_id);
+    return true;
+  }
   await stopEmail(d.workspace_id, d.recipient_id);
   return true;
 }

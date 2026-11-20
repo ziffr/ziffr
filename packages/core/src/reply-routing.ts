@@ -26,6 +26,11 @@ export type RouteOutcome = "recorded" | "refused" | "form_link" | "replied" | "c
 
 /** Takes one reply to a Delivery from the person it went to. */
 export async function routeReply(d: RepliedDelivery, text: string, via: ReplyChannel, submission: SubmissionEffects = submissionEffects): Promise<RouteOutcome> {
+  // An Alert is never answerable (spec 0032): nothing said back to it is a value, a reply or a Correction.
+  if (d.kind === "alert") {
+    await via.answer("Not recorded", "Alerts cannot be answered; open the Metric in Ziffr.");
+    return "refused";
+  }
   if (d.kind === "prompt" && d.prompt_id) {
     const { data: prompt } = await db().from("prompts").select("id, source, metric_id, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
     if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";
