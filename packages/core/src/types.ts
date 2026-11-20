@@ -318,7 +318,8 @@ export type CanvasData = {
 
 /** GLOSSARY: Slot. One metric, or one or more for small multiples. */
 /** exampleIds: the metrics it was made with; each viewer sees only the names of those they can see. */
-export type Slot = { label: string; multiple: boolean; exampleIds?: number[] };
+/** suggests: in a template from a Pack, the key of the Pack's Metric Catalog entry it suggests. */
+export type Slot = { label: string; multiple: boolean; exampleIds?: number[]; suggests?: string };
 type TemplateBase = { id: number; owner_id: string; name: string; description: string; slots: Slot[]; w: number; h: number; updated_at: string };
 /** A widget saved with its metrics left open: settings keep Panel.slot instead of metric ids. */
 export type WidgetTemplate = TemplateBase & { kind: "widget"; view: TemplateId; body: { metricSlots: number[]; settings: WidgetSettings; title?: string | null } };

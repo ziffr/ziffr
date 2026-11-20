@@ -15,6 +15,8 @@ import { sampleCanvasData } from "@ziffr/core/sample-data";
 import { PACK_LIMITS, UNSIGNED_WARNING as UNSIGNED } from "@ziffr/core/pack";
 import type { InstalledPack, PackPreview, PackPreviewItem } from "@ziffr/core/packs";
 import type { NumberStyle } from "@ziffr/core/number-style";
+import type { ExportOptions } from "@ziffr/core/pack-export";
+import { ExportPack } from "./export";
 import type { Problem } from "@ziffr/core/json-check";
 
 const KIND_LABEL: Record<PackPreviewItem["kind"], string> = { metric: "Metric Catalog entries", dashboard: "Dashboard Templates", deck: "Deck Templates", workflow: "Workflow Templates", view: "View Designs", theme: "Themes" };
@@ -26,7 +28,7 @@ function ListingLink({ href, children }: { href?: string; children: React.ReactN
   return <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>;
 }
 
-export function PacksScreen({ installed, manages, demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       <section aria-labelledby="installed-packs">
@@ -55,6 +57,7 @@ export function PacksScreen({ installed, manages, demo, guest, viewer, numberSty
             )}
       </section>
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
+      {exportable && <ExportPack options={exportable} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
     </div>
   );

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
+import { exportPack, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
 
 /** Reads an uploaded Pack file for its Preview; nothing is written. The problems come back with their lines. */
 export async function readPack(text: string) {
@@ -18,4 +19,9 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
     revalidatePath("/", "layout");
     return id;
   });
+}
+
+/** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
+export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice) {
+  return attempt(async () => exportPack(await currentActor(), manifest, choice));
 }

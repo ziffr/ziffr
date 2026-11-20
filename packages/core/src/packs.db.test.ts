@@ -40,8 +40,8 @@ describe("installing a Pack from a file", () => {
     // The deck names the Theme installed with it; the dashboard's widget carries the Pack's View Design.
     expect((templates!.find((t) => t.kind === "deck")!.body as { themeId: number }).themeId).toBe(theme!.id);
     expect(JSON.stringify(templates!.find((t) => t.kind === "dashboard")!.body)).toContain('"design":{"id":null');
-    // Its Slots suggest no Metric: suggestions stay with the Pack.
-    expect(templates!.find((t) => t.kind === "dashboard")!.slots).toEqual([{ label: "MRR", multiple: false }, { label: "Customers", multiple: false }]);
+    // Its Slots suggest no Metric: a suggestion stays the key of the Pack's entry.
+    expect(templates!.find((t) => t.kind === "dashboard")!.slots).toEqual([{ label: "MRR", multiple: false, suggests: "mrr" }, { label: "Customers", multiple: false, suggests: "customers" }]);
     const { data: designs } = await db().from("view_designs").select("pack_key").eq("workspace_id", w.id).order("id");
     expect(designs!.map((d) => d.pack_key)).toEqual(["trend", "spread"]);
 

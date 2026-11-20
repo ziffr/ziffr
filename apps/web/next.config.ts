@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // `next start` runs from the checkout, which standalone output does not support.
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const, outputFileTracingRoot: path.join(__dirname, "../..") } : {}),
   // The core, the SDK and the MCP Server (served at /mcp) ship as TypeScript source inside the monorepo.
-  transpilePackages: ["@ziffr/core", "@ziffr/mcp", "@ziffr/sdk"],
+  transpilePackages: ["@ziffr/core", "@ziffr/mcp", "@ziffr/pack", "@ziffr/sdk"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).
   images: { unoptimized: true },
   // The user guide's chapters and the glossary are read from the checkout when a page is asked for; a traced build takes them along.
@@ -34,6 +34,9 @@ const nextConfig: NextConfig = {
   // Master logos and backgrounds travel as data URLs in server actions (prototype; Storage later).
   experimental: { serverActions: { bodySizeLimit: "4mb" } },
   webpack(config, { isServer, webpack }) {
+    // @ziffr/pack is written to be published as plain ES modules, so its imports name ".js" files; here its TypeScript
+    // source is bundled, and "./pack.js" means "./pack.ts".
+    config.resolve.extensionAlias = { ...config.resolve.extensionAlias, ".js": [".ts", ".tsx", ".js"] };
     if (!isServer) {
       // pptxgenjs imports "node:fs" etc. for its Node build; its package.json `browser` field
       // maps them to false, but webpack rejects the node: scheme before reading that field.

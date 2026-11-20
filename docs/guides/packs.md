@@ -2,6 +2,18 @@
 
 A **Pack** is one file of things to add to a Workspace: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes. It holds no code. Each thing in it is a document in a format Ziffr already checks, and Ziffr checks it exactly as it would on its own. The Pack only wraps them, with a manifest that names the Pack, its version, its author and its license.
 
+The quickest start is **Export as Pack** in Ziffr (below). Check a Pack on your own computer with the same checks Ziffr runs, from [`@ziffr/pack`](../../packages/pack/README.md) (MIT):
+
+```sh
+npx @ziffr/pack check saas.pack.json
+```
+
+```text
+saas.pack.json: SaaS metrics 1.2.0 is a valid Pack, 9 items. It holds Themes: an Owner installs it.
+```
+
+A file with problems names each with its line and ends with 1, so it fits a build step. `--ziffr 0.12.0` also checks that the Pack can be installed on that Ziffr. In a program, `import { checkPack } from "@ziffr/pack"` gives the same result as an object.
+
 The exact formats are JSON Schemas in `docs/reference/`, generated from the definitions the checks run:
 
 | What | Format | Schema |
@@ -85,3 +97,20 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 Texts that address an AI assistant, such as "ignore your instructions" or "call delete_metric", do not stop the check. Ziffr shows them to the person installing the Pack, since descriptions of Metrics reach assistants through the MCP Server. It is a filter for the obvious; assistants reach Ziffr only through their key's scopes.
 
 A Pack with Themes can be installed only by an Owner, since only Owners change Themes.
+
+## Export as Pack
+
+Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you pick in your Workspace: Metrics (as Metric Catalog entries), the Workspace's own catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes. Give it a name, an id (your handle and a slug), a version, a summary, an author and a license, and choose **Download Pack**.
+
+- It holds Metric Descriptions only, never a value, an owner, a Submitter or a Token, and only of Metrics you see.
+- A Slot suggests the catalog entry of the Metric the template was made with, when that Metric is in the Pack too. A Derived Metric goes in only with the Metrics it is computed from.
+- Words that a Pack may not hold, such as a description with a web address, stay out of the file. Images, logos and drawings on slides stay out as well. Ziffr lists everything that stayed out, and why.
+- Things a Pack installed keep their keys, so exporting what a Pack added gives the same file again.
+
+## Licenses
+
+A Pack carries one license from a short list: `CC-BY-4.0` or `MIT` for a free Pack, `Ziffr-Pack-1.0` for a paid one, once paid Packs exist. Whoever installs a free Pack may change and share it on its license's terms. Ziffr's own Packs are CC BY 4.0.
+
+## Publishing
+
+For now, share the file: whoever installs it uploads it on their Packs page and confirms that the Marketplace did not check it. Publishing on the Marketplace comes later (spec 0030).

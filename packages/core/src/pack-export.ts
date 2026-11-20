@@ -1,0 +1,286 @@
+// Export as Pack (spec 0030, GLOSSARY: Pack, Metric Description, Metric Catalog): a Pack made of things a person picks
+// in their Workspace, to share or to publish. Every function takes the Actor first.
+// Security: a Pack is shown to whoever gets the file, so it holds only Metric Descriptions of Metrics the person sees
+// (never a value, an owner, a Submitter or a Token), templates, View Designs and Themes of the Workspace, and every
+// text is held to the Pack's plain-text rules: what does not fit is left out, and said so, never sent as it is.
+import { db } from "./db";
+import { can, Forbidden, type Actor } from "./actor";
+import { version as ZIFFR_VERSION } from "../package.json";
+import { visibleMetricIds } from "./access";
+import { getMetrics } from "./workspace-data";
+import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";
+import { checkSchema, type Schema } from "./json-check";
+import { PLAIN, WORDS, KEY } from "./file-text";
+import { checkMetricFileValue, type MetricFile } from "./metric-file";
+import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
+import { checkDeckTemplateFileValue, type DeckTemplateFile } from "./deck-template-file";
+import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
+import { checkThemeFileValue, COLOR_NAMES, type ThemeFile } from "./theme-file";
+import { checkViewDesignValue, type ViewDesign } from "./view-design";
+import { canonical } from "./api-submissions";
+import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
+import type { DashboardTemplateBody, DeckTemplateBody, Metric, SlideShape, Slot, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowTemplateBody } from "./types";
+import type { FormatCheck } from "./json-check";
+
+/** Something the person may put into a Pack, as the Export dialog lists it. */
+export type ExportOption = { id: number; name: string; detail: string };
+/** What the Export dialog offers, by kind. */
+export type ExportOptions = { metrics: ExportOption[]; catalog: ExportOption[]; dashboards: ExportOption[]; decks: ExportOption[]; workflows: ExportOption[]; designs: ExportOption[]; themes: ExportOption[] };
+/** What the person picked, by kind, as ids. */
+export type ExportChoice = Partial<Record<keyof ExportOptions, number[]>>;
+/** The manifest the person writes for the Pack. */
+export type ExportManifest = { id: string; name: string; version: string; summary: string; author: string; license: string };
+/** The Pack's file and what could not go into it, with why. */
+export type ExportResult = { text: string; fileName: string; leftOut: { name: string; why: string }[] };
+
+const plain = (s: unknown, max: number) => {
+  const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  return checkSchema({ type: "string", pattern: PLAIN } as Schema, t).length ? null : t;
+};
+const wordsOk = (s: unknown, max: number) => {
+  const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
+};
+const slug = (name: string) => {
+  const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
+  return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
+};
+
+// A person who may create, not a program or a Guest: they see the Workspace's templates, designs and Themes.
+function assertMayExport(actor: Actor) {
+  if ((actor as { key?: unknown }).key || !can(actor, "create")) throw new Forbidden();
+}
+
+/** The Metrics this person sees, by id. */
+async function seenMetrics(actor: Actor): Promise<Map<number, Metric>> {
+  const all = await getMetrics(actor.workspaceId);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
+  return new Map(all.filter((m) => seen.has(m.id)).map((m) => [m.id, m]));
+}
+
+/** What this person may put into a Pack (anyone but Guests): the Metrics they see, the Workspace's own Metric Catalog
+ * entries, its Dashboard, Deck and Workflow Templates, View Designs and Themes. Names only. */
+export async function exportOptions(actor: Actor): Promise<ExportOptions> {
+  assertMayExport(actor);
+  const ws = actor.workspaceId;
+  const [metrics, cat, tpl, des, thm] = await Promise.all([
+    seenMetrics(actor),
+    db().from("catalog_metrics").select("id, name, category").eq("workspace_id", ws).order("name"),
+    db().from("team_templates").select("id, kind, name").eq("workspace_id", ws).in("kind", ["dashboard", "deck", "workflow"]).order("name"),
+    db().from("view_designs").select("id, name").eq("workspace_id", ws).order("name"),
+    db().from("themes").select("id, name").eq("workspace_id", ws).order("name"),
+  ]);
+  const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
+  const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
+  return {
+    metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
+    catalog: opt(cat.data, (r) => String(r.category)),
+    dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
+    designs: opt(des.data), themes: opt(thm.data),
+  };
+}
+
+type Row = Record<string, unknown>;
+
+/** Makes a Pack of what the person picked: each item as its format writes it, keyed by its key in the Pack it came
+ * from or by its name, in the order of their keys, so exporting what a Pack installed gives the same file again.
+ * Checked as any Pack before it is given out. */
+export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice): Promise<ExportResult> {
+  assertMayExport(actor);
+  const ws = actor.workspaceId;
+  const ids = (k: keyof ExportOptions) => [...new Set((Array.isArray(choice?.[k]) ? choice[k]! : []).map(Number).filter(Number.isInteger))].slice(0, 50);
+  const leftOut: ExportResult["leftOut"] = [];
+  const used = new Set<string>();
+  const keyFor = (preferred: unknown, name: string) => {
+    let k = typeof preferred === "string" && new RegExp(KEY).test(preferred) ? preferred : slug(name);
+    for (let n = 2; used.has(k); n++) k = `${k.slice(0, 36)}-${n}`;
+    used.add(k);
+    return k;
+  };
+  // Only rows of the actor's Workspace, by the ids picked: an id of another Workspace finds nothing.
+  const rows = async (table: string, idList: number[], cols: string) => {
+    if (!idList.length) return [] as Row[];
+    const { data } = await db().from(table).select(cols).eq("workspace_id", ws).in("id", idList);
+    return (data ?? []) as unknown as Row[];
+  };
+  const seen = await seenMetrics(actor);
+  const installs = new Map(((await db().from("pack_installs").select("id, manifest").eq("workspace_id", ws)).data ?? []).map((r) => [Number(r.id), String((r.manifest as { name?: string }).name ?? "")]));
+
+  // Themes and View Designs first: templates name them by key.
+  const themes = (await rows("themes", ids("themes"), "id, name, tokens, slides, pack_key")).map((r) => ({ r, key: keyFor(r.pack_key, String(r.name)) }));
+  const themeKey = new Map(themes.map((t) => [Number(t.r.id), t.key]));
+  const designs = (await rows("view_designs", ids("designs"), "id, name, body, pack_key")).map((r) => ({ r, key: keyFor(r.pack_key, String(r.name)) }));
+  const designKey = new Map(designs.map((d) => [canonical(d.r.body), d.key]));
+
+  // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
+  const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
+  for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, pack_key, pack_install_id");
+  const entries = [
+    ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
+    ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),
+  ];
+  const keyOfInput = new Map(entries.map((e) => [e.slugOrKey, e.key]));
+  const metrics: Pack["contents"]["metrics"] = [];
+  for (const e of entries) {
+    const m = e.m;
+    const name = plain(m.name, 120);
+    if (!name) { leftOut.push({ name: String(m.name), why: "Its name holds something a Pack may not, such as a web address." }); continue; }
+    let formula: string | undefined;
+    if (m.formula) {
+      const inputs = [...String(m.formula).matchAll(/\{([a-z0-9-]+)\}/g)].map((x) => x[1]);
+      const missing = inputs.filter((i) => !keyOfInput.has(i));
+      if (missing.length) { leftOut.push({ name, why: "It is computed from Metrics that are not in the Pack: add them too." }); continue; }
+      formula = String(m.formula).replace(/\{([a-z0-9-]+)\}/g, (_x, i: string) => `{${keyOfInput.get(i)}}`);
+    }
+    const description = plain(m.description, 1000);
+    const unit = plain(m.unit, 20);
+    const category = e.src === "catalog" && m.category !== installs.get(Number(m.pack_install_id)) ? plain(m.category, 60) : null;
+    const file: MetricFile = {
+      format: "ziffr.metric/1", name,
+      ...(description ? { description } : {}),
+      ...(category ? { category } : {}),
+      ...(Array.isArray(m.industries) && m.industries.length ? { industries: m.industries as string[] } : {}),
+      ...(Array.isArray(m.segments) && m.segments.length ? { segments: m.segments as string[] } : {}),
+      period: m.period as MetricFile["period"], aggregation: m.aggregation as MetricFile["aggregation"], polarity: m.polarity as MetricFile["polarity"],
+      ...(unit ? { unit } : {}),
+      unitPosition: m.unit_position as MetricFile["unitPosition"], valueFormat: m.format as MetricFile["valueFormat"], decimals: Number(m.decimals), submissionRule: m.submission_rule as MetricFile["submissionRule"],
+      ...(m.target_min !== null && m.target_min !== undefined ? { targetMin: Number(m.target_min) } : {}),
+      ...(m.target_max !== null && m.target_max !== undefined ? { targetMax: Number(m.target_max) } : {}),
+      ...(m.attainment_method ? { attainmentMethod: m.attainment_method as MetricFile["attainmentMethod"] } : {}),
+      ...(formula ? { formula } : { sources: m.sources as MetricFile["sources"] }),
+    };
+    if (keep(file, checkMetricFileValue(file), name, leftOut)) metrics.push({ key: e.key, metric: file });
+  }
+  const entryKeys = new Set(metrics.map((x) => x.key));
+  const suggestFor = (s: Slot) => {
+    if (s.suggests && entryKeys.has(s.suggests)) return s.suggests;
+    const id = (s.exampleIds ?? []).find((x) => seen.has(x));
+    const k = id === undefined ? undefined : keyOfInput.get(seen.get(id)!.slug);
+    return k && entryKeys.has(k) ? k : undefined;
+  };
+  const slotsOf = (slots: Slot[]) => slots.map((s, i) => { const sg = suggestFor(s); return { label: plain(s.label, 60) || `Metric ${i + 1}`, ...(s.multiple ? { multiple: true } : {}), ...(sg ? { suggests: sg } : {}) }; });
+
+  const tpl = await rows("team_templates", [...ids("dashboards"), ...ids("decks"), ...ids("workflows")], "id, kind, name, description, slots, body, pack_key");
+  const dashboards: Pack["contents"]["dashboards"] = [];
+  const decks: Pack["contents"]["decks"] = [];
+  const workflows: Pack["contents"]["workflows"] = [];
+  for (const r of tpl) {
+    const name = plain(r.name, 80);
+    if (!name) { leftOut.push({ name: String(r.name), why: "Its name holds something a Pack may not, such as a web address." }); continue; }
+    const description = plain(r.description, 300);
+    const head = { name, ...(description ? { description } : {}) };
+    const key = keyFor(r.pack_key, name);
+    if (r.kind === "dashboard" && ids("dashboards").includes(Number(r.id))) {
+      const body = r.body as DashboardTemplateBody;
+      const file: DashboardTemplateFile = {
+        format: "ziffr.dashboard-template/1", ...head, slots: slotsOf(r.slots as Slot[]),
+        widgets: body.widgets.filter((w) => (TEMPLATE_VIEWS as readonly string[]).includes(w.view)).map((w) => ({
+          view: w.view as DashboardTemplateFile["widgets"][number]["view"], slots: w.metricSlots, ...titleOf(w.title), x: w.x, y: w.y, w: w.w, h: w.h, ...settingsOf(w.settings, designKey),
+        })),
+      };
+      if (keep(file, checkDashboardTemplateFileValue(file), name, leftOut)) dashboards.push({ key, template: file });
+    } else if (r.kind === "deck" && ids("decks").includes(Number(r.id))) {
+      const body = r.body as DeckTemplateBody;
+      const theme = body.themeId ? themeKey.get(Number(body.themeId)) : undefined;
+      const file: DeckTemplateFile = { format: "ziffr.deck-template/1", ...head, slots: slotsOf(r.slots as Slot[]), ...(theme ? { theme } : {}), slides: body.slides.map((s) => ({ shapes: s.shapes.flatMap((sh) => slideShapeOf(sh, designKey)) })) };
+      if (keep(file, checkDeckTemplateFileValue(file), name, leftOut)) decks.push({ key, template: file });
+    } else if (r.kind === "workflow" && ids("workflows").includes(Number(r.id))) {
+      const b = r.body as WorkflowTemplateBody;
+      const file: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", ...head, dueWorkingDays: b.dueWorkingDays, steps: b.steps.map((s) => (s.type === "approve" ? { type: "approve", approvers: s.approvers, ...(s.values ? { values: s.values } : {}) } : s)) };
+      if (keep(file, checkWorkflowTemplateFileValue(file), name, leftOut)) workflows.push({ key, template: file });
+    }
+  }
+  const views: Pack["contents"]["views"] = [];
+  for (const d of designs) if (keep(d.r.body, checkViewDesignValue(d.r.body).ok ? { ok: true, value: d.r.body } : { ok: false, problems: [] }, String(d.r.name), leftOut)) views.push({ key: d.key, design: d.r.body as ViewDesign });
+  const themeFiles: Pack["contents"]["themes"] = [];
+  for (const { r, key } of themes) {
+    const t = r.tokens as ThemeTokens; const s = (r.slides ?? {}) as Partial<ThemeSlides>;
+    const footer = plain(s.footer, 120);
+    const file: ThemeFile = {
+      format: "ziffr.theme/1", name: plain(r.name, 60) || "Theme",
+      colors: { ...Object.fromEntries(COLOR_NAMES.map((c) => [c, t[c]])), data: t.data } as ThemeFile["colors"],
+      fonts: { heading: t.fontHeading, body: t.fontBody, figures: t.fontFigures }, radius: t.radius, cards: t.cards,
+      // A logo and a background image never go into a Pack (spec 0030); whoever installs it sets their own.
+      slides: { ...(s.logo_position ? { logoPosition: s.logo_position } : {}), ...(s.logo_width ? { logoWidth: s.logo_width } : {}), ...(footer ? { footer } : {}), showSlideNumber: Boolean(s.show_slide_number), ...(s.title_size ? { titleSize: s.title_size } : {}), ...(s.body_size ? { bodySize: s.body_size } : {}) },
+    };
+    if (keep(file, checkThemeFileValue(file), file.name, leftOut)) themeFiles.push({ key, theme: file });
+  }
+
+  const byKey = <T extends { key: string }>(xs: T[]) => [...xs].sort((a, b) => a.key.localeCompare(b.key));
+  const contents: Pack["contents"] = Object.fromEntries(Object.entries({ metrics, dashboards, decks, workflows, views, themes: themeFiles }).filter(([, xs]) => xs!.length).map(([k, xs]) => [k, byKey(xs as { key: string }[])]));
+  const [major, minor] = ZIFFR_VERSION.split(".");
+  const pack: Pack = {
+    format: PACK_FORMAT, id: String(manifest?.id ?? ""), name: String(manifest?.name ?? "").trim(), version: String(manifest?.version ?? "").trim(),
+    summary: String(manifest?.summary ?? "").replace(/\s+/g, " ").trim(), author: { name: String(manifest?.author ?? "").trim() },
+    license: (PACK_LICENSES as readonly string[]).includes(String(manifest?.license)) ? (manifest.license as Pack["license"]) : "CC-BY-4.0",
+    ziffr: `>=${major}.${minor}`, contents,
+  };
+  const text = `${JSON.stringify(pack, null, 2)}\n`;
+  const res = checkPack(text);
+  if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
+  return { text, fileName: `${pack.id.split("/").pop() || "pack"}.pack.json`, leftOut };
+}
+
+/** Whether an item passed its format's checks; if not, it is left out with the first problem. */
+function keep(_file: unknown, res: FormatCheck<unknown>, name: string, leftOut: ExportResult["leftOut"]): boolean {
+  if (res.ok) return true;
+  leftOut.push({ name, why: res.problems[0] ? `${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}` : "It does not fit the format." });
+  return false;
+}
+
+const titleOf = (t: string | null | undefined) => { const w = wordsOk(t, 200); return w ? { title: w } : {}; };
+
+/** A widget's settings as a template file keeps them: only what the format has, words that fit, a View Design by its
+ * key in the Pack when it is in it, written out otherwise. */
+function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string, string>): { settings?: WidgetSettingsFile } {
+  if (!s) return {};
+  const out: WidgetSettingsFile = {};
+  if (s.window !== undefined) out.window = s.window;
+  if (s.display) out.display = s.display;
+  for (const k of ["showTarget", "showForecast", "fullPeriods"] as const) if (s[k] !== undefined) out[k] = s[k];
+  if (s.rows !== undefined) out.rows = s.rows;
+  if (s.compare?.length) out.compare = s.compare;
+  for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = wordsOk(s[k], 200); if (w) out[k] = w; }
+  const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(wordsOk(c.text, 200) ? { text: wordsOk(c.text, 200) } : {}) }));
+  if (callouts.length) out.callouts = callouts;
+  if (s.panels?.length) out.panels = s.panels.map((p) => ({
+    type: p.type, ...(p.slot !== undefined ? { slot: p.slot } : {}), ...(p.measure ? { measure: p.measure } : {}), ...(p.periods ? { periods: p.periods } : {}),
+    ...(p.highlight === "last" || p.highlight === "projection" ? { highlight: p.highlight } : {}), ...(p.projections !== undefined ? { projections: p.projections } : {}), ...(p.sharedScale !== undefined ? { sharedScale: p.sharedScale } : {}),
+    ...(p.refLine ? { refLine: { kind: p.refLine.kind, ...(p.refLine.value !== undefined ? { value: p.refLine.value } : {}), ...(plain(p.refLine.label, 60) ? { label: plain(p.refLine.label, 60)! } : {}) } } : {}),
+    ...(p.bridge ? { bridge: { mode: p.bridge.mode } } : {}), ...(wordsOk(p.title, 200) ? { title: wordsOk(p.title, 200) } : {}),
+    ...(p.annotations?.length ? { annotations: p.annotations.flatMap((a) => (a.anchor.type === "rule" ? [{ kind: a.kind, rule: a.anchor.rule, ...(wordsOk(a.text, 200) ? { text: wordsOk(a.text, 200) } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) }] : [])) } : {}),
+  }));
+  if (s.design?.body) out.design = designKey.get(canonical(s.design.body)) ?? s.design.body;
+  return Object.keys(out).length ? { settings: out } : {};
+}
+
+/** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
+function paragraphsOf(rich: unknown): string[] {
+  const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => wordsOk(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+}
+
+const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];
+const GEOS = ["rectangle", "ellipse", "oval", "triangle", "diamond", "hexagon", "star"];
+const clamp = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
+
+/** A slide's shape as a Deck Template file keeps it: widgets, words and simple boxes; anything else stays behind. */
+function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, string>): DeckTemplateFile["slides"][number]["shapes"] {
+  const p = sh.props as Record<string, unknown>;
+  const x = clamp(sh.x, 0, 1279), y = clamp(sh.y, 0, 719);
+  const color = COLORS.includes(String(p.color)) ? { color: p.color as "black" } : {};
+  if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
+    return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey) }];
+  }
+  if (sh.type === "text") {
+    const text = paragraphsOf(p.richText);
+    if (!text.length) return [];
+    return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
+  }
+  if (sh.type === "geo") {
+    const text = paragraphsOf(p.richText);
+    return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text } : {}) }];
+  }
+  return [];
+}
