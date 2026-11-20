@@ -130,7 +130,7 @@ function bytes(text: string): number {
 /** Reads pasted text into cells (spec 0026, "Reading the grid"): tabs separate cells, as every spreadsheet puts them
  * on the clipboard. Without a tab anywhere, a semicolon or a comma is tried as a CSV would be, but only when every
  * row then has the same number of cells, more than one. Empty rows and columns at the edges are dropped. */
-export function readGrid(text: string): { ok: true; grid: Grid } | { ok: false; reason: GridProblem } {
+export function readGrid(text: string): { ok: true; grid: Grid } | { ok: false; reason: GridProblem } | { ok: false; reason: "too_many_cells"; count: number } {
   if (typeof text !== "string") return { ok: false, reason: "empty" };
   if (bytes(text) > PASTE_LIMITS.bytes) return { ok: false, reason: "too_large" };
   const body = text.replace(/^﻿/, "");
@@ -144,19 +144,24 @@ export function readGrid(text: string): { ok: true; grid: Grid } | { ok: false; 
     }
   }
   if (!rows) return { ok: false, reason: "not_cells" };
-  const trimmed = rows.map((r) => r.map((c) => c.trim()));
-  const width = Math.max(...trimmed.map((r) => r.length));
-  const full = trimmed.map((r) => [...r, ...Array<string>(width - r.length).fill("")]);
-  const used = (r: string[]) => r.some(Boolean);
-  const top = full.findIndex(used);
-  const bottom = full.length - [...full].reverse().findIndex(used);
-  const kept = full.slice(top, bottom);
-  const colUsed = (c: number) => kept.some((r) => r[c]);
-  let left = 0;
-  while (!colUsed(left)) left++;
-  let right = width;
-  while (!colUsed(right - 1)) right--;
-  return { ok: true, grid: { cells: kept.map((r) => r.slice(left, right)), top, left } };
+  // The filled cells and the rectangle around them, found in one pass over the rows as split, before any grid is
+  // built: a paste of many rows and one very wide one is refused here without padding every row to its width.
+  let top = -1, bottom = -1, left = Infinity, right = -1, filled = 0;
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < rows[r].length; c++) {
+      if (!rows[r][c].trim()) continue;
+      filled++;
+      if (top < 0) top = r;
+      bottom = r;
+      if (c < left) left = c;
+      if (c > right) right = c;
+    }
+  }
+  const spanned = (bottom - top + 1) * (right - left + 1);
+  if (spanned > GRID_LIMITS.cells || filled > GRID_LIMITS.filled) return { ok: false, reason: "too_many_cells", count: spanned > GRID_LIMITS.cells ? spanned : filled };
+  // Only the rectangle is built, trimmed and padded so the grid is one.
+  const cells = rows.slice(top, bottom + 1).map((row) => Array.from({ length: right - left + 1 }, (_, i) => (row[left + i] ?? "").trim()));
+  return { ok: true, grid: { cells, top, left } };
 }
 
 // Spreadsheet errors, as Excel, Google Sheets, LibreOffice and Numbers show them: "#N/A", "#DIV/0!", "#VALUE!",
@@ -390,11 +395,8 @@ function permutations<T>(items: T[]): T[][] {
 export function readPaste(text: string, ctx: PasteContext): PasteReading {
   const read = readGrid(text);
   if (!read.ok) return read;
+  // Bounded before any layout is tried (readGrid refuses a grid of too many cells): trying one reads every cell.
   const { cells, top, left } = read.grid;
-  // Bounded before any layout is tried: trying one reads every cell, some several times.
-  const spanned = cells.length * cells[0].length;
-  const filled = cells.reduce((n, r) => n + r.filter(Boolean).length, 0);
-  if (spanned > GRID_LIMITS.cells || filled > GRID_LIMITS.filled) return { ok: false, reason: "too_many_cells", count: spanned > GRID_LIMITS.cells ? spanned : filled };
   const chosen = ctx.metricId == null ? undefined : ctx.metrics.find((m) => m.id === ctx.metricId);
   const tried: [PasteLayout, () => Laid | null][] = [
     ...(chosen ? [["one_metric", () => rows(cells, ctx, ["period", "value"], chosen)] as [PasteLayout, () => Laid | null]] : []),
