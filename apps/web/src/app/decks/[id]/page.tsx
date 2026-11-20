@@ -10,8 +10,10 @@ import { snapshotDeckSeed } from "@ziffr/core/snapshots";
 import { deckTemplateSeed, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { deckAddition } from "@ziffr/core/deck-additions";
+import { cookies } from "next/headers";
+import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
 
-export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; widget?: string; slide?: string }> }) {
+export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; add?: string }> }) {
   const id = Number((await params).id);
   const sp = await searchParams;
   const from = Number(sp.from);
@@ -41,10 +43,11 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   // Made from a Deck Template (spec 0030): its slides with its Slots filled; the core checks every Metric again.
   const fromTemplate = Number(sp.template);
   const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null) : null;
-  // A widget added from its menu (ticket #1): the core checks again that the person may change the deck, open the
-  // widget and see its Metrics; the editor places the copy on that slide or a new one and saves.
-  const widgetId = Number(sp.widget);
-  const addition = Number.isInteger(widgetId) && widgetId > 0 ? await deckAddition(actor, id, widgetId, sp.slide ?? null).catch(() => null) : null;
+  // A widget added from its menu (ticket #1), only when the person's own menu asked for it (deck-add-intent.ts): the
+  // core checks again that they may change the deck, open the widget and see its Metrics; the editor places the
+  // copy on that slide or a new one and saves.
+  const intent = readIntent((await cookies()).get(DECK_ADD_COOKIE)?.value, id, sp.add);
+  const addition = intent ? await deckAddition(actor, id, intent.widgetId, intent.slide).catch(() => null) : null;
   const [data, saved, shares, groups] = await Promise.all([
     // The deck's own widgets' series; one placed in the editor fetches its own.
     getCanvasData(viewer, [...deckMetricIds(deck.document), ...(seed?.widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)) ?? []), ...(templateSeed?.fills.flat() ?? []), ...(addition ? widgetMetricIds(addition.widget.metric_ids, addition.widget.settings) : [])]),

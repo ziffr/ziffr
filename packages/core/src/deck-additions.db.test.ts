@@ -20,13 +20,11 @@ async function setUp() {
   const ann = await w.person("member");
   const gus = await w.person("guest");
   const revenue = await w.metric(sara, { name: "Revenue" });
-  const secret = await w.metric(sara, { name: "Payroll" });
   const { data: d } = await db().from("dashboards").insert({ name: "Sales", owner_id: sara, workspace_id: w.id }).select("id").single();
   const widget = async (metricIds: number[], title: string) => (await db().from("widgets").insert({ owner_id: sara, dashboard_id: d!.id, template: "line", metric_ids: metricIds, settings: {}, title, x: 0, y: 0, w: 6, h: 4, workspace_id: w.id }).select("id").single()).data!.id as number;
   const shown = await widget([revenue.id], "Revenue by month");
-  const hidden = await widget([secret.id], "Payroll by month");
   const { data: deck } = await db().from("decks").insert({ name: "Board", owner_id: sara, document: DOC, workspace_id: w.id }).select("id").single();
-  // Ben sees the dashboard and Revenue, and edits the deck; Ann only views the deck; nobody but Sara sees Payroll.
+  // Ben sees the dashboard and Revenue, and edits the deck; Ann only views the deck.
   await db().from("shares").insert([
     { workspace_id: w.id, object_type: "dashboard", object_id: d!.id, user_id: ben, role: "viewer" },
     { workspace_id: w.id, object_type: "dashboard", object_id: d!.id, user_id: ann, role: "viewer" },
@@ -35,7 +33,7 @@ async function setUp() {
     { workspace_id: w.id, object_type: "deck", object_id: deck!.id, user_id: ben, role: "editor" },
     { workspace_id: w.id, object_type: "deck", object_id: deck!.id, user_id: ann, role: "viewer" },
   ]);
-  return { w, sara, ben, ann, gus, deck: deck!.id as number, shown, hidden, revenue };
+  return { w, sara, ben, ann, gus, deck: deck!.id as number, shown, revenue };
 }
 
 describe("adding a widget to a deck", () => {
@@ -69,6 +67,12 @@ describe("adding a widget to a deck", () => {
     const zoe = await other.person("owner");
     await expect(deckAddition(other.actor(zoe), deck, shown)).rejects.toThrow();
     expect(await deckTargets(w.actor(sara))).toHaveLength(1);
+    // Someone else's saved widget (the Pool), and a widget of another Workspace onto this one's deck.
+    const { data: pool } = await db().from("widgets").insert({ owner_id: sara, dashboard_id: null, saved: true, template: "line", metric_ids: [], settings: {}, title: "Sara's", x: 0, y: 0, w: 6, h: 4, workspace_id: w.id }).select("id").single();
+    const ben = (await db().from("shares").select("user_id").eq("object_id", deck).eq("role", "editor").single()).data!.user_id as string;
+    await expect(deckAddition(w.actor(ben, "member"), deck, pool!.id)).rejects.toThrow();
+    const { data: theirs } = await db().from("widgets").insert({ owner_id: zoe, dashboard_id: null, saved: true, template: "line", metric_ids: [], settings: {}, title: "Zoe's", x: 0, y: 0, w: 6, h: 4, workspace_id: other.id }).select("id").single();
+    await expect(deckAddition(w.actor(sara), deck, theirs!.id)).rejects.toThrow();
   });
 
   it("refuses a widget drawing a Metric the person does not see, also onto a new deck, and makes no deck then", async () => {

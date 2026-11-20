@@ -2,6 +2,8 @@
 // Turning one into another (spec 0010, ticket #149; spec 0013; ticket #1): a deck from a dashboard, a widget onto a deck. The core checks the person
 // may open the source, may create, and sees every Metric copied.
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { DECK_ADD_COOKIE, DECK_ADD_SECONDS, newIntent } from "@/lib/deck-add-intent";
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
@@ -45,7 +47,10 @@ export async function addToDeck(widgetId: number, deckId: number | null, slide: 
     const actor = await currentActor();
     const id = deckId === null ? await newDeckFor(actor, Number(widgetId)) : Number(deckId);
     const added = await deckAddition(actor, id, Number(widgetId), slide);
+    // Asked for here, by the person's own menu: a cookie of this site, which a link from elsewhere cannot set.
+    const intent = newIntent(id, Number(widgetId), added.slide);
+    (await cookies()).set(DECK_ADD_COOKIE, intent.cookie, { httpOnly: true, sameSite: "strict", path: "/decks", maxAge: DECK_ADD_SECONDS });
     revalidatePath("/", "layout");
-    redirect(`/decks/${id}?widget=${Number(widgetId)}${added.slide ? `&slide=${encodeURIComponent(added.slide)}` : ""}`);
+    redirect(`/decks/${id}?add=${intent.nonce}`);
   });
 }

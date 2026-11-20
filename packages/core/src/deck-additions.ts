@@ -18,6 +18,8 @@ export type DeckTarget = { id: number; name: string; slides: DeckSlide[] };
 /** What the deck editor places: the copy of the widget, and the slide it goes on (null: a new slide at the end). */
 export type DeckAddition = { widget: Pick<Widget, "template" | "metric_ids" | "settings" | "title">; slide: string | null };
 
+/** Most decks offered, the most recently changed first: each is read in full for its slides. */
+const MAX_DECKS = 30;
 /** Most slides listed per deck in the menu: a longer deck is still offered, its later slides through New slide. */
 const MAX_SLIDES = 60;
 /** How a slide's id looks: a tldraw shape id. Anything else from a browser is not one. */
@@ -42,7 +44,7 @@ export function slidesOf(document: unknown): DeckSlide[] {
  * its slides. Nothing for a Guest, who changes no deck. */
 export async function deckTargets(actor: Actor): Promise<DeckTarget[]> {
   if (!can(actor, "create")) return [];
-  const editable = (await visibleDecks(actor.workspaceId, actor.personId)).filter((d) => d.role === "owner" || d.role === "editor");
+  const editable = (await visibleDecks(actor.workspaceId, actor.personId)).filter((d) => d.role === "owner" || d.role === "editor").slice(0, MAX_DECKS);
   if (!editable.length) return [];
   const { data } = await db().from("decks").select("id, document").eq("workspace_id", actor.workspaceId).in("id", editable.map((d) => d.id));
   const docs = new Map((data ?? []).map((d) => [d.id as number, d.document]));
