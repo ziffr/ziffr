@@ -107,7 +107,7 @@ The list shows the Metrics in use. Once a Metric you may see is archived, two fi
 **New metric** opens a page with two ways to begin. You can change everything afterwards.
 
 - **Start from scratch**: an empty form, for a number nobody has described before.
-- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](16-workspace-settings.md#packs)).
+- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](19-packs.md)).
 
 Owners, Admins and Members create Metrics. Guests create nothing. When the Workspace has a **Workspace Limit** and holds as many Metrics as it allows (see [Installation settings](18-installation-settings.md)), the form says so at the top, such as "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size.", and creating waits until a Metric is archived or the limit is raised. Values keep arriving for every Metric meanwhile. From 90 % of the limit on, the page shows how many Metrics the Workspace holds of how many, such as "This Workspace holds 48 of 50 Metrics." Guests see neither.
 

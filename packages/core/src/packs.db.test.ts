@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { installPackFile, itemHash, listInstalledPacks, readPackFile } from "./packs";
+import { installPackFile, itemHash, listInstalledPacks, PACK_CAPS, readPackFile } from "./packs";
 import { metricCatalog } from "./page-data";
 import { createMetric } from "./metrics";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -140,6 +140,14 @@ describe("who may install", () => {
     expect(read.ok).toBe(false);
     await installPackFile(w.actor(ann), file(), yes);
     await expect(installPackFile(w.actor(ann), file({ ...PACK, version: "1.3.0" }), yes)).rejects.toThrow("installed already");
+  });
+});
+
+describe("how much a Workspace holds from Packs", () => {
+  it("refuses a Pack past the most Packs a Workspace keeps", async () => {
+    const w = await ws(); const ann = await w.person("owner");
+    await db().from("pack_installs").insert(Array.from({ length: PACK_CAPS.installs }, (_, i) => ({ workspace_id: w.id, pack_id: `someone/p${i}`, version: "1.0.0", license: "MIT", source: "upload", signed: false, manifest: {} })));
+    await expect(installPackFile(w.actor(ann), file(), yes)).rejects.toThrow(`at most ${PACK_CAPS.installs} Packs`);
   });
 });
 

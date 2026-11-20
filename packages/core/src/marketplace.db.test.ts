@@ -108,6 +108,8 @@ describe("the Marketplace connection", () => {
     await installFromMarketplace(a.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
     await installFromMarketplace(b.actor(zoe), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
     sent = [];
+    // A page asks in the background; here the question is asked and awaited first, as a page's would have been.
+    await checkMarketplaceVersions();
     const ups = await marketplaceUpdates(a.actor(ann));
     expect(ups).toEqual([{ installId: expect.any(Number), version: "1.3.0" }]);
     const posts = sent.filter((s) => s.method === "POST");
@@ -118,6 +120,7 @@ describe("the Marketplace connection", () => {
     expect(Object.keys(body).sort()).toEqual(["installed", "ziffr"]);
     for (const s of sent) for (const secret of [a.id, b.id, "Alpha", "Beta", ann, zoe]) expect(`${s.url} ${s.body ?? ""}`).not.toContain(secret);
     // Asked once a day: Beta's page asks nothing new.
+    await checkMarketplaceVersions();
     expect(await marketplaceUpdates(b.actor(zoe))).toHaveLength(1);
     expect(sent.filter((s) => s.method === "POST")).toHaveLength(1);
     await updateFromMarketplace(a.actor(ann), ups[0].installId, "1.3.0", { assistantTexts: true });

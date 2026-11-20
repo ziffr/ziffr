@@ -26,10 +26,18 @@ import type { Problem } from "@ziffr/core/json-check";
 const KIND_LABEL: Record<PackPreviewItem["kind"], string> = { metric: "Metric Catalog entries", dashboard: "Dashboard Templates", deck: "Deck Templates", workflow: "Workflow Templates", view: "View Designs", theme: "Themes" };
 const ORDER: PackPreviewItem["kind"][] = ["metric", "dashboard", "deck", "workflow", "view", "theme"];
 
-/** A listing's address as a plain link: https only, and the site learns nothing of where the person came from. */
-function ListingLink({ href, children }: { href?: string; children: React.ReactNode }) {
+/** A listing's address as a plain link: https only, and the site learns nothing of where the person came from. A
+ * link of a Pack nobody signed names its host and says so, so it never passes for one of Ziffr's own. */
+function ListingLink({ href, children, unsigned = false }: { href?: string; children: React.ReactNode; unsigned?: boolean }) {
   if (!href || !href.startsWith("https://")) return null;
-  return <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>;
+  let host = "";
+  try { host = new URL(href).host; } catch { return null; }
+  return (
+    <span>
+      <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>
+      {unsigned && <span className="text-muted-foreground"> ({host}, given by the Pack, not checked by the Marketplace)</span>}
+    </span>
+  );
 }
 
 export function PacksScreen({ installed, manages, exportable = null, offers = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; offers?: OfferedItem[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
@@ -54,7 +62,7 @@ export function PacksScreen({ installed, manages, exportable = null, offers = []
                       {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : "From the Marketplace. "}
                       Installed {new Date(p.installedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{p.installedBy ? ` by ${p.installedBy}` : ""}.
                     </p>
-                    <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage}>Its page</ListingLink><ListingLink href={p.listing.support}>Help</ListingLink></p>
+                    <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
                     {manages && <PackActions installId={p.id} name={p.name} />}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
@@ -154,7 +162,7 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
-        <p className="mt-1 text-xs text-muted-foreground">By {preview.manifest.author.name}, under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage}>Its page</ListingLink></p>
+        <p className="mt-1 text-xs text-muted-foreground">By {preview.manifest.author.name}, under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
       </div>
       {preview.unsigned
         ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>

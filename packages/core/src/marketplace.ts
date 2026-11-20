@@ -289,8 +289,10 @@ export async function checkMarketplaceVersions(force = false): Promise<void> {
  * page shows as an update to take. Asks the Marketplace first when the Installation has not asked today. */
 export async function marketplaceUpdates(actor: Actor): Promise<{ installId: number; version: string }[]> {
   if ((actor as { key?: unknown }).key || (actor.role !== "owner" && actor.role !== "admin")) return [];
-  await checkMarketplaceVersions().catch(() => undefined); // the page works without the Marketplace
-  const { data: installs } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId);
+  // Asked in the background: the page shows what the last question found, and never waits on the Marketplace.
+  void checkMarketplaceVersions().catch(() => undefined);
+  // Only Packs installed from the Marketplace: an uploaded file under the same id is not the Marketplace's Pack.
+  const { data: installs } = await db().from("pack_installs").select("id, pack_id, version").eq("workspace_id", actor.workspaceId).eq("source", "marketplace");
   if (!installs?.length) return [];
   const { data: newer } = await db().from("marketplace_versions").select("pack_id, version").in("pack_id", installs.map((i) => String(i.pack_id)));
   const latest = new Map((newer ?? []).map((n) => [String(n.pack_id), String(n.version)]));
