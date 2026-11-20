@@ -28,7 +28,7 @@ create unique index usage_keys_one_live on usage_keys ((true)) where revoked_at 
 
 -- Counts one call of the live key in its hour; answers whether it is still within p_limit. Service role only.
 create or replace function touch_usage_key(p_id bigint, p_limit integer) returns boolean
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, pg_temp as $$
   with u as (
     update usage_keys k set
       window_calls = case when k.window_started_at > now() - interval '1 hour' then k.window_calls + 1 else 1 end,
@@ -42,12 +42,24 @@ $$;
 revoke all on function touch_usage_key(bigint, integer) from public, anon, authenticated;
 grant execute on function touch_usage_key(bigint, integer) to service_role;
 
+-- Makes the key the one live one: revokes the others and inserts, in one transaction under a lock, so two Installation
+-- Admins making a key at once cannot leave none or two. Service role only.
+create or replace function make_usage_key(p_prefix text, p_hash text, p_by text) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('usage_keys'));
+  update usage_keys set revoked_at = now() where revoked_at is null;
+  insert into usage_keys (prefix, secret_hash, created_by) values (p_prefix, p_hash, p_by);
+end $$;
+revoke all on function make_usage_key(text, text, text) from public, anon, authenticated;
+grant execute on function make_usage_key(text, text, text) to service_role;
+
 -- The figures of one UTC day, as counts. p_exclude leaves one Workspace (the operator's own) out of every figure; the
 -- demo is never in them. p_states false (a day the job missed) leaves out the figures that count a state at the end of
 -- the day, which cannot be rebuilt afterwards, rather than giving today's state for that day. Returns the figures
 -- only; the caller stores them.
 create or replace function usage_rollup_day(p_day date, p_exclude uuid, p_states boolean) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   demo constant uuid := 'd3e00000-0000-4000-8000-000000000001';
   d_from timestamptz := p_day::timestamp at time zone 'utc';
@@ -70,6 +82,11 @@ begin
     'values_slack', (select count(*) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'slack' and o.created_at >= d_from and o.created_at < d_to),
     'values_telegram', (select count(*) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'telegram' and o.created_at >= d_from and o.created_at < d_to),
     'values_api', (select count(*) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'api' and o.created_at >= d_from and o.created_at < d_to),
+    'values_web_ws', (select count(distinct o.workspace_id) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'web_form' and o.created_at >= d_from and o.created_at < d_to),
+    'values_email_ws', (select count(distinct o.workspace_id) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'mail' and o.created_at >= d_from and o.created_at < d_to),
+    'values_slack_ws', (select count(distinct o.workspace_id) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'slack' and o.created_at >= d_from and o.created_at < d_to),
+    'values_telegram_ws', (select count(distinct o.workspace_id) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'telegram' and o.created_at >= d_from and o.created_at < d_to),
+    'values_api_ws', (select count(distinct o.workspace_id) from observations o join _usage_ws u on u.id = o.workspace_id where o.source = 'api' and o.created_at >= d_from and o.created_at < d_to),
     'emails_sent', (select count(*) from deliveries x join _usage_ws u on u.id = x.workspace_id where x.connector = 'email' and x.mail_state = 'sent' and x.sent_at >= d_from and x.sent_at < d_to),
     'api_calls', coalesce((select sum(c.n) from usage_counts c join _usage_ws u on u.id = c.workspace_id where c.day = p_day and c.kind = 'api_calls'), 0),
     'feed_calls', coalesce((select sum(c.n) from usage_counts c join _usage_ws u on u.id = c.workspace_id where c.day = p_day and c.kind = 'feed_calls'), 0),

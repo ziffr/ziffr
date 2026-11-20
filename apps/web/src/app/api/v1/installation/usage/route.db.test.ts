@@ -28,11 +28,15 @@ describe("GET /installation/usage", () => {
     expect(ok.headers.get("cache-control")).toBe("no-store");
     expect(Array.isArray((await ok.json()).days)).toBe(true);
   });
-  it("refuses a bad range with 400 and a Usage Key past its calls with 429", async () => {
+  it("refuses a bad range with 400, and a Usage Key past its 60 calls an hour with 429", async () => {
     const a = await installationAdmin(); cleanups.push(a.cleanup);
     const { secret } = await makeUsageKey(a.actor);
     expect((await call(secret, "?from=yesterday")).status).toBe(400);
     expect((await call(secret, "?from=2020-01-01&to=2022-01-01")).status).toBe(400);
     expect((await call(secret, "?from=2026-11-01&to=2026-10-01")).status).toBe(400);
+    for (let i = 0; i < 57; i++) await call(secret);
+    const limited = await call(secret);
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("retry-after")).toBe("3600");
   });
 });

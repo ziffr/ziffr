@@ -142,10 +142,19 @@ describe("small numbers", () => {
     expect(d.withheld).toEqual(expect.arrayContaining(["workspaces_trial", "workspaces_free", "workspaces_paid", "values_web", "values_api", "packs"]));
   });
   it("splits at 3 Workspaces and shows only Packs with 3 installs", () => {
-    const d = usageDayView("2026-11-01", { ...stored, workspaces: 3, packs_installed: 6, packs: [{ id: "starter-pack", installs: 4 }, { id: "tiny-pack", installs: 2 }, { id: 5, installs: 9 }] });
-    expect(d).toMatchObject({ workspaces_trial: 1, values_web: 5 });
+    const d = usageDayView("2026-11-01", { ...stored, workspaces: 9, workspaces_trial: 3, workspaces_free: 3, workspaces_paid: 3, values_web_ws: 3, values_api_ws: 3, packs_installed: 6, packs: [{ id: "starter-pack", installs: 4 }, { id: "tiny-pack", installs: 2 }, { id: 5, installs: 9 }] });
+    expect(d).toMatchObject({ workspaces_trial: 3, values_web: 5, values_api: 6 });
+    expect(d.values_web_ws).toBeUndefined();
     expect(d.packs).toEqual([{ id: "starter-pack", installs: 4 }]);
     expect(d.withheld).toEqual(["packs"]);
+  });
+  it("withholds a figure that rests on fewer than 3 Workspaces even in a large Installation, and all three kinds together", () => {
+    const big = { workspaces: 10, workspaces_trial: 4, workspaces_free: 5, workspaces_paid: 1, values_telegram: 40, values_telegram_ws: 1, values_slack: 9, values_slack_ws: 4, values_email: 0, values_email_ws: 0, metrics: 50 };
+    const d = usageDayView("2026-11-01", big);
+    expect(d).toMatchObject({ workspaces: 10, metrics: 50, values_slack: 9, values_email: 0 });
+    for (const k of ["workspaces_trial", "workspaces_free", "workspaces_paid", "values_telegram"]) { expect(d[k]).toBeUndefined(); expect(d.withheld).toContain(k); }
+    expect(JSON.stringify(d)).not.toContain("_ws");
+    expect(usageDayView("2026-11-01", { ...big, workspaces_trial: 0, workspaces_free: 6, workspaces_paid: 4 })).toMatchObject({ workspaces_trial: 0, workspaces_free: 6, workspaces_paid: 4 });
   });
   it("is the same through the core function from a stored day", async () => {
     const a = await admin();

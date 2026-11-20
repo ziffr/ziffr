@@ -66,10 +66,8 @@ export async function makeUsageKey(actor: InstallationActor): Promise<{ secret: 
   await assertInstallationAdmin(actor);
   const prefix = randomBytes(3).toString("hex");
   const secret = `zu_${prefix}_${randomBytes(32).toString("base64url")}`;
-  // One live key at a time: the old one is revoked first; the unique index refuses two live ones under a race.
-  const { error: revokeError } = await db().from("usage_keys").update({ revoked_at: new Date().toISOString() }).is("revoked_at", null);
-  if (revokeError) throw new Error("The Usage Key could not be made. Try again.");
-  const { error } = await db().from("usage_keys").insert({ prefix, secret_hash: hashOf(secret), created_by: String(actor.personId).slice(0, 64) });
+  // One live key at a time: the database revokes the old one and inserts the new one together, under a lock.
+  const { error } = await db().rpc("make_usage_key", { p_prefix: prefix, p_hash: hashOf(secret), p_by: String(actor.personId).slice(0, 64) });
   if (error) throw new Error("The Usage Key could not be made. Try again.");
   await recordInstallationEvent(actor.personId, "usage_key.made", null);
   return { secret };
@@ -122,10 +120,16 @@ export function usageDayView(day: string, stored: unknown): UsageDay {
   const small = workspaces === null || workspaces < USAGE_MIN_WORKSPACES;
   const out: UsageDay = { day, withheld: [] };
   for (const k of USAGE_TOTAL_FIGURES) { const n = whole(k); if (n !== null) out[k] = n; }
+  // A figure that names a group is shown only where at least 3 Workspaces are in the group. The three kinds of Workspace
+  // go together (one left out would be the total less the other two); a Source's figure rests on the number of
+  // Workspaces that recorded a value by it that day, which the rollup keeps beside it and which is never returned.
+  const kinds = ["workspaces_trial", "workspaces_free", "workspaces_paid"];
+  const kindsOk = !small && kinds.every((k) => whole(k) === 0 || (whole(k) ?? 0) >= USAGE_MIN_WORKSPACES);
   for (const k of USAGE_SPLIT_FIGURES) {
     const n = whole(k);
     if (n === null) continue;
-    if (small) out.withheld.push(k); else out[k] = n;
+    const behind = kinds.includes(k) ? (kindsOk ? USAGE_MIN_WORKSPACES : 0) : n === 0 ? USAGE_MIN_WORKSPACES : whole(`${k}_ws`) ?? 0;
+    if (small || behind < USAGE_MIN_WORKSPACES) out.withheld.push(k); else out[k] = n;
   }
   // Marketplace Packs: each only with at least 3 Workspaces behind it (the rollup keeps only those; checked again).
   const packs = Array.isArray(f.packs) ? f.packs : [];
