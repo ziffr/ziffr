@@ -2,9 +2,9 @@
 // codes, the scopes, 404 for an Action the creator may not read, 422 with the words for a refusal, and that Approvals
 // are not reachable from the remote MCP Server. The core's own rules are proven in api-actions.db.test.ts.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAccessKey } from "@ziffr/core/access-keys";
-import type { Scope } from "@ziffr/core/actor";
-import { db } from "@ziffr/core/db";
+import { actorForSecret, createAccessKey } from "@ziffr/core/access-keys";
+import type { KeyActor, Scope } from "@ziffr/core/actor";
+import { listActionsWithKey } from "@ziffr/core/api-actions";
 import { JANUARY, periodStart } from "@ziffr/core/periods";
 import { accessLogOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { onValue } from "@ziffr/core/workflow-engine";
@@ -34,6 +34,12 @@ async function keyFor(w: W, person: string, role: "owner" | "admin" | "member", 
   return { id, req, params };
 }
 
+/** The key's actor, for reading an Action's state back through the core. */
+async function asActor(w: W, person: string) {
+  const { secret } = await createAccessKey(w.actor(person, "admin"), { name: "Reader", scopes: ["actions:read"], expiresOn: inDays(30) });
+  return (await actorForSecret(secret)) as KeyActor;
+}
+
 async function setup() {
   const w = await workspace(); cleanups.push(w.cleanup);
   const sara = await w.person("owner"); const ann = await w.person("member"); const ada = await w.person("admin"); const sam = await w.person("member"); const eve = await w.person("member");
@@ -45,14 +51,15 @@ async function setup() {
   const task = await w.action({ metric_id: cash.id, period_start: month(), asker_id: sara, assignee_id: ann, kind: "task", question: "Send the report" });
   await w.value(revenue.id, month(), 100, sam);
   await onValue(revenue.id, month(), sam);
-  const approvalId = ((await db().from("actions").select("id").eq("metric_id", revenue.id).eq("purpose", "approval").single()).data!).id as number;
+  const adaKey = await keyFor(w, ada, "admin", ["actions:read"]);
+  const approvalId = (await (await list(adaKey.req("GET", "/actions"), undefined)).json()).items.find((a: { purpose: string }) => a.purpose === "approval").id as number;
   return { w, sara, ann, ada, sam, eve, cash, task, approvalId };
 }
 
 describe("Actions over HTTP", () => {
   it("lists, replies, marks done and closes, with the Access Log entries", async () => {
-    const { w, sara, ann, task } = await setup();
-    await w.share(task && (await db().from("actions").select("metric_id").eq("id", task).single()).data!.metric_id as number, ann);
+    const { w, sara, ann, cash, task } = await setup();
+    await w.share(cash.id, ann);
     const k = await keyFor(w, ann, "member", ["actions:read", "actions:write"]);
     const res = await list(k.req("GET", "/actions?role=assignee"), undefined);
     expect(res.status).toBe(200);
@@ -92,7 +99,7 @@ describe("Actions over HTTP", () => {
     const noScope = await keyFor(w, ada, "admin", ["actions:write", "actions:read", "values:submit"]);
     expect((await approval(noScope.req("POST", `/actions/${approvalId}/approval`, { decision: "approve" }), noScope.params(approvalId))).status).toBe(403);
     expect((await replies(noScope.req("POST", `/actions/${approvalId}/replies`, { body: "approve" }), noScope.params(approvalId))).status).toBe(201);
-    expect((await db().from("actions").select("status").eq("id", approvalId).single()).data?.status).toBe("open");
+    expect((await listActionsWithKey(await asActor(w, ada), { limit: 50 })).items.find((a) => a.id === approvalId)?.status).toBe("open");
     // The submitter is on the task (they asked for it), so they read it, and the answer says it is not theirs: nobody approves their own value.
     const submitter = await keyFor(w, sam, "member", ["values:approve"]);
     expect((await approval(submitter.req("POST", `/actions/${approvalId}/approval`, { decision: "approve" }), submitter.params(approvalId))).status).toBe(422);
