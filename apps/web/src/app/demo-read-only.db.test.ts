@@ -25,6 +25,12 @@ const files = (function walk(dir: string): string[] {
   });
 })(APP);
 
+/** A small Pack of one Metric, for installing one in the demo. */
+const PACK = JSON.stringify({
+  format: "ziffr.pack/1", id: "visitor/one-metric", name: "One metric", version: "1.0.0", summary: "One Metric.", author: { name: "A visitor" },
+  license: "CC-BY-4.0", ziffr: ">=0.11", contents: { metrics: [{ key: "visits", metric: { format: "ziffr.metric/1", name: "Site visits", period: "month", aggregation: "sum", polarity: "higher" } }] },
+});
+
 /** The demo's ids the actions are called with, read once. */
 type Ids = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- ids and seed objects of every shape
 let ids: Ids = {};
@@ -136,6 +142,8 @@ const CASES: Record<string, Case> = {
   "oauth/authorize/actions:answerConsent": { outside: "connects an assistant to one's own Workspace; refused during a demo visit" },
   "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
   "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
+  "pack-actions:readPack": { reads: () => [PACK] },
+  "pack-actions:installPack": { args: () => [PACK, { unsigned: true, assistantTexts: true }] },
   "series-actions:saveSeriesRows": { args: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
   "series-actions:removeSeriesRows": { args: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },
