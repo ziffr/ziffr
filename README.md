@@ -8,7 +8,7 @@
 
 What that includes: values captured where people already work (a form link, email, Slack, Telegram, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
 
-Ziffr is in its `0.x` releases: used and tested, but names and settings may still change between versions. See [CHANGELOG.md](CHANGELOG.md) for what each version brought, and the [Preview](https://github.com/ziffr/ziffr/releases/tag/preview) for what is coming in the next one.
+Ziffr is in its `0.x` releases: used and tested, but names and settings may still change between versions. See the [releases](https://github.com/ziffr/ziffr/releases) for what each version brought, and the [Preview](https://github.com/ziffr/ziffr/releases/tag/preview) for what is coming in the next one.
 
 ![A dashboard in Ziffr: revenue, margin, support tickets and cost for October, each against its target, with a cost trend and forecast](docs/images/dashboard.webp)
 

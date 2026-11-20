@@ -33,6 +33,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ghcr.io/ziffr/ziffr:main,ghcr.io/ziffr/ziffr:main-${{ github.sha }}
+          # The version the app shows its Installation Admins (docker/Dockerfile): which commit of main this is.
+          build-args: ZIFFR_VERSION=main-${{ github.sha }}
           # A cache of its own, so it never replaces the one the release's image job builds with.
           cache-from: type=gha,scope=next
           cache-to: type=gha,scope=next,mode=max

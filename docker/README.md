@@ -87,7 +87,7 @@ Your proxy then forwards to `http://127.0.0.1:8930` (or `http://172.19.0.1:8930`
 
 ## Upgrading
 
-Read the release notes between your version and the new one in [CHANGELOG.md](../CHANGELOG.md); notes for you start with "Self-hosters:". Then download the new version's `compose.yml` (each release has it attached) and start again:
+Read the notes of every release between your version and the new one on the [Releases page](https://github.com/ziffr/ziffr/releases) (up to 0.11.0 in [CHANGELOG.md](../CHANGELOG.md)); notes for you are under "For self-hosters". The Installation settings page says which release runs. Then download the new version's `compose.yml` (each release has it attached) and start again:
 
 ```sh
 curl -fsSL https://github.com/ziffr/ziffr/releases/download/vX.Y.Z/compose.yml -o compose.yml

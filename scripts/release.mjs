@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// `pnpm release` (ADR 0004): presses the Release button, the same as Actions → Release → Run workflow on main, and
-// prints the link to the run. The run does the whole release on GitHub (.github/workflows/release.yml); nothing is
-// changed on this computer, so a stale branch or tag here cannot stop it. Only the repository's owner can start it.
+// `pnpm release` (ADR 0014): presses the Release button, the same as Actions → Release → Run workflow on main, and
+// prints the link to the run. The run tags main's current commit and publishes it on GitHub
+// (.github/workflows/release.yml); nothing is changed on this computer. Only the repository's owner can start it.
+// `node scripts/next-release.mjs` shows beforehand what it would release.
 import { execFileSync } from "node:child_process";
 
 const REPO = "ziffr/ziffr";
@@ -17,4 +18,4 @@ for (let i = 0; i < 12; i++) {
   const run = latest();
   if (run && run.databaseId !== before) { url = run.url; break; }
 }
-console.log(`The release is running on GitHub; nothing more to do:\n  ${url}\nIt merges the release once its checks pass, tags it, and publishes the release and the image.`);
+console.log(`The release is running on GitHub; nothing more to do:\n  ${url}\nIt tags main's current commit, builds and publishes the image, the GitHub release and the npm packages.`);

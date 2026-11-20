@@ -11,7 +11,7 @@ One standard for everyone who contributes, people and coding agents alike. Most 
 | How to do something | `docs/guides/` | Self-hosting, writing a connector, using the API, using the MCP server, this page. |
 | What exactly exists | `docs/reference/` | **Generated, never written by hand**: the REST API from its OpenAPI spec, MCP tools from their schemas, connectors from their manifests, the database from its migrations. |
 | How to use Ziffr, for the people who use it | `docs/user-guide/` | Plain words, no code. Shown in the app at `/guide`. Each screen chapter names the files of its screens; a pull request that changes a screen changes its chapter (README in that folder). |
-| What changed for users | `.changeset/`, then `CHANGELOG.md` | A release note with every user-visible change, written in the same pull request (`.changeset/README.md`). `pnpm release` turns the notes into a `CHANGELOG.md` section; the GitHub release shows the same text (ADR 0004). Never edit released sections. |
+| What changed for users | `.changeset/`, then the GitHub release | A release note with every user-visible change, written in the same pull request (`.changeset/README.md`). The Release button turns the notes added since the last release into the text of the GitHub release (ADR 0014). `CHANGELOG.md` keeps the versions up to 0.11.0; never edit its sections. |
 | Why this code is the way it is | Comments in the code | See below. |
 
 Generated reference cannot drift from the code: the schemas that validate input at runtime are the same ones the reference is built from.

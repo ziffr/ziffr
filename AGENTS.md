@@ -23,7 +23,7 @@ Ziffr is a metric tracker: anyone, one person, a team or a business, defines the
 9. **Paid features**, once there are any, go in `ee/` under a license of their own and only add; the rest must work without them.
 10. **Specs and tickets:** work from a ticket (a GitHub issue); bigger work has a spec in `docs/specs/` (see its README). Each pull request closes its ticket with `Closes #…`.
 11. **Finish:** typecheck and lint pass, the change is tried in the running app when it touches UI, the user guide chapter that describes a changed screen is updated (`docs/user-guide`, checked in CI), the commit message says why, and anything people notice has a release note in `.changeset/` (format in `.changeset/README.md`; write the file, `pnpm changeset` is interactive).
-12. **Releases** are made by a person with the Release button or `pnpm release` (ADR 0004); never start the Release workflow yourself, never edit a released section of `CHANGELOG.md` or a version number by hand.
+12. **Releases** are made by a person with the Release button or `pnpm release` (ADR 0014): it tags `main`. Never start the Release workflow yourself, never create or push a `v*` tag, never edit a released section of `CHANGELOG.md` or set a version number by hand.
 
 ## Where things are
 

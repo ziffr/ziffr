@@ -1,6 +1,6 @@
 {
   "name": "@ziffr/feed-sql",
-  "version": "0.1.0",
+  "version": "0.0.0-dev",
   "description": "A ready Ziffr Feed for SQL databases: one Postgres query per Metric, run on a schedule with a read-only connection.",
   "license": "MIT",
   "repository": {

@@ -9,3 +9,11 @@ export async function installationActor(): Promise<InstallationActor | null> {
   const who = await signedIn();
   return who ? { personId: who.personId } : null;
 }
+
+/** The release this server runs, such as "0.12.0" (the product version, not a GLOSSARY Version), as its image was
+ * built (ADR 0014); null for a build without it (`pnpm prototype`). Shown to Installation Admins only: /api/health
+ * tells nobody else which release runs. */
+export function ziffrVersion(): string | null {
+  const v = process.env.ZIFFR_VERSION?.trim();
+  return v && v !== "dev" ? v.slice(0, 64) : null;
+}

@@ -5,7 +5,7 @@
 // text is held to the Pack's plain-text rules: what does not fit is left out, and said so, never sent as it is.
 import { db } from "./db";
 import { can, Forbidden, type Actor } from "./actor";
-import { version as ZIFFR_VERSION } from "../package.json";
+import { ZIFFR_VERSION } from "./ziffr-version";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";

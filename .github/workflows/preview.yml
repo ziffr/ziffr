@@ -1,7 +1,7 @@
-# After every push to main, the pre-release "Preview" says what main holds beyond the last release: the release notes
-# waiting in .changeset/ and every commit since (scripts/preview-notes.mjs). One release, replaced each time, marked
-# as a pre-release so it is never "Latest" and the install link (releases/latest) never points to it. It publishes
-# text only: no image, no package, so it needs no approval.
+# After every push to main, and after every release, the pre-release "Preview" says what main holds beyond the last
+# release: the release notes added to .changeset/ since its tag and every commit since (scripts/preview-notes.mjs).
+# One release, replaced each time, marked as a pre-release so it is never "Latest" and the install link
+# (releases/latest) never points to it. It publishes text only: no image, no package.
 name: Preview
 on:
   push:

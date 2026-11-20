@@ -10,7 +10,7 @@ on:
   merge_group:
   push:
     branches: [main]
-  # The Release button starts CI on its release branch by name: a pull request it opens starts no run of its own.
+  # By hand, for a branch whose run was cancelled. The Release button only reads main's runs (ADR 0014).
   workflow_dispatch:
 permissions:
   contents: read

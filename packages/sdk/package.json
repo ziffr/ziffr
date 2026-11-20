@@ -1,6 +1,6 @@
 {
   "name": "@ziffr/sdk",
-  "version": "0.1.0",
+  "version": "0.0.0-dev",
   "description": "Call the Ziffr API from TypeScript: read Metrics and their values, submit values.",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/ziffr/ziffr.git", "directory": "packages/sdk" },

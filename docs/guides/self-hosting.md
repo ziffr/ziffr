@@ -155,9 +155,9 @@ The sign-in page then shows the trial next to the demo, with what works in a tri
 
 With Docker: [docker/README.md](../../docker/README.md#upgrading). With your own Supabase project:
 
-Releases are tagged `vX.Y.Z`, and each has a section in `CHANGELOG.md` ([ADR 0004](../adr/0004-releases-and-versions.md)). Notes for you start with "Self-hosters:" and come first. To upgrade:
+Releases are tagged `vX.Y.Z`, and each has its notes on the [Releases page](https://github.com/ziffr/ziffr/releases) ([ADR 0014](../adr/0014-a-release-is-a-tag-on-main.md); versions up to 0.11.0 are in `CHANGELOG.md`). Notes for you are under "For self-hosters" and come first. To upgrade:
 
-1. Read the sections between your version and the new one.
+1. Read the notes of every release between your version and the new one.
 2. Apply the new migrations: `supabase db push`. They only add, so the old app keeps working until it is replaced.
 3. Set any new settings the notes name, then build and start the new version.
 
