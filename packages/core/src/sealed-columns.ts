@@ -20,10 +20,13 @@ export const SEALED_COLUMNS = {
   audit_events: ["object_name"],
   // An Alert's level (a value or a share), written by alerts.ts through create_alert with its id taken first.
   alerts: ["level"],
+  // A Webhook's address (automation tools put a secret in its path), its secret and its previous secret (spec 0034),
+  // written by webhooks.ts with its id (a uuid) made first.
+  webhooks: ["url", "secret", "secret_previous"],
 } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id" };
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;

@@ -37,6 +37,12 @@ export const AUDIT_KINDS = {
   "feed.deleted": "deleted the Feed",
   "feed.key_created": "created a Feed Key for",
   "feed.key_revoked": "revoked a Feed Key of",
+  "webhook.created": "added the Webhook",
+  "webhook.changed": "changed the Webhook",
+  "webhook.secret_replaced": "replaced the secret of the Webhook",
+  "webhook.switched_on": "switched on the Webhook",
+  "webhook.switched_off": "switched off the Webhook",
+  "webhook.deleted": "deleted the Webhook",
   "view_design.added": "added the View Design",
   "view_design.removed": "removed the View Design",
   "pack.installed": "installed the Pack",
@@ -86,15 +92,15 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", view_design: "View Designs", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
   workflow: "Workflow runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */
-export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "view_design" | "workflow" | "pack" | "audit_log";
+export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "webhook" | "view_design" | "workflow" | "pack" | "audit_log";
 
 /** Every object type, for checking a filter. */
-export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "view_design", "workflow", "pack", "audit_log"];
+export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "webhook", "view_design", "workflow", "pack", "audit_log"];
 
 /** Objects whose names only people who see them may read: Owners and Admins do not see every Metric, dashboard or deck. */
 export const NAMED_IF_SEEN: AuditObjectType[] = ["metric", "dashboard", "deck"];
