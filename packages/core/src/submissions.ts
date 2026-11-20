@@ -162,12 +162,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const metric = metricById[token.metric_id];
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
-  if (metric.formula) return log({ ...base, ok: false, outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` });
-  // An Archived Metric takes no values by any Source (GLOSSARY: Archived Metric); a Feed's other Metrics go on.
-  if (isArchived(metric)) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
-  // The API is a Source of its own (spec 0012): a Metric takes programs' and Feeds' values only where it says so.
-  if (!metric.sources.includes(input.source))
-    return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
+  const closed = closedTo(metric, input.source);
+  if (closed) return log({ ...base, ok: false, ...closed });
 
   // 3. What value, for which period? A program names both; a breakdown's total (or the sum of its rows) is the value
   // for the Prompt's or the current period; any other text is read as an answer (numbers.ts, spec 0022).
@@ -285,6 +281,16 @@ async function mayRecordHistory(ws: string, personId: string | null, metric: Met
 /** Whether a value asked to be an Import may be one: for a past period, at most 1,000 periods back. */
 function importable(asked: boolean, period: string, current: string, span: Metric["period"]): boolean {
   return asked && period < current && period >= importFloor(current, span);
+}
+
+/** Why a Metric takes no value from this Source at all, or null when it may: a Derived Metric is computed, an
+ * Archived Metric takes none by any Source (a Feed's other Metrics go on), and the API is a Source of its own (spec
+ * 0012), so a Metric takes programs' and Feeds' values only where it says so. */
+function closedTo(metric: Metric, source: SourceId): { outcome: string; detail: string } | null {
+  if (metric.formula) return { outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` };
+  if (isArchived(metric)) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
+  if (!metric.sources.includes(source)) return { outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[source]}.` };
+  return null;
 }
 
 /** A period's name inside a sentence: "week of 9 Nov 2026". */
