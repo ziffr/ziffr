@@ -9,7 +9,7 @@ export function TrialColumn({ days, ways, open, children }: { days: number; ways
   return (
     <section aria-labelledby="trial-h" className="stock rounded-[var(--radius-card)] p-5">
       <h2 id="trial-h" className="text-[length:var(--text-lg)] font-medium">Try it for real</h2>
-      <p className="mt-1 text-sm text-muted-foreground">A workspace of your own, with made-up numbers to start. Requests for values reach you for real.</p>
+      <p className="mt-1 text-sm text-muted-foreground">A workspace of your own, starting with one Metric to try asking with. Requests for values reach you for real.</p>
       <ul className="mt-3 space-y-1.5 text-sm">
         {ways.map((w) => (
           <li key={w.way} className="flex flex-wrap items-baseline gap-x-2">

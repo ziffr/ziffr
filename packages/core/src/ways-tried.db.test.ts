@@ -1,5 +1,5 @@
 // Which ways have worked in a Trial Workspace, against the real database (spec 0021, ticket 6): nothing for a new
-// trial with its made-up values, then each way once a value really came by it. Owners only.
+// trial, then each way once a value really came by it. Owners only.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -29,7 +29,7 @@ describe("ways tried", () => {
     const actor = { personId: owner, workspaceId: ws, role: "owner" as const };
     expect(Object.values(await waysTried(actor)).some(Boolean)).toBe(false);
 
-    const { data: m } = await db().from("metrics").select("id").eq("workspace_id", ws).eq("name", "Orders").single();
+    const { data: m } = await db().from("metrics").select("id").eq("workspace_id", ws).eq("name", "Cups of coffee").single();
     const add = (row: Record<string, unknown>) => db().from("observations").insert({ metric_id: m!.id, period_start: "2026-11-01", value: 1, submitter_id: owner, workspace_id: ws, ...row });
     await add({ source: "mail" });
     await add({ source: "web_form" });

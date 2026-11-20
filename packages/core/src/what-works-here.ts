@@ -92,8 +92,7 @@ export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boo
   return { demo, trial: { days: settings.days, ways } };
 }
 
-/** Which ways have worked in the actor's workspace: a value arrived by them, not counting the made-up values a trial
- * starts with. For the Try it page; Owners only, since it looks at every value of the workspace. Counts only. */
+/** Which ways have worked in the actor's workspace: a value arrived by them. For the Try it page; Owners only, since it looks at every value of the workspace. Counts only. */
 export async function waysTried(actor: Pick<Actor, "workspaceId" | "role">): Promise<Record<Way, boolean>> {
   const none = Object.fromEntries(WAYS.map((w) => [w, false])) as Record<Way, boolean>;
   if (actor.role !== "owner") return none;

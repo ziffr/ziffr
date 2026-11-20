@@ -87,7 +87,7 @@ function Welcome({ guide }: { guide: TrialGuide }) {
       <p className="mt-3 text-muted-foreground">
         That is how Ziffr works: it asks people for the numbers they care about, and everyone sees them over time.
         {guide.testMetric
-          ? <> Your trial has a Metric for trying it: <strong className="text-foreground">{guide.testMetric.name}</strong>, asked once a day, with nothing in it yet.</>
+          ? <> Your trial starts with one Metric for trying it: <strong className="text-foreground">{guide.testMetric.name}</strong>, asked once a day, with nothing in it yet.</>
           : " Your trial was made before it had a Metric for this, so the guide can show you the ways but not ask."}
       </p>
       <p className="mt-3 text-muted-foreground">Pick where Ziffr should ask you, ask, answer, and watch the value arrive here.</p>
@@ -268,7 +268,7 @@ function Done({ guide, ways, siteUrl, mcpUrl }: { guide: TrialGuide; ways: Guide
       <p className="mt-3 text-muted-foreground">
         From tomorrow Ziffr asks you for {guide.testMetric?.name ?? "it"} once a day by {DAILY_LABEL[dailyWay(ways)]}, with your form link in every request. <Link href="/settings/deliveries" className="underline">Change where Ziffr asks you</Link> in Your Deliveries.
       </p>
-      <p className="mt-3 text-muted-foreground">The trial&apos;s other Metrics have made-up history, so their dashboard shows something at once.</p>
+      <p className="mt-3 text-muted-foreground">Its dashboard, Your coffee, fills as the days go by. Add the Metrics you really track from Metrics, New Metric.</p>
       <ul className="mt-5 space-y-2 text-sm">
         {guide.testMetric && <li><Link href={`/metrics/${guide.testMetric.slug}`} className="underline">Open {guide.testMetric.name}</Link></li>}
         <li><Link href="/dashboards" className="underline">See the dashboards</Link></li>

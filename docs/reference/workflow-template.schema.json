@@ -124,6 +124,13 @@
                   "every"
                 ],
                 "description": "Which values wait: Unusual Values only, or every value."
+              },
+              "nobodyElse": {
+                "enum": [
+                  "self-check",
+                  "count"
+                ],
+                "description": "When nobody but the submitter could approve a value: they check it themselves (a Self-check, the default), or it counts without Approval."
               }
             },
             "required": [

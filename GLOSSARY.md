@@ -147,8 +147,12 @@ A value that changes more than a set share against the period before, or falls o
 _Avoid_: Outlier, anomaly
 
 **Approval**:
-Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet.
+Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. Nobody approves their own value: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
 _Avoid_: Sign-off, review, verification
+
+**Self-check**:
+The submitter checking their own value when an Approval is needed but nobody else could give it, as in a Workspace of one person: they confirm it or correct it. It is recorded as confirmed by the submitter, never as an Approval, and it is the Approve step's default for that case. As soon as someone else could approve, Approval applies again.
+_Avoid_: Self-approval, own approval
 
 **Lock**:
 A published period of a metric that takes no more values. A late value or a correction becomes a proposal that needs Approval again; only the metric owner unlocks it, with a reason.
@@ -277,7 +281,7 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and a set number of days after it was made it is deleted, or, where the Installation keeps trials, becomes an ordinary Workspace with the Installation's default Workspace Limit. On such an Installation every Workspace is one. It starts with made-up Metrics and values of its own, so its dashboard shows something at once; unlike Sample Data, they are the workspace's and can be changed.
+A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and a set number of days after it was made it is deleted, or, where the Installation keeps trials, becomes an ordinary Workspace with the Installation's default Workspace Limit. On such an Installation every Workspace is one. It starts with the Test Metric only, a Workflow that asks its Owner for it each day and a small dashboard showing it: nothing made up, so its first value is the Owner's own.
 _Avoid_: Sandbox, test workspace, free trial
 
 **Trial Guide**:

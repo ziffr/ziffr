@@ -277,7 +277,7 @@ export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (
 export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
   return {
     dueWorkingDays: c.dueWorkingDays,
-    steps: c.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual" } : s)),
+    steps: c.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
   };
 }
 
@@ -289,6 +289,6 @@ export function fromWorkflowTemplate(t: WorkflowTemplateBody, approvers: string[
   let next = 0;
   return {
     dueWorkingDays: t.dueWorkingDays,
-    steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: approvers.slice(next, (next += s.approvers)), values: s.values ?? "unusual" } : s)),
+    steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: approvers.slice(next, (next += s.approvers)), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
   };
 }

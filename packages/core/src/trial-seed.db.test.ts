@@ -1,17 +1,14 @@
-// A new Trial Workspace's starting Metrics, against the real database (spec 0021, ticket 2): made through the core
-// when a trial is made, with history as Imports, a Breakdown, a Target Series, a Derived Metric, a Workflow that asks
-// the Owner and a dashboard, and without a single message sent.
+// What a new Trial Workspace starts with, against the real database (spec 0021, ticket 263): the Test Metric only,
+// without made-up history, a Workflow that asks its Owner each day and a small dashboard, and not a single message sent.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
-import { STARTING_METRICS } from "./trial-starting-values";
 
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
 afterEach(async () => {
   delete process.env.ZIFFR_TRIAL_DAYS;
   for (const id of made.workspaces.splice(0)) {
-    await db().from("breakdown_rows").delete().eq("workspace_id", id);
     await db().from("observations").delete().eq("workspace_id", id);
     await db().from("workspaces").delete().eq("id", id);
   }
@@ -28,53 +25,33 @@ async function newTrial() {
   return { id, owner };
 }
 
-describe("a new Trial Workspace's starting Metrics", () => {
-  it("are made with their history, a Breakdown, a Target Series and a Derived Metric", async () => {
+describe("a new Trial Workspace", () => {
+  it("has the Test Metric only: daily, by hand, without history", async () => {
     const t = await newTrial();
-    const { data: metrics } = await db().from("metrics").select("id, slug, name, period, aggregation, formula, workflow_id, owner_id, sources").eq("workspace_id", t.id);
-    // The starting Metrics and the Test Metric.
-    expect(metrics).toHaveLength(STARTING_METRICS.length + 1);
-    expect(new Set(metrics!.map((m) => m.period))).toEqual(new Set(["day", "week", "month", "quarter", "year"]));
-    expect(new Set(metrics!.map((m) => m.aggregation))).toEqual(new Set(["sum", "average", "last", "none"]));
-    expect(metrics!.every((m) => m.owner_id === t.owner)).toBe(true);
-    // The formula names the slugs createMetric gave out, so it computes.
-    const aov = metrics!.find((m) => m.formula)!;
-    const slugs = new Set(metrics!.map((m) => m.slug));
-    expect([...aov.formula!.matchAll(/\{([a-z0-9-]+)\}/g)].every((x) => slugs.has(x[1]))).toBe(true);
-    expect(aov.sources).toEqual([]);
-
-    const { data: obs } = await db().from("observations").select("id, metric_id, period_start, imported, source").eq("workspace_id", t.id);
-    expect(obs!.length).toBeGreaterThan(400);
-    const today = new Date().toISOString().slice(0, 10);
-    expect(obs!.every((o) => o.period_start <= today)).toBe(true);
-    expect(obs!.some((o) => o.imported) && obs!.some((o) => !o.imported)).toBe(true);
-    const revenue = metrics!.find((m) => m.name === "Revenue")!;
-    const { count: rows } = await db().from("breakdown_rows").select("id", { count: "exact", head: true }).in("observation_id", obs!.filter((o) => o.metric_id === revenue.id).map((o) => o.id));
-    expect(rows).toBeGreaterThan(50);
-    const { count: targets } = await db().from("series_values").select("metric_id", { count: "exact", head: true }).eq("metric_id", revenue.id).eq("kind", "target");
-    expect(targets).toBeGreaterThan(10);
-  });
-
-  it("include the Test Metric the Trial Guide asks for: daily, by hand, without history", async () => {
-    const t = await newTrial();
+    const { data: metrics } = await db().from("metrics").select("id, name, unit, period, sources, owner_id, workflow_id").eq("workspace_id", t.id);
+    expect(metrics).toHaveLength(1);
     const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_guide_step").eq("id", t.id).single();
     expect(ws!.trial_guide_step).toBe("welcome");
-    const { data: m } = await db().from("metrics").select("id, name, unit, period, sources, owner_id, workflow_id").eq("id", ws!.trial_test_metric_id).single();
+    const m = metrics![0];
+    expect(m.id).toBe(ws!.trial_test_metric_id);
     expect(m).toMatchObject({ name: "Cups of coffee", unit: "cups", period: "day", owner_id: t.owner });
-    expect(m!.workflow_id).not.toBeNull();
-    expect(m!.sources).not.toContain("api");
-    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m!.id);
-    expect(count).toBe(0);
+    expect(m.workflow_id).not.toBeNull();
+    expect(m.sources).not.toContain("api");
+    const { count: values } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", t.id);
+    expect(values).toBe(0);
+    const { count: targets } = await db().from("series_values").select("metric_id", { count: "exact", head: true }).eq("metric_id", m.id);
+    expect(targets).toBe(0);
   });
 
-  it("are asked of the Owner by one Workflow, and making them sends nothing", async () => {
+  it("asks its Owner for it each day through one Workflow, and making it sends nothing", async () => {
     const t = await newTrial();
-    const { data: workflows } = await db().from("workflows").select("id").eq("workspace_id", t.id);
+    const { data: workflows } = await db().from("workflows").select("id, owner_id, config").eq("workspace_id", t.id);
     expect(workflows).toHaveLength(1);
-    const { data: metrics } = await db().from("metrics").select("id, formula, workflow_id").eq("workspace_id", t.id);
-    expect(metrics!.filter((m) => !m.formula).every((m) => m.workflow_id === workflows![0].id)).toBe(true);
-    const { data: tokens } = await db().from("tokens").select("metric_id, submitter_id").in("metric_id", metrics!.map((m) => m.id));
-    expect(new Set(tokens!.map((x) => x.submitter_id))).toEqual(new Set([t.owner]));
+    expect(workflows![0].owner_id).toBe(t.owner);
+    const { data: metrics } = await db().from("metrics").select("id, workflow_id").eq("workspace_id", t.id);
+    expect(metrics![0].workflow_id).toBe(workflows![0].id);
+    const { data: tokens } = await db().from("tokens").select("submitter_id").eq("metric_id", metrics![0].id);
+    expect(tokens!.map((x) => x.submitter_id)).toEqual([t.owner]);
     const { count } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", t.id);
     expect(count).toBe(0);
     // Requests go by email, the team default, until the Owner picks another Connector.
@@ -82,16 +59,18 @@ describe("a new Trial Workspace's starting Metrics", () => {
     expect(prefs!.map((p) => p.connector)).toEqual(["email", "email", "email", "email"]);
   });
 
-  it("are on a dashboard that shows each aggregation over a longer period", async () => {
+  it("shows it on one small dashboard", async () => {
     const t = await newTrial();
-    const { data: dashboards } = await db().from("dashboards").select("id, name").eq("workspace_id", t.id);
+    const { data: dashboards } = await db().from("dashboards").select("id").eq("workspace_id", t.id);
     expect(dashboards).toHaveLength(1);
-    const { data: widgets } = await db().from("widgets").select("template, settings").eq("dashboard_id", dashboards![0].id);
-    expect(widgets!.length).toBeGreaterThanOrEqual(12);
-    expect(new Set(widgets!.map((w) => (w.settings as { display?: string })?.display).filter(Boolean))).toEqual(new Set(["month", "quarter", "year"]));
+    const { data: metric } = await db().from("metrics").select("id").eq("workspace_id", t.id).single();
+    const { data: widgets } = await db().from("widgets").select("metric_ids").eq("dashboard_id", dashboards![0].id);
+    expect(widgets!.length).toBeGreaterThanOrEqual(1);
+    expect(widgets!.length).toBeLessThanOrEqual(4);
+    expect(widgets!.every((w) => JSON.stringify(w.metric_ids) === JSON.stringify([metric!.id]))).toBe(true);
   });
 
-  it("are not made outside a trial", async () => {
+  it("is not filled outside a trial", async () => {
     const owner = `t-${randomUUID()}`;
     made.people.push(owner);
     await db().from("profiles").insert({ id: owner, name: "Owner", role: "", color: "#000" });
