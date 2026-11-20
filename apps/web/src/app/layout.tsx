@@ -14,6 +14,8 @@ import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
+import { OverLimitBar } from "@/components/over-limit-bar";
+import { overLimitBanner, workspaceUsage } from "@ziffr/core/workspace-usage";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
@@ -74,6 +76,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
+  // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
+  const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await workspaceUsage({ workspaceId })) : null;
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
@@ -109,6 +113,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </p>
         )}
         {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} />}
+        {overLimit && <OverLimitBar words={overLimit} />}
         <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
         {demo && <Tour />}
         <Toaster />
