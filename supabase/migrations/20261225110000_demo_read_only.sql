@@ -88,7 +88,7 @@ create trigger zz_demo_read_only before insert or update or delete on away for e
 create trigger zz_demo_read_only before insert or update or delete on ask_now_claims for each row execute function demo_metric_read_only();
 
 -- The tables that should refuse the demo's writes but have no trigger for it: none, until a migration adds a table
--- with a workspace_id and forgets them. demo-read-only.db.test.ts asks.
+-- with a workspace_id and forgets them (or a check that keeps the demo out). demo-read-only.db.test.ts asks.
 create or replace function demo_read_only_gaps() returns setof text
 language sql stable set search_path = public as $$
   select x.table_name::text from (
@@ -100,6 +100,9 @@ language sql stable set search_path = public as $$
   where (select count(*) from pg_trigger g where g.tgrelid = ('public.' || quote_ident(x.table_name))::regclass
          and g.tgname in ('zz_demo_read_only_new', 'zz_demo_read_only_old')) < 2
     and not exists (select 1 from pg_trigger g where g.tgrelid = ('public.' || quote_ident(x.table_name))::regclass and g.tgname = 'zz_demo_read_only')
+    -- A table whose own check keeps the demo out has no demo row to protect (workspace_keys).
+    and not exists (select 1 from pg_constraint k where k.conrelid = ('public.' || quote_ident(x.table_name))::regclass and k.contype = 'c'
+                    and pg_get_constraintdef(k.oid) like '%<> ''d3e00000-0000-4000-8000-000000000001''%')
   order by 1
 $$;
 

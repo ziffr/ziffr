@@ -118,7 +118,7 @@ const CASES: Record<string, Case> = {
   "feed-actions:addFeedToMetric": { nothing: "the demo has no Feeds", args: (i) => [i.metric, "feed-x"] },
   "feed-actions:removeFeedFromMetric": { nothing: "the demo has no Feeds", args: (i) => [i.metric, "feed-x"] },
   "home-actions:setHome": { args: (i) => [i.dashboard] },
-  "home-actions:newDashboard": { args: () => [form({ name: "Visitor dashboard" })] },
+  "home-actions:newDashboard": { args: () => [null, form({ name: "Visitor dashboard" })] },
   "installation-actions:claimInstallation": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:addInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:removeInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
