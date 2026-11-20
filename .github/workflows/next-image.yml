@@ -1,4 +1,4 @@
-# The image of main, for the "next" Ziffr on the demo server (ziffr-next.stefansonntag.com): after every push to main,
+# The image of main, for the "next" Ziffr on the demo server (app.ziffr.net): after every push to main,
 # ghcr.io/ziffr/ziffr:main is built for Intel and pushed, so a merged change can be tried on a real server within
 # minutes, without a release. Releases still publish their own version tags and `latest` (release.yml); nothing here
 # touches those, and self-hosters never get :main unless they ask for it.
