@@ -79,6 +79,13 @@ describe.skipIf(!openssl)("the real request, against a local Marketplace", () =>
     const cert = readFileSync(join(dir, "cert.pem"), "utf8");
     const server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
       if (req.url === "/big") { res.end("x".repeat(5000)); return; }
+      if (req.url === "/drip") {
+        // One byte every 100 ms: never idle long enough for an idle timeout, never done.
+        res.writeHead(200);
+        const t = setInterval(() => res.write("x"), 100);
+        res.on("close", () => clearInterval(t));
+        return;
+      }
       if (req.url === "/moved") { res.writeHead(302, { location: "https://localhost/elsewhere" }); res.end(); return; }
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ path: req.url, ua: req.headers["user-agent"] }));
@@ -89,8 +96,8 @@ describe.skipIf(!openssl)("the real request, against a local Marketplace", () =>
     close = () => server.close();
   });
   afterAll(() => { marketplaceTls.ca = undefined; close(); });
-  const get = (path: string, env: Record<string, string> = { ZIFFR_ALLOW_PRIVATE_MARKETPLACE: "1" }, maxBytes = 1000) =>
-    marketplaceTransport.request(new URL(`https://localhost:${port}${path}`), { method: "GET", maxBytes, env });
+  const get = (path: string, env: Record<string, string> = { ZIFFR_ALLOW_PRIVATE_MARKETPLACE: "1" }, maxBytes = 1000, deadlineMs?: number) =>
+    marketplaceTransport.request(new URL(`https://localhost:${port}${path}`), { method: "GET", maxBytes, env, deadlineMs });
 
   it("connects when the server allows its own network, and says only Ziffr's version", async () => {
     const res = await get("/v1/packs?q=x");
@@ -101,5 +108,10 @@ describe.skipIf(!openssl)("the real request, against a local Marketplace", () =>
     await expect(get("/v1/packs", {})).rejects.toThrow("private address");
     expect((await get("/big", undefined, 100)).tooBig).toBe(true);
     expect((await get("/moved")).status).toBe(302);
+  });
+  it("ends an answer that trickles in at its deadline, however steadily the bytes come", async () => {
+    const started = Date.now();
+    await expect(get("/drip", undefined, 1_000_000, 600)).rejects.toThrow("timeout");
+    expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

@@ -65,19 +65,20 @@ export const marketplaceTls: { ca?: string } = {};
 /** How a request is made; tests put a stub in, which records what would go out. */
 export const marketplaceTransport = {
   /** Sends one request to an https address the core checked, and reads at most `maxBytes` of the answer. */
-  request: (url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined> }): Promise<Answer> => pinnedRequest(url, init),
+  request: (url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> => pinnedRequest(url, init),
 };
 
 /** One https request to the address checked: the name is looked up once, every address it has must be public, and the
  * connection goes only to those, with TLS checking the name. No redirect is followed, the answer is cut short, and the
  * whole request, however slowly it trickles, ends within MARKETPLACE_LIMITS.timeoutMs. An address written as an IP is
  * never looked up: marketplaceUrlProblem refused a private one before. */
-function pinnedRequest(url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined> }): Promise<Answer> {
+function pinnedRequest(url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> {
   const allowPrivate = init.env.ZIFFR_ALLOW_PRIVATE_MARKETPLACE === "1";
   return new Promise((resolve, reject) => {
     let settled = false;
     const done = (f: () => void) => { if (!settled) { settled = true; clearTimeout(deadline); f(); } };
-    const deadline = setTimeout(() => { req.destroy(); done(() => reject(new Error("timeout"))); }, MARKETPLACE_LIMITS.timeoutMs);
+    // The whole request, not only a pause between bytes (Node's `timeout` below): an answer that trickles in ends here.
+    const deadline = setTimeout(() => { req.destroy(); done(() => reject(new Error("timeout"))); }, Math.min(init.deadlineMs ?? MARKETPLACE_LIMITS.timeoutMs, MARKETPLACE_LIMITS.timeoutMs));
     const req = request(url, {
       method: init.method,
       headers: { "user-agent": `Ziffr/${ZIFFR_VERSION}`, accept: "application/json", ...(init.body ? { "content-type": "application/json", "content-length": Buffer.byteLength(init.body) } : {}) },
