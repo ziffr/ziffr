@@ -138,7 +138,8 @@ export function kindsOf(category: keyof typeof AUDIT_CATEGORIES): AuditKind[] {
 export function cleanDetails(details: AuditDetails | undefined): AuditDetails {
   const out: AuditDetails = {};
   for (const [k, v] of Object.entries(details ?? {}).slice(0, 12)) {
-    if (!/^[a-z_]{1,30}$/.test(k)) continue;
+    // "sealed" holds the sealed details themselves (spec 0028): never a detail of its own.
+    if (!/^[a-z_]{1,30}$/.test(k) || k === "sealed") continue;
     if (v === null || typeof v === "boolean") out[k] = v;
     else if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
     else if (typeof v === "string") out[k] = v.slice(0, 120);

@@ -184,7 +184,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
   const never = (why: string) => failForGood(id, why);
   // Words that do not open (changed in the database, or under a destroyed key) never go out, not even as "null".
-  if (claimed.body === null) return never("Its text cannot be read any more.");
+  if (claimed.body === null || (found.subject !== null && claimed.subject === null)) return never("Its text cannot be read any more.");
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);

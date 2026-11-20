@@ -92,9 +92,11 @@ export function openRow<T extends Row>(cipher: WorkspaceCipher, table: SealedTab
   }
   // An event's details are an object holding them sealed ({"sealed": "w1..."}): opened back into the object; ones
   // that do not open read as none, never as their ciphertext.
-  const sealedDetails = table === "audit_events" ? (row.details as Row | null | undefined)?.sealed : undefined;
-  if (typeof sealedDetails === "string") {
-    const text = isSealed(sealedDetails) ? cipher.open({ table, column: "details", row: key as number }, sealedDetails) : null;
+  const details = table === "audit_events" ? (row.details as Row | null | undefined) : undefined;
+  const sealedDetails = details && Object.keys(details).length === 1 ? details.sealed : undefined;
+  // Only the wrapper itself counts: plain details that happen to hold a "sealed" key stay as they are.
+  if (typeof sealedDetails === "string" && isSealed(sealedDetails)) {
+    const text = cipher.open({ table, column: "details", row: key as number }, sealedDetails);
     try {
       out.details = text === null ? {} : JSON.parse(text);
     } catch {

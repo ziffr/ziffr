@@ -245,6 +245,24 @@ describe("the Outbox, the intake log and the Audit Log", () => {
   });
 });
 
+describe("the Audit Log, sealed, in every script and with given ids", () => {
+  it("records a name of 120 characters in any script, and plain details with a key called sealed stay whole", async () => {
+    const w = await setup();
+    const long = "東".repeat(120);
+    await recordAudit(w.id, w.owner, { kind: "dashboard.created", object: { type: "dashboard", id: 7, name: long }, details: { sealed: "not a wrapper", to: "x" } as never });
+    await db().from("audit_events").insert({ workspace_id: w.id, actor_id: w.owner, actor_name: "Owner", kind: "contact.removed", object_type: "person", object_id: "p-9", object_name: "Plain", details: { sealed: "plain words", role: "member" } });
+    const { events } = await auditLog(w.actor(w.owner));
+    expect(events.find((e) => e.objectId === "7")).toMatchObject({ objectName: long, details: { to: "x" } });
+    expect(events.find((e) => e.objectId === "p-9")?.details).toEqual({ sealed: "plain words", role: "member" });
+  });
+
+  it("refuses an event id ahead of the ones handed out", async () => {
+    const w = await setup();
+    const { error } = await db().from("audit_events").insert({ id: 9_000_000_000, workspace_id: w.id, actor_id: null, actor_name: "Ziffr", kind: "contact.removed", details: {} });
+    expect(error).not.toBeNull();
+  });
+});
+
 describe("writing sealed rows", () => {
   it("refuses a row whose Workspace the database sets to another one, and keeps nothing of it", async () => {
     const w = await setup();

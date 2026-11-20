@@ -3,7 +3,7 @@
 // which object (with its name at the time) and when, plus small details; never values, message bodies or secrets.
 import { db } from "./db";
 import { touchWorkspace } from "./unused-workspaces";
-import { insertSealed, openRows, sealDetails } from "./sealed-columns";
+import { insertSealed, openNames, openRows, sealDetails } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -45,7 +45,8 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
   if (workspaceId === DEMO_WORKSPACE_ID) return;
   try {
     const [{ data: person }, { data: key }] = await Promise.all([
-      by ? db().from("profiles").select("name").eq("id", by).maybeSingle() : Promise.resolve({ data: null }),
+      // A Contact approving through a Connector has a sealed name: opened, so the log never keeps its ciphertext.
+      by ? db().from("profiles").select("id, name").eq("id", by).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(workspaceId, [r.data]))[0] : null })) : Promise.resolve({ data: null }),
       event.accessKeyId ? db().from("access_keys").select("name").eq("id", event.accessKeyId).eq("workspace_id", workspaceId).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     const details = cleanDetails({ ...event.details, ...(key ? { key_name: key.name as string } : {}) });
