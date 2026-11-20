@@ -30,7 +30,7 @@ Ziffr is only useful if its numbers are right. So every calculation on values is
 
 ## When they run
 
-- `pnpm test`, everything above except mutation testing, with a fixed seed (115) and 200 generated cases per combination. It runs in CI's `check` job on every pull request and push, in `pnpm ci:local`, and in the hook before an agent finishes; about a minute on a laptop.
+- `pnpm test`, everything above except mutation testing, with a fixed seed (115) and 200 generated cases per combination. It runs in CI's `check` job on every pull request, merge-queue group and push, in `pnpm ci:local`, and in the hook before an agent finishes; about a minute on a laptop.
 - `pnpm --filter @ziffr/core test:numbers`, the full-strength run: 1,000 cases per combination with a new seed each run, a few minutes on a laptop.
 - `pnpm --filter @ziffr/core test:mutation`, mutation testing of every calculation module. It mutates about 3,000 times, and takes about 45 minutes on an 8-core laptop and a few hours on a CI runner.
 
@@ -38,7 +38,7 @@ Where each run happens:
 
 | Where | Full strength | Mutation testing |
 |---|---|---|
-| CI's `numbers` job, on a pull request or push that touches a **calculation path**, beside `check` and `core-db` | yes | the calculation modules the change touches, incrementally from the nightly run's results: only mutants on changed lines, or whose tests changed, run again. Without results of the last three days, only the changed lines are mutated. It stops after 20 minutes with a message (`.github/scripts/mutation-pr.sh`) |
+| CI's `numbers` job, in the merge queue and on a push to `main` that touches a **calculation path**, beside `check` and `core-db` (skipped on the pull request itself) | yes | the calculation modules the change touches, incrementally from the nightly run's results: only mutants on changed lines, or whose tests changed, run again. Without results of the last three days, only the changed lines are mutated. It stops after 20 minutes with a message (`.github/scripts/mutation-pr.sh`) |
 | Every night (`.github/workflows/numbers.yml`) | yes | every module |
 | `pnpm ci:local` | when a calculation path changed against `origin/main` | the touched modules, from an earlier local run's results when there are any (`--incremental`), except with `--quick` |
 
