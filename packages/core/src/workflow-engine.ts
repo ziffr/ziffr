@@ -407,7 +407,7 @@ export async function approve(ws: string, actionId: number, by: string, source: 
   if (by === from) throw new Error("Nobody approves their own value. Ask someone else to approve it.");
   // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
   // press) approve once, and the second is refused like an approval that is done.
-  if (!(await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval" } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
+  if (!(await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval", assigneeId: by } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Approved." }]);
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
@@ -433,7 +433,7 @@ export async function sendBack(ws: string, actionId: number, by: string, comment
   const current = await getState(a.metric_id, a.period_start);
   if (current?.state !== "approval" || current.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
   // Decided first, in one conditional update, so two presses at once send it back once.
-  if (!(await changeActionState(ws, actionId, { to: "answered", from: ["open"], reason: "done", guard: { purpose: "approval" } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
+  if (!(await changeActionState(ws, actionId, { to: "answered", from: ["open"], reason: "done", guard: { purpose: "approval", assigneeId: by } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` }]);
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
   // The period only: the comment is a message and stays in the Thread.

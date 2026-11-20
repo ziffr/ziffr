@@ -68,6 +68,9 @@ async function seenByEveryone(ws: string, metricId: number): Promise<boolean> {
   return metricSeenByEveryone(ws, metricId, inWs(groups as never[]).map((g) => ({ ...(g as object), members: [] })) as never, inWs(shares as never[]) as never);
 }
 
+/** An Approval or Self-check names the pending value and why it is unusual in its title, which `value.unusual` leaves out on purpose: a fixed title goes out instead. */
+const systemTitle = (purpose: unknown) => purpose === "approval" ? "Approve a value" : purpose === "self_check" ? "Check a value" : null;
+
 /** The message for one send as the Webhook may hear it now, or null when it may hear nothing (or the thing is gone). */
 async function buildMessage(send: Send, webhookName: string): Promise<{ full: WebhookMessage; redacted: WebhookMessage | null } | null> {
   const eventId = `evt_${send.id.replace(/-/g, "")}`;
@@ -79,7 +82,7 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
   let metricId = send.metric_id;
   let action: Record<string, unknown> | null = null;
   if (send.action_id !== null) {
-    const { data } = await db().from("actions").select("id, kind, status, question, due_date, metric_id, period_start, asker_id, assignee_id, read_group_id, updated_at, workspace_id").eq("id", send.action_id).eq("workspace_id", ws).maybeSingle();
+    const { data } = await db().from("actions").select("id, kind, status, purpose, question, due_date, metric_id, period_start, asker_id, assignee_id, read_group_id, updated_at, workspace_id").eq("id", send.action_id).eq("workspace_id", ws).maybeSingle();
     if (!data) return null;
     [action] = await openRows("actions", ws, [data as Record<string, unknown>]);
     metricId = action.metric_id as number;
@@ -113,7 +116,7 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
   };
   const [openedReply] = reply.data ? await openRows("thread_messages", ws, [reply.data as Record<string, unknown>]) : [];
   const facts: ActionFacts = {
-    ref: refFor(action.id as number), kind: action.kind as ActionFacts["kind"], status: action.status as ActionFacts["status"], title: String(action.question ?? ""), due: (action.due_date as string | null) ?? null,
+    ref: refFor(action.id as number), kind: action.kind as ActionFacts["kind"], status: action.status as ActionFacts["status"], title: systemTitle(action.purpose) ?? String(action.question ?? ""), due: (action.due_date as string | null) ?? null,
     metric: metricFacts, period, assignee: who(String(action.assignee_id)), askerName: who(String(action.asker_id)).name, link: linkTo(`/actions/${action.id}`), updatedAt: new Date(String(action.updated_at)).toISOString(),
   };
   const withReply = { ...env, replyText: typeof openedReply?.body === "string" ? openedReply.body : null };
