@@ -720,7 +720,7 @@ The month the workspace's fiscal year starts in, which every quarterly and yearl
 
 `GET /schedule` · scope `metrics:read`
 
-The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's.
+The key's creator's Schedule in the workspace: values to submit by their Due Dates (a Metric without a Workflow only with its latest ended period, marked `no_due_date`), Approvals waiting for them, and the Tasks and Questions assigned to them. `overdue` lists everything late of the last 90 days whatever the span; `days` the span's days that have something; `undated` Tasks without a due date and Questions other than Escalations. While a submitter is Away on the Due Date, their value is in their Stand-in's Schedule, with `standing_in_for`. Only Metrics the key's creator sees; today is the workspace's. An Owner or Admin may name a teammate with `person_id` (from GET /people) to see their Schedule, with only the Metrics the key's creator sees too and without the words of Tasks and Questions whose Thread the key's creator may not read; no other scope is needed, the role decides. Every call is in the Access Log.
 
 **Parameters**
 
@@ -728,12 +728,14 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 | --- | --- | --- | --- | --- |
 | `from` | query | string | no | The first day, YYYY-MM-DD. Default: Monday of this week in the workspace's time zone. |
 | `to` | query | string | no | The last day, YYYY-MM-DD, at most 90 days after `from` and 366 days after today. Default: Sunday of this week. |
+| `person_id` | query | string | no | A teammate's id from GET /people, for Owners and Admins only: their Schedule, with only the Metrics the key's creator sees too. Anyone else gets 403. |
 
 **Answer** (200)
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `today` | string | yes | Today in the workspace's time zone. |
+| `person_id` | string | yes | Whose Schedule it is: the key's creator, or the teammate asked for. |
 | `overdue` | array of object | yes | Everything late, of the last 90 days whatever the span, the most late first. |
 | `overdue[].kind` | `"value_due"`, `"approval"`, `"task"`, `"question"` | yes | A value to submit, an Approval waiting, a Task or a Question assigned to the person. |
 | `overdue[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
@@ -793,10 +795,10 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 
 **Errors**
 
-- 400: `invalid_request`: the query, path or body does not match. Or `from` is after `to`, they are more than 90 days apart, or `to` is more than 366 days ahead.
+- 400: `invalid_request`: the query, path or body does not match. Or `from` is after `to`, they are more than 90 days apart, `from` is more than 90 days back, or `to` is more than 366 days ahead.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
-- 404: `not_found`: nothing here the key's creator may see.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or `person_id` names someone else and the key's creator is not an Owner or Admin.
+- 404: `not_found`: nothing here the key's creator may see. Or `person_id` is not a member of the workspace.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 

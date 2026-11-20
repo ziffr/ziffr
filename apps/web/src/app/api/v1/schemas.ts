@@ -391,6 +391,8 @@ export const templatesQuery = z.object({ kind: z.enum(["view", "widget", "dashbo
 export const scheduleQuery = z.object({
   from: periodDate.optional().describe("The first day, YYYY-MM-DD. Default: Monday of this week in the workspace's time zone."),
   to: periodDate.optional().describe("The last day, YYYY-MM-DD, at most 90 days after `from` and 366 days after today. Default: Sunday of this week."),
+  person_id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "A person's id, as GET /people gives it.").optional()
+    .describe("A teammate's id from GET /people, for Owners and Admins only: their Schedule, with only the Metrics the key's creator sees too. Anyone else gets 403."),
 });
 
 /** One duty in a Schedule. */
@@ -412,6 +414,7 @@ const ScheduleEntry = z.object({
 
 const SCHEDULE_EXAMPLE = {
   today: "2026-11-19",
+  person_id: "b7c9e2a0-41f3-4f0e-9a51-2d6f8c3e1a77",
   overdue: [{ kind: "value_due", date: "2026-11-04", overdue: true, overdue_working_days: 11, metric: { slug: "revenue", name: "Revenue" }, period: { start: "2026-10-01", name: "October 2026" }, action_id: null, text: null, escalation: false, standing_in_for: null, no_due_date: false, remind_days_before: 2, url: "https://ziffr.example/schedule/submit/revenue" }],
   days: [{ date: "2026-11-20", entries: [{ kind: "task", date: "2026-11-20", overdue: false, overdue_working_days: 0, metric: { slug: "shipping-cost", name: "Shipping cost" }, period: { start: "2026-10-01", name: "October 2026" }, action_id: 42, text: "Renegotiate the shipping rate", escalation: false, standing_in_for: null, no_due_date: false, remind_days_before: null, url: "https://ziffr.example/actions/42" }] }],
   undated: [],
@@ -421,6 +424,7 @@ const SCHEDULE_EXAMPLE = {
  * have entries, and the undated Tasks and Questions. */
 export const ScheduleAnswer = z.object({
   today: z.string().describe("Today in the workspace's time zone."),
+  person_id: z.string().describe("Whose Schedule it is: the key's creator, or the teammate asked for."),
   overdue: z.array(ScheduleEntry).describe("Everything late, of the last 90 days whatever the span, the most late first."),
   days: z.array(z.object({ date: z.string(), entries: z.array(ScheduleEntry) })).describe("The span's days that have something, in order."),
   undated: z.array(ScheduleEntry).describe("Tasks without a due date and Questions other than Escalations."),
