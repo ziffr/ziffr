@@ -101,6 +101,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TURNSTILE_SITE_KEY: (v) => (/^[A-Za-z0-9_-]{10,100}$/.test(v) ? null : "The site key is letters, digits, - and _, as Cloudflare shows it, such as 0x4AAAAAAA…."),
   ZIFFR_TURNSTILE_SECRET: (v) => (/^[A-Za-z0-9_-]{10,200}$/.test(v) ? null : "The secret key is letters, digits, - and _, as Cloudflare shows it."),
   ZIFFR_TRIAL_DAYS: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30 ? null : "A trial lasts 1 to 30 days."),
+  ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),

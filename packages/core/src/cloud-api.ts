@@ -11,6 +11,7 @@ import { recordAudit } from "./audit-log";
 import { db } from "./db";
 import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { keepTrial } from "./trials";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
 
 /** The header a call carries: `t=<unix time>, v1=<hex HMAC-SHA256>`. */
@@ -139,9 +140,10 @@ export async function cloudLimits(caller: CloudCaller, page: { after?: string | 
 }
 
 /** What Ziffr Cloud sets: `metrics` (1 to 1,000,000, or null to fall back to the Installation's default, which also
- * drops its label and coming change), the name to show, and an optional coming change. Checked by the route's
+ * drops its label and coming change), the name to show, an optional coming change, and `endTrial` to turn a Trial
+ * Workspace into an ordinary one at once (an Owner booked a Size during the trial). Checked by the route's
  * schema; checked again here. */
-export type CloudLimitInput = { metrics: number | null; label?: string | null; next?: { label: string; on: string } | null };
+export type CloudLimitInput = { metrics: number | null; label?: string | null; next?: { label: string; on: string } | null; endTrial?: boolean };
 
 /** Sets a Workspace's limit as Ziffr Cloud, or gives it back to the default. The last write wins, whether it was Ziffr
  * Cloud's or an Installation Admin's. The Workspace's Audit Log and the Installation's audit record it. Answers the
@@ -167,6 +169,8 @@ export async function setCloudLimit(caller: CloudCaller, workspaceId: string, in
     details: { from_limit: before.limit, from_label: before.label, to_limit: metrics, to_label: metrics === null ? null : label, by: "cloud", default: metrics === null },
   }, "Ziffr Cloud");
   await recordServiceEvent("Ziffr Cloud", metrics === null ? "workspace_limit.removed" : "workspace_limit.set", before.id);
+  // Booking a Size during the trial ends it at once (spec 0029): the Workspace becomes ordinary with this limit.
+  if (input.endTrial === true && before.trial_ends_at) await keepTrial(before.id);
   return cloudWorkspace(caller, before.id);
 }
 

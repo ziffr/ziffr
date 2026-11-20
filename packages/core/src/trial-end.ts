@@ -6,7 +6,9 @@
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
-import { trialEndsAt } from "./trials";
+import { keepTrial, trialEndsAt, trialThen } from "./trials";
+import { settingsInEffect } from "./settings-in-effect";
+import { defaultLimitFrom } from "./workspace-limits";
 import { csvNumber } from "./export-values";
 import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
@@ -16,12 +18,34 @@ import { destroyWorkspaceKeys } from "./workspace-keys";
 export const TRIAL_GRACE_DAYS = 7;
 const DAY = 86_400_000;
 
-/** Where a trial stands, for the bar on every page: null outside a trial. */
-export async function trialStatus(workspaceId: string): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string } | null> {
+/** What a kept trial stays on (spec 0029): the default limit's name and number, for the bar and the reminder. */
+export type KeptAs = { label: string | null; metrics: number | null };
+
+/** Where a trial stands, for the bar on every page: null outside a trial. `keptAs` where trials are kept as ordinary
+ * Workspaces (ZIFFR_TRIAL_THEN=keep), with what they then stay on. */
+export async function trialStatus(workspaceId: string): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; keptAs: KeptAs | null } | null> {
   const ends = await trialEndsAt(workspaceId);
   if (!ends) return null;
   const left = ends.getTime() - Date.now();
-  return { endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + TRIAL_GRACE_DAYS * DAY).toISOString() };
+  return {
+    endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + TRIAL_GRACE_DAYS * DAY).toISOString(),
+    keptAs: await keptAs(),
+  };
+}
+
+/** What a trial becomes at its end where trials are kept, else null. */
+async function keptAs(): Promise<KeptAs | null> {
+  const settings = await settingsInEffect();
+  if (trialThen(settings) !== "keep") return null;
+  const d = defaultLimitFrom(settings);
+  return { label: d.label, metrics: d.metrics };
+}
+
+/** "Your trial ends on 3 December. Your Workspace then stays, on Free: up to 10 Metrics." with the default's words. */
+export function keptWords(endsAt: string, kept: KeptAs): string {
+  const day = new Date(endsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+  const on = kept.metrics === null ? "" : `, on ${kept.label ?? "the default limit"}: up to ${kept.metrics.toLocaleString("en-US")} Metrics`;
+  return `Your trial ends on ${day}. Your Workspace then stays${on}.`;
 }
 
 /** The trial's Owner (a trial has one). */
@@ -41,9 +65,12 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
     const owner = await ownerOf(w.id);
     if (!owner) continue;
     const day = String(w.trial_ends_at).slice(0, 10);
+    const kept = await keptAs();
     await deliverNotice(w.id, {
       recipientId: owner, senderId: null, subject: "Your Ziffr trial ends tomorrow",
-      text: `Your trial ends on ${day}. Then it closes, and ${TRIAL_GRACE_DAYS} days later it is deleted with everything in it. Download your Metrics and values before then from the bar at the top of any page.`,
+      text: kept
+        ? `${keptWords(String(w.trial_ends_at), kept)} From then on you can invite people, and every Connector reaches everyone.`
+        : `Your trial ends on ${day}. Then it closes, and ${TRIAL_GRACE_DAYS} days later it is deleted with everything in it. Download your Metrics and values before then from the bar at the top of any page.`,
       link: "/try",
     });
     n++;
@@ -56,6 +83,13 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
  * deletion. */
 export async function closeEndedTrials(now = new Date()): Promise<number> {
   const at = now.toISOString();
+  // Where trials are kept (spec 0029), an ended one becomes an ordinary Workspace instead: nothing is revoked.
+  if (trialThen(await settingsInEffect()) === "keep") {
+    const { data: ended } = await db().from("workspaces").select("id").lte("trial_ends_at", at).is("trial_closed_at", null);
+    let kept = 0;
+    for (const w of ended ?? []) if (await keepTrial(w.id as string)) kept++;
+    return kept;
+  }
   const { data } = await db().from("workspaces").update({ trial_closed_at: at }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
   for (const w of data ?? []) {
     await db().from("access_keys").update({ revoked_at: at }).eq("workspace_id", w.id).is("revoked_at", null);

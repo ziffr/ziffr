@@ -30,7 +30,7 @@ describe("/api/cloud/v1/workspaces/{id}", () => {
     expect(put.status).toBe(200);
     expect(await put.json()).toMatchObject({ limit: 50, label: "Small", set_by: "cloud" });
     // Unknown fields, markup in a label and a too-large limit are refused before anything is written.
-    for (const bad of [{ metrics: 5, endTrial: true }, { metrics: 5, label: "<b>x</b>" }, { metrics: 2_000_000 }]) {
+    for (const bad of [{ metrics: 5, plan: "Pro" }, { metrics: 5, label: "<b>x</b>" }, { metrics: 2_000_000 }]) {
       expect((await PUT(signed("PUT", `${path}/limit`, JSON.stringify(bad)), params)).status).toBe(400);
     }
   });

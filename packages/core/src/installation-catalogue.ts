@@ -52,6 +52,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end." },
   { name: "ZIFFR_TRIAL_MAX", section: "trials", label: "Trials at once", secret: false, placeholder: "200",
     help: "The most trials that may run at the same time. Empty: 200." },
+  { name: "ZIFFR_TRIAL_THEN", section: "trials", label: "When a trial ends", secret: false, choices: [{ value: "delete", label: "Close it, and delete it a week later" }, { value: "keep", label: "Keep it as a Workspace on the default limit" }],
+    help: "Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete." },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",

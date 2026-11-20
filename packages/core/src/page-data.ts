@@ -14,6 +14,7 @@ import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
 import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
+import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
 import type { Action, Metric, Period, Point, Widget } from "./types";
@@ -329,6 +330,9 @@ export async function createWorkspace(personId: string, name: string): Promise<s
 
 /** An ordinary workspace with its Owner. */
 async function plainWorkspace(personId: string, title: string): Promise<{ id: string }> {
+  // One Workspace on the default limit per person where the Installation says so (spec 0029); a trial is checked
+  // by create_trial_workspace, which allows one per person anyway.
+  await assertMayOwnDefault(personId);
   const { data: ws, error } = await db().from("workspaces").insert({ name: title }).select("id").single();
   if (error || !ws) throw new Error("The workspace could not be created.");
   await db().from("memberships").insert({ workspace_id: ws.id, user_id: personId, role: "owner" });
