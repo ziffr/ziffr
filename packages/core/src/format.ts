@@ -205,6 +205,15 @@ export function targetStatus(m: Pick<Metric, "target_min" | "target_max">, v: nu
   return "on";
 }
 
+/** The words on a target chip (ticket #15): what is wrong rather than where the value sits, where the Metric's
+ * polarity says which side is bad: "Too high" when lower is better, "Too low" when higher is better. A range with no
+ * better side keeps "Above target" and "Below target". */
+export function targetLabel(polarity: Metric["polarity"], status: "below" | "on" | "above"): string {
+  if (status === "on") return "On target";
+  if (status === "above") return polarity === "lower" ? "Too high" : "Above target";
+  return polarity === "higher" ? "Too low" : "Below target";
+}
+
 /** A metric's target as words, e.g. "at least 100 €". */
 export function targetText(m: Pick<Metric, "target_min" | "target_max"> & ValueUnit, style: NumberStyle) {
   const lo = m.target_min !== null ? formatValue(m, Number(m.target_min), style) : null;

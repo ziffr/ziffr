@@ -1,6 +1,6 @@
 // Every comparison for a metric, with spans, values and changes (GLOSSARY: Comparison, Attainment).
 import { formatChange, formatValue } from "@ziffr/core/format";
-import { attainmentText, comparisonsFor, summary, type Resolver } from "@ziffr/core/compare";
+import { attainmentShown, attainmentText, comparisonsFor, gapText, summary, type Resolver } from "@ziffr/core/compare";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { attainmentMethodNote, type AttainmentMethod } from "@ziffr/core/attainment-method";
 import type { Metric, Point } from "@ziffr/core/types";
@@ -18,7 +18,7 @@ export function CompareTable({ metric, resolve, targets, full, compact, yearStar
       <dl className="mb-3 grid grid-cols-3 gap-3">
         <div><dt className="text-xs text-muted-foreground">Value, {periodLabel(s.period!, metric.period, yearStart, true)}</dt><dd className="fig font-medium">{formatValue(metric, s.value, style)}</dd></div>
         <div><dt className="text-xs text-muted-foreground">Target{s.target?.fromSeries ? " (series)" : ""}</dt><dd className="fig">{s.target?.value !== null && s.target?.value !== undefined ? formatValue(metric, s.target.value, style) : "–"}</dd></div>
-        <div title={attainmentMethodNote(s.method)}><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{s.attainment !== null ? attainmentText(s.attainment, style, 1) : s.gap !== null ? (s.gap === 0 ? "On target" : `${sign(s.gap)}${formatValue(metric, s.gap, style)} vs target`) : "–"}</dd></div>
+        <div title={attainmentMethodNote(s.method)}><dt className="text-xs text-muted-foreground">Attainment</dt><dd className={cn("fig font-medium", s.onTarget !== null && (s.onTarget ? "text-[var(--color-success)]" : "text-destructive"))}>{attainmentShown(s.attainment) ? attainmentText(s.attainment, style, 1) : s.gap !== null ? gapText(metric, s.gap, style) : "–"}</dd></div>
       </dl>
       <table className="w-full">
         <thead className="text-left text-xs text-muted-foreground">

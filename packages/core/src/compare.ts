@@ -3,7 +3,7 @@
 import { combines, latestOfEach, seriesBy, valueOver, type DisplayPoint, type Resolver } from "./display-periods";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { Metric, Period, Point } from "./types";
-import { formatPercent } from "./format";
+import { compactValue, formatNumber, formatPercent } from "./format";
 import type { NumberStyle } from "./number-style";
 import { methodFor, type AttainmentMethod } from "./attainment-method";
 import { changePct, difference, distancePct, percentOf } from "./exact";
@@ -203,6 +203,20 @@ export function targetGap(metric: Metric, value: number, t: { min: number | null
   if (max !== null && value > max) return difference(value, max);
   return min === null && max === null ? null : 0;
 }
+
+/** How far a value is from its target, in words (ticket #15): "6.5 pts below target" for a percentage Metric,
+ * "8,000 € below target" for others, "on target" at 0. Shown where Attainment has no percentage or would be below 0 %,
+ * which says nothing a reader can use. */
+export function gapText(metric: Pick<Metric, "format" | "decimals" | "unit" | "unit_position">, gap: number, style: NumberStyle): string {
+  if (gap === 0) return "on target";
+  const size = Math.abs(gap);
+  const amount = metric.format === "percent" ? `${formatNumber(size, metric.decimals, style)} pts` : compactValue(metric, size, style);
+  return `${amount} ${gap < 0 ? "below" : "above"} target`;
+}
+
+/** Whether a strip shows Attainment as a percentage: only from 0 % up (ticket #15); below that, or without one, the
+ * gap to the target instead. */
+export const attainmentShown = (a: number | null): a is number => a !== null && a >= 0;
 
 /** Attainment rounded for display in the Number Style, e.g. "92 %": a value that rounds to zero is "0 %", never
  * "-0 %". */

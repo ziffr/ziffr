@@ -1,7 +1,7 @@
 // How Ziffr colours numbers (GLOSSARY: Target Range, Comparison): colour only ever means on or off target; the
 // direction of a change is an arrow and a sign, never a colour, so red cannot mean two things on one screen.
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
-import { formatChange, formatValue, targetStatus, targetText, type ValueUnit } from "@ziffr/core/format";
+import { formatChange, formatValue, targetLabel, targetStatus, targetText, type ValueUnit } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -9,10 +9,9 @@ import { cn } from "@/lib/utils";
 /** The one-line legend shown where coloured numbers and changes meet. */
 export const COLOUR_LEGEND = "Green and red say whether a value is on target. Arrows and signs show which way it changed.";
 
-const LABEL = { below: "Below target", above: "Above target", on: "On target" } as const;
-
-/** A small chip next to a value: on target (green) or below/above it (red); nothing when there is no target. */
-export function TargetChip({ metric, value, className, note, numberStyle }: { metric: Pick<Metric, "target_min" | "target_max"> & ValueUnit; value: number | null | undefined; className?: string; note?: string | null; numberStyle: NumberStyle }) {
+/** A small chip next to a value: on target (green) or off it (red), in words that say which way is bad where the
+ * polarity tells ("Too high", #15); nothing when there is no target. */
+export function TargetChip({ metric, value, className, note, numberStyle }: { metric: Pick<Metric, "target_min" | "target_max" | "polarity"> & ValueUnit; value: number | null | undefined; className?: string; note?: string | null; numberStyle: NumberStyle }) {
   const s = targetStatus(metric, value);
   if (!s) return null;
   return (
@@ -24,7 +23,7 @@ export function TargetChip({ metric, value, className, note, numberStyle }: { me
         className,
       )}
     >
-      {LABEL[s]}
+      {targetLabel(metric.polarity, s)}
     </span>
   );
 }

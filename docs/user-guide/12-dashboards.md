@@ -209,7 +209,7 @@ Views show a strip of **Comparisons** under the value. **Comparisons** lets you 
 - **vs previous period**, and **DoD**, **WoW**, **MoM**, **QoQ**, **HoH** and **YoY**, as far as they make sense for the Metric's period (a monthly Metric has no DoD or WoW). Quarters and half-years start from the Workspace's fiscal year. A tick marks each one shown. By default a Widget shows **vs previous period** and **YoY**.
 - **Full periods instead of to date**: for spans longer than the Metric's period, Ziffr normally compares the span so far with the same stretch before (month to date against the same days last month). Tick this to compare whole periods instead.
 
-When the Metric has a target, the strip starts with its **Attainment**, such as "92 % of target". Point at it to see the target and the method it is computed with, by ratio or by distance (see [Metrics](10-metrics.md#comparisons)). The table in **History** shows the same number. A Snapshot keeps the method it was taken with.
+When the Metric has a target, the strip starts with its **Attainment**, such as "92 % of target". Where there is no percentage, or it would be below 0 % (a margin of −6.5 % against a target of 13 %, by distance), the strip shows the gap instead, such as "6.5 pts below target" or "8,000 € below target". Point at it to see the target and the method it is computed with, by ratio or by distance (see [Metrics](10-metrics.md#comparisons)). The table in **History** shows the same number. A Snapshot keeps the method it was taken with.
 
 ### Show by
 

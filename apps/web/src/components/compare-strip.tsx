@@ -1,7 +1,7 @@
 "use client";
 // The comparison strip under a widget (GLOSSARY: Comparison, Attainment): one engine, one look everywhere.
 import { compactValue, formatChange, formatValue, MINUS } from "@ziffr/core/format";
-import { attainmentText, COMPARE_LABEL, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
+import { attainmentShown, attainmentText, COMPARE_LABEL, gapText, resolverFrom, summary, type CompareKey } from "@ziffr/core/compare";
 import type { CanvasData, Metric } from "@ziffr/core/types";
 import { attainmentMethodNote } from "@ziffr/core/attainment-method";
 import { cn } from "@/lib/utils";
@@ -21,15 +21,16 @@ export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { m
   const style = data.numberStyle;
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-border pt-1.5 text-[11px] leading-snug text-muted-foreground">
-      {s.attainment !== null ? (
+      {attainmentShown(s.attainment) ? (
         // The tooltip names the method, so the same number is never read two ways (spec 0022, #130).
         <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}. ${attainmentMethodNote(s.method)}`}>
           <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{attainmentText(s.attainment, style)}</span> of target
         </span>
       ) : s.gap !== null && (
-        // Where the method has no percentage (a target of 0; by ratio also below 0), the difference to it instead.
+        // Where the method has no percentage (a target of 0; by ratio also below 0), or it would be below 0 % and say
+        // nothing a reader can use (#15), the difference to the target instead: "6.5 pts below target".
         <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}`}>
-          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{s.gap === 0 ? "on" : `${sign(s.gap)}${compactValue(metric, Math.abs(s.gap), style)}`}</span> {s.gap === 0 ? "target" : "vs target"}
+          <span className={cn("fig font-medium", s.onTarget ? "text-[var(--color-success)]" : "text-destructive")}>{gapText(metric, s.gap, style)}</span>
         </span>
       )}
       {s.comparisons.map((c) =>
