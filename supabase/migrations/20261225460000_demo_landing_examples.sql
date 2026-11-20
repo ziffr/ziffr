@@ -11,7 +11,7 @@
 -- made-up demo people are touched, on each demo reset.
 
 -- The Audit Log keeps the time it was written, except when the demo's seed writes its own history.
-create or replace function audit_events_stamp() returns trigger language plpgsql as $$
+create or replace function audit_events_stamp() returns trigger language plpgsql set search_path = public as $$
 begin
   if new.workspace_id = 'd3e00000-0000-4000-8000-000000000001' and demo_seeding() then return new; end if;
   new.at := now();
