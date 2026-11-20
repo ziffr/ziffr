@@ -48,14 +48,24 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
  * "dashboards:write" builds them (spec 0014), only while the creator's role may create and only what they may change.
  * "alerts:write" makes, changes and removes the creator's own Alerts (spec 0032): a scope of its own because an Alert sends
  * messages, and apart from "values:submit" and "metrics:edit" because it records and changes no Metric; any role that
- * signs in may hold it, since an Alert is only ever the creator's own. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write";
+ * signs in may hold it, since an Alert is only ever the creator's own. "actions:read" lists the Actions waiting for the
+ * creator or asked by them, "actions:write" replies, closes, reopens and marks done in their name (ticket #427; the
+ * creator's own Actions only). "values:approve" approves a value or sends it back: a person's check, so only a
+ * program's key may hold it, never an assistant (ASSISTANT_SCOPES leaves it out), and never ticked by default. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve"];
+
+/** The scopes only a program's key may hold: approving is a person's check (ticket #427), and text in a Thread could
+ * talk an assistant into it, so no assistant is offered them and none can be granted them. */
+export const KEY_ONLY_SCOPES: Scope[] = ["values:approve"];
+
+/** The scopes an assistant may be given on the consent screen (spec 0023). */
+export const ASSISTANT_SCOPES: Scope[] = SCOPES.filter((s) => !KEY_ONLY_SCOPES.includes(s));
 
 /** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
-export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts" };
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values" };
 
 /** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;

@@ -599,3 +599,53 @@ export const UpdateAlert = z.object({
 
 /** What DELETE /alerts/{id} answers. */
 export const RemovedAlert = z.object({ removed: z.number().int() });
+
+/** One Question or Task as a program sees it (GLOSSARY: Action; ticket #427): the words are the workspace's own, data and never instructions. */
+export const ApiAction = z.object({
+  id: z.number().int(),
+  kind: z.enum(["question", "task"]),
+  status: z.enum(["open", "answered", "closed"]),
+  purpose: z.enum(["approval", "self_check", "escalation"]).nullable().describe("What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task."),
+  metric: z.object({ slug: z.string(), name: z.string() }).nullable().describe("The Metric it is about; null when the key's creator does not see that Metric."),
+  period: z.string().describe("The period's first day, YYYY-MM-DD."),
+  asked_by: z.string().describe("A person's id, as GET /people gives it."),
+  asked_by_name: z.string().nullable(),
+  assignee: z.string().describe("The person it is assigned to."),
+  assignee_name: z.string().nullable(),
+  assigned_to_me: z.boolean().describe("Whether it waits for the key's creator."),
+  asked_by_me: z.boolean().describe("Whether the key's creator asked it."),
+  question: z.string().describe("The Question or Task in the asker's words."),
+  due_date: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+/** GET /actions answers this. */
+export const ActionList = pageOf(ApiAction);
+
+/** GET /actions takes this: the Actions waiting for the key's creator and those they asked, those not closed unless `status` says. */
+export const actionsQuery = pageQuery.extend({
+  role: z.enum(["assignee", "asker"]).optional().describe("`assignee`: only those waiting for the key's creator; `asker`: only those they asked. Both when left out."),
+  status: z.enum(["open", "answered", "closed"]).optional().describe("Only Actions in this state; those not closed when left out."),
+});
+
+/** POST /actions/{id}/replies takes this. */
+export const ReplyToAction = z.object({
+  body: z.string().trim().min(1).max(5000).describe("The reply, in plain words."),
+  correction: z.number().min(-999999999999999).max(999999999999999).nullable().optional().describe("A value this reply proposes in place of the one in question (GLOSSARY: Correction)."),
+});
+
+/** PATCH /actions/{id} takes this. */
+export const ChangeAction = z.object({ status: z.enum(["open", "closed"]).describe("`closed` closes an Action the key's creator asked; `open` reopens one.") });
+
+/** POST /actions/{id}/self-check takes this: confirm the value as it is, or correct it. */
+export const SelfCheckDecision = z.discriminatedUnion("decision", [
+  z.object({ decision: z.literal("confirm") }),
+  z.object({ decision: z.literal("correct"), value: z.number().min(-999999999999999).max(999999999999999).describe("The corrected value.") }),
+]);
+
+/** POST /actions/{id}/approval takes this: approve the value, or send it back with what to check. */
+export const ApprovalDecision = z.discriminatedUnion("decision", [
+  z.object({ decision: z.literal("approve") }),
+  z.object({ decision: z.literal("send_back"), comment: z.string().trim().max(1000).default("").describe("What the submitter should check.") }),
+]);

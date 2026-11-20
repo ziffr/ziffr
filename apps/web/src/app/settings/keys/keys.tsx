@@ -13,9 +13,9 @@ import { RecentCalls } from "@/components/recent-calls";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values" };
 /** What a scope covers, where its label alone does not say. */
-const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
+const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit", "values:approve": "approve a value or send it back, as you: only for programs, never for an assistant, and never for your own values" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 
@@ -66,6 +66,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate }: {
       </form>
       {/* Below the row of boxes, not inside it, so the row stays one short line per box. */}
       {canCreate && <p className="text-xs text-muted-foreground">{SCOPE_LABEL["metrics:edit"]}: {SCOPE_HINT["metrics:edit"]}.</p>}
+      <p className="text-xs text-muted-foreground">{SCOPE_LABEL["values:approve"]}: {SCOPE_HINT["values:approve"]}.</p>
       {secret && (
         <p className="text-sm">Copy it now; it is not shown again: <input readOnly value={secret} onFocus={(e) => e.target.select()} aria-label="New access key" className="h-9 w-full max-w-xl rounded-[var(--radius-input)] border border-input bg-card px-2 font-mono text-sm" /></p>
       )}

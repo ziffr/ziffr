@@ -3,6 +3,11 @@
 // to its SDK client, so every tool still goes through the API's key check, limit and Access Log, without a second
 // trip through the network or an internal address to configure. Only the endpoints for people's keys are here: a
 // Feed's endpoints and the OpenAPI document are not tools.
+import * as actions from "@/app/api/v1/actions/route";
+import * as action from "@/app/api/v1/actions/[id]/route";
+import * as actionDone from "@/app/api/v1/actions/[id]/done/route";
+import * as actionReplies from "@/app/api/v1/actions/[id]/replies/route";
+import * as actionSelfCheck from "@/app/api/v1/actions/[id]/self-check/route";
 import * as alerts from "@/app/api/v1/alerts/route";
 import * as alert from "@/app/api/v1/alerts/[id]/route";
 import * as dashboards from "@/app/api/v1/dashboards/route";
@@ -39,6 +44,11 @@ type RouteModule = Partial<Record<"GET" | "POST" | "PATCH" | "DELETE", unknown>>
 
 /** The routes, as path patterns under /api/v1 (`[name]` is one segment), static ones before the ones they shadow. */
 export const ROUTES: [pattern: string, module: RouteModule][] = [
+  ["actions", actions],
+  ["actions/[id]", action],
+  ["actions/[id]/done", actionDone],
+  ["actions/[id]/replies", actionReplies],
+  ["actions/[id]/self-check", actionSelfCheck],
   ["alerts", alerts],
   ["alerts/[id]", alert],
   ["dashboards", dashboards],
@@ -69,9 +79,9 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["workspace", workspace],
 ];
 
-/** Route folders under /api/v1 that are deliberately not reachable from inside: a Feed's own endpoints, the public
- * OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
-export const NOT_IN_PROCESS = ["feed", "feed/observations", "installation/usage", "openapi.json", "[...rest]"];
+/** Route folders under /api/v1 that are deliberately not reachable from inside: Approvals (a person's check, never an
+ * assistant's: ticket #427), a Feed's own endpoints, the public OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
+export const NOT_IN_PROCESS = ["actions/[id]/approval", "feed", "feed/observations", "installation/usage", "openapi.json", "[...rest]"];
 
 /** The handler and path parameters for a path under /api/v1, or null. Segments are matched as given, never decoded
  * into a pattern, so a crafted path cannot reach another route. */

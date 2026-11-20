@@ -5,6 +5,7 @@ import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { assertMembersIn } from "./sharing";
 import { assertSubmittersIn } from "./metrics";
+import { FROM_APP, type ChangeSource } from "./webhook-events";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, runWorkflows, sendBack, setLock } from "./workflow-engine";
 import { claimDay, runClaimedDay, type RunCounts } from "./scheduled-runs";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -148,23 +149,23 @@ export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
 }
 
 /** The approver approves a value waiting for them. */
-export async function approveValue(actor: Actor, actionId: number): Promise<string> {
-  return approve(actor.workspaceId, Number(actionId), actor.personId);
+export async function approveValue(actor: Actor, actionId: number, source: ChangeSource = FROM_APP): Promise<string> {
+  return approve(actor.workspaceId, Number(actionId), actor.personId, source);
 }
 
 /** The submitter confirms their own value in a Self-check (GLOSSARY: Self-check). */
-export async function confirmOwnValue(actor: Actor, actionId: number): Promise<string> {
-  return confirmSelfCheck(actor.workspaceId, Number(actionId), actor.personId);
+export async function confirmOwnValue(actor: Actor, actionId: number, source: ChangeSource = FROM_APP): Promise<string> {
+  return confirmSelfCheck(actor.workspaceId, Number(actionId), actor.personId, source);
 }
 
 /** The submitter corrects their own value in a Self-check; the number is checked in the engine. */
-export async function correctOwnValue(actor: Actor, actionId: number, value: number): Promise<string> {
-  return correctSelfCheck(actor.workspaceId, Number(actionId), actor.personId, Number(value));
+export async function correctOwnValue(actor: Actor, actionId: number, value: number, source: ChangeSource = FROM_APP): Promise<string> {
+  return correctSelfCheck(actor.workspaceId, Number(actionId), actor.personId, Number(value), source);
 }
 
 /** The approver sends a value back with what to check. */
-export async function sendValueBack(actor: Actor, actionId: number, comment: string) {
-  await sendBack(actor.workspaceId, Number(actionId), actor.personId, String(comment ?? "").slice(0, 1000));
+export async function sendValueBack(actor: Actor, actionId: number, comment: string, source: ChangeSource = FROM_APP) {
+  await sendBack(actor.workspaceId, Number(actionId), actor.personId, String(comment ?? "").slice(0, 1000), source);
 }
 
 /** The Metric owner locks or unlocks a period; unlocking needs a reason. */

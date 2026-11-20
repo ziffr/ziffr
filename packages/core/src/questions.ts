@@ -10,6 +10,7 @@ import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
 import { finishTask, postReply } from "./threads";
 import { changeActionState } from "./action-state";
+import { FROM_APP, type ChangeSource } from "./webhook-events";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connectors/index";
 import type { ActionKind, Period } from "./types";
@@ -52,16 +53,16 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
 }
 
 /** Replies in an Action's Thread; only the people on it may. A "Correction: …" line proposes a new value. */
-export async function reply(actor: Actor, actionId: number, body: string, correction: number | null) {
+export async function reply(actor: Actor, actionId: number, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true) {
   const value = correction === null || correction === undefined || !Number.isFinite(Number(correction)) ? null : Number(correction);
-  await postReply(actor.workspaceId, Number(actionId), actor.personId, String(body ?? "").trim().slice(0, 5000), value);
+  await postReply(actor.workspaceId, Number(actionId), actor.personId, String(body ?? "").trim().slice(0, 5000), value, source, commands);
 }
 
 /** The asker closes or reopens an Action. Never a Self-check: its submitter is its asker too, and one closed by hand
  * would leave the value waiting; reopened, it would decide nothing. Confirm or Correct decide it. */
-export async function setActionStatus(actor: Actor, actionId: number, status: "open" | "closed") {
+export async function setActionStatus(actor: Actor, actionId: number, status: "open" | "closed", source: ChangeSource = FROM_APP) {
   if (status !== "open" && status !== "closed") throw new Forbidden();
-  const r = await changeActionState(actor.workspaceId, Number(actionId), { to: status, from: status === "closed" ? ["open", "answered"] : ["answered", "closed"], guard: { askerId: actor.personId, purpose: "not_self_check" } });
+  const r = await changeActionState(actor.workspaceId, Number(actionId), { to: status, from: status === "closed" ? ["open", "answered"] : ["answered", "closed"], guard: { askerId: actor.personId, purpose: "not_self_check" } }, source);
   if (r.refused) throw new Forbidden();
   if (!r.changed) return;
   if (status === "closed") {
@@ -71,8 +72,8 @@ export async function setActionStatus(actor: Actor, actionId: number, status: "o
 }
 
 /** The assignee marks their open task done. */
-export async function markTaskDone(actor: Actor, actionId: number) {
-  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId))) throw new Error("That task is not open, or it is not yours.");
+export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP) {
+  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source))) throw new Error("That task is not open, or it is not yours.");
 }
 
 /** Where a person hears about each kind of message. A person sets their own; the team default (personId null) is

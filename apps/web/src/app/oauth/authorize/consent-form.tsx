@@ -6,10 +6,10 @@ import { useActionState, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Scope } from "@ziffr/core/actor";
-import { CREATING_SCOPES, SCOPES } from "@ziffr/core/actor";
+import { ASSISTANT_SCOPES, CREATING_SCOPES } from "@ziffr/core/actor";
 import { answerConsent, type ConsentState } from "./actions";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read your questions and tasks", "actions:write": "Answer questions and tasks for you", "values:approve": "Approve values" };
 /** What a scope covers, where its label alone does not say. */
 const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
 const READING: Scope[] = ["metrics:read", "dashboards:read"];
@@ -25,7 +25,8 @@ export function ConsentForm({ request, clientName, returnHost, onThisComputer, w
   // Only reading is ticked at first, even when the assistant asked for more: writing is the person's own choice.
   const first = requested.filter((s) => READING.includes(s));
   const [scopes, setScopes] = useState<Scope[]>(first.length ? first : ["metrics:read"]);
-  const shown = SCOPES.filter((s) => canCreate || !CREATING_SCOPES.includes(s));
+  // Never "values:approve": an assistant is not offered it, and the server refuses it if asked (ticket #427).
+  const shown = ASSISTANT_SCOPES.filter((s) => canCreate || !CREATING_SCOPES.includes(s));
   if (!workspaces.length) return <p className="mx-auto mt-16 max-w-md text-sm text-muted-foreground">You have no workspace of your own to connect an assistant to yet.</p>;
   return (
     <form action={act} className="mx-auto mt-12 max-w-md space-y-5">

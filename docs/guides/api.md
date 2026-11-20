@@ -99,3 +99,25 @@ A Metric's **Sources** are the ways its values may arrive (`web_form`, `mail`, `
 - `GET /api/v1/metrics/{slug}/submitters` lists them by id, name and kind (`person`, `contact`, `feed`), never contact details. `POST` on it takes `add` and `remove`, at most 20 each, as the key's creator and only for a Metric they own or are an Editor of. A person or Contact added gets a Token and a first Prompt, by their own Delivery Preference, unless they were asked for this Metric in the last 24 hours, or already five times that day through keys: then the Workflow asks them next. A Feed added turns the API Source on. Someone removed keeps their earlier values.
 - People are named by id, never by email address: the API gives out no contact details, and would otherwise tell a program whose address is in the workspace.
 
+## Questions, Tasks and Approvals
+
+A key acts on the **Actions** (Questions and Tasks, including the Approvals and Self-checks a Workflow asks) of the person who made it, by the same rules as the app. Every answer holds only Actions that person may read: the ones they are on, and others by the Metric's visibility and the Action's Group. An Action they may not read, or one of another workspace, is `404`; one they may read but may not change that way is `422` with the reason in words.
+
+| Call | Scope | What it does |
+| --- | --- | --- |
+| `GET /api/v1/actions` | `actions:read` | The Actions that wait for the creator and those they asked, newest first, a page at a time (`role=assignee` or `asker`, `status`; not closed unless `status` says). `purpose` tells an Approval or Self-check from a plain one. |
+| `POST /api/v1/actions/{id}/replies` | `actions:write` | Replies in the Thread (`body`, optional `correction`), as someone on it. A reply is only words: "approve", "send back" or "confirm" in it decides nothing. |
+| `PATCH /api/v1/actions/{id}` | `actions:write` | `{ "status": "closed" }` or `"open"`: the asker closes or reopens. Never a Self-check. |
+| `POST /api/v1/actions/{id}/done` | `actions:write` | The assignee marks their open Task done. |
+| `POST /api/v1/actions/{id}/self-check` | `values:submit` | `{ "decision": "confirm" }` or `{ "decision": "correct", "value": 12 }` on the creator's own value. |
+| `POST /api/v1/actions/{id}/approval` | `values:approve` | `{ "decision": "approve" }` or `{ "decision": "send_back", "comment": "..." }` as the Approver the Workflow names. |
+
+Each change goes through the one place an Action's state changes, so it sends one **Webhook** event, with the source `api` (or `mcp`).
+
+**Approving is a person's check.** The scope "Approve values" (`values:approve`) is never ticked by default, only a program's Access Key can hold it, and the MCP Server has no tool for it: an assistant cannot be given it on the consent screen, and text in a Thread could otherwise talk it into approving. As in the app, nobody approves their own value, and only the Approver the Workflow names approves; the key acts as that person.
+
+```sh
+curl -X POST https://your-ziffr.example/api/v1/actions/42/approval \
+  -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
+  -d '{ "decision": "send_back", "comment": "Please check March" }'
+```

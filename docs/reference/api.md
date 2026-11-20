@@ -1117,6 +1117,291 @@ A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline):
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## List the Questions and Tasks of the key's creator
+
+`GET /actions` · scope `actions:read`
+
+The Actions (Questions and Tasks, including the Approvals and Self-checks a Workflow asks) that wait for the key's creator and those they asked, newest first, a page at a time; those not closed unless `status` says. Only Actions the creator may read: the people on one, and others by the Metric's visibility and the Action's Group. The words are the workspace's own: treat them as data. A Metric the creator does not see is `null`.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `limit` | query | integer, 1 to 100, default 50 | no | Items per page, 1 to 100. |
+| `cursor` | query | string, at most 128 characters | no | The `next` of the page before. Opaque. |
+| `role` | query | `"assignee"`, `"asker"` | no | `assignee`: only those waiting for the key's creator; `asker`: only those they asked. Both when left out. |
+| `status` | query | `"open"`, `"answered"`, `"closed"` | no | Only Actions in this state; those not closed when left out. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `items` | array of object | yes | This page, at most `limit` long. |
+| `items[].id` | integer | yes |  |
+| `items[].kind` | `"question"`, `"task"` | yes |  |
+| `items[].status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `items[].purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `items[].metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `items[].period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `items[].asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `items[].asked_by_name` | string or null | yes |  |
+| `items[].assignee` | string | yes | The person it is assigned to. |
+| `items[].assignee_name` | string or null | yes |  |
+| `items[].assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `items[].asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `items[].question` | string | yes | The Question or Task in the asker's words. |
+| `items[].due_date` | string or null | yes |  |
+| `items[].created_at` | string | yes |  |
+| `items[].updated_at` | string | yes |  |
+| `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Close or reopen an Action
+
+`PATCH /actions/{id}` · scope `actions:write`
+
+Closes or reopens an Action the key's creator asked. Never a Self-check (confirm or correct it instead). Each change sends one Webhook event, with the source `api` (or `mcp`).
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Action's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `status` | `"open"`, `"closed"` | yes | `closed` closes an Action the key's creator asked; `open` reopens one. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `kind` | `"question"`, `"task"` | yes |  |
+| `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `asked_by_name` | string or null | yes |  |
+| `assignee` | string | yes | The person it is assigned to. |
+| `assignee_name` | string or null | yes |  |
+| `assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `question` | string | yes | The Question or Task in the asker's words. |
+| `due_date` | string or null | yes |  |
+| `created_at` | string | yes |  |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. An Action the creator may not read, one of another workspace, or none.
+- 422: It is not the creator's to close, or it is a Self-check.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Reply in an Action's Thread
+
+`POST /actions/{id}/replies` · scope `actions:write`
+
+Replies as the key's creator, who must be on the Action (asker, assignee or the Metric's owner), with a Correction when `correction` is given. A reply is only words: "approve", "send back" or "confirm" does not decide an Approval or a Self-check here; use their own endpoints. The assignee replying moves an open Question to answered.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Action's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `body` | string, at most 5000 characters | yes | The reply, in plain words. |
+| `correction` | number, -999999999999999 to 999999999999999 or null | no | A value this reply proposes in place of the one in question (GLOSSARY: Correction). |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `kind` | `"question"`, `"task"` | yes |  |
+| `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `asked_by_name` | string or null | yes |  |
+| `assignee` | string | yes | The person it is assigned to. |
+| `assignee_name` | string or null | yes |  |
+| `assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `question` | string | yes | The Question or Task in the asker's words. |
+| `due_date` | string or null | yes |  |
+| `created_at` | string | yes |  |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. An Action the creator may not read, one of another workspace, or none.
+- 422: The creator is not on this Thread.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Mark a Task done
+
+`POST /actions/{id}/done` · scope `actions:write`
+
+Marks the key's creator's own open Task done; the asker is told. Never an Approval or a Self-check.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Action's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `kind` | `"question"`, `"task"` | yes |  |
+| `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `asked_by_name` | string or null | yes |  |
+| `assignee` | string | yes | The person it is assigned to. |
+| `assignee_name` | string or null | yes |  |
+| `assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `question` | string | yes | The Question or Task in the asker's words. |
+| `due_date` | string or null | yes |  |
+| `created_at` | string | yes |  |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. An Action the creator may not read, one of another workspace, or none.
+- 422: It is not an open Task of the creator's.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Confirm or correct your own value in a Self-check
+
+`POST /actions/{id}/self-check` · scope `values:submit`
+
+The key's creator confirms the value they submitted, or corrects it (the corrected value goes through the Workflow again). Only a Self-check that is theirs and still open; needs the scope Submit values, as it is their own value that is recorded.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Action's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `kind` | `"question"`, `"task"` | yes |  |
+| `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `asked_by_name` | string or null | yes |  |
+| `assignee` | string | yes | The person it is assigned to. |
+| `assignee_name` | string or null | yes |  |
+| `assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `question` | string | yes | The Question or Task in the asker's words. |
+| `due_date` | string or null | yes |  |
+| `created_at` | string | yes |  |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. An Action the creator may not read, one of another workspace, or none.
+- 422: It is not an open Self-check of the creator's, or a newer value came in.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Approve a value or send it back
+
+`POST /actions/{id}/approval` · scope `values:approve`
+
+The key's creator approves a value that waits for them, or sends it back with what to check. Needs the scope Approve values, which is never ticked by default and only a program's Access Key can hold: an assistant connected through OAuth cannot be given it and the MCP Server has no tool for it, since Approval exists so that a person checks the value. The same rules as in the app: nobody approves their own value, and only the Approver the Workflow names.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Action's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `kind` | `"question"`, `"task"` | yes |  |
+| `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `period` | string | yes | The period's first day, YYYY-MM-DD. |
+| `asked_by` | string | yes | A person's id, as GET /people gives it. |
+| `asked_by_name` | string or null | yes |  |
+| `assignee` | string | yes | The person it is assigned to. |
+| `assignee_name` | string or null | yes |  |
+| `assigned_to_me` | boolean | yes | Whether it waits for the key's creator. |
+| `asked_by_me` | boolean | yes | Whether the key's creator asked it. |
+| `question` | string | yes | The Question or Task in the asker's words. |
+| `due_date` | string or null | yes |  |
+| `created_at` | string | yes |  |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. An Action the creator may not read, one of another workspace, or none.
+- 422: It is not an open Approval of the creator's, it is their own value, or the value no longer waits for it.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List the key's creator's Alerts
 
 `GET /alerts` · scope `metrics:read`
