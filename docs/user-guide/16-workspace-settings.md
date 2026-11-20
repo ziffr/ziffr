@@ -327,7 +327,7 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 
 - Pick who sends the message, including an unknown sender, type a message such as "closed 2 deals", and send it.
 - Under a Prompt from Ziffr, choose **Reply** to answer it as its recipient.
-- Each message shows what happened, such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, or a Derived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
+- Each message shows what happened, such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, a Derived Metric, or an Archived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
 
 ## Access Keys
 
