@@ -450,3 +450,16 @@ describe("reading what Ziffr writes", () => {
     );
   });
 });
+
+describe("period words are found with rules built once (spec 0026)", () => {
+  it("reads the same with the rules built anew, reused, and built again after many others pushed them out", () => {
+    const read = (today: string) => findPeriodWords("last week, Q3 and 12.11.", today, 1, ["en", "de"]).map((w) => [w.text, w.span, w.start]);
+    const first = read("2026-11-18");
+    expect(read("2026-11-18")).toEqual(first);
+    // More days than sets of rules are kept: the first set goes, and is built again the same.
+    const days = Array.from({ length: 20 }, (_, i) => shiftPeriod("2026-01-01", "day", i));
+    for (const d of days) expect(read(d)[0][1]).toBe("week");
+    expect(read("2026-11-18")).toEqual(first);
+    expect(read("2026-01-05")).toEqual(read(days[4]));
+  });
+});

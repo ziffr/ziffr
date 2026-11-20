@@ -12,6 +12,11 @@ import type { Format, Period } from "./types";
 /** The most text one paste may hold, in bytes of UTF-8, and the most values; checked before anything is read. */
 export const PASTE_LIMITS = { bytes: 256 * 1024, values: 2000 } as const;
 
+/** The most cells a paste's grid may span, empty ones included, and the most that may be filled: a paste of 2,000
+ * values in rows of a Metric, a period and a value fills 6,000, plus headers. Both are checked before any layout is
+ * tried, so a paste of many tiny cells costs the server nothing but splitting it (spec 0026, "Limits"). */
+export const GRID_LIMITS = { cells: 100_000, filled: 4 * PASTE_LIMITS.values } as const;
+
 /** The cells of a paste, trimmed, as a rectangle; `top` and `left` are how many empty rows and columns were dropped
  * at the edges, so a cell's place is still the one it had in the paste. */
 export type Grid = { cells: string[][]; top: number; left: number };
@@ -71,7 +76,7 @@ export type PasteValue = {
 export type PasteReading =
   | { ok: true; layout: PasteLayout; alternatives: PasteLayout[]; metrics: number; periods: number; values: PasteValue[] }
   | { ok: false; reason: GridProblem | "no_layout" }
-  | { ok: false; reason: "too_many_values"; count: number };
+  | { ok: false; reason: "too_many_values" | "too_many_cells"; count: number };
 
 /** A cell's place as a spreadsheet names it: row 0, column 2 is "C1"; column 26 is "AA". */
 export function cellName(row: number, col: number): string {
@@ -386,6 +391,10 @@ export function readPaste(text: string, ctx: PasteContext): PasteReading {
   const read = readGrid(text);
   if (!read.ok) return read;
   const { cells, top, left } = read.grid;
+  // Bounded before any layout is tried: trying one reads every cell, some several times.
+  const spanned = cells.length * cells[0].length;
+  const filled = cells.reduce((n, r) => n + r.filter(Boolean).length, 0);
+  if (spanned > GRID_LIMITS.cells || filled > GRID_LIMITS.filled) return { ok: false, reason: "too_many_cells", count: spanned > GRID_LIMITS.cells ? spanned : filled };
   const chosen = ctx.metricId == null ? undefined : ctx.metrics.find((m) => m.id === ctx.metricId);
   const tried: [PasteLayout, () => Laid | null][] = [
     ...(chosen ? [["one_metric", () => rows(cells, ctx, ["period", "value"], chosen)] as [PasteLayout, () => Laid | null]] : []),
@@ -453,6 +462,7 @@ export function pasteReadingText(r: Extract<PasteReading, { ok: false }>): strin
     case "too_large": return "That is more than 256 KB of text. Paste fewer cells at a time.";
     case "not_cells": return "Copy the cells from the spreadsheet itself.";
     case "no_layout": return "Ziffr expected Metrics in the first column and periods in the first row (or the other way round), or rows of a Metric, a period and a value.";
+    case "too_many_cells": return `That paste spans ${r.count.toLocaleString("en")} cells, more than Ziffr reads at once. Copy only the Metrics, periods and values, at most ${PASTE_LIMITS.values.toLocaleString("en")} values at a time.`;
     case "too_many_values": return `That is ${r.count.toLocaleString("en")} values; a paste may hold at most ${PASTE_LIMITS.values.toLocaleString("en")}. Paste fewer at a time.`;
   }
 }
