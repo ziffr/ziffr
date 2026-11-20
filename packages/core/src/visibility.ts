@@ -115,9 +115,12 @@ export function visibleMetricIdsFrom(ws: string, person: string, f: MetricFacts)
   return new Set([...ids].filter((id) => known.has(id)));
 }
 
-/** Who may read a Thread: the people on it, then everyone in the workspace, or only the members of its Group. */
-export function canReadThread(ws: string, person: string, a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & InWorkspace, metricOwner: string | undefined, groups: readonly (Group & InWorkspace)[]): boolean {
+/** Who may read a Thread: the people on it and the Metric's owner; anyone else only if they see its Metric (ticket
+ * 323: a Thread shows the Metric's value, and a Workflow's task its reasons), and then everyone in the workspace, or
+ * only the members of its Group. A Workspace Role grants nothing here, as it grants no Metric. */
+export function canReadThread(ws: string, person: string, a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & InWorkspace, metricOwner: string | undefined, groups: readonly (Group & InWorkspace)[], seesMetric: boolean): boolean {
   if (a.workspace_id !== ws) return false;
-  if (a.asker_id === person || a.assignee_id === person || metricOwner === person || a.read_group_id === null) return true;
-  return mine(ws, groups).some((g) => g.id === a.read_group_id && g.members.includes(person));
+  if (a.asker_id === person || a.assignee_id === person || metricOwner === person) return true;
+  if (!seesMetric) return false;
+  return a.read_group_id === null || mine(ws, groups).some((g) => g.id === a.read_group_id && g.members.includes(person));
 }

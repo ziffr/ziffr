@@ -297,7 +297,7 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
   let readable: (a: ActionRow) => boolean = () => true;
   if (person !== actor.personId) {
     const groups = await getGroups(ws);
-    const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws);
+    const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker);
     readable = (a) => can(a);
   }
   return [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, metrics, ctx, readable))];
