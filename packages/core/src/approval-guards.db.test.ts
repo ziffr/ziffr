@@ -6,6 +6,7 @@ import { JANUARY, periodStart } from "./periods";
 import { workspace } from "./test/db-fixtures";
 import { approve, closePeriod, getState, onValue, setLock } from "./workflow-engine";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
+import { setActionStatus } from "./questions";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -47,5 +48,19 @@ describe("Approval guards", () => {
     await db().from("actions").update({ assignee_id: ann }).eq("id", task!.id);
     await expect(approve(w.id, task!.id, ann)).rejects.toThrow(/Nobody approves their own value/);
     expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+  });
+
+  // Pins what #444 found: the submitter (the task's asker) can close an open Approval in the app. Nothing is published
+  // by it, but the Approver can no longer decide it until the submitter reopens it. Whether that stays is an owner decision.
+  it("leaves the value unapproved when its submitter closes the Approval, and the Approver cannot decide it", async () => {
+    const { w, ada, ann, m } = await waiting();
+    const task = await openTask(m.id);
+    await setActionStatus(w.actor(ann), task!.id, "closed");
+    expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+    await expect(approve(w.id, task!.id, ada)).rejects.toThrow(/not yours, or it is done/);
+    expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+    await setActionStatus(w.actor(ann), task!.id, "open");
+    await approve(w.id, task!.id, ada);
+    expect((await getState(m.id, thisMonth()))?.state).not.toBe("approval");
   });
 });
