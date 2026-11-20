@@ -2,6 +2,7 @@
 // Workspace may hold, unlimited unless someone sets it. The rule over the limit lives here and, with the same
 // numbers, in the database's trigger metrics_within_limit; a database test runs both on one table of cases.
 // The open code knows a Size only as a limit with a name (`label`); prices and payments are Ziffr Cloud's (ADR 0013).
+import { can, type Actor } from "./actor";
 import { db } from "./db";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 
@@ -137,8 +138,10 @@ export async function limitReachedFrom(error: { code?: string } | null | undefin
 }
 
 /** The refusal a new Metric would meet now in the actor's Workspace, in the limit's words, or null when one may be
- * made: for the New Metric form, so it says so before anyone fills it in. */
-export async function newMetricRefusal(actor: { workspaceId: string }): Promise<string | null> {
+ * made: for the New Metric form, so it says so before anyone fills it in. Only for someone who may create Metrics: it
+ * holds the Workspace's count of Metrics, which a Guest does not need. */
+export async function newMetricRefusal(actor: Actor): Promise<string | null> {
+  if (!can(actor, "create")) return null;
   const limit = await limitOf(actor.workspaceId);
   if (!limit) return null;
   const [count, { data }] = await Promise.all([
