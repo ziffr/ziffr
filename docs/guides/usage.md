@@ -8,6 +8,14 @@ The Usage Feed is a [Feed](feeds.md) that lives in this repository (`packages/fe
 
 ## Set it up, once
 
+The quickest way is the **Ziffr operations** Pack: it brings a Metric for every figure below, with the right period, Aggregation and units, and a dashboard.
+
+1. In the Workspace that should hold the numbers, open Settings, Feeds, create a Feed named "Ziffr usage" and a Feed Key for it (copy the key; it is shown once).
+2. Open Workspace, Packs, **Choose a Pack file…** and pick `packs/ziffr-operations.pack.json` from this repository. Under the installed Pack choose **Set up from this Pack**, tick the Metrics, pick **Values come from the Feed** and choose the Feed, pick the dashboard "Ziffr operations", and **Set up**. The Feed becomes the Submitter of every Metric and their API Source is on, so nobody is asked for these numbers.
+3. Continue below with the Usage Key and the settings. Doing it by hand instead works too: the Metrics only need the slugs listed under "The figures", the period day, and the Feed as Submitter.
+
+The same steps in detail:
+
 1. **Make a Feed.** In the Workspace that should hold the numbers, open Settings, Feeds, create a Feed named "Ziffr usage" and a Feed Key for it. Copy the key; it is shown once.
 2. **Make a Usage Key.** On the Installation Settings page, choose **Make a Usage Key** and copy it.
 3. **Leave the operations Workspace out.** On the same page, pick that Workspace as the one left out of every figure. Otherwise its own Metrics, values and Feed calls are in the totals it records, and the dashboard partly pictures itself.

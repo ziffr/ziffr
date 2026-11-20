@@ -32,6 +32,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
   const [askMe, setAskMe] = useState(true);
   const [dashboard, setDashboard] = useState<string>("");
   const [fills, setFills] = useState<Record<number, number>>({});
+  const [feed, setFeed] = useState<string>("");
   const [workflow, setWorkflow] = useState<string>("");
   const [approvers, setApprovers] = useState<string[]>([]);
   const [made, setMade] = useState<PackSetupResult | null>(null);
@@ -57,6 +58,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
       const result = unwrap(await setUpPack(options.install.id, {
         metrics: [...making],
         submitters: askMe ? [viewer] : [],
+        feed: feed || null,
         dashboard: template ? { key: template.key, fills: template.slots.map((_s, i) => (fills[i] ? [fills[i]] : null)) } : null,
         workflow: flow ? { key: flow.key, approvers } : null,
       }));
@@ -102,6 +104,16 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         })}
         {making.size > 0 && (
           <label className="mt-2 flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for their values (a first request goes out now)</label>
+        )}
+        {making.size > 0 && options.feeds.length > 0 && (
+          <label className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium">Values come from the Feed</span>
+            <select value={feed} onChange={(e) => setFeed(e.target.value)} className={field} aria-label="Feed that submits their values">
+              <option value="">None</option>
+              {options.feeds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            {feed && <span className="text-xs text-muted-foreground">It becomes a Submitter of each Metric that takes values, and their API Source is on.</span>}
+          </label>
         )}
       </fieldset>
 

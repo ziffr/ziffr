@@ -52,8 +52,8 @@ function assertManagesFeeds(actor: Actor) {
   refuseInDemo(actor);
 }
 
-/** A Feed of the actor's workspace that is not deleted, or Forbidden. */
-async function liveFeed(workspaceId: string, feedId: string) {
+/** A Feed of the workspace that is not deleted, or Forbidden. The caller checks who may ask first. */
+export async function liveFeed(workspaceId: string, feedId: string) {
   const { data } = await db().from("feeds").select("person_id, name").eq("workspace_id", workspaceId).eq("person_id", String(feedId)).is("deleted_at", null).maybeSingle();
   if (!data) throw new Forbidden();
   return data as { person_id: string; name: string };

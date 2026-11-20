@@ -30,6 +30,7 @@ Installing adds only entries and templates. **Set up from this Pack**, under an 
 | --- | --- |
 | **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. |
 | **Ask me for their values** | Makes you the Submitter of the Metrics that take values, and sends you a first request for each now. Untick it to add Submitters later on each Metric's page. |
+| **Values come from the Feed** | Shown when the Workspace has a Feed. Makes that Feed the Submitter of every Metric that takes values and turns on the API Source, so a program such as the [Usage Feed](../guides/usage.md) fills them and nobody is asked. Only Feeds of this Workspace are offered. |
 | **Dashboard** | One of the Pack's Dashboard Templates, or none. Each Slot is filled with the Metric made from the entry it suggests; a Slot whose entry you do not make asks you to pick one of your Metrics. |
 | **Workflow** | One of the Pack's Workflow Templates, or none. If its Approve step asks for Approvers, pick each one, members of the Workspace. The Metrics that take values follow this Workflow. |
 | **Set up** | Makes it all. Ziffr checks everything first: if anything cannot be made, such as more Metrics than the Workspace's limit (see [Size and usage](16-workspace-settings.md#size-and-usage)) or a trial's 25, nothing is made and it says why. |
