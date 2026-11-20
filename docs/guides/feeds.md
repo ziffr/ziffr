@@ -54,6 +54,10 @@ Each run fetches the current period of every Metric, plus any of the `--backfill
 
 [`@ziffr/feed-usage`](../../packages/feed-usage/README.md) is a Feed that brings an Installation's own daily Usage totals into a Workspace of your choice. See [Usage](usage.md).
 
+## With the GitHub Feed
+
+[`@ziffr/feed-github`](../../packages/feed-github/README.md) is a Feed that brings the download counts, stars and forks of a GitHub repository into a Workspace. See [GitHub Feed](github-feed.md).
+
 ## With the SQL Feed (no code)
 
 [`@ziffr/feed-sql`](../../packages/feed-sql/README.md) runs one Postgres query per Metric. The file names the environment variable that holds the connection string, never the string itself:
