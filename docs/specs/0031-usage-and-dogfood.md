@@ -91,6 +91,11 @@ The numbers 3 and "fewer than 3" are in one constant and are an open question be
 - **What the operator does once:** (1) in the Workspace that should hold the numbers, Settings, Feeds, create a Feed "Ziffr usage" and its Feed Key; (2) on Installation Settings, make a Usage Key; (3) put both in the settings; (4) in that Workspace, Workspace, Packs, install **Ziffr operations** and "Set up from this Pack"; (5) add the Feed as Submitter of the Metrics (ticket 6 makes this one question in the setup, if the Pack setup can ask for a Feed; otherwise it is the usual "Who submits" on each Metric). The first run backfills what the rollups hold.
 - **The Pack "Ziffr operations"** (`packs/ziffr-operations.pack.json`, CC BY 4.0 like the starting Packs): one Metric Catalog entry per figure the Feed sends (daily; events as a sum, states as the last value), a dashboard "Ziffr at a glance" (Workspaces by kind, people active, sign-ups and trials kept, values per day by Source, Metrics and dashboards, calls) and a Workflow-free setup: nothing asks anybody, since the Feed answers. A test checks that every Metric slug the program sends is a slug of an entry in the Pack, so the two cannot drift.
 - **Trust:** the Feed Key can only record values for the Feed's own Metrics; the Usage Key reads only aggregates. A leak of either shows nobody's data. This is also why the same-Installation default is safe: the operator's Workspace holds the figures like any Workspace holds its Metrics, encrypted under its Workspace Key (ADR 0012), visible to whom the operator shares them with.
+- **The operator's Workspace is on the same Installation (decided).** The Feed reads the Installation's figures and posts into a Workspace of that Installation, as a customer's Feed posts into theirs. Consequences:
+  - **It counts itself.** The operations Workspace would be one of the Workspaces behind the totals: its Metrics, values, views and its Feed's own `api_calls` would be in the figures it records, so the dashboard would partly picture itself. The Installation Setting `ZIFFR_USAGE_EXCLUDE_WORKSPACE` (a Workspace picked by name on the Installation Settings page, as the Workspace Limits page lists them) leaves that one Workspace out of every figure and out of `workspaces`, in the rollup, never in the tables. Recommended, and asked for in the same step as turning the Usage Feed on. The excluded Workspace is named in no response, and `withheld` does not mention it.
+  - **The Workspace Limit applies.** The operator's Workspace holds about 35 Metrics from the Pack, so it needs a limit of its own that is large enough (set on the Workspace Limits page); the guide says so, and the Pack's setup warns when the limit would refuse its Metrics (spec 0030).
+  - **Installation down:** the clock's call fails and is logged, and that day has no figures in the operator's Workspace. This is acceptable. The next run backfills days from `installation_usage_daily`, and the rollup rebuilds event counts of a missed day from the tables (calls and views of that day are lost). The operator's Metrics set no Due Date for the Feed's Submission, so nobody is asked for a number that no person can give.
+  - **The operations Workspace is never a trial,** so its keys and history are never deleted by the trial rules.
 
 ### Workspace level: View Counts
 
@@ -116,9 +121,17 @@ The numbers 3 and "fewer than 3" are in one constant and are an open question be
   3. **Submitters without values:** each Submitter (a person, a Contact or a Feed) assigned to a Metric who recorded no value, by any Source, for 90 days, with the Metrics they were asked for and who owns them. A person who answered a Prompt by email counts like one who used the form. It shows Submitters, not "people who are lazy": Ziffr already names who submits, so this adds no new exposure.
   4. **Most looked at:** the ten dashboards and the ten Metrics with the most views in 30 days, as numbers, so the page also says what is worth keeping.
 - **Suggestions:** under list 1 and 2, **Archive these N Metrics** with a checklist, all ticked except those where archiving would hurt, which are left out with the reason: it is an input of a Derived Metric, it has a Target, a Comparison or an Analysis that shows it, it is on a dashboard that was opened in the last 90 days, or a program read it in the last 90 days. A Metric Owner can also be told ("Mia owns 4 of them"). Archiving is spec 0029's: nothing is deleted, history stays readable, it can be brought back (and is then counted against the limit again). A Metric that is only unused, never one that is used, is ever suggested. Dashboards and decks are not archived (they are not a thing Ziffr archives); the list only says "not opened", with the link to delete.
-- **Never automatic:** nothing is archived, deleted or sent because of Usage. Ziffr does not email Owners about it and puts no banner on other pages; the page is there when someone wants to tidy. (An email digest is an open question.)
+- **Never automatic:** nothing is archived, deleted or sent because of Usage. Ziffr puts no banner on other pages and sends only the monthly digest; the page is there when someone wants to tidy. The one exception is the monthly digest to Owners, which says only what the page says.
 - **Loader:** `workspaceUsage(actor, workspaceId)` in the core, which checks Owner or Admin, reads only what the Actor may see (Owners and Admins see the whole Workspace, so the page lists what they manage, and nothing about Metrics outside their sight on a Workspace where some are Private to a Share, if that exists: the loader reuses the Metric loaders and counts only what they return).
 - **Archive in bulk:** `archiveMetrics(actor, ids)` calls the single archive of spec 0029 for each, in one transaction, writing the Audit Log event for each, and refusing the whole call if any one is refused.
+
+### Workspace level: the monthly email digest
+
+- **Who gets it:** each Owner of a Workspace (not Admins, not Members), by email, on the 1st of the month at 07:00 UTC, as one Delivery in the Outbox. An Owner switches it off in their own settings ("Email me when Metrics go unused", one setting per person for all their Workspaces, on by default, announced in the release note). Every digest carries a one-click unsubscribe link, like Prompts and reminders (RFC 8058, a GET that only asks).
+- **Only when there is something to say:** it goes out only if at least one of the first three lists of the Usage page is not empty. A Workspace with nothing unused gets no email. A Workspace within 90 days of `usage_since`, a trial and the demo never get one; nothing is ever sent for the demo.
+- **What it says:** plain text, short. The counts ("4 Metrics have had no values for 90 days, 2 dashboards were not opened for 90 days, 3 Submitters have not sent a value"), up to five names per list with the reason beside each, how many more there are, and one link to the Usage page. It carries no values, no View Counts per item and no answers. The names are what the Owner sees on the page, so the digest says nothing the page does not, to a person who may open it.
+- **How it goes out:** a job `POST /api/jobs/usage-digest` (job secret; the clock calls it daily at 07:00 UTC and it acts on the 1st, catching up a missed day in the first week). The send is claimed per Workspace and month in `usage_digests(workspace_id, month)` before anything is written, so repeated or parallel calls send once, as a Workflow's day is claimed. It goes through the Delivery path of Prompts, so it obeys what email already obeys: the Workspace's and inbox's limits, the Owner's address, the demo's refusal, and the Outbox showing whether it left. It counts in `emails_sent`. Where the Installation has no working email, the job does nothing and logs it.
+- **Never a nag:** at most one a month per Workspace and Owner, and nothing about a Workspace that has nothing to report.
 
 ### Workspace level: its figures as Metrics (recommendation: yes, after the page)
 
@@ -136,6 +149,8 @@ A good test checks what a person or program can see, not how it was counted.
 - **Core, against the database (`*.db.test.ts`):** `recordView` counts once per call and never stores an actor, in any table (a test lists the columns of `view_counts` and `usage_counts` and fails on a new one that is not on the list); it does nothing for the demo, for a subject the actor cannot see and for a prefetch; the retention job deletes rows older than 400 days and nothing newer; `workspaceUsage` refuses Members, Guests, Stand-ins and Owners of another Workspace, and lists only what the Actor may see; nothing before `usage_since` plus 90 days is called unused; a Metric on a dashboard opened yesterday is "looked at"; a Metric read by `n_api` is kept from the archive suggestion; a yearly Metric is not "without values" after three months; `archiveMetrics` is all or nothing and respects the Workspace Limit when bringing back.
 - **Installation, against the database:** `installationUsage` returns only keys of the list (a hostile table: a Workspace named with a script, a Metric named with an email address, a Pack uploaded with a name; none of it appears in any key or value), returns no breakdown below 3 Workspaces and names it in `withheld`, never counts the demo, and answers a day from the rollup equal to the day counted from the tables. The endpoint answers 404 for no key, a wrong key, an Access Key, a Feed Key and the job secret; accepts only a Usage Key; and keeps to its limits.
 - **Usage Feed:** unit tests with a fake endpoint and a fake Ziffr (feed-kit's own way of testing), for event sums against end-of-day states and for a failing endpoint; one `db` test that runs it against a real local Ziffr with a Feed Key and checks the Metrics of the Pack receive values. A test that every slug the program sends is in `ziffr-operations.pack.json`, and that the Pack passes the Pack checks.
+- **Digest:** against the database: the job sends one email per Workspace and month under parallel calls; sends nothing for an empty Usage page, a trial, a Workspace within 90 days of counting or the demo; goes only to Owners who have not opted out; its text holds no value and at most five names a list; the unsubscribe link only asks on GET; an Installation with no email logs and does nothing.
+- **Excluded Workspace:** with `ZIFFR_USAGE_EXCLUDE_WORKSPACE` set, no figure and no `workspaces` count includes it, and no response or `withheld` names it; a day the Installation was down leaves a gap that the next run backfills.
 - **Clock:** the smoke test of `docker/` keeps passing without the settings, with no job started; a manual check with the settings that the Feed ran and logged.
 - **In the running app (before closing the page's ticket):** open dashboards and Metrics as a person, see their counts on the Usage page the next day's way (the test seeds days), archive a suggested list.
 
@@ -144,36 +159,37 @@ A good test checks what a person or program can see, not how it was counted.
 - Who looked, in any form: no per-person counts, no "last viewed by", no per-person Usage page, not even for Owners. This is the rule of the spec.
 - Per-Workspace rows, names, Metric names or any content at Installation level; sending anything to Ziffr, the company, by default (no phone-home).
 - Anything about what people typed or clicked inside a page (heat maps, clicks, time on page, funnels); only page opens.
-- Archiving or deleting automatically, Usage emails, banners, Usage on the Workspace Limit's overage rules.
+- Archiving or deleting automatically, banners, any email other than the monthly digest, Usage in the Workspace Limit's overage rules.
 - Comparing Workspaces to each other, or a Workspace to Installation averages.
 - A hosted runner for the Usage Feed (ADR 0006).
 - Usage of Ziffr Cloud itself (billing, the Marketplace): it keeps its own figures in its own repository.
 
-## Open Questions
+## Decisions (2026-11-20, by the owner)
 
-Real ones for the owner, each with what I would do.
+The draft's ten open questions, answered; each is built into the sections above.
 
-1. **Small numbers: is 3 the right threshold, and are the always-shown totals acceptable for an Installation with one Workspace?** With one Workspace the totals are that Workspace's counts. Recommendation: 3, and yes: the operator of a one-Workspace Installation is its Owner, and the rule protects Workspaces on shared Installations. If you want more care for the hosted Installation, raise the number there only (a setting), not in code.
-2. **A Usage Key, or the job secret, for the endpoint?** The job secret is already in the clock, so using it would save one step, but it also runs deletions and Delivery retries. Recommendation: a Usage Key of its own, shown once, even though it is one more thing to copy.
-3. **Do programs' reads count?** I count API and MCP reads apart (`n_api`), not as views, and use them only to keep a Metric from the archive suggestions. Recommendation: this, because an assistant reading a Metric each morning is use, but an Owner who asks "who looks at this?" should get "people opening it" and not a bot's count. The alternative, ignoring them, would suggest archiving things that something depends on.
-4. **Is "not opened" the Metric's own page, or anywhere it appears?** I count anywhere it appears (a widget or a slide of a dashboard or deck that was opened), computed from the current widgets. Recommendation: this. Counting only the Metric's own page would call almost every Metric unused, since people read dashboards.
-5. **An email digest to Owners ("5 Metrics have had no values for 90 days")?** Recommendation: not now; the page is for tidying when someone wants to, and an email that nags is the opposite of the product. Revisit when Owners ask.
-6. **Retention, 400 days:** enough for the 90-day rule and a year-on-year look. Recommendation: keep; a Workspace Owner may later set it shorter. The Usage Feed's own history lives in the operator's Metrics, with no limit.
-7. **Where does the operator's Workspace live?** The default is the same Installation. For hosted Ziffr, the operator's numbers should probably live in a Workspace on a different Installation, or at least not be the first thing lost if the Installation fails. Recommendation: say so in the guide; the settings already allow it.
-8. **Should "Set up from this Pack" be able to add a Feed as Submitter of every Metric it makes?** Without it, the operator adds the Feed to some 30 Metrics by hand, which is the one rough edge of the dogfood. Recommendation: yes, a small addition to spec 0030's setup, as ticket 6, and a Pack-side hint for the Metric's slug so the Feed's slugs and the Metrics match without a manual map.
-9. **Workspace figures as Metrics (above):** recommended as a later ticket, not in this spec's first run. Say if you want it in.
-10. **Is the Usage page for Admins as well as Owners?** Recommendation: both, as Size and usage is (spec 0029), since the page names no one new. Owners only if you want archiving to be an Owner's act.
+1. **Small numbers:** the threshold is 3, one constant; an Installation with fewer than 3 Workspaces gets totals only. A stricter number for hosted Ziffr is a setting, not code.
+2. **A Usage Key** of its own, shown once; the job secret is not accepted by the endpoint.
+3. **Programs' reads** are counted apart (`n_api`), not as views, and only keep a Metric out of the archive suggestions.
+4. **"Opened"** means anywhere the Metric appears: its own page, or a dashboard or deck showing it now.
+5. **The email digest is in from the start**, monthly with an opt-out per Owner (below).
+6. **Retention** of View Counts is 400 days.
+7. **The operator's Workspace lives on the same Installation** as the figures it holds (below).
+8. **"Set up from this Pack" can add a Feed as Submitter** of every Metric it makes, and a Pack's entry can carry a slug hint (ticket 6; spec 0030's setup gains it).
+9. **The Workspace's own figures as Metrics** come later, on request (ticket 9), not in the first run.
+10. **The Usage page is for Owners and Admins.** The digest goes to Owners only.
 
 ## Tickets
 
 1. Glossary (Usage, View Count, Usage Key, Usage Feed), the tables `view_counts` and `usage_counts` with `workspaces.usage_since`, `recordView` and the batching, the retention in the rollup job. No page counts anything yet.
 2. Count the pages: dashboard, deck, Metric, View Link, and the `n_api` reads of the API and the MCP Server; the demo and prefetch rules. Blocked by 1.
 3. The Usage page and `workspaceUsage`, the suggestions and `archiveMetrics`. Blocked by 2 and spec 0029's Archived Metrics.
-4. Installation figures: the counters for calls, `installation_usage_daily`, the `usage-rollup` job and its clock entry, `installationUsage`, the Usage Key, the endpoint, the table on Installation Settings, the small-number rules. Blocked by 1.
-5. The Usage Feed program `@ziffr/feed-usage`, its clock job and Docker settings (off by default), and the guide `docs/guides/usage.md`. Blocked by 4.
-6. The Pack "Ziffr operations", the test that ties its slugs to the program, and the Feed as Submitter in "Set up from this Pack". Blocked by 5 and spec 0030.
-7. Docs: the user guide chapter for Workspace settings (Usage) and Installation Settings, threat model boundaries, release notes, and a security review of the whole spec.
-8. Later, on request: the Workspace's own figures as Metrics (Workspace-level endpoint, `--workspace`, a Pack). Blocked by 3 and 5.
+4. Installation figures: the counters for calls, `installation_usage_daily`, the `usage-rollup` job and its clock entry, `installationUsage`, the Usage Key, the endpoint, the table on Installation Settings, the small-number rules, and `ZIFFR_USAGE_EXCLUDE_WORKSPACE`. Blocked by 1.
+5. The Usage Feed program `@ziffr/feed-usage`, its clock job and Docker settings (off by default), and the guide `docs/guides/usage.md` (same-Installation setup, Workspace Limit, downtime). Blocked by 4.
+6. The Pack "Ziffr operations", the test that ties its slugs to the program, a slug hint in Pack entries, and the Feed as Submitter in "Set up from this Pack". Blocked by 5 and spec 0030.
+7. The monthly email digest to Owners: `usage_digests`, the opt-out setting, the `usage-digest` job and its clock entry. Blocked by 3.
+8. Docs: the user guide chapters for Workspace settings (Usage, the digest setting) and Installation Settings, threat model boundaries, release notes, and a security review of the whole spec. Blocked by 3, 4, 5, 6 and 7.
+9. Later, on request: the Workspace's own figures as Metrics (Workspace-level endpoint, `--workspace`, a Pack). Blocked by 3 and 5.
 
 ## Further Notes
 
