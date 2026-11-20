@@ -89,15 +89,15 @@ describe("installing a Pack from a file", () => {
 });
 
 describe("Packs in several Workspaces", () => {
-  it("installs the same Pack in two Workspaces, each with its own entries, and refuses a name a Workspace has already", async () => {
+  it("installs the same Pack in two Workspaces, each with its own entries, and two Packs that describe the same Metric", async () => {
     const a = await ws("A"); const b = await ws("B"); const ann = await a.person("owner"); const zoe = await b.person("owner");
     await installPackFile(a.actor(ann), file(), yes);
     expect(await installPackFile(b.actor(zoe), file(), yes)).toBeGreaterThan(0);
     expect(await count("catalog_metrics", a.id)).toBe(3);
     expect(await count("catalog_metrics", b.id)).toBe(3);
-    // Another Pack whose entry is named like one this Workspace has already: refused whole, saying why.
-    await expect(installPackFile(a.actor(ann), file({ ...PACK, id: "someone/other", contents: { metrics: PACK.contents.metrics!.slice(0, 1) } }), yes)).rejects.toThrow("an entry of the same name");
-    expect(await count("pack_installs", a.id)).toBe(1);
+    // Another Pack with an entry named like one this Workspace has: both stay, each under its own Pack.
+    await installPackFile(a.actor(ann), file({ ...PACK, id: "someone/other", contents: { metrics: PACK.contents.metrics!.slice(0, 1) } }), yes);
+    expect((await metricCatalog(a.actor(ann))).filter((c) => c.name === "MRR")).toHaveLength(2);
   });
 });
 

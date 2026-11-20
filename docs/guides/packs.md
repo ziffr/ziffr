@@ -29,6 +29,9 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 
 ## The file
 
+Ziffr's own five starting Packs, in [`packs/`](../../packs/README.md), are complete examples of every kind of item.
+
+
 ```json
 {
   "format": "ziffr.pack/1",

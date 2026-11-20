@@ -1,0 +1,309 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/sports-club",
+  "name": "Sports club",
+  "version": "1.0.0",
+  "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "members",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Members",
+          "description": "Members with a paid or exempt membership at month end.",
+          "category": "Club",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "members",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "joiners",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Joiners",
+          "description": "People whose membership began in the month.",
+          "category": "Club",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "people",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "leavers",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Leavers",
+          "description": "People whose membership ended in the month.",
+          "category": "Club",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "people",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "attendance",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Attendance per training",
+          "description": "Players at the week's training sessions, counted by the coach after each session.",
+          "category": "Club",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "players",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "fees",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Fees received",
+          "description": "Membership fees received in the month.",
+          "category": "Club",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "volunteer-hours",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Volunteer hours",
+          "description": "Hours volunteers gave the club in the month: coaching, events, the club house and the board.",
+          "category": "Club",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "hours",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "season-overview",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Season overview",
+          "description": "Members coming and going, attendance at training, fees and the hours volunteers give.",
+          "slots": [
+            {
+              "label": "Members",
+              "suggests": "members"
+            },
+            {
+              "label": "Joiners",
+              "suggests": "joiners"
+            },
+            {
+              "label": "Leavers",
+              "suggests": "leavers"
+            },
+            {
+              "label": "Attendance per training",
+              "suggests": "attendance"
+            },
+            {
+              "label": "Fees received",
+              "suggests": "fees"
+            },
+            {
+              "label": "Volunteer hours",
+              "suggests": "volunteer-hours"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                4
+              ],
+              "x": 4,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 8,
+              "y": 0,
+              "w": 4,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                3
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 20
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "after-training",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "After training",
+          "description": "Each coach gives the week's attendance by the next working day; the club's secretary steps in when it is late.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 0
+            },
+            {
+              "type": "escalate",
+              "to": "stand-in",
+              "daysAfter": 1
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

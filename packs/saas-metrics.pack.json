@@ -1,0 +1,556 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/saas-metrics",
+  "name": "SaaS metrics",
+  "version": "1.0.0",
+  "summary": "MRR, its new, expansion and churned parts, customers, churn, net revenue retention and CAC, with a monthly dashboard and the Workflow for the monthly close.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "mrr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Monthly recurring revenue",
+          "description": "Recurring subscription revenue at month end.",
+          "category": "Sales",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "new-mrr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "New MRR",
+          "description": "Monthly recurring revenue added in the month by customers who paid for the first time.",
+          "category": "Sales",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "expansion-mrr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Expansion revenue",
+          "description": "Monthly recurring revenue added in the month by existing customers through upgrades and add-ons; new customers are not included.",
+          "category": "Sales",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "churned-mrr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Churned MRR",
+          "description": "Monthly recurring revenue lost in the month to cancellations and downgrades.",
+          "category": "Customers",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "customers",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Active customers",
+          "description": "Customers with a paying contract or at least one order in the last twelve months, at period end.",
+          "category": "Customers",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "customers",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "logo-churn",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Churn rate",
+          "description": "Share of subscribers who cancelled during the month.",
+          "category": "Customers",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "lower",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMax": 3,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "nrr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Net revenue retention",
+          "description": "Recurring revenue now from customers who were customers twelve months ago, as a share of their recurring revenue then; expansion counts, new customers do not.",
+          "category": "Customers",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 100,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "cac",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Customer acquisition cost",
+          "description": "Sales and marketing costs of the month divided by the new customers won in it.",
+          "category": "Marketing",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "arpa",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Average revenue per account",
+          "description": "Monthly recurring revenue at month end divided by paying accounts at month end.",
+          "category": "Product",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "formula": "{mrr} / {customers}"
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "saas-monthly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "SaaS monthly",
+          "description": "Recurring revenue, its movements, customers and retention, month by month.",
+          "slots": [
+            {
+              "label": "Monthly recurring revenue",
+              "suggests": "mrr"
+            },
+            {
+              "label": "New MRR",
+              "suggests": "new-mrr"
+            },
+            {
+              "label": "Churned MRR",
+              "suggests": "churned-mrr"
+            },
+            {
+              "label": "Customers",
+              "suggests": "customers"
+            },
+            {
+              "label": "Net revenue retention",
+              "suggests": "nrr"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                4
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                4
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "table",
+              "slots": [
+                0
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "design",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 16,
+              "w": 12,
+              "h": 7,
+              "settings": {
+                "design": "growth-trend"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "views": [
+      {
+        "key": "growth-trend",
+        "design": {
+          "format": "ziffr.view/1",
+          "name": "Growth, smoothed",
+          "description": "The Metric's growth on the month before, and its three-month moving average.",
+          "kind": "analysis",
+          "slots": [
+            {
+              "label": "Metric",
+              "metrics": "one"
+            }
+          ],
+          "size": {
+            "w": 12,
+            "h": 7
+          },
+          "options": {
+            "window": {
+              "label": "Periods",
+              "default": 12
+            }
+          },
+          "analysis": {
+            "format": "ziffr.analysis/1",
+            "name": "Growth, smoothed",
+            "description": "Growth on the month before, and its three-month moving average.",
+            "slots": [
+              {
+                "label": "Metric"
+              }
+            ],
+            "steps": [
+              {
+                "id": "growth",
+                "fn": "growth",
+                "of": "slot1"
+              },
+              {
+                "id": "smooth",
+                "fn": "movingAverage",
+                "of": "growth",
+                "window": 3
+              }
+            ],
+            "outputs": [
+              {
+                "step": "growth",
+                "label": "Growth",
+                "unit": "percent"
+              },
+              {
+                "step": "smooth",
+                "label": "Three-month average",
+                "unit": "percent"
+              }
+            ]
+          },
+          "parts": [
+            {
+              "mark": "plot",
+              "axes": "regular",
+              "grid": "horizontal",
+              "scale": "auto",
+              "marks": [
+                {
+                  "mark": "bar",
+                  "show": "recipe.growth",
+                  "tone": "muted"
+                },
+                {
+                  "mark": "line",
+                  "show": "recipe.smooth",
+                  "tone": "data",
+                  "weight": "strong"
+                }
+              ]
+            },
+            {
+              "mark": "text",
+              "style": "caption",
+              "content": [
+                "Three-month average now ",
+                {
+                  "show": "recipe.smooth",
+                  "style": "strong"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "analyses": [
+      {
+        "key": "growth-smoothed",
+        "recipe": {
+          "format": "ziffr.analysis/1",
+          "name": "Growth, smoothed",
+          "description": "Growth on the month before, and its three-month moving average.",
+          "slots": [
+            {
+              "label": "Metric"
+            }
+          ],
+          "steps": [
+            {
+              "id": "growth",
+              "fn": "growth",
+              "of": "slot1"
+            },
+            {
+              "id": "smooth",
+              "fn": "movingAverage",
+              "of": "growth",
+              "window": 3
+            }
+          ],
+          "outputs": [
+            {
+              "step": "growth",
+              "label": "Growth",
+              "unit": "percent"
+            },
+            {
+              "step": "smooth",
+              "label": "Three-month average",
+              "unit": "percent"
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monthly-close",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monthly close",
+          "description": "Values due on the third working day after the month, checked, approved by one person, then locked.",
+          "dueWorkingDays": 3,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "stand-in",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 30,
+              "outsideTarget": true
+            },
+            {
+              "type": "approve",
+              "approvers": 1,
+              "values": "unusual"
+            },
+            {
+              "type": "publish",
+              "lock": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
