@@ -204,6 +204,7 @@ describe("the caps on what Packs add, kept in the database", () => {
     const ops = emptyOps(); ops.catalog.insert.push(entry("One too many"));
     const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: ann, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
     expect(error?.code).toBe("23514");
+    expect(error?.message).toMatch(/at most 1000/);
     expect(await count("catalog_metrics", w.id)).toBe(PACK_CAPS.entries);
     expect((await db().from("pack_installs").select("version").eq("id", id).single()).data!.version).toBe("1.2.0");
   });
@@ -224,6 +225,7 @@ describe("the caps on what Packs add, kept in the database", () => {
     const ops = emptyOps(); ops.templates.insert.push({ key: "extra", kind: "dashboard", name: "Extra", description: "", slots: [], body: {}, hash: "0".repeat(64) });
     const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: ann, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
     expect(error?.code).toBe("23514");
+    expect(error?.message).toMatch(/at most 1000/);
     expect(await count("team_templates", w.id)).toBe(PACK_CAPS.templates);
   });
 
@@ -235,5 +237,14 @@ describe("the caps on what Packs add, kept in the database", () => {
     const results = await Promise.allSettled(packs.map((p) => installPackFile(actor, file(p), yes)));
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
     expect(await count("catalog_metrics", w.id)).toBe(PACK_CAPS.entries);
+  });
+
+  it("lets parallel installs pass only up to the most Packs, never past it", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    await db().from("pack_installs").insert(Array.from({ length: PACK_CAPS.installs - 2 }, (_, i) => ({ workspace_id: w.id, pack_id: `someone/q${i}`, version: "1.0.0", license: "MIT", source: "upload", signed: false, manifest: {} })));
+    const packs = Array.from({ length: 6 }, (_, i) => small(`someone/r${i}`)).map((p, i) => ({ ...p, contents: { metrics: [{ key: `m${i}`, metric: { ...PACK.contents.metrics![0].metric, name: `Parallel ${i}` } }] } }));
+    const results = await Promise.allSettled(packs.map((p) => installPackFile(actor, file(p), yes)));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(await count("pack_installs", w.id)).toBe(PACK_CAPS.installs);
   });
 });
