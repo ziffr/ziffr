@@ -1,13 +1,15 @@
 // Size and usage in Workspace settings (spec 0029, ticket #266; GLOSSARY: Size, Workspace Limit): for Owners and
 // Admins, the Size's name, how many Metrics the Workspace holds of how many, the 14 days over the limit if they run,
-// and a coming change. Without a limit, only the count. No price and no payment detail: Ziffr holds none.
+// and a coming change. Without a limit, only the count. No price and no payment detail: Ziffr holds none. Owners get
+// Change Size and Billing and invoices where Ziffr Cloud is set up.
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { dayWords, type Usage } from "@ziffr/core/workspace-usage";
 
 const n = (x: number) => x.toLocaleString("en-US");
 
 /** The section, by its anchor #size, which the banner and the emails link to. */
-export function SizeAndUsage({ usage: u }: { usage: Usage }) {
+export function SizeAndUsage({ usage: u, cloud = false }: { usage: Usage; cloud?: boolean }) {
   return (
     <section id="size" aria-labelledby="size-heading" className="scroll-mt-20 space-y-2">
       <h2 id="size-heading" className="text-lg font-medium">Size and usage</h2>
@@ -27,6 +29,13 @@ export function SizeAndUsage({ usage: u }: { usage: Usage }) {
           )}
           {u.next && <p className="text-sm">Changes to {u.next.label} on {dayWords(u.next.on)}.</p>}
         </>
+      )}
+      {/* Owners only, where Ziffr Cloud is set up: a form post hands them over with a token (spec 0029). */}
+      {cloud && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          <form method="post" action="/settings/size/handover"><input type="hidden" name="to" value="size" /><button type="submit" className={buttonVariants({ size: "sm" })}>Change Size</button></form>
+          <form method="post" action="/settings/size/handover"><input type="hidden" name="to" value="billing" /><button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>Billing and invoices</button></form>
+        </div>
       )}
     </section>
   );

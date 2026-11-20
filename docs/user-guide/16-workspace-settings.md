@@ -83,6 +83,8 @@ Over its limit, the section says since when and until when new Metrics can still
 
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
+On hosted Ziffr, Owners also see **Change Size** and **Billing and invoices**. Both take you to Ziffr Cloud, where you book, change or cancel the Size and see invoices; Ziffr hands you over with a token that works for five minutes and knows only the Workspace, its name and your address. Admins see the section without these buttons, and Ziffr never holds payment details.
+
 Members and Guests do not see this section. Who sets a limit: see the Installation settings chapter.
 
 ### Name

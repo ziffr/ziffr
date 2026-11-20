@@ -35,10 +35,11 @@ export type AuditEvent = {
   objectType: AuditObjectType | null; objectId: string | null; objectName: string | null; hidden: boolean; details: AuditDetails;
 };
 
-/** Records an event in a workspace, as the person `by` (null for Ziffr itself). Best effort by design: the action it
+/** Records an event in a workspace, as the person `by` (null for Ziffr itself, or for the service `system` names, such
+ * as Ziffr Cloud). Best effort by design: the action it
  * describes has already happened, so a failure here is logged with its kind and never undoes or fails the action
  * (spec 0008). The demo is not recorded: its made-up people are anyone. Never pass a value or a message body. */
-export async function recordAudit(workspaceId: string, by: string | null, event: AuditInput): Promise<void> {
+export async function recordAudit(workspaceId: string, by: string | null, event: AuditInput, system = "Ziffr"): Promise<void> {
   if (workspaceId === DEMO_WORKSPACE_ID) return;
   try {
     const [{ data: person }, { data: key }] = await Promise.all([
@@ -49,7 +50,7 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
     const { error } = await db().from("audit_events").insert({
       workspace_id: workspaceId,
       actor_id: by ? String(by).slice(0, 64) : null,
-      actor_name: String(person?.name ?? (by ? "A former member" : "Ziffr")).trim().slice(0, 120) || "Someone",
+      actor_name: String(person?.name ?? (by ? "A former member" : system)).trim().slice(0, 120) || "Someone",
       access_key_id: event.accessKeyId ?? null,
       kind: event.kind,
       object_type: event.object?.type ?? null,
