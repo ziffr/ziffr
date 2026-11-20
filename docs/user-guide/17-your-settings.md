@@ -90,7 +90,7 @@ The top bar is on every page once you are in a Workspace.
 
 | Option | What it does |
 | --- | --- |
-| **Workspace** | Shown when you belong to more than one Workspace. Pick another to switch to it. |
+| **Workspace** | Shown when you belong to more than one Workspace, or where this Ziffr offers the demo. Pick another to switch to it. Below a line, **The demo** (read-only, shared) opens the shared demo, the same one for everyone; **Leave the demo** in its top bar brings you back to your own Workspace. |
 | **New workspace** | Starts another Workspace, of which you become the Owner |
 | **My schedule** | What you have to do in this Workspace, overdue first; see [My schedule and your calendar](#my-schedule-and-your-calendar) |
 | **Your profile** | Your name, colour and address |

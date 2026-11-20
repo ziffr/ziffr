@@ -4,6 +4,7 @@ import "./globals.css";
 import { getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
+import { demoEnabled } from "@/lib/demo-mode";
 import { workspaceLinks } from "@/lib/settings-links";
 import { GuideLink, TopBar } from "@/components/top-bar";
 import { guideHref } from "@/lib/user-guide";
@@ -94,7 +95,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           workspace={workspaceLinks(role)}
           open={open}
           guide={guideHref()}
-          account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin }}
+          account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() }}
           demo={demo ? (
             <>
               <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />

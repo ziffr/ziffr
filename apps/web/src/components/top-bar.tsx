@@ -35,8 +35,12 @@ const YOU: NavItem[] = [
 const iconButton = "flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
 
 /** The signed-in person; null in the demo, where `demo` holds its controls instead. `installationAdmin` adds the
- * Installation settings to their menu (spec 0025); the page checks again. */
-export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string; installationAdmin?: boolean };
+ * Installation settings to their menu (spec 0025); the page checks again. `demo` is true where this Ziffr offers the
+ * demo: it is then listed under their workspaces, set apart by a line, as one more place to switch to. */
+export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string; installationAdmin?: boolean; demo?: boolean };
+
+/** The shared, read-only demo, as it is named under a person's workspaces. */
+const DEMO_ENTRY = { href: "/demo", label: "The demo", hint: "read-only, shared" };
 
 /** The Installation's page, for Installation Admins only. */
 const INSTALLATION: NavItem = { href: "/installation", label: "Installation settings" };
@@ -118,11 +122,12 @@ function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; accoun
       <GuideLink href={guide} className="mt-3 inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 text-sm hover:bg-muted"><CircleHelp aria-hidden className="size-4" /> User guide</GuideLink>
       {account && (
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-sm">
-          {account.workspaces.length > 1 && (
+          {(account.workspaces.length > 1 || account.demo) && (
             <label className="flex items-center gap-1.5">
               <span className="text-muted-foreground">Workspace</span>
-              <select value={account.current} disabled={pending} onChange={(e) => start(async () => { told(await switchWorkspace(e.target.value)); })} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
+              <select value={account.current} disabled={pending} onChange={(e) => { const id = e.target.value; if (id === DEMO_ENTRY.href) { window.location.assign(DEMO_ENTRY.href); return; } start(async () => { told(await switchWorkspace(id)); }); }} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
                 {account.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {account.demo && <><option disabled>──────────</option><option value={DEMO_ENTRY.href}>{DEMO_ENTRY.label} ({DEMO_ENTRY.hint})</option></>}
               </select>
             </label>
           )}
@@ -146,13 +151,23 @@ function AccountMenu({ account }: { account: Account }) {
         <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {account.workspaces.length > 1 && (
+        {(account.workspaces.length > 1 || account.demo) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>Workspace</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={account.current} onValueChange={(id) => { if (id !== account.current) start(async () => { told(await switchWorkspace(String(id))); }); }}>
                 {account.workspaces.map((w) => <DropdownMenuRadioItem key={w.id} value={w.id}>{w.name}</DropdownMenuRadioItem>)}
               </DropdownMenuRadioGroup>
+              {/* The demo is not one of their workspaces: a line sets it apart, but it is switched to the same way. */}
+              {account.demo && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem render={<a href={DEMO_ENTRY.href} />}>
+                    <span>{DEMO_ENTRY.label}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{DEMO_ENTRY.hint}</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
           </>
