@@ -187,7 +187,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
       if (keep(file, checkDeckTemplateFileValue(file), name, leftOut)) decks.push({ key, template: file });
     } else if (r.kind === "workflow" && ids("workflows").includes(Number(r.id))) {
       const b = r.body as WorkflowTemplateBody;
-      const file: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", ...head, dueWorkingDays: b.dueWorkingDays, steps: b.steps.map((s) => (s.type === "approve" ? { type: "approve", approvers: s.approvers, ...(s.values ? { values: s.values } : {}) } : s)) };
+      const file: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", ...head, dueWorkingDays: b.dueWorkingDays, steps: b.steps.map((s) => (s.type === "approve" ? { type: "approve", approvers: s.approvers, ...(s.values ? { values: s.values } : {}), ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)) };
       if (keep(file, checkWorkflowTemplateFileValue(file), name, leftOut)) workflows.push({ key, template: file });
     }
   }

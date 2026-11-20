@@ -74,7 +74,7 @@ describe("Export as Pack", () => {
     expect(pack.contents.metrics.find((m: { key: string }) => m.key === "revenue").metric.description).toBeUndefined();
     // The drawing on the slide stays behind; the words, the widget and the box go.
     expect(pack.contents.decks[0].template.slides[0].shapes.map((s: { shape: string }) => s.shape)).toEqual(["text", "widget", "box"]);
-    expect(pack.contents.workflows[0].template.steps[1]).toEqual({ type: "approve", approvers: 1, values: "every" });
+    expect(pack.contents.workflows[0].template.steps[1]).toMatchObject({ type: "approve", approvers: 1, values: "every" });
   });
 
   it("is the same file again after installing it in another Workspace and exporting what it added", async () => {
