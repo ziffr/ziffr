@@ -361,6 +361,16 @@ describe("readPaste: bounded work", () => {
     const text = `a${"\t".repeat(GRID_LIMITS.cells)}b\nc\td`;
     expect(readPaste(text, CTX)).toEqual({ ok: false, reason: "too_many_cells", count: 2 * (GRID_LIMITS.cells + 1) });
   });
+  it("refuses one very wide row among many short ones in readGrid, before any grid is built", () => {
+    const text = [`a${"\t".repeat(GRID_LIMITS.cells + 1)}b`, ...Array.from({ length: PASTE_LIMITS.values }, () => "x\ty")].join("\n");
+    const started = performance.now();
+    expect(readGrid(text)).toEqual({ ok: false, reason: "too_many_cells", count: (PASTE_LIMITS.values + 1) * (GRID_LIMITS.cells + 2) });
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+  it("counts many rows without a limit on arguments", () => {
+    // 60,000 rows: more than a spread into Math.max takes on some engines.
+    expect(readGrid(Array.from({ length: 60_000 }, () => "\t").join("\n") + "a\tb")).toEqual({ ok: true, grid: { cells: [["a", "b"]], top: 59_999, left: 1 } });
+  });
   it("still reads the largest paste the limits allow: 2,000 rows of a Metric, a period and a value", () => {
     const rows = Array.from({ length: PASTE_LIMITS.values }, (_, i) => `visits\t${new Date(Date.UTC(2021, 0, 1 + i)).toISOString().slice(0, 10)}\t${i}`);
     const started = performance.now();
