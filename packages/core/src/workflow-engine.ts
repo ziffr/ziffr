@@ -24,6 +24,7 @@ import type { NumberStyle } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 import { checkAlerts, checkMissingAlerts } from "./alert-firing";
 import { refreshAlertSight } from "./alerts";
+import { checkTells } from "./tell-firing";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
@@ -228,6 +229,8 @@ export async function onValue(metricId: number, period: string, submitterId: str
   // The one place a value that counts reaches the Alerts, whatever Source it came from and whether or not the Metric has
   // a Workflow (spec 0032): a value waiting for Approval is looked at only by Alerts that include those; an Import is silent.
   await checkAlerts(metricId, { imported: opts.imported });
+  // The Workflow's own Tell steps look at the same value, for the people the Workflow's owner chose.
+  await checkTells(metricId, { imported: opts.imported });
   return done;
 }
 
@@ -423,6 +426,7 @@ export async function approve(ws: string, actionId: number, by: string, source: 
   if (!(await publishDecided(ctx, actionId))) return "Approved; a newer value came in, and it is checked instead.";
   // Approved: a value that waited is now one Alerts may look at, checked as if it had just arrived.
   await checkAlerts(a.metric_id);
+  await checkTells(a.metric_id);
   return `Approved; ${publishedLabel(ctx)}.`;
 }
 

@@ -346,7 +346,7 @@ export type DeckTemplateBody = { slides: SlideBody[]; themeId?: number | null };
 /** A whole deck saved with its Metrics left open (GLOSSARY: Deck Template). */
 export type DeckTemplate = TemplateBase & { kind: "deck"; view: "deck"; body: DeckTemplateBody };
 /** A step of a Workflow Template: a Workflow's step with its Approvers left open, only how many to pick. */
-export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" }> | { type: "approve"; approvers: number; values?: ApprovalScope; nobodyElse?: NobodyElse };
+export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" | "tell" }> | { type: "approve"; approvers: number; values?: ApprovalScope; nobodyElse?: NobodyElse };
 /** What a Workflow Template keeps (GLOSSARY: Workflow Template): the Due Date and steps, with no person in them. */
 export type WorkflowTemplateBody = { dueWorkingDays: number; steps: WorkflowTemplateStep[] };
 /** A Workflow saved with its people left open (GLOSSARY: Workflow Template). */
@@ -424,7 +424,12 @@ export type WorkflowStep =
   // existed) or every value. Imports never wait. What happens when nobody but the submitter could approve: a
   // Self-check (the default, also for steps stored before the choice existed) or counting it without Approval.
   | { type: "approve"; approvers: string[]; values?: ApprovalScope; nobodyElse?: NobodyElse }
-  | { type: "publish"; lock: boolean };
+  | { type: "publish"; lock: boolean }
+  // Tells named people and Groups when a Metric of the Workflow reaches a level (GLOSSARY: Tell). `id` names the step for
+  // its memory (once per crossing); a level or a share is plain decimal text.
+  | { type: "tell"; id: string; condition: TellCondition; people: string[]; groups: number[] };
+/** What a Tell step waits for: an Alert's conditions without "not in by its Due Date", which is Escalate's. */
+export type TellCondition = { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string };
 /** Which values an Approve step holds back for Approval: only Unusual Values, or every value. */
 export type ApprovalScope = "unusual" | "every";
 /** What an Approve step does with a value nobody but its submitter could approve (GLOSSARY: Self-check). */

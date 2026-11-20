@@ -20,10 +20,15 @@ export async function unsubscribeIsAlert(token: string): Promise<boolean> {
   return (await deliveryFor(token))?.kind === "alert";
 }
 
+/** Whether a token belongs to a Tell message, whose link says "stop telling me" for its Workflow (for the page that asks). */
+export async function unsubscribeIsTell(token: string): Promise<boolean> {
+  return Boolean((await deliveryFor(token))?.tell_workflow_id);
+}
+
 async function deliveryFor(token: string) {
   if (!TOKEN.test(String(token))) return null;
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, alert_id").eq("unsubscribe_token", token).maybeSingle();
-  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && d.alert_id))) return null;
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, alert_id, tell_workflow_id").eq("unsubscribe_token", token).maybeSingle();
+  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && (d.alert_id || d.tell_workflow_id)))) return null;
   return d;
 }
 
@@ -32,6 +37,11 @@ async function deliveryFor(token: string) {
 export async function optOutByToken(token: string): Promise<boolean> {
   const d = await deliveryFor(token);
   if (!d) return false;
+  if (d.kind === "alert" && d.tell_workflow_id) {
+    // A Tell message (GLOSSARY: Tell): "stop telling me" for the Workflow it came from, the person's own switch (tell.ts).
+    await db().from("tell_stops").upsert({ workflow_id: d.tell_workflow_id, person_id: d.recipient_id, workspace_id: d.workspace_id }, { onConflict: "workflow_id,person_id", ignoreDuplicates: true });
+    return true;
+  }
   if (d.kind === "alert") {
     // One Alert, the one this message was about and only if it is still its recipient's (GLOSSARY: Alert): paused by the
     // person's own switch, which nothing but the person undoes. Using the link again changes nothing.

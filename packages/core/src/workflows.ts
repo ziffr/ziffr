@@ -12,6 +12,10 @@ import { localTime, workspaceClock } from "./workspace-clock";
 import { ensureBaseline, recordVersion } from "./versions";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { audit } from "./audit-log";
+import { getGroups } from "./access";
+import { validCondition } from "./alert-rules";
+import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW } from "./alert-limits";
+import { randomUUID } from "node:crypto";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
@@ -25,12 +29,21 @@ const day = (v: unknown) => {
 async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowConfig> {
   const { data: people } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId);
   const ids = new Set((people ?? []).map((p) => p.user_id as string));
+  const groupIds = new Set((await getGroups(actor.workspaceId)).map((g) => g.id));
   const steps: WorkflowStep[] = [];
   for (const s of (Array.isArray(c?.steps) ? c.steps : []).slice(0, 12)) {
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
     else if (s.type === "escalate") steps.push({ type: "escalate", to: s.to === "owner" ? "owner" : "stand-in", daysAfter: int(s.daysAfter, 0, 30) });
     else if (s.type === "check" && !steps.some((x) => x.type === "check")) steps.push({ type: "check", changePct: int(s.changePct, 1, 1000), outsideTarget: Boolean(s.outsideTarget) });
     else if (s.type === "approve" && !steps.some((x) => x.type === "approve")) steps.push({ type: "approve", approvers: [...new Set((Array.isArray(s.approvers) ? s.approvers : []).map(String).filter((a) => ids.has(a)))].slice(0, 3), values: s.values === "every" ? "every" : "unusual", nobodyElse: s.nobodyElse === "count" ? "count" : "self-check" });
+    else if (s.type === "tell" && steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW) {
+      // A Tell step: a level or a share as plain text (the Alert rules decide), members and Groups of this Workspace only.
+      const c = s.condition as unknown;
+      if (!validCondition(c) || c.kind === "missing_after_due") throw new Error("A Tell step needs a level or a share it can wait for.");
+      const id = typeof s.id === "string" && /^[A-Za-z0-9-]{8,40}$/.test(s.id) && !steps.some((x) => x.type === "tell" && x.id === s.id) ? s.id : randomUUID();
+      const list = <T,>(v: unknown, ok: (x: unknown) => x is T, max: number) => [...new Set((Array.isArray(v) ? v : []).filter(ok))].slice(0, max);
+      steps.push({ type: "tell", id, condition: c.kind === "at_or_above" || c.kind === "below" ? { kind: c.kind, value: c.value } : { kind: c.kind, share: c.share }, people: list(s.people, (x): x is string => typeof x === "string" && ids.has(x), TELL_PEOPLE_PER_STEP), groups: list(s.groups, (x): x is number => typeof x === "number" && groupIds.has(x), TELL_GROUPS_PER_STEP) });
+    }
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
   const pub = steps.filter((s) => s.type === "publish");

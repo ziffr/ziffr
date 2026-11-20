@@ -68,9 +68,13 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "approve", approvers: ["sara", "ben"], values: "every" }, people)).toBe("Every value approved by Sara, then Ben; when nobody else can, the submitter checks it");
     expect(stepLabel({ type: "approve", approvers: ["sara"], values: "every", nobodyElse: "count" }, people)).toBe("Every value approved by Sara; when nobody else can, it counts without approval");
     expect(stepLabel({ type: "approve", approvers: [] }, people)).toBe("Approval, nobody chosen yet");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "share_of_target", share: "80" }, people: ["sara"], groups: [3] }, people, [{ id: 3, name: "Finance" }])).toBe("Tell Sara, Finance when a value reaches 80 % of its target");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "10000" }, people: [], groups: [] }, people)).toBe("Tell nobody yet when a value falls below 10000");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "at_or_above", value: "5" }, people: ["sara"], groups: [9] }, people)).toBe("Tell Sara, a Group when a value reaches 5");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "changed_more", share: "20" }, people: ["sara"], groups: [] }, people)).toBe("Tell Sara when a value changes more than 20 % on the period before");
     expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
     expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");
-    expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "publish"]);
+    expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish"]);
   });
   it("adds no working days for none", () => {
     expect(addWorkingDays("2026-10-30", 0)).toBe("2026-10-30");

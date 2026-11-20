@@ -35,7 +35,7 @@ type Row = { id: number; person_id: string; metric_id: number; kind: AlertKind; 
 const COLUMNS = "id, person_id, metric_id, kind, level, delivery, include_unapproved, paused, state, fired_period";
 
 /** What every Alert on one Metric is checked against: the Metric's latest period as its page shows it. */
-type View = {
+export type View = {
   /** The period the check is about. */
   period: string;
   value: string | null;
@@ -48,7 +48,7 @@ type View = {
 };
 
 /** What is shared by every check of one call. */
-type Ctx = { ws: string; metrics: Metric[]; style: NumberStyle; method: AttainmentMethod; seeing: Map<string, Set<number>> };
+export type Ctx = { ws: string; metrics: Metric[]; style: NumberStyle; method: AttainmentMethod; seeing: Map<string, Set<number>> };
 
 /** A number as plain decimal text ("12", "-0.5"), never an exponent: what the rules compare. */
 function plain(n: number): string | null {
@@ -120,9 +120,15 @@ export async function checkMissingAlerts(ws: string, metricId: number, period: s
   }
 }
 
+/** What one call shares: the Workspace's Metrics, number style and Attainment method, and who sees what (read lazily). */
+export async function alertContext(ws: string): Promise<Ctx> {
+  const metrics = await getMetrics(ws);
+  return { ws, metrics, style: await numberStyleOf(ws), method: await attainmentMethodOf(ws), seeing: new Map() };
+}
+
 /** The Metric's latest period with a value, as an Alert sees it; null without a value. Only the Metric's own periods:
  * a Display Period changes how a chart groups, never what an Alert looks at. */
-async function latestView(ctx: Ctx, m: Metric): Promise<View | null> {
+export async function latestView(ctx: Ctx, m: Metric): Promise<View | null> {
   const series = (await getSeriesOf(ctx.ws, ctx.metrics, [m.id]))[m.slug] ?? [];
   const found = latestAndPrevious(series.map((p) => ({ period: p.period, value: plain(p.value) })));
   if (!found) return null;

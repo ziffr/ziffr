@@ -179,7 +179,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, tell_workflow_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!found) return "skipped";
@@ -238,7 +238,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
-    text += `\n\n--\n${claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email"}: ${unsubscribe}`;
+    text += `\n\n--\n${claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email"}: ${unsubscribe}`;
   }
   if (digest) {
     // A signed link that stops it with no sign-in (usage-digest-token.ts); an Installation with no key to sign it

@@ -27,7 +27,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
 /** Why a Delivery must not go out because its Metric is archived (GLOSSARY: Archived Metric), or null. Checked when it
  * is sent, not only when it was queued: a Prompt checked just before the archive and queued just after, or one put
@@ -41,6 +41,11 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     const metrics = await getMetrics(ws);
     const m = metrics.find((x) => x.id === d.alert_metric_id);
     if (!m || m.archived_at || !d.recipient_id || !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent: the Metric is no longer open to this person.";
+    // A Tell message (GLOSSARY: Tell) also stops when the person said "stop telling me" after it was queued.
+    if (d.tell_workflow_id) {
+      const { data: stopped } = await db().from("tell_stops").select("person_id").eq("workflow_id", d.tell_workflow_id).eq("person_id", d.recipient_id).eq("workspace_id", ws).maybeSingle();
+      if (stopped) return "Not sent: the person asked not to be told by this Workflow.";
+    }
     return null;
   }
   let metricId: number | null = null;

@@ -214,6 +214,8 @@ Open it from the menu under your name, or from **Alerts** in the settings area. 
 
 Each Alert has three buttons: **Pause** (or **Resume**), **Edit** and **Delete**. Besides your own pause, Ziffr can hold an Alert back and says why: **you cannot see this Metric now**, **the Metric is archived**, **the Metric has no target now** or **the Metric has no Workflow now**. It resumes by itself when the reason ends (except for no target or no Workflow, which you end by editing the condition). An Alert on a Metric you can no longer see is not listed at all, and nothing is sent for it. Alerts are only yours: nobody sets one for you or sees yours. In the demo the page is read-only.
 
+If a Workflow has a **Tell** step that names you, directly or through a Group, and you can see one of its Metrics, a section **Workflows that tell you** lists that Workflow with **Stop telling me**. After you stop it, none of its Tell steps tells you again until you press **Tell me again**; the link at the bottom of a Tell email does the same. Nobody is told when you do.
+
 ## Connected assistants
 
 **You → Connected assistants** lists the AI assistants you connected to Ziffr by its address, such as Claude.ai: for each, the name it gave itself, the Workspace, what it may do, when you connected it, when it was last used and until when it works. **Disconnect** ends one at once. A connection also ends on its end date and when you leave its Workspace, and an Owner can end it on the Workspace's **Access Keys** page, where it shows as a **Connected assistant**.

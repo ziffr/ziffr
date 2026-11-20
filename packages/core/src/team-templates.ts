@@ -273,11 +273,12 @@ export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (
 
 // Workflow Templates (GLOSSARY: Workflow Template): a Workflow's steps without its people.
 
-/** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who. */
+/** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who. A Tell
+ * step names people, so a template leaves it out. */
 export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
   return {
     dueWorkingDays: c.dueWorkingDays,
-    steps: c.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
+    steps: c.steps.flatMap((s) => (s.type === "tell" ? [] : [s])).map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
   };
 }
 
