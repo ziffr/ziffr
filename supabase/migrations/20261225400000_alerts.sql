@@ -70,6 +70,8 @@ begin
   -- Only a person with a sign-in in this Workspace; a Contact or a stranger has no membership.
   if not exists (select 1 from memberships where workspace_id = p_ws and user_id = p_person) then return 'not_a_member'; end if;
   if not exists (select 1 from metrics where id = p_metric and workspace_id = p_ws) then return 'no_metric'; end if;
+  -- Accepted: when a Metric the person lost sight of is deleted its Alerts cascade away and this count drops, which
+  -- tells them only that a Metric they once saw is gone (docs/security/threat-model.md, Accepted risks).
   if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person) >= p_per_person then return 'person_limit'; end if;
   if (select count(*) from alerts where workspace_id = p_ws and person_id = p_person and metric_id = p_metric) >= p_per_metric then return 'metric_limit'; end if;
   if (select count(*) from alerts where workspace_id = p_ws) >= p_per_workspace then return 'workspace_limit'; end if;
