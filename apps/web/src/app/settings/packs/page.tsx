@@ -3,6 +3,7 @@
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { listInstalledPacks } from "@ziffr/core/packs";
+import { marketplaceOn, marketplaceUpdates } from "@ziffr/core/marketplace";
 import { exportOptions } from "@ziffr/core/pack-export";
 import { can } from "@ziffr/core/actor";
 import { offeredItems } from "@ziffr/core/pack-updates";
@@ -17,6 +18,9 @@ export default async function PacksPage() {
   const manages = !demo && (actor.role === "owner" || actor.role === "admin");
   // What this person may put into a Pack: names only, of what they see. Nothing for a Guest.
   const options = can(actor, "create") ? await exportOptions(actor) : null;
+  // The Marketplace only for those who install, and only when the Installation turned the connection on.
+  const market = manages && (await marketplaceOn());
+  const updates = market ? await marketplaceUpdates(actor) : [];
   return (
     <>
       <PageHeader title="Packs" sub="Ready-made Metric Catalog entries, templates, View Designs and Themes, each a file with no code. Installing one adds them to the Workspace; it makes no Metric until you use them." />
@@ -26,6 +30,8 @@ export default async function PacksPage() {
         manages={manages}
         exportable={options}
         offers={offers}
+        marketplace={market}
+        updates={updates}
         demo={demo}
         guest={actor.role === "guest"}
         viewer={actor.personId}

@@ -57,6 +57,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_TRIAL_DAYS` | Offers Trial Workspaces (spec 0021): anyone may sign in and make one of their own, for this many days (1 to 30). Every Connector works in it, reaching only its Owner; it is deleted a week after it ends. The clock then also cleans trials up hourly and resets the demo nightly. Leave `ZIFFR_DEMO_ONLY` unset and set `ZIFFR_DEMO=1` to offer the demo beside it. See [Offering trials](../docs/guides/self-hosting.md#offering-trials) |
 | `ZIFFR_TRIAL_MAX` | How many trials may run at once; default 200 |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | The most Metrics a Workspace may hold unless it has a limit of its own (Archived Metrics not counted); unset means no limit. Also on the Installation Settings page |
+| `ZIFFR_MARKETPLACE` | `on` connects to the Marketplace for Packs (spec 0030); off unless set. `ZIFFR_MARKETPLACE_URL` names another Marketplace (https). Also on the Installation Settings page |
 | `ZIFFR_DEFAULT_LIMIT_LABEL` | What the default limit is called, such as Free; at most 30 characters |
 | `ZIFFR_CLOUD_KEY`, `ZIFFR_CLOUD_URL` | Hosted Ziffr only: the secret that signs Ziffr Cloud's API calls and the Owners' handover (at least 32 characters, environment only), and where Owners are handed over to. Self-hosters leave them unset |
 | `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
