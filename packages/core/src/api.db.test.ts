@@ -82,8 +82,8 @@ describe("getMetric and listObservations", () => {
     const first = await listObservations(key, m.slug, { from: "2026-02-01", to: "2026-04-01", limit: 2 });
     expect(first).toEqual({
       items: [
-        { period: "2026-02-01", value: 20, state: "recorded", submitter: ben, breakdown: [{ label: "Shop", value: 15 }, { label: "Online", value: 5 }] },
-        { period: "2026-03-01", value: 30, state: "locked", submitter: ben, breakdown: null },
+        { period: "2026-02-01", value: 20, state: "recorded", submitter: ben, submitter_name: expect.any(String), submitted_at: expect.any(String), source: "api", has_thread: false, breakdown: [{ label: "Shop", value: 15 }, { label: "Online", value: 5 }] },
+        { period: "2026-03-01", value: 30, state: "locked", submitter: ben, submitter_name: expect.any(String), submitted_at: expect.any(String), source: "api", has_thread: false, breakdown: null },
       ],
       next: "2026-03-01",
     });
@@ -94,7 +94,7 @@ describe("getMetric and listObservations", () => {
     const a = await w.metric(ben, { name: "A" }); const b = await w.metric(ben, { name: "B" });
     const d = await w.metric(ben, { name: "Ratio", formula: `{${a.slug}} / {${b.slug}}` });
     await value(w, a.id, "2026-01-01", 30); await value(w, b.id, "2026-01-01", 10);
-    expect((await listObservations(await keyOf(w, ben), d.slug, { limit: 10 })).items).toEqual([{ period: "2026-01-01", value: 3, state: "recorded", submitter: null, breakdown: null }]);
+    expect((await listObservations(await keyOf(w, ben), d.slug, { limit: 10 })).items).toEqual([{ period: "2026-01-01", value: 3, state: "recorded", submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null }]);
   });
 });
 
