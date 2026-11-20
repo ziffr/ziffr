@@ -8,6 +8,7 @@ import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { setActionStatus } from "./questions";
+import { openRows } from "./sealed-columns";
 import { finishTask, postReply } from "./threads";
 import { workspace } from "./test/db-fixtures";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
@@ -18,10 +19,17 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); delete process.env.ZIFFR_TRIAL_DAYS; });
 const thisMonth = () => periodStart(new Date(), "month", JANUARY);
 const lastMonth = () => shiftPeriod(thisMonth(), "month", -1);
-const tasks = async (metricId: number, purpose: string) => (await db().from("actions").select("id, assignee_id, asker_id, status, question, observation_id").eq("metric_id", metricId).eq("purpose", purpose).order("id")).data ?? [];
+// Questions and Thread messages are sealed with the Workspace Key: read here opened, as the app reads them.
+const tasks = async (metricId: number, purpose: string) => {
+  const { data } = await db().from("actions").select("id, workspace_id, assignee_id, asker_id, status, question, observation_id").eq("metric_id", metricId).eq("purpose", purpose).order("id");
+  return data?.length ? openRows("actions", data[0].workspace_id as string, data) : [];
+};
 const openCheck = async (metricId: number) => (await tasks(metricId, "self_check")).find((t) => t.status === "open")!;
 const auditKinds = async (ws: string) => ((await db().from("audit_events").select("kind").eq("workspace_id", ws).order("id")).data ?? []).map((e) => e.kind as string);
-const thread = async (actionId: number) => (await db().from("thread_messages").select("author_id, body, correction_value, correction_status").eq("action_id", actionId).order("id")).data ?? [];
+const thread = async (actionId: number) => {
+  const { data } = await db().from("thread_messages").select("id, workspace_id, author_id, body, correction_value, correction_status").eq("action_id", actionId).order("id");
+  return data?.length ? openRows("thread_messages", data[0].workspace_id as string, data) : [];
+};
 
 /** Sara alone: she owns the Metric and the Workflow, is its only Approver and submits. `nobodyElse` left out is a
  * step as stored before the choice existed. */

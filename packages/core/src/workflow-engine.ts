@@ -278,11 +278,12 @@ async function requestApproval(ctx: Ctx, approver: string, submitterId: string, 
  * approve it. Its purpose is not "approval", so approve() never takes it and the four-eyes rule there stays whole.
  * Asked by the submitter too: the Workflow's owner may not see the Metric, and a task's asker reads its Thread. */
 async function requestSelfCheck(ctx: Ctx, submitterId: string, reasons: string[], value: number, observationId: number) {
-  const { data } = await db().from("actions").insert({
+  // The question is sealed with the Workspace Key (sealed-columns.ts), as every task's is.
+  const [data] = await insertSealed("actions", ctx.ws, [{
     metric_id: ctx.m.id, period_start: ctx.period, observation_id: observationId, asker_id: submitterId, assignee_id: submitterId,
     question: `Check your value: ${formatValue(ctx.m, value, ctx.numberStyle)} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}${reasons.length ? `, ${reasons.join(", ")}` : ""}. Is that right? Nobody else can approve it. Reply “confirm”, or “Correction: <value>”.`,
     kind: "task", purpose: "self_check",
-  }).select("id, asker_id").single();
+  }], "id, asker_id") as { id: number; asker_id: string }[];
   if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: submitterId });
   return (data?.id as number | undefined) ?? null;
 }
@@ -344,7 +345,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string)
   }
   await claimTask(actionId);
   if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
-  await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Confirmed by the submitter.", workspace_id: ws });
+  await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Confirmed by the submitter." }]);
   await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
   return `Confirmed by you; ${publishedLabel(ctx)}.`;
 }
@@ -362,7 +363,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   if (!obs) throw new Error("This value is not waiting for this check.");
   await claimTask(actionId);
   await db().from("observations").update({ value, original_value: obs.original_value ?? obs.value }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
-  await db().from("thread_messages").insert({ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted", workspace_id: ws });
+  await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
   await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start } });
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null });
