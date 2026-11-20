@@ -16,7 +16,7 @@
 ^docs/reference/calculations\.md$
 ^packages/core/src/test/reference/
 ^packages/core/src/aggregations[^/]*\.test\.ts$
-^packages/core/src/(display-periods|periods|snapshot-periods|compare|changes|writing|exact|format|workflow-rules|alert-rules|attainment-method|derived|formula|numbers|analyses|correlation|forecast|export-values|catalogue|recipe-functions|analysis-recipe)\.test\.ts$
+^packages/core/src/(display-periods|periods|snapshot-periods|compare|changes|writing|exact|format|workflow-rules|alert-rules|retention-rules|attainment-method|derived|formula|numbers|analyses|correlation|forecast|export-values|catalogue|recipe-functions|analysis-recipe)\.test\.ts$
 ^packages/core/(package\.json|vitest\.config\.ts|calculation-modules\.json|stryker\.config\.mjs)$
 ^\.github/calculation-paths\.txt$
 ^\.github/scripts/(calculation-paths-touched\.sh|mutation-changed\.sh|mutation-pr\.sh|mutation-summary\.mjs)$

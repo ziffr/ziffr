@@ -7,6 +7,7 @@
   "src/format.ts",
   "src/workflow-rules.ts",
   "src/alert-rules.ts",
+  "src/retention-rules.ts",
   "src/attainment-method.ts",
   "src/units.ts",
   "src/number-style.ts",
