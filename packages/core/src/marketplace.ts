@@ -19,7 +19,6 @@ import { checkPack, PACK_LICENSES, PACK_LIMITS, versionBelow } from "./pack";
 import { assertManages, installPack, previewPack, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
 import { mailHostResolver, privateAddress, privateMailHost } from "./mail-hosts";
-import { isIP } from "node:net";
 
 /** Ziffr's own Marketplace, where the connection goes unless the Installation names another. */
 export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.app";
@@ -60,6 +59,9 @@ export function marketplaceConfig(settings: Record<string, string | undefined>):
 /** What one request gives back: its status and its body, cut at the limit given. */
 type Answer = { status: number; body: string; tooBig: boolean };
 
+/** Certificates to trust besides the system's, for a test's own TLS server; never set by the app. */
+export const marketplaceTls: { ca?: string } = {};
+
 /** How a request is made; tests put a stub in, which records what would go out. */
 export const marketplaceTransport = {
   /** Sends one request to an https address the core checked, and reads at most `maxBytes` of the answer. */
@@ -67,38 +69,45 @@ export const marketplaceTransport = {
 };
 
 /** One https request to the address checked: the name is looked up once, every address it has must be public, and the
- * connection goes to the first, with TLS checking the name. No redirect is followed, and the answer is cut short. */
+ * connection goes only to those, with TLS checking the name. No redirect is followed, the answer is cut short, and the
+ * whole request, however slowly it trickles, ends within MARKETPLACE_LIMITS.timeoutMs. An address written as an IP is
+ * never looked up: marketplaceUrlProblem refused a private one before. */
 function pinnedRequest(url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined> }): Promise<Answer> {
   const allowPrivate = init.env.ZIFFR_ALLOW_PRIVATE_MARKETPLACE === "1";
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (f: () => void) => { if (!settled) { settled = true; clearTimeout(deadline); f(); } };
+    const deadline = setTimeout(() => { req.destroy(); done(() => reject(new Error("timeout"))); }, MARKETPLACE_LIMITS.timeoutMs);
     const req = request(url, {
       method: init.method,
       headers: { "user-agent": `Ziffr/${ZIFFR_VERSION}`, accept: "application/json", ...(init.body ? { "content-type": "application/json", "content-length": Buffer.byteLength(init.body) } : {}) },
+      // A connection of its own each time: a pooled one would skip the lookup and its checks.
+      agent: false,
+      ...(marketplaceTls.ca ? { ca: marketplaceTls.ca } : {}),
       timeout: MARKETPLACE_LIMITS.timeoutMs,
-      lookup: (host, _opts, cb) => {
-        if (isIP(host)) {
-          if (!allowPrivate && privateAddress(host)) return cb(new Error("private address"), "", 0);
-          return cb(null, host, isIP(host));
-        }
+      // Node asks for every address at once (`all`) when it may try IPv4 and IPv6; each one was checked either way.
+      lookup: ((host: string, opts: { all?: boolean }, cb: (err: Error | null, address: string | { address: string; family: number }[], family?: number) => void) => {
         mailHostResolver.lookup(host).then((found) => {
           if (!found.length) return cb(new Error("no address"), "", 0);
           if (!allowPrivate && found.some((a) => privateAddress(a.address))) return cb(new Error("private address"), "", 0);
+          if (opts?.all) return cb(null, found.map((a) => ({ address: a.address, family: a.family })));
           cb(null, found[0].address, found[0].family);
         }, (e) => cb(e, "", 0));
-      },
+      }) as never,
     }, (res) => {
       const chunks: Buffer[] = [];
       let size = 0;
       res.on("data", (c: Buffer) => {
         size += c.length;
-        if (size > init.maxBytes) { res.destroy(); resolve({ status: res.statusCode ?? 0, body: "", tooBig: true }); return; }
+        if (size > init.maxBytes) { res.destroy(); done(() => resolve({ status: res.statusCode ?? 0, body: "", tooBig: true })); return; }
         chunks.push(c);
       });
-      res.on("end", () => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8"), tooBig: false }));
-      res.on("error", reject);
+      res.on("end", () => done(() => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8"), tooBig: false })));
+      res.on("error", (e) => done(() => reject(e)));
+      res.on("close", () => done(() => reject(new Error("the answer ended early"))));
     });
     req.on("timeout", () => req.destroy(new Error("timeout")));
-    req.on("error", reject);
+    req.on("error", (e) => done(() => reject(e)));
     if (init.body) req.write(init.body);
     req.end();
   });
@@ -208,6 +217,8 @@ async function signedFile(packId: string, version: string): Promise<string> {
   const file = typeof answer?.file === "string" ? answer.file : "";
   if (!file || Buffer.byteLength(file) > PACK_LIMITS.bytes) throw new MarketplaceUnavailable("The Marketplace answered with a file Ziffr does not take.");
   if (!signedByMarketplace(file, String(answer.signature ?? ""), env)) throw new MarketplaceUnavailable("The file's signature does not hold: it is not the Marketplace's. Nothing was shown or installed.");
+  // A file that fails the checks is returned as it is: preview and install check it again and refuse it with its
+  // problems, which is where a person reads them. Never skip that second check.
   const res = checkPack(file);
   if (res.ok && (res.pack.id !== packId || res.pack.version !== version)) throw new MarketplaceUnavailable("The Marketplace answered with another Pack than the one asked for.");
   if (res.ok && res.pack.license === "Ziffr-Pack-1.0") throw new MarketplaceUnavailable("Paid Packs cannot be installed yet.");
@@ -251,9 +262,6 @@ export async function updateFromMarketplace(actor: Actor, installId: number, ver
 export async function checkMarketplaceVersions(force = false): Promise<void> {
   const c = marketplaceConfig(await settingsInEffect());
   if (!c.on || !c.url) return;
-  const { data: last } = await db().from("marketplace_checks").select("checked_at").eq("only_row", true).maybeSingle();
-  if (!force && last && Date.now() - new Date(String(last.checked_at)).getTime() < CHECK_EVERY_MS) return;
-  await db().from("marketplace_checks").upsert({ only_row: true, checked_at: new Date().toISOString() });
   const { data } = await db().from("pack_installs").select("pack_id, version").eq("source", "marketplace");
   const oldest = new Map<string, string>();
   for (const r of data ?? []) {
@@ -261,7 +269,14 @@ export async function checkMarketplaceVersions(force = false): Promise<void> {
     const had = oldest.get(id);
     if (!had || versionBelow(v, had)) oldest.set(id, v);
   }
+  // Nothing installed from the Marketplace: nothing to ask, and the day's question is kept for when there is.
   if (!oldest.size) return;
+  // Claimed in one statement: of pages opened at the same moment, one asks.
+  await db().from("marketplace_checks").upsert({ only_row: true, checked_at: new Date(0).toISOString() }, { ignoreDuplicates: true });
+  const now = new Date();
+  const claim = db().from("marketplace_checks").update({ checked_at: now.toISOString() }).eq("only_row", true);
+  const { data: claimed } = await (force ? claim : claim.lt("checked_at", new Date(now.getTime() - CHECK_EVERY_MS).toISOString())).select("only_row");
+  if (!claimed?.length) return;
   const answer = await ask("v1/updates", { method: "POST", body: { ziffr: ZIFFR_VERSION, installed: [...oldest].map(([id, version]) => ({ id, version })) } }) as { updates?: unknown };
   const updates = (Array.isArray(answer?.updates) ? answer.updates : []).slice(0, 500)
     .filter((u): u is { id: string; version: string } => !!u && typeof u === "object" && new RegExp(ID).test(String((u as { id?: unknown }).id)) && new RegExp(VERSION).test(String((u as { version?: unknown }).version)))

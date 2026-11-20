@@ -191,7 +191,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   if (res.plan.assistantTexts.length && !confirmed.assistantTexts) throw new Error("Confirm that you read the texts aimed at assistants first.");
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
-    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: manifestOf(res.pack), item_keys: itemKeys(res.stored) },
+    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: manifestOf(res.pack), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");

@@ -1,7 +1,13 @@
 // The Marketplace connection's rules (spec 0030, #278): off unless turned on, an https address outside the server's
 // network, and Ed25519 signatures of a trusted key over the file's exact bytes.
-import { describe, expect, it } from "vitest";
-import { marketplaceConfig, marketplaceTransport, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, signedByMarketplace } from "./marketplace";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { createServer } from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { AddressInfo } from "node:net";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { marketplaceConfig, marketplaceTls, marketplaceTransport, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL, signedByMarketplace } from "./marketplace";
 import { mailHostResolver } from "./mail-hosts";
 import { testKeys } from "./test/marketplace-keys";
 
@@ -59,5 +65,41 @@ describe("the request itself", () => {
     } finally {
       mailHostResolver.lookup = real;
     }
+  });
+});
+
+// A TLS server of the test's own, reached through the real transport: the lookup, the TLS check and the limits.
+const openssl = (() => { try { execFileSync("openssl", ["version"]); return true; } catch { return false; } })();
+describe.skipIf(!openssl)("the real request, against a local Marketplace", () => {
+  let port = 0;
+  let close = () => {};
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ziffr-market-"));
+    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-days", "1", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem")], { stdio: "ignore" });
+    const cert = readFileSync(join(dir, "cert.pem"), "utf8");
+    const server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+      if (req.url === "/big") { res.end("x".repeat(5000)); return; }
+      if (req.url === "/moved") { res.writeHead(302, { location: "https://localhost/elsewhere" }); res.end(); return; }
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ path: req.url, ua: req.headers["user-agent"] }));
+    });
+    await new Promise<void>((r) => server.listen(0, "localhost", () => r()));
+    port = (server.address() as AddressInfo).port;
+    marketplaceTls.ca = cert;
+    close = () => server.close();
+  });
+  afterAll(() => { marketplaceTls.ca = undefined; close(); });
+  const get = (path: string, env: Record<string, string> = { ZIFFR_ALLOW_PRIVATE_MARKETPLACE: "1" }, maxBytes = 1000) =>
+    marketplaceTransport.request(new URL(`https://localhost:${port}${path}`), { method: "GET", maxBytes, env });
+
+  it("connects when the server allows its own network, and says only Ziffr's version", async () => {
+    const res = await get("/v1/packs?q=x");
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ path: "/v1/packs?q=x", ua: expect.stringMatching(/^Ziffr\/\d+\.\d+\.\d+$/) });
+  });
+  it("refuses its own network otherwise, cuts an answer too big, and follows no redirect", async () => {
+    await expect(get("/v1/packs", {})).rejects.toThrow("private address");
+    expect((await get("/big", undefined, 100)).tooBig).toBe(true);
+    expect((await get("/moved")).status).toBe(302);
   });
 });

@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { checkMarketplaceVersions, installFromMarketplace, marketplaceTransport, marketplaceUpdates, readMarketplacePack, searchMarketplace, updateFromMarketplace, MarketplaceUnavailable } from "./marketplace";
 import { listInstalledPacks } from "./packs";
+import { updatePackFile } from "./pack-updates";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { PACK } from "./pack.test";
 import { testKeys } from "./test/marketplace-keys";
@@ -112,7 +113,8 @@ describe("the Marketplace connection", () => {
     const posts = sent.filter((s) => s.method === "POST");
     expect(posts).toHaveLength(1);
     const body = JSON.parse(posts[0].body!);
-    expect(body.installed).toContainEqual({ id: "ziffr/saas-metrics", version: "1.2.0" });
+    // Each Pack once, with the oldest version installed anywhere on the Installation.
+    expect(body.installed.filter((p: { id: string }) => p.id === "ziffr/saas-metrics")).toHaveLength(1);
     expect(Object.keys(body).sort()).toEqual(["installed", "ziffr"]);
     for (const s of sent) for (const secret of [a.id, b.id, "Alpha", "Beta", ann, zoe]) expect(`${s.url} ${s.body ?? ""}`).not.toContain(secret);
     // Asked once a day: Beta's page asks nothing new.
@@ -121,5 +123,8 @@ describe("the Marketplace connection", () => {
     await updateFromMarketplace(a.actor(ann), ups[0].installId, "1.3.0", { assistantTexts: true });
     expect((await listInstalledPacks(a.actor(ann)))[0].version).toBe("1.3.0");
     expect(await marketplaceUpdates(a.actor(ann))).toEqual([]);
+    // Updated again from an uploaded file, it is no longer shown as from the Marketplace.
+    await updatePackFile(a.actor(ann), ups[0].installId, JSON.stringify({ ...NO_THEMES, version: "1.4.0" }), { unsigned: true, assistantTexts: true });
+    expect((await listInstalledPacks(a.actor(ann)))[0]).toMatchObject({ version: "1.4.0", source: "upload", signed: false });
   });
 });
