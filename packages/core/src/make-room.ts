@@ -5,6 +5,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { archiveMetric } from "./archived-metrics";
+import { DemoReadOnly, refuseInDemo } from "./demo";
 import { inUse } from "./metric-row";
 import { getMetrics, getRecentObservations } from "./workspace-data";
 import { LIMIT_MAX } from "./workspace-limits";
@@ -53,12 +54,14 @@ export async function makeRoomPlan(actor: Actor, to: number): Promise<RoomPlan> 
  * one they see and may archive). Returns how many were archived. */
 export async function archiveForRoom(actor: Actor, ids: unknown): Promise<number> {
   assertMayMakeRoom(actor);
+  // The demo says its one sentence, not "nothing archived".
+  refuseInDemo(actor);
   // From a browser: whole numbers only, each once, at most 1,000.
   if (!Array.isArray(ids) || ids.length > 1000 || !ids.every((x) => Number.isInteger(x))) throw new Error("Tick at most 1,000 Metrics.");
   let n = 0;
   for (const id of new Set(ids as number[])) {
     // One that may not be archived (gone, hidden, the demo's) is left out; the others still go.
-    const done = await archiveMetric(actor, id).catch((e) => { if (e instanceof Forbidden) return { archived: false }; throw e; });
+    const done = await archiveMetric(actor, id).catch((e) => { if (e instanceof Forbidden && !(e instanceof DemoReadOnly)) return { archived: false }; throw e; });
     if (done.archived) n++;
   }
   return n;
