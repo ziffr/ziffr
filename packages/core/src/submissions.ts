@@ -406,10 +406,10 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     } else {
       written = await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
     }
-    // Archived in the meantime: the database refused the value, so the Correction stays proposed.
-    if (written.error?.code === ARCHIVED_CODE) {
-      await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId);
-      throw new Error(ARCHIVED_REFUSAL);
+    // The value was not written (archived in the meantime, or the database refused it): the Correction stays proposed.
+    if (written.error) {
+      await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
+      throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");
     }
   }
   if (accept) {

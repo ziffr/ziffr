@@ -5,7 +5,8 @@
 -- The core refuses a value for an Archived Metric before it is written (submissions.ts), with the words "This Metric
 -- is archived". The trigger below is the same rule in the database, for every other way a value is written (an
 -- accepted Correction, a value that arrives while the Metric is being archived): a new value, or a changed one, is
--- refused with ZF440. Removing values (deleting the Metric) and changing anything but the value stay possible.
+-- refused with ZF440, and so is moving a value to another period. Removing values (deleting the Metric) and
+-- changing anything else of a value (such as its approval) stay possible.
 alter table metrics
   add column archived_at timestamptz,
   add column archived_by text references profiles(id) on delete set null;
