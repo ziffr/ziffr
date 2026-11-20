@@ -99,6 +99,16 @@ begin
   if not exists (select 1 from pack_installs where id = p_install and workspace_id = p_workspace) then
     raise exception 'No such install.' using errcode = 'no_data_found';
   end if;
+  -- Templates and Themes replaced or deleted must be as the core read them: an edit made meanwhile stops the step.
+  if exists (
+    select 1 from jsonb_array_elements(coalesce(p_ops->'guard', '[]')) gd
+    where (gd->>'table' = 'templates' and not exists (select 1 from team_templates t where t.id = (gd->>'id')::bigint and t.workspace_id = p_workspace
+             and t.updated_at is not distinct from (gd->>'updated_at')::timestamptz))
+       or (gd->>'table' = 'themes' and not exists (select 1 from themes t where t.id = (gd->>'id')::bigint and t.workspace_id = p_workspace
+             and t.updated_at is not distinct from (gd->>'updated_at')::timestamptz))
+  ) then
+    raise exception 'Changed meanwhile.' using errcode = 'serialization_failure';
+  end if;
 
   -- Copies that leave: deleted, or kept without their mark. Only rows of this install in this Workspace.
   delete from catalog_metrics where workspace_id = p_workspace and pack_install_id = p_install and id in (select (jsonb_array_elements_text(coalesce(p_ops->'catalog'->'delete', '[]')))::bigint);
@@ -198,6 +208,16 @@ create or replace function public.uninstall_pack(p_workspace uuid, p_install big
 as $function$
 begin
   perform pg_advisory_xact_lock(hashtext('ziffr-pack-install:' || p_workspace::text));
+  -- Templates and Themes replaced or deleted must be as the core read them: an edit made meanwhile stops the step.
+  if exists (
+    select 1 from jsonb_array_elements(coalesce(p_delete->'guard', '[]')) gd
+    where (gd->>'table' = 'templates' and not exists (select 1 from team_templates t where t.id = (gd->>'id')::bigint and t.workspace_id = p_workspace
+             and t.updated_at is not distinct from (gd->>'updated_at')::timestamptz))
+       or (gd->>'table' = 'themes' and not exists (select 1 from themes t where t.id = (gd->>'id')::bigint and t.workspace_id = p_workspace
+             and t.updated_at is not distinct from (gd->>'updated_at')::timestamptz))
+  ) then
+    raise exception 'Changed meanwhile.' using errcode = 'serialization_failure';
+  end if;
   delete from catalog_metrics where workspace_id = p_workspace and pack_install_id = p_install and id in (select (jsonb_array_elements_text(coalesce(p_delete->'catalog', '[]')))::bigint);
   delete from team_templates where workspace_id = p_workspace and pack_install_id = p_install and id in (select (jsonb_array_elements_text(coalesce(p_delete->'templates', '[]')))::bigint);
   delete from view_designs where workspace_id = p_workspace and pack_install_id = p_install and id in (select (jsonb_array_elements_text(coalesce(p_delete->'designs', '[]')))::bigint);

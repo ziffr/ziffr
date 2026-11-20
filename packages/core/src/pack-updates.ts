@@ -20,17 +20,19 @@ const CATALOG_FIELDS = ["category", "name", "description", "unit", "unit_positio
 export type ItemKind = "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme";
 
 /** One copy of an installed item in the Workspace: where it is, the hash it was installed with, and its hash now. */
-type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown };
+type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null };
 
 /** What is hashed of a stored row: exactly what installing hashed (packs.ts storedItems), read back from the database. */
-function stored(table: Table, r: Record<string, unknown>): unknown {
+function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>): unknown {
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     return Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
   }
   if (table === "templates") {
-    // A Deck Template's Theme is the installed Theme's id, which the hash leaves out: it was not known when hashed.
-    const body = r.kind === "deck" ? { ...(r.body as object), themeId: null } : r.body;
+    // A Deck Template's Theme is the installed Theme's id, which the hash leaves out: it was not known when hashed. Any
+    // other Theme is a change the Workspace made.
+    const theme = (r.body as { themeId?: unknown } | null)?.themeId;
+    const body = r.kind === "deck" && (theme === null || theme === undefined || ownThemes.has(Number(theme))) ? { ...(r.body as object), themeId: null } : r.body;
     return { kind: r.kind, name: r.name, description: r.description, slots: r.slots, body };
   }
   if (table === "designs") return { name: r.name, body: r.body };
@@ -51,16 +53,19 @@ async function installOf(actor: Actor, installId: number) {
 async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   const cols: Record<Table, string> = {
     catalog: `id, pack_key, pack_hash, pack_offer, ${CATALOG_FIELDS.join(", ")}`,
-    templates: "id, pack_key, pack_hash, pack_offer, kind, name, description, slots, body",
+    templates: "id, pack_key, pack_hash, pack_offer, updated_at, kind, name, description, slots, body",
     designs: "id, pack_key, pack_hash, pack_offer, name, body",
-    themes: "id, pack_key, pack_hash, pack_offer, name, tokens, slides",
+    themes: "id, pack_key, pack_hash, pack_offer, updated_at, name, tokens, slides",
   };
   const out: Copy[] = [];
-  for (const table of Object.keys(TABLE) as Table[]) {
+  const ownThemes = new Set<number>();
+  // Themes first: whether a Deck Template still uses the Theme installed with it depends on them.
+  for (const table of ["themes", "catalog", "templates", "designs"] as Table[]) {
     const { data, error } = await db().from(TABLE[table]).select(cols[table]).eq("workspace_id", actor.workspaceId).eq("pack_install_id", installId);
     if (error) throw new Error("The Pack's items could not be read.");
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
-      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r)), offer: r.pack_offer ?? null });
+      if (table === "themes") ownThemes.add(Number(r.id));
+      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
     }
   }
   return out;
@@ -99,7 +104,11 @@ export type UpdatePlan = {
   blocked: string | null;
 };
 
-type Ops = Record<Table, { insert: unknown[]; replace: unknown[]; offer: unknown[]; delete: number[]; unmark: number[] }>;
+type Ops = Record<Table, { insert: unknown[]; replace: unknown[]; offer: unknown[]; delete: number[]; unmark: number[] }> & { guard: Guard[] };
+/** A template or Theme the step replaces or deletes, as it was read: changed since, the whole step stops, so an edit
+ * made meanwhile is never overwritten or deleted. Catalog entries and View Designs cannot be changed in a Workspace. */
+type Guard = { table: "templates" | "themes"; id: number; updated_at: string | null };
+const guardOf = (c: Copy): Guard[] => (c.table === "templates" || c.table === "themes" ? [{ table: c.table, id: c.id, updated_at: c.updatedAt }] : []);
 
 /** Works out an update: the plan for the page and the operations for the database. */
 async function planUpdate(actor: Actor, installId: number, text: string) {
@@ -121,12 +130,13 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   const nextKeys = new Set(nextItems.map((i) => i.key));
   const wasInstalled = new Set(install.item_keys ?? []);
   const inUse = await themesInUse(actor, copies.filter((c) => c.table === "themes").map((c) => c.id));
-  const ops: Ops = Object.fromEntries((Object.keys(TABLE) as Table[]).map((t) => [t, { insert: [], replace: [], offer: [], delete: [], unmark: [] }])) as unknown as Ops;
+  const ops: Ops = { ...Object.fromEntries((Object.keys(TABLE) as Table[]).map((t) => [t, { insert: [], replace: [], offer: [], delete: [], unmark: [] }])), guard: [] } as unknown as Ops;
   const items: UpdateItem[] = [];
   const leave = (c: Copy, change: UpdateItem["change"]) => {
     const changedHere = c.currentHash !== c.installedHash;
     const keep = changedHere || (c.table === "themes" && inUse.has(c.id));
     ops[c.table][keep ? "unmark" : "delete"].push(c.id);
+    if (!keep) ops.guard.push(...guardOf(c));
     items.push({ key: c.key, kind: c.kind, name: c.name, change, changedHere, outcome: keep ? "unmark" : "delete" });
   };
   for (const n of nextItems) {
@@ -144,6 +154,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
       items.push({ key: n.key, kind: n.kind, name: c.name, change: "same", changedHere, outcome: "none" });
     } else if (!changedHere) {
       ops[n.table].replace.push({ ...n.row, id: c.id });
+      ops.guard.push(...guardOf(c));
       items.push({ key: n.key, kind: n.kind, name: n.name, change: "changed", changedHere, outcome: "replace" });
     } else {
       ops[n.table].offer.push({ id: c.id, offer: n.row });
@@ -178,6 +189,7 @@ export async function updatePackFile(actor: Actor, installId: number, text: stri
     p_install_row: { version: res.pack.version, license: res.pack.license, manifest: manifestOf(res.pack), item_keys: itemKeys(res.stored) },
     p_ops: res.ops,
   });
+  if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");
   if (error) throw new Error(error.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "") ? "This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed." : "The Pack could not be updated; nothing was changed.");
   await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: "upload" } });
   return res.plan;
@@ -192,11 +204,11 @@ async function planUninstall(actor: Actor, installId: number) {
   const copies = await copiesOf(actor, installId);
   const inUse = await themesInUse(actor, copies.filter((c) => c.table === "themes").map((c) => c.id));
   const plan: UninstallPlan = { name: install.manifest.name, version: install.version, remove: [], keep: [], blocked: null };
-  const del: Record<Table, number[]> = { catalog: [], templates: [], designs: [], themes: [] };
+  const del: Record<Table, number[]> & { guard: Guard[] } = { catalog: [], templates: [], designs: [], themes: [], guard: [] };
   for (const c of copies) {
     if (c.currentHash !== c.installedHash) plan.keep.push({ kind: c.kind, name: c.name, why: "changed" });
     else if (c.table === "themes" && inUse.has(c.id)) plan.keep.push({ kind: c.kind, name: c.name, why: "in use" });
-    else { plan.remove.push({ kind: c.kind, name: c.name }); del[c.table].push(c.id); }
+    else { plan.remove.push({ kind: c.kind, name: c.name }); del[c.table].push(c.id); del.guard.push(...guardOf(c)); }
   }
   if (copies.some((c) => c.table === "themes") && actor.role !== "owner") plan.blocked = "This Pack holds Themes, and only Owners change Themes: an Owner uninstalls it.";
   return { plan, del, install };
@@ -213,7 +225,7 @@ export async function uninstallPack(actor: Actor, installId: number): Promise<Un
   const { plan, del, install } = await planUninstall(actor, Number(installId));
   if (plan.blocked) throw new Forbidden(plan.blocked);
   const { error } = await db().rpc("uninstall_pack", { p_workspace: actor.workspaceId, p_install: Number(installId), p_delete: del });
-  if (error) throw new Error("The Pack could not be uninstalled; nothing was changed.");
+  if (error) throw new Error(error.code === "40001" ? "Something of this Pack changed meanwhile; look at what uninstalling does again." : "The Pack could not be uninstalled; nothing was changed.");
   await audit(actor, { kind: "pack.uninstalled", object: { type: "pack", id: Number(installId), name: plan.name }, details: { pack: install.pack_id, version: install.version, removed: plan.remove.length, kept: plan.keep.length } });
   return plan;
 }
@@ -227,14 +239,14 @@ export async function offeredItems(actor: Actor): Promise<OfferedItem[]> {
   if ((actor as { key?: unknown }).key || (actor.role !== "owner" && actor.role !== "admin")) return [];
   const ws = actor.workspaceId;
   const [t, h, i] = await Promise.all([
-    db().from("team_templates").select("id, kind, name, pack_install_id").eq("workspace_id", ws).not("pack_offer", "is", null),
+    db().from("team_templates").select("id, owner_id, kind, name, pack_install_id").eq("workspace_id", ws).not("pack_offer", "is", null),
     db().from("themes").select("id, name, pack_install_id").eq("workspace_id", ws).not("pack_offer", "is", null),
     db().from("pack_installs").select("id, manifest").eq("workspace_id", ws),
   ]);
   const names = new Map((i.data ?? []).map((r) => [Number(r.id), String((r.manifest as { name?: string }).name ?? "")]));
   return [
-    ...(t.data ?? []).map((r) => ({ table: "templates" as const, id: Number(r.id), kind: r.kind as ItemKind, name: String(r.name), packName: names.get(Number(r.pack_install_id)) ?? "" })),
-    ...(h.data ?? []).map((r) => ({ table: "themes" as const, id: Number(r.id), kind: "theme" as const, name: String(r.name), packName: names.get(Number(r.pack_install_id)) ?? "" })),
+    ...(t.data ?? []).filter((r) => r.owner_id === actor.personId || actor.role === "owner").map((r) => ({ table: "templates" as const, id: Number(r.id), kind: r.kind as ItemKind, name: String(r.name), packName: names.get(Number(r.pack_install_id)) ?? "" })),
+    ...(actor.role === "owner" ? h.data ?? [] : []).map((r) => ({ table: "themes" as const, id: Number(r.id), kind: "theme" as const, name: String(r.name), packName: names.get(Number(r.pack_install_id)) ?? "" })),
   ];
 }
 
@@ -244,9 +256,12 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
   assertManages(actor);
   if (table === "themes" && actor.role !== "owner") throw new Forbidden("Only Owners change Themes.");
   if (table !== "templates" && table !== "themes") throw new Forbidden();
-  const { data } = await db().from(TABLE[table]).select("id, pack_install_id, pack_offer").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!data?.pack_offer || !data.pack_install_id) throw new Forbidden();
-  const o = data.pack_offer as Record<string, unknown>;
+  const { data } = await db().from(TABLE[table]).select(table === "templates" ? "id, owner_id, pack_install_id, pack_offer" : "id, pack_install_id, pack_offer").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const row = data as { owner_id?: string; pack_install_id: number | null; pack_offer: unknown } | null;
+  if (!row?.pack_offer || !row.pack_install_id) throw new Forbidden();
+  // Only a template's creator changes it (or an Owner): an Admin does not overwrite someone else's edit.
+  if (table === "templates" && row.owner_id !== actor.personId && actor.role !== "owner") throw new Forbidden("Only whoever installed the Pack, or an Owner, takes a new version of its templates.");
+  const o = row.pack_offer as Record<string, unknown>;
   const type = table === "themes" ? "theme" : "template";
   await ensureBaseline(type, Number(id), actor.personId);
   let update: Record<string, unknown>;
@@ -255,12 +270,12 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
     let body = o.body as Record<string, unknown>;
     // A Deck Template's Theme, by its key in the Pack: the Theme installed with it, if the Workspace still has it.
     if (typeof o.theme_key === "string") {
-      const { data: theme } = await db().from("themes").select("id").eq("workspace_id", actor.workspaceId).eq("pack_install_id", data.pack_install_id).eq("pack_key", o.theme_key).maybeSingle();
+      const { data: theme } = await db().from("themes").select("id").eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).eq("pack_key", o.theme_key).maybeSingle();
       body = { ...body, themeId: theme ? Number(theme.id) : null };
     }
     update = { name: o.name, description: o.description, slots: o.slots, body };
   }
-  const { error } = await db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).not("pack_offer", "is", null);
   if (error) throw new Error("The new version could not be taken.");
   await recordVersion(type, Number(id), actor.personId, { message: "Took the Pack's new version" });
 }

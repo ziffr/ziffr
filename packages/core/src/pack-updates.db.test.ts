@@ -95,6 +95,10 @@ describe("updating a Pack", () => {
     const sara = await w.person("member");
     expect(await offeredItems(w.actor(sara, "member"))).toEqual([]);
     await expect(takeNewVersion(w.actor(sara, "member"), "templates", tpl!.id)).rejects.toEqual(forbidden);
+    // An Admin neither sees nor takes the new version of a template someone else installed and changed.
+    const ada = await w.person("admin");
+    expect(await offeredItems(w.actor(ada, "admin"))).toEqual([]);
+    await expect(takeNewVersion(w.actor(ada, "admin"), "templates", tpl!.id)).rejects.toThrow("Only whoever installed the Pack");
   });
 
   it("keeps an item the new version drops when the Workspace changed it, without its mark", async () => {
@@ -118,6 +122,24 @@ describe("updating a Pack", () => {
     await expect(readPackUpdate(w.actor(sara, "member"), id, file(NEXT))).rejects.toEqual(forbidden);
     const major = await readPackUpdate(actor, id, file({ ...NEXT, version: "2.0.0" }));
     expect(major.ok && major.plan.major).toBe(true);
+  });
+
+  it("stops when a copy it would replace changed meanwhile, and changes nothing", async () => {
+    const { w, actor, id } = await setUp();
+    const tpl = await row("team_templates", w.id, "saas-overview");
+    const ops = { catalog: { insert: [], replace: [], offer: [], delete: [], unmark: [] }, templates: { insert: [], replace: [{ id: tpl!.id, kind: "dashboard", name: "Overwritten", description: "", slots: [], body: { widgets: [] }, hash: "0".repeat(64) }], offer: [], delete: [], unmark: [] }, designs: { insert: [], replace: [], offer: [], delete: [], unmark: [] }, themes: { insert: [], replace: [], offer: [], delete: [], unmark: [] }, guard: [{ table: "templates", id: tpl!.id, updated_at: "2000-01-01T00:00:00Z" }] };
+    const { error } = await db().rpc("update_pack", { p_workspace: w.id, p_install: id, p_by: actor.personId, p_install_row: { version: "9.9.9", license: "MIT", manifest: {}, item_keys: [] }, p_ops: ops });
+    expect(error?.code).toBe("40001");
+    expect((await row("team_templates", w.id, "saas-overview"))!.name).toBe("Monthly overview");
+  });
+
+  it("sees a Deck Template pointed at another Theme as changed", async () => {
+    const { w, actor, id } = await setUp();
+    const { data: other } = await db().from("themes").insert({ owner_id: actor.personId, name: "Other", tokens: {}, slides: {}, workspace_id: w.id }).select("id").single();
+    const deck = await row("team_templates", w.id, "board-deck");
+    await db().from("team_templates").update({ body: { ...(deck!.body as object), themeId: other!.id } }).eq("id", deck!.id);
+    const res = await readPackUpdate(actor, id, file(NEXT));
+    expect(res.ok && res.plan.items.find((i) => i.key === "board-deck")?.changedHere).toBe(true);
   });
 
   it("touches only installs of the actor's Workspace", async () => {
