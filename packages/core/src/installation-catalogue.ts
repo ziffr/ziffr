@@ -44,7 +44,7 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
   { name: "ZIFFR_SLACK_SIGNING_SECRET", section: "slack", label: "Signing Secret", secret: true,
     help: "Under App Credentials too. Slack signs every request it sends Ziffr with it." },
   { name: "ZIFFR_TURNSTILE_SITE_KEY", section: "bots", label: "Site key", secret: false, placeholder: "0x4AAAAAAA…",
-    help: "In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key." },
+    help: "In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed." },
   { name: "ZIFFR_TURNSTILE_SECRET", section: "bots", label: "Secret key", secret: true,
     help: "The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it." },
   { name: "ZIFFR_TRIAL_DAYS", section: "trials", label: "Days a trial lasts", secret: false, placeholder: "7",

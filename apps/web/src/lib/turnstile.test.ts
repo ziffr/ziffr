@@ -3,6 +3,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The settings in effect, as the Installation settings page may leave them: here none set, and maybe a saved secret
+// that no longer opens.
+const stored = { unreadable: new Set<string>() };
+vi.mock("@ziffr/core/settings-in-effect", () => ({ settingsInEffect: async () => ({}), storedSettings: async () => ({ values: new Map(), unreadable: stored.unreadable }) }));
 const { turnstilePassed, turnstileSiteKey } = await import("./turnstile");
 
 const ENV = { ZIFFR_TURNSTILE_SITE_KEY: "site", ZIFFR_TURNSTILE_SECRET: "secret" };
@@ -43,5 +47,12 @@ describe("Turnstile", () => {
     expect(await turnstilePassed("answer", null, ENV)).toBe(false);
     vi.stubGlobal("fetch", async () => { throw new Error("offline"); });
     expect(await turnstilePassed("answer", null, ENV)).toBe(false);
+  });
+
+  it("closes the sign-in when a secret saved on the page no longer opens, rather than switching the check off", async () => {
+    expect(await turnstilePassed("answer", null)).toBe(true);
+    stored.unreadable = new Set(["ZIFFR_TURNSTILE_SECRET"]);
+    expect(await turnstilePassed("answer", null)).toBe(false);
+    stored.unreadable = new Set();
   });
 });

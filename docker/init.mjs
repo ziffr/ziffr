@@ -108,9 +108,10 @@ const authHookSecret = set(env.ZIFFR_AUTH_HOOK_SECRET) ? env.ZIFFR_AUTH_HOOK_SEC
 // demo every night.
 const demoOnly = env.ZIFFR_DEMO_ONLY === "1";
 const demo = demoOnly ? "1" : set(env.ZIFFR_DEMO) ? env.ZIFFR_DEMO : domain ? "0" : "1";
-// Given in the settings file (or a demo-only Ziffr), the demo setting is the server's; otherwise it is only the
-// default, which the Installation settings page may change (spec 0025).
-const demoFixed = demoOnly || set(env.ZIFFR_DEMO);
+// Given in the settings file (or a demo-only Ziffr), the demo setting is the server's. So is "off" on a domain: the
+// middleware reads only the environment, so a demo off there keeps the demo's cookie from passing it at all, as
+// before. On a laptop the demo is only the default, which the Installation settings page may change (spec 0025).
+const demoFixed = demoOnly || set(env.ZIFFR_DEMO) || demo === "0";
 
 // The app's own settings from .env (Slack, replies by email, providers offered, the user guide…): every ZIFFR_*
 // setting except those that belong to the stack, never Auth's provider secrets or the keys made here.

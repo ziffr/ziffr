@@ -3,7 +3,7 @@
 // mail any address. The answer is verified here, on the server, before any link is sent; the browser's word is never
 // taken. Only Cloudflare's own address is called, never one from a request.
 import "server-only";
-import { settingsInEffect } from "@ziffr/core/settings-in-effect";
+import { settingsInEffect, storedSettings } from "@ziffr/core/settings-in-effect";
 
 const VERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
@@ -17,6 +17,9 @@ export function turnstileSiteKey(env: Record<string, string | undefined>): strin
  * or late answer, or when Cloudflare cannot be asked (a closed door, never an open one). */
 export async function turnstilePassed(answer: unknown, ip: string | null, given?: Record<string, string | undefined>): Promise<boolean> {
   const env = given ?? (await settingsInEffect());
+  // A secret saved on the page that no longer opens (ZIFFR_SECRETS_KEY changed) closes the door until it is saved
+  // again, rather than turning the check off.
+  if (!given && !env.ZIFFR_TURNSTILE_SECRET && (await storedSettings()).unreadable.has("ZIFFR_TURNSTILE_SECRET")) return false;
   if (!turnstileSiteKey(env)) return true;
   if (typeof answer !== "string" || !answer || answer.length > 2048) return false;
   const body = new URLSearchParams({ secret: String(env.ZIFFR_TURNSTILE_SECRET), response: answer });

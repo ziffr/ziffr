@@ -116,7 +116,7 @@ The section then says, for example, "Trials of 14 days, at most 200 at once. Eve
 
 ## Demo
 
-**Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. Without a choice here, a Ziffr run with Docker offers it on a laptop and not on a domain. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.
+**Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.
 
 ## Changes
 
