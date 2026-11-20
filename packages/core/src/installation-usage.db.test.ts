@@ -83,7 +83,7 @@ describe("the figures", () => {
     for (const leak of ["Hostile", "script", "secret", "example.com", "salary", "evil-uploaded", w.id, sara]) expect(text).not.toContain(leak);
     for (const [k, v] of Object.entries(row)) if (!["day", "packs", "withheld"].includes(k)) expect(Number.isInteger(v)).toBe(true);
   });
-  it("count nothing of the demo or of the excluded Workspace, and leave states out for a missed day", async () => {
+  it("count nothing of the demo or of the excluded Workspace, and rebuild only some states for a missed day", async () => {
     const w = await ws(); const sara = await w.person("owner");
     await w.metric(sara); await w.metric(sara);
     const day = "2020-01-16";
@@ -96,8 +96,11 @@ describe("the figures", () => {
     expect(Number(onlyDemo.workspaces)).toBe(Number(all.workspaces));
     expect(JSON.stringify(without)).not.toContain(w.id);
     const events = await rollup(day, null, false);
-    expect(events.workspaces).toBeUndefined();
-    expect(events.metrics).toBeUndefined();
+    // A missed day gets what creation dates rebuild; the kinds of Workspace, Workflows and the 7-day figures stay out.
+    expect(events.workspaces_trial).toBeUndefined();
+    expect(events.people_active_7d).toBeUndefined();
+    expect(events.workflows).toBeUndefined();
+    expect(events.metrics).toBeDefined();
     expect(events.api_calls).toBeDefined();
     expect(demo).toBeDefined();
   });

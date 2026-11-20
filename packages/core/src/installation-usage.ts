@@ -20,14 +20,14 @@ export const USAGE_MAX_DAYS = 400;
 
 /** Figures that are shown only where at least USAGE_MIN_WORKSPACES Workspaces are behind them: they split by kind or
  * Source. Below that the totals stay and these are named in `withheld`. */
-export const USAGE_SPLIT_FIGURES = ["workspaces_trial", "workspaces_free", "workspaces_paid", "values_web", "values_email", "values_slack", "values_telegram", "values_api", "values_feed", "values_mcp", "values_derived"] as const;
+export const USAGE_SPLIT_FIGURES = ["workspaces_trial", "workspaces_free", "workspaces_paid", "values_web", "values_email", "values_slack", "values_telegram", "values_api", "values_feed", "values_mcp", "feed_calls", "mcp_calls"] as const;
 
 /** Figures that are totals: shown whatever the number of Workspaces. */
 export const USAGE_TOTAL_FIGURES = [
   "workspaces", "workspaces_created", "trials_started", "trials_kept", "trials_closed", "sizes_booked", "workspaces_deleted",
   "people", "signups", "people_active_7d", "workspaces_active_7d",
   "metrics", "metrics_archived", "dashboards", "widgets", "decks", "workflows", "feeds", "packs_installed",
-  "api_calls", "feed_calls", "mcp_calls", "emails_sent", "views_dashboards", "views_decks", "views_metrics",
+  "api_calls", "emails_sent", "views_dashboards", "views_decks", "views_metrics",
 ] as const;
 
 /** Every key a day may hold besides `day`, `packs` and `withheld`. */
@@ -184,6 +184,8 @@ export async function usageRollupJob(): Promise<{ days: number }> {
     if (writeError) throw new Error("The day's figures could not be stored.");
     days++;
   }
+  // Events older than the figures are kept for are forgotten; a failure here never loses the day's figures.
+  await db().rpc("prune_usage_events");
   return { days };
 }
 

@@ -129,7 +129,7 @@ function UsageTable({ days }: { days: UsageDay[] }) {
                   <td className="fig py-1 pr-3 text-right">{n(d.people)}</td>
                   <td className="fig py-1 pr-3 text-right">{n(d.metrics)}</td>
                   <td className="fig py-1 pr-3 text-right">{n(d.dashboards)}</td>
-                  <td className="fig py-1 pr-3 text-right">{n(sum(d, "values_web", "values_email", "values_slack", "values_telegram", "values_api"))}</td>
+                  <td className="fig py-1 pr-3 text-right">{n(sum(d, "values_web", "values_email", "values_slack", "values_telegram", "values_api", "values_feed", "values_mcp"))}</td>
                   <td className="fig py-1 pr-3 text-right">{n(d.api_calls)}</td>
                   <td className="fig py-1 pr-3 text-right">{n(sum(d, "views_dashboards", "views_decks", "views_metrics"))}</td>
                 </tr>

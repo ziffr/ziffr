@@ -16,7 +16,7 @@ export const STATE_FIGURES = [
 /** Figures counting "events" in the UTC day; a period's value is the sum of its days. */
 export const EVENT_FIGURES = [
   "workspaces_created", "trials_started", "trials_kept", "trials_closed", "sizes_booked", "workspaces_deleted", "signups",
-  "values_web", "values_email", "values_slack", "values_telegram", "values_api", "values_feed", "values_mcp", "values_derived",
+  "values_web", "values_email", "values_slack", "values_telegram", "values_api", "values_feed", "values_mcp",
   "api_calls", "feed_calls", "mcp_calls", "emails_sent", "views_dashboards", "views_decks", "views_metrics",
 ] as const;
 

@@ -7,6 +7,7 @@ import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
 import { calledFromMcp } from "@/lib/mcp-context";
 import { LimitReached } from "@ziffr/core/workspace-limits";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
+import { callKind, countCall } from "@ziffr/core/usage-calls";
 import { Forbidden, scopeRefusal, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
@@ -79,6 +80,8 @@ function guarded<C>(inner: (actor: KeyActor | FeedActor, req: Request, ctx: C) =
     // An assistant's access token counts only on the calls the remote MCP Server makes in this process (spec 0023).
     const actor = !secret ? null : secret.startsWith("zat_") ? (calledFromMcp() ? await actorForAssistantToken(secret) : null) : await actorForSecret(secret);
     if (!actor) return apiError("unauthorized", "Send a valid Access Key as \"Authorization: Bearer <key>\".", { "www-authenticate": "Bearer" });
+    // Usage (spec 0031): one more call in the Installation's figures; a number per Workspace and day, nothing else kept.
+    countCall(actor.workspaceId, callKind("feed" in actor, calledFromMcp()));
     const admitted = await admitCall(actor);
     const res = !admitted.ok
       ? apiError("rate_limited", `Too many calls with this key; try again in ${admitted.retryAfter} seconds.`, { "retry-after": String(admitted.retryAfter) })
