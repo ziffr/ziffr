@@ -8,7 +8,23 @@ Open the Workflows page from the top bar: **Workspace → Workflows**. Everyone 
 
 ## The Workflows page
 
-The page has three parts: the list of Workflows on the left, the steps of the chosen Workflow in the middle, and on the right the Metrics that use it and when it runs.
+The page has three parts: the list of Workflows on the left, the steps of the chosen Workflow in the middle, with what happened in each period under them, and on the right the Metrics that use it and when it runs.
+
+### What happened, period by period
+
+Under the steps, **What happened, period by period** shows a timeline for each period of the Workflow, the newest first and open, the earlier ones folded (the last four). Each period says how many values are in, such as "5 of 6 in", and whether it is published or locked. Under it are the events in order, with their day and time in the Workspace's time zone:
+
+- who was asked and reminded, grouped when close together: "Asked 6 people by Email, Slack and Telegram",
+- values that came in, with how many were in by then: "5 values came in (5 of 6 in)",
+- Approvals asked, approved and sent back, Self-checks, Escalations and the Questions and Tasks about the period's values,
+- Metrics published and locked,
+- **Snapshots** of dashboards that draw these Metrics, once shown.
+
+Everyone who can look at the Workflow sees the timeline, but only what they may see. A Metric you cannot see appears only as a count ("1 value"), never by name, value or sender. What people said in a Thread shows only if you may read that Thread, and then only as the first words of a note, with a link to the whole Thread. A Thread you may not read is not on your timeline at all. The timeline records nothing of its own: it puts together what Ziffr already keeps. Assistants can read the same timeline with the `period_status` tool of the MCP server.
+
+### Tell the owner when a period locks
+
+Ticking **Tell the owner when a period locks** (only the owner changes it, and it is off by default) sends the Workflow's owner a short summary by their Delivery Preference once every value the Workflow asks for in the period is locked: how many were in, and the Approvals and Questions about them, as far as the owner may see them. Save the Workflow to keep the setting.
 
 ### The list
 

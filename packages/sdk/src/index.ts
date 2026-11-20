@@ -164,6 +164,37 @@ export type ScheduleEntry = {
  * entries, and the undated Tasks and Questions. */
 export type Schedule = { today: string; /** Whose Schedule it is. */ person_id: string; overdue: ScheduleEntry[]; days: { date: string; entries: ScheduleEntry[] }[]; undated: ScheduleEntry[] };
 
+/** A Workflow: id and name. */
+export type WorkflowName = { id: number; name: string };
+
+/** One line of a period's timeline: one event, or several of one kind close together. */
+export type TimelineEvent = {
+  /** When it happened (the first of a group), as an instant. */
+  at: string;
+  /** The same moment's day in the workspace's time zone, and its time (HH:mm). */
+  day: string;
+  time: string;
+  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot";
+  /** One sentence; names in it come from the workspace. */
+  text: string;
+  count: number;
+  /** For `in`: how many of the values asked for were in by then. */
+  in: number | null;
+  /** Details; a Metric the key's creator does not see is only counted, as "1 value". */
+  items: string[];
+  /** Where to look in Ziffr, only for something the key's creator may open; needs a sign-in. */
+  url: string | null;
+};
+
+/** What GET /workflows/{id}/period-status answers: how a Workflow's period is going, in order. */
+export type PeriodStatus = {
+  workflow: WorkflowName;
+  period: { start: string; name: string };
+  /** Values in, of the values the Workflow asks for; and how many of them are published and locked. */
+  in: number; of: number; published: number; locked: number;
+  events: TimelineEvent[];
+};
+
 /** One value in a Feed's batch; `period` is the period's first day, the current period if left out. */
 export type FeedItem = { metric: string; period?: string; value: number; breakdown?: BreakdownRow[] };
 
@@ -343,6 +374,17 @@ export class Ziffr {
   /** Finds Metrics by name, and "Metric + period" for words such as "churn march 2026" (scope metrics:read). Period
    * results come first; `slug` and `period` are what `metrics.get` and `observations` take. */
   find = async (words: string): Promise<Found[]> => (await this.get<{ items: Found[] }>("/find", { q: words })).items;
+
+  /** The workspace's Workflows, to find the one to ask about (scope metrics:read). */
+  readonly workflows = {
+    /** One page of Workflows. */
+    list: (options: PageOptions = {}) => this.get<Page<WorkflowName>>("/workflows", options),
+    /** Every Workflow, page by page. */
+    all: () => this.every<WorkflowName>((cursor) => this.workflows.list({ cursor, limit: 100 })),
+    /** How a Workflow's period is going, as the key's creator may see it (scope metrics:read): `period` is a period's
+     * first day, the newest one that has anything when left out. */
+    periodStatus: (id: number, period?: string): Promise<PeriodStatus> => this.get<PeriodStatus>(`/workflows/${id}/period-status`, period ? { period } : {}),
+  };
 
   /** The workspace's people and Contacts. */
   readonly people = {

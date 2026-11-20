@@ -430,7 +430,7 @@ export type ApprovalScope = "unusual" | "every";
 /** What an Approve step does with a value nobody but its submitter could approve (GLOSSARY: Self-check). */
 export type NobodyElse = "self-check" | "count";
 /** A Workflow's Due Date and its steps. */
-export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[] };
+export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[]; /** Tell the Workflow's owner when a period locks (off when left out). */ lockSummary?: boolean };
 /** A named, reusable path a metric's value takes each period (GLOSSARY: Workflow). */
 export type Workflow = { id: number; owner_id: string; name: string; config: WorkflowConfig; updated_at: string };
 /** Where a metric's period is in its Workflow. */

@@ -25,6 +25,8 @@ import * as find from "@/app/api/v1/find/route";
 import * as people from "@/app/api/v1/people/route";
 import * as scheduleRoute from "@/app/api/v1/schedule/route";
 import * as templates from "@/app/api/v1/templates/route";
+import * as workflows from "@/app/api/v1/workflows/route";
+import * as periodStatus from "@/app/api/v1/workflows/[id]/period-status/route";
 import * as workspace from "@/app/api/v1/workspace/route";
 import * as rest from "@/app/api/v1/[...rest]/route";
 import { runFromMcp } from "@/lib/mcp-context";
@@ -56,6 +58,8 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["people", people],
   ["schedule", scheduleRoute],
   ["templates", templates],
+  ["workflows", workflows],
+  ["workflows/[id]/period-status", periodStatus],
   ["workspace", workspace],
 ];
 

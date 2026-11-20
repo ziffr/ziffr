@@ -21,6 +21,8 @@ import { DemoControls } from "@/components/demo-controls";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
 import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
 import { NewWorkflowFromTemplate, SaveWorkflowTemplate } from "./templates";
+import type { PeriodTimeline } from "@ziffr/core/period-timeline";
+import { PeriodTimelines } from "./period-timeline";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
 const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
@@ -38,7 +40,9 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true, timelines = [] }: {
+  /** The Workflow's periods as this viewer may see them, newest first (decided in the core). */
+  timelines?: PeriodTimeline[];
   /** The team's Workflow Templates (spec 0030). */
   templates?: WorkflowTemplateSummary[];
   /** May make Workflows and templates: not a Guest. */
@@ -92,6 +96,11 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               </label>
             </div>
 
+            <label className="mt-3 flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={cfg.lockSummary === true} disabled={!canEdit} onChange={(e) => setCfg({ ...cfg, lockSummary: e.target.checked })} className="size-4 accent-[var(--color-ink)]" />
+              Tell the owner when a period locks
+            </label>
+
             <ol className="relative mt-6 space-y-3 before:absolute before:top-4 before:bottom-4 before:left-[19px] before:w-px before:bg-[var(--color-rule-2)]">
               <Node icon={Send} title="Ask" text="When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." />
               {steps.map((s, i) => (
@@ -126,6 +135,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               </div>
             )}
             {!canEdit && <p className="mt-4 pl-12 text-sm text-muted-foreground">{first(current.owner_id)} owns this workflow; only they change it.</p>}
+            <PeriodTimelines timelines={timelines} />
           </section>
 
           <aside className="space-y-6">
