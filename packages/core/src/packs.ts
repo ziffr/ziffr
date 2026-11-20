@@ -47,7 +47,8 @@ export type PackPreview = {
 export type PackRead = { ok: true; preview: PackPreview } | { ok: false; problems: { path: string; line: number | null; message: string }[] };
 
 // A person who manages the Workspace, not a program: Access Keys and Feeds install nothing.
-function assertManages(actor: Actor) {
+/** Refuses anyone but a person who is an Owner or Admin of a Workspace that is not the demo. */
+export function assertManages(actor: Actor) {
   if ((actor as { key?: unknown }).key) throw new Forbidden();
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins install Packs.");
 }
@@ -58,7 +59,7 @@ export const itemHash = (stored: unknown) => createHash("sha256").update(canonic
 
 /** Every item of a checked Pack as it would be stored, in the order of its kinds. View Designs, and Analysis Recipes
  * as View Designs that draw them (the Workspace keeps recipes inside designs), are checked again as they are stored. */
-function storedItems(pack: Pack) {
+export function storedItems(pack: Pack) {
   const c = pack.contents;
   const designs = new Map<string, ViewDesign>((c.views ?? []).map((v) => [v.key, v.design]));
   const recipeDesigns = (c.analyses ?? []).map((a) => ({ key: a.key, body: designWithRecipe(a.recipe) }));
@@ -86,6 +87,9 @@ function storedItems(pack: Pack) {
   return { catalog, templates, views, themes };
 }
 
+/** The keys of every item a Pack adds, so an update can tell what the Workspace removed since. */
+export const itemKeys = (stored: ReturnType<typeof storedItems>) => [...stored.catalog, ...stored.templates, ...stored.views, ...stored.themes].map((x) => x.key);
+
 /** Why this actor cannot install this Pack in their Workspace, or null. */
 async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
   if ((pack.contents.themes?.length ?? 0) > 0 && actor.role !== "owner") return "This Pack holds Themes, and only Owners change Themes: an Owner installs it.";
@@ -99,7 +103,8 @@ async function blockedFor(actor: Actor, pack: Pack): Promise<string | null> {
   return null;
 }
 
-const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
+/** A Pack's manifest: everything but its contents. */
+export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   const { contents: _c, ...m } = p; // eslint-disable-line @typescript-eslint/no-unused-vars
   return m;
 };
@@ -141,7 +146,7 @@ export async function installPackFile(actor: Actor, text: string, confirmed: { u
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: "upload", signed: false, manifest: manifestOf(pack) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: "upload", signed: false, manifest: manifestOf(pack), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,

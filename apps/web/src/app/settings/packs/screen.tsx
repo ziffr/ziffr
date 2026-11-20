@@ -14,6 +14,8 @@ import { sampleDesignWidget } from "@ziffr/core/design-files";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import { PACK_LIMITS, UNSIGNED_WARNING as UNSIGNED } from "@ziffr/core/pack";
 import type { InstalledPack, PackPreview, PackPreviewItem } from "@ziffr/core/packs";
+import type { OfferedItem } from "@ziffr/core/pack-updates";
+import { Offers, PackActions } from "./manage";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
 import { ExportPack } from "./export";
@@ -28,9 +30,10 @@ function ListingLink({ href, children }: { href?: string; children: React.ReactN
   return <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>;
 }
 
-export function PacksScreen({ installed, manages, exportable = null, demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, offers = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; offers?: OfferedItem[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
+      {manages && <Offers offers={offers} />}
       <section aria-labelledby="installed-packs">
         <h2 id="installed-packs" className="mb-2 text-sm font-medium">Installed in this Workspace</h2>
         {guest ? <p className="text-sm text-muted-foreground">Guests do not see the Workspace&rsquo;s Packs.</p>
@@ -51,6 +54,7 @@ export function PacksScreen({ installed, manages, exportable = null, demo, guest
                     </p>
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage}>Its page</ListingLink><ListingLink href={p.listing.support}>Help</ListingLink></p>
                     <AddedList added={p.added} />
+                    {manages && <PackActions installId={p.id} name={p.name} />}
                   </li>
                 ))}
               </ul>
