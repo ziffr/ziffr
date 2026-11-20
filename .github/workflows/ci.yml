@@ -1,6 +1,7 @@
-# Typecheck, lint and test every pull request, every group in the merge queue, and every push to main (CONTRIBUTING.md):
-# main is the one branch, and releases are its tags (ADR 0004). A newer push cancels the older run of the same branch,
-# the quick checks share one install, and a change to docs alone skips the database job on a pull request.
+# CI (CONTRIBUTING.md): a pull request gets the quick checks (the check job: types, lint, unit tests, code health,
+# secrets, prose, docs, guide and release note). The merge queue tests each group of pull requests on top of main
+# with the full checks too (core-db, sharded, and numbers), and so does every push to main, whose run the release
+# asks for (ADR 0014). main is the one branch, and releases are its tags (ADR 0004).
 name: CI
 on:
   pull_request:
@@ -16,7 +17,9 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request cancels its older run. On main every commit keeps its run: the release asks for
+  # the push run of the very commit it tags. The merge queue replaces groups itself.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   # Everything quick, on one install: types, lint, unit tests, code health (#177: nothing unused, no more duplication
   # or complexity than the ceilings), and the security pass (docs/security/threat-model.md):
@@ -76,9 +79,11 @@ jobs:
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md): every Aggregation, Display
   # Period and Fiscal Year start against the reference on at least 1,000 generated series each, with a new seed.
-  # Runs beside the other jobs when a change touches a calculation path (.github/calculation-paths.txt); otherwise
-  # its steps are skipped and the job still succeeds, so it can be a required check.
+  # In the merge queue and on main, beside the other jobs, when a change touches a calculation path
+  # (.github/calculation-paths.txt); otherwise its steps are skipped and the job still succeeds. On a pull request the
+  # job is skipped, which counts as passed, so it can be a required check.
   numbers:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # The full-strength run takes a few minutes and mutation testing at most 20 (mutation-pr.sh stops it there).
     timeout-minutes: 30
@@ -122,48 +127,59 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
         run: .github/scripts/mutation-pr.sh "$BASE" 1200
 
-  # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions).
-  # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).
-  core-db:
+  # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions), in the merge
+  # queue and on main only: a pull request gets the quick checks, and its group is tested in full before it lands.
+  # Four jobs side by side, each with its own local Supabase: the core's database tests in three shards, and the app
+  # (its API over HTTP, its production build, and the SDK, MCP server and Feeds against it). The job named core-db,
+  # the required check, waits for all four and passes only if each did.
+  core-db-shard:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: core-db (core, shard ${{ matrix.shard }} of 3)
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 2
-      # A pull request that changes only docs or release notes needs no database: the rest of this job is skipped.
-      - name: Does this change code?
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! git diff --name-only HEAD^1 HEAD | grep -qvE '^(docs/|\.changeset/|[^/]+\.md$|\.vale/)'; then
-            echo "code=false" >> "$GITHUB_OUTPUT"; echo "Only docs changed: skipping the database job."
-          else
-            echo "code=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        if: steps.changes.outputs.code == 'true'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: steps.changes.outputs.code == 'true'
         with:
           node-version: 22
           cache: pnpm
       - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
-        if: steps.changes.outputs.code == 'true'
         with:
           version: 2.116.0
       - run: pnpm install --frozen-lockfile
-        if: steps.changes.outputs.code == 'true'
       - name: Local Supabase (database, API, auth and the test mail server)
-        if: steps.changes.outputs.code == 'true'
         # A runner sometimes has one of Supabase's ports (554xx) taken for a moment by an outgoing connection: try again.
         run: for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
-      - run: pnpm --filter @ziffr/core test:db
-        if: steps.changes.outputs.code == 'true'
+      - name: The core's database tests, shard ${{ matrix.shard }} of 3
+        run: pnpm --filter @ziffr/core test:db --shard=${{ matrix.shard }}/3
+
+  core-db-app:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    name: core-db (the app, its API and its clients)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
+        with:
+          version: 2.116.0
+      - run: pnpm install --frozen-lockfile
+      - name: Local Supabase (database, API, auth and the test mail server)
+        run: for i in 1 2 3; do supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta && exit 0; supabase stop --no-backup || true; sleep 10; done; exit 1
       - name: The API over HTTP (route handlers against the same database)
-        if: steps.changes.outputs.code == 'true'
         run: pnpm --filter @ziffr/web test:db
+      # The production build here also fails if the core's database module is bundled for a browser (next.config.ts).
       - name: The app, built and running, for the SDK and the MCP server
-        if: steps.changes.outputs.code == 'true'
         run: |
           # The local Supabase's address and keys are fixed development values, not secrets.
           eval "$(supabase status -o json | node -e 'const s = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const k of ["API_URL", "ANON_KEY", "SERVICE_ROLE_KEY"]) console.log(`export ${k}=${JSON.stringify(s[k])}`)')"
@@ -173,13 +189,25 @@ jobs:
           for i in $(seq 1 60); do curl -sf http://localhost:3000/api/v1/openapi.json > /dev/null && exit 0; sleep 1; done
           cat "$RUNNER_TEMP/app.log"; exit 1
       - name: The SDK against the running app
-        if: steps.changes.outputs.code == 'true'
         run: pnpm --filter @ziffr/sdk test:app
       - name: The MCP server against the running app
-        if: steps.changes.outputs.code == 'true'
         run: pnpm --filter @ziffr/mcp test:app
       - name: The feed kit and the SQL Feed against the running app
-        if: steps.changes.outputs.code == 'true'
         run: |
           pnpm --filter @ziffr/feed-kit test:app
           pnpm --filter @ziffr/feed-sql test:app
+
+  # The required check: skipped on a pull request (which counts as passed), and in the merge queue and on main passed
+  # only if every database job above passed. Its name stays core-db, so the ruleset and the release need no change.
+  core-db:
+    if: always() && github.event_name != 'pull_request'
+    needs: [core-db-shard, core-db-app]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every database job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || { echo "::error::A database job did not pass ($r)."; exit 1; }; done
