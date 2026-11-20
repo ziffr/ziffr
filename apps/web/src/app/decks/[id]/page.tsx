@@ -5,6 +5,7 @@ import { currentActor, viewerId } from "@/lib/viewer";
 import { deckView, savedWidgets } from "@ziffr/core/page-data";
 import { getCanvasData } from "@/lib/access";
 import { DeckEditorLoader } from "./loader";
+import { countView } from "@/lib/count-view";
 import { deckSeed } from "@ziffr/core/conversions";
 import { snapshotDeckSeed } from "@ziffr/core/snapshots";
 import { deckTemplateSeed, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
@@ -32,7 +33,8 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
       </div>
     );
   }
-  if (role === "viewer") redirect(`/decks/${id}/present`);
+  if (role === "viewer") redirect(`/decks/${id}/present`); // which counts the open
+  void countView(actor, { kind: "deck", id });
   // A new, empty deck made from a dashboard (spec 0010) gets that one's widgets as its first slides; the
   // core checks the person may open it. Any other deck, or one that has slides, starts as it is.
   const empty = !Object.values((deck.document as { store?: Record<string, { type?: string }> } | null)?.store ?? {}).some((r) => r.type === "frame");

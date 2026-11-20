@@ -11,11 +11,11 @@ export type ViewSubject = { kind: "dashboard" | "deck" | "metric"; id: number };
 /** Days View Counts are kept (13 months: a 90-day rule with room, and a quarter against last year's). */
 export const VIEW_COUNT_DAYS = 400;
 
-/** Counts one open of a subject in the actor's Workspace, today (UTC): `app` for a signed-in person's page, `api` for
- * a program's read through an Access Key. A single upsert, best effort: it never throws, and counts nothing in the
+/** Counts one open of a subject in the actor's Workspace, today (UTC): `app` for a signed-in person's page, `link` for a
+ * View Link, `api` for a program's read through an Access Key. A single upsert, best effort: it never throws, and counts nothing in the
  * demo, nothing for a subject outside the actor's Workspace, and nothing for a malformed one. The caller has loaded
  * the subject for the actor already; the database checks only that it belongs to the Workspace. Stores no person. */
-export async function recordView(actor: Pick<Actor | KeyActor, "workspaceId">, subject: ViewSubject, via: "app" | "api" = "app"): Promise<void> {
+export async function recordView(actor: Pick<Actor | KeyActor, "workspaceId">, subject: ViewSubject, via: "app" | "link" | "api" = "app"): Promise<void> {
   try {
     if (actor.workspaceId === DEMO_WORKSPACE_ID || !Number.isSafeInteger(subject.id) || subject.id <= 0) return;
     await db().rpc("record_view", { p_workspace: actor.workspaceId, p_kind: subject.kind, p_subject: subject.id, p_via: via });

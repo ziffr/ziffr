@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { openViewLink } from "@/lib/view-links";
+import { isNotAnOpen } from "@/lib/count-view";
 import { PresentDashboard } from "@/components/present-dashboard";
 import { PublicSlideshow } from "./slideshow";
 import { DashboardReader } from "@/components/dashboard-reader";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Ziffr", robots: { index: false, follow: false } };
 
 export default async function ViewLinkPage({ params }: { params: Promise<{ token: string }> }) {
-  const view = await openViewLink((await params).token);
+  const view = await openViewLink((await params).token, { count: !(await isNotAnOpen()) });
   if (!view) {
     return (
       <div className="mx-auto mt-24 max-w-md p-6 text-center text-sm">

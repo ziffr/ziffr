@@ -9,6 +9,7 @@ import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
+import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
 import { dataAsOfEach } from "./snapshot-periods";
@@ -143,11 +144,17 @@ export function deckAsOf(document: unknown): Map<number, string> {
   return ends;
 }
 
-/** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. */
-export async function openViewLink(token: string): Promise<ViewPayload | null> {
+/** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. With
+ * `count`, a link that works also adds to its dashboard's or deck's View Count (spec 0031): once, a number and no
+ * visitor, in the background, never delayed or stopped by it. The page passes false for a prefetch or a HEAD. */
+export async function openViewLink(token: string, opts: { count?: boolean } = {}): Promise<ViewPayload | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
+  // A Snapshot's link counts for its dashboard (object_id); recordView ignores an id that is gone.
+  if (opts.count && (link.object_type === "dashboard" || link.object_type === "deck")) {
+    void recordView({ workspaceId: String(link.workspace_id) }, { kind: link.object_type, id: Number(link.object_id) }, "link");
+  }
   if (link.frozen) {
     // A frozen link keeps its values; its quarters follow the workspace's year start as everywhere else (spec 0017).
     const frozen = link.frozen as ViewPayload;

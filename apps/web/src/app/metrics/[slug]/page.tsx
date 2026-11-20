@@ -51,6 +51,7 @@ import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { moneyUnit } from "@ziffr/core/units";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { NotApprovedMark } from "@/views/approval-mark";
+import { countView } from "@/lib/count-view";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -110,6 +111,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     );
   }
   const actor = await currentActor();
+  // Only a Metric this person sees is counted (the refusal above returns first); a number, never a person.
+  void countView(actor, { kind: "metric", id: metric.id });
   const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile, archivable] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
