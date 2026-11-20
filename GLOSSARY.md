@@ -126,6 +126,10 @@ _Avoid_: Reminder, nudge
 A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
 _Avoid_: Process, pipeline, flow
 
+**Period Timeline**:
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in ("5 of 6 in"), Approvals and Actions, what published and locked, and the Snapshots made. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+_Avoid_: Activity feed, audit trail, history
+
 **Workflow Template**:
 A starting point for a new Workflow: its steps, Due Date and reminders, with the people left open to be picked when it is used. A Workflow made from one is an independent copy.
 _Avoid_: Preset, blueprint, process template

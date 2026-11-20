@@ -190,6 +190,19 @@ const ENDPOINTS: Endpoint[] = [
     summary: "Find a Metric and period by name", description: "Finds Metrics by name, and \"Metric + period\" when the words include a period (\"churn march 2026\", \"revenue Q3\", \"besuche KW 46\"), read in the workspace's Answer Languages and Fiscal Year. Only Metrics the key's creator sees, Archived Metrics after those in use and marked; period results first. A period is named only where the words name one of the Metric's own periods (not \"2026\" for a monthly Metric) and it has begun. Dashboards and decks are not searched here.",
   },
   {
+    method: "get", path: "/workflows", scope: "metrics:read", query: S.pageQuery, ok: { status: 200, name: "WorkflowList", schema: S.WorkflowList },
+    summary: "List Workflows", description: "The workspace's Workflows by id and name, to name the one to ask about with GET /workflows/{id}/period-status.",
+  },
+  {
+    method: "get", path: "/workflows/{id}/period-status", scope: "metrics:read", query: S.periodStatusQuery, ok: { status: 200, name: "PeriodStatus", schema: S.PeriodStatus },
+    summary: "How a Workflow's period is going",
+    description: "A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline): how many of the values it asks for are in (`in` of `of`), how many are published and locked, and what happened, oldest first: who was asked and reminded and by which Connectors, which values came in, Approvals and Actions about them, what published and locked, and the Snapshots made. Events of one kind close together are one line. A Metric the key's creator does not see appears only as a count (\"1 value\"), never by name, value or sender; a Thread's words appear only as their first words and only for a Thread the creator may read. `period` is a period's first day; the newest period that has anything when left out. Every call is in the Access Log.",
+    errors: [
+      { status: 400, description: "Or `period` is not a day." },
+      { status: 404, description: "Or the Workflow is missing or in another workspace, or it has no period yet." },
+    ],
+  },
+  {
     method: "get", path: "/people", scope: "metrics:read", query: S.textPageQuery, ok: { status: 200, name: "PersonList", schema: S.PersonList },
     summary: "List people", description: "The workspace's people and Contacts: id and name only, never contact details.",
   },

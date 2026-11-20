@@ -34,7 +34,7 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
   const pub = steps.filter((s) => s.type === "publish");
-  return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])] };
+  return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])], ...(c?.lockSummary === true ? { lockSummary: true } : {}) };
 }
 
 /** A Workflow of the actor's workspace that the actor owns, or Forbidden. */
