@@ -7,7 +7,7 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { keepTrial, trialEndsAt, trialThen } from "./trials";
-import { settingsInEffect } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { defaultLimitFrom } from "./workspace-limits";
 import { csvNumber } from "./export-values";
 import { NUMBER_STYLE_MARKS } from "./number-style";
@@ -34,8 +34,8 @@ export async function trialStatus(workspaceId: string): Promise<{ endsAt: string
 }
 
 /** What a trial becomes at its end where trials are kept, else null. */
-async function keptAs(): Promise<KeptAs | null> {
-  const settings = await settingsInEffect();
+async function keptAs(settings?: Awaited<ReturnType<typeof settingsInEffect>>): Promise<KeptAs | null> {
+  settings ??= await settingsInEffect();
   if (trialThen(settings) !== "keep") return null;
   const d = defaultLimitFrom(settings);
   return { label: d.label, metrics: d.metrics };
@@ -57,6 +57,8 @@ async function ownerOf(workspaceId: string): Promise<string | null> {
 /** Reminds the Owners of trials that end within a day, once each, through their own Connector. Returns how many. */
 export async function remindEndingTrials(now = new Date()): Promise<number> {
   const soon = new Date(now.getTime() + DAY).toISOString();
+  // Read strictly before anything is claimed: a reminder with the wrong words is never sent again.
+  const settings = await settingsInEffectStrict();
   // Claimed first: only the run that sets the mark sends the reminder.
   const { data } = await db().from("workspaces").update({ trial_reminded_at: now.toISOString() })
     .gt("trial_ends_at", now.toISOString()).lte("trial_ends_at", soon).is("trial_reminded_at", null).select("id, trial_ends_at");
@@ -65,7 +67,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
     const owner = await ownerOf(w.id);
     if (!owner) continue;
     const day = String(w.trial_ends_at).slice(0, 10);
-    const kept = await keptAs();
+    const kept = await keptAs(settings);
     await deliverNotice(w.id, {
       recipientId: owner, senderId: null, subject: "Your Ziffr trial ends tomorrow",
       text: kept
@@ -83,8 +85,9 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
  * deletion. */
 export async function closeEndedTrials(now = new Date()): Promise<number> {
   const at = now.toISOString();
-  // Where trials are kept (spec 0029), an ended one becomes an ordinary Workspace instead: nothing is revoked.
-  if (trialThen(await settingsInEffect()) === "keep") {
+  // Where trials are kept (spec 0029), an ended one becomes an ordinary Workspace instead: nothing is revoked. If the
+  // setting cannot be read this throws and nothing is closed: revoking keys is not what a kept trial should get.
+  if (trialThen(await settingsInEffectStrict()) === "keep") {
     const { data: ended } = await db().from("workspaces").select("id").lte("trial_ends_at", at).is("trial_closed_at", null);
     let kept = 0;
     for (const w of ended ?? []) if (await keepTrial(w.id as string)) kept++;
@@ -110,12 +113,12 @@ async function deleteTrial(workspaceId: string): Promise<void> {
     db().from("memberships").select("user_id").eq("workspace_id", workspaceId),
     db().from("contacts").select("person_id").eq("workspace_id", workspaceId),
     db().from("feeds").select("person_id").eq("workspace_id", workspaceId),
-    db().from("workspaces").select("id").eq("id", workspaceId).not("trial_ends_at", "is", null).maybeSingle(),
+    db().from("workspaces").select("id").eq("id", workspaceId).not("trial_ends_at", "is", null).is("trial_kept_at", null).maybeSingle(),
   ]);
   // Only a trial is deleted here: its key is destroyed only once that is certain.
   if (!trial) return;
   await destroyWorkspaceKeys(workspaceId);
-  const { data: gone, error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null).select("id");
+  const { data: gone, error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null).is("trial_kept_at", null).select("id");
   if (error || gone?.length !== 1) throw new Error("The trial could not be deleted.");
   // Contacts and Feeds are person rows made for this workspace alone, never with a sign-in.
   const others = [...(contacts ?? []).map((c) => c.person_id as string), ...(feeds ?? []).map((f) => f.person_id as string)];
@@ -134,8 +137,11 @@ async function deleteTrial(workspaceId: string): Promise<void> {
 
 /** Deletes trials that ended more than the grace days ago. Returns how many. */
 export async function deleteExpiredTrials(now = new Date()): Promise<number> {
+  // Fail closed: deleting needs a setting that was read and says "delete". An unreadable one throws, so a database
+  // hiccup never deletes trials the Installation set to be kept; where they are kept, nothing is deleted here.
+  if (trialThen(await settingsInEffectStrict()) !== "delete") return 0;
   const before = new Date(now.getTime() - TRIAL_GRACE_DAYS * DAY).toISOString();
-  const { data } = await db().from("workspaces").select("id").lte("trial_ends_at", before);
+  const { data } = await db().from("workspaces").select("id").lte("trial_ends_at", before).is("trial_kept_at", null);
   let n = 0;
   // Each on its own: one that fails waits for the next run and never holds back the others.
   for (const w of data ?? []) {
@@ -157,12 +163,21 @@ export async function trialsExist(): Promise<boolean> {
 
 /** Everything the scheduler does for trials, in order. Answers counts only. */
 export async function trialCleanup(now = new Date()): Promise<{ reminded: number; closed: number; deleted: number }> {
+  // The whole run waits when the settings cannot be read: the next run (an hour later) tries again.
+  try {
+    trialThen(await settingsInEffectStrict());
+  } catch (e) {
+    console.error(`Trial cleanup skipped: ${(e as Error).message}`);
+    throw e;
+  }
   return { reminded: await remindEndingTrials(now), closed: await closeEndedTrials(now), deleted: await deleteExpiredTrials(now) };
 }
 
 /** The Owner ends their trial now: it is deleted at once with everything in it, and they with it. */
 export async function endTrialNow(actor: Actor): Promise<void> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can end it.");
+  // Fail closed like the cleanup: with the setting unreadable, an ended trial might be one to keep.
+  if (trialThen(await settingsInEffectStrict()) === "keep") throw new Forbidden("Trials are kept here, not deleted.");
   await deleteTrial(actor.workspaceId);
 }
 

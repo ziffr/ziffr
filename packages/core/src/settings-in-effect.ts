@@ -32,7 +32,7 @@ export function forgetStoredSettings(): void {
 
 /** The values saved on the page, opened, and the names of sealed ones that no longer open (a lost or changed key).
  * A value only the previous key opens is sealed again under the current one. */
-export async function storedSettings(): Promise<Omit<Stored, "at">> {
+export async function storedSettings(strict = false): Promise<Omit<Stored, "at">> {
   if (cache && Date.now() - cache.at < SETTINGS_CACHE_MS) return cache;
   const values = new Map<string, string>();
   const unreadable = new Set<string>();
@@ -41,6 +41,8 @@ export async function storedSettings(): Promise<Omit<Stored, "at">> {
   if (error) {
     // Before the migration ran, or the database is away for a moment: the environment alone, read again next time.
     console.error(`Installation Settings: could not be read (${error.code ?? "error"})`);
+    // Strict readers (what deletes data) must not act on a guess: they get the error, not the defaults.
+    if (strict) throw new Error("The Installation Settings could not be read.");
     return { values, unreadable };
   }
   for (const row of data ?? []) {
@@ -65,6 +67,11 @@ export async function storedSettings(): Promise<Omit<Stored, "at">> {
  * else from its default. Server only: the result holds secrets. */
 export async function settingsInEffect(env: Settings = process.env): Promise<Settings> {
   const { values } = await storedSettings();
+  return merge(env, values);
+}
+
+/** The environment with the stored values put in for every Installation Setting it leaves unset. */
+function merge(env: Settings, values: Map<string, string>): Settings {
   last = { values, at: Date.now() };
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
@@ -74,6 +81,13 @@ export async function settingsInEffect(env: Settings = process.env): Promise<Set
     else out[name] = v;
   }
   return out;
+}
+
+/** Like settingsInEffect, but throws when the stored settings cannot be read, instead of falling back to the defaults.
+ * For decisions that destroy data, which must fail closed: a database hiccup never turns "keep" into "delete". */
+export async function settingsInEffectStrict(env: Settings = process.env): Promise<Settings> {
+  const { values } = await storedSettings(true);
+  return merge(env, values);
 }
 
 let last: { values: Map<string, string>; at: number } | null = null;
