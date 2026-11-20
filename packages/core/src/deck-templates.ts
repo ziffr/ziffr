@@ -9,6 +9,7 @@ import { metricChoices } from "./dashboard-templates";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromSlideLayout } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
+import { assertWidgetDesigns } from "./widget-designs";
 import { getMetrics } from "./workspace-data";
 import type { DeckTemplate, SlideBody, WidgetSettings } from "./types";
 
@@ -82,5 +83,7 @@ export async function deckTemplateSeed(actor: Actor, templateId: number, fills: 
   const t = await deckTemplate(actor, Number(templateId));
   if (!t) return null;
   await checkedFills(actor, t, fills);
+  // A template keeps its widgets' View Designs: checked again as they become a deck's, as a Dashboard Template's are.
+  assertWidgetDesigns(t.body.slides);
   return { slides: t.body.slides, fills };
 }

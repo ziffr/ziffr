@@ -150,8 +150,13 @@ export async function installPackFile(actor: Actor, text: string, confirmed: { u
     p_designs: stored.views,
     p_themes: stored.themes,
   });
-  // A Pack installed in the meantime breaks the unique install; anything else leaves nothing behind either.
-  if (error || data === null) throw new Error(error?.code === "23505" ? `${pack.name} is installed already.` : "The Pack could not be installed; nothing was added.");
+  // A Pack installed in the meantime breaks the unique install; anything else (a name its Workspace has already, the
+  // View Design limit) leaves nothing behind either, and says no more than that.
+  if (error || data === null) {
+    const twice = error?.code === "23505" && /pack_installs_workspace_id_pack_id_key/.test(error.message ?? "");
+    const named = error?.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "");
+    throw new Error(twice ? `${pack.name} is installed already.` : named ? "This Workspace's Metric Catalog has an entry of the same name as one of this Pack's already; nothing was added." : "The Pack could not be installed; nothing was added.");
+  }
   const id = Number(data);
   await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: "upload", signed: false } });
   return id;
