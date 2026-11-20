@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
-import { schedule, type Schedule } from "./schedule";
+import { entryTitle, ownFormCode, schedule, type Schedule } from "./schedule";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -244,5 +244,35 @@ describe("whose Schedule", () => {
     const key = (scopes: string[]): KeyActor => ({ ...w.actor(sara), key: { id: "1", scopes } });
     await expect(schedule(key(["values:submit"]), {}, NOW)).rejects.toEqual(expect.any(Forbidden));
     await expect(schedule(key(["metrics:read"]), {}, NOW)).resolves.toMatchObject({ personId: sara });
+  });
+});
+
+describe("opening a value due", () => {
+  it("gives a person their own form link only, or their Stand-in one while it counts", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ana = await w.person("member"); const ben = await w.person("member");
+    const m = await w.metric(sara, { name: "Revenue" });
+    await token(m.id, ana, { stand_in_id: ben, code: "tk-test-ana-form" });
+    expect(await ownFormCode(w.actor(ana, "member"), m.slug)).toBe("tk-test-ana-form");
+    // Ben is Ana's Stand-in but has no Token of his own yet: he gets no form, never Ana's.
+    expect(await ownFormCode(w.actor(ben, "member"), m.slug)).toBeNull();
+    await token(m.id, ben, { stands_in_for: ana, expires_at: "2999-01-01", code: "tk-test-ben-stands-in" });
+    expect(await ownFormCode(w.actor(ben, "member"), m.slug)).toBe("tk-test-ben-stands-in");
+    // Once he no longer stands in, his Stand-in Token counts no more.
+    await db().from("tokens").update({ stand_in_id: null }).eq("metric_id", m.id).eq("submitter_id", ana);
+    expect(await ownFormCode(w.actor(ben, "member"), m.slug)).toBeNull();
+    expect(await ownFormCode(w.actor(sara), m.slug)).toBeNull();
+    expect(await ownFormCode(w.actor(ana, "member"), "Not a slug!")).toBeNull();
+    const other = await ws(); const eve = await other.person("owner");
+    expect(await ownFormCode(other.actor(eve), m.slug)).toBeNull();
+  });
+
+  it("names each entry in a few words", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara, { name: "Cost", created_at: LONG_AGO, workflow_id: await workflow(w, sara) });
+    await token(m.id, sara);
+    await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: sara, kind: "task", purpose: "approval", question: "Approve Cost: 9", created_at: "2026-11-18T09:00:00Z" });
+    await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: sara, kind: "task", question: "Renegotiate the shipping rate" });
+    const titles = flat(await schedule(w.actor(sara), {}, NOW)).map(entryTitle);
+    expect(titles).toEqual(expect.arrayContaining(["Cost for October 2026 due", "Approve: Cost for October 2026", "Task: Renegotiate the shipping rate"]));
   });
 });

@@ -25,6 +25,7 @@ const MAIN: NavItem[] = [
 
 /** The person's own settings. */
 const YOU: NavItem[] = [
+  { href: "/settings/schedule", label: "My schedule" },
   { href: "/settings/profile", label: "Your profile" },
   { href: "/settings/deliveries", label: "Your Deliveries" },
 ];
