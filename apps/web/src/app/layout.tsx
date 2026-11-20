@@ -11,7 +11,7 @@ import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
-import { trialStatus } from "@ziffr/core/trial-end";
+import { keptWords, trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
@@ -110,7 +110,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
           </p>
         )}
-        {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} />}
+        {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} />}
         {overLimit && <OverLimitBar words={overLimit} />}
         <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
         {demo && <Tour />}

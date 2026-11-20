@@ -151,3 +151,26 @@ export async function newMetricRefusal(actor: Actor): Promise<string | null> {
   const since = data?.over_limit_since ? new Date(data.over_limit_since as string) : null;
   return limitRule(count, limit.metrics, since, new Date()) === "refuse" ? limitRefusal(count, limit) : null;
 }
+
+/** Whether one person may own only one Workspace on the Installation's default limit (ZIFFR_ONE_DEFAULT_PER_PERSON=1,
+ * hosted Ziffr's "one Free Workspace per person"); only while a default limit is in effect. */
+export async function oneDefaultPerPerson(env: Settings = process.env): Promise<boolean> {
+  if (env.ZIFFR_ONE_DEFAULT_PER_PERSON?.trim() !== "1") return false;
+  return defaultLimitFrom(await settingsInEffect()).metrics !== null;
+}
+
+/** Thrown when a person who already owns a Workspace on the default limit makes another; its message is for people. */
+export class DefaultWorkspaceTaken extends Error {
+  constructor() {
+    super("You already own a Workspace on this Ziffr's default limit. Each person gets one: change its Size for more room, or ask to join another Workspace.");
+    this.name = "DefaultWorkspaceTaken";
+  }
+}
+
+/** Refuses a new Workspace on the default limit to a person who owns one already, where that rule is on. */
+export async function assertMayOwnDefault(personId: string): Promise<void> {
+  if (!(await oneDefaultPerPerson())) return;
+  const { data, error } = await db().rpc("owns_default_workspace", { p_person: personId });
+  if (error) throw new Error("The workspace could not be created.");
+  if (data === true) throw new DefaultWorkspaceTaken();
+}

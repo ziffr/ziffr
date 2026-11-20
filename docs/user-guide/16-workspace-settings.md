@@ -53,6 +53,10 @@ A new trial opens on its **Trial guide**, one step at a time with the steps name
 
 While the trial runs, a line under the top bar says how many days it has left, with **Trial guide**, **Try it** and **Download your values** (a CSV file of every Metric's values, written in the Workspace's Number Style without group marks and with a plain "-" before a negative value, so a spreadsheet reads it as a number; when the decimal mark is a comma, the fields are separated by ";" so a spreadsheet set to that style opens it right away). The day before it ends, Ziffr reminds you once. When it ends, Ziffr shows **This trial has ended** instead of the app: nothing is sent or taken any more and its keys stop working, but you can still download your values. A week later the trial is deleted with everything in it, and your account with it. **End my trial** on the Try it page, or **Delete it now** on the ended screen, deletes it at once after you confirm.
 
+Some Ziffrs, such as hosted Ziffr, keep trials instead of deleting them. The line under the top bar then says what the Workspace stays on, such as "Your trial ends on 3 December. Your Workspace then stays, on Free: up to 10 Metrics.", and so does the reminder the day before. When the trial ends, nothing closes: the Workspace becomes an ordinary one with that limit (see Size and usage). From then on you can invite people, every Connector reaches everyone, and keys work until the day they were made for. If it holds more Metrics than the limit, the 14 days over it start. Booking a Size during the trial ends the trial at once, with that Size's limit.
+
+Where such a Ziffr allows only one Workspace on its default limit per person, making a second one says so: change the first one's Size for more room, or ask to be invited to another Workspace.
+
 ### Asking to join
 
 If your colleagues' Workspace has **Domain Joining** switched on, and you signed in with a proven address at the same company domain, the page shows **Your colleagues already use Ziffr** above the form. It lists each such Workspace with an **Ask to join** button.

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { EndTrialButton } from "./end-trial-button";
 
 /** The line under the top bar while the trial runs. */
-export function TrialBar({ daysLeft, endsAt }: { daysLeft: number; endsAt: string }) {
+export function TrialBar({ daysLeft, endsAt, kept }: { daysLeft: number; endsAt: string; kept?: string | null }) {
   return (
     <p className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 text-xs text-muted-foreground sm:px-6">
-      <span>Your trial ends {daysLeft <= 1 ? "within a day" : `in ${daysLeft} days`}, on {endsAt.slice(0, 10)}.</span>
+      {/* Where trials are kept (spec 0029): when it ends, and what the Workspace then stays on. */}
+      <span>{kept ?? `Your trial ends ${daysLeft <= 1 ? "within a day" : `in ${daysLeft} days`}, on ${endsAt.slice(0, 10)}.`}</span>
       <Link href="/try/start" className="underline underline-offset-2 hover:text-foreground">Trial guide</Link>
       <Link href="/try" className="underline underline-offset-2 hover:text-foreground">Try it</Link>
       <a href="/try/download" className="underline underline-offset-2 hover:text-foreground">Download your values</a>

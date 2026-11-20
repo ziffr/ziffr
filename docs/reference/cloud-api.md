@@ -19,7 +19,7 @@ A call is refused with 401 when the signature is missing, wrong, more than five 
 | --- | --- |
 | `GET /api/cloud/v1/workspaces/{id}` | The Workspace's numbers (below). One that does not exist answers `exists: false`. |
 | `GET /api/cloud/v1/limits?after=<id>&limit=<1-100>` | The Workspaces whose limit Ziffr Cloud set, by id: `{ items, next }`, where `next` is the `after` of the next page. |
-| `PUT /api/cloud/v1/workspaces/{id}/limit` | Sets the limit: `{ "metrics": 50, "label": "Small", "next": { "label": "Team", "on": "2026-12-01" } }`. `metrics` is 1 to 1,000,000, or null to give the Workspace back to the Installation's default, which drops its label and coming change. Each PUT replaces the label and coming change: one left out is removed. Answers the Workspace's numbers; 404 for one that does not exist. |
+| `PUT /api/cloud/v1/workspaces/{id}/limit` | Sets the limit: `{ "metrics": 50, "label": "Small", "next": { "label": "Team", "on": "2026-12-01" } }`. `metrics` is 1 to 1,000,000, or null to give the Workspace back to the Installation's default, which drops its label and coming change. Each PUT replaces the label and coming change: one left out is removed. With `"endTrial": true`, a Trial Workspace becomes an ordinary one with this limit at once (an Owner booked a Size during the trial). Answers the Workspace's numbers; 404 for one that does not exist. |
 
 A Workspace's numbers: `id`, `exists`, `metrics` (its Metrics, Archived Metrics not counted), `limit`, `label`, `room` (the limit and 10 % more, at least one), `over_limit_since`, `trial_ends_at`, `set_by` (`cloud`, `installation_admin` or null) and `next`. Never a name, a Metric, a value or a person.
 
