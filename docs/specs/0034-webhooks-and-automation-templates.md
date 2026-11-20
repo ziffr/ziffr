@@ -195,7 +195,7 @@ For the owner. Each has a recommendation; the tickets below that depend on an an
 
 ## Tickets
 
-1. Words and shared transport: the glossary (Webhook, Automation Template; Feed's and Connector's lines point here), `outbound-request.ts` moved out of `marketplace.ts` with the private-address rules and the operator list, SSRF tests, the threat-model entry. Not blocked.
+1. Shared transport (the glossary entries are made with this spec): `outbound-request.ts` moved out of `marketplace.ts` with the private-address rules and the operator list, SSRF tests, the threat-model entry. Not blocked.
 2. Webhooks in the core: the tables (sealed, spec 0028), create, change, replace secret, switch on and off, delete (Actor first, Owner or Admin, limits), the Audit Log, notices to Owners, db tests; no sending yet. Blocked by 1 and spec 0028's sealing.
 3. Events and sending: the pure `webhookMayHear` and the message builders with their schema (`docs/reference/webhook-events.schema.json`, generated), the send rows written by the core's changes, signing, the sending path in the deliveries job, retries, auto-disable with the Owners' email, quiet loops. Blocked by 2 and open question 1.
 4. Settings, Webhooks page: add, events, secret shown once, masked address, Send test event, the log with Send again, switch off, replace secret; user guide chapter 16, the clear-text note, a release note. Blocked by 3.
