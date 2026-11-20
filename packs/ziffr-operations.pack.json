@@ -595,26 +595,6 @@
         }
       },
       {
-        "key": "values-derived",
-        "metric": {
-          "format": "ziffr.metric/1",
-          "name": "Values: derived",
-          "description": "Values computed for Derived Metrics in the period. Held back while the Installation has fewer than three Workspaces.",
-          "category": "Operations",
-          "period": "day",
-          "aggregation": "sum",
-          "polarity": "target",
-          "unit": "values",
-          "unitPosition": "after",
-          "valueFormat": "number",
-          "decimals": 0,
-          "submissionRule": "overwrite",
-          "sources": [
-            "api"
-          ]
-        }
-      },
-      {
         "key": "api-calls",
         "metric": {
           "format": "ziffr.metric/1",

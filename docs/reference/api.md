@@ -871,8 +871,6 @@ For a Usage Key only (spec 0031), made by an Installation Admin on the Installat
 | `days[].feeds` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
 | `days[].packs_installed` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
 | `days[].api_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
-| `days[].feed_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
-| `days[].mcp_calls` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
 | `days[].emails_sent` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
 | `days[].views_dashboards` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
 | `days[].views_decks` | integer | no | A count; a figure that counts a state is as of the end of the UTC day, one that counts events is the sum over the day. |
@@ -887,7 +885,8 @@ For a Usage Key only (spec 0031), made by an Installation Admin on the Installat
 | `days[].values_api` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
 | `days[].values_feed` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
 | `days[].values_mcp` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
-| `days[].values_derived` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].feed_calls` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
+| `days[].mcp_calls` | integer | no | A figure split by kind or Source; left out, and named in `withheld`, while fewer than 3 Workspaces are behind the totals. |
 | `days[].packs` | array of object | no | Marketplace Packs held by at least 3 Workspaces, with how many; an uploaded Pack is never named. |
 | `days[].packs[].id` | string | yes |  |
 | `days[].packs[].installs` | integer | yes |  |
