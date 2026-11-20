@@ -3,6 +3,7 @@
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
@@ -203,12 +204,12 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   if (await isLocked(metric.id, period)) {
     // It proposes a change to the value already there (GLOSSARY: Correction), so accepting it replaces that value.
     const { data: latest } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
-    const { data: a } = await db().from("actions").insert({
+    const [a] = await insertSealed("actions", workspaceId, [{
       metric_id: metric.id, period_start: period, observation_id: latest?.[0]?.id ?? null, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
       question: `${metric.name} for ${when} is locked. ${sender?.name.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
-    }).select("id").single();
+    }]) as { id: number }[];
     if (a) {
-      await db().from("thread_messages").insert({ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" });
+      await insertSealed("thread_messages", workspaceId, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
       if (senderId) await effects.notifyCorrection({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
     }
     return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });

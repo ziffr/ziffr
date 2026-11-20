@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeedActor, KeyActor } from "./actor";
 import { actorForKey, actorForSecret, createAccessKey } from "./access-keys";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { addFeedToMetric, createFeed, createFeedKey, submitFeedObservations } from "./feeds";
 import { submitObservation } from "./api-submissions";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
@@ -24,7 +25,10 @@ const monthsAgo = (n: number) => shiftPeriod(thisMonth(), "month", -n);
 /** Effects that send nothing but still run the Workflow, so checks and Approvals happen for real. */
 const quiet = (): SubmissionEffects => ({ notifyCorrection: vi.fn(async () => {}), afterValue: submissionEffects.afterValue });
 const stepOf = async (workflowId: number) => ((await db().from("workflows").select("config").eq("id", workflowId).single()).data!.config as WorkflowConfig).steps.find((s) => s.type === "approve")!;
-const approvalTasks = async (metricId: number) => (await db().from("actions").select("id, assignee_id, status, question").eq("metric_id", metricId).eq("purpose", "approval").order("id")).data ?? [];
+const approvalTasks = async (metricId: number) => {
+  const { data } = await db().from("actions").select("id, assignee_id, status, question, workspace_id").eq("metric_id", metricId).eq("purpose", "approval").order("id");
+  return data?.length ? openRows("actions", data[0].workspace_id as string, data) : [];
+};
 
 /** A workspace with an Owner (Sara), two Approvers (Ada, then Bo), a Submitter (Ann) and a Metric under a Workflow
  * whose Approve step holds back `values` (left out: a step as stored before the choice existed). */

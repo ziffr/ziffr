@@ -121,7 +121,8 @@ describe("View Links", () => {
     await placeWidget(w.actor(sara), d, { type: "metric", id: other.id });
     const view = await openViewLink(token);
     expect(view!.data.metrics.map((m) => m.id)).toEqual([shown.id]);
-    expect(JSON.stringify(view)).not.toMatch(/private@contact|2345/);
+    // The phone in full: "2345" alone also turns up in times and ids.
+    expect(JSON.stringify(view)).not.toMatch(/private@contact|\+49 1 2345/);
     expect(view!.data.people.every((p) => p.email === "" && p.slack_handle === "")).toBe(true);
   });
   it("stops working once revoked, and only its owner revokes it", async () => {

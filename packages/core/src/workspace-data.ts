@@ -1,6 +1,7 @@
 // Data of one Workspace (GLOSSARY: Metric, Observation, Action, Target Series, Projection, Breakdown). Every loader
 // takes the workspace and reads nothing outside it; what a person may see is decided in access.ts.
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { formulaInputs } from "./formula";
 import { buildSeries } from "./series";
 import { normalizeMetric } from "./metric-row";
@@ -131,7 +132,7 @@ export async function getActions(ws: string, filter?: { metricId?: number }): Pr
     allRows<Action>((from, to) => base().neq("status", "closed").order("updated_at", { ascending: false }).order("id", { ascending: false }).range(from, to)),
     base().eq("status", "closed").order("updated_at", { ascending: false }).order("id", { ascending: false }).limit(CLOSED_ACTIONS_SHOWN),
   ]);
-  return [...live, ...((closed ?? []) as Action[])].sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id);
+  return (await openRows("actions", ws, [...live, ...((closed ?? []) as Action[])])).sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id);
 }
 
 /** How many closed Actions a list reads at most: the newest ones. */

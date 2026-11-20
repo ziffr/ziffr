@@ -5,6 +5,7 @@
 import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
@@ -44,8 +45,11 @@ export async function connectorFor(ws: string, recipientId: string, kind: Delive
  * only queued, for the deliveries job to send. */
 export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null; queue?: boolean }) {
   if (input.senderId === input.recipientId) return;
-  const { data: a } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metrics(name, period)").eq("id", input.actionId).single();
-  if (!a) return;
+  const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metrics(name, period)").eq("id", input.actionId).single();
+  if (!found) return;
+  const [a] = await openRows("actions", found.workspace_id, [found]);
+  // A question that does not open (changed in the database, or under a destroyed key) is not sent at all.
+  if (a.question === null) return;
   const { data: people } = await db().from("profiles").select("*").in("id", [input.senderId, input.recipientId]);
   const sender = people?.find((p) => p.id === input.senderId) as Profile | undefined;
   const recipient = people?.find((p) => p.id === input.recipientId) as Profile | undefined;

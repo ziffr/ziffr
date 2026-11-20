@@ -3,6 +3,7 @@
 // else, an old or unknown message, a message that replies to nothing and the 21st reply are refused.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
 import { ask } from "./questions";
 import { setTelegramEnabled } from "./telegram-connection";
@@ -82,7 +83,7 @@ describe("answers by Telegram", () => {
     const d = await latest(w.id, ann);
     expect(await receiveTelegramUpdate(text(user, "Two stores were closed.", d.telegram_message_id))).toBe("replied");
     expect(await receiveTelegramUpdate(text(user, "Correction: 50", d.telegram_message_id))).toBe("corrected");
-    const { data: thread } = await db().from("thread_messages").select("author_id, body").eq("action_id", actionId).order("id");
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body").eq("action_id", actionId).order("id")).data);
     expect(thread!.map((t) => t.author_id)).toContain(ann);
     expect(thread!.map((t) => t.body)).toContain("Two stores were closed.");
   });
