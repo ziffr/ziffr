@@ -5,6 +5,7 @@ import { addDays, differenceInCalendarDays, format, isValid, isWeekend, parseISO
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
+import { audit } from "./audit-log";
 import { openNames, openRows } from "./sealed-columns";
 import { feedIdsAmong } from "./feed-people";
 import { yearStartOf } from "./fiscal-year";
@@ -110,6 +111,16 @@ async function whose(actor: Actor | KeyActor, personId: unknown): Promise<string
   const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).eq("user_id", personId).maybeSingle();
   if (!data) throw new Forbidden();
   return personId;
+}
+
+/** Records an Owner's or Admin's reading of a teammate's Schedule (spec 0027): one Audit Log event per request, naming
+ * whose Schedule it was, the span and the key it came through. Per request, not per entry, and only a name lookup and
+ * one insert, so a program polling a teammate's Schedule costs little; its own Schedule is never recorded. */
+async function auditTeammateRead(actor: Actor | KeyActor, person: string, from: string, to: string) {
+  const { data } = await db().from("profiles").select("id, name").eq("id", person).maybeSingle();
+  const [named] = await openNames(actor.workspaceId, data ? [data] : []);
+  const key = (actor as KeyActor).key;
+  await audit(actor as Actor, { kind: "schedule.read", object: { type: "person", id: person, name: (named?.name as string | undefined) ?? null }, accessKeyId: key && /^\d+$/.test(key.id) ? Number(key.id) : null, details: { from, to } });
 }
 
 type TokenFact = { metric_id: number; submitter_id: string; stand_in_id: string | null; created_at: string };
@@ -274,6 +285,7 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   const week = weekOf(base.today);
   const { from, to } = checkSpan({ from: span.from ?? week.from, to: span.to ?? week.to }, base.today);
   const entries = await entriesOf(actor, person, base, from, to);
+  if (person !== actor.personId) await auditTeammateRead(actor, person, from, to);
   const overdue = entries.filter((e) => e.overdue && e.date !== null && e.date >= plusDays(base.today, -OVERDUE_DAYS_BACK))
     .sort((a, b) => b.overdueWorkingDays - a.overdueWorkingDays || a.date!.localeCompare(b.date!) || byKindAndName(a, b));
   const byDay = new Map<string, ScheduleEntry[]>();

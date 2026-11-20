@@ -247,6 +247,39 @@ describe("whose Schedule", () => {
     expect((await schedule(w.actor(ben, "member"), {}, NOW)).days[0].entries[0].text).toBe("Check the bonus line");
   });
 
+  it("keeps such an Action on a teammate's Schedule as existing, with its date and link, only without its words", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("admin"); const ben = await w.person("member");
+    const m = await w.metric(ann, { name: "Payroll", created_at: LONG_AGO });
+    await share(w, m.id, sara); await share(w, m.id, ben);
+    const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "HR" }).select("id").single();
+    const id = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: ann, assignee_id: ben, kind: "task", question: "Check the bonus line", due_date: "2026-11-20", read_group_id: g!.id });
+    const [entry] = flat(await schedule(w.actor(sara), { personId: ben }, NOW));
+    expect(entry).toMatchObject({ kind: "task", date: "2026-11-20", actionId: id, path: `/actions/${id}`, text: null, metric: { name: "Payroll" } });
+    // Nothing of its words anywhere in the entry, also not in its title.
+    expect(JSON.stringify(entry)).not.toContain("bonus");
+    expect(entryTitle(entry)).toBe("Task: Payroll for October 2026");
+  });
+
+  it("records each read of a teammate's Schedule in the Audit Log, naming whose, and never one's own", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("admin"); const ben = await w.person("member");
+    const events = async () => (await db().from("audit_events").select("kind, actor_id, object_type, object_id, object_name, access_key_id, details").eq("workspace_id", w.id).eq("kind", "schedule.read").order("id")).data ?? [];
+    await schedule(w.actor(sara), {}, NOW);
+    await schedule(w.actor(ben, "member"), {}, NOW);
+    await schedule(w.actor(sara), { personId: sara }, NOW);
+    expect(await events()).toEqual([]);
+    const span = { from: "2026-11-16", to: "2026-11-22" };
+    await schedule(w.actor(sara), { ...span, personId: ben }, NOW);
+    await schedule(w.actor(ann, "admin"), { ...span, personId: ben }, NOW);
+    const { data: profile } = await db().from("profiles").select("name").eq("id", ben).single();
+    expect(await events()).toEqual([
+      { kind: "schedule.read", actor_id: sara, object_type: "person", object_id: ben, object_name: profile!.name, access_key_id: null, details: span },
+      { kind: "schedule.read", actor_id: ann, object_type: "person", object_id: ben, object_name: profile!.name, access_key_id: null, details: span },
+    ]);
+    // A refused read records nothing.
+    await expect(schedule(w.actor(ben, "member"), { personId: sara }, NOW)).rejects.toThrow();
+    expect(await events()).toHaveLength(2);
+  });
+
   it("needs metrics:read from a key", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const key = (scopes: string[]): KeyActor => ({ ...w.actor(sara), key: { id: "1", scopes } });
