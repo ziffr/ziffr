@@ -247,7 +247,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
-  if (!digest && inboundEnabled(settings)) {
+  // An Alert cannot be answered (GLOSSARY: Alert): its email has no reply address of its own.
+  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

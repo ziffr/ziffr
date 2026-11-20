@@ -20,6 +20,8 @@ import { periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
 import type { NumberStyle } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
+import { checkAlerts, checkMissingAlerts } from "./alert-firing";
+import { refreshAlertSight } from "./alerts";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
@@ -81,6 +83,8 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
   const log: string[] = [];
+  // Alerts whose person lost or regained sight of their Metric, or whose Metric is archived: bookkeeping, no messages.
+  await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
     // An Archived Metric is skipped: no Prompt, reminder or Escalation goes out for it (GLOSSARY: Archived Metric).
@@ -96,6 +100,8 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
       continue;
     }
     const due = dueDate(period, m.period, ctx.wf.config);
+    // The day after the Due Date, with still no value: the Alerts that wait for that fire, once per period.
+    await checkMissingAlerts(workspaceId, m.id, period, due, asOf);
     const done = new Set(state?.done_steps ?? []);
     const people = await whoToAsk(m.id, asOf);
     const { data: feedTokens } = await db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null);
@@ -216,6 +222,15 @@ export async function valueOutlook(metricId: number, submitterId: string): Promi
  * once, as the Approve step says. `selfChecked` is set only by correctSelfCheck, the id of the value the submitter
  * just typed while checking: if it is still the latest, it counts as confirmed instead of asking them again. */
 export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number } = {}): Promise<string[]> {
+  const done = await workflowStep(metricId, period, submitterId, opts);
+  // The one place a value that counts reaches the Alerts, whatever Source it came from and whether or not the Metric has
+  // a Workflow (spec 0032): a value waiting for Approval is looked at only by Alerts that include those; an Import is silent.
+  await checkAlerts(metricId, { imported: opts.imported });
+  return done;
+}
+
+/** The Workflow's own part of a new value: check, Approval or publish. */
+async function workflowStep(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number }): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
   const value = await latestValue(metricId, period);
@@ -402,6 +417,8 @@ export async function approve(ws: string, actionId: number, by: string) {
     return `Approved; ${approvers[next]} approves next.`;
   }
   if (!(await publishDecided(ctx, actionId))) return "Approved; a newer value came in, and it is checked instead.";
+  // Approved: a value that waited is now one Alerts may look at, checked as if it had just arrived.
+  await checkAlerts(a.metric_id);
   return `Approved; ${publishedLabel(ctx)}.`;
 }
 

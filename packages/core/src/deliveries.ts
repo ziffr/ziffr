@@ -133,12 +133,26 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
  * is Ziffr itself, such as when an automatic Snapshot is ready to write up. */
 export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId }) {
   if (input.senderId !== null && input.recipientId === input.senderId) return;
+  await deliverPlain(ws, "notice", input);
+}
+
+/** An Alert's message (GLOSSARY: Alert) through the person's Connector: the same path as a notice, with its own kind so
+ * that nothing can answer it. It has no Action, no Prompt and no reference, and the email carries no reply address
+ * (mail.ts), so a reply to it records nothing (reply-routing.ts). Returns the Delivery's id. The caller has checked, a
+ * moment before, that the person may still see the Metric; `text` holds nothing of any other Metric. */
+export async function deliverAlert(ws: string, input: { recipientId: string; subject: string; text: string; link: string; via?: ConnectorId }): Promise<number | null> {
+  return deliverPlain(ws, "alert", { ...input, senderId: null });
+}
+
+/** One plain message of a kind that is not about an Action: a notice or an Alert. */
+async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
   const [d] = await insertSealed("deliveries", ws, [{
-    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice",
-    // A notice holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
+    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
+    // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state,
   }]) as { id: number }[];
   await sendQueuedNow(d?.id, mail_state, via);
+  return d?.id ?? null;
 }

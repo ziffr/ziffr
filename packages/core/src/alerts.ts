@@ -15,6 +15,7 @@ import { refuseInDemo } from "./demo";
 import { openRows, reserveIds, sealRow } from "./sealed-columns";
 import { attainmentMethodOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
+import { checkAlerts } from "./alert-firing";
 import type { Metric } from "./types";
 
 /** How long an Alert without sight of its Metric is kept before it is removed (owner decision, spec 0032). */
@@ -220,6 +221,7 @@ export async function refreshAlertSight(workspaceId: string): Promise<{ paused: 
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const seeing = new Map<string, Set<number>>();
   let paused = 0, resumed = 0;
+  const back = new Map<number, number[]>();
   for (const r of rows) {
     const person = String(r.person_id);
     if (!seeing.has(person)) seeing.set(person, await visibleMetricIds(workspaceId, person, metrics));
@@ -227,11 +229,13 @@ export async function refreshAlertSight(workspaceId: string): Promise<{ paused: 
     const sees = !!m && seeing.get(person)!.has(m.id);
     let patch: Record<string, unknown> | null = null;
     if (!sees && r.paused !== "no_access") { patch = { paused: "no_access", no_access_since: new Date().toISOString() }; paused++; }
-    else if (sees && r.paused === "no_access") { patch = { paused: null, no_access_since: null }; resumed++; }
+    else if (sees && r.paused === "no_access") { patch = { paused: null, no_access_since: null }; resumed++; back.set(Number(r.metric_id), [...(back.get(Number(r.metric_id)) ?? []), Number(r.id)]); }
     else if (sees && m!.archived_at && r.paused === null) patch = { paused: "archived" };
     else if (sees && !m!.archived_at && r.paused === "archived") patch = { paused: null };
     if (patch) await db().from("alerts").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", r.id).eq("workspace_id", workspaceId);
   }
+  // Sight is back: the Alert is brought up to date without a message, as after an Import.
+  for (const [metricId, ids] of back) await checkAlerts(metricId, { imported: true, only: ids });
   const { data: removed } = await db().rpc("remove_stale_alerts", { p_days: ALERT_NO_ACCESS_DAYS });
   return { paused, resumed, removed: typeof removed === "number" ? removed : 0 };
 }
