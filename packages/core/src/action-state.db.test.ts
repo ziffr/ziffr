@@ -221,17 +221,18 @@ describe("the database guard on an Action's state", () => {
 });
 
 describe("the system's own closes", () => {
-  it("a person removed from the Workspace: what was asked of them closes with assignee_left, once, and nothing else does", async () => {
+  it("a person removed from the Workspace: what was asked of them goes to the successor, who is named in one action.updated, and stays open", async () => {
     const c = await setup();
     const mine = await c.task();
     const asked = await ask(c.a, { metricId: c.m.id, period: "2026-10-01", assigneeId: c.sara, text: "Check it", kind: "task" });
     await removeMember(c.a, c.ann, c.sara);
-    expect(await statusOf(mine)).toBe("closed");
-    expect(await statusOf(asked)).toBe("open");
-    const done = ofType(await sends(mine), "action.done", c.all);
-    expect(done).toHaveLength(1);
-    expect(done[0]).toMatchObject({ source_type: "system", reason: "assignee_left" });
-    expect(ofType(await sends(asked), "action.done")).toEqual([]);
+    expect(await statusOf(mine)).toBe("open");
+    expect((await db().from("actions").select("assignee_id").eq("id", mine).single()).data?.assignee_id).toBe(c.sara);
+    const updated = ofType(await sends(mine), "action.updated", c.all);
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({ source_type: "system", reason: null });
+    expect(ofType(await sends(mine), "action.done")).toEqual([]);
+    expect(ofType(await sends(asked), "action.updated")).toEqual([]);
   });
 });
 

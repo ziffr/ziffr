@@ -5,7 +5,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { audit } from "./audit-log";
-import { closeForSystem } from "./system-closes";
+import { queueWebhookEvent } from "./webhook-events";
 
 /** What a leaving member owns in the workspace, by kind, for the handover dialog and the version history. */
 export async function ownedBy(actor: Actor, personId: string) {
@@ -29,16 +29,16 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   const { data: successor } = await db().from("memberships").select("role, profiles(name)").eq("workspace_id", ws).eq("user_id", successorId).maybeSingle();
   if (!successor || successor.role === "guest" || successorId === personId) throw new Error("Pick another member, not a Guest, to take over.");
   const owned = await ownedBy(actor, personId);
-  // The Actions waiting on them: noted before the handover moves them, closed (with their events) once it has worked.
-  const { data: waiting } = await db().from("actions").select("id").eq("workspace_id", ws).eq("assignee_id", personId).eq("status", "open");
+  // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
+  const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
   const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role });
   if (error) {
     if (/only Owners remove an Owner/.test(error.message)) throw new Forbidden("Only Owners remove an Owner.");
     throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The handover did not work; nothing was changed.");
   }
-  // The external tasks of what they were asked must not linger: closed through the one function, reason `assignee_left`.
-  await closeForSystem(ws, { ids: (waiting ?? []).map((a) => a.id as number) }, "assignee_left");
+  // The assignee changed (spec 0034: `action.updated`): each Webhook that chose it hears it once, so the external task follows to the successor.
+  for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number, period: a.period_start as string });
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
