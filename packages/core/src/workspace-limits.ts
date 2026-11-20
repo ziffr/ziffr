@@ -135,3 +135,16 @@ export async function limitReachedFrom(error: { code?: string } | null | undefin
   const [count, limit] = await Promise.all([metricCount(workspaceId), limitOf(workspaceId)]);
   return new LimitReached(count, limit ?? { metrics: count, label: null });
 }
+
+/** The refusal a new Metric would meet now in the actor's Workspace, in the limit's words, or null when one may be
+ * made: for the New Metric form, so it says so before anyone fills it in. */
+export async function newMetricRefusal(actor: { workspaceId: string }): Promise<string | null> {
+  const limit = await limitOf(actor.workspaceId);
+  if (!limit) return null;
+  const [count, { data }] = await Promise.all([
+    metricCount(actor.workspaceId),
+    db().from("workspaces").select("over_limit_since").eq("id", actor.workspaceId).maybeSingle(),
+  ]);
+  const since = data?.over_limit_since ? new Date(data.over_limit_since as string) : null;
+  return limitRule(count, limit.metrics, since, new Date()) === "refuse" ? limitRefusal(count, limit) : null;
+}

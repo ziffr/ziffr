@@ -11,6 +11,7 @@ import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionR
 import * as questions from "@ziffr/core/questions";
 import { simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
 import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
+import { LimitReached } from "@ziffr/core/workspace-limits";
 import { resetDemoWorkspace } from "@ziffr/core/demo-reset";
 import type { SourceId } from "@ziffr/core/types";
 
@@ -38,16 +39,24 @@ export async function resetDemo() {
 /** Creates a Metric from the form; the core checks the role and every field. */
 export async function createMetric(form: FormData) {
   const num = (k: string) => (form.get(k) === null || form.get(k) === "" ? null : Number(form.get(k)));
-  const { slug } = await coreCreateMetric(await currentActor(), {
+  const made = await coreCreateMetric(await currentActor(), {
     name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
     targetMin: num("target_min"), targetMax: num("target_max"), attainmentMethod: String(form.get("attainment_method") ?? ""), fromCatalogId: num("from_catalog_id"),
     workflowId: num("workflow_id"), duplicateOf: num("duplicate_of"),
     sources: form.getAll("sources").map(String), submitters: form.getAll("submitters").map(String),
+  }).catch((e) => {
+    // The Workspace Limit: back to the same form, which says why (the words are read there, never sent in the URL).
+    if (e instanceof LimitReached) return null;
+    throw e;
   });
+  if (!made) {
+    const back = num("duplicate_of") ? `copy=${num("duplicate_of")}` : num("from_catalog_id") ? `catalog=${num("from_catalog_id")}` : "scratch=1";
+    redirect(`/metrics/new?${back}`);
+  }
   revalidatePath("/", "layout");
-  redirect(`/metrics/${slug}?created=1`);
+  redirect(`/metrics/${made.slug}?created=1`);
 }
 
 /** A value sent as someone on Slack or by mail (demo only). */
