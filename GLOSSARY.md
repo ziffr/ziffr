@@ -123,8 +123,12 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Workflow**:
-A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once.
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once, and can give it an Asking Schedule of its own days and hour.
 _Avoid_: Process, pipeline, flow
+
+**Asking Schedule**:
+When a Workflow runs by itself: the time of day (a whole hour) and the days (every day, weekdays, chosen weekdays, every n-th day from a starting day, or a day of the month), in the Workspace's time zone. Without one, a Workflow runs with the Workspace's daily run. It decides only when Ziffr asks, reminds and escalates: a Due Date never moves with it, and a step that falls on a day the Workflow does not run goes out on the next run day. A run asks for the last period that ended, so a schedule sparser than a Metric's period skips the periods in between. Not the **Schedule** (what one person has to do), not a Metric's Period, and not carried by Workflow Templates or Packs.
+_Avoid_: Cron, recurrence, frequency, timer
 
 **Period Timeline**:
 What happened in one period of a Workflow, in order: who was asked and reminded, which values came in ("5 of 6 in"), Approvals and Actions, what published and locked, and the Snapshots made. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.

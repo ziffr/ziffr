@@ -74,10 +74,14 @@ async function latestValue(metricId: number, period: string) {
   return data?.[0] ?? null;
 }
 
+/** Which Workflows a run covers (GLOSSARY: Asking Schedule): all of them (the demo, which ignores schedules), only
+ * those that run with the Workspace's daily run, or one Workflow that runs on its own days and hour. */
+export type RunScope = "all" | "unscheduled" | { workflowId: number };
+
 /** Runs the Workflows of one workspace's Metrics as of a day: asks, reminds and escalates for missing values, and
  * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
  */
-export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false }: { queue?: boolean } = {}) {
+export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all" }: { queue?: boolean; scope?: RunScope } = {}) {
   const [{ data: rows }, { data: flows }] = await Promise.all([
     db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
     // The workspace's Workflows once, not again for each Metric.
@@ -87,8 +91,11 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
   const log: string[] = [];
   // Alerts whose person lost or regained sight of their Metric, or whose Metric is archived: bookkeeping, no messages.
-  await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
+  if (typeof scope === "string") await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
   for (const row of rows ?? []) {
+    const own = workflows.get(row.workflow_id as number);
+    // A Workflow with an Asking Schedule is run by its own run, not by the Workspace's.
+    if (scope === "unscheduled" ? own?.config.asking : typeof scope === "object" && row.workflow_id !== scope.workflowId) continue;
     const m = normalizeMetric(row) as Metric;
     // An Archived Metric is skipped: no Prompt, reminder or Escalation goes out for it (GLOSSARY: Archived Metric).
     if (m.formula || m.archived_at) continue;

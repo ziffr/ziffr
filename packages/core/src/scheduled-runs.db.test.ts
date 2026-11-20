@@ -69,7 +69,7 @@ describe("the scheduled run", () => {
     await db().from("workspaces").update({ run_hour: 0 }).in("id", [broken.id, fine.id]);
     const now = new Date("2026-12-02T10:00:00Z");
     // Only these two: a test never runs anyone else's workspaces.
-    expect(await runDueWorkspaces(now, [broken.id, fine.id])).toEqual({ ran: 1, failed: 1 });
+    expect(await runDueWorkspaces(now, [broken.id, fine.id])).toMatchObject({ ran: 1, failed: 1 });
     expect(await runs(broken.id)).toEqual([expect.objectContaining({ day: "2026-12-02", state: "failed" })]);
     expect(await runs(fine.id)).toEqual([expect.objectContaining({ day: "2026-12-02", state: "done" })]);
     expect((await db().from("workflow_runs").select("id").eq("workspace_id", DEMO_WORKSPACE_ID)).data).toEqual([]);

@@ -434,8 +434,17 @@ export type TellCondition = { kind: "share_of_target" | "changed_more"; share: s
 export type ApprovalScope = "unusual" | "every";
 /** What an Approve step does with a value nobody but its submitter could approve (GLOSSARY: Self-check). */
 export type NobodyElse = "self-check" | "count";
+/** Which days a Workflow runs on its own (GLOSSARY: Asking Schedule); weekdays are numbered 1 (Monday) to 7 (Sunday). */
+export type AskingDays =
+  | { kind: "every_day" }
+  | { kind: "weekdays" }
+  | { kind: "chosen_weekdays"; days: number[] }
+  | { kind: "every_n_days"; n: number; from: string }
+  | { kind: "month_day"; day: number | "last" };
+/** When a Workflow runs on its own: a whole hour in the Workspace's time zone (null: the Workspace's run hour) and the days. */
+export type AskingSchedule = { hour: number | null; days: AskingDays };
 /** A Workflow's Due Date and its steps. */
-export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[]; /** Tell the Workflow's owner when a period locks (off when left out). */ lockSummary?: boolean };
+export type WorkflowConfig = { dueWorkingDays: number; steps: WorkflowStep[]; /** Tell the Workflow's owner when a period locks (off when left out). */ lockSummary?: boolean; /** Run on its own days and hour instead of with the Workspace's daily run (GLOSSARY: Asking Schedule). */ asking?: AskingSchedule };
 /** A named, reusable path a metric's value takes each period (GLOSSARY: Workflow). */
 export type Workflow = { id: number; owner_id: string; name: string; config: WorkflowConfig; updated_at: string };
 /** Where a metric's period is in its Workflow. */

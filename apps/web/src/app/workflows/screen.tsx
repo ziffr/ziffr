@@ -25,6 +25,7 @@ import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
 import { NewWorkflowFromTemplate, SaveWorkflowTemplate } from "./templates";
 import type { PeriodTimeline } from "@ziffr/core/period-timeline";
 import { PeriodTimelines } from "./period-timeline";
+import { AskingFields, AskingSentence, type AskingClock } from "./asking-fields";
 
 const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, tell: Megaphone, publish: Lock };
 /** A new Tell step; its id names it for its memory and is kept by the server. */
@@ -42,11 +43,13 @@ const BLANK: WorkflowConfig = { dueWorkingDays: 3, steps: [NEW_STEP.remind, NEW_
 type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null };
 
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
-type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
+type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], steps: [] } }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], steps: [] } }: {
   /** Groups a Tell step may name, and who each of the Workflow's Tell steps skips (decided in the core). */
   tellFacts?: TellEditorFacts;
+  /** The last run of this Workflow on its own Asking Schedule (spec 0035). */
+  askingRun?: RunInfo | null;
   /** The Workflow's periods as this viewer may see them, newest first (decided in the core). */
   timelines?: PeriodTimeline[];
   /** The team's Workflow Templates (spec 0030). */
@@ -71,6 +74,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   const onIt = metrics.filter((m) => current && m.workflow_id === current.id);
   // Who submits to the Metrics on this Workflow, for the Approve step's warning.
   const submitters = new Set(tokens.filter((t) => onIt.some((m) => m.id === t.metric_id)).map((t) => t.submitter_id));
+  const clock: AskingClock = schedule ? { timeZone: schedule.timeZone, runHour: schedule.runHour, today: schedule.today, hour: schedule.hour } : null;
   const run = (f: () => Promise<unknown>) => start(async () => { try { await f(); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   const { confirm, dialog } = useConfirm();
 
@@ -107,8 +111,13 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               Tell the owner when a period locks
             </label>
 
+            <AskingFields asking={cfg.asking} disabled={!canEdit} clock={clock} periods={onIt.map((m) => m.period)} dueWorkingDays={cfg.dueWorkingDays}
+              onChange={(a) => { const next = { ...cfg, asking: a }; if (!a) delete next.asking; setCfg(next); }} />
+
             <ol className="relative mt-6 space-y-3 before:absolute before:top-4 before:bottom-4 before:left-[19px] before:w-px before:bg-[var(--color-rule-2)]">
-              <Node icon={Send} title="Ask" text="When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." />
+              <Node icon={Send} title="Ask" text="When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked.">
+                {cfg.asking && <p className="mt-1 text-xs text-muted-foreground"><AskingSentence asking={cfg.asking} clock={clock} /></p>}
+              </Node>
               {steps.map((s, i) => (
                 <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups)}
                   controls={canEdit && (
@@ -168,6 +177,10 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               </ul>
             </div>
             <div className="space-y-2 border-t border-border pt-4">
+              {schedule && current.config.asking && (
+                <AskingPanel schedule={schedule} run={askingRun} saved={current.config.asking} canRun={canRun || current.owner_id === viewer} pending={pending}
+                  onRun={() => run(async () => { const c = unwrap(await runTodayNow(current.id)); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
+              )}
               {schedule ? (
                 <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = unwrap(await runTodayNow()); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
               ) : (
@@ -269,13 +282,30 @@ function StepFields({ s, people, submitters, tellFacts, onChange }: { s: Workflo
   );
 }
 
+/** A Workflow on its own Asking Schedule: when it runs, its last run, and running it now. */
+function AskingPanel({ schedule, run, saved, canRun, pending, onRun }: { schedule: Schedule; run: RunInfo | null; saved: NonNullable<WorkflowConfig["asking"]>; canRun: boolean; pending: boolean; onRun: () => void }) {
+  return (
+    <div className="space-y-2 text-xs">
+      <p className="font-medium"><AskingSentence asking={saved} clock={schedule} /></p>
+      {run ? (
+        <p className={run.state === "failed" ? "text-destructive" : "text-muted-foreground"}>
+          Last run {run.day === schedule.today ? "today" : `on ${formatDate(run.day)}`}{run.trigger === "manual" ? ", started by hand" : ""}: {run.state === "failed" ? "it failed" : run.state === "running" ? "still running" : `${run.counts.prompts} asked, ${run.counts.reminders} reminded, ${run.counts.escalations} escalated`}.
+        </p>
+      ) : (
+        <p className="text-muted-foreground">No run yet. A schedule you save after its hour has passed starts on its next day.</p>
+      )}
+      {canRun && <Button variant="outline" className="w-full" disabled={pending} onClick={onRun}><Play aria-hidden /> Run this workflow now</Button>}
+    </div>
+  );
+}
+
 /** A real workspace's clock: when Workflows run, the last run, and running today's steps now. */
 function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; canRun: boolean; pending: boolean; onRun: () => void }) {
   const hh = `${String(schedule.runHour).padStart(2, "0")}:00`;
   const last = schedule.lastRun;
   return (
     <div className="space-y-2 text-xs">
-      <p><span className="font-medium">Runs every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners and Admins change this in the workspace settings.</p>
+      <p><span className="font-medium">Workflows without their own schedule run every day at {hh}</span> ({schedule.timeZone.replace(/_/g, " ")}). Owners and Admins change this in the workspace settings. Workflows with their own schedule run by themselves.</p>
       {last ? (
         <p className={last.state === "failed" ? "text-destructive" : "text-muted-foreground"}>
           Last run {last.day === schedule.today ? "today" : `on ${formatDate(last.day)}`}{last.trigger === "manual" ? ", started by hand" : ""}: {last.state === "failed" ? "it failed" : last.state === "running" ? "still running" : `${last.counts.prompts} asked, ${last.counts.reminders} reminded, ${last.counts.escalations} escalated`}.

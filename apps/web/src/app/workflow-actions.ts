@@ -42,10 +42,10 @@ export async function runWorkflowsNow(asOf: string) {
   });
 }
 
-/** A real workspace: runs today's steps now, once (spec 0005). Null when today ran already. */
-export async function runTodayNow() {
+/** A real workspace: runs today's steps now, once (spec 0005), or one Workflow's own run (spec 0035). Null when today ran already. */
+export async function runTodayNow(workflowId?: number) {
   return attempt(async () => {
-    const counts = await wf.runTodayNow(await currentActor());
+    const counts = await wf.runTodayNow(await currentActor(), workflowId === undefined ? undefined : Number(workflowId));
     done();
     return counts;
   });
