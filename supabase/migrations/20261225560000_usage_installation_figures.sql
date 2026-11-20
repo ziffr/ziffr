@@ -1,25 +1,33 @@
 -- Installation Usage, the figures #365 left out (spec 0031, #389): what nothing recorded until now, as counts only.
--- Nothing here holds a person or a name. gone_workspace in usage_events is only there so a Workspace the operator leaves
--- out of the figures stays out; it is never returned and the rows are forgotten after 400 days. The column is not
--- called workspace_id on purpose: it is no reference (the Workspace is gone), so deleting a Workspace keeps its event
--- and the demo guard, which is for rows of a Workspace, does not apply.
+-- usage_events holds no Workspace and no person: an event says only its kind, when, and whether the Workspace it
+-- happened to was the one the operator leaves out (decided when it is written), so a deleted Workspace leaves nothing
+-- behind and the exclusion still holds. Rows are forgotten after 400 days.
 
 -- Events that leave no row behind once they happened: a Workspace deleted, a Size booked.
 create table usage_events (
   id bigserial primary key,
   at timestamptz not null default now(),
   kind text not null check (kind in ('workspaces_deleted', 'sizes_booked')),
-  gone_workspace uuid not null
+  excluded boolean not null default false
 );
 create index usage_events_at on usage_events (at);
 alter table usage_events enable row level security;
 revoke all on table usage_events from public, anon, authenticated;
 
+-- Whether a Workspace is the one left out (ZIFFR_USAGE_EXCLUDE_WORKSPACE as saved on the Installation Settings page;
+-- a value only the server's environment holds is not visible here, so the figures of these two events leave out the
+-- page's choice).
+create or replace function usage_workspace_excluded(p_workspace uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (select 1 from installation_settings where name = 'ZIFFR_USAGE_EXCLUDE_WORKSPACE' and lower(value) = p_workspace::text)
+$$;
+revoke all on function usage_workspace_excluded(uuid) from public, anon, authenticated;
+
 create or replace function usage_event_workspace_deleted() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   if old.id <> 'd3e00000-0000-4000-8000-000000000001'::uuid then
-    insert into usage_events (kind, gone_workspace) values ('workspaces_deleted', old.id);
+    insert into usage_events (kind, excluded) values ('workspaces_deleted', usage_workspace_excluded(old.id));
   end if;
   return null;
 end $$;
@@ -30,7 +38,9 @@ create or replace function usage_event_size_booked() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   if new.set_by = 'cloud' and (tg_op = 'INSERT' or old.set_by is distinct from new.set_by or old.metrics is distinct from new.metrics or old.label is distinct from new.label) then
-    insert into usage_events (kind, gone_workspace) values ('sizes_booked', new.workspace_id);
+    if new.workspace_id <> 'd3e00000-0000-4000-8000-000000000001'::uuid then
+      insert into usage_events (kind, excluded) values ('sizes_booked', usage_workspace_excluded(new.workspace_id));
+    end if;
   end if;
   return null;
 end $$;
@@ -112,8 +122,8 @@ begin
     'trials_started', (select count(*) from workspaces w join _usage_ws u on u.id = w.id where w.trial_started_at >= d_from and w.trial_started_at < d_to),
     'trials_kept', (select count(*) from workspaces w join _usage_ws u on u.id = w.id where w.trial_kept_at >= d_from and w.trial_kept_at < d_to),
     'trials_closed', (select count(*) from workspaces w join _usage_ws u on u.id = w.id where w.trial_closed_at >= d_from and w.trial_closed_at < d_to),
-    'sizes_booked', (select count(*) from usage_events e where e.kind = 'sizes_booked' and e.at >= d_from and e.at < d_to and e.gone_workspace <> demo and e.gone_workspace is distinct from p_exclude),
-    'workspaces_deleted', (select count(*) from usage_events e where e.kind = 'workspaces_deleted' and e.at >= d_from and e.at < d_to and e.gone_workspace is distinct from p_exclude),
+    'sizes_booked', (select count(*) from usage_events e where e.kind = 'sizes_booked' and e.at >= d_from and e.at < d_to and not e.excluded),
+    'workspaces_deleted', (select count(*) from usage_events e where e.kind = 'workspaces_deleted' and e.at >= d_from and e.at < d_to and not e.excluded),
     -- People who made an account that day and belong to a Workspace in the figures.
     'signups', (select count(distinct p.id) from profiles p join auth.users a on a.id = p.auth_user_id join memberships m on m.user_id = p.id join _usage_ws u on u.id = m.workspace_id where a.created_at >= d_from and a.created_at < d_to),
     'emails_sent', (select count(*) from deliveries x join _usage_ws u on u.id = x.workspace_id where x.connector = 'email' and x.mail_state = 'sent' and x.sent_at >= d_from and x.sent_at < d_to),

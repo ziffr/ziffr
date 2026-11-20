@@ -96,31 +96,33 @@ describe("events nothing recorded before", () => {
   });
   it("counts a Size booked by Ziffr Cloud, not one an Installation Admin set, and not a change of nothing", async () => {
     const w = await ws();
+    const total = async () => Number((await rollup(today())).sizes_booked);
+    const before = await total();
     await db().from("workspace_limits").insert({ workspace_id: w.id, metrics: 20, label: "Team", set_by: "installation_admin" });
-    expect(await added(w, "sizes_booked")).toBe(0);
+    expect(await total() - before).toBe(0);
     await db().from("workspace_limits").update({ metrics: 50, label: "Business", set_by: "cloud" }).eq("workspace_id", w.id);
-    expect(await added(w, "sizes_booked")).toBe(1);
+    expect(await total() - before).toBe(1);
     await db().from("workspace_limits").update({ next_label: "Soon" }).eq("workspace_id", w.id);
-    expect(await added(w, "sizes_booked")).toBe(1);
+    expect(await total() - before).toBe(1);
     await db().from("workspace_limits").update({ metrics: 80 }).eq("workspace_id", w.id);
-    expect(await added(w, "sizes_booked")).toBe(2);
+    expect(await total() - before).toBe(2);
   });
-  it("counts a Workspace deleted, however it went, except the one left out", async () => {
+  it("counts a Workspace deleted, however it went, keeps nothing of it, and leaves out the one the operator left out", async () => {
+    const total = async () => Number((await rollup(today())).workspaces_deleted);
     const id = randomUUID();
     await db().from("workspaces").insert({ id, name: "Going" });
-    const before = Number((await rollup(today())).workspaces_deleted);
+    const before = await total();
     await db().from("workspaces").delete().eq("id", id);
-    expect(Number((await rollup(today())).workspaces_deleted) - before).toBe(1);
-    // Left out of the figures, it is left out of this one too.
+    expect(await total() - before).toBe(1);
+    // Left out on the Installation Settings page, its deletion is left out too, as a flag and not an id.
     const id2 = randomUUID();
     await db().from("workspaces").insert({ id: id2, name: "Going too" });
-    const without = Number((await rollup(today(), id2)).workspaces_deleted);
+    await db().from("installation_settings").upsert({ name: "ZIFFR_USAGE_EXCLUDE_WORKSPACE", value: id2 });
     await db().from("workspaces").delete().eq("id", id2);
-    expect(Number((await rollup(today(), id2)).workspaces_deleted)).toBe(without);
-    expect(Number((await rollup(today())).workspaces_deleted) - before).toBe(2);
-    // The demo's own deletion is never counted.
-    const { data } = await db().from("usage_events").select("gone_workspace").eq("gone_workspace", DEMO_WORKSPACE_ID);
-    expect(data).toEqual([]);
+    await db().from("installation_settings").delete().eq("name", "ZIFFR_USAGE_EXCLUDE_WORKSPACE");
+    expect(await total() - before).toBe(1);
+    const { data } = await db().from("usage_events").select("*").limit(5);
+    for (const row of data ?? []) expect(Object.keys(row).sort()).toEqual(["at", "excluded", "id", "kind"]);
   });
   it("counts sign-ups of people in the figures, and who signed in within 7 days", async () => {
     const w = await ws();
