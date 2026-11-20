@@ -197,7 +197,7 @@ describe("recording", () => {
     await decideCorrection(w.actor(sara), msg!.id, true, { notifyDecision: async () => {}, afterValue: async () => [] });
     const rows = await stored(w.id);
     expect(rows.map((r) => r.kind)).toEqual(["correction.accepted"]);
-    expect(rows[0].details).toEqual({ period: month, proposed_by: ben });
+    expect(rows[0].details).toEqual({ period: month, proposed_by: ben, action_id: actionId });
     // A value no slug or id can hold (they have no point): the Audit Log never holds a value.
     expect(JSON.stringify(rows)).not.toContain("4242.5");
   });

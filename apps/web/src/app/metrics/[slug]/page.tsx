@@ -52,6 +52,7 @@ import { moneyUnit } from "@ziffr/core/units";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { NotApprovedMark } from "@/views/approval-mark";
 import { countView } from "@/lib/count-view";
+import { periodRecordUrl } from "@/lib/period-record-url";
 
 const DAILY_WINDOW = 90;
 const TABS = [
@@ -356,7 +357,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <tbody>
                     {obs.map((o) => (
                       <tr key={o.id} className="border-t">
-                        <td className="py-2">{periodLabel(o.period_start, metric.period, yearStart)}{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
+                        <td className="py-2"><Link href={periodRecordUrl(metric.slug, o.period_start)} className="hover:underline">{periodLabel(o.period_start, metric.period, yearStart)}</Link>{pending.includes(o.period_start) && <> <NotApprovedMark short /></>}</td>
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}
