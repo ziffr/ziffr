@@ -237,6 +237,15 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     const def = settingNamed(name);
     if (!def || def.section !== sec.id) throw new Error("That is not a setting of this section.");
     if (sources[name] === "server") throw new Error(`${def.label} is set on the server; change it there.`);
+    // Clearing or replacing the Workspace left out is as revealing as setting it (two days' totals differ by exactly
+    // that Workspace), so only its Owner may, unless none is set or it no longer exists.
+    const leftOut = name === "ZIFFR_USAGE_EXCLUDE_WORKSPACE" ? (await settingsInEffect())[name]?.trim() : "";
+    if (leftOut) {
+      const current = leftOut.toLowerCase();
+      const { data: still } = await db().from("workspaces").select("id").eq("id", current).maybeSingle();
+      const { data: mine } = still ? await db().from("memberships").select("user_id").eq("workspace_id", current).eq("user_id", actor.personId).eq("role", "owner").maybeSingle() : { data: null };
+      if (still && !mine) throw new Error("Only an Owner of the Workspace that is left out can change or remove that.");
+    }
     if (raw === null) { changes.push({ def, value: null }); continue; }
     if (typeof raw !== "string") throw new Error(`${def.label}: enter a value.`);
     const value = raw.trim();

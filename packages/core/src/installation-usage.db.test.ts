@@ -137,6 +137,12 @@ describe("the Workspace left out", () => {
     expect(await usageExclusionChoices(a)).toEqual([{ workspaceId: w.id, name: expect.any(String) }]);
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w.id });
     expect(await usageExcludedWorkspace()).toBe(w.id);
+    // Another Installation Admin who does not own it can neither clear nor replace it; its owner can.
+    const other = await admin(); const w2 = await ws();
+    await db().from("memberships").insert({ workspace_id: w2.id, user_id: other.personId, role: "owner" });
+    await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null })).rejects.toThrow(/Only an Owner/);
+    await expect(saveInstallationSettings(other, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: w2.id })).rejects.toThrow(/Only an Owner/);
+    expect(await usageExcludedWorkspace()).toBe(w.id);
     await saveInstallationSettings(a, "usage", { ZIFFR_USAGE_EXCLUDE_WORKSPACE: null });
     expect(await usageExcludedWorkspace()).toBeNull();
   });
