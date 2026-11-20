@@ -103,7 +103,7 @@ describe("Packs in several Workspaces", () => {
 
 describe("who may install", () => {
   it("lets Owners and Admins install, Admins only without Themes, and nobody else", async () => {
-    const w = await ws(); const ann = await w.person("owner"); const ada = await w.person("admin"); const sara = await w.person("member"); const gus = await w.person("guest");
+    const w = await ws(); await w.person("owner"); const ada = await w.person("admin"); const sara = await w.person("member"); const gus = await w.person("guest");
     const noThemes = { ...PACK, contents: { ...PACK.contents, themes: undefined, decks: [{ ...PACK.contents.decks![0], template: { ...PACK.contents.decks![0].template, theme: undefined } }] } };
     await expect(installPackFile(w.actor(sara, "member"), file(), yes)).rejects.toEqual(forbidden);
     await expect(installPackFile(w.actor(gus, "guest"), file(), yes)).rejects.toEqual(forbidden);
