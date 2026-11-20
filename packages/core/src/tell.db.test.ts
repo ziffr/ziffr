@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TELL_STEPS_PER_WORKFLOW } from "./alert-limits";
 import { db } from "./db";
 import { optOutByToken, unsubscribeIsTell } from "./email-opt-out";
+import { archivedMetricHolds } from "./internal/delivery-send";
 import { checkTells } from "./tell-firing";
 import { listTellSubscriptions, setTellStopped, tellEditorFacts } from "./tell";
 import { periodStart, JANUARY } from "./periods";
@@ -117,14 +118,23 @@ describe("stop telling me", () => {
     // Bob is named but sees nothing of the Workflow: nothing listed, and his stop is refused like an unknown Workflow.
     expect(await listTellSubscriptions(w.actor(bob, "member"))).toEqual([]);
     await expect(setTellStopped(w.actor(bob, "member"), flow, true)).rejects.toThrow();
+    // A message already queued when the person stops it does not leave either.
+    await put(w, m.id, P(8), 300, sara);
+    const [queued] = await messages(w, ann);
+    const about = { id: Number(queued.id), workspace_id: w.id, kind: "alert", recipient_id: ann, alert_metric_id: m.id, tell_workflow_id: flow };
+    expect(await archivedMetricHolds(about)).toBeNull();
+    await setTellStopped(a, flow, true);
+    expect(await archivedMetricHolds(about)).toMatch(/asked not to be told/);
+    await setTellStopped(a, flow, false);
     await setTellStopped(a, flow, true);
     expect(await listTellSubscriptions(a)).toEqual([expect.objectContaining({ stopped: true })]);
-    await put(w, m.id, P(1), 200, sara);
-    expect(await messages(w, ann)).toHaveLength(0);
-    await setTellStopped(a, flow, false);
-    await put(w, m.id, P(2), 50, sara);
-    await put(w, m.id, P(3), 200, sara);
+    await put(w, m.id, P(9), 50, sara);
+    await put(w, m.id, P(10), 200, sara);
     expect(await messages(w, ann)).toHaveLength(1);
+    await setTellStopped(a, flow, false);
+    await put(w, m.id, P(11), 50, sara);
+    await put(w, m.id, P(12), 200, sara);
+    expect(await messages(w, ann)).toHaveLength(2);
   });
 
   it("is the one-click link of the email: it stops that Workflow for that person only", async () => {
@@ -171,7 +181,7 @@ describe("saving Tell steps", () => {
     const { w, sara, bob, flow } = await setup([(p) => tellStep({ people: [p.ann, p.bob] })]);
     const facts = await tellEditorFacts(w.actor(sara), flow);
     expect(facts.groups.map((g) => g.name)).toContain("Finance");
-    expect(facts.steps).toEqual([{ id: "step-one-aaaa", told: 2, skipped: [{ person: bob, metric: "Sales" }] }]);
+    expect(facts.steps).toEqual([{ id: "step-one-aaaa", skipped: [{ person: bob, metric: "Sales" }] }]);
     // Not the owner of the Workflow: nothing about who is skipped.
     expect((await tellEditorFacts(w.actor(bob, "member"), flow)).steps).toEqual([]);
   });

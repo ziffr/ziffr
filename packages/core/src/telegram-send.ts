@@ -46,7 +46,7 @@ export async function telegramSends(workspaceId: string): Promise<boolean> {
 
 /** Sends one queued Telegram Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendTelegramDelivery(id: number): Promise<SendResult> {
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id, tell_workflow_id")
     .eq("id", id).eq("connector", "telegram").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!found) return "skipped";
   const [d] = await openRows("deliveries", found.workspace_id, [found]);

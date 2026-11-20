@@ -24,7 +24,7 @@ export type TellGroup = { id: number; name: string; members: number };
  * who is told and who is left out for lack of sight of a Metric. `skipped` lists only Metrics the actor sees. */
 export type TellEditorFacts = {
   groups: TellGroup[];
-  steps: { id: string; told: number; skipped: { person: string; metric: string }[] }[];
+  steps: { id: string; skipped: { person: string; metric: string }[] }[];
 };
 
 /** The Groups and, for a saved Workflow the actor owns, who each Tell step reaches and who it skips. */
@@ -46,7 +46,7 @@ export async function tellEditorFacts(actor: Actor, workflowId: number | null): 
       const sees = await visibleMetricIds(actor.workspaceId, person, metrics);
       for (const m of onIt) if (!sees.has(m.id)) skipped.push({ person, metric: m.name });
     }
-    out.push({ id: step.id, told: all.length, skipped });
+    out.push({ id: step.id, skipped });
   }
   return { groups, steps: out };
 }
@@ -68,7 +68,7 @@ export async function listTellSubscriptions(actor: Actor): Promise<TellSubscript
   if (!told.length) return [];
   const metrics = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
-  const { data: on } = await db().from("metrics").select("id, workflow_id").eq("workspace_id", actor.workspaceId).in("workflow_id", told.map((w) => w.id));
+  const { data: on } = await db().from("metrics").select("id, workflow_id").eq("workspace_id", actor.workspaceId).in("workflow_id", told.map((w) => w.id)).is("archived_at", null).is("formula", null);
   const open = new Set((on ?? []).filter((m) => seen.has(Number(m.id))).map((m) => Number(m.workflow_id)));
   return told.filter((w) => open.has(Number(w.id))).map((w) => ({ workflowId: Number(w.id), name: String(w.name), stopped: stopped.has(Number(w.id)) }));
 }
