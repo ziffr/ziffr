@@ -5,7 +5,7 @@ import { addDays, differenceInCalendarDays, format, isValid, isWeekend, parseISO
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openNames, openRows } from "./sealed-columns";
 import { feedIdsAmong } from "./feed-people";
 import { yearStartOf } from "./fiscal-year";
 import { periodEnd, periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
@@ -178,7 +178,7 @@ async function valuesDue(ws: string, person: string, metrics: Map<number, Metric
   ]);
   const away = new Map((awayRows ?? []).map((a) => [a.user_id as string, { starts: String(a.starts), ends: String(a.ends) }]));
   const has = new Set(values.map((v) => `${v.metric_id}:${v.period_start}`));
-  const nameOf = new Map((names ?? []).map((p) => [p.id as string, p.name as string]));
+  const nameOf = new Map((await openNames(ws, names)).map((p) => [p.id as string, p.name as string]));
   const out = new Map<string, ScheduleEntry>();
   for (const t of tokens) {
     const m = metrics.get(t.metric_id)!;

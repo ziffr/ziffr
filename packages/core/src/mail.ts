@@ -6,6 +6,7 @@
 import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
@@ -164,7 +165,7 @@ export function initialMailState(connector: string, workspaceId: string, setting
  * for anyone who is neither in that workspace, or has no usable address. */
 export async function addressIn(workspaceId: string, personId: string): Promise<string | null> {
   const [{ data: contact }, { data: member }] = await Promise.all([
-    db().from("contacts").select("email").eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle(),
+    db().from("contacts").select("person_id, email").eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("contacts", workspaceId, [r.data]))[0] : null })),
     db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("user_id", personId).maybeSingle(),
   ]);
   let address: string | null = null;

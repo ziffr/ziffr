@@ -6,6 +6,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
+import { openNames } from "./sealed-columns";
 import { callTelegram } from "./telegram-api";
 import { submissionForm } from "./page-data";
 import { telegramBot, telegramOnIn } from "./telegram-connection";
@@ -105,7 +106,7 @@ export async function linkTelegramByCode(input: { code: string; userId: unknown;
   if (error) return { linked: false, why: "gone" };
   const [{ data: w }, { data: p }] = await Promise.all([
     db().from("workspaces").select("name").eq("id", c.workspace_id).maybeSingle(),
-    db().from("profiles").select("name").eq("id", c.person_id).maybeSingle(),
+    db().from("profiles").select("id, name").eq("id", c.person_id).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(c.workspace_id, [r.data]))[0] : null })),
   ]);
   const name = w?.name ?? "Ziffr";
   if (before && Number(before.telegram_user_id) !== input.userId) await tellChat(Number(before.chat_id), `Ziffr messages for ${name} now go to another Telegram account. If that was not you, tell an Owner of the workspace.`);

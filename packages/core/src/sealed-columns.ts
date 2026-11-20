@@ -4,22 +4,31 @@
 // through as they are until the re-encryption job (#247) seals them. Security: callers never write one of these
 // columns by hand, and a Workspace whose key cannot be unwrapped or is gone is refused, never written in clear.
 import { db } from "./db";
-import { workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
+import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
 
-/** The columns sealed with the Workspace Key, by table (step 1: free text). The re-encryption job and its done check
- * read this list too. */
+/** The columns sealed with the Workspace Key, by table (step 1: free text and personal data). The re-encryption job
+ * and its done check read this list too. A Contact's name is sealed in their person row (`profiles`), which belongs to
+ * that one Workspace; members' own profiles belong to the person and stay in clear (spec 0028). */
 export const SEALED_COLUMNS = {
   thread_messages: ["body"],
   actions: ["question"],
+  contacts: ["email", "slack_handle", "phone"],
+  profiles: ["name"],
 } as const;
+
+/** The column that names a row of each table, which a sealed value is bound to. */
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
 
+/** A table whose new rows insertSealed writes, ids taken from its sequence first. */
+type InsertedTable = "thread_messages" | "actions";
+
 type Row = Record<string, unknown>;
 
 /** Takes the ids the next rows of a table will have, from its own sequence. */
-async function reserveIds(table: SealedTable, count: number): Promise<number[]> {
+async function reserveIds(table: InsertedTable, count: number): Promise<number[]> {
   const { data, error } = await db().rpc("reserve_row_ids", { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
@@ -30,14 +39,14 @@ function sealed(cipher: WorkspaceCipher, table: SealedTable, row: Row): Row {
   const out: Row = { ...row };
   for (const column of SEALED_COLUMNS[table]) {
     const v = row[column];
-    if (typeof v === "string") out[column] = cipher.seal({ table, column, row: row.id as number }, v);
+    if (typeof v === "string") out[column] = cipher.seal({ table, column, row: row[ROW_KEY[table]] as string | number }, v);
   }
   return out;
 }
 
 /** Inserts rows into one Workspace with their sealed columns sealed: ids are taken first, the Workspace is set on
  * every row. Answers what `select` names of the inserted rows, opened, in the order given. */
-export async function insertSealed(table: SealedTable, workspaceId: string, rows: Row[], select = "id"): Promise<Row[]> {
+export async function insertSealed(table: InsertedTable, workspaceId: string, rows: Row[], select = "id"): Promise<Row[]> {
   if (!rows.length) return [];
   const cipher = await workspaceCipher(workspaceId);
   const ids = await reserveIds(table, rows.length);
@@ -57,18 +66,19 @@ export async function insertSealed(table: SealedTable, workspaceId: string, rows
   return ids.map((id) => openRow(cipher, table, byId.get(id) ?? { id }));
 }
 
-/** Seals the values of an update to one row of a Workspace (only the sealed columns it names change form). */
-export async function sealUpdate(table: SealedTable, workspaceId: string, rowId: number, values: Row): Promise<Row> {
-  return sealed(await workspaceCipher(workspaceId), table, { ...values, id: rowId });
+/** A row of a Workspace with its sealed columns sealed for it, to insert or update; the row's key must be in it. */
+export async function sealRow(table: SealedTable, workspaceId: string, row: Row): Promise<Row> {
+  return sealed(await workspaceCipher(workspaceId), table, row);
 }
 
 /** A row read from a table, its sealed columns opened (null for one that does not open). Rows without an id are
  * returned as they are: nothing sealed can be opened without knowing its row. */
 export function openRow<T extends Row>(cipher: WorkspaceCipher, table: SealedTable, row: T): T {
-  if (row === null || row === undefined || row.id === undefined || row.id === null) return row;
+  const key = row?.[ROW_KEY[table]];
+  if (row === null || row === undefined || key === undefined || key === null) return row;
   const out: Row = { ...row };
   for (const column of SEALED_COLUMNS[table]) {
-    if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: row.id as number }, row[column] as string);
+    if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: key as string | number }, row[column] as string);
   }
   return out as T;
 }
@@ -78,4 +88,16 @@ export async function openRows<T extends Row>(table: SealedTable, workspaceId: s
   if (!rows?.length) return rows ?? [];
   const cipher = await workspaceCipher(workspaceId);
   return rows.map((r) => openRow(cipher, table, r));
+}
+
+/** What a Contact's name reads as when it does not open (changed in the database, or under a destroyed key). */
+export const UNREADABLE_NAME = "A Contact";
+
+/** People's rows read in one Workspace, a Contact's sealed name opened. Members' names are never sealed and pass
+ * through; a sealed name that does not open reads as UNREADABLE_NAME, never as its ciphertext. */
+export async function openNames<T extends { id?: unknown; name?: unknown }>(workspaceId: string, people: T[] | null | undefined): Promise<T[]> {
+  if (!people?.length) return people ?? [];
+  if (!people.some((p) => isSealed(p.name as string))) return people;
+  const cipher = await workspaceCipher(workspaceId);
+  return people.map((p) => (isSealed(p.name as string) ? { ...p, name: openRow(cipher, "profiles", p as Row).name ?? UNREADABLE_NAME } : p));
 }

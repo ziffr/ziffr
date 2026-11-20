@@ -2,7 +2,7 @@
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openNames, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { readableActions, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -270,7 +270,8 @@ export async function submissionForm(code: string) {
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(String(token.workspace_id)), numberStyleOf(String(token.workspace_id))]);
   const period = periodStart(new Date(), metric.period, yearStart);
   const { data: existing } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
-  return { metric, person: token.profiles as { id: string; name: string }, period, yearStart, numberStyle, current: existing?.[0] ? Number(existing[0].value) : null };
+  const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
+  return { metric, person, period, yearStart, numberStyle, current: existing?.[0] ? Number(existing[0].value) : null };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */
