@@ -140,7 +140,7 @@ Some of what an Installation talks to can be set on a page instead of in the set
 
 ## Deleting unused Workspaces
 
-With a default Workspace Limit (spec 0029), `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.
+With a default Workspace Limit (spec 0029) and working email, `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.
 
 ## Offering trials
 

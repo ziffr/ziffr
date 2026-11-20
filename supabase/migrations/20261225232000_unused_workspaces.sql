@@ -43,8 +43,9 @@ create trigger workspace_limits_clear_warning after insert or update or delete o
   for each row execute function workspace_limits_clear_warning();
 
 -- Whether a Workspace may be deleted as unused now, read under its row lock by the deletion: on the default limit, no
--- trial, not the demo, warned between 14 and 21 days ago (an older warning is stale and never deletes), and unused
--- for p_days before the warning and since.
+-- trial, not the demo, warned between 14 and 21 days ago (an older warning is stale and never deletes), unused for
+-- p_days before the warning and since, and the warning really went out: an email notice of it, made after the warning
+-- was claimed, that was sent (not one left in the Outbox or failed).
 create or replace function deletable_as_unused(p_workspace uuid, p_days int) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
@@ -54,6 +55,11 @@ language sql stable security definer set search_path = public as $$
       and w.unused_warned_at <= now() - interval '14 days' and w.unused_warned_at > now() - interval '21 days'
       and w.last_used_at <= w.unused_warned_at - make_interval(days => p_days)
       and not exists (select 1 from workspace_limits l where l.workspace_id = w.id)
+      and exists (
+        select 1 from deliveries d
+        where d.workspace_id = w.id and d.kind = 'notice' and d.connector = 'email' and d.mail_state = 'sent'
+          and d.subject = 'Your Ziffr Workspace will be deleted' and d.created_at >= w.unused_warned_at
+      )
   )
 $$;
 
@@ -68,6 +74,7 @@ begin
       where w.unused_warned_at is null and w.trial_ends_at is null and w.id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
         and w.last_used_at <= now() - make_interval(days => p_days)
         and not exists (select 1 from workspace_limits l where l.workspace_id = w.id)
+        and exists (select 1 from memberships m where m.workspace_id = w.id and m.role = 'owner')
       order by w.last_used_at limit p_limit)
     union all
     (select w.id, 'delete'::text from workspaces w where deletable_as_unused(w.id, p_days) order by w.unused_warned_at limit p_limit);

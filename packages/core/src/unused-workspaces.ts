@@ -12,8 +12,12 @@ import { getMetrics } from "./workspace-data";
 import { deliverNotice } from "./deliveries";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { mailEnabled } from "./mail";
 import { forgetWorkspaceKey } from "./workspace-keys";
 import { defaultLimitFrom } from "./workspace-limits";
+
+/** The warning's subject; the database looks for a sent email with it before it deletes (deletable_as_unused). */
+export const UNUSED_WARNING_SUBJECT = "Your Ziffr Workspace will be deleted";
 
 /** Days between the warning and the deletion. */
 export const UNUSED_WAIT_DAYS = 14;
@@ -22,12 +26,17 @@ const DAY = 86_400_000;
 const PER_RUN = 200;
 
 /** The days without use after which a Workspace is warned, or null when the rule is off: the setting is unset, is not a
- * whole number from 30 to 3,650 (said in the server log, never guessed), or there is no default limit. */
+ * whole number from 30 to 3,650 (said in the server log, never guessed), there is no default limit, or this Ziffr
+ * cannot send email, by which the warning must reach the Owners. */
 export function unusedAfterDays(settings: Settings): number | null {
   const raw = settings.ZIFFR_DELETE_UNUSED_AFTER_DAYS?.trim();
   if (!raw) return null;
   if (!/^\d{1,4}$/.test(raw) || Number(raw) < 30 || Number(raw) > 3650) {
     console.error("Unused Workspaces: ZIFFR_DELETE_UNUSED_AFTER_DAYS must be a whole number from 30 to 3650; nothing is deleted until it is.");
+    return null;
+  }
+  if (!mailEnabled(settings)) {
+    console.error("Unused Workspaces: ZIFFR_DELETE_UNUSED_AFTER_DAYS is set, but this Ziffr cannot send email; nothing is warned or deleted until it can.");
     return null;
   }
   return defaultLimitFrom(settings).metrics === null ? null : Number(raw);
@@ -64,13 +73,15 @@ async function warn(workspaceId: string, days: number, now: Date): Promise<boole
     for (const o of owners ?? []) {
       // By email, whatever Connector the Owner prefers for replies: this one must reach them where they will look.
       await deliverNotice(workspaceId, {
-        recipientId: o.user_id as string, senderId: null, subject: "Your Ziffr Workspace will be deleted", via: "email",
+        recipientId: o.user_id as string, senderId: null, subject: UNUSED_WARNING_SUBJECT, via: "email",
         text: `Nobody has signed in to your Workspace or sent it a value for ${days} days. On ${on} it will be deleted with all its Metrics, values and dashboards, and its key destroyed, so nothing of it can be read again. One sign-in or one value keeps it. To keep a copy of its values, sign in and download them from the link below.`,
         link: "/settings/workspace/download",
       });
       sent++;
     }
   } finally {
+    // A warning that reached nobody is taken back; one that failed to send never deletes either, since the deletion
+    // needs a sent email of it (deletable_as_unused).
     if (sent === 0) await db().rpc("unclaim_unused_warning", { p_workspace: workspaceId });
   }
   return sent > 0;

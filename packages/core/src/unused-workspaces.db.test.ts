@@ -13,10 +13,11 @@ import { ensureWorkspaceKey } from "./workspace-keys";
 import { syncDefaultLimit } from "./workspace-limits";
 
 const DAY = 86_400_000;
+const MAIL = { ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "ziffr@example.test", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
-  for (const n of ["ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_DEFAULT_METRICS_LIMIT"]) delete process.env[n];
+  for (const n of ["ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_DEFAULT_METRICS_LIMIT", ...Object.keys(MAIL)]) delete process.env[n];
   forgetStoredSettings(); await syncDefaultLimit(true);
   for (const c of cleanups.splice(0)) await c().catch(() => {});
 });
@@ -42,8 +43,10 @@ describe("the setting", () => {
   it("is on only with a whole number from 30 to 3650 and a default limit", () => {
     expect(unusedAfterDays({})).toBeNull();
     expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: "90" })).toBeNull();
-    expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: "90", ZIFFR_DEFAULT_METRICS_LIMIT: "10" })).toBe(90);
-    for (const bad of ["7", "90d", "4000", "-90"]) expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: bad, ZIFFR_DEFAULT_METRICS_LIMIT: "10" })).toBeNull();
+    expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: "90", ZIFFR_DEFAULT_METRICS_LIMIT: "10", ...MAIL })).toBe(90);
+    // The warning must reach the Owners by email: without mail, nothing is warned or deleted.
+    expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: "90", ZIFFR_DEFAULT_METRICS_LIMIT: "10" })).toBeNull();
+    for (const bad of ["7", "90d", "4000", "-90"]) expect(unusedAfterDays({ ZIFFR_DELETE_UNUSED_AFTER_DAYS: bad, ZIFFR_DEFAULT_METRICS_LIMIT: "10", ...MAIL })).toBeNull();
   });
 });
 
@@ -62,8 +65,13 @@ describe("last use", () => {
 
 describe("the warning and the deletion", () => {
   /** The warning sent `daysAgo` days ago, after `unusedFor` days without use before it. */
-  const warnedAgo = (id: string, daysAgo: number, unusedFor = 100) =>
-    db().from("workspaces").update({ unused_warned_at: ago(daysAgo), last_used_at: ago(daysAgo + unusedFor) }).eq("id", id);
+  /** The warning claimed `daysAgo` days ago after `unusedFor` days without use, and its email sent then. */
+  const warnedAgo = async (id: string, daysAgo: number, unusedFor = 100, sent = true) => {
+    await db().from("workspaces").update({ unused_warned_at: ago(daysAgo), last_used_at: ago(daysAgo + unusedFor) }).eq("id", id);
+    if (!sent) return;
+    const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", id).eq("role", "owner").limit(1).single();
+    await db().from("deliveries").insert({ connector: "email", recipient_id: owner!.user_id, sender_id: null, kind: "notice", workspace_id: id, subject: "Your Ziffr Workspace will be deleted", body: "test", mail_state: "sent", created_at: ago(daysAgo) });
+  };
   const run = () => runUnusedWorkspaces(90);
 
   it("warn the Owners once by email after the days, delete 14 days later with the key first, and take the lone Owner along", async () => {
@@ -115,6 +123,14 @@ describe("the warning and the deletion", () => {
     expect((await state(quiet.w.id))!.unused_warned_at).toBeNull();
   });
 
+  it("never delete when the warning email was not sent", async () => {
+    const { w } = await unused(100);
+    await warnedAgo(w.id, 15, 100, false);
+    await db().from("deliveries").insert({ connector: "email", recipient_id: (await db().from("memberships").select("user_id").eq("workspace_id", w.id).eq("role", "owner").limit(1).single()).data!.user_id, sender_id: null, kind: "notice", workspace_id: w.id, subject: "Your Ziffr Workspace will be deleted", body: "test", mail_state: "outbox", created_at: ago(15) });
+    await run();
+    expect(await state(w.id)).not.toBeNull();
+  });
+
   it("never delete on a stale warning or one sent before enough days without use", async () => {
     const stale = await unused(400);
     await warnedAgo(stale.w.id, 60, 300);
@@ -141,7 +157,7 @@ describe("the warning and the deletion", () => {
     const { w } = await unused(400);
     expect(await unusedWorkspacesJob()).toEqual({ warned: 0, deleted: 0 });
     expect((await state(w.id))!.unused_warned_at).toBeNull();
-    process.env.ZIFFR_DELETE_UNUSED_AFTER_DAYS = "90"; process.env.ZIFFR_DEFAULT_METRICS_LIMIT = "10"; forgetStoredSettings();
+    process.env.ZIFFR_DELETE_UNUSED_AFTER_DAYS = "90"; process.env.ZIFFR_DEFAULT_METRICS_LIMIT = "10"; Object.assign(process.env, MAIL); forgetStoredSettings();
     expect((await unusedWorkspacesJob()).warned).toBeGreaterThanOrEqual(1);
   });
 });
