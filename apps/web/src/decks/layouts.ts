@@ -77,7 +77,14 @@ export function seedSlides(editor: Editor, master: SlideDesign | null, seed: Dec
 /** Places a slide layout's or a Deck Template's shapes on a slide, in slide coordinates. */
 export function placeShapes(editor: Editor, slide: TLShapeId, shapes: SlideShape[]) {
   editor.run(() => {
-    editor.createShapes(shapes.map((sh) => ({ id: createShapeId(), parentId: slide, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props })) as never);
+    // One by one: a shape the editor cannot read (made by an older editor, or by hand) is left out, never the slide.
+    for (const sh of shapes) {
+      try {
+        editor.createShape({ id: createShapeId(), parentId: slide, type: sh.type, x: sh.x, y: sh.y, rotation: sh.rotation, opacity: sh.opacity, props: sh.props } as never);
+      } catch {
+        // Left out on purpose; the rest of the slide stands.
+      }
+    }
   });
 }
 

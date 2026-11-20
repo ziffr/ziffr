@@ -292,7 +292,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         {sharing && <ViewLinks type="deck" id={deck.id} />}
         {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
-        <Button variant="outline" disabled={!editor} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>
+        {sharing && <Button variant="outline" disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
         <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>

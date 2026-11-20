@@ -50,7 +50,8 @@ export function SaveSlideDialog({ deckId, shapes, data, onClose }: { deckId: num
   );
 }
 
-/** "Save as Deck Template…": every slide of the deck, sharing one set of Slots (spec 0030). */
+/** "Save as Deck Template…": every slide of the deck, sharing one set of Slots (spec 0030). The Preview reads the
+ * slides in the editor; the core saves the deck as stored. */
 export function SaveDeckDialog({ deckId, slides, data, existing, onClose }: { deckId: number; slides: SlideShape[][]; data: CanvasData; existing: Mine[]; onClose: () => void }) {
   const items = useMemo(() => deckSpecifics(slides), [slides]);
   return (
@@ -63,7 +64,7 @@ export function SaveDeckDialog({ deckId, slides, data, existing, onClose }: { de
       defaultName=""
       existing={existing}
       preview={(choices) => toDeckTemplate(slides, data.metrics, choices)}
-      submit={(x) => saveAsDeckTemplate({ deckId, slides, ...x })}
+      submit={(x) => saveAsDeckTemplate({ deckId, ...x })}
       onClose={onClose}
     />
   );

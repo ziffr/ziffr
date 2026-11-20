@@ -36,7 +36,7 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | **View link** | Makes a link for someone outside the team. Only the deck's owner sees this button. |
 | **Share** | Shares the deck with people or Groups. Only the deck's owner sees this button. |
 | **Versions** | Shows earlier states of the deck and lets you go back to one. |
-| **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). |
+| **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this button. |
 | **Present** | Shows the deck one slide at a time, filling the screen. |
 | **PDF** | Prepares a PDF to print or save. |
 | **Export PowerPoint** | Downloads the deck as a PowerPoint file. |
@@ -98,7 +98,7 @@ Select a slide and choose **Save slide as layout…**. Give it a name and, if yo
 
 ### Saving a deck as a Deck Template
 
-A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images stay behind. You can do this when you may change the deck and see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 

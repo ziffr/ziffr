@@ -9,12 +9,11 @@ import { saveDeckTemplate, saveWorkflowTemplate } from "@ziffr/core/templates";
 import { createDeckFromTemplate as createDeck, writeFills } from "@ziffr/core/deck-templates";
 import { createWorkflowFromTemplate as createWorkflow } from "@ziffr/core/workflow-templates";
 import type { Choices } from "@ziffr/core/team-templates";
-import type { SlideShape } from "@ziffr/core/types";
 
 const done = () => revalidatePath("/", "layout");
 
-/** Saves a deck's slides, as the editor has them, as a team Deck Template; returns its id. */
-export async function saveAsDeckTemplate(input: { deckId: number; slides: SlideShape[][]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
+/** Saves the viewer's own deck, as stored, as a team Deck Template; returns its id. */
+export async function saveAsDeckTemplate(input: { deckId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
   return attempt(async () => {
     const id = await saveDeckTemplate(await currentActor(), input);
     done();
