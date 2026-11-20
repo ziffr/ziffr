@@ -43,11 +43,11 @@ Before anything is turned on, the page shows what it would do, in counts. A pers
 
 ### The setting
 
-- **Where:** one column on the Metric, `retention`, null for none, or `{ keep_months, then: "condense" | "delete", into? }`. The Workspace has `default_retention` in Workspace settings (Owners and Admins).
+- **Where:** one column on the Metric, `retention`, null for none, or `{ keep_months, then: "condense" | "delete", into? }`. The Workspace has `default_retention` in Workspace settings (Owners only).
 - **Keep:** a whole number of months, at least **13**, so that a year-over-year Comparison and last year's span are always whole. The form offers 2, 3, 5, 7 and 10 years and "other". The age of a period is measured from its last day.
 - **Condense into:** the form offers the longer periods that make sense for the Metric's own period (day into week, month, quarter or year; week into month, quarter or year; and so on), as Display Periods are. Quarters and years are those of the Fiscal Year; a week belongs to the month its Monday is in, as everywhere (spec 0022).
-- **The default is copied** into a new Metric at its creation, like a Metric Catalog entry's description, with no link back. Changing the Workspace default changes nothing that exists. The Workspace page offers **Apply to existing Metrics**, which is the same dry-run-and-confirm as a single Metric, for all Metrics that have none (recommendation; see Open Questions).
-- **Who may set it:** a Metric's Retention by its Metric Owner, an Owner or an Admin; the Workspace default by Owners and Admins. A Member who only submits cannot. A **Derived Metric** has none (its values are not stored).
+- **The default is copied** into a new Metric at its creation, like a Metric Catalog entry's description, with no link back. Changing the Workspace default changes nothing that exists. The Workspace page offers **Apply to existing Metrics**, which is the same dry-run-and-confirm as a single Metric, for all Metrics that have none (decided).
+- **Who may set it:** a Metric's Retention by its Metric Owner, an Owner or an Admin; the Workspace default by Owners only. A Member who only submits cannot. A **Derived Metric** has none (its values are not stored).
 - **Not in the API or MCP in the first version** beyond reading: `get_metric` shows the Retention, and nothing changes it. Setting a rule that deletes data needs the page, the counts and the confirmation; an assistant that sets one on a sentence is exactly the accident this spec fears.
 - **The demo** has none and cannot set one (read-only, spec 0029).
 
@@ -67,11 +67,11 @@ Before anything is turned on, the page shows what it would do, in counts. A pers
 ### What is affected
 
 - **Observations and their history:** the originals and their **Superseded Values** of a condensed period are deleted when the Condensed Value is written; of a deleted period, with it. The Condensed Value has no history: it is made at a moment and never edited.
-- **Breakdowns:** deleted with their period, in both modes (recommendation). Labels are free text; adding them up per label is not a guarantee Ziffr can make (the observation's value is the Metric's number even when the rows do not add up). The preview counts them.
+- **Breakdowns:** deleted with their period, in both modes (decided). Labels are free text; adding them up per label is not a guarantee Ziffr can make (the observation's value is the Metric's number even when the rows do not add up). The preview counts them.
 - **Target Series:** the Target of a condensed span is made with the same rule the Display Periods use (the Target Series combined by the Aggregation over every period the span counts, otherwise the Target Range) and stored in the Condensed Value, so a condensed month still has its Attainment. In delete mode they go with the period.
 - **Projections:** a Projection is for the future, so a Projection of a past period older than the Retention is deleted in both modes; it was never an Observation.
 - **Corrections, Questions and Tasks:** their text and Threads stay. A thread about a period that was condensed or deleted keeps its words and says "the value this was about is no longer kept as a single value". **Open** Actions, Corrections and Approvals about a period hold that period back: it is not condensed or deleted until they are closed (below).
-- **Locks:** a Lock on a period is recorded on its Condensed Value (locked when every period in the span was locked). **Locked periods are condensed, never silently dropped** (recommendation): a locked period is published and may be what a Snapshot or a report agreed on; the Condensed Value keeps what it added up to. Delete mode on a Metric with locked periods is allowed, but the confirmation says how many locked periods will go. A period that was condensed takes no more values, as if locked for good.
+- **Locks:** a Lock on a period is recorded on its Condensed Value (locked when every period in the span was locked). **Locked periods are condensed, never silently dropped** (decided): a locked period is published and may be what a Snapshot or a report agreed on; the Condensed Value keeps what it added up to. Delete mode on a Metric with locked periods is allowed, but the confirmation says how many locked periods will go. A period that was condensed takes no more values, as if locked for good.
 - **Snapshots, decks and View Links:** they keep what they showed. A Snapshot is what something showed, fixed; Retention never changes it, so a Snapshot made last year still holds last year's daily numbers. The consequence is said in the confirmation for delete: "Snapshots and decks that already show these values keep them. Delete those first if they must go too." The preview lists how many Snapshots, decks and frozen View Links hold the Metric's affected periods, by name for those the person may see. A Snapshot's note of "a value corrected since" says "no longer kept" for a deleted value. Live dashboards and decks show what remains.
 - **Derived Metrics:** a Derived Metric reads its inputs by its own period. Delete is refused while another Metric is derived from this one (the same rule that refuses deleting a Metric that is used); condense is refused if a Derived Metric's period is shorter than the period condensed into; otherwise the Derived Metric's old history shows by the longer period (the Display Period rule).
 - **The Audit Log:** untouched, with its own 730 days. It never holds a value.
@@ -91,7 +91,7 @@ Before anything is turned on, the page shows what it would do, in counts. A pers
 - **The page** shows the preview next to the setting (Metric page, **Retention**; Workspace settings for the default), updating as the person changes N. "Turn on" is disabled until the preview has been shown.
 - **Confirming:** a dialog with the counts; for delete, the person types the Metric's name (or, for the Workspace page, the word "delete") and is offered **Download these values** (a CSV of exactly what would go, through the core's export, written in the Audit Log like any export). Making a Retention shorter, or from condense to delete, needs a fresh preview and confirmation; making it longer or turning it off needs none.
 - **The server action rechecks** the counts it was shown: if they have changed (new open work, a Lock), it refuses with "The numbers changed; look again."
-- **The delay:** a confirmed Retention starts on the 8th day (recommendation). Until then the Metric page says "Values before 1 November 2024 will be condensed from 28 November. Cancel." Its owner and the person who set it get one Delivery when it is scheduled and one the day before. Cancelling is one click by anyone who may set it.
+- **The delay:** a confirmed Retention starts on the 8th day (decided). Until then the Metric page says "Values before 1 November 2024 will be condensed from 28 November. Cancel." Its owner and the person who set it get one Delivery when it is scheduled and one the day before. Cancelling is one click by anyone who may set it.
 - **Audit Log:** `metric.retention_set` (old and new setting, who, the first run day) and `metric.retention_cancelled`; the Workspace default `workspace.retention_default_set`; each run writes `retention.run` per Metric with counts. Details name the Metric as it was named then, never a value.
 
 ### The job
@@ -132,17 +132,19 @@ Before anything is turned on, the page shows what it would do, in counts. A pers
 - Making deleted data unreadable in backups (that is deleting a Workspace, spec 0028).
 - Paid features and `ee/`.
 
-## Open Questions
+## Decisions (2026-11-20, by the owner)
 
-1. **Delete at all in the first version?** Recommendation: yes, because a promise to delete is the commonest reason for a Retention, with the preview, the typed name, the download and the 7 days. The cautious alternative is condense-only first. The owner decides.
-2. **The delay:** 7 days between confirming and the first run, recommendation; 0 for condense would be simpler and is lossy too.
-3. **Floor of 13 months.** Recommendation: yes, so that YoY works. A high-frequency Metric (hourly values kept 90 days) would need a lower floor and a "last 90 days" rule that Comparisons would have to know about; not in this version.
-4. **Do Snapshots keep deleted values?** Recommendation: yes (fixed means fixed); the confirmation says so. A privacy-minded owner may want "also delete the Snapshots' values" as an option, which would break "its numbers never change". The owner decides.
-5. **Workspace default: copied at creation or inherited live?** Recommendation: copied, plus the explicit **Apply to existing Metrics**. Inheriting live would let one click on a default change what every Metric keeps.
-6. **Archived Metrics follow Retention?** Recommendation: yes.
-7. **Breakdowns deleted with their period, in condense mode too.** Recommendation: yes, shown in the preview; condensing per label could follow for summed Metrics.
-8. **Setting through the API and MCP.** Recommendation: read-only in the first version; revisit when the page has run for a while.
-9. **Who may set the Workspace default:** Owners and Admins (recommendation), or Owners only, since it affects every Metric created afterwards.
+The owner accepted every recommendation of the draft. They are written into the sections above and are:
+
+1. Delete ships in the first version, with the preview, the typed name, the download and the delay.
+2. A confirmed Retention starts on the 8th day, for condense and delete alike.
+3. The floor is 13 months.
+4. Snapshots, decks and View Links keep what they showed, also after a delete.
+5. The Workspace default is copied at creation, with the explicit **Apply to existing Metrics**.
+6. Archived Metrics follow their Retention.
+7. Breakdowns are deleted with their period, also when condensing.
+8. The API and MCP only read a Retention in the first version.
+9. **Only Owners set the Workspace default**, since it affects every Metric created afterwards and deletion cannot be undone. (An Owner or Admin or the Metric Owner still sets one Metric's Retention.)
 
 ## Tickets
 

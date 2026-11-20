@@ -57,7 +57,7 @@ An Alert fires **once per crossing**: it tells the person when the condition bec
 
 - **On every value that counts:** after a value is recorded in the core's one submit path (`onValue`, whatever the Source: form, email, Slack, Telegram, API, Feed, MCP), after an Approval completes it, after a Correction is accepted, and after a Derived Metric's value is recomputed from its inputs. Never on a read.
 - **Only the latest period:** an Alert looks at the Metric's latest period that has a value. A value for an older period does not fire it, so late values and Corrections to history are quiet.
-- **Which values count (recommendation, an option per Alert):** only **published or approved** values. A value waiting for Approval, or a proposal on a Lock, is not seen by an Alert until it is approved; then it is checked as if it had just arrived. Each Alert has one option, **Include values not approved yet**, off by default, for the person who wants to hear about the Unusual Value that is waiting. Its message then says "not approved yet". Reason: Unusual Values are exactly the values that move across a level, and telling a team about a number its Approver may send back is how rumours start; the person who wants the first look can have it.
+- **Which values count (an option per Alert):** only **published or approved** values. A value waiting for Approval, or a proposal on a Lock, is not seen by an Alert until it is approved; then it is checked as if it had just arrived. Each Alert has one option, **Include values not approved yet**, off by default, for the person who wants to hear about the Unusual Value that is waiting. Its message then says "not approved yet". Reason: Unusual Values are exactly the values that move across a level, and telling a team about a number its Approver may send back is how rumours start; the person who wants the first look can have it.
 - **The check on the day after the Due Date:** the Workflow engine's daily run (`runWorkflows`), where it decides Escalations. It fires "Not in by its Due Date" once per period. A value arriving later does not retract anything.
 - **Exact and the same maths:** a new pure module `alert-rules.ts` reads values as text and compares them exactly (spec 0022), taking Attainment from `attainment.ts` and the change from `exact.ts`. It is a calculation module of the catalogue (`docs/reference/calculations.md` gets rows), with reference tests written apart from the code. The edges: "reaches" is at or above, "falls below" is strictly below, "changes more than" is strictly more, a change from 0 follows the Unusual Value rule (any change away from 0 is more than any share), no value or no percentage is false.
 
@@ -67,7 +67,7 @@ An Alert fires **once per crossing**: it tells the person when the condition bec
 - **Per period for two kinds:** "changes more than" and "not in by its Due Date" belong to a period, not to a level. They fire at most once per period and re-arm when a new period becomes the latest.
 - **Claimed before sent:** the state change is made in one statement (`update ... where state = 'armed'`), and only the call that changed a row writes the Delivery, so two values arriving at once send one message, as a Workflow's day is claimed.
 - **A Correction** to the latest period is checked like a new value: if it makes the condition true for an armed Alert, it fires; if it makes it false, the Alert is armed again and no retraction is sent. A Correction to an older period does nothing.
-- **An Import is silent** (recommendation). Values recorded as an Import (a Feed's first history, a paste chosen as history) fire nothing. Afterwards the Alert is brought up to date without a message: the latest period's condition decides whether it is `armed` or `fired`, so the first real value after an Import behaves as it should. Reason: an Import is not a happening, and a Feed catching up should not send 700 messages. The Unusual Value check skips Imports for the same reason.
+- **An Import is silent** (decided). Values recorded as an Import (a Feed's first history, a paste chosen as history) fire nothing. Afterwards the Alert is brought up to date without a message: the latest period's condition decides whether it is `armed` or `fired`, so the first real value after an Import behaves as it should. Reason: an Import is not a happening, and a Feed catching up should not send 700 messages. The Unusual Value check skips Imports for the same reason.
 - **A paste** (spec 0026) that is not chosen as history records ordinary values. Alerts look at the latest period only, so a paste of five months fires at most once per Alert, for the latest.
 - **A Lock** changes nothing: a locked period takes no values, and a proposal waits for Approval as above.
 
@@ -153,15 +153,17 @@ Per person and per Workspace, against spam; constants in one file (`alert-limits
 - Snoozing for a time (pausing is enough).
 - Paid features and `ee/`.
 
-## Open Questions
+## Decisions (2026-11-20, by the owner)
 
-1. **Does an Alert see values not yet approved?** Recommendation: no by default, and an option per Alert ("Include values not approved yet"); the Tell step never does. Decided here, but it is the one the owner is most likely to change.
-2. **Is "not in by its Due Date" an Alert at all, given Escalation?** Recommendation: yes, because it tells a person who is not responsible and asks nobody; it needs a Workflow's Due Date and says so. The alternative is to leave it to Escalation and let a Workflow owner add the watcher as "tell the Metric Owner"; that makes a watcher a responsible person, which is the wrong direction.
-3. **Imports silent.** Recommendation: yes, always. The alternative, an option "also for Imports", invites the storm it avoids.
-4. **Who may use Tell, and may it tell a Group?** Recommendation: the Workflow's owner, people and Groups, with the sight check per person. The question for the owner is whether a Group message is wanted at all in the first version.
-5. **The limits' numbers** (20, 5, 500, 20 a day, 2,000 a day): recommendation, as above; they are one file to change once real use shows more.
-6. **Name of the step: Tell or Notify?** Recommendation: Tell (see Words).
-7. **Does a paused Alert for a lost Metric stay 180 days?** Recommendation: yes, silent and hidden; a person returned to a Share expects their Alerts back.
+The owner accepted every recommendation of the draft. They are written into the sections above and are:
+
+1. An Alert sees only published or approved values; each Alert has the option "Include values not approved yet", off by default; the Tell step never includes them.
+2. "Not in by its Due Date" is an Alert, needing a Workflow's Due Date.
+3. Imports are always silent.
+4. Tell is set by the Workflow's owner and may tell people and Groups, each checked for sight of the Metric when it fires.
+5. The limits are 20 Alerts per person, 5 per Metric, 500 per Workspace, 20 messages per person per day and 2,000 per Workspace per day, in one file to tune.
+6. The step is called Tell.
+7. A paused Alert for a Metric the person lost sight of stays 180 days, silent and hidden.
 
 ## Tickets
 
