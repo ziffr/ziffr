@@ -15,6 +15,7 @@ import { callTelegram, TELEGRAM_TOKEN, TelegramError, telegramEnabled, telegramP
 import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
+import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -102,6 +103,8 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_DAYS: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30 ? null : "A trial lasts 1 to 30 days."),
   ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
+  ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
+  ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
@@ -188,6 +191,11 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     return d.metrics === null
       ? { working: false, detail: "No default: a Workspace has no limit unless it has one of its own below." }
       : { working: true, detail: `A Workspace without a limit of its own may hold ${d.metrics.toLocaleString("en-US")} Metrics${d.label ? ` (${d.label})` : ""}.` };
+  }
+  if (id === "marketplace") {
+    const c = marketplaceConfig(settings);
+    if (!c.on) return { working: false, detail: null };
+    return c.url ? { working: true, detail: `Connects to ${c.url.origin}${c.url.origin === new URL(MARKETPLACE_DEFAULT_URL).origin ? ", Ziffr's own Marketplace" : ""}.` } : { working: false, detail: c.problem };
   }
   return { working: false, detail: null };
 }

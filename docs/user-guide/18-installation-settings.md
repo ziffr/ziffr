@@ -92,6 +92,15 @@ A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics
 
 Over its limit a Workspace keeps everything working: its Metrics, values, Prompts, Workflows, dashboards and the API, and values keep arriving. The first Metric that takes it over starts 14 days in which it may hold 10 % more (at least one Metric more). After that, no new Metric can be made, and no Archived Metric brought back, while it holds as many Metrics as its limit or more. People who try are told how many Metrics the Workspace holds and to archive one or ask an Owner. A limit set below what a Workspace already holds starts the 14 days the same way. Each change is in the Workspace's **Audit Log** and in **Changes** below.
 
+## Marketplace
+
+The **Marketplace** lists Packs others made: ready-made Metric Catalog entries, templates, designs and Themes. The connection is off unless you turn it on; without it, Owners and Admins install Packs from a file.
+
+- **Connection**: `on` or `off`. "Working" next to the title means it is on and its address is accepted.
+- **Marketplace address**: empty for Ziffr's own. It starts with `https://`, has no user or `?` part, and is never inside this server's own network (unless the server allows it with `ZIFFR_ALLOW_PRIVATE_MARKETPLACE=1`).
+
+With it on, this server, never a browser, asks the Marketplace for lists of Packs, a Pack's file and, once a day, which installed Packs have newer versions. It sends a search, a Pack's id and version, the list of Packs installed from the Marketplace on this Installation (not by Workspace) and Ziffr's version. It never sends a Workspace's name, id or data, nor anyone's. Every Pack's file must carry the Marketplace's signature and passes every check before anyone sees it.
+
 ## Set on the server
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.

@@ -16,6 +16,7 @@ import { PACK_LIMITS, UNSIGNED_WARNING as UNSIGNED } from "@ziffr/core/pack";
 import type { InstalledPack, PackPreview, PackPreviewItem } from "@ziffr/core/packs";
 import type { OfferedItem } from "@ziffr/core/pack-updates";
 import { Offers, PackActions } from "./manage";
+import { MarketplaceSearch, MarketplaceUpdate } from "./marketplace";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
 import { ExportPack } from "./export";
@@ -31,7 +32,7 @@ function ListingLink({ href, children }: { href?: string; children: React.ReactN
   return <a href={href} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline">{children}</a>;
 }
 
-export function PacksScreen({ installed, manages, exportable = null, offers = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; offers?: OfferedItem[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, offers = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; offers?: OfferedItem[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -56,12 +57,14 @@ export function PacksScreen({ installed, manages, exportable = null, offers = []
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage}>Its page</ListingLink><ListingLink href={p.listing.support}>Help</ListingLink></p>
                     <AddedList added={p.added} />
                     {manages && <PackActions installId={p.id} name={p.name} />}
+                    {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
                     {manages && <SetUpFromPack installId={p.id} viewer={viewer} />}
                   </li>
                 ))}
               </ul>
             )}
       </section>
+      {marketplace && <MarketplaceSearch viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
       {exportable && <ExportPack options={exportable} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
@@ -120,7 +123,6 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
       toast.error("Not installed", { description: shown(e) });
     }
   });
-  const ready = !!preview && !preview.blocked && okUnsigned && (okAssistant || !preview.assistantTexts.length);
   return (
     <section aria-labelledby="install-pack" className="space-y-4">
       <div>
@@ -135,35 +137,47 @@ function InstallFromFile({ viewer, numberStyle }: { viewer: string; numberStyle:
           <ul className="mt-1 list-disc space-y-0.5 pl-5">{problems.map((p, i) => <li key={i}>{p.line ? `Line ${p.line}: ` : ""}{p.path ? <code>{p.path}</code> : null} {p.message}</li>)}</ul>
         </div>
       )}
-      {preview && (
-        <div className="stock space-y-4 rounded-[var(--radius-card)] p-4 text-sm">
-          <div>
-            <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
-            <p className="text-muted-foreground">{preview.manifest.summary}</p>
-            <p className="mt-1 text-xs text-muted-foreground">By {preview.manifest.author.name}, under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage}>Its page</ListingLink></p>
-          </div>
-          <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
-          {preview.assistantTexts.length > 0 && (
-            <div className="rounded-[var(--radius-input)] border border-input p-2.5">
-              <p className="font-medium">Words aimed at AI assistants</p>
-              <p className="text-xs text-muted-foreground">These texts read like instructions to an assistant. Assistants connected to this Workspace read Metric descriptions; they can do only what their key allows, but read these before you install.</p>
-              <ul className="mt-1 space-y-1 text-xs">{preview.assistantTexts.map((t) => <li key={t.path}><code>{t.path}</code>: &ldquo;{t.text}&rdquo;</li>)}</ul>
-            </div>
-          )}
-          <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
-          {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
-            <div className="space-y-2">
-              <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>
-              {preview.assistantTexts.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={okAssistant} onChange={(e) => setOkAssistant(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I read the words aimed at assistants.</label>}
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={reset}>Cancel</Button>
-            <Button disabled={!ready || pending} onClick={install}>Install {preview.items.length} item{preview.items.length === 1 ? "" : "s"}</Button>
-          </div>
+      {preview && <PackPreviewCard preview={preview} viewer={viewer} numberStyle={numberStyle} pending={pending} okUnsigned={okUnsigned} setOkUnsigned={setOkUnsigned} okAssistant={okAssistant} setOkAssistant={setOkAssistant} onCancel={reset} onInstall={install} />}
+    </section>
+  );
+}
+
+/** A Pack before it is installed: its manifest, where it came from, words aimed at assistants, every item, and what to
+ * confirm. A file from the Marketplace whose signature held needs no warning about where it came from. */
+export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsigned, setOkUnsigned, okAssistant, setOkAssistant, onCancel, onInstall }: {
+  preview: PackPreview; viewer: string; numberStyle: NumberStyle; pending: boolean;
+  okUnsigned: boolean; setOkUnsigned: (v: boolean) => void; okAssistant: boolean; setOkAssistant: (v: boolean) => void; onCancel: () => void; onInstall: () => void;
+}) {
+  const ready = !preview.blocked && (okUnsigned || !preview.unsigned) && (okAssistant || !preview.assistantTexts.length);
+  return (
+    <div className="stock space-y-4 rounded-[var(--radius-card)] p-4 text-sm">
+      <div>
+        <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
+        <p className="text-muted-foreground">{preview.manifest.summary}</p>
+        <p className="mt-1 text-xs text-muted-foreground">By {preview.manifest.author.name}, under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage}>Its page</ListingLink></p>
+      </div>
+      {preview.unsigned
+        ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
+        : <p className="rounded-[var(--radius-input)] bg-muted p-2.5">From the Marketplace: its signature holds. Ziffr checked the whole file as well.</p>}
+      {preview.assistantTexts.length > 0 && (
+        <div className="rounded-[var(--radius-input)] border border-input p-2.5">
+          <p className="font-medium">Words aimed at AI assistants</p>
+          <p className="text-xs text-muted-foreground">These texts read like instructions to an assistant. Assistants connected to this Workspace read Metric descriptions; they can do only what their key allows, but read these before you install.</p>
+          <ul className="mt-1 space-y-1 text-xs">{preview.assistantTexts.map((t) => <li key={t.path}><code>{t.path}</code>: &ldquo;{t.text}&rdquo;</li>)}</ul>
         </div>
       )}
-    </section>
+      <PackItems items={preview.items} viewer={viewer} numberStyle={numberStyle} />
+      {preview.blocked ? <p role="alert" className="font-medium">{preview.blocked}</p> : (
+        <div className="space-y-2">
+          {preview.unsigned && <label className="flex items-start gap-2"><input type="checkbox" checked={okUnsigned} onChange={(e) => setOkUnsigned(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I install a file the Marketplace did not check.</label>}
+          {preview.assistantTexts.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={okAssistant} onChange={(e) => setOkAssistant(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> I read the words aimed at assistants.</label>}
+        </div>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button disabled={!ready || pending} onClick={onInstall}>Install {preview.items.length} item{preview.items.length === 1 ? "" : "s"}</Button>
+      </div>
+    </div>
   );
 }
 

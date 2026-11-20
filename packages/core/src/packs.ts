@@ -109,9 +109,18 @@ export const manifestOf = (p: Pack): Omit<Pack, "contents"> => {
   return m;
 };
 
+/** Where a Pack's file came from: an upload (never signed here), or the Marketplace with its signature checked. */
+export type PackOrigin = { source: "upload" | "marketplace"; signed: boolean };
+const UPLOAD: PackOrigin = { source: "upload", signed: false };
+
 /** Reads an uploaded Pack file for its Preview (Owners and Admins): checked in full here, whatever the browser did.
  * Nothing is written. An uploaded file carries no Marketplace signature here, so it is always shown as unsigned. */
 export async function readPackFile(actor: Actor, text: string): Promise<PackRead> {
+  return previewPack(actor, text, UPLOAD);
+}
+
+/** A Pack's Preview, for a file from `origin` (the Marketplace module checks a signature before it calls this). */
+export async function previewPack(actor: Actor, text: string, origin: PackOrigin): Promise<PackRead> {
   assertManages(actor);
   const res = checkPack(typeof text === "string" ? text : "");
   if (!res.ok) return res;
@@ -127,18 +136,24 @@ export async function readPackFile(actor: Actor, text: string): Promise<PackRead
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
     ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens })),
   ];
-  return { ok: true, preview: { manifest: manifestOf(pack), items, unsigned: true, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: manifestOf(pack), items, unsigned: !origin.signed, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
  * confirmed the file did not come from the Marketplace, and, when it has any, that they read its texts aimed at
  * assistants. Checked again in full here. One database step: the Pack is installed whole or not at all. Audited. */
 export async function installPackFile(actor: Actor, text: string, confirmed: { unsigned: boolean; assistantTexts: boolean }): Promise<number> {
+  return installPack(actor, text, UPLOAD, confirmed);
+}
+
+/** Installs a Pack's file from `origin`: an unsigned one only after the person confirmed it; texts aimed at assistants
+ * only after they were read. Everything else as for an upload. */
+export async function installPack(actor: Actor, text: string, origin: PackOrigin, confirmed: { unsigned: boolean; assistantTexts: boolean }): Promise<number> {
   assertManages(actor);
   const res = checkPack(typeof text === "string" ? text : "");
   if (!res.ok) throw new Error(`The Pack cannot be installed: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
   const { pack } = res;
-  if (!confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
+  if (!origin.signed && !confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
   if (res.assistantTexts.length && !confirmed.assistantTexts) throw new Error("Confirm that you read the texts aimed at assistants first.");
   const blocked = await blockedFor(actor, pack);
   if (blocked) throw new Forbidden(blocked);
@@ -146,7 +161,7 @@ export async function installPackFile(actor: Actor, text: string, confirmed: { u
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: "upload", signed: false, manifest: manifestOf(pack), item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: manifestOf(pack), item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -160,7 +175,7 @@ export async function installPackFile(actor: Actor, text: string, confirmed: { u
     throw new Error(twice ? `${pack.name} is installed already.` : named ? "This Workspace's Metric Catalog has an entry of the same name as one of this Pack's already; nothing was added." : "The Pack could not be installed; nothing was added.");
   }
   const id = Number(data);
-  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: "upload", signed: false } });
+  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: origin.source, signed: origin.signed } });
   return id;
 }
 

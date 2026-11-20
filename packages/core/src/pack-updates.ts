@@ -8,7 +8,7 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
-import { assertManages, itemHash, itemKeys, manifestOf, storedItems } from "./packs";
+import { assertManages, itemHash, itemKeys, manifestOf, storedItems, type PackOrigin } from "./packs";
 import { ensureBaseline, recordVersion } from "./versions";
 
 /** Where an installed item lives. */
@@ -179,10 +179,15 @@ export async function readPackUpdate(actor: Actor, installId: number, text: stri
 /** Updates an installed Pack from a newer file, after the person confirmed the file did not come from the Marketplace
  * and, when it has any, that they read its texts aimed at assistants. One database step; audited. */
 export async function updatePackFile(actor: Actor, installId: number, text: string, confirmed: { unsigned: boolean; assistantTexts: boolean }): Promise<UpdatePlan> {
+  return updatePack(actor, installId, text, { source: "upload", signed: false }, confirmed);
+}
+
+/** Updates an installed Pack from a newer file from `origin`: an unsigned one only after the person confirmed it. */
+export async function updatePack(actor: Actor, installId: number, text: string, origin: PackOrigin, confirmed: { unsigned: boolean; assistantTexts: boolean }): Promise<UpdatePlan> {
   const res = await planUpdate(actor, Number(installId), text);
   if (!res.ok) throw new Error(`The Pack cannot be updated: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
   if (res.plan.blocked) throw new Forbidden(res.plan.blocked);
-  if (!confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
+  if (!origin.signed && !confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
   if (res.plan.assistantTexts.length && !confirmed.assistantTexts) throw new Error("Confirm that you read the texts aimed at assistants first.");
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
@@ -194,7 +199,7 @@ export async function updatePackFile(actor: Actor, installId: number, text: stri
   const sameName = error?.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "");
   if (sameName) throw new Error("This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed.");
   if (error) throw new Error("The Pack could not be updated; nothing was changed.");
-  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: "upload" } });
+  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: origin.source } });
   return res.plan;
 }
 

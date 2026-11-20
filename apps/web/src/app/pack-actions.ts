@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
+import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
 import { exportPack, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
@@ -60,5 +61,38 @@ export async function takeOffer(table: "templates" | "themes", id: number) {
   return attempt(async () => {
     await takeNewVersion(await currentActor(), table === "themes" ? "themes" : "templates", Number(id));
     revalidatePath("/", "layout");
+  });
+}
+
+/** Free Packs on the Marketplace matching the search words; only the words are sent. */
+export async function searchPacks(query: string) {
+  return attempt(async () => searchMarketplace(await currentActor(), String(query ?? "")));
+}
+
+/** A Marketplace Pack's Preview, its signature checked; nothing is written. */
+export async function readFromMarketplace(packId: string, version: string) {
+  return attempt(async () => readMarketplacePack(await currentActor(), String(packId ?? ""), String(version ?? "")));
+}
+
+/** Installs a Pack from the Marketplace, its signature checked. */
+export async function installFromTheMarketplace(packId: string, version: string, confirmed: { assistantTexts: boolean }) {
+  return attempt(async () => {
+    const id = await installFromMarketplace(await currentActor(), String(packId ?? ""), String(version ?? ""), { assistantTexts: confirmed?.assistantTexts === true });
+    revalidatePath("/", "layout");
+    return id;
+  });
+}
+
+/** What updating an installed Pack to a Marketplace version would do; nothing is written. */
+export async function readMarketplaceUpdatePlan(installId: number, version: string) {
+  return attempt(async () => readMarketplaceUpdate(await currentActor(), Number(installId), String(version ?? "")));
+}
+
+/** Updates an installed Pack to a Marketplace version, its signature checked. */
+export async function updateFromTheMarketplace(installId: number, version: string, confirmed: { assistantTexts: boolean }) {
+  return attempt(async () => {
+    const plan = await updateFromMarketplace(await currentActor(), Number(installId), String(version ?? ""), { assistantTexts: confirmed?.assistantTexts === true });
+    revalidatePath("/", "layout");
+    return plan;
   });
 }
