@@ -22,6 +22,7 @@ export const MetricDescription = z.object({
   attainment_method: z.enum(["ratio", "distance"]).nullable().describe("How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default."),
   sources: z.array(SourceId).describe("Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric."),
   derived: z.boolean().describe("A Derived Metric: computed from others, takes no values."),
+  archived: z.boolean().describe("An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true."),
 });
 
 /** One page of a list; `next` is the cursor for the following page, null on the last. */
@@ -181,6 +182,11 @@ const limit = z.coerce.number().int().min(1).max(100).default(50);
 /** Paging parameters of lists ordered by a number id. */
 export const pageQuery = z.object({ limit, cursor: cursorOf(/^v1:(\d{1,15})$/).transform((c) => (c === null ? null : Number(c))) });
 
+/** Paging parameters of GET /metrics, and whether to list the Archived Metrics instead of those in use. */
+export const metricsQuery = pageQuery.extend({
+  archived: z.enum(["true", "false"]).optional().transform((a) => a === "true").describe("true lists only the Archived Metrics; left out or false, the Metrics in use."),
+});
+
 /** Paging parameters of lists ordered by a text id (people). */
 export const textPageQuery = z.object({ limit, cursor: cursorOf(/^v1:([A-Za-z0-9_-]{1,64})$/) });
 
@@ -255,7 +261,7 @@ const FeedItemResult = z.object({
   period: z.string().nullable().describe("The period it was meant for, YYYY-MM-DD; null when the Metric was not found."),
   status: z.enum(["recorded", "awaiting_approval", "locked", "refused"]).describe("recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused."),
   imported: z.boolean().optional().describe("An Import: a past period that had no value, recorded without the Unusual Value check. Under a Workflow that approves every value, one for the period it is closing or later still waits for Approval."),
-  code: z.string().optional().describe("Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token."),
+  code: z.string().optional().describe("Why it was refused: not_found, duplicate, period, derived, archived, source, no_value, no_token."),
   detail: z.string(),
 });
 

@@ -10,7 +10,7 @@ Every path is under `/api/v1`. The machine-readable description is at `/api/v1/o
 
 `GET /metrics` · scope `metrics:read`
 
-The Metrics the key's creator sees, oldest first, a page at a time.
+The Metrics the key's creator sees, oldest first, a page at a time: those in use, or with `archived=true` only the Archived Metrics.
 
 **Parameters**
 
@@ -18,6 +18,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | --- | --- | --- | --- | --- |
 | `limit` | query | integer, 1 to 100, default 50 | no | Items per page, 1 to 100. |
 | `cursor` | query | string, at most 128 characters | no | The `next` of the page before. Opaque. |
+| `archived` | query | `"true"`, `"false"` | no | true lists only the Archived Metrics; left out or false, the Metrics in use. |
 
 **Answer** (200)
 
@@ -39,6 +40,7 @@ The Metrics the key's creator sees, oldest first, a page at a time.
 | `items[].attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `items[].sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `items[].derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `items[].archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
 
 **Errors**
@@ -102,6 +104,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 
 **Errors**
 
@@ -145,6 +148,7 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 
 **Errors**
 
@@ -226,6 +230,7 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 | `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 
 **Errors**
 
@@ -234,6 +239,91 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
 - 404: `not_found`: nothing here the key's creator may see.
 - 422: The lower target is above the upper one, or Sources for a Derived Metric; nothing was changed.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Archive a Metric
+
+`POST /metrics/{slug}/archive` · scope `metrics:write`
+
+Archives a Metric as the key's creator, when they are an Owner or Admin of the workspace or own the Metric, as in the app. Its values and history stay and widgets keep drawing them; it is asked for nothing, takes no values and is listed only with `archived=true`. The Audit Log names the key.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `slug` | string | yes | Stable id in paths; survives renames of the name. |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
+| `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
+| `unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
+| `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
+| `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
+| `target_min` | number or null | yes | The low end of its target, if any. |
+| `target_max` | number or null | yes | The high end of its target, if any. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
+| `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not archive it.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Bring back an Archived Metric
+
+`POST /metrics/{slug}/restore` · scope `metrics:write`
+
+Brings an Archived Metric back as the key's creator, when they are an Owner or Admin of the workspace or own the Metric: it is asked for and takes values again. The Audit Log names the key.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `slug` | path | string | yes | The Metric's slug. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `slug` | string | yes | Stable id in paths; survives renames of the name. |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | yes | How often it has a value: a day, an ISO week, a month, or a quarter or year of the workspace's fiscal year (GET /workspace). |
+| `format` | `"number"`, `"currency"`, `"percent"` | yes | How its values are written. |
+| `unit` | string | yes | Shown next to the value, such as orders, € or $. |
+| `unit_position` | `"before"`, `"after"` | yes | Which side of the value the unit stands on: before ($1,200) or after (1,200 €). |
+| `decimals` | integer, 0 to 6 | yes | Decimal places to show. |
+| `polarity` | `"higher"`, `"lower"`, `"target"` | yes | Whether higher or lower values are better, or a range (target). |
+| `aggregation` | `"sum"`, `"average"`, `"last"`, `"none"` | yes | How values combine over longer spans. |
+| `target_min` | number or null | yes | The low end of its target, if any. |
+| `target_max` | number or null | yes | The high end of its target, if any. |
+| `attainment_method` | `"ratio"`, `"distance"` or null | yes | How its Attainment is computed: ratio (value ÷ target, target ÷ value when lower is better) or distance (100 % plus the distance to the target in steps of its size); null follows the workspace's default. |
+| `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
+| `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
+| `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not bring it back.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: It could not be brought back; nothing was changed.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -315,7 +405,7 @@ Records a value for the current period, or the one named, through the Metric's S
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator does not submit values for this Metric.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first submission is still running.
-- 422: `locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric or the period refused it.
+- 422: `locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric, an Archived Metric or the period refused it.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -682,7 +772,7 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 | `results[].period` | string or null | yes | The period it was meant for, YYYY-MM-DD; null when the Metric was not found. |
 | `results[].status` | `"recorded"`, `"awaiting_approval"`, `"locked"`, `"refused"` | yes | recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused. |
 | `results[].imported` | boolean | no | An Import: a past period that had no value, recorded without the Unusual Value check. Under a Workflow that approves every value, one for the period it is closing or later still waits for Approval. |
-| `results[].code` | string | no | Why it was refused: not_found, duplicate, period, derived, source, no_value, no_token. |
+| `results[].code` | string | no | Why it was refused: not_found, duplicate, period, derived, archived, source, no_value, no_token. |
 | `results[].detail` | string | yes |  |
 
 **Errors**

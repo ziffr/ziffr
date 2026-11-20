@@ -5,7 +5,7 @@
 import { db } from "./db";
 import { insertSealed } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
-import { normalizeMetric } from "./metric-row";
+import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { parseBreakdown } from "./parse";
@@ -15,6 +15,7 @@ import { Forbidden, type Actor } from "./actor";
 import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
+import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import type { Metric, Profile, SourceId, Token } from "./types";
 import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
@@ -162,10 +163,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   const metric = metricById[token.metric_id];
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
-  if (metric.formula) return log({ ...base, ok: false, outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` });
-  // The API is a Source of its own (spec 0012): a Metric takes programs' and Feeds' values only where it says so.
-  if (!metric.sources.includes(input.source))
-    return log({ ...base, ok: false, outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[input.source]}.` });
+  const closed = closedTo(metric, input.source);
+  if (closed) return log({ ...base, ok: false, ...closed });
 
   // 3. What value, for which period? A program names both; a breakdown's total (or the sum of its rows) is the value
   // for the Prompt's or the current period; any other text is read as an answer (numbers.ts, spec 0022).
@@ -232,6 +231,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
       p_access_key: row.access_key_id, p_imported: mayImport, p_rows: (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value })),
     })
     .single<{ observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number }>();
+  // Archived between the check above and the write: the database refuses it the same way.
+  if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
   if (error || !data) {
     console.error("record_observation failed:", error?.message ?? "no row");
@@ -281,6 +282,16 @@ async function mayRecordHistory(ws: string, personId: string | null, metric: Met
 /** Whether a value asked to be an Import may be one: for a past period, at most 1,000 periods back. */
 function importable(asked: boolean, period: string, current: string, span: Metric["period"]): boolean {
   return asked && period < current && period >= importFloor(current, span);
+}
+
+/** Why a Metric takes no value from this Source at all, or null when it may: a Derived Metric is computed, an
+ * Archived Metric takes none by any Source (a Feed's other Metrics go on), and the API is a Source of its own (spec
+ * 0012), so a Metric takes programs' and Feeds' values only where it says so. */
+function closedTo(metric: Metric, source: SourceId): { outcome: string; detail: string } | null {
+  if (metric.formula) return { outcome: "rejected_derived", detail: `${metric.name} is a Derived Metric and is computed, never submitted.` };
+  if (isArchived(metric)) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
+  if (!metric.sources.includes(source)) return { outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[source]}.` };
+  return null;
 }
 
 /** A period's name inside a sentence: "week of 9 Nov 2026". */
@@ -378,20 +389,28 @@ export type CorrectionEffects = {
  * value (the first value is kept as the original) and goes through the Workflow again, so a locked period unlocks
  * for re-approval. Refuses anyone but the owner, and anything outside the actor's workspace. */
 export async function decideCorrection(actor: Actor, messageId: number, accept: boolean, effects: CorrectionEffects = correctionEffects): Promise<void> {
-  const { data: msg } = await db().from("thread_messages").select("*, actions(*, metrics(owner_id))").eq("id", messageId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: msg } = await db().from("thread_messages").select("*, actions(*, metrics(owner_id, archived_at))").eq("id", messageId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!msg || msg.actions?.metrics?.owner_id !== actor.personId) throw new Forbidden();
+  // An Archived Metric takes no values, a Correction neither; it stays proposed for when the Metric is brought back.
+  if (accept && msg.actions?.metrics?.archived_at) throw new Error(ARCHIVED_REFUSAL);
   // Decided once only: the status changes first and only if it was still proposed, so a second click does nothing.
   const { data: claimed } = await db().from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "proposed").select("id");
   if (!claimed?.length) return;
   const act = msg.actions as { metric_id: number; period_start: string; observation_id: number | null };
   if (accept) {
+    let written: { error: { code?: string } | null };
     if (act.observation_id) {
       // Only the value of this Metric in this workspace is changed.
       const { data: obs } = await db().from("observations").select("value, original_value").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
       if (!obs) throw new Forbidden();
-      await db().from("observations").update({ value: msg.correction_value, original_value: obs.original_value ?? obs.value }).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
+      written = await db().from("observations").update({ value: msg.correction_value, original_value: obs.original_value ?? obs.value }).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
     } else {
-      await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
+      written = await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
+    }
+    // The value was not written (archived in the meantime, or the database refused it): the Correction stays proposed.
+    if (written.error) {
+      await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
+      throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");
     }
   }
   if (accept) {

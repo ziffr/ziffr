@@ -14,6 +14,7 @@ import { yearStartFor } from "./fiscal-year";
 export const REFUSED: Record<string, string> = {
   rejected_duplicate: "This period already has a value, and the Metric's rule rejects a second one.",
   rejected_derived: "This is a Derived Metric: it is computed, never submitted.",
+  rejected_archived: "This Metric is archived.",
   rejected_source: "This Metric does not take values from the API.",
   rejected_period: "That is not the first day of one of this Metric's periods, or it is in the future.",
   rejected_no_value: "The value is not a number.",

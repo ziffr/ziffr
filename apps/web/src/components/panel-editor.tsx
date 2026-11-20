@@ -1,6 +1,7 @@
 "use client";
 // Edits the panels of a composed Story (GLOSSARY: Panel, Measure, Bridge).
 import { Plus, Trash2 } from "lucide-react";
+import { isArchived } from "@ziffr/core/metric-row";
 import { Input } from "@/components/ui/input";
 import { useSeriesReady } from "@/canvas/series-store";
 import { MEASURE_LABEL } from "@/views/story-panels";
@@ -42,7 +43,8 @@ export function PanelEditor({ panels, data, onChange }: { panels: Panel[]; data:
                 {p.metricIds.length > 1 && " (small multiples)"}
               </summary>
               <div className="mt-1.5 grid grid-cols-2 gap-1">
-                {data.metrics.map((x) => (
+                {/* An Archived Metric is offered only while the panel shows it, so it can be taken out. */}
+                {data.metrics.filter((x) => !isArchived(x) || p.metricIds.includes(x.id)).map((x) => (
                   <label key={x.id} className="flex items-center gap-1.5">
                     <input type="checkbox" checked={p.metricIds.includes(x.id)} onChange={(e) => set(i, { metricIds: e.target.checked ? [...p.metricIds, x.id] : p.metricIds.filter((id) => id !== x.id) })} className="size-3.5 accent-[var(--color-ink)]" />
                     {x.name}

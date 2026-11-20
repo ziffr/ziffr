@@ -3,6 +3,7 @@
 // slot drawn as small multiples. Team templates and built-in ones ask the same way; once every slot is filled, a
 // Preview shows the widget with the chosen metrics before it is placed (spec 0011).
 import { useCallback, useRef, useState } from "react";
+import { inUse } from "@ziffr/core/metric-row";
 import { LayoutTemplate } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,7 @@ export function useSlotFill(data: CanvasData) {
               {example(slot.exampleIds) && <p className="text-xs text-muted-foreground">In the original: {example(slot.exampleIds)}</p>}
               {slot.multiple ? (
                 <ul className="max-h-44 space-y-0.5 overflow-y-auto rounded-[var(--radius-input)] border border-input p-1.5">
-                  {data.metrics.map((m) => {
+                  {inUse(data.metrics).map((m) => {
                     const on = state.fills[i]?.includes(m.id);
                     return (
                       <li key={m.id}>
@@ -116,7 +117,7 @@ export function useSlotFill(data: CanvasData) {
                   className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
                 >
                   <option value="">Choose a metric</option>
-                  {data.metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {inUse(data.metrics).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               )}
             </fieldset>

@@ -100,6 +100,8 @@ The Metric Owner, and an Owner or Admin who submits for the Metric, see **Record
 
 A paste holds at most 256 KB of text and 2,000 values, and you may paste at most 10,000 values in 24 hours, across all your Workspaces. In the demo, where every visitor acts as the same made-up people, the day's limit is 500. A paste over a limit is refused whole, never cut. The result says how many values you may still paste today.
 
+The list shows the Metrics in use. Once a Metric you may see is archived, two filters appear above the list: **In use** and **Archived** with their number. **Archived** lists only the **Archived Metrics** (see below).
+
 ## New metric
 
 **New metric** opens a page with two ways to begin. You can change everything afterwards.
@@ -185,6 +187,8 @@ If a Metric is not shared with you, its page says "… isn't shared with you", n
 | **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
 | **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
+| **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
+| **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
 | **Share** | Gives people or Groups access (see below). | The Metric Owner |
 | **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. | Everyone who sees the Metric |
@@ -346,6 +350,19 @@ Versions keep the description only. Values are never changed by restoring; repla
 **Duplicate** opens the new metric form, filled in from this Metric, titled "Duplicate …". The name gets "(copy)" added. The duplicate is a new Metric of yours with the same description, Sources and people who submit, and, if the original has one, a ticked **Workflow** box to keep the same Workflow. Values, Shares, Target Series and history stay with the original. Feeds are not copied: choose them again on the new Metric. Confirm with **Create duplicate**.
 
 Duplicating is also the way to count a number in a different period, since a Metric's period is fixed once it has values.
+
+## Archiving a Metric
+
+**Archive…** puts aside a Metric you no longer track, without deleting anything. Confirm with **Archive the Metric**. An **Archived Metric**:
+
+- keeps its description, values, history and Versions, and its page stays readable, marked **Archived** with the day it was archived;
+- asks for nothing: its Workflow skips it, so no Prompt, reminder or Escalation goes out for it, and **Ask me now** is gone;
+- takes no values: a value sent for it by the form link, email, Slack, Telegram, the API or a Feed is refused with "This Metric is archived". A Feed that also submits to other Metrics keeps working for them;
+- is listed only under **Archived** on the Metrics list, not in the Pool or in the lists you pick Metrics from;
+- keeps being drawn in the widgets and decks that show it, marked **Archived**;
+- does not count towards the Workspace's Metrics when it has a limit.
+
+**Bring back** on its page makes it a Metric in use again: it is asked for and takes values from then on. The **Audit Log** keeps who archived it and who brought it back.
 
 ## Deleting a Metric
 

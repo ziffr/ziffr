@@ -1,10 +1,12 @@
 "use server";
 // A Metric's Target Series, Projections, description and Sources (GLOSSARY: Target Series, Projection, Metric, Editor),
-// changed by its owner or its Editors through the core; only the owner deletes it.
+// changed by its owner or its Editors through the core; only the owner deletes it. Owners, Admins and the owner
+// archive it and bring it back (GLOSSARY: Archived Metric).
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
+import { archiveMetric as coreArchiveMetric, restoreMetric as coreRestoreMetric } from "@ziffr/core/archived-metrics";
 import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
@@ -29,6 +31,24 @@ export async function removeSeriesRows(metricId: number, kind: "target" | "proje
 export async function deleteMetric(metricId: number, confirmName: string) {
   return attempt(async () => {
     const r = await coreDeleteMetric(await currentActor(), Number(metricId), String(confirmName ?? ""));
+    revalidatePath("/", "layout");
+    return r;
+  });
+}
+
+/** An Owner, an Admin or the Metric's owner archives it (GLOSSARY: Archived Metric); the core checks who. */
+export async function archiveMetric(metricId: number) {
+  return attempt(async () => {
+    const r = await coreArchiveMetric(await currentActor(), Number(metricId));
+    revalidatePath("/", "layout");
+    return r;
+  });
+}
+
+/** An Owner, an Admin or the Metric's owner brings an Archived Metric back; the core checks who. */
+export async function restoreMetric(metricId: number) {
+  return attempt(async () => {
+    const r = await coreRestoreMetric(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
   });

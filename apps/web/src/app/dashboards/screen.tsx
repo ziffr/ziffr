@@ -1,6 +1,7 @@
 "use client";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import { inUse } from "@ziffr/core/metric-row";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -134,7 +135,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   return (
     <div className={cn("grid gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
-      {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={data.metrics.map((m) => ({ id: m.id, name: m.name }))} viewer={data.viewer} numberStyle={data.numberStyle} />}
+      {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={inUse(data.metrics).map((m) => ({ id: m.id, name: m.name }))} viewer={data.viewer} numberStyle={data.numberStyle} />}
       {savingTemplate && current && <SaveDashboardTemplateDialog dashboardId={current.id} dashboardName={current.name} metricName={(id) => data.metrics.find((m) => m.id === id)?.name} onClose={() => setSavingTemplate(false)} />}
       {changing && (
         <div className="order-2 lg:order-1">

@@ -1,6 +1,7 @@
 // Dashboard Templates (spec 0014, GLOSSARY: Dashboard Template, Slot): listing them and making a dashboard from one.
 // Every function takes the Actor first. A dashboard made from a template is the actor's own, independent copy, and
 // every Metric that fills a Slot must be one the actor sees. Saving a dashboard as a template is in templates.ts.
+import { inUse } from "./metric-row";
 import { assertSettingsDesigns } from "./widget-designs";
 import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
@@ -52,7 +53,8 @@ export async function dashboardTemplateChoices(actor: Actor): Promise<{ template
 export async function metricChoices(actor: Pick<Actor, "workspaceId" | "personId">): Promise<{ seen: ReadonlySet<number>; choices: { id: number; name: string }[] }> {
   const metrics = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
-  return { seen, choices: metrics.filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: m.name })) };
+  // Archived Metrics fill no Slot (GLOSSARY: Archived Metric).
+  return { seen, choices: inUse(metrics).filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: m.name })) };
 }
 
 /** Makes a dashboard owned by the actor from a Dashboard Template, with one list of Metrics per Slot. Every Slot must

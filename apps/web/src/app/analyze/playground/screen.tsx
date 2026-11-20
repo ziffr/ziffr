@@ -5,6 +5,7 @@
 // Security: the drawing uses the same renderer and checks as a placed widget, with Sample Data or Metrics the person
 // sees (their series come through the core). Nothing typed here is stored unless an Owner or Admin adds it.
 import { useMemo, useRef, useState, useTransition } from "react";
+import { inUse } from "@ziffr/core/metric-row";
 import { Download, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { BUILT_IN_DESIGNS, DESIGNED_VIEWS, designSettings, designSlots } from "@ziffr/core/built-in-designs";
@@ -123,7 +124,7 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
                   }}
                 >
                   {!s.multiple && <option value="">Choose a metric</option>}
-                  {data.metrics.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {inUse(data.metrics).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </label>
             ))}

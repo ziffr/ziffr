@@ -16,7 +16,7 @@ The screen has three parts:
 
 ## Putting Metrics on the canvas
 
-Drag a Metric from the Pool onto the canvas, or point at it and press **+**. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
+Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
 
 Each Metric on the canvas shows its name and how often it is counted, such as "monthly". The **×** next to it takes it off. **Clear** empties the canvas and its results. The number next to **Analysis canvas** says how many Metrics are on it.
 
@@ -109,7 +109,7 @@ Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr 
 
 - **Start from** loads a built-in View's design; **Upload** loads a file. You can also paste or type.
 - Ziffr checks the file as you type. Every mistake is listed above the file with its line, such as "Line 3: name must be plain text, without markup or web addresses". Click one to select that line. While the file has mistakes, the drawing keeps the last version that passed.
-- **Sample Data** draws the design with made-up Metrics. **My Metrics** asks for a Metric for each Slot, from those you can see, and draws your values.
+- **Sample Data** draws the design with made-up Metrics. **My Metrics** asks for a Metric for each Slot, from those you can see and use (not Archived Metrics), and draws your values.
 - **Download with Sample Data** saves the file and a Sample Data file. For Owners and Admins, **Add to the Workspace** adds the design, checked again on the server, as on the View Designs page.
 
 Nothing you type in the Playground is kept unless it is added to the Workspace.

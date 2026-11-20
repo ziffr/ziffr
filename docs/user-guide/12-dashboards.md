@@ -117,9 +117,11 @@ On a narrow screen, such as a phone, the dashboard becomes one column in reading
 
 ### The Pool
 
+A widget that shows an **Archived Metric** keeps drawing its history and is marked **Archived** next to its title; the Pool, a template's Slots and a panel's list of Metrics no longer offer it (a panel keeps one it already shows, so you can take it out).
+
 The **Pool** holds everything you can put on the dashboard. **Filter** at the top narrows all of it by name. It has three parts:
 
-- **Metrics**: every Metric you can see. A derived Metric has a Σ mark. Metrics owned by someone else show that person's first name. If you see none yet, the Pool links to **Describe your first one**.
+- **Metrics**: every Metric you can see, except **Archived Metrics**. A derived Metric has a Σ mark. Metrics owned by someone else show that person's first name. If you see none yet, the Pool links to **Describe your first one**.
 - **My Widgets**: the Widgets you saved (see [Saving a widget](#saving-a-widget)). Each shows its name and its Widget Template. The **×** next to one deletes it from your Pool, without asking; Widgets already placed from it stay.
 - **Templates**: the built-in **Widget Templates** in four groups, **Views**, **Analyses**, **Findings** and **Layout**; **The Workspace's View Designs**, when Owners or Admins added some (see [View Designs](13-analyze.md#view-designs)); and then **The team's**: Widget Templates colleagues saved, each with its number of Slots and who made it. The full list of built-in templates is in [Templates](05-templates.md#widget-templates). An Analysis on a dashboard reads as it does in [Analyze](13-analyze.md#reading-the-results): Metrics counted at different periods are compared on the longer one, and the result says so.
 

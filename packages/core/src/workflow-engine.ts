@@ -81,7 +81,8 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const log: string[] = [];
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
-    if (m.formula) continue;
+    // An Archived Metric is skipped: no Prompt, reminder or Escalation goes out for it (GLOSSARY: Archived Metric).
+    if (m.formula || m.archived_at) continue;
     const period = workingPeriod(asOf, m.period, yearStart);
     const wf = workflows.get(row.workflow_id as number);
     if (!wf) continue;

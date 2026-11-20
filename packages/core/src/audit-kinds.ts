@@ -42,6 +42,8 @@ export const AUDIT_KINDS = {
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
+  "metric.archived": "archived the Metric",
+  "metric.restored": "brought back the Metric",
   "metric.workflow_set": "chose the Workflow of",
   "period.locked": "locked a period of",
   "period.unlocked": "unlocked a period of",

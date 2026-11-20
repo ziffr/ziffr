@@ -19,10 +19,12 @@ export type RunOutcome = "ran" | "already_ran" | "not_yet" | "failed";
  * deliveries job. Returns how many. */
 export async function remindDueTasks(workspaceId: string, day: string): Promise<number> {
   const soon = format(addDays(parseISO(day), 2), "yyyy-MM-dd");
-  const { data } = await db().from("actions").select("id, asker_id, assignee_id").eq("workspace_id", workspaceId).eq("kind", "task").eq("status", "open").not("due_date", "is", null).lte("due_date", soon);
+  const { data: rows } = await db().from("actions").select("id, asker_id, assignee_id, metrics(archived_at)").eq("workspace_id", workspaceId).eq("kind", "task").eq("status", "open").not("due_date", "is", null).lte("due_date", soon);
+  // A task about an Archived Metric is not reminded of: it asks for nothing until it is brought back.
+  const data = (rows ?? []).filter((a) => !(a.metrics as { archived_at?: string | null } | null)?.archived_at);
   // Queued: the deliveries job sends them, so many reminders never hold the run up on the mail server.
-  for (const a of data ?? []) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id, queue: true });
-  return data?.length ?? 0;
+  for (const a of data) await deliver({ kind: "reminder", actionId: a.id, senderId: a.asker_id, recipientId: a.assignee_id, queue: true });
+  return data.length;
 }
 
 /** Claims a workspace's day: the run's id for the one call that may run it, null for every other. Only a day later

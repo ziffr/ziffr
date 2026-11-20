@@ -1,4 +1,5 @@
-// /api/v1/metrics. GET (spec 0002): the Metrics the key's creator sees, a page at a time (scope metrics:read).
+// /api/v1/metrics. GET (spec 0002): the Metrics the key's creator sees, a page at a time (scope metrics:read); the
+// Archived Metrics only with ?archived=true (spec 0029).
 // POST (spec 0003): creates a Metric owned by the key's creator (scope metrics:write), with an optional
 // Idempotency-Key and at most 50 a day per key; its Sources, and its Submitters with metrics:edit too (ticket #217).
 import { Forbidden } from "@ziffr/core/actor";
@@ -7,12 +8,12 @@ import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listMetrics } from "@ziffr/core/api";
 import { errorBody, json, jsonBody, keyRoute, query, toCursor } from "@/lib/api";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
-import { CreateMetric, MetricDescription, MetricList, pageQuery } from "../schemas";
+import { CreateMetric, MetricDescription, MetricList, metricsQuery } from "../schemas";
 
 /** Lists the visible Metrics. */
 export const GET = keyRoute("metrics:read", async (actor, req) => {
-  const { limit, cursor } = pageQuery.parse(query(req));
-  const page = await listMetrics(actor, { after: cursor, limit });
+  const { limit, cursor, archived } = metricsQuery.parse(query(req));
+  const page = await listMetrics(actor, { after: cursor, limit, archived });
   return json(MetricList.parse({ items: page.items, next: toCursor(page.next) }));
 });
 

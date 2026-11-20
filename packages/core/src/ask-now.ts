@@ -6,6 +6,7 @@ import { Forbidden, type Actor } from "./actor";
 import { CONNECTOR_IDS, CONNECTORS, type ConnectorId } from "./connectors/index";
 import { deliverPrompt } from "./deliveries";
 import { TRIAL_HOLDS_BACK } from "./trials";
+import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
 
 /** How long a Metric waits before Ask me now asks again. */
 export const ASK_NOW_EVERY_MINUTES = 10;
@@ -15,8 +16,8 @@ export type AskNowResult = { connector: ConnectorId; label: string; state: "sent
 
 /** Whether the actor may press Ask me now on a Metric: they own it and are one of its Submitters themselves. */
 export async function canAskNow(actor: Actor, metricId: number): Promise<boolean> {
-  const { data: m } = await db().from("metrics").select("owner_id, formula").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!m || m.owner_id !== actor.personId || m.formula) return false;
+  const { data: m } = await db().from("metrics").select("owner_id, formula, archived_at").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m || m.owner_id !== actor.personId || m.formula || m.archived_at) return false;
   const { data: token } = await db().from("tokens").select("id").eq("metric_id", metricId).eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle();
   return Boolean(token);
 }
@@ -24,7 +25,7 @@ export async function canAskNow(actor: Actor, metricId: number): Promise<boolean
 /** Why a Prompt did not go out, as it may be shown: only reasons Ziffr wrote itself pass; anything else (a mail
  * server's or a provider's own words) becomes one fixed line, so no provider text reaches a browser. */
 const SHOWN_REASONS = new Set<string>([
-  ...Object.values(TRIAL_HOLDS_BACK),
+  ...Object.values(TRIAL_HOLDS_BACK), ARCHIVED_BEFORE_SENT,
   "Email is not set up.", "No usable email address for this person here.", "They stopped reminders by email.",
   "Slack is not set up.", "Slack is not connected.", "Slack is not connected any more.", "They stopped reminders on Slack.", "Slack asked to wait.",
   "Telegram is off in this workspace.", "Not connected to Telegram.", "They stopped reminders on Telegram.", "Telegram asked to wait.", "They blocked Ziffr's bot in Telegram.",
