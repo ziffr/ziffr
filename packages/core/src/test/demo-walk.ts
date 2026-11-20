@@ -70,6 +70,7 @@ export async function demoWalkIds(): Promise<Record<string, unknown>> {
     promptDelivery: deliveries.find((d) => d.kind === "prompt")?.id ?? 0,
     period: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), 1)).toISOString().slice(0, 10),
     lastMonth: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)).toISOString().slice(0, 10),
+    twoMonthsAgo: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 2, 1)).toISOString().slice(0, 10),
   };
   Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {} });
   return ids;
