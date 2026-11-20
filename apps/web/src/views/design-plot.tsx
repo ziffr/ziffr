@@ -227,7 +227,8 @@ function PairsPlot({ marks, v }: { part: Plot; marks: PlotMark[]; v: DesignValue
   return (
     <div style={{ height: "100%" }} role="img" aria-label={`${y.name} against ${x.name}, ${pairs.length} points`}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart accessibilityLayer={false} margin={{ top: 8, right: 12, bottom: 8, left: 8 }}>
+        {/* Room on the right for half of the last x label, which is centred on the edge (#16). */}
+        <ComposedChart accessibilityLayer={false} margin={{ top: 8, right: 28, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="var(--color-rule)" />
           <XAxis type="number" dataKey="x" name={x.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(x, n, ns)} tick={tick(12, true)} stroke="var(--color-rule-2)" />
           <YAxis type="number" dataKey="y" name={y.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(y, n, ns)} tick={tick(12, true)} width={68} stroke="var(--color-rule-2)" />
