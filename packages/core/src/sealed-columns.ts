@@ -18,21 +18,23 @@ export const SEALED_COLUMNS = {
   intake_log: ["sender", "raw", "detail"],
   // An event's details are sealed as a whole, in audit-log.ts: the column is an object the database checks.
   audit_events: ["object_name"],
+  // An Alert's level (a value or a share), written by alerts.ts through create_alert with its id taken first.
+  alerts: ["level"],
 } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id" };
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts";
 
 type Row = Record<string, unknown>;
 
 /** Takes the ids the next rows of a table will have, from its own sequence. */
-async function reserveIds(table: InsertedTable, count: number): Promise<number[]> {
+export async function reserveIds(table: InsertedTable, count: number): Promise<number[]> {
   const { data, error } = await db().rpc("reserve_row_ids", { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
