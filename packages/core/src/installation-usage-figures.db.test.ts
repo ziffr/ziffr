@@ -119,7 +119,7 @@ describe("events nothing recorded before", () => {
     expect(Number((await rollup(today(), id2)).workspaces_deleted)).toBe(without);
     expect(Number((await rollup(today())).workspaces_deleted) - before).toBe(2);
     // The demo's own deletion is never counted.
-    const { data } = await db().from("usage_events").select("workspace_id").eq("workspace_id", DEMO_WORKSPACE_ID);
+    const { data } = await db().from("usage_events").select("gone_workspace").eq("gone_workspace", DEMO_WORKSPACE_ID);
     expect(data).toEqual([]);
   });
   it("counts sign-ups of people in the figures, and who signed in within 7 days", async () => {
