@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { MessageSquarePlus, MousePointerClick, X } from "lucide-react";
@@ -11,6 +12,7 @@ import type { Metric, Point, Profile } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
+import { periodRecordUrl } from "@/lib/period-record-url";
 
 export function MetricWorkspace({
   metric,
@@ -70,6 +72,7 @@ export function MetricWorkspace({
             <MessageSquarePlus className="size-4 text-primary" />
             <span className="font-medium">New Action about {periodLabel(selected, metric.period, yearStart)}</span>
             <span className="fig text-muted-foreground">{formatValue(metric, point.value, numberStyle)}</span>
+            <Link href={periodRecordUrl(metric.slug, selected)} className="text-xs underline">Open this period</Link>
             <button onClick={() => setSelected(null)} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Cancel"><X className="size-4" /></button>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">

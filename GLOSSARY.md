@@ -162,6 +162,10 @@ _Avoid_: Sign-off, review, verification
 The submitter checking their own value when an Approval is needed but nobody else could give it, as in a Workspace of one person: they confirm it or correct it. It is recorded as confirmed by the submitter, never as an Approval, and it is the Approve step's default for that case. As soon as someone else could approve, Approval applies again.
 _Avoid_: Self-approval, own approval
 
+**Period Record**:
+One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
+_Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
+
 **Lock**:
 A published period of a metric that takes no more values. A late value or a correction becomes a proposal that needs Approval again; only the metric owner unlocks it, with a reason.
 _Avoid_: Freeze, finalize, close

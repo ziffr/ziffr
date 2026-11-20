@@ -266,7 +266,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 
 | Column | What it shows |
 | --- | --- |
-| **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. |
+| **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. Click it to open the [period's page](#a-periods-page). |
 | **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "pasted by …" came from [a paste](#paste-values-from-a-spreadsheet), and the name says who pasted it. A value marked "imported" is an **Import**: a **Feed**'s value for a past period, or a pasted one recorded as history, without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
 | **Submitted by** | The person, Contact or Feed who sent it. |
@@ -274,6 +274,16 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
 **Questions and tasks** lists every **Action** on this Metric that you may read, with its status (**Open**, **Answered**, **Done** for a finished task, or **Closed**), its period and its **Assignee**. Click one to open its Thread. With none yet, the tab reminds you to click a point on the chart.
+
+### A period's page
+
+Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). It shows:
+
+- the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
+- **History**: every step of that period's value in order, with the person, the channel and the date: submitted, replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through;
+- **Threads**: the Questions and tasks about the period that you may read, each with its first message and how many replies follow. Click one to open and answer it.
+
+You see the page only for a Metric you see. A Thread you may not read, and the Corrections proposed in it, are left out, as if there were none.
 
 ## The Settings tab
 

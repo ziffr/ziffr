@@ -461,7 +461,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   }
   // Who decided, about which period, once it took effect: never the proposed or the old value.
   const { data: m } = await db().from("metrics").select("name").eq("id", act.metric_id).eq("workspace_id", actor.workspaceId).maybeSingle();
-  await audit(actor, { kind: accept ? "correction.accepted" : "correction.declined", object: { type: "metric", id: act.metric_id, name: m?.name ?? null }, details: { period: act.period_start, proposed_by: msg.author_id } });
+  await audit(actor, { kind: accept ? "correction.accepted" : "correction.declined", object: { type: "metric", id: act.metric_id, name: m?.name ?? null }, details: { period: act.period_start, proposed_by: msg.author_id, action_id: msg.action_id } });
   await effects.notifyDecision({ actionId: msg.action_id, ownerId: actor.personId, authorId: msg.author_id, accepted: accept });
 }
 

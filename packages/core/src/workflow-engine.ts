@@ -365,7 +365,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   await db().from("observations").update({ value, original_value: obs.original_value ?? obs.value }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
-  await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start } });
+  await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start, action_id: actionId } });
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null });
   return (await onValue(a.metric_id, a.period_start, by, { selfChecked: obs.id as number })).join("; ");
 }
