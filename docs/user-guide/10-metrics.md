@@ -38,6 +38,10 @@ Click a row to open the Metric's page. **New metric** (top right) starts a new o
 
 Nothing is recorded until you confirm. Ziffr first shows what each value would do.
 
+### From a file
+
+Instead of pasting, drop a file on the box or choose **Or choose a file**: a CSV file (.csv, .tsv or .txt), an Excel workbook (.xlsx, .xls) or an OpenDocument one (.ods). The file is read in your browser, and only its cells are sent, exactly as if you had pasted them, so the preview and the limits are the same. A workbook's first sheet is read, cells as they are shown (a cell formatted as 2.5 % reads as 2.5 %); with several sheets, pick another under **sheet**. A CSV file may hold at most 256 KB and a workbook at most 10 MB.
+
 ### The layouts
 
 Ziffr recognises three layouts and says above the preview which one it read, such as "Metrics as rows, periods as columns: 2 Metrics × 3 periods". When a paste fits two layouts, a link offers the other reading.

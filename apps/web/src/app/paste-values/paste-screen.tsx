@@ -12,6 +12,7 @@ import { PASTE_LIMITS } from "@ziffr/core/paste-reader";
 import type { PasteLayout } from "@ziffr/core/paste-reader";
 import type { PasteOutcome, PasteReport, PasteRow } from "@ziffr/core/paste-values";
 import { previewPaste, recordPaste } from "@/app/paste-actions";
+import { readFile } from "./read-file";
 import { cn } from "@/lib/utils";
 
 /** A Metric the person submits for, to pick for a two-column paste. */
@@ -79,6 +80,9 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const box = useRef<HTMLTextAreaElement>(null);
+  // The file the text came from, and its workbook's sheets, to pick another one.
+  const [file, setFile] = useState<{ file: File; sheets: string[]; sheet: string | null } | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const read = useCallback((next: { text?: string; metricId?: number | null; layout?: PasteLayout | null; leaveOut?: Set<string>; asHistory?: Set<number> } = {}) => {
     const t = next.text ?? text;
@@ -115,6 +119,16 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
     return () => document.removeEventListener("paste", onPaste);
   }, [read]);
 
+  // A dropped or picked file becomes the same text a paste is, read in the browser, and goes the same way.
+  const takeFile = async (f: File, sheet?: string | null) => {
+    const r = await readFile(f, sheet);
+    if (!r.ok) { setError(r.error); setPreview(null); return; }
+    setFile({ file: f, sheets: r.sheets, sheet: r.sheet });
+    setText(r.text);
+    setLeaveOut(new Set());
+    read({ text: r.text, leaveOut: new Set() });
+  };
+
   const toggle = (places: string[], out: boolean) => {
     const next = new Set(leaveOut);
     for (const p of places) if (out) next.add(p); else next.delete(p);
@@ -139,7 +153,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
       setPreview(null);
     });
   };
-  const restart = () => { setText(""); setPreview(null); setResult(null); setLeaveOut(new Set()); setAsHistory(new Set()); setLayout(null); setError(null); box.current?.focus(); };
+  const restart = () => { setFile(null); setText(""); setPreview(null); setResult(null); setLeaveOut(new Set()); setAsHistory(new Set()); setLayout(null); setError(null); box.current?.focus(); };
 
   const shown = result ?? preview;
   const toSend = preview ? preview.rows.filter((r) => !r.leftOut && SENT.includes(r.outcome)).length : 0;
@@ -147,7 +161,12 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
   return (
     <div className="space-y-6">
       {!result && (
-        <section className="stock space-y-3 rounded-[var(--radius-card)] p-5">
+        <section
+          className={cn("stock space-y-3 rounded-[var(--radius-card)] p-5", dragging && "outline-2 outline-dashed outline-[var(--color-ink-2)]")}
+          onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { const f = e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); setDragging(false); void takeFile(f); }}
+        >
           <label htmlFor="paste-text" className="block font-medium">Cells from your spreadsheet</label>
           <p id="paste-help" className="text-sm text-muted-foreground">
             Copy the cells in Excel, Google Sheets, LibreOffice or Numbers and press Ctrl+V (⌘V) here. Metrics as rows and periods as columns (or the other way round), or one value per row with its Metric and period. At most {PASTE_LIMITS.values.toLocaleString("en")} values at a time.
@@ -168,6 +187,27 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
             </label>
             <Button variant="outline" disabled={pending || !text.trim()} onClick={() => read()}>Read the paste</Button>
           </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <label className="cursor-pointer underline">
+              Or choose a file
+              <input type="file" className="sr-only" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods,text/csv" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void takeFile(f); }} />
+            </label>
+            <span className="text-muted-foreground">(CSV, Excel or OpenDocument), or drop one here. It is read in your browser; only its cells are sent.</span>
+          </div>
+          {file && (
+            <p className="text-sm text-muted-foreground">
+              Read from {file.file.name}
+              {file.sheets.length > 1 && (
+                <label className="ml-2">
+                  , sheet{" "}
+                  <select className="rounded-[var(--radius-input)] border border-input bg-card px-2 py-1 text-sm" value={file.sheet ?? ""} disabled={pending} onChange={(e) => void takeFile(file.file, e.target.value)}>
+                    {file.sheets.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </label>
+              )}
+              {file.sheets.length === 1 && file.sheet ? `, sheet ${file.sheet}` : ""}.
+            </p>
+          )}
         </section>
       )}
 
