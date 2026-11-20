@@ -2,6 +2,7 @@
 // by Slack, mail, a personal form link, a program with an Access Key or a Feed, and are recorded under their sender,
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
+import { announceNewAction } from "./action-state";
 import { db } from "./db";
 import { insertSealed, openNames, openRows } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
@@ -224,6 +225,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
       question: `${metric.name} for ${when} is locked. ${sender?.name.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
     }]) as { id: number }[];
     if (a) {
+      await announceNewAction(a.id, { type: "system" });
       await insertSealed("thread_messages", workspaceId, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
       if (senderId) await effects.notifyCorrection({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
     }

@@ -9,6 +9,7 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertMembersIn, assertSeesMetrics } from "./sharing";
 import { deliver, deliverPrompt } from "./deliveries";
 import { finishTask, postReply } from "./threads";
+import { changeActionState } from "./action-state";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connectors/index";
 import type { ActionKind, Period } from "./types";
@@ -60,9 +61,13 @@ export async function reply(actor: Actor, actionId: number, body: string, correc
  * would leave the value waiting; reopened, it would decide nothing. Confirm or Correct decide it. */
 export async function setActionStatus(actor: Actor, actionId: number, status: "open" | "closed") {
   if (status !== "open" && status !== "closed") throw new Forbidden();
-  const { data } = await db().from("actions").update({ status, updated_at: new Date().toISOString() }).eq("id", actionId).eq("workspace_id", actor.workspaceId).eq("asker_id", actor.personId).or("purpose.is.null,purpose.neq.self_check").select("assignee_id");
-  if (!data?.length) throw new Forbidden();
-  if (status === "closed") await deliver({ kind: "closed", actionId, senderId: actor.personId, recipientId: data[0].assignee_id });
+  const r = await changeActionState(actor.workspaceId, Number(actionId), { to: status, from: status === "closed" ? ["open", "answered"] : ["answered", "closed"], guard: { askerId: actor.personId, purpose: "not_self_check" } });
+  if (r.refused) throw new Forbidden();
+  if (!r.changed) return;
+  if (status === "closed") {
+    const { data } = await db().from("actions").select("assignee_id").eq("id", actionId).eq("workspace_id", actor.workspaceId).maybeSingle();
+    if (data) await deliver({ kind: "closed", actionId, senderId: actor.personId, recipientId: data.assignee_id });
+  }
 }
 
 /** The assignee marks their open task done. */

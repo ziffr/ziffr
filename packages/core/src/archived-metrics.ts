@@ -5,6 +5,7 @@
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
+import { closeActions } from "./action-state";
 import { recordVersion } from "./versions";
 import { visibleMetricIds } from "./access";
 import { allRows, getMetrics } from "./workspace-data";
@@ -43,6 +44,8 @@ export async function archiveMetric(actor: Actor, metricId: number, origin: { ac
   if (error) throw new Error("The Metric could not be archived.");
   if (!data?.length) return { archived: false };
   await holdQueuedPrompts(actor.workspaceId, m.id);
+  // What was asked about it is closed too, so no task lingers in another system (spec 0034): each tells the Webhooks once.
+  await closeActions(actor.workspaceId, { metricId: m.id, statuses: ["open", "answered"] }, { type: "system" }, "metric_archived");
   await recordVersion("metric", m.id, actor.personId, { message: "Archived", always: true });
   await audit(actor, { kind: "metric.archived", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null });
   return { archived: true };

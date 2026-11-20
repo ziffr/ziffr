@@ -64,7 +64,7 @@ export function maskAddress(raw: string): string {
 
 /** Less than the page shows, for the Audit Log and for notices that leave as email: the last two labels of the host
  * and nothing else, since some tools make the whole host (a subdomain) or the start of the path the secret. */
-function maskedHost(raw: string): string {
+export function maskedHost(raw: string): string {
   try {
     const host = new URL(raw).hostname;
     const labels = host.split(".");

@@ -215,7 +215,7 @@ async function pressed(cq: Obj, userId: number): Promise<Handled> {
   if (m[1] === TELEGRAM_BUTTONS.approve && d.action_id) {
     // The same path as in Ziffr, which checks the person is this approval's approver and it is still open.
     try {
-      await approve(d.workspace_id, d.action_id, d.recipient_id);
+      await approve(d.workspace_id, d.action_id, d.recipient_id, { type: "telegram" });
       await telegramSay(chatId, "Approved.", messageId);
       return at("approved", "Approved.");
     } catch {

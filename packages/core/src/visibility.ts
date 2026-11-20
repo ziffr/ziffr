@@ -124,3 +124,31 @@ export function canReadThread(ws: string, person: string, a: Pick<Action, "asker
   if (!seesMetric) return false;
   return a.read_group_id === null || mine(ws, groups).some((g) => g.id === a.read_group_id && g.members.includes(person));
 }
+
+/** What decides what a Webhook may hear of one event, loaded by the caller at the moment of sending. */
+export type WebhookFacts = InWorkspace & {
+  /** Whether the Metric is shared with the built-in Everyone Group, which every Member (no Guest) sees. */
+  metricSeenByEveryone: boolean;
+  /** The Group an Action's Thread is limited to, or null when everyone who sees the Metric reads it. */
+  readGroupId: number | null;
+};
+
+/** What a Webhook hears of an event: all of it, only the structure (an Action whose words are not Everyone's), or nothing. */
+export type WebhookHearing = "full" | "redacted" | "none";
+
+/** Whether a Metric is shared with the Everyone Group, from the Groups and the Shares as stored (not expanded). */
+export function metricSeenByEveryone(ws: string, metricId: number, groups: readonly (Group & InWorkspace)[], shares: readonly (Share & InWorkspace)[]): boolean {
+  const everyone = new Set(mine(ws, groups).filter((g) => g.everyone).map((g) => g.id));
+  return mine(ws, shares).some((s) => s.object_type === "metric" && s.object_id === metricId && s.group_id != null && everyone.has(s.group_id));
+}
+
+/** A Webhook is not a person, so it hears only what every Member sees (spec 0034, "What a Webhook may see"): a value
+ * event only for a Metric Everyone sees, otherwise nothing at all; an Action event in full when its Metric is Everyone's
+ * and its Thread is not limited to a Group, otherwise redacted (the structure, not the words); a `ping` is always whole.
+ * Facts of another Workspace, or none, grant nothing. Pure: judged again at every send. */
+export function webhookMayHear(ws: string, event: string, facts: WebhookFacts | null): WebhookHearing {
+  if (event === "ping") return "full";
+  if (!facts || facts.workspace_id !== ws) return "none";
+  if (event.startsWith("action.")) return facts.metricSeenByEveryone && facts.readGroupId === null ? "full" : "redacted";
+  return facts.metricSeenByEveryone ? "full" : "none";
+}

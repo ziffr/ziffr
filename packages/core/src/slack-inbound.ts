@@ -173,7 +173,7 @@ async function pressed(bot: SlackBot, p: Obj): Promise<SlackOutcome> {
     // Slack vouches for who pressed it, unlike an email's From: an Approval is taken here, by the same path as in
     // Ziffr, which checks the person is this approval's approver and it is still open.
     try {
-      await approve(d.workspace_id, d.action_id, d.recipient_id);
+      await approve(d.workspace_id, d.action_id, d.recipient_id, { type: "slack" });
       await say(bot, channel, ts, "Approved.");
       return "approved";
     } catch {

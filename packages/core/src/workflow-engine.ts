@@ -15,6 +15,8 @@ import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./types";
 import { recordAudit } from "./audit-log";
+import { changeActionState, closeActions } from "./action-state";
+import { FROM_APP, queueWebhookEvent, type ChangeSource } from "./webhook-events";
 import { sendLockSummary } from "./lock-summary";
 import { periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
@@ -146,7 +148,7 @@ async function escalateToOwner(ctx: Ctx, due: string, actorId: string, queue = f
     metric_id: ctx.m.id, period_start: ctx.period, asker_id: ctx.wf.owner_id === ctx.m.owner_id ? actorId : ctx.wf.owner_id, assignee_id: ctx.m.owner_id,
     question: `${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)} was due ${due} and is still missing.${from} Please follow up.`, kind: "question", purpose: "escalation",
   }], "id, asker_id") as { id: number; asker_id: string }[];
-  if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue });
+  if (data) await deliver({ kind: "question", actionId: data.id, senderId: data.asker_id, recipientId: ctx.m.owner_id, queue, source: { type: "workflow" } });
 }
 
 /** Whether a person of the Metric's workspace sees it now (Shares and Groups, as everywhere else). */
@@ -247,7 +249,7 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
   // A new value restarts approval: approval and Self-check tasks from an earlier round can no longer decide anything.
-  await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("metric_id", metricId).eq("period_start", period).in("purpose", ["approval", "self_check"]).eq("kind", "task").eq("status", "open");
+  await closeActions(ctx.ws, { metricId, period, kind: "task", purposes: ["approval", "self_check"] }, { type: "workflow" }, "closed");
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
   const every = approve?.values === "every" && (!opts.imported || !(await beforeWorkingPeriod(ctx, period)));
   // Asked only when a value needs Approval: who sees the Metric is not cheap to work out.
@@ -267,11 +269,14 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
     }
     if (opts.selfChecked !== undefined && opts.selfChecked === value.id) return [`corrected and confirmed by the submitter; ${await publish(ctx, CONFIRMED_NOTE)}`];
     const actionId = await requestSelfCheck(ctx, submitterId, reasons, Number(value.value), value.id as number);
+    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: actionId, approval_for: submitterId, note: `Waits for its submitter to check it: nobody else can approve it.${reasons.length ? ` ${reasons.join("; ")}` : ""}` });
     return ["nobody else can approve it: its submitter checks it"];
   }
   if ((reasons.length || every) && approvers.length) {
     const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
+    // An Unusual Value waits for Approval: the Webhooks that chose it hear of the Metric and period, never of the value.
+    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, approval_for: submitterId, note: reasons.join("; ") });
     return [reasons.length ? `unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}` : `every value is approved, approval asked from ${approvers[0]}`];
   }
@@ -286,7 +291,7 @@ async function requestApproval(ctx: Ctx, approver: string, submitterId: string, 
     question: `Approve ${ctx.m.name} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}: ${formatValue(ctx.m, value, ctx.numberStyle)}${reasons.length ? `, ${reasons.join(", ")}` : ""}. Reply “approve”, or “send back:” with what to check.`,
     kind: "task", purpose: "approval",
   }], "id, asker_id") as { id: number; asker_id: string }[];
-  if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver });
+  if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: approver, source: { type: "workflow" } });
   return (data?.id as number | undefined) ?? null;
 }
 
@@ -300,7 +305,7 @@ async function requestSelfCheck(ctx: Ctx, submitterId: string, reasons: string[]
     question: `Check your value: ${formatValue(ctx.m, value, ctx.numberStyle)} for ${periodLabel(ctx.period, ctx.m.period, ctx.yearStart)}${reasons.length ? `, ${reasons.join(", ")}` : ""}. Is that right? Nobody else can approve it. Reply “confirm”, or “Correction: <value>”.`,
     kind: "task", purpose: "self_check",
   }], "id, asker_id") as { id: number; asker_id: string }[];
-  if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: submitterId });
+  if (data) await deliver({ kind: "task", actionId: data.id, senderId: data.asker_id, recipientId: submitterId, source: { type: "workflow" } });
   return (data?.id as number | undefined) ?? null;
 }
 
@@ -345,15 +350,15 @@ async function openSelfCheck(ws: string, actionId: number, by: string) {
 }
 
 // Closed only while still open, in one statement: two presses at once decide once, the second is refused.
-async function claimTask(actionId: number): Promise<void> {
-  const { data: closed } = await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId).eq("status", "open").select("id");
-  if (!closed?.length) throw new Error("This check is not yours, or it is done.");
+async function claimTask(ws: string, actionId: number, source: ChangeSource): Promise<void> {
+  const { changed } = await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval_or_self_check" } }, source);
+  if (!changed) throw new Error("This check is not yours, or it is done.");
 }
 
 /** The submitter confirms their own value in a Self-check: it counts, recorded as confirmed by the submitter in the
  * Thread, the period's note and the Audit Log, never as an Approval. If someone else could approve it by now (an
  * Approver was added), the four-eyes rule applies again: they are asked instead and nothing is published. */
-export async function confirmSelfCheck(ws: string, actionId: number, by: string): Promise<string> {
+export async function confirmSelfCheck(ws: string, actionId: number, by: string, source: ChangeSource = FROM_APP): Promise<string> {
   const { a, ctx } = await openSelfCheck(ws, actionId, by);
   const step = ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
   if ((await approversFor(ctx, step, by)).length) {
@@ -361,7 +366,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string)
     const log = await onValue(a.metric_id, a.period_start, by);
     return `Someone else can approve it now: ${log.join("; ")}.`;
   }
-  await claimTask(actionId);
+  await claimTask(ws, actionId, source);
   if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Confirmed by the submitter." }]);
   await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
@@ -371,7 +376,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string)
 /** The submitter corrects their own value in a Self-check, as a Correction: the new value replaces it (the first is
  * kept as the original) and goes through the Workflow again. Since they just typed it while checking, it then counts
  * as confirmed by them if still nobody else could approve it; otherwise the Approvers decide as for any value. */
-export async function correctSelfCheck(ws: string, actionId: number, by: string, value: number): Promise<string> {
+export async function correctSelfCheck(ws: string, actionId: number, by: string, value: number, source: ChangeSource = FROM_APP): Promise<string> {
   if (typeof value !== "number" || !Number.isFinite(value) || Math.abs(value) >= 1e15) throw new Error("Give the corrected value as a number.");
   const { a } = await openSelfCheck(ws, actionId, by);
   // Only the value this check is about, of this Metric in this workspace.
@@ -379,7 +384,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
     ? await db().from("observations").select("id, value, original_value").eq("id", a.observation_id).eq("workspace_id", ws).eq("metric_id", a.metric_id).maybeSingle()
     : { data: null };
   if (!obs) throw new Error("This value is not waiting for this check.");
-  await claimTask(actionId);
+  await claimTask(ws, actionId, source);
   await db().from("observations").update({ value, original_value: obs.original_value ?? obs.value }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
@@ -389,7 +394,7 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
 }
 
 /** The approver of an approval task approves; the next approver is asked, or the value is published. */
-export async function approve(ws: string, actionId: number, by: string) {
+export async function approve(ws: string, actionId: number, by: string, source: ChangeSource = FROM_APP) {
   const { data: a } = await db().from("actions").select("*").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
   if (!a || a.purpose !== "approval" || a.assignee_id !== by || a.status !== "open") throw new Error("This approval is not yours, or it is done.");
   const state = await getState(a.metric_id, a.period_start);
@@ -402,8 +407,7 @@ export async function approve(ws: string, actionId: number, by: string) {
   if (by === from) throw new Error("Nobody approves their own value. Ask someone else to approve it.");
   // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
   // press) approve once, and the second is refused like an approval that is done.
-  const { data: closed } = await db().from("actions").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", actionId).eq("status", "open").select("id");
-  if (!closed?.length) throw new Error("This approval is not yours, or it is done.");
+  if (!(await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval" } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Approved." }]);
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
   await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
@@ -423,13 +427,14 @@ export async function approve(ws: string, actionId: number, by: string) {
 }
 
 /** Sends the value back to the submitter with what to check; the value stays, marked as not approved. */
-export async function sendBack(ws: string, actionId: number, by: string, comment: string) {
+export async function sendBack(ws: string, actionId: number, by: string, comment: string, source: ChangeSource = FROM_APP) {
   const { data: a } = await db().from("actions").select("*").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
   if (!a || a.purpose !== "approval" || a.assignee_id !== by || a.status !== "open") throw new Error("This approval is not yours, or it is done.");
   const current = await getState(a.metric_id, a.period_start);
   if (current?.state !== "approval" || current.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
+  // Decided first, in one conditional update, so two presses at once send it back once.
+  if (!(await changeActionState(ws, actionId, { to: "answered", from: ["open"], reason: "done", guard: { purpose: "approval" } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` }]);
-  await db().from("actions").update({ status: "answered", updated_at: new Date().toISOString() }).eq("id", actionId);
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
   // The period only: the comment is a message and stays in the Thread.
   const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
