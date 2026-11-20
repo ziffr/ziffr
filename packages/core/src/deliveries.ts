@@ -5,7 +5,7 @@
 import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { openNames, openRows } from "./sealed-columns";
+import { insertSealed, openNames, openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
@@ -65,10 +65,10 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id, await settingsInEffect()),
   });
   const mail_state = await initialDeliveryState(via, a.workspace_id, recipient.id);
-  const { data: d } = await db().from("deliveries").insert({
-    connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id, workspace_id: a.workspace_id,
+  const [d] = await insertSealed("deliveries", a.workspace_id, [{
+    connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id,
     subject, body, external_ref: via === "tickets" ? ref : null, mail_state,
-  }).select("id").single();
+  }]) as { id: number }[];
   // A queued one waits for the deliveries job (sendWaiting): a run that sends many must not wait on the mail server.
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
 }
@@ -124,7 +124,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
   const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
-  const { data: d } = await db().from("deliveries").insert({ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, workspace_id: metric.workspace_id, mail_state, form_token_id: token.id }).select("id").single();
+  const [d] = await insertSealed("deliveries", metric.workspace_id, [{ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id }]) as { id: number }[];
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
   return true;
 }
@@ -135,10 +135,10 @@ export async function deliverNotice(ws: string, input: { recipientId: string; se
   if (input.senderId !== null && input.recipientId === input.senderId) return;
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
-  const { data: d } = await db().from("deliveries").insert({
-    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice", workspace_id: ws,
+  const [d] = await insertSealed("deliveries", ws, [{
+    connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind: "notice",
     // A notice holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state,
-  }).select("id").single();
+  }]) as { id: number }[];
   await sendQueuedNow(d?.id, mail_state, via);
 }

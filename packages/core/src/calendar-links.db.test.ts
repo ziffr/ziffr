@@ -8,7 +8,7 @@ import { db } from "./db";
 import { CALENDAR_FETCHES_PER_HOUR, fetchCalendar, listCalendarLinks, makeCalendarLink, myCalendarLink, revokeCalendarLink, setCalendarNoNames } from "./calendar-links";
 import { removeMember } from "./handover";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -49,7 +49,7 @@ describe("making and revoking", () => {
     expect(await fetchCalendar("../../etc/passwd", ORIGIN)).toEqual({ status: "not_found" });
     expect(await myCalendarLink(w.actor(ben, "member"))).toBeNull();
     // The Audit Log says who and what, never the address.
-    const { data: events } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).like("kind", "calendar_link.%").order("id");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).like("kind", "calendar_link.%").order("id")).data, { dropId: true });
     expect(events!.map((e) => e.kind)).toEqual(["calendar_link.made", "calendar_link.revoked"]);
     expect(JSON.stringify(events)).not.toContain(secret);
   });
@@ -111,7 +111,7 @@ describe("what a fetch shows", () => {
     expect(await setCalendarNoNames(a, false)).toBe(true);
     expect((await ok(secret)).ics).toContain("Task: Renegotiate the confidential rate");
     // Showing names again is in the Audit Log.
-    const { data: changed } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "calendar_link.names_changed");
+    const changed = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "calendar_link.names_changed")).data, { dropId: true });
     expect(changed!.map((e) => e.details)).toEqual([{ no_names: false }]);
   });
 

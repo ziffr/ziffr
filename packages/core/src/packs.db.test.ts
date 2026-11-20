@@ -8,7 +8,7 @@ import { metricCatalog } from "./page-data";
 import { createMetric } from "./metrics";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { PACK } from "./pack.test";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 import type { Actor } from "./actor";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -46,7 +46,7 @@ describe("installing a Pack from a file", () => {
     expect(designs!.map((d) => d.pack_key)).toEqual(["trend", "spread"]);
 
     for (const t of ["metrics", "workflows", "dashboards", "decks", "deliveries", "prompts"]) expect(await count(t, w.id), t).toBe(0);
-    const { data: events } = await db().from("audit_events").select("kind, object_type, object_name, details").eq("workspace_id", w.id).eq("kind", "pack.installed");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, object_type, object_name, details").eq("workspace_id", w.id).eq("kind", "pack.installed")).data, { dropId: true });
     expect(events).toEqual([{ kind: "pack.installed", object_type: "pack", object_name: "SaaS metrics", details: { pack: "ziffr/saas-metrics", version: "1.2.0", source: "upload", signed: false } }]);
   });
 

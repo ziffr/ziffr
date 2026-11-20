@@ -12,7 +12,7 @@ import { createMetric, metricEffects, type MetricEffects } from "./metrics";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { submitValue } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 import { defaultLimitFrom, GRACE_DAYS, LimitReached, limitOf, limitRule, metricCount, syncDefaultLimit } from "./workspace-limits";
 import { setWorkspaceLimit, workspaceLimitRows } from "./workspace-limits-admin";
 
@@ -195,7 +195,7 @@ describe("who sets a limit", () => {
 
     await setWorkspaceLimit({ personId: sara }, w.id, null);
     expect((await db().from("workspace_limits").select("workspace_id").eq("workspace_id", w.id)).data).toEqual([]);
-    const { data: events } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).eq("kind", "workspace.limit_changed").order("id");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).eq("kind", "workspace.limit_changed").order("id")).data, { dropId: true });
     expect(events?.map((e) => e.details)).toEqual([
       expect.objectContaining({ from_limit: null, to_limit: 1000, to_label: "Business", by: "installation_admin" }),
       expect.objectContaining({ from_limit: 1000, to_limit: null, default: true }),

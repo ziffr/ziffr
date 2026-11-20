@@ -4,6 +4,7 @@
 // retried by the job. Never in the demo, never where the workspace has Telegram off, never to someone not connected.
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
+import { openRows } from "./sealed-columns";
 import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
@@ -45,11 +46,14 @@ export async function telegramSends(workspaceId: string): Promise<boolean> {
 
 /** Sends one queued Telegram Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendTelegramDelivery(id: number): Promise<SendResult> {
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id")
     .eq("id", id).eq("connector", "telegram").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
-  if (!d) return "skipped";
+  if (!found) return "skipped";
+  const [d] = await openRows("deliveries", found.workspace_id, [found]);
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
   const never = (why: string) => failForGood(id, why);
+  // Words that do not open (changed in the database, or under a destroyed key) never go out, not even as "null".
+  if (d.body === null) return never("Its text cannot be read any more.");
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(d);
   if (archived) return never(archived);

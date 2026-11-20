@@ -89,8 +89,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const log = async (r: SubmissionResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
     const marks: IntakeMark[] = pasted ? (r.imported ? ["paste", "import"] : ["paste"]) : [];
     // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
-    if (workspaceId && !preview) await db().from("intake_log").insert({
-      workspace_id: workspaceId,
+    // Sealed (spec 0028): the sender's address and what they wrote are a Workspace's words.
+    if (workspaceId && !preview) await insertSealed("intake_log", workspaceId, [{
       source: input.source,
       sender: input.sender,
       sender_id: r.senderId ?? null,
@@ -101,7 +101,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
       detail: r.detail,
       observation_id: r.observationId ?? null,
       marks,
-    });
+    }]);
     return { outcome: r.outcome, detail: r.detail, ok: r.ok, metricSlug: r.metricSlug, ...(r.imported ? { imported: true } : {}) };
   };
 

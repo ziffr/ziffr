@@ -16,7 +16,7 @@ import { openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { createViewLink, openViewLink } from "./view-links";
 import { attainmentMethodOf, setAttainmentMethod, workspaceAttainmentMethod } from "./workspace-settings";
-import { workspace } from "./test/db-fixtures";
+import { workspace, opened } from "./test/db-fixtures";
 import type { CanvasData } from "./types";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -40,7 +40,7 @@ describe("the Workspace's Attainment method", () => {
     await setAttainmentMethod(w.actor(ann, "admin"), "ratio");
     // The same method again changes nothing and records nothing.
     await setAttainmentMethod(w.actor(ann, "admin"), "ratio");
-    const { data } = await db().from("audit_events").select("actor_id, details").eq("workspace_id", w.id).eq("kind", "workspace.attainment_method_changed").order("id");
+    const data = await opened("audit_events", w.id, (await db().from("audit_events").select("id, actor_id, details").eq("workspace_id", w.id).eq("kind", "workspace.attainment_method_changed").order("id")).data, { dropId: true });
     expect(data).toEqual([{ actor_id: sara, details: { from: "ratio", to: "distance" } }, { actor_id: ann, details: { from: "distance", to: "ratio" } }]);
   });
 

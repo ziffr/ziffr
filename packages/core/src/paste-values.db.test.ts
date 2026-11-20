@@ -10,7 +10,7 @@ import { PASTED_VALUES_PER_DAY, PASTED_VALUES_PER_DAY_IN_DEMO, pastedValueIds, p
 import { sourcesView } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { valuesOf, workspace, opened } from "./test/db-fixtures";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { WorkflowStep } from "./types";
@@ -73,7 +73,7 @@ describe("whose Metrics", () => {
     const w = await ws(); const sara = await w.person("owner");
     const m = await w.metric(sara, { name: "Revenue", unit: "€", format: "currency" }); await w.token(m.id, sara);
     ok(await recordPastedValues(w.actor(sara), { text: `Revenue\t${cell(ago(1))}\t€1,200.50` }, quiet()));
-    const { data: log } = await db().from("intake_log").select("source, sender_id, raw, marks, outcome, observation_id").eq("workspace_id", w.id);
+    const log = await opened("intake_log", w.id, (await db().from("intake_log").select("id, source, sender_id, raw, marks, outcome, observation_id").eq("workspace_id", w.id)).data, { dropId: true });
     const [obs] = (await db().from("observations").select("id").eq("metric_id", m.id)).data!;
     expect(log).toEqual([{ source: "web_form", sender_id: sara, raw: "€1,200.50", marks: ["paste"], outcome: "recorded", observation_id: obs.id }]);
   });
@@ -308,7 +308,7 @@ describe("Record as history", () => {
     expect(brief(done.rows)).toEqual(brief(preview.rows));
     const { data: obs } = await db().from("observations").select("period_start, value, imported").eq("metric_id", m.id).order("period_start");
     expect(obs!.map((o) => [o.period_start, Number(o.value), o.imported])).toEqual([[ago(4), 100, false], [ago(3), 900, true], [ago(2), 2000, false], [thisMonth(), 1100, false]]);
-    const { data: log } = await db().from("intake_log").select("marks").eq("workspace_id", w.id).order("id");
+    const log = await opened("intake_log", w.id, (await db().from("intake_log").select("id, marks").eq("workspace_id", w.id).order("id")).data, { dropId: true });
     expect(log!.map((l) => l.marks)).toEqual([["paste", "import"], ["paste"], ["paste"]]);
   });
 

@@ -176,12 +176,15 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
-  const { data: claimed } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
-  if (!claimed) return "skipped";
+  if (!found) return "skipped";
+  const [claimed] = await openRows("deliveries", found.workspace_id, [found]);
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
   const never = (why: string) => failForGood(id, why);
+  // Words that do not open (changed in the database, or under a destroyed key) never go out, not even as "null".
+  if (claimed.body === null || (found.subject !== null && claimed.subject === null)) return never("Its text cannot be read any more.");
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);

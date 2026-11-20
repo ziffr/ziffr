@@ -3,6 +3,7 @@
 // which object (with its name at the time) and when, plus small details; never values, message bodies or secrets.
 import { db } from "./db";
 import { touchWorkspace } from "./unused-workspaces";
+import { insertSealed, openNames, openRows, sealDetails } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -44,12 +45,14 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
   if (workspaceId === DEMO_WORKSPACE_ID) return;
   try {
     const [{ data: person }, { data: key }] = await Promise.all([
-      by ? db().from("profiles").select("name").eq("id", by).maybeSingle() : Promise.resolve({ data: null }),
+      // A Contact approving through a Connector has a sealed name: opened, so the log never keeps its ciphertext.
+      by ? db().from("profiles").select("id, name").eq("id", by).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(workspaceId, [r.data]))[0] : null })) : Promise.resolve({ data: null }),
       event.accessKeyId ? db().from("access_keys").select("name").eq("id", event.accessKeyId).eq("workspace_id", workspaceId).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     const details = cleanDetails({ ...event.details, ...(key ? { key_name: key.name as string } : {}) });
-    const { error } = await db().from("audit_events").insert({
-      workspace_id: workspaceId,
+    // The object's name and the details are sealed with the Workspace Key (spec 0028); the kind, the object's type
+    // and id and who did it stay readable, so the log can be filtered. The details are kept as {"sealed": "w1..."}.
+    await insertSealed("audit_events", workspaceId, [{
       actor_id: by ? String(by).slice(0, 64) : null,
       actor_name: String(person?.name ?? (by ? "A former member" : system)).trim().slice(0, 120) || "Someone",
       access_key_id: event.accessKeyId ?? null,
@@ -58,8 +61,7 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
       object_id: event.object ? String(event.object.id).slice(0, 64) : null,
       object_name: event.object?.name ? String(event.object.name).slice(0, 120) : null,
       details,
-    });
-    if (error) throw error;
+    }], "id", sealDetails);
     // Older events go once they pass the retention; the database allows nothing younger to be removed. A day's margin
     // keeps a server clock ahead of the database's from asking for a removal the database refuses.
     await db().from("audit_events").delete().eq("workspace_id", workspaceId).lt("at", new Date(Date.now() - (AUDIT_RETENTION_DAYS + 1) * 86_400_000).toISOString());
@@ -144,7 +146,7 @@ async function rows(actor: Actor, f: AuditFilter, timeZone: string, before: numb
   if (before !== null) q = q.lt("id", before);
   const { data, error } = await q.order("id", { ascending: false }).limit(limit);
   if (error) throw new Error("The Audit Log could not be read.");
-  return (data ?? []) as Row[];
+  return openRows("audit_events", actor.workspaceId, (data ?? []) as Row[]);
 }
 
 /** A stored row as the reader may see it: names of Metrics, dashboards and decks they do not see are left out. */
