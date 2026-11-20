@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, metricDraftFrom, metricEffects, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, metricDraftFrom, metricEffects, saveSeriesRows, type MetricEffects } from "./metrics";
 import { share } from "./sharing";
 import { saveWorkflow } from "./workflows";
 import { workspace } from "./test/db-fixtures";
@@ -28,7 +28,7 @@ async function original() {
   // A stand-in's Token covers one absence; it is not one of the Metric's Submitters.
   await db().from("tokens").insert({ code: `tk-test-${m.id}-standin`, metric_id: m.id, submitter_id: ben, stands_in_for: cleo });
   await w.value(m.id, "2026-10-01", 2500, cleo);
-  await uploadSeries(w.actor(sara), m.id, "target", "2026-12 3000", "");
+  await saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "2026-12-01", value: 3000 }], "");
   return { w, sara, ben, cleo, m, workflowId };
 }
 

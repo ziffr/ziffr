@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
 import { submitObservation } from "./api-submissions";
-import { actorForKey, createAccessKey, listAccessKeys, readMetrics, revokeAccessKey } from "./access-keys";
+import { listMetrics } from "./api";
+import { actorForKey, createAccessKey, listAccessKeys, revokeAccessKey } from "./access-keys";
 import { createMetric } from "./metrics";
 import { share } from "./sharing";
 import { workspace } from "./test/db-fixtures";
@@ -25,9 +26,9 @@ describe("Access Keys", () => {
     expect(JSON.stringify(await listAccessKeys(w.actor(ben, "member")))).not.toContain(secret);
     const key = (await actorForKey(secret))!;
     expect(key).toMatchObject({ personId: ben, workspaceId: w.id, role: "member" });
-    expect((await readMetrics(key)).map((m) => m.id)).toEqual([mine.id]);
+    expect((await listMetrics(key, { limit: 100 })).items.map((m) => m.slug)).toEqual([mine.slug]);
     await share(w.actor(sara), "metric", hidden.id, ben, "viewer");
-    expect((await readMetrics(key)).map((m) => m.id).sort()).toEqual([mine.id, hidden.id].sort());
+    expect((await listMetrics(key, { limit: 100 })).items.map((m) => m.slug).sort()).toEqual([mine.slug, hidden.slug].sort());
     await expect(submitObservation(key, mine.slug, { value: 5 })).rejects.toEqual(forbidden);
   });
   it("submit values only with the scope, and only where the creator has a Token", async () => {
@@ -37,7 +38,7 @@ describe("Access Keys", () => {
     const key = (await actorForKey(secret))!;
     expect((await submitObservation(key, m.slug, { value: 42 })).ok).toBe(true);
     await expect(submitObservation(key, other.slug, { value: 1 })).rejects.toEqual(forbidden);
-    await expect(readMetrics(key)).rejects.toEqual(forbidden);
+    await expect(listMetrics(key, { limit: 100 })).rejects.toEqual(forbidden);
   });
   it("stop when revoked, when they end, or when their creator leaves; a wrong secret is nothing", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");

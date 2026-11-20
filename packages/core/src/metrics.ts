@@ -4,7 +4,6 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
-import { numberStyleOf } from "./workspace-settings";
 import { assertSeesMetrics } from "./sharing";
 import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
@@ -248,18 +247,6 @@ async function removeValuesAndHistory(ws: string, metricId: number): Promise<voi
   }
   must(await db().from("observations").delete().eq("workspace_id", ws).eq("metric_id", metricId));
   must(await db().from("observation_history").delete().eq("workspace_id", ws).eq("metric_id", metricId));
-}
-
-/** The Metric owner uploads a Target Series or Projection, one "period value" line each; lines that cannot be read
- * are skipped and counted. */
-export async function uploadSeries(actor: Actor, metricId: number, kind: "target" | "projection", text: string, note: string) {
-  const m = await seriesOwnerMetric(actor, metricId, kind);
-  const lines = String(text ?? "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 2000);
-  const ys = await yearStartFor(actor.workspaceId, m.period as Period);
-  const style = await numberStyleOf(actor.workspaceId);
-  const read = lines.map((l) => parseSeriesLine(l, m.period as Period, ys, style)).filter((r): r is { period: string; value: number } => r !== null);
-  const saved = await upsertSeries(metricId, kind, read, note);
-  return { saved, skipped: lines.length - saved };
 }
 
 /** The Metric owner saves Target Series or Projection rows edited in a table, as period start and value. Rows with a

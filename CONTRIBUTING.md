@@ -74,6 +74,7 @@ Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks f
 - Fill in the template: what and why, screenshots for UI, tests, migrations, security impact, docs.
 - Migrations are add-only: never edit a migration that is already merged.
 - A new table with a `workspace_id` gets the demo's guard in the same migration: `select attach_demo_guard('my_table');`. The demo is read-only (#271), and `demo-read-only.db.test.ts` names any table without it.
+- A new core operation that changes data is reached by the REST API, or is listed in `docs/api-coverage.md` with the reason it is not; `api-coverage.test.ts` fails otherwise (#432).
 - Typecheck, lint, tests and the docs checks must pass; the CLA must be signed.
 - **Every check on every pull request.** A pull request runs CI's `check` job (types, lint, unit tests, code health, secrets, prose, and the docs, guide and release-note checks), the database tests (`core-db`: the core's in three shards and the app with its API and clients, each with its own Supabase, in parallel) and the calculations at full strength (`numbers`). ziffr/ziffr is a personal repository, which GitHub gives no merge queue, so the pull request is the only gate; all three run again on every push to `main`, whose run the release asks for. Merge with `gh pr merge --auto` (agents too): it lands when all three pass. Run `pnpm ci:local` before pushing.
 - Commit messages: an imperative subject of at most 72 characters, then a body that says why. Agent-written commits keep their `Co-Authored-By` line.

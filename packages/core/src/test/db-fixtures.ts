@@ -74,6 +74,12 @@ export async function workspace(name = "Test") {
   return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, cleanup };
 }
 
+/** Whether the person switched the usage digest off, as stored: for tests of the setting and of the unsubscribe link. */
+export async function digestOptedOut(personId: string) {
+  const { data } = await db().from("usage_digest_opt_outs").select("person_id").eq("person_id", personId).maybeSingle();
+  return Boolean(data);
+}
+
 /** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */
 export async function accessLogOf(keyId: number) {
   const { data } = await db().from("access_log").select("method, route, status, submitted").eq("key_id", keyId).order("id");

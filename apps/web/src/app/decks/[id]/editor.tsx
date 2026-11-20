@@ -13,6 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { noteDeckExport, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
 import { doneAddingToDeck } from "@/app/convert-actions";
+import { DeleteDeck } from "./delete-deck";
 import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
@@ -313,6 +314,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         {sharing && <ViewLinks type="deck" id={deck.id} />}
         {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
         <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
+        {sharing && <DeleteDeck deckId={deck.id} name={name} />}
         {sharing && <Button variant="outline" disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
         <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>

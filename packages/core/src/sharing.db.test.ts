@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { createMetric, deleteMetric, removeSeriesRows, saveSeriesRows, setMetricSources, updateMetricDetails, uploadSeries, type MetricEffects } from "./metrics";
+import { createMetric, deleteMetric, removeSeriesRows, saveSeriesRows, setMetricSources, updateMetricDetails, type MetricEffects } from "./metrics";
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
@@ -33,13 +33,13 @@ describe("creating Metrics", () => {
     const other = await ws("Other"); const zoe = await other.person("owner");
     await expect(createMetric(w.actor(sara), { name: "X", submitters: [zoe] }, metricFx())).rejects.toEqual(forbidden);
   });
-  it("lets only the owner upload a Target Series, in their own workspace", async () => {
+  it("lets only the owner save a Target Series, in their own workspace", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara);
-    await expect(uploadSeries(w.actor(ben, "member"), m.id, "target", "2026-12 10", "")).rejects.toEqual(forbidden);
+    await expect(saveSeriesRows(w.actor(ben, "member"), m.id, "target", [{ period: "2026-12-01", value: 10 }], "")).rejects.toEqual(forbidden);
     const other = await ws("Other");
-    await expect(uploadSeries({ personId: sara, workspaceId: other.id, role: "owner" }, m.id, "target", "2026-12 10", "")).rejects.toEqual(forbidden);
-    expect(await uploadSeries(w.actor(sara), m.id, "target", "2026-12 10\nnot a line", "")).toEqual({ saved: 1, skipped: 1 });
+    await expect(saveSeriesRows({ personId: sara, workspaceId: other.id, role: "owner" }, m.id, "target", [{ period: "2026-12-01", value: 10 }], "")).rejects.toEqual(forbidden);
+    expect(await saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "2026-12-01", value: 10 }], "")).toEqual({ saved: 1 });
   });
   it("saves rows edited in the targets table, for the owner only, and refuses rows it cannot read", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
@@ -237,9 +237,9 @@ describe("after the review", () => {
     const { data } = await db().from("access_requests").select("status").eq("id", req!.id).single();
     expect(data!.status).toBe("declined");
   });
-  it("keeps the last value when an upload names a period twice", async () => {
+  it("keeps the last value when rows name a period twice", async () => {
     const w = await ws(); const sara = await w.person("owner"); const m = await w.metric(sara);
-    expect(await uploadSeries(w.actor(sara), m.id, "target", "2026-12 10\n2026-12 12", "")).toEqual({ saved: 1, skipped: 1 });
+    expect(await saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "2026-12-01", value: 10 }, { period: "2026-12-01", value: 12 }], "")).toEqual({ saved: 1 });
     const { data } = await db().from("series_values").select("value").eq("metric_id", m.id);
     expect(data!.map((r) => Number(r.value))).toEqual([12]);
   });
