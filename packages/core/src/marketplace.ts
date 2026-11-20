@@ -8,8 +8,6 @@
 // shape before it is used. A Pack's file must carry a valid Ed25519 signature of a key this Ziffr trusts, and is then
 // checked in full like any Pack: the signature says where a file came from, the checks are the protection.
 import { createPublicKey, verify, type KeyObject } from "node:crypto";
-import { request } from "node:https";
-import { ZIFFR_VERSION } from "./ziffr-version";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { settingsInEffect } from "./settings-in-effect";
@@ -18,7 +16,9 @@ import { PLAIN } from "./file-text";
 import { checkPack, PACK_LICENSES, PACK_LIMITS, versionBelow } from "./pack";
 import { assertManages, installPack, previewPack, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
-import { mailHostResolver, privateAddress, privateMailHost } from "./mail-hosts";
+import { ZIFFR_VERSION } from "./ziffr-version";
+import { privateMailHost } from "./mail-hosts";
+import { outboundRequest, outboundTls, type OutboundAnswer } from "./outbound-request";
 
 /** Ziffr's own Marketplace, where the connection goes unless the Installation names another. */
 export const MARKETPLACE_DEFAULT_URL = "https://marketplace.ziffr.app";
@@ -57,62 +57,22 @@ export function marketplaceConfig(settings: Record<string, string | undefined>):
 }
 
 /** What one request gives back: its status and its body, cut at the limit given. */
-type Answer = { status: number; body: string; tooBig: boolean };
+type Answer = OutboundAnswer;
 
 /** Certificates to trust besides the system's, for a test's own TLS server; never set by the app. */
-export const marketplaceTls: { ca?: string } = {};
+export const marketplaceTls = outboundTls;
 
 /** How a request is made; tests put a stub in, which records what would go out. */
 export const marketplaceTransport = {
-  /** Sends one request to an https address the core checked, and reads at most `maxBytes` of the answer. */
-  request: (url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> => pinnedRequest(url, init),
+  /** Sends one request to an https address the core checked, and reads at most `maxBytes` of the answer. No redirect is
+   * followed and the whole request ends within MARKETPLACE_LIMITS.timeoutMs (the shared rules: outbound-request.ts). */
+  request: (url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> =>
+    outboundRequest(url, {
+      method: init.method, body: init.body, maxBytes: init.maxBytes, deadlineMs: Math.min(init.deadlineMs ?? MARKETPLACE_LIMITS.timeoutMs, MARKETPLACE_LIMITS.timeoutMs),
+      headers: { accept: "application/json", ...(init.body ? { "content-type": "application/json" } : {}) },
+      allowPrivate: init.env.ZIFFR_ALLOW_PRIVATE_MARKETPLACE === "1",
+    }),
 };
-
-/** One https request to the address checked: the name is looked up once, every address it has must be public, and the
- * connection goes only to those, with TLS checking the name. No redirect is followed, the answer is cut short, and the
- * whole request, however slowly it trickles, ends within MARKETPLACE_LIMITS.timeoutMs. An address written as an IP is
- * never looked up: marketplaceUrlProblem refused a private one before. */
-function pinnedRequest(url: URL, init: { method: "GET" | "POST"; body?: string; maxBytes: number; env: Record<string, string | undefined>; deadlineMs?: number }): Promise<Answer> {
-  const allowPrivate = init.env.ZIFFR_ALLOW_PRIVATE_MARKETPLACE === "1";
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const done = (f: () => void) => { if (!settled) { settled = true; clearTimeout(deadline); f(); } };
-    // The whole request, not only a pause between bytes (Node's `timeout` below): an answer that trickles in ends here.
-    const deadline = setTimeout(() => { req.destroy(); done(() => reject(new Error("timeout"))); }, Math.min(init.deadlineMs ?? MARKETPLACE_LIMITS.timeoutMs, MARKETPLACE_LIMITS.timeoutMs));
-    const req = request(url, {
-      method: init.method,
-      headers: { "user-agent": `Ziffr/${ZIFFR_VERSION}`, accept: "application/json", ...(init.body ? { "content-type": "application/json", "content-length": Buffer.byteLength(init.body) } : {}) },
-      // A connection of its own each time: a pooled one would skip the lookup and its checks.
-      agent: false,
-      ...(marketplaceTls.ca ? { ca: marketplaceTls.ca } : {}),
-      timeout: MARKETPLACE_LIMITS.timeoutMs,
-      // Node asks for every address at once (`all`) when it may try IPv4 and IPv6; each one was checked either way.
-      lookup: ((host: string, opts: { all?: boolean }, cb: (err: Error | null, address: string | { address: string; family: number }[], family?: number) => void) => {
-        mailHostResolver.lookup(host).then((found) => {
-          if (!found.length) return cb(new Error("no address"), "", 0);
-          if (!allowPrivate && found.some((a) => privateAddress(a.address))) return cb(new Error("private address"), "", 0);
-          if (opts?.all) return cb(null, found.map((a) => ({ address: a.address, family: a.family })));
-          cb(null, found[0].address, found[0].family);
-        }, (e) => cb(e, "", 0));
-      }) as never,
-    }, (res) => {
-      const chunks: Buffer[] = [];
-      let size = 0;
-      res.on("data", (c: Buffer) => {
-        size += c.length;
-        if (size > init.maxBytes) { res.destroy(); done(() => resolve({ status: res.statusCode ?? 0, body: "", tooBig: true })); return; }
-        chunks.push(c);
-      });
-      res.on("end", () => done(() => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8"), tooBig: false })));
-      res.on("error", (e) => done(() => reject(e)));
-      res.on("close", () => done(() => reject(new Error("the answer ended early"))));
-    });
-    req.on("timeout", () => req.destroy(new Error("timeout")));
-    req.on("error", (e) => done(() => reject(e)));
-    if (init.body) req.write(init.body);
-    req.end();
-  });
-}
 
 /** Thrown when the Marketplace is off, cannot be reached, or answers what Ziffr does not take; its words are for people. */
 export class MarketplaceUnavailable extends Error {
