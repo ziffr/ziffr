@@ -8,14 +8,8 @@
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import type { AlertCondition } from "./alert-rules";
-import { createAlert, deleteAlert, listMyAlerts, updateAlert, type AlertChange, type AlertDelivery, type MyAlert } from "./alerts";
+import { AlertRefused, createAlert, deleteAlert, listMyAlerts, updateAlert, type AlertChange, type AlertDelivery, type MyAlert } from "./alerts";
 import { getMetrics } from "./workspace-data";
-
-/** A request the key's creator's Alerts cannot take (a limit, a condition the Metric cannot give, a bad choice); the
- * API answers 422 with the message, which is in Ziffr's words and never says whether a hidden Metric exists. */
-export class AlertRefused extends Error {
-  constructor(message: string) { super(message); this.name = "AlertRefused"; }
-}
 
 /** An Alert as a program sees it: its Metric by slug, never anyone else's data (an Alert holds no value itself). */
 export type ApiAlert = {
@@ -33,19 +27,16 @@ export type ApiAlert = {
 
 const asApi = (a: MyAlert): ApiAlert => ({ id: a.id, metric: { slug: a.metric.slug, name: a.metric.name }, condition: a.condition, delivery: a.delivery, include_unapproved: a.includeUnapproved, paused_by_person: a.pausedByPerson, paused: a.paused, state: a.state, fired_at: a.firedAt, created_at: a.createdAt });
 
+/** What a key must hold to change Alerts: Manage alerts, and Read metrics, since a change answers the Alert with its Metric's name and state. */
+function assertWriting(actor: KeyActor): void {
+  assertScope(actor, "alerts:write");
+  assertScope(actor, "metrics:read");
+}
+
 /** The key's creator: Alerts are always theirs, whatever the key. */
 const creatorOf = (actor: KeyActor): Actor => ({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
 
-/** Runs a core Alert call: what it refuses in words (limits, an impossible condition) becomes AlertRefused, while a
- * refusal without a reason (Forbidden) is left alone, so nothing hidden is revealed. */
-async function words<T>(run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (e) {
-    if (e instanceof Forbidden || !(e instanceof Error)) throw e;
-    throw new AlertRefused(e.message);
-  }
-}
+export { AlertRefused };
 
 /** The Metric's id for a slug the creator sees; any other slug is "not found", the same whether it exists or not. */
 async function metricIdOf(actor: Actor, slug: unknown): Promise<number> {
@@ -71,27 +62,27 @@ export async function listAlertsWithKey(actor: KeyActor, filter: { metric?: stri
 /** Makes an Alert for the key's creator on a Metric they see (scope alerts:write); the core checks the condition and
  * the limits. Returns it as it is stored. */
 export async function createAlertWithKey(actor: KeyActor, input: { metric: string; condition: AlertCondition; delivery?: AlertDelivery; include_unapproved?: boolean }): Promise<ApiAlert> {
-  assertScope(actor, "alerts:write");
+  assertWriting(actor);
   const creator = creatorOf(actor);
   const metricId = await metricIdOf(creator, input.metric);
-  const id = await words(() => createAlert(creator, { metricId, condition: input.condition, delivery: input.delivery, includeUnapproved: input.include_unapproved }));
+  const id = await createAlert(creator, { metricId, condition: input.condition, delivery: input.delivery, includeUnapproved: input.include_unapproved });
   return one(creator, id);
 }
 
 /** Changes one of the creator's own Alerts (scope alerts:write): its condition, way of delivery, option or pause. An
  * Alert of anyone else, or one that is not there, is "not found". */
 export async function updateAlertWithKey(actor: KeyActor, id: number, change: { condition?: AlertCondition; delivery?: AlertDelivery; include_unapproved?: boolean; paused?: boolean }): Promise<ApiAlert> {
-  assertScope(actor, "alerts:write");
+  assertWriting(actor);
   const creator = creatorOf(actor);
   const patch: AlertChange = { condition: change.condition, delivery: change.delivery, includeUnapproved: change.include_unapproved, paused: change.paused };
-  await words(() => updateAlert(creator, id, patch));
+  await updateAlert(creator, id, patch);
   return one(creator, id);
 }
 
 /** Removes one of the creator's own Alerts (scope alerts:write). */
 export async function deleteAlertWithKey(actor: KeyActor, id: number): Promise<void> {
-  assertScope(actor, "alerts:write");
-  await words(() => deleteAlert(creatorOf(actor), id));
+  assertWriting(actor);
+  await deleteAlert(creatorOf(actor), id);
 }
 
 /** One Alert of the creator's as it is now, without a scope check: what the key just changed is answered back. */

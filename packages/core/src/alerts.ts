@@ -49,6 +49,12 @@ export type MyAlert = {
 type Row = { id: number; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused_by_person: boolean; paused: AlertPause | null; state: "armed" | "fired"; fired_at: string | null; created_at: string };
 const COLUMNS = "id, metric_id, kind, level, delivery, include_unapproved, paused_by_person, paused, state, fired_at, created_at";
 
+/** A refusal in Ziffr's words, written for the person who asked (a limit, a condition the Metric cannot give, a bad
+ * choice). Callers show its message; any other Error is a fault and stays out of sight. */
+export class AlertRefused extends Error {
+  constructor(message: string) { super(message); this.name = "AlertRefused"; }
+}
+
 /** The same words for a Metric that is not there and one the person may not see. */
 const NOT_FOUND = "That Metric was not found.";
 
@@ -78,25 +84,25 @@ async function seen(actor: Actor, metricId: unknown): Promise<Metric> {
 /** Refuses a condition the Metric cannot give: a malformed one, a share of target without a target, "not in by its Due
  * Date" without a Workflow. Plain Errors in Ziffr's words, so a person reads why. */
 async function checkPossible(actor: Actor, metric: Metric, c: AlertCondition): Promise<void> {
-  if (!validCondition(c)) throw new Error("That is not a condition an Alert can wait for.");
+  if (!validCondition(c)) throw new AlertRefused("That is not a condition an Alert can wait for.");
   if (c.kind === "share_of_target") {
     const range = { min: metric.target_min ?? null, max: metric.target_max ?? null };
     const method = await attainmentMethodOf(actor.workspaceId);
     // A Target Series is used per period, so a Metric with one has a target for the latest period.
     const { count } = await db().from("series_values").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("kind", "target");
-    if (!targetAllowsShare(metric, range, method) && !count) throw new Error("This Metric has no target with a percentage, so an Alert on a share of target is not possible.");
+    if (!targetAllowsShare(metric, range, method) && !count) throw new AlertRefused("This Metric has no target with a percentage, so an Alert on a share of target is not possible.");
   }
   if (c.kind === "missing_after_due") {
     const { data } = await db().from("metrics").select("workflow_id").eq("id", metric.id).eq("workspace_id", actor.workspaceId).maybeSingle();
-    if (!data?.workflow_id) throw new Error("This Metric has no Workflow, so it has no Due Date for an Alert to wait for.");
+    if (!data?.workflow_id) throw new AlertRefused("This Metric has no Workflow, so it has no Due Date for an Alert to wait for.");
   }
 }
 
 /** The delivery and option of a request, checked: anything else is refused. */
 function checkOptions(delivery: unknown, include: unknown): { delivery: AlertDelivery; include: boolean } {
   const d = delivery === undefined ? "usual" : delivery;
-  if (!ALERT_DELIVERIES.includes(d as AlertDelivery)) throw new Error("That is not a way an Alert can be delivered.");
-  if (include !== undefined && typeof include !== "boolean") throw new Error("Include values not approved yet is on or off.");
+  if (!ALERT_DELIVERIES.includes(d as AlertDelivery)) throw new AlertRefused("That is not a way an Alert can be delivered.");
+  if (include !== undefined && typeof include !== "boolean") throw new AlertRefused("Include values not approved yet is on or off.");
   return { delivery: d as AlertDelivery, include: include === true };
 }
 
@@ -111,9 +117,9 @@ const LIMIT_WORDS: Record<string, string> = {
  * database under a lock, so Alerts made at once cannot pass them together. Never in the demo. */
 export async function createAlert(actor: Actor, input: AlertInput): Promise<number> {
   refuseInDemo(actor);
-  if (typeof input !== "object" || input === null) throw new Error("That is not an Alert.");
+  if (typeof input !== "object" || input === null) throw new AlertRefused("That is not an Alert.");
   const metric = await seen(actor, input.metricId);
-  if (metric.archived_at) throw new Error("This Metric is archived. Bring it back to set an Alert on it.");
+  if (metric.archived_at) throw new AlertRefused("This Metric is archived. Bring it back to set an Alert on it.");
   const { delivery, include } = checkOptions(input.delivery, input.includeUnapproved);
   await checkPossible(actor, metric, input.condition);
   const { kind, level } = split(input.condition);
@@ -125,10 +131,10 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
   });
   if (error || typeof data !== "string") {
     console.error("create_alert failed:", error?.message ?? "no answer");
-    throw new Error("The Alert could not be saved. Try again in a moment.");
+    throw new AlertRefused("The Alert could not be saved. Try again in a moment.");
   }
   if (data === "ok") return id;
-  if (data in LIMIT_WORDS) throw new Error(LIMIT_WORDS[data]);
+  if (data in LIMIT_WORDS) throw new AlertRefused(LIMIT_WORDS[data]);
   throw new Forbidden(NOT_FOUND);
 }
 
@@ -186,7 +192,7 @@ export type AlertChange = { condition?: AlertCondition; delivery?: AlertDelivery
 export async function updateAlert(actor: Actor, id: number, change: AlertChange): Promise<void> {
   refuseInDemo(actor);
   if (!Number.isInteger(id)) throw new Forbidden(NOT_FOUND);
-  if (typeof change !== "object" || change === null) throw new Error("That is not a change to an Alert.");
+  if (typeof change !== "object" || change === null) throw new AlertRefused("That is not a change to an Alert.");
   const { data } = await db().from("alerts").select("id, metric_id").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const metric = await seen(actor, Number(data.metric_id));
@@ -196,7 +202,7 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
     if (change.delivery !== undefined) patch.delivery = o.delivery;
     if (change.includeUnapproved !== undefined) patch.include_unapproved = o.include;
   }
-  if (change.paused !== undefined && typeof change.paused !== "boolean") throw new Error("An Alert is paused or not.");
+  if (change.paused !== undefined && typeof change.paused !== "boolean") throw new AlertRefused("An Alert is paused or not.");
   if (change.paused !== undefined) patch.paused_by_person = change.paused;
   if (change.condition !== undefined) {
     await checkPossible(actor, metric, change.condition);
@@ -208,7 +214,7 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
   const { error } = await db().from("alerts").update(patch).eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
   if (error) {
     console.error("updateAlert failed:", error.message);
-    throw new Error("The Alert could not be saved. Try again in a moment.");
+    throw new AlertRefused("The Alert could not be saved. Try again in a moment.");
   }
 }
 
@@ -227,7 +233,7 @@ export async function deleteAlert(actor: Actor, id: number): Promise<void> {
   if (!own) throw new Forbidden(NOT_FOUND);
   await seen(actor, Number(own.metric_id));
   const { data, error } = await db().from("alerts").delete().eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).select("id");
-  if (error) throw new Error("The Alert could not be removed. Try again in a moment.");
+  if (error) throw new AlertRefused("The Alert could not be removed. Try again in a moment.");
   if (!data?.length) throw new Forbidden(NOT_FOUND);
 }
 

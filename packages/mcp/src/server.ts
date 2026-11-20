@@ -477,21 +477,21 @@ export function createServer(ziffr: Ziffr): McpServer {
 
   server.registerTool("create_alert", {
     title: "Alert me",
-    description: "Makes an Alert for the user: Ziffr tells them, through their Delivery Preference or the way picked, when the Metric's latest value meets the condition, once each time it becomes true. Only for the user, never for anyone else, and only on a Metric they see. Only when the user asked to be told, after they confirmed the Metric and condition. Refused in words at a limit (20 per person, 5 per Metric), on an Archived Metric, or for a condition the Metric cannot give. Needs a key that may manage alerts.",
+    description: "Makes an Alert for the user: Ziffr tells them, through their Delivery Preference or the way picked, when the Metric's latest value meets the condition, once each time it becomes true. Only for the user, never for anyone else, and only on a Metric they see. Only when the user asked to be told, after they confirmed the Metric and condition. Refused in words at a limit (20 per person, 5 per Metric), on an Archived Metric, or for a condition the Metric cannot give. Needs a key that may manage alerts and read metrics.",
     inputSchema: { metric: slug, condition: alertCondition, delivery: alertDelivery.optional(), include_unapproved: z.boolean().optional().describe("Also count values still waiting for Approval; off unless the user asks.") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, (input) => guarded(async () => answer({ alert: await ziffr.alerts.create(input) })));
 
   server.registerTool("update_alert", {
     title: "Change an Alert",
-    description: "Changes one of the user's own Alerts: its condition (which arms it again), way of telling, the option to include values not approved yet, or pause and resume it with paused. Only what the user asked to change. Needs a key that may manage alerts.",
+    description: "Changes one of the user's own Alerts: its condition (which arms it again), way of telling, the option to include values not approved yet, or pause and resume it with paused. Only what the user asked to change. Needs a key that may manage alerts and read metrics.",
     inputSchema: { id: alertId, condition: alertCondition.optional(), delivery: alertDelivery.optional(), include_unapproved: z.boolean().optional(), paused: z.boolean().optional().describe("true pauses it, false resumes it.") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, ({ id, ...patch }) => guarded(async () => answer({ alert: await ziffr.alerts.update(id, patch) })));
 
   server.registerTool("delete_alert", {
     title: "Remove an Alert",
-    description: "Removes one of the user's own Alerts. Only when the user asks to remove it. Needs a key that may manage alerts.",
+    description: "Removes one of the user's own Alerts. Only when the user asks to remove it. Needs a key that may manage alerts and read metrics.",
     inputSchema: { id: alertId },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   }, ({ id }) => guarded(async () => answer({ ...(await ziffr.alerts.remove(id)) })));

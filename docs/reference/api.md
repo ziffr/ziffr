@@ -1160,7 +1160,7 @@ The creator's own Alerts (a person's standing request to be told when a Metric's
 
 `POST /alerts` · scope `alerts:write`
 
-Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values.
+Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values, and Read metrics, since it answers with the Metric.
 
 **Body** (JSON)
 

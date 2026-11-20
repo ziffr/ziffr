@@ -65,8 +65,13 @@ describe("Alerts over HTTP", () => {
     const refused = await list(writer.req("GET", "/alerts"), undefined);
     expect(refused.status).toBe(403);
     expect((await refused.json()).error.message).toContain("metrics:read");
-    expect((await create(writer.req("POST", "/alerts", body), undefined)).status).toBe(201);
+    // Making and changing answer with the Metric, so they need Read metrics too.
+    expect((await create(writer.req("POST", "/alerts", body), undefined)).status).toBe(403);
+    expect((await patch(writer.req("PATCH", "/alerts/1", { paused: true }), writer.params(1))).status).toBe(403);
+    expect((await remove(writer.req("DELETE", "/alerts/1"), writer.params(1))).status).toBe(403);
+    expect((await create(reader.req("POST", "/alerts", body), undefined)).status).toBe(403);
     const submitter = await keyFor(w, ben, "member", ["metrics:read", "values:submit", "metrics:edit"]);
+    expect((await create((await keyFor(w, ben, "member")).req("POST", "/alerts", body), undefined)).status).toBe(201);
     expect((await create(submitter.req("POST", "/alerts", body), undefined)).status).toBe(403);
     expect((await create(new Request("http://ziffr.test/api/v1/alerts", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } }), undefined)).status).toBe(401);
   });

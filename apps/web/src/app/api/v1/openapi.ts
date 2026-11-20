@@ -215,7 +215,7 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "post", path: "/alerts", scope: "alerts:write", body: S.CreateAlert, ok: { status: 201, name: "Alert", schema: S.ApiAlert },
     summary: "Make an Alert",
-    description: "Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values.",
+    description: "Makes an Alert for the key's creator, never for anyone else, on a Metric they see: it tells them through their Delivery Preference, or the one way picked, once per crossing. Checked like one made in the app, including the limits (20 per person, 5 per Metric, 500 per Workspace). Needs the scope Manage alerts, which sends messages and so is apart from Submit values, and Read metrics, since it answers with the Metric.",
     errors: [
       { status: 404, description: "A Metric the key's creator does not see; the answer is the same whether it exists or not." },
       { status: 422, description: "A limit, an archived Metric, or a condition the Metric cannot give (a share of target without a target; not in by its Due Date without a Workflow); the message says which." },
