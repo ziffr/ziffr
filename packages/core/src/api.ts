@@ -5,7 +5,7 @@ import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { peopleIn } from "./submissions";
-import { openNames, openRows } from "./sealed-columns";
+import { openRows } from "./sealed-columns";
 import { recordView } from "./usage";
 import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
 import type { Action, BreakdownRow, Metric } from "./types";
@@ -113,13 +113,17 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   };
 }
 
-/** People's names by id, a Contact's sealed name opened. Only ids that came from this Workspace's own rows are asked
- * for, and only `id` and `name` are read: never contact details. */
+/** Names by id of people who are in this Workspace now (members and Contacts, as /people lists them, a Contact's sealed
+ * name opened) and of its Feeds. Anyone else, such as a former member, has no name here, as in the app. Only `id` and
+ * `name` ever leave: never contact details. */
 async function namesOf(ws: string, ids: readonly (string | null)[]): Promise<Map<string, string>> {
-  const wanted = [...new Set(ids.filter((i): i is string => Boolean(i)))];
-  if (!wanted.length) return new Map();
-  const { data } = await db().from("profiles").select("id, name").in("id", wanted);
-  return new Map((await openNames(ws, data ?? [])).map((p) => [p.id as string, String(p.name)]));
+  const wanted = new Set(ids.filter((i): i is string => Boolean(i)));
+  if (!wanted.size) return new Map();
+  const [people, { data: feeds }] = await Promise.all([peopleIn(ws), db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...wanted])]);
+  const names = new Map<string, string>();
+  for (const f of feeds ?? []) names.set(f.person_id as string, String(f.name));
+  for (const p of people) if (wanted.has(p.id)) names.set(p.id, p.name);
+  return names;
 }
 
 /** The Threads on a Metric's periods that the key's creator may read, by the app's own rule (canReadThread: the people
@@ -144,8 +148,10 @@ export type ApiThread = {
   truncated: boolean;
 };
 
-/** At most this many Threads on one period, and messages in one Thread, are returned. */
+/** At most this many Threads on one period are returned. */
 export const MAX_THREADS = 20;
+
+/** At most this many messages of one Thread are returned, the newest. */
 export const MAX_THREAD_MESSAGES = 100;
 
 /** The Threads on one Metric's period that the key's creator may read, messages oldest first with their authors' names,

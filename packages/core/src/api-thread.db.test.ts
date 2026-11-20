@@ -42,6 +42,14 @@ describe("a value's submitter, time and Source, and its Thread", () => {
     await expect(getThreads(await keyOf(w, ben), m.slug, "2026-10-01")).rejects.toEqual(expect.any(Forbidden));
   });
 
+  it("names only people who are in the Workspace now", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const gone = await w.person("member");
+    const m = await w.metric(sara); await w.value(m.id, "2026-10-01", 40, gone);
+    expect((await listObservations(w.actor(sara), m.slug, { limit: 10 })).items[0].submitter_name).toEqual(expect.any(String));
+    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", gone);
+    expect((await listObservations(w.actor(sara), m.slug, { limit: 10 })).items[0]).toMatchObject({ submitter: gone, submitter_name: null });
+  });
+
   it("opens sealed words with their authors and times, oldest first, and needs metrics:read", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara); await w.value(m.id, "2026-10-01", 40, sara);
