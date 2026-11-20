@@ -18,7 +18,7 @@ import { ask } from "./questions";
 import { workspace } from "./test/db-fixtures";
 import { queueWebhookEvent } from "./webhook-events";
 import { WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, WEBHOOK_SEND_CONCURRENCY } from "./webhook-limits";
-import { sendWaitingWebhooks, verifyWebhookSignature } from "./webhook-send";
+import { sendWaitingWebhooks, sendWebhooksNow, verifyWebhookSignature } from "./webhook-send";
 import { createWebhook, replaceWebhookSecret } from "./webhooks";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
@@ -335,6 +335,21 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
     expect(seen).toHaveLength(1);
     expect(json(seen[0])).toMatchObject({ type: "action.done", data: { ref: `ZIF-${id}`, status: "closed", reason: "metric_deleted", source: { type: "system" } } });
     expect((await db().from("actions").select("id").eq("id", id)).data).toEqual([]);
+  });
+  it("sends made just before a delete stop at their budget: a stalling receiver is cut, the rest is dropped, and nothing is left running", async () => {
+    const c = await setup();
+    answer = () => { /* never answers */ };
+    for (let i = 0; i < 6; i++) await c.done(await c.task());
+    const started = Date.now();
+    await sendWebhooksNow(c.w.id, null, 400);
+    expect(Date.now() - started).toBeLessThan(5000);
+    // Only as many as were in flight reached the receiver; no send is left claimed or waiting.
+    expect(seen.length).toBeLessThanOrEqual(WEBHOOK_SEND_CONCURRENCY);
+    const states = ((await db().from("webhook_sends").select("state").eq("workspace_id", c.w.id).eq("type", "action.done")).data ?? []).map((r) => r.state);
+    expect(states).toHaveLength(6);
+    expect(states.every((x) => x === "dropped")).toBe(true);
+    // The Webhook's failure count is not touched by a send the budget cut.
+    expect((await db().from("webhooks").select("failure_count").eq("id", c.hook.id).single()).data?.failure_count).toBe(0);
   });
   it("sends at most a few at a time, so a slow name or answer cannot take every lookup", async () => {
     const c = await setup();

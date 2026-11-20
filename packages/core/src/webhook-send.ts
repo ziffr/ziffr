@@ -196,7 +196,7 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   if (slot !== true) return { state: "deferred" };
   try {
     const res = await outboundRequest(new URL(url), {
-      method: "POST", body, maxBytes: 64 * 1024, privateHosts,
+      method: "POST", body, maxBytes: 64 * 1024, privateHosts, signal,
       headers: { "content-type": "application/json", "x-ziffr-timestamp": String(timestamp), "x-ziffr-signature": signWebhookBody(secrets, timestamp, body), "x-ziffr-event": send.type, "x-ziffr-delivery": built.full.id },
     });
     if (res.status >= 200 && res.status < 300) return { state: "delivered", code: res.status };
@@ -208,6 +208,8 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
     return { state: "failed", code: res.status, failure: "status" };
   } catch (e) {
     const message = (e as Error).message;
+    // Stopped by the caller's budget: not the receiver's failing, and not tried again.
+    if (message === "aborted") return { state: "dropped" };
     // A name that turned private (or never was allowed) is refused for good; any other trouble is the network's, tried again.
     if (/private address|https only|bad header/.test(message)) return { state: "failed", failure: "refused" };
     const waitMs = retryWaitMs(send.attempts + 1);
@@ -249,23 +251,32 @@ export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; f
 
 /** Sends, at once, what is queued for a Workspace (for one Metric when given): the moment before a Metric or a Workspace is
  * deleted, since its send rows would go with it. One try each, no retry: whatever fails here is lost with the rows. Never throws. */
-export async function sendWebhooksNow(workspaceId: string, metricId: number | null = null): Promise<void> {
+export async function sendWebhooksNow(workspaceId: string, metricId: number | null = null, budgetMs = WEBHOOK_SEND_NOW_BUDGET_MS): Promise<void> {
+  const stop = new AbortController();
+  // A budget: a Webhook that stalls must never hold back the delete that follows. At its end the workers take no new
+  // send and every request in flight is cut; the delete runs only after they have all stopped.
+  const timer = setTimeout(() => stop.abort(), budgetMs);
   try {
     const { data } = await db().rpc("claim_webhook_sends_for", { p_workspace: workspaceId, p_metric: metricId, p_limit: 500 });
-    // A budget: a Webhook that stalls must never hold back the delete that follows (what is not sent in time is lost with the rows).
-    if (Array.isArray(data) && data.length) await Promise.race([runSends(data as Send[]), new Promise((resolve) => setTimeout(resolve, WEBHOOK_SEND_NOW_BUDGET_MS))]);
+    if (!Array.isArray(data) || !data.length) return;
+    const sends = data as Send[];
+    await runSends(sends, stop.signal);
+    // What was claimed and not sent in time is dropped with the rows that are about to go.
+    await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).in("id", sends.map((x) => x.id)).eq("state", "sending");
   } catch (e) {
     console.error("Webhooks: could not send the last events:", (e as Error).message);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-/** Sends claimed rows, a few at a time, and keeps each one's log. */
-async function runSends(sends: Send[]): Promise<{ sent: number; failed: number }> {
+/** Sends claimed rows, a few at a time, and keeps each one's log; with a signal, stops taking sends once it is aborted. */
+async function runSends(sends: Send[], signal?: AbortSignal): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
   const queue = [...sends];
   const worker = async () => {
-    for (let send = queue.shift(); send; send = queue.shift()) {
+    for (let send = queue.shift(); send; send = signal?.aborted ? undefined : queue.shift()) {
       const outcome = await attemptSend(send, signal);
       if (outcome.state === "delivered") sent++;
       else if (outcome.state === "failed" || outcome.state === "retrying") failed++;

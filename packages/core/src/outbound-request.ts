@@ -53,6 +53,8 @@ export type OutboundInit = {
   headers?: Record<string, string>;
   maxBytes: number;
   deadlineMs?: number;
+  /** Ends the request at once (the connection is destroyed and the call rejects with "aborted"): for work that must stop by a time of the caller's. */
+  signal?: AbortSignal;
   /** Lets every address through (a server's own switch, as the Marketplace has); never set from a Workspace. */
   allowPrivate?: boolean;
   /** Exact hosts allowed to resolve to any address, private ones included (see operatorPrivateHosts); the operator lists only names their own DNS answers. */
@@ -111,6 +113,8 @@ export function outboundRequest(url: URL, init: OutboundInit): Promise<OutboundA
       res.on("error", (e) => done(() => reject(e)));
       res.on("close", () => done(() => reject(new Error("the answer ended early"))));
     });
+    const abort = () => { req.destroy(); done(() => reject(new Error("aborted"))); };
+    if (init.signal?.aborted) abort(); else init.signal?.addEventListener("abort", abort, { once: true });
     req.on("timeout", () => req.destroy(new Error("timeout")));
     req.on("error", (e) => done(() => reject(e)));
     if (init.body) req.write(init.body);
