@@ -5,7 +5,6 @@
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { checkViewDesign, checkViewDesignValue, type ViewDesign } from "./view-design";
 import type { Problem } from "./json-check";
 import { checkedDesignSetting } from "./widget-designs";
@@ -25,8 +24,6 @@ function assertPerson(actor: Actor) {
 function assertManages(actor: Actor) {
   assertPerson(actor);
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins add View Designs to the Workspace.");
-  // The demo is shared by everyone who looks at it: nothing added there would be anyone's.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo cannot keep View Designs; try them in the Playground.");
 }
 
 /** The Workspace's View Designs, oldest first, for anyone in it but Guests. */

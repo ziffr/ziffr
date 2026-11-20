@@ -12,12 +12,12 @@ import { audit } from "./audit-log";
 import { normalizeMetric } from "./metric-row";
 import { editableMetric } from "./metrics";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { trialLimitMessage } from "./trials";
 import { recordVersion } from "./versions";
 import type { Metric, Period } from "./types";
 import { periodStart, type YearStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
+import { refuseInDemo } from "./demo";
 
 /** Values one Feed may record in any 24 hours, across all its keys. */
 export const FEED_VALUES_PER_DAY = 10_000;
@@ -48,7 +48,8 @@ export type FeedInfo = {
 function assertManagesFeeds(actor: Actor) {
   if (actor.key) throw new Forbidden("A key cannot manage Feeds.");
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins manage Feeds.");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Feeds.");
+  // A Feed's person is made before the Feed, outside the demo's rows: refused before it.
+  refuseInDemo(actor);
 }
 
 /** A Feed of the actor's workspace that is not deleted, or Forbidden. */

@@ -2,9 +2,6 @@
 // the Metrics it shows, people's names without their contact details, and nothing to act on. Made, listed and
 // revoked by the owner of the dashboard or deck.
 import { randomBytes } from "node:crypto";
-
-/** The demo workspace (ADR 0005): shared by every visitor, so it makes no View Links. */
-const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { getCanvasData } from "./access";
@@ -198,8 +195,6 @@ export async function listViewLinks(actor: Actor, type: "dashboard" | "deck", id
  * make none. Returns the token. */
 export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }): Promise<string> {
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input);
-  // Visitors share the demo: a View Link from it would let anyone publish their own text under this site.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("View Links cannot be made in the demo.");
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
   const today = new Date().toISOString().slice(0, 10);
@@ -232,7 +227,6 @@ function endDate(expires: unknown): string {
 /** A View Link to one of the actor's dashboard's Snapshots, once it is shown: what it kept and its words, read when
  * the link is opened. Like any View Link, only its dashboard's owner makes one, and only of Metrics they see. */
 async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string }): Promise<string> {
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("View Links cannot be made in the demo.");
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");

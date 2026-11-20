@@ -31,7 +31,7 @@ export default async function SourcesPage() {
         sub="Where values come from: a reply in Slack or by mail, a personal form link, or a program through the API. Ziffr checks who sent each one and whether they may submit it."
       />
       {demo && (
-        <DemoControls className="mb-6" hint="Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one, so you can see a value accepted, rejected or added up.">
+        <DemoControls className="mb-6" hint="Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one, so you can see whether a value would be accepted, rejected or added up. Nothing is saved.">
           <div className="grid gap-6 lg:grid-cols-2">
             <Simulator source="slack" {...by("slack")} profiles={profiles} viewer={viewer} metricNames={metricNames} />
             <Simulator source="mail" {...by("mail")} profiles={profiles} viewer={viewer} metricNames={metricNames} />

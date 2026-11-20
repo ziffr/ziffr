@@ -2,12 +2,13 @@
 // Installation; each workspace's Owners and Admins turn Telegram on or off for it. Turning it on registers the
 // Installation's webhook (or leaves it to polling on a laptop). Pages get the bot's username and the switch, never
 // the token: it stays in the settings in effect and in telegram-api.ts.
-import { assertCan, can, Forbidden, type Actor } from "./actor";
+import { assertCan, can, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { callTelegram, telegramEnabled, telegramOn, telegramPolling, telegramToken, telegramWebhookSecret, TelegramError } from "./telegram-api";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { refuseInDemo } from "./demo";
 
 /** The updates Ziffr asks Telegram for: messages, button presses, and being blocked or unblocked. */
 export const TELEGRAM_UPDATES = ["message", "callback_query", "my_chat_member"];
@@ -65,8 +66,8 @@ export async function telegramConnection(actor: Actor): Promise<TelegramConnecti
 
 function mayManage(actor: Actor) {
   assertCan(actor, "manage-members");
-  // The demo is shared by every visitor: it never reaches anyone on Telegram.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo does not use Telegram.");
+  // Before Telegram is called: the demo never reaches anyone on Telegram.
+  refuseInDemo(actor);
 }
 
 /** Why Telegram cannot send answers to a Ziffr without an https address. */

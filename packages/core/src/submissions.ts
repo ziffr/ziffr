@@ -67,14 +67,29 @@ export type SubmissionEffects = {
  * Contact without a login. Everything is looked up in one workspace only: the Token's, or the one given for Slack
  * and mail. `provenSenderId` is for a Connector that proved who wrote (Slack signs it, spec 0007): the sender is then
  * that person of the workspace, not whoever `sender` names. It is never taken from what a browser sends. */
-export async function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects, provenSenderId?: string): Promise<SubmissionResult> {
+export function submitValue(input: SubmissionInput, effects: SubmissionEffects = submissionEffects, provenSenderId?: string): Promise<SubmissionResult> {
+  return takeValue(input, effects, provenSenderId, false, recordObservation);
+}
+
+/** What submitValue would do with a value, saving nothing: no value, no log entry, no proposal, no Workflow step.
+ * For the demo's simulated channels, where nothing a visitor does is saved (#271). */
+export function previewValue(input: SubmissionInput): Promise<SubmissionResult> {
+  return takeValue(input, { notifyCorrection: async () => {}, afterValue: async () => [] }, undefined, true, previewObservation);
+}
+
+/** A Prompt answered by a value: it asks no more. Not for a preview, which saves nothing. */
+async function markAnswered(promptId: number, preview: boolean): Promise<void> {
+  if (!preview) await db().from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", promptId);
+}
+
+async function takeValue(input: SubmissionInput, effects: SubmissionEffects, provenSenderId: string | undefined, preview: boolean, record: Recording): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
   // A paste arrives on the web form only; anywhere else the field is ignored, as `import` is for anyone but a Feed.
   const pasted = input.source === "web_form" && input.paste ? input.paste : null;
   const log = async (r: SubmissionResult & { senderId?: string | null; metricId?: number | null; token?: string | null; observationId?: number | null }) => {
     const marks: IntakeMark[] = pasted ? (r.imported ? ["paste", "import"] : ["paste"]) : [];
     // Logged in the workspace it was meant for; a link that matches no Token belongs to none and is not logged.
-    if (workspaceId) await db().from("intake_log").insert({
+    if (workspaceId && !preview) await db().from("intake_log").insert({
       workspace_id: workspaceId,
       source: input.source,
       sender: input.sender,
@@ -201,6 +216,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
   if (await isLocked(metric.id, period)) {
+    if (preview) return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
     // It proposes a change to the value already there (GLOSSARY: Correction), so accepting it replaces that value.
     const { data: latest } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
     const [a] = await insertSealed("actions", workspaceId, [{
@@ -225,12 +241,8 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
   // Admin of the Workspace (spec 0026).
   const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
   const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
-  const { data, error } = await db()
-    .rpc("record_observation", {
-      p_metric: metric.id, p_period: period, p_rule: metric.submission_rule, p_value: value, p_submitter: row.submitter_id, p_source: row.source,
-      p_access_key: row.access_key_id, p_imported: mayImport, p_rows: (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value })),
-    })
-    .single<{ observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number }>();
+  const rows = (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value }));
+  const { data, error } = await record(metric, period, value, row, mayImport, rows);
   // Archived between the check above and the write: the database refuses it the same way.
   if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
@@ -253,7 +265,7 @@ export async function submitValue(input: SubmissionInput, effects: SubmissionEff
     const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
     result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
   }
-  if (prompt && result.ok) await db().from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", prompt.id);
+  if (prompt && result.ok) await markAnswered(prompt.id, preview);
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && senderId) {
     const next = await effects.afterValue(metric.id, period, senderId, { imported });
@@ -293,6 +305,31 @@ function closedTo(metric: Metric, source: SourceId): { outcome: string; detail: 
   if (!metric.sources.includes(source)) return { outcome: "rejected_source", detail: `${metric.name} doesn’t accept values from ${SOURCE_LABEL[source]}.` };
   return null;
 }
+
+type Recorded = { observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number };
+type Recording = (metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null }, imported: boolean, rows: { label: string; value: number }[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
+
+/** Records a value under its Metric's Submission Rule, in one call to the database. */
+const recordObservation: Recording = async (metric, period, value, row, imported, rows) =>
+  db().rpc("record_observation", {
+    p_metric: metric.id, p_period: period, p_rule: metric.submission_rule, p_value: value, p_submitter: row.submitter_id, p_source: row.source,
+    p_access_key: row.access_key_id, p_imported: imported, p_rows: rows,
+  }).single<Recorded>();
+
+/** What record_observation would answer for a value under its Metric's Submission Rule, read without writing (see the
+ * migration 20261212090000_breakdown_rows_atomic.sql, whose rules this follows). For the demo, which saves nothing. */
+const previewObservation: Recording = async (metric, period, value) => {
+  const { data } = await db().from("observations").select("id, value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false });
+  const found = data ?? [];
+  if (!found.length) return { data: { observation_id: 0, outcome: "recorded", before: null, after: value, earlier: 0 }, error: null };
+  const before = Number(found[0].value);
+  const at = (outcome: string, after: number) => ({ data: { observation_id: Number(found[0].id), outcome, before, after, earlier: found.length }, error: null });
+  const rule = metric.submission_rule;
+  if (rule === "keep_both") return { data: { observation_id: 0, outcome: "kept_both", before, after: value, earlier: found.length }, error: null };
+  if (rule === "reject") return at("rejected_duplicate", before);
+  if (rule === "overwrite") return at("overwritten", value);
+  return at("added", Math.round((before + value) * 1e6) / 1e6);
+};
 
 /** A period's name inside a sentence: "week of 9 Nov 2026". */
 function midSentence(label: string): string {

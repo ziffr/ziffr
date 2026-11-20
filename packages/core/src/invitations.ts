@@ -10,6 +10,7 @@ import { linkTo } from "./deliveries";
 import { headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial } from "./trials";
+import { refuseInDemo } from "./demo";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
 const DAY = 86_400_000;
@@ -25,9 +26,9 @@ const PUBLIC_DOMAINS = new Set([
  * (the email link, Google), null otherwise. Callers must never pass an address merely claimed by a provider. */
 export type SignedIn = { personId: string; verifiedEmail: string | null };
 
-/** Refuses the shared demo: invitations and joining there would bring strangers into every visitor's demo. */
+/** Refuses the demo before anything is emailed: its made-up people's addresses reach nobody. */
 function notDemo(actor: Actor) {
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no invitations.");
+  refuseInDemo(actor);
 }
 
 /** Only Owners may grant or take away the Owner role. */

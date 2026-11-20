@@ -73,6 +73,7 @@ Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks f
 - One concern per pull request; small is better.
 - Fill in the template: what and why, screenshots for UI, tests, migrations, security impact, docs.
 - Migrations are add-only: never edit a migration that is already merged.
+- A new table with a `workspace_id` gets the demo's guard in the same migration: `select attach_demo_guard('my_table');`. The demo is read-only (#271), and `demo-read-only.db.test.ts` names any table without it.
 - Typecheck, lint, tests and the docs checks must pass; the CLA must be signed.
 - Commit messages: an imperative subject of at most 72 characters, then a body that says why. Agent-written commits keep their `Co-Authored-By` line.
 - Anything people who use or run Ziffr will notice gets a release note: `pnpm changeset`, or a file in `.changeset/` as its README shows. Say in one or two plain sentences what changes for them; start notes for self-hosters with "Self-hosters:" and for developers with "Developers:". CI asks for it.

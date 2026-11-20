@@ -9,7 +9,6 @@ import { GuideLink, TopBar } from "@/components/top-bar";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
-import { ResetButton } from "@/components/reset-button";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { trialStatus } from "@ziffr/core/trial-end";
@@ -95,16 +94,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           demo={demo ? (
             <>
               <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
-              <ResetButton />
               {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
               <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
             </>
           ) : undefined}
         />
-        {/* The demo sends nothing (spec 0021): say so on every page, and where to get it for real when this Ziffr offers trials. */}
+        {/* The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials. */}
         {demo && (
           <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">
-            Messages in the demo are simulated: nothing is sent, and you answer them yourself in the Outbox.
+            Look around as anyone: nothing you do in the demo is saved, and nothing is sent.
             {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
           </p>
         )}

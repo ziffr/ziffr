@@ -27,8 +27,6 @@ export type AccessKeyInfo = { id: number; name: string; prefix: string; scopes: 
  * allows, and an end date within a year. */
 export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknown): { scopes: Scope[]; expires: string } {
   if (actor.key) throw new Forbidden("A key cannot make keys.");
-  // Visitors share the demo: a key there would act as a made-up person for anyone who has it.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   const scopes = [...new Set(Array.isArray(wanted) ? wanted : [])] as Scope[];
   if (!scopes.length || !scopes.every((s) => SCOPES.includes(s))) throw new Error("Pick what the key may do.");
   // A key never does what its creator's role does not allow (spec 0003); the role is checked again on every call.

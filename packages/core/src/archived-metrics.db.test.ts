@@ -80,7 +80,7 @@ describe("archiving and bringing back", () => {
     expect((await valuesOf(m.id)).map((v) => v.value)).toEqual([4]);
     const { data: demoMetric } = await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single();
     const { data: demoOwner } = await db().from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("role", "owner").limit(1).single();
-    await expect(archiveMetric({ personId: demoOwner!.user_id, workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, demoMetric!.id)).rejects.toThrow("The demo's Metrics stay as they are.");
+    await expect(archiveMetric({ personId: demoOwner!.user_id, workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, demoMetric!.id)).rejects.toThrow("The demo can't be changed.");
   });
 });
 

@@ -4,7 +4,6 @@
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
 
 /** What a leaving member owns in the workspace, by kind, for the handover dialog and the version history. */
@@ -21,7 +20,6 @@ export async function ownedBy(actor: Actor, personId: string) {
  * remove Owners; the successor must be another member who can own things; the last Owner stays. */
 export async function removeMember(actor: Actor, personId: string, successorId: string) {
   assertCan(actor, "manage-members");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's people stay.");
   if (personId === actor.personId) throw new Forbidden("Ask another Owner or Admin to remove you.");
   const ws = actor.workspaceId;
   const { data: leaving } = await db().from("memberships").select("role, profiles(name)").eq("workspace_id", ws).eq("user_id", personId).maybeSingle();

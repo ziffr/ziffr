@@ -9,6 +9,7 @@ import { cleanContact } from "./people";
 import { peopleIn } from "./submissions";
 import { assertMembersIn } from "./sharing";
 import { audit } from "./audit-log";
+import { refuseInDemo } from "./demo";
 
 /** The demo workspace (ADR 0005): shared by every visitor, so it keeps no Contacts. */
 export const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
@@ -75,8 +76,8 @@ export async function setGroupMember(actor: Actor, groupId: number, personId: st
  * carries no address or handle, so nothing on it lets anyone sign in as a Contact. */
 export async function addContact(actor: Actor, input: { name: string; email?: string; slackHandle?: string; phone?: string }) {
   assertCan(actor, "manage-members");
-  // Anything stored in the demo is shown to every other visitor.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("Contacts cannot be added in the demo.");
+  // A Contact's person is made before the Contact, outside the demo's rows: refused before it.
+  refuseInDemo(actor);
   const c = cleanContact(input);
   if (!c.ok) throw new Error(c.reason);
   const { count } = await db().from("contacts").select("person_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId);

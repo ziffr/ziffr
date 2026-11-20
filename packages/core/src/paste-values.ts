@@ -22,6 +22,7 @@ import { unusualReasons } from "./workflow-rules";
 import { getLatestObservations, getMetrics } from "./workspace-data";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import type { NumberStyle } from "./number-style";
+import { refuseInDemo } from "./demo";
 
 /** The most values one person may paste in any 24 hours, across all their pastes (spec 0026, "Limits"). */
 export const PASTED_VALUES_PER_DAY = 10_000;
@@ -330,6 +331,8 @@ const RECORDED: Record<string, PasteOutcome> = { recorded: "recorded", overwritt
  * ignored and the values are checked. A paste that would cross the day's limit is refused whole, before anything is
  * recorded. */
 export async function recordPastedValues(actor: Actor, input: PasteInput, effects: SubmissionEffects = submissionEffects): Promise<PasteReport | PasteRefusal> {
+  // The day's limit is claimed outside the demo's rows, before any value: refused before it (#271).
+  refuseInDemo(actor);
   const c = check(input);
   const s = await settingFor(actor);
   const read = readFor(s, c);

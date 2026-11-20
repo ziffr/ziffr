@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/reset-button.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the top bar, and your own pages: **My schedule**, **Your profile** and **Your Deliveries**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
@@ -8,7 +8,7 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 The page **Sign in to Ziffr** opens whenever you are not signed in. Under its heading it says what Ziffr is: a metric tracker for anyone.
 
-On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and it starts fresh every night.
+On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
 
 On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** too, with two choices side by side. **Try it for real** (a Workspace of your own, starting with one Metric to try asking with) lists what works in a trial on this Ziffr (each way marked Real, Simulated or Off, with its limit), says what a trial asks of you, and has the sign-in form; where the Ziffr has set it up, a short check against bots by Cloudflare sits above the buttons; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. **Look around** opens the shared demo and says what it cannot do. See [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
 
@@ -29,27 +29,30 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 ## The demo
 
-**Demo Mode** is a visit to a made-up online shop with its own made-up people. Every visitor shares it, and nothing done there reaches a real Workspace. It is the place to look around before you start; see also [Getting started](07-getting-started.md).
+**Demo Mode** is a visit to a made-up online shop with its own made-up people. Every visitor shares it, and nothing done there is saved or reaches a real Workspace. It is the place to look around before you start; see also [Getting started](07-getting-started.md).
 
 ### Opening the demo
 
-Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: what you type there is seen by others and reset now and then, so keep your real numbers in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
+Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
 
-While you are in the demo, the top bar shows three controls. On a narrow screen they sit in a row of their own below the bar.
+While you are in the demo, the top bar shows two controls. On a narrow screen they sit in a row of their own below the bar.
 
 | Control | What it does |
 | --- | --- |
 | **Viewing as** | Pick one of the made-up people, shown by first name and job, such as "Anna, head of sales". Ziffr then shows exactly what that person sees and lets you act as them, including their Workspace Role. |
-| **↺** (Reset demo data) | After asking, puts the whole demo back to its starting point, for everyone looking at it right now. It can be reset at most once a minute. |
 | **Leave the demo** | Ends the visit. You go back to signing in, or to your own Workspace if you are signed in. |
 
 ### Demo controls
 
-Some pages have a dashed box marked **Demo controls**. Its buttons pretend what would happen by itself in a real Workspace, such as answering as the recipient of a message or starting the morning's Prompts by hand. You never see them outside the demo.
+Some pages have a dashed box marked **Demo controls**. Its buttons show what would happen by itself in a real Workspace, such as answering as the recipient of a message or starting the morning's Prompts by hand. You never see them outside the demo.
 
-### What the demo keeps
+### Nothing is saved
 
-The demo's people keep their names and colours, and the demo sends no email. It has no Invitations, Contacts you can add, Access Keys, Feeds, Audit Log or Workspace settings you can change.
+You can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds "Start a trial to try it with your own numbers." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
+
+The simulators on **Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
+
+The demo's people keep their names and colours, and the demo sends no email. It has no Access Keys, Feeds or Audit Log.
 
 ### The guided tour
 

@@ -1,5 +1,6 @@
 // POST /api/jobs/demo-reset over HTTP: only with the job secret, only where the demo is offered, and nothing told
-// otherwise. The reset itself is the one the demo's reset button runs; here it stands in, as this test is about the door.
+// otherwise. The seed itself is tested in the core (demo-read-only.db.test.ts); here it stands in, as this test is about
+// the door.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@ziffr/core/demo-reset", () => ({ resetDemoWorkspace: vi.fn(async () => true) }));

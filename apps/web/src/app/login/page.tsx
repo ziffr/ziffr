@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="mx-auto mt-16 max-w-sm">
         <h1 className="text-[length:var(--text-2xl)] leading-tight">Try Ziffr</h1>
         <p className="mt-2 text-sm text-muted-foreground">A metric tracker for anyone.</p>
-        <p className="mt-6 text-sm">Look around a made-up online shop: its metrics, dashboards, Workflows and decks. No account needed. Everyone who visits shares it, and it starts fresh every night, so keep real numbers out.</p>
+        <p className="mt-6 text-sm">Look around a made-up online shop: its metrics, dashboards, Workflows and decks. No account needed. Switch between its people to see what each one sees; nothing you do there is saved.</p>
         {/* A plain link, so a full page load: /demo sets the cookie in the middleware, and the root layout's header must be drawn again for it (#14). */}
         <a href="/demo" className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Try the demo</a>
         <p className="mt-8 border-t border-border pt-6 text-sm text-muted-foreground">

@@ -126,7 +126,6 @@ export async function workflowSchedule(actor: Actor): Promise<{ timeZone: string
  * nothing once today ran, and the clock then leaves today alone. Returns the counts, or null when today ran already. */
 export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins run today's steps.");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("In the demo, pick the day to pretend instead.");
   const { day: today } = localTime(new Date(), (await workspaceClock(actor)).timeZone);
   const runId = await claimDay(actor.workspaceId, today, "manual");
   if (runId === null) return null;

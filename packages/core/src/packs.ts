@@ -11,7 +11,6 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { canonical } from "./api-submissions";
 import { checkPack, type Pack } from "./pack";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-file";
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
@@ -51,8 +50,6 @@ export type PackRead = { ok: true; preview: PackPreview } | { ok: false; problem
 function assertManages(actor: Actor) {
   if ((actor as { key?: unknown }).key) throw new Forbidden();
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins install Packs.");
-  // The demo is shared by everyone who looks at it: nothing installed there would be anyone's.
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo cannot install Packs.");
 }
 
 /** The hash of an item as installed: of what is stored, with its fields in a fixed order, so an unchanged copy hashes

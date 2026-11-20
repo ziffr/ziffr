@@ -3,7 +3,6 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { isSealed } from "./workspace-keys";
-import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The colours a person can be shown in; new people get one of them at random. */
 export const PERSON_COLORS = ["#7C5A3A", "#3A6B7C", "#6B3A7C", "#3A7C52", "#7C3A45", "#5A5A7C"] as const;
@@ -31,14 +30,13 @@ export function cleanName(input: unknown): { ok: true; name: string } | { ok: fa
   return { ok: true, name };
 }
 
-// Only someone who is a member of the actor's workspace acts there; a Contact has no membership, and the demo's
-// made-up people belong to every visitor, so neither may change a profile.
+// Only someone who is a member of the actor's workspace acts there; a Contact has no membership. The demo's made-up
+// people keep their names because the database refuses every change to the demo (#271).
 async function assertOwnRealProfile(actor: Actor) {
-  if (actor.key || actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's people keep their names.");
+  if (actor.key) throw new Forbidden();
   const { data } = await db().from("memberships").select("workspace_id").eq("user_id", actor.personId);
   const spaces = (data ?? []).map((m) => m.workspace_id as string);
   if (!spaces.includes(actor.workspaceId)) throw new Forbidden();
-  if (spaces.includes(DEMO_WORKSPACE_ID)) throw new Forbidden("The demo's people keep their names.");
 }
 
 /** The actor's own name, colour and the address Ziffr emails them at. */

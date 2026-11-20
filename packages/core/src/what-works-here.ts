@@ -37,7 +37,7 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
     const sim = "The demo sends nothing: messages appear in the Outbox, and you answer them in the simulator.";
     return [
       way("email", "simulated", sim), way("email-replies", "simulated", sim), way("slack", "simulated", sim), way("telegram", "simulated", sim),
-      way("web-form", "real", "Form links work, for the demo's made-up people."),
+      way("web-form", "simulated", "Form links open, for the demo's made-up people, but nothing sent there is saved."),
       way("api", "off", "The demo has no Access Keys, so programs cannot reach it."), way("mcp", "off", "The demo has no Access Keys, so assistants cannot reach it."),
       way("feeds", "off", "The demo has no Feeds."), way("whatsapp", "simulated", sim), way("tickets", "simulated", sim),
     ];

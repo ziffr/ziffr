@@ -2,7 +2,7 @@
 // Tasks are written sealed with the Workspace Key and read opened, plain rows from before still read, the demo and an
 // Installation without ZIFFR_SECRETS_KEY stay in clear, and no sealed column holds the words people wrote.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { actionThread } from "./page-data";
 import { ask, reply } from "./questions";
 import { peopleIn } from "./submissions";
@@ -105,8 +105,9 @@ describe("Questions, Tasks and their Threads", () => {
   it("stay in clear in the demo, whose data is made up and public", async () => {
     const { data: demoAction } = await db().from("actions").select("id, asker_id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).maybeSingle();
     if (!demoAction) return;
-    const [row] = await insertSealed("thread_messages", DEMO_WORKSPACE_ID, [{ action_id: demoAction.id, author_id: demoAction.asker_id, body: "Demo words" }], "id, body");
-    cleanups.push(async () => { await db().from("thread_messages").delete().eq("id", row.id as number); });
+    // Only the demo's seed writes it (#271).
+    const [row] = await seedingDemo(() => insertSealed("thread_messages", DEMO_WORKSPACE_ID, [{ action_id: demoAction.id, author_id: demoAction.asker_id, body: "Demo words" }], "id, body"));
+    cleanups.push(() => seedingDemo(async () => { await db().from("thread_messages").delete().eq("id", row.id as number); }));
     expect((await stored("thread_messages", row.id as number)).body).toBe("Demo words");
   });
 

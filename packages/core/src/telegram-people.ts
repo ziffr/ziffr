@@ -10,7 +10,7 @@ import { openNames } from "./sealed-columns";
 import { callTelegram } from "./telegram-api";
 import { submissionForm } from "./page-data";
 import { telegramBot, telegramOnIn } from "./telegram-connection";
-import { DEMO_WORKSPACE_ID } from "./team";
+import { refuseInDemo } from "./demo";
 
 /** How long a link code works. */
 export const TELEGRAM_CODE_MINUTES = 10;
@@ -53,7 +53,8 @@ async function tellChat(chatId: number, text: string): Promise<void> {
 /** Makes a person's one-time code and the link that opens the bot with it. 32 random bytes in base64url: 43
  * characters, inside Telegram's 64 from A-Z a-z 0-9 _ -; only its hash is kept. A new code ends the last. */
 async function codeFor(workspaceId: string, personId: string): Promise<{ url: string; minutes: number }> {
-  if (workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo does not use Telegram.");
+  // Before Telegram is called: the demo never reaches anyone on Telegram.
+  refuseInDemo({ workspaceId });
   if (!(await telegramOnIn(workspaceId))) throw new Error("Telegram is not on in this workspace.");
   const bot = await telegramBot();
   if (!bot) throw new Error("Telegram does not answer right now. Try again in a moment.");

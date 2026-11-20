@@ -6,7 +6,6 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { recordVersion } from "./versions";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { visibleMetricIds } from "./access";
 import { allRows, getMetrics } from "./workspace-data";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
@@ -28,7 +27,6 @@ async function archivable(actor: Actor, metricId: number) {
   // Only a Metric the actor sees: an Owner or Admin does not see every Metric, and a hidden one is refused like a
   // missing one, so nobody learns which ids exist.
   if (!m || !(await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId))).has(m.id)) throw new Forbidden();
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo's Metrics stay as they are.");
   const may = actor.role === "owner" || actor.role === "admin" || (actor.role !== "guest" && m.owner_id === actor.personId);
   if (!may) throw new Forbidden("Only Owners, Admins and the Metric's owner archive it or bring it back.");
   return m as { id: number; name: string; owner_id: string; archived_at: string | null };

@@ -2,14 +2,19 @@
 // dashboard gets Snapshots of the last two complete months, taken and shown by its owner, so visitors find an
 // archive to open. Only ever in the demo workspace; a failure leaves the demo without them and nothing else.
 import type { Actor } from "./actor";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { completePeriods } from "./snapshot-periods";
 import { showSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { JANUARY } from "./periods";
 
-/** Takes and shows the demo's Snapshots; called right after the demo's reset. */
-export async function seedDemoSnapshots(today = new Date().toISOString().slice(0, 10)): Promise<void> {
+/** Takes and shows the demo's Snapshots; called right after the demo's reset. Part of the seed, so it may write the
+ * demo, which nothing a visitor does may (#271). */
+export function seedDemoSnapshots(today = new Date().toISOString().slice(0, 10)): Promise<void> {
+  return seedingDemo(() => takeDemoSnapshots(today));
+}
+
+async function takeDemoSnapshots(today: string): Promise<void> {
   const { data: dash } = await db().from("dashboards").select("id, owner_id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("name", "October in short").maybeSingle();
   if (!dash) return;
   const owner: Actor = { personId: dash.owner_id as string, workspaceId: DEMO_WORKSPACE_ID, role: "owner" };

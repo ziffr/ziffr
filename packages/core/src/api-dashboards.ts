@@ -11,7 +11,6 @@ import { audit } from "./audit-log";
 import { createDashboardFromTemplate, listDashboardTemplates } from "./dashboard-templates";
 import { createDashboard, MAX_INTRO, placeWidget, removeWidget, saveDashboardText, updateWidget } from "./dashboards";
 import { db } from "./db";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { withVersionNote } from "./versions";
 import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
@@ -66,7 +65,6 @@ const isFinding = (w: Pick<Widget, "template">) => TEMPLATES[w.template]?.kind =
 /** Runs a change as the key's creator, with every Version it records naming the key. */
 async function asKey<T>(actor: KeyActor, fn: (creator: Actor) => Promise<T>): Promise<T> {
   assertScope(actor, "dashboards:write");
-  if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("The demo has no Access Keys.");
   // Changes check only the role on one dashboard, and a Guest can be an Editor there: a key builds only while its
   // creator's role may create, as the scope promises.
   assertCan(creatorOf(actor), "create");

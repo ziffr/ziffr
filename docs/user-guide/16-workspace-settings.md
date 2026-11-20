@@ -137,7 +137,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### In the demo
 
-In the demo nobody changes these settings; the page says "The demo keeps its settings." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, it writes numbers as 1,234.5, and it computes Attainment by ratio.
+In the demo nobody changes these settings: the page shows them without the controls and says "The demo can't be changed." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, it writes numbers as 1,234.5, and it computes Attainment by ratio.
 
 ## Members and Groups
 
@@ -224,7 +224,7 @@ Owners and Admins add a Contact with **Name** and at least one of **Email**, **S
 
 To give a Contact a login later, invite them by email and pick them under **who is the Contact**.
 
-Contacts cannot be added in the demo.
+In the demo, adding a Contact says "The demo can't be changed."
 
 ## Connectors
 
@@ -308,7 +308,7 @@ You see Deliveries about Threads you may read, and Prompts and notices you sent 
 
 ### In the demo
 
-The two **Run now** buttons sit in a dashed **Demo controls** box, and anyone may use them. Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Answering a Prompt this way records the value. **Try sending a value** on the Email and Slack cards leads to Sources.
+The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. **Try sending a value** on the Email and Slack cards leads to Sources.
 
 ## Sources
 
@@ -324,11 +324,11 @@ Everyone who sends in a Metric has a personal form link for it. The link itself 
 
 ### The simulator (demo only)
 
-In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack and one for email, both marked "simulated". They go through the same checks as real ones.
+In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack and one for email, both marked "simulated". They go through the same checks as real ones, but save nothing: each message you send shows what would happen, and stays on the page, marked "not saved", until you leave it.
 
 - Pick who sends the message, including an unknown sender, type a message such as "closed 2 deals", and send it.
 - Under a Prompt from Ziffr, choose **Reply** to answer it as its recipient.
-- Each message shows what happened, such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, a Derived Metric, or an Archived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
+- Each message shows what happened, or for one you sent, what would happen ("Would be: Recorded"), such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, a Derived Metric, or an Archived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
 
 ## Packs
 
