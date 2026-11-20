@@ -120,7 +120,7 @@ Each line links to where you do it:
 | **Task: …** | The Task's due date, or under **No date** | The Task |
 | **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. | The Question |
 
-A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only Metrics you may see are listed. Values a Feed sends are never anyone's to do.
+A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see, as on the Actions page. Values a Feed sends are never anyone's to do.
 
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).
 
