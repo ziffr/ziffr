@@ -232,7 +232,8 @@ const destroyed = new Map<string, number>();
 /** Destroys every version of a Workspace's key (spec 0028, ticket #249): deleting a Workspace does this first, so
  * whatever of it is left anywhere, half-deleted rows or any copy made from now on, cannot be opened with what the
  * Installation keeps. In one locked database step it also marks the Workspace as keyed, so no new key is ever made
- * for it, and writes the Installation's audit line by its id. This process forgets the key at once; others within
+ * for it, and writes the Installation's audit line by its id. Only a Trial Workspace, checked in that step too: any other
+ * is refused. This process forgets the key at once; others within
  * the 10 minutes their cache keeps it. Never undone. False when there is no such Workspace. */
 export async function destroyWorkspaceKeys(workspaceId: string): Promise<boolean> {
   const id = workspaceId.toLowerCase();

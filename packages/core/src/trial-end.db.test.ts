@@ -229,7 +229,7 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
     await ensureWorkspaceKey(t.id);
     await endTrialNow(t.actor(t.owner));
     const { data } = await db().from("installation_audit_events").select("actor_id, actor_name, kind, subject").eq("subject", t.id);
-    expect(data).toEqual([{ actor_id: null, actor_name: "Ziffr", kind: "workspace.deleted", subject: t.id }]);
+    expect(data).toEqual([{ actor_id: null, actor_name: "Ziffr", kind: "workspace.key_destroyed", subject: t.id }]);
     // A retry adds no second line, and a Workspace that does not exist gets none.
     await destroyWorkspaceKeys(t.id);
     expect(await destroyWorkspaceKeys("00000000-0000-4000-8000-0000000000aa")).toBe(false);
@@ -243,6 +243,9 @@ describe("deleting a trial destroys its Workspace Key first (spec 0028)", () => 
     const sara = await w.person("owner");
     await ensureWorkspaceKey(w.id);
     await expect(endTrialNow(w.actor(sara))).rejects.toBeInstanceOf(Forbidden);
+    expect((await db().from("workspace_keys").select("version").eq("workspace_id", w.id)).data).toHaveLength(1);
+    // Nor by the database step itself, whoever calls it.
+    await expect(destroyWorkspaceKeys(w.id)).rejects.toThrow();
     expect((await db().from("workspace_keys").select("version").eq("workspace_id", w.id)).data).toHaveLength(1);
   });
 });

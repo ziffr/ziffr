@@ -22,7 +22,7 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.removed": "removed",
   "setting.test_email": "sent a test email with",
   "setting.test_telegram": "tested Telegram with",
-  "workspace.deleted": "deleted a Workspace and destroyed its key:",
+  "workspace.key_destroyed": "destroyed the key of a Workspace it is deleting:",
 };
 
 type Result = { error: string } | { ok: true; message?: string; warning?: string };
@@ -68,7 +68,7 @@ export function InstallationScreen({ view, admins, events }: { view: Installatio
                 <li key={i} className="flex flex-wrap gap-x-2 py-2">
                   <span className="font-medium">{e.actorName}</span>
                   <span>{EVENT_WORDS[e.kind] ?? e.kind}</span>
-                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.deleted" ? "font-mono text-xs leading-5" : ""}>{e.subject}</span>}
+                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" ? "font-mono text-xs leading-5" : ""}>{e.subject}</span>}
                   <RelativeTime at={e.at} className="ml-auto text-muted-foreground" />
                 </li>
               ))}
