@@ -3,7 +3,7 @@
 // queued, claimed in the database within limits, retried by the job. Only to the Slack user a member or Contact of
 // the Delivery's workspace was found as (slack-people.ts), never in the demo, and nothing without a connection.
 import { db } from "./db";
-import { failForGood, withFormLink } from "./internal/delivery-send";
+import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
@@ -43,11 +43,14 @@ async function buttons(d: { id: number; workspace_id: string; kind: string; acti
 
 /** Sends one queued Slack Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendSlackDelivery(id: number): Promise<SendResult> {
-  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id")
+  const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id")
     .eq("id", id).eq("connector", "slack").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!d) return "skipped";
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
   const never = (why: string) => failForGood(id, why);
+  // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
+  const archived = await archivedMetricHolds(d);
+  if (archived) return never(archived);
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);

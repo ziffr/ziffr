@@ -3,6 +3,7 @@
 // sender that has read the queued Delivery itself, and claimed it before it adds the link, calls them. The app never
 // imports from core/internal (.github/scripts/app-db-access.mjs).
 import { db } from "../db";
+import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
 
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
 export const FORM_LINK = "[your personal form link]";
@@ -22,3 +23,29 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
   return body.split(FORM_LINK).join(token ? `${site}/submit/${token.code}` : `${site}/`);
 }
 
+
+/** What a Delivery is about, as far as its Metric goes. */
+type AboutMetric = { id: number; workspace_id: string; kind: string; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+
+/** Why a Delivery must not go out because its Metric is archived (GLOSSARY: Archived Metric), or null. Checked when it
+ * is sent, not only when it was queued: a Prompt checked just before the archive and queued just after, or one put
+ * back in the queue after a stopped send, would otherwise still ask. Prompts by their Prompt or form link, task
+ * reminders and Escalations by their task; other messages about a Metric (a question someone asks) still go. */
+export async function archivedMetricHolds(d: AboutMetric): Promise<string | null> {
+  const ws = d.workspace_id;
+  let metricId: number | null = null;
+  if (d.kind === "prompt") {
+    const [{ data: p }, { data: t }] = await Promise.all([
+      d.prompt_id ? db().from("prompts").select("metric_id").eq("id", d.prompt_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
+      d.form_token_id ? db().from("tokens").select("metric_id").eq("id", d.form_token_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    metricId = (p?.metric_id ?? t?.metric_id ?? null) as number | null;
+  } else if ((d.kind === "reminder" || d.kind === "question") && d.action_id) {
+    const { data: a } = await db().from("actions").select("metric_id, kind, purpose").eq("id", d.action_id).eq("workspace_id", ws).maybeSingle();
+    // A reminder of a task, or an Escalation; a person's own question about a value is theirs to send.
+    if (a && (d.kind === "reminder" || a.purpose === "escalation")) metricId = a.metric_id as number | null;
+  }
+  if (metricId === null) return null;
+  const { data: m } = await db().from("metrics").select("archived_at").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
+  return m?.archived_at ? ARCHIVED_BEFORE_SENT : null;
+}

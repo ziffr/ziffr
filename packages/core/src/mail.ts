@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
-import { failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
+import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -176,12 +176,15 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
-  const { data: claimed } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id")
+  const { data: claimed } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
   if (!claimed) return "skipped";
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
   const never = (why: string) => failForGood(id, why);
+  // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
+  const archived = await archivedMetricHolds(claimed);
+  if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
   // A trial reaches only its Owner, whatever is set up (ADR 0010).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
