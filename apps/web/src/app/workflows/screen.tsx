@@ -6,13 +6,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BellRing, CheckCheck, CircleUserRound, Lock, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, BellRing, CheckCheck, CircleUserRound, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
+import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW } from "@ziffr/core/alert-limits";
+import type { TellEditorFacts } from "@ziffr/core/tell";
 import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -24,8 +26,10 @@ import { NewWorkflowFromTemplate, SaveWorkflowTemplate } from "./templates";
 import type { PeriodTimeline } from "@ziffr/core/period-timeline";
 import { PeriodTimelines } from "./period-timeline";
 
-const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, publish: Lock };
-const NEW_STEP: Record<WorkflowStep["type"], WorkflowStep> = {
+const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, tell: Megaphone, publish: Lock };
+/** A new Tell step; its id names it for its memory and is kept by the server. */
+const newTell = (): WorkflowStep => ({ type: "tell", id: crypto.randomUUID(), condition: { kind: "share_of_target", share: "80" }, people: [], groups: [] });
+const NEW_STEP: Record<Exclude<WorkflowStep["type"], "tell">, WorkflowStep> = {
   remind: { type: "remind", daysBefore: 2 },
   escalate: { type: "escalate", to: "stand-in", daysAfter: 0 },
   check: { type: "check", changePct: 30, outsideTarget: true },
@@ -40,7 +44,9 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true, timelines = [] }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], steps: [] } }: {
+  /** Groups a Tell step may name, and who each of the Workflow's Tell steps skips (decided in the core). */
+  tellFacts?: TellEditorFacts;
   /** The Workflow's periods as this viewer may see them, newest first (decided in the core). */
   timelines?: PeriodTimeline[];
   /** The team's Workflow Templates (spec 0030). */
@@ -104,7 +110,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
             <ol className="relative mt-6 space-y-3 before:absolute before:top-4 before:bottom-4 before:left-[19px] before:w-px before:bg-[var(--color-rule-2)]">
               <Node icon={Send} title="Ask" text="When the period ends, ask each submitter through their connector. While someone is away, their stand-in is asked." />
               {steps.map((s, i) => (
-                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people)}
+                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups)}
                   controls={canEdit && (
                     <span className="flex gap-0.5">
                       {s.type !== "publish" && i > 0 && <IconBtn label="Earlier" onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
@@ -113,7 +119,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                     </span>
                   )}
                 >
-                  {canEdit && <StepFields s={s} people={people} submitters={submitters} onChange={(x) => setStep(i, x)} />}
+                  {canEdit && <StepFields s={s} people={people} submitters={submitters} tellFacts={tellFacts} onChange={(x) => setStep(i, x)} />}
                 </Node>
               ))}
             </ol>
@@ -123,9 +129,9 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-3 text-sm"><Plus aria-hidden className="size-4" /> Add step</DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {(["remind", "escalate", "check", "approve"] as const).filter((t) => (t !== "check" && t !== "approve") || !steps.some((x) => x.type === t)).map((t) => {
+                    {(["remind", "escalate", "check", "approve", "tell"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : (t !== "check" && t !== "approve") || !steps.some((x) => x.type === t)).map((t) => {
                       const Icon = ICON[t];
-                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = [...steps]; s.splice(at < 0 ? s.length : at, 0, NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
+                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = [...steps]; s.splice(at < 0 ? s.length : at, 0, t === "tell" ? newTell() : NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -206,7 +212,7 @@ function IconBtn({ label, onClick, children }: { label: string; onClick: () => v
   return <button type="button" aria-label={label} title={label} onClick={onClick} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
-function StepFields({ s, people, submitters, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; onChange: (s: WorkflowStep) => void }) {
+function StepFields({ s, people, submitters, tellFacts, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void }) {
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-2 text-xs";
   const num = (v: number, set: (n: number) => void, max = 30) => <input type="number" min={0} max={max} value={v} onChange={(e) => set(Number(e.target.value))} className={cn(field, "w-16")} />;
   return (
@@ -257,6 +263,7 @@ function StepFields({ s, people, submitters, onChange }: { s: WorkflowStep; peop
           )}
         </>
       )}
+      {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published</label>}
     </div>
   );
@@ -284,3 +291,49 @@ function RunPanel({ schedule, canRun, pending, onRun }: { schedule: Schedule; ca
   );
 }
 
+
+/** A Tell step's fields: the condition, who is told (people and Groups), and who the step will skip for lack of sight. */
+function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<WorkflowStep, { type: "tell" }>; people: Profile[]; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void; field: string }) {
+  const c = s.condition;
+  const level = "value" in c ? c.value : c.share;
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? id;
+  const setKind = (kind: typeof c.kind) => onChange({ ...s, condition: kind === "at_or_above" || kind === "below" ? { kind, value: level } : { kind, share: level } });
+  const setLevel = (v: string) => onChange({ ...s, condition: "value" in c ? { ...c, value: v } : { ...c, share: v } });
+  const skipped = tellFacts.steps.find((x) => x.id === s.id)?.skipped ?? [];
+  const byPerson = new Map<string, string[]>();
+  for (const k of skipped) byPerson.set(k.person, [...(byPerson.get(k.person) ?? []), k.metric]);
+  const pickable = people.filter((p) => !p.contact && !s.people.includes(p.id));
+  const groups = tellFacts.groups.filter((g) => !s.groups.includes(g.id));
+  return (
+    <>
+      <label className="flex items-center gap-1.5">
+        <span>when</span>
+        <select aria-label="Tell when" value={c.kind} onChange={(e) => setKind(e.target.value as typeof c.kind)} className={field}>
+          <option value="share_of_target">a value reaches a share of its target</option>
+          <option value="at_or_above">a value reaches</option>
+          <option value="below">a value falls below</option>
+          <option value="changed_more">a value changes more than</option>
+        </select>
+        <input aria-label="Level" inputMode="decimal" value={level} onChange={(e) => setLevel(e.target.value)} className={cn(field, "w-24")} />
+        {(c.kind === "share_of_target" || c.kind === "changed_more") && <span>%</span>}
+      </label>
+      <span className="basis-full">Tell</span>
+      {s.people.map((p) => <span key={p} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">{name(p)}<IconBtn label={`Do not tell ${name(p)}`} onClick={() => onChange({ ...s, people: s.people.filter((x) => x !== p) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
+      {s.groups.map((g) => <span key={g} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">Group {tellFacts.groups.find((x) => x.id === g)?.name ?? g}<IconBtn label="Do not tell this Group" onClick={() => onChange({ ...s, groups: s.groups.filter((x) => x !== g) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
+      {pickable.length > 0 && s.people.length < TELL_PEOPLE_PER_STEP && (
+        <select aria-label="Add a person to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, people: [...s.people, e.target.value] })} className={field}>
+          <option value="">Add a person…</option>
+          {pickable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      )}
+      {groups.length > 0 && s.groups.length < TELL_GROUPS_PER_STEP && (
+        <select aria-label="Add a Group to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, groups: [...s.groups, Number(e.target.value)] })} className={field}>
+          <option value="">Add a Group…</option>
+          {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.members})</option>)}
+        </select>
+      )}
+      <span className="basis-full">Once per crossing, for approved values only, and never more than {TELL_PEOPLE_PER_STEP} people. Each person is told by their Delivery Preference, only about Metrics they can see, and can stop it in Your settings.</span>
+      {[...byPerson].map(([person, metrics]) => <span key={person} role="note" className="basis-full text-[var(--color-ink)]">{name(person)} cannot see {metrics.join(", ")} and will not be told about {metrics.length === 1 ? "it" : "them"}.</span>)}
+    </>
+  );
+}

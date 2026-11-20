@@ -6,6 +6,7 @@ import { workflowSchedule } from "@ziffr/core/workflows";
 import { periodTimeline, workflowPeriods } from "@ziffr/core/period-timeline";
 import { listWorkflowTemplates } from "@ziffr/core/workflow-templates";
 import { can } from "@ziffr/core/actor";
+import { tellEditorFacts } from "@ziffr/core/tell";
 import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
@@ -45,6 +46,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         templates={await listWorkflowTemplates(actor)}
         canCreate={can(actor, "create")}
         timelines={timelines}
+        tellFacts={await tellEditorFacts(actor, current?.id ?? null)}
       />
     </>
   );

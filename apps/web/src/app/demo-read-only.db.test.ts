@@ -100,6 +100,7 @@ const CASES: Record<string, Case> = {
   "alert-actions:createAlert": { args: (i) => [{ metricId: i.metric, condition: { kind: "at_or_above", value: "1" } }] },
   "alert-actions:updateAlert": { nothing: "the demo has no Alert of the visitor's own", args: () => [1, { paused: true }] },
   "alert-actions:deleteAlert": { nothing: "the demo has no Alert of the visitor's own", args: () => [1] },
+  "tell-actions:setTellStopped": { args: () => [1, true] },
   "connector-actions:unlinkSlack": { nothing: "nobody in the demo is linked to Slack", args: () => [] },
   "connector-actions:setPreference": { args: () => ["sara", "question", "slack"] },
   "connector-actions:simulateReply": { reads: (i) => [i.actionDelivery, "Done, see the sheet"] },

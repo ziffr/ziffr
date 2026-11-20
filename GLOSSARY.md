@@ -484,6 +484,10 @@ _Avoid_: Notification, outbox item, message
 Every Delivery, newest first, with what it said and where it went. An email, Slack or Telegram one also shows whether it was really sent, is waiting or failed; the other Connectors only record it.
 _Avoid_: Sent items, log
 
+**Tell**:
+A Workflow step, set by the Workflow's owner, that tells named people and Groups when a Metric of the Workflow reaches a share of its target, reaches or falls below a value, or changes more than a share against the period before. It works like an Alert for a team: once per crossing, only for published or approved values, never for an Import, each person told through their Delivery Preference and only if they can see the Metric at that moment, the rest skipped silently. A Group is expanded to its people, never a channel. A Workflow holds at most three Tell steps, each tells at most 20 people, and each person can stop it for a Workflow ("stop telling me"). Not an Alert, which is a person's own request, nor an Escalation, which acts on a missing value; its messages cannot be answered.
+_Avoid_: Notify, notification
+
 **Alert**:
 A person's own standing request, on one Metric they may see, to be told through their Delivery Preference when its latest value reaches a share of its target, reaches or falls below a value, changes more than a share against the period before, or is still missing after its Due Date. It fires once per crossing, only about values that are published or approved (unless the person includes the rest), never for an Import, and stops silently when the person can no longer see the Metric. It asks nobody for anything and cannot be answered. Not an Unusual Value, which needs Approval, nor an Escalation, which acts on a missing value for the people responsible. A team is told by a Workflow's Tell step, never by Alerts set for others.
 _Avoid_: Notification, subscription, trigger, watch, threshold
