@@ -2,10 +2,7 @@
 // The `ziffr-feed-sql` command (spec 0012, GLOSSARY: Feed): `ziffr-feed-sql run feed.yaml` runs a SQL Feed once, with
 // ZIFFR_URL, ZIFFR_FEED_KEY and the read-only connection string (FEED_SQL_URL, or the variable the file names) from
 // the environment. Exits 1 when a query failed or Ziffr refused a value, so the scheduler notices.
-import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { parseArgs, printReport, runFeed, summary, usage } from "@ziffr/feed-kit";
+import { parseArgs, printReport, runAsCommand, runFeed, summary, usage } from "@ziffr/feed-kit";
 import { connect, DEFAULT_CONNECTION_ENV, readConfig, sqlFeed } from "./index.js";
 
 async function main() {
@@ -23,10 +20,5 @@ async function main() {
   }
 }
 
-// The bin is a symlink (node_modules/.bin), so the real path of what was started is compared.
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href) {
-  main().catch((e) => {
-    console.error((e as Error).message);
-    process.exit(1);
-  });
-}
+// Run only as the command, not when a test imports it.
+runAsCommand(import.meta.url, main);

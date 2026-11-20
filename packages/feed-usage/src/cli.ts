@@ -3,10 +3,7 @@
 // reads the Installation's Usage figures with a Usage Key and sends them with a Feed Key. Off while either key is
 // missing: it says so, sends nothing and exits 0, so a cron line can stay in place. Exits 1 when a figure could not be
 // fetched or Ziffr refused a value, so the scheduler notices.
-import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { parseArgs, printReport, runFeed, summary } from "@ziffr/feed-kit";
+import { parseArgs, printReport, runAsCommand, runFeed, summary } from "@ziffr/feed-kit";
 import { readUsage, settingsFrom, usageFeed } from "./index.js";
 
 const HELP = `Usage: ziffr-feed-usage run [--backfill N] [--dry-run] [--json]
@@ -34,10 +31,5 @@ async function main() {
   printReport(report, args, summary);
 }
 
-// The bin is a symlink (node_modules/.bin), so the real path of what was started is compared.
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href) {
-  main().catch((e) => {
-    console.error((e as Error).message);
-    process.exit(1);
-  });
-}
+// Run only as the command, not when a test imports it.
+runAsCommand(import.meta.url, main);

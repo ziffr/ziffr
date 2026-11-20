@@ -1,5 +1,8 @@
 // The arguments of a Feed command (spec 0012, GLOSSARY: Feed): `run <file>` with its options, shared by `ziffr-feed`
-// and Feeds built on the kit, such as `ziffr-feed-sql`. Pure.
+// and Feeds built on the kit, such as `ziffr-feed-sql`.
+import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 /** What `--help` and a wrong call print, for a command named `name` that runs a `what`. */
 export function usage(name = "ziffr-feed", what = "A module whose default export is defineFeed({ name, metrics })."): string {
@@ -38,4 +41,14 @@ export function printReport(report: import("./index.js").RunReport, args: { dryR
     console.log(summary(report));
   }
   if (report.failed.length || report.counts.refused) process.exitCode = 1;
+}
+
+/** Runs `main` when the module at `moduleUrl` was started as the command (not when a test imports it), and exits with 1
+ * and the error's message when it throws. The bin is a symlink (node_modules/.bin), so the real path is compared. */
+export function runAsCommand(moduleUrl: string, main: () => Promise<void>): void {
+  if (!process.argv[1] || moduleUrl !== pathToFileURL(realpathSync(resolve(process.argv[1]))).href) return;
+  main().catch((e) => {
+    console.error((e as Error).message);
+    process.exit(1);
+  });
 }
