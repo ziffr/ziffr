@@ -9,6 +9,7 @@ import { FROM_APP, type ChangeSource } from "./webhook-events";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, runWorkflows, sendBack, setLock } from "./workflow-engine";
 import { claimAskingDay, claimDay, runClaimedAskingDay, runClaimedDay, skipPassedAskingDay, type RunCounts } from "./scheduled-runs";
 import { cleanAsking } from "./asking-schedule";
+import { DEMO_READ_ONLY } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { ensureBaseline, recordVersion } from "./versions";
@@ -149,6 +150,9 @@ export async function workflowSchedule(actor: Actor): Promise<{ timeZone: string
 export async function runTodayNow(actor: Actor, workflowId?: number): Promise<RunCounts | null> {
   const { day: today } = localTime(new Date(), (await workspaceClock(actor)).timeZone);
   if (workflowId !== undefined) {
+    // Guests run nothing, and the demo is never scheduled.
+    assertCan(actor, "create");
+    if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden(DEMO_READ_ONLY);
     const { data: wf } = await db().from("workflows").select("id, owner_id, config").eq("id", Number(workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
     // Not in this workspace, or not the actor's to run: the same answer, so ids of other workspaces are not told apart.
     if (!wf || (wf.owner_id !== actor.personId && actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden("Only the Workflow's owner, Owners and Admins run it.");

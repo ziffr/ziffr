@@ -19,6 +19,8 @@ create table workflow_asking_runs (
 );
 create index workflow_asking_runs_workspace on workflow_asking_runs (workspace_id);
 alter table workflow_asking_runs enable row level security;
+-- Read-only in the demo, like every table with a workspace_id (demo-read-only.db.test.ts).
+select attach_demo_guard('workflow_asking_runs');
 
 -- Claims a Workflow's day: only a day later than every day it has claimed, so a changed time zone cannot run a day
 -- twice or a past day. Under a lock on the Workflow, so two claims at once cannot both pass. Null when not claimed.

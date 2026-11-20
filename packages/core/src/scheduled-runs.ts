@@ -77,7 +77,8 @@ export async function claimAskingDay(workspaceId: string, workflowId: number, da
 }
 
 /** Runs a claimed day of one Workflow with an Asking Schedule, as one of the workspace's Owners, as the Workspace's run
- * does. The run's row says how it went. */
+ * does. The run's row says how it went. A Workflow whose schedule was just added or removed while the Workspace's run
+ * is still going could be asked about twice in that moment; the next runs never repeat a step (the period's state). */
 export async function runClaimedAskingDay(runId: number, workspaceId: string, workflowId: number, day: string): Promise<RunCounts> {
   try {
     const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").order("created_at").limit(1).maybeSingle();
@@ -111,9 +112,9 @@ export async function runAskingWorkflowsIfDue(workspace: { id: string; time_zone
   for (const f of flows ?? []) {
     const asking = (f.config as WorkflowConfig).asking;
     if (!asking || !isAskingDue(asking, workspace.run_hour, local)) continue;
-    const runId = await claimAskingDay(workspace.id, f.id as number, local.day, "schedule");
-    if (runId === null) continue;
     try {
+      const runId = await claimAskingDay(workspace.id, f.id as number, local.day, "schedule");
+      if (runId === null) continue;
       await runClaimedAskingDay(runId, workspace.id, f.id as number, local.day);
       ran++;
     } catch {
@@ -155,7 +156,8 @@ export async function runDueWorkspaces(now: Date = new Date(), only?: string[]):
     const outcome = await runWorkspaceIfDue(clock, now);
     if (outcome === "ran") ran++;
     else if (outcome === "failed") failed++;
-    const asking = await runAskingWorkflowsIfDue(clock, now);
+    // Whatever goes wrong in one workspace never stops the next.
+    const asking = await runAskingWorkflowsIfDue(clock, now).catch(() => ({ ran: 0, failed: 1 }));
     askingRan += asking.ran;
     askingFailed += asking.failed;
   }

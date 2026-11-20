@@ -168,6 +168,7 @@ describe("running a scheduled Workflow now", () => {
   it("is for the Workflow's owner, Owners and Admins, of a Workflow in the workspace that has a schedule", async () => {
     const { w, ann, id } = await withWorkflow(THURSDAY);
     await expect(runTodayNow(w.actor(ann, "member"), id)).rejects.toBeInstanceOf(Forbidden);
+    await expect(runTodayNow(w.actor(ann, "guest"), id)).rejects.toBeInstanceOf(Forbidden);
     const other = await ws(); const eve = await other.person("owner");
     await expect(runTodayNow(other.actor(eve), id)).rejects.toBeInstanceOf(Forbidden);
     const plain = await withWorkflow();
