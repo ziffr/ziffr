@@ -62,6 +62,18 @@ export function maskAddress(raw: string): string {
   }
 }
 
+/** Less than the page shows, for the Audit Log and for notices that leave as email: the last two labels of the host
+ * and nothing else, since some tools make the whole host (a subdomain) or the start of the path the secret. */
+function maskedHost(raw: string): string {
+  try {
+    const host = new URL(raw).hostname;
+    const labels = host.split(".");
+    return isIP(host.replace(/^\[|\]$/g, "")) || labels.length <= 2 ? host : `*.${labels.slice(-2).join(".")}`;
+  } catch {
+    return "";
+  }
+}
+
 /** A name for people: one line, trimmed, never empty. */
 function cleanName(raw: unknown): string {
   const name = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
@@ -129,7 +141,7 @@ async function find(actor: Actor, id: unknown): Promise<{ row: Record<string, un
   const { data } = await db().from("webhooks").select(COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const [row] = await openRows("webhooks", actor.workspaceId, [data as Record<string, unknown>]);
-  return { row, address: maskAddress(String(row.url ?? "")) };
+  return { row, address: maskedHost(String(row.url ?? "")) };
 }
 
 /** Makes a Webhook (Owners and Admins; not in a Trial Workspace or the demo) and returns its id and its secret, which
@@ -151,7 +163,7 @@ export async function createWebhook(actor: Actor, input: { name: string; url: st
   }
   if (data === "trial") throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
   if (data === "limit") throw new Error(`This Workspace already has ${WEBHOOKS_PER_WORKSPACE} Webhooks, the most it may. Delete one to add another.`);
-  const address = maskAddress(url);
+  const address = maskedHost(url);
   await audit(actor, { kind: "webhook.created", object: { type: "webhook", id, name }, details: { address, events } });
   await tellOwners(actor, "added", name, address);
   return { id, secret };
@@ -179,8 +191,9 @@ export async function updateWebhook(actor: Actor, id: string, change: { name?: s
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (change.name !== undefined) patch.name = cleanName(change.name);
   if (change.events !== undefined) patch.events = cleanEvents(change.events);
-  const { error } = await db().from("webhooks").update(patch).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId);
+  const { data: changed, error } = await db().from("webhooks").update(patch).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
+  if (!changed?.length) throw new Forbidden(NOT_FOUND);
   const name = String(patch.name ?? row.name);
   await audit(actor, { kind: "webhook.changed", object: { type: "webhook", id: String(row.id), name }, details: { address, ...(patch.events ? { events: patch.events as string[] } : {}), ...(patch.name ? { from: String(row.name) } : {}) } });
   await tellOwners(actor, "changed", name, address);
@@ -199,8 +212,10 @@ export async function replaceWebhookSecret(actor: Actor, id: string): Promise<{ 
   const secret = newSecret();
   const sealed = await sealRow("webhooks", actor.workspaceId, { id: String(row.id), secret, secret_previous: old });
   const until = new Date(Date.now() + WEBHOOK_SECRET_OVERLAP_HOURS * 3_600_000).toISOString();
-  const { error } = await db().from("webhooks").update({ secret: sealed.secret, secret_previous: old ? sealed.secret_previous : null, secret_previous_until: old ? until : null, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId);
+  const { data: updated, error } = await db().from("webhooks").update({ secret: sealed.secret, secret_previous: old ? sealed.secret_previous : null, secret_previous_until: old ? until : null, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("secret", String(data?.secret)).select("id");
   if (error) throw new Error("The secret could not be replaced. Try again in a moment.");
+  // Replaced at the same moment by someone else (or deleted): the secret shown here would never sign, so none is shown.
+  if (!updated?.length) throw new Error("The Webhook changed at the same moment. Look at it again and replace the secret once more.");
   await audit(actor, { kind: "webhook.secret_replaced", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
   await tellOwners(actor, "given a new secret", String(row.name), address);
   return { secret };
@@ -213,8 +228,9 @@ export async function setWebhookEnabled(actor: Actor, id: string, enabled: boole
   const { row, address } = await find(actor, id);
   if (!!row.disabled_at === !enabled) return;
   const patch = enabled ? { disabled_at: null, disabled_reason: null } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
-  const { error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId);
+  const { data: changed, error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
+  if (!changed?.length) throw new Forbidden(NOT_FOUND);
   await audit(actor, { kind: enabled ? "webhook.switched_on" : "webhook.switched_off", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
   await tellOwners(actor, enabled ? "switched on" : "switched off", String(row.name), address);
 }

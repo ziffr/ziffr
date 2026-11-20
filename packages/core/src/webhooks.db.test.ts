@@ -93,8 +93,8 @@ describe("who may", () => {
     const a1 = w1.actor(await w1.person("owner")); const a2 = w2.actor(await w2.person("owner"));
     const { id } = await createWebhook(a1, { name: "Mine", url: URL1 });
     const gone = (await refusal(deleteWebhook(a2, "00000000-0000-4000-8000-000000000000")))!.message;
-    for (const call of [updateWebhook(a2, id, { name: "Hijack" }), replaceWebhookSecret(a2, id), setWebhookEnabled(a2, id, false), deleteWebhook(a2, id)]) {
-      const e = await refusal(call);
+    for (const call of [() => updateWebhook(a2, id, { name: "Hijack" }), () => replaceWebhookSecret(a2, id), () => setWebhookEnabled(a2, id, false), () => deleteWebhook(a2, id)]) {
+      const e = await refusal(call());
       expect(e).toBeInstanceOf(Forbidden);
       expect(e!.message).toBe(gone);
     }
@@ -185,6 +185,18 @@ describe("sealing and the secret", () => {
     forgetWorkspaceKey(w.id);
   });
 
+  it("lets only one of two replacements at once win, so no shown secret is one that never signs", async () => {
+    const w = await ws(); const a = w.actor(await w.person("owner"));
+    const { id } = await createWebhook(a, { name: "Race", url: URL1 });
+    const results = await Promise.allSettled([replaceWebhookSecret(a, id), replaceWebhookSecret(a, id)]);
+    const won = results.filter((r): r is PromiseFulfilledResult<{ secret: string }> => r.status === "fulfilled");
+    expect(won.length).toBeGreaterThanOrEqual(1);
+    const { data } = await db().from("webhooks").select("id, secret").eq("id", id).single();
+    const { openRows } = await import("./sealed-columns");
+    const [opened] = await openRows("webhooks", w.id, [data!]);
+    expect(won.map((r) => r.value.secret)).toContain(opened.secret);
+  });
+
   it("replaces the secret, keeps the old one 24 hours, and ends it at the next replacement", async () => {
     const w = await ws(); const a = w.actor(await w.person("owner"));
     const { id, secret } = await createWebhook(a, { name: "Rotate", url: URL1 });
@@ -220,10 +232,15 @@ describe("the Audit Log and the Owners' notice", () => {
     await setWebhookEnabled(a, id, false);
     await setWebhookEnabled(a, id, true);
     await deleteWebhook(a, id);
-    const { data } = await db().from("audit_events").select("kind, object_type, object_id, details, object_name").eq("workspace_id", w.id).eq("object_type", "webhook").order("id");
+    const { data } = await db().from("audit_events").select("id, kind, object_type, object_id, details, object_name").eq("workspace_id", w.id).eq("object_type", "webhook").order("id");
     expect((data ?? []).map((e) => e.kind)).toEqual(["webhook.created", "webhook.changed", "webhook.secret_replaced", "webhook.switched_off", "webhook.switched_on", "webhook.deleted"]);
-    expect(JSON.stringify(data)).not.toContain("s3cret");
-    expect(JSON.stringify(data)).not.toContain("whsec_");
+    const { openRows } = await import("./sealed-columns");
+    const events = await openRows("audit_events", w.id, (data ?? []) as Record<string, unknown>[]);
+    expect(JSON.stringify(events)).not.toContain("s3cret");
+    expect(JSON.stringify(events)).not.toContain("whsec_");
+    // Only the last two labels of the host: some tools make the subdomain or the path the secret.
+    expect(JSON.stringify(events)).not.toContain("webhook/");
+    expect(events[0].details).toMatchObject({ address: "*.example.test" });
     expect((data ?? []).every((e) => e.object_id === id)).toBe(true);
     const { data: notices } = await db().from("deliveries").select("recipient_id, kind").eq("workspace_id", w.id).eq("kind", "notice");
     const recipients = new Set((notices ?? []).map((n) => n.recipient_id));
