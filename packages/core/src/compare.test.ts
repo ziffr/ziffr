@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { attainment, attainmentText, compare, comparisonsFor, resolverFrom, summary, targetFor, targetGap } from "./compare";
-import { health, targetStatus } from "./format";
+import { attainment, attainmentShown, attainmentText, compare, comparisonsFor, gapText, resolverFrom, summary, targetFor, targetGap } from "./compare";
+import { health, targetLabel, targetStatus } from "./format";
+import { DEFAULT_NUMBER_STYLE } from "./number-style";
 import { JANUARY, type YearStart } from "./periods";
 import { metric, months } from "./test/fixtures";
 import { referenceAttainment } from "./test/reference/attainment";
@@ -405,5 +406,37 @@ describe("the target of a period, and whether a value is on it (spec 0022)", () 
   it("has no target, Attainment or difference for a Metric without values", () => {
     const m = metric();
     expect(summary(m, () => undefined, [], { keys: [], yearStart: JANUARY, attainmentMethod: "ratio" })).toMatchObject({ value: undefined, period: undefined, target: null, attainment: null, gap: null, onTarget: null });
+  });
+});
+
+describe("words for being off target (#15)", () => {
+  it("say which way is bad where the polarity tells, and keep Above and Below for a range", () => {
+    expect(targetLabel("lower", "above")).toBe("Too high");
+    expect(targetLabel("higher", "below")).toBe("Too low");
+    expect(targetLabel("target", "above")).toBe("Above target");
+    expect(targetLabel("target", "below")).toBe("Below target");
+    expect(targetLabel("lower", "below")).toBe("Below target");
+    expect(targetLabel("higher", "above")).toBe("Above target");
+    for (const p of ["higher", "lower", "target"] as const) expect(targetLabel(p, "on")).toBe("On target");
+  });
+
+  it("show the gap instead of an Attainment below 0 %, in points for a percentage and in the unit otherwise", () => {
+    expect(attainmentShown(0)).toBe(true);
+    expect(attainmentShown(71)).toBe(true);
+    expect(attainmentShown(-32)).toBe(false);
+    expect(attainmentShown(null)).toBe(false);
+    const pct = { format: "percent", decimals: 1, unit: "%", unit_position: "after" } as const;
+    expect(gapText(pct, -6.5, DEFAULT_NUMBER_STYLE)).toBe("6.5 pts below target");
+    expect(gapText(pct, 2, DEFAULT_NUMBER_STYLE)).toBe("2.0 pts above target");
+    expect(gapText({ format: "currency", decimals: 0, unit: "€", unit_position: "after" }, -8000, DEFAULT_NUMBER_STYLE)).toBe("8,000 € below target");
+    expect(gapText(pct, 0, DEFAULT_NUMBER_STYLE)).toBe("on target");
+  });
+
+  it("make Margin at −6.5 % against at least 13 % read as a gap, by distance", () => {
+    const margin = { ...metric({ polarity: "higher", target_min: 13 }), format: "percent" as const, decimals: 1, unit: "%" };
+    const a = attainment(margin, -6.5, { min: 13, max: null }, "distance");
+    expect(a).toBeLessThan(0);
+    expect(attainmentShown(a)).toBe(false);
+    expect(gapText(margin, targetGap(margin, -6.5, { min: 13, max: null })!, DEFAULT_NUMBER_STYLE)).toBe("19.5 pts below target");
   });
 });
