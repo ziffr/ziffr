@@ -51,13 +51,18 @@ export async function archiveMetric(actor: Actor, metricId: number, origin: { ac
 /** Why a Prompt queued before its Metric was archived did not go out, as the Outbox shows it. */
 export const ARCHIVED_BEFORE_SENT = "The Metric was archived before it went out.";
 
-/** Prompts for the Metric that wait in the queue are not sent any more: they would ask for a value it no longer takes. */
+/** Prompts for the Metric that wait in the queue are not sent any more: they would ask for a value it no longer takes.
+ * Found by their Prompt and also by the Metric's form links (a queued Prompt whose Prompt row is missing has only
+ * its form link), always within the Metric's own workspace. */
 async function holdQueuedPrompts(ws: string, metricId: number): Promise<void> {
-  const open = await allRows<{ id: number }>((from, to) => db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).is("answered_at", null).order("id").range(from, to));
-  for (let i = 0; i < open.length; i += 500) {
-    await db().from("deliveries").update({ mail_state: "failed", last_error: ARCHIVED_BEFORE_SENT })
-      .eq("workspace_id", ws).eq("mail_state", "queued").in("prompt_id", open.slice(i, i + 500).map((p) => p.id));
-  }
+  const [open, tokens] = await Promise.all([
+    allRows<{ id: number }>((from, to) => db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).is("answered_at", null).order("id").range(from, to)),
+    allRows<{ id: number }>((from, to) => db().from("tokens").select("id").eq("workspace_id", ws).eq("metric_id", metricId).order("id").range(from, to)),
+  ]);
+  const hold = (column: "prompt_id" | "form_token_id", ids: number[]) => db().from("deliveries").update({ mail_state: "failed", last_error: ARCHIVED_BEFORE_SENT })
+    .eq("workspace_id", ws).eq("kind", "prompt").eq("mail_state", "queued").in(column, ids);
+  for (let i = 0; i < open.length; i += 500) await hold("prompt_id", open.slice(i, i + 500).map((p) => p.id));
+  for (let i = 0; i < tokens.length; i += 500) await hold("form_token_id", tokens.slice(i, i + 500).map((t) => t.id));
 }
 
 /** Thrown when an Archived Metric cannot be brought back; its message is for people. */
