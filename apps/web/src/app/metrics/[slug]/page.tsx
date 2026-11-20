@@ -16,6 +16,8 @@ import { EditDetails } from "./edit-details";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
+import { pastedValueIds } from "@ziffr/core/paste-values";
+import { ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
@@ -128,7 +130,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const pSeries = projections[metric.id] ?? [];
   const { bdPeriods, bdPeriod, bdRows, bdSum, bdTotal, bdAdds } = breakdownShown(bdByPeriod, sp.bp, all);
   // Tables on this page read like the chart: oldest on top, newest at the bottom.
-  const obs = (await getLastValues(metric.id, 12)).reverse();
+  // Which of them were pasted, for "pasted by" in the History tab (spec 0026).
+  const obs = (await getLastValues(metric.id, 12)).reverse(), pasted = new Set(await pastedValueIds(actor, metric.id, obs.map((o) => o.id)));
   // Feeds are Submitters but nobody's colleague: the names of only those this page shows, as its Submitters or as
   // the senders of its values, so both say where a value came from.
   const feeds = await feedNames(actor, [...tokens.map((t) => t.submitter_id), ...obs.map((o) => o.submitter_id ?? "")]);
@@ -347,7 +350,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                         <td className="py-2 text-right">
                           <span className="fig">{formatValue(metric, o.value, numberStyle)}</span>
                           {o.original_value !== null && <span className="block text-xs text-muted-foreground"><span className="line-through">{formatValue(metric, o.original_value, numberStyle)}</span> corrected</span>}
-                          {o.imported && <span className="block text-xs text-muted-foreground" title="A Feed's value for a past period, recorded without the Unusual Value check">imported</span>}
+                          <ValueMarks pastedBy={pasted.has(o.id) ? (peopleById[o.submitter_id ?? ""]?.name ?? "someone") : null} imported={Boolean(o.imported)} />
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
                         <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>

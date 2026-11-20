@@ -121,6 +121,8 @@ export type IntakeEntry = {
   token_code: string | null;
   outcome: string;
   detail: string;
+  /** "paste" for a cell of a paste, with "import" beside it when it was recorded as history (spec 0026). */
+  marks?: string[];
 };
 
 /** Where a question or task stands. */

@@ -313,6 +313,10 @@ The two **Run now** buttons sit in a dashed **Demo controls** box, and anyone ma
 
 **Workspace → Sources** shows where values come from. Everyone sees it.
 
+### From the web form
+
+When you have sent values on the web form, **From the web form** lists the latest 20, newest first: when, the Metric, what was sent, and what happened, in the same words the form or the paste answered. A value from a [paste](10-metrics.md#paste-values-from-a-spreadsheet) is marked "pasted", or "pasted as history" when it was recorded as history. You see only your own, except in the demo.
+
 ### Form links
 
 Everyone who sends in a Metric has a personal form link for it. The link itself is the permission, so nobody needs to sign in. You see your own links here, one per Metric that takes the web form, and opening one shows the form. If you have none, the page says a Metric gets them when its owner picks the web form as a Source and names who submits.

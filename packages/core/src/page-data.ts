@@ -57,7 +57,7 @@ export async function sourcesView(actor: Actor) {
   // A Token code opens someone's submission form: only the person's own are read (in the demo, all of the demo).
   if (!inDemo(actor)) tokens = tokens.eq("submitter_id", actor.personId);
   const prompts = db().from("prompts").select("id, metric_id, submitter_id, source, text, period_start, sent_at, answered_at").eq("workspace_id", ws);
-  const intake = db().from("intake_log").select("id, at, source, sender, sender_id, raw, metric_id, token_code, outcome, detail").eq("workspace_id", ws);
+  const intake = db().from("intake_log").select("id, at, source, sender, sender_id, raw, metric_id, token_code, outcome, detail, marks").eq("workspace_id", ws);
   const [{ data: asked }, { data: log }, { data: own }] = await Promise.all([
     // Who was asked what, with any note, is the person's own outside the demo, as on the Connectors page.
     (inDemo(actor) ? prompts : prompts.eq("submitter_id", actor.personId)).order("sent_at", { ascending: false }).order("id", { ascending: false }).limit(SOURCES_SHOWN),
