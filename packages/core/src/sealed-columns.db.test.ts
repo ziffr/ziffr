@@ -113,6 +113,23 @@ describe("Questions, Tasks and their Threads", () => {
   });
 });
 
+describe("writing sealed rows", () => {
+  it("refuses a row whose Workspace the database sets to another one, and keeps nothing of it", async () => {
+    const w = await setup();
+    const other = await setup();
+    // The Action belongs to w's Metric, so the database makes it w's, whatever the caller says.
+    await expect(insertSealed("actions", other.id, [{ question: "Misfiled", kind: "question", metric_id: w.m.id, period_start: "2026-10-01", asker_id: w.owner, assignee_id: w.ana }])).rejects.toThrow();
+    const { count } = await db().from("actions").select("id", { count: "exact", head: true }).eq("metric_id", w.m.id);
+    expect(count).toBe(0);
+  });
+
+  it("answers the columns asked for, opened, also when none of them is called id", async () => {
+    const w = await setup();
+    const [row] = await insertSealed("actions", w.id, [{ question: "Asked", kind: "question", metric_id: w.m.id, period_start: "2026-10-01", asker_id: w.owner, assignee_id: w.ana }], "asker_id, question");
+    expect(row).toMatchObject({ asker_id: w.owner, question: "Asked" });
+  });
+});
+
 describe("reserving row ids", () => {
   it("is only for tables with sealed columns, and closed to the public roles", async () => {
     expect((await db().rpc("reserve_row_ids", { p_table: "profiles", p_count: 1 })).error).not.toBeNull();

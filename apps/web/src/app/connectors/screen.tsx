@@ -23,7 +23,7 @@ export type DeliveryRow = {
   subject: string; body: string; external_ref: string | null; status: "sent" | "answered" | "closed"; created_at: string;
   /** Whether an email really went out (spec 0004); "outbox" is recorded only, as for the simulated Connectors. */
   mail_state: "outbox" | "queued" | "sending" | "sent" | "failed"; last_error: string | null;
-  actions: { kind: "question" | "task"; status: string; question: string } | null;
+  actions: { kind: "question" | "task"; status: string } | null;
   prompts: { source: string; answered_at: string | null; submitter_id: string; metric_id: number } | null;
 };
 type TokenRow = { code: string; metric_id: number; submitter_id: string };

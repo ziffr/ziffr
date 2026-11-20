@@ -42,9 +42,18 @@ export async function insertSealed(table: SealedTable, workspaceId: string, rows
   const cipher = await workspaceCipher(workspaceId);
   const ids = await reserveIds(table, rows.length);
   const prepared = rows.map((r, i) => sealed(cipher, table, { ...r, id: ids[i], workspace_id: workspaceId }));
-  const { data, error } = await db().from(table).insert(prepared).select(select.includes("id") ? select : `id, ${select}`);
+  const columns = select.split(",").map((c) => c.trim());
+  const wanted = ["id", "workspace_id", ...columns.filter((c) => c !== "id" && c !== "workspace_id")].join(", ");
+  const { data, error } = await db().from(table).insert(prepared).select(wanted);
   if (error || !data) throw new Error("It could not be saved.");
-  const byId = new Map((data as unknown as Row[]).map((r) => [Number(r.id), r]));
+  // The database sets a row's Workspace from its parent (workspace_from_parent): one that differs from the Workspace
+  // it was sealed for would never open, so the caller's mistake is refused here rather than stored.
+  const rowsBack = data as unknown as Row[];
+  if (rowsBack.some((r) => String(r.workspace_id).toLowerCase() !== workspaceId.toLowerCase())) {
+    await db().from(table).delete().in("id", rowsBack.map((r) => r.id as number));
+    throw new Error("It could not be saved.");
+  }
+  const byId = new Map(rowsBack.map((r) => [Number(r.id), r]));
   return ids.map((id) => openRow(cipher, table, byId.get(id) ?? { id }));
 }
 

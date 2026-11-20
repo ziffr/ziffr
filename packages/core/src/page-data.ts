@@ -32,7 +32,7 @@ export async function connectorsView(actor: Actor) {
     db().from("delivery_preferences").select("user_id, kind, connector").eq("workspace_id", ws),
     // Named columns only: a Delivery's reply token answers as its recipient, and its Message-ID is for the provider's
     // logs; neither may reach a browser.
-    db().from("deliveries").select("id, connector, recipient_id, sender_id, kind, action_id, prompt_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status, question), prompts(source, answered_at, submitter_id, metric_id)").eq("workspace_id", ws).order("id", { ascending: false }).limit(80),
+    db().from("deliveries").select("id, connector, recipient_id, sender_id, kind, action_id, prompt_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, submitter_id, metric_id)").eq("workspace_id", ws).order("id", { ascending: false }).limit(80),
     db().from("tokens").select("code, metric_id, submitter_id").eq("workspace_id", ws),
     readableActions(ws, actor.personId),
   ]);
