@@ -333,7 +333,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
-              <h2 className="mb-3 font-medium">Latest values</h2>
+              {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
+              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{metric.sources.includes("web_form") && tokens.some((t) => t.submitter_id === actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">

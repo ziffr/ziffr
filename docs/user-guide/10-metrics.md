@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
+<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
 # The Metrics screens
 
 Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the top bar.
@@ -30,7 +30,71 @@ The list shows every Metric you may see, one row each.
 | **Target** | Its **Target Range**, such as "≥ 80,000 €", "≤ 5 %", "40 – 60" or "No target". |
 | **Owner** | The **Metric Owner**, on wide screens. |
 
-Click a row to open the Metric's page. **New metric** (top right) starts a new one. With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
+Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
+
+## Paste values from a spreadsheet
+
+**Paste values** in the Metrics list, or **Paste history** on a Metric's History tab, opens a page for values you already keep in a spreadsheet. Copy the cells in Excel, Google Sheets, LibreOffice or Numbers and press Ctrl+V (⌘V on a Mac) anywhere on the page, or paste them into the text box. Ziffr reads only the cells' text: no add-on and no connection to Microsoft or Google is needed.
+
+Nothing is recorded until you confirm. Ziffr first shows what each value would do.
+
+### The layouts
+
+Ziffr recognises three layouts and says above the preview which one it read, such as "Metrics as rows, periods as columns: 2 Metrics × 3 periods". When a paste fits two layouts, a link offers the other reading.
+
+- **Metrics as rows, periods as columns**, or the other way round. The first cell may be empty:
+
+  |  | Aug 2026 | Sep 2026 | Oct 2026 |
+  | --- | --- | --- | --- |
+  | Revenue | 1,200 | 1,350 | 1,410 |
+  | Signups | 12 | 14 | 15 |
+
+- **One value per row**, with its Metric, period and value in any order of columns. A header row such as "Metric, Period, Value" is skipped. A column between them that is empty everywhere is fine:
+
+  | Metric | Period | Value |
+  | --- | --- | --- |
+  | Revenue | 2026-09 | 1,350 |
+  | Signups | 2026-09 | 14 |
+
+- **Two columns, period and value**, for one Metric. **Paste history** opens the page with its Metric chosen; on the other page, pick it under **Two columns are for**.
+
+A cell names a Metric by its name or its slug, without regard to capitals or extra spaces. When two Metrics you see share a name, the preview asks you to write the slug of the one you mean.
+
+### How periods and numbers are read
+
+- **Periods** are read the way Ziffr reads an answer to a Prompt: "2026-10", "Oct-26", "October 2026", "Q3 2026", "KW 46", "2026-W46", or a date such as "2026-10-15", "15.10.2026" or "10/15/2026" in the order your Workspace writes dates. A date inside a period counts as that period, so "2026-10-15" is October for a monthly Metric. A period of another length than the Metric's (a month for a weekly Metric) is refused, and so is a period that has not begun yet. A spreadsheet's date number such as "46296" is never guessed.
+- **Numbers** are read in the Workspace's **Number Style**, as everywhere else. A currency sign or code is taken off when it is the Metric's unit ("€1,200" for a Metric in €), and a percent sign for a percent Metric. A "%" on a Metric whose unit is not a percent is refused, never divided by 100. "(1,200)" in brackets is −1,200. An empty cell is skipped. A spreadsheet error such as "#N/A" or "#DIV/0!" is refused by name.
+
+### The preview
+
+The preview lists every value, grouped by Metric: its cell (such as C7), the period, the value as Ziffr will store it, the outcome, and why. Above it, a summary says how many values would be recorded and how many would not, such as "118 to record (4 of them unusual), 2 locked, 6 refused". The summary is also read out to screen readers.
+
+| Outcome | What it means |
+| --- | --- |
+| **recorded** | The value is recorded as it stands. |
+| **replaces** | The Submission Rule overwrites the value there; the value there now is shown. |
+| **adds up**, **kept beside** | The Submission Rule adds it to the value there, or keeps both. |
+| **unusual** | It is recorded, and the Metric's Workflow asks for **Approval**, with the reasons. **needs approval** means the Workflow approves every value. |
+| **locked** | The period is Locked, so the value goes to the Metric Owner as a proposed Correction. |
+| **duplicate** | The period has a value and the rule rejects a second one, or the paste holds two values for the same Metric and period. Both are refused, never one picked. |
+| **refused** | With the reason, such as "not a Metric you submit for", a Derived Metric, a Metric that does not take values from the web form, a period in the future, or "not a number". A Metric you cannot see is named in the same words whether it exists or not. |
+| **as history** | Recorded as history (below). |
+
+You record values only for Metrics you submit for, through the same rules as the personal form link: the Submission Rule, Locks, the Unusual Value check and Approvals. Pasting is filling in the web form, so a Metric that has turned the web form off takes no pasted values. While you stand in for someone who is Away, you may paste for their Metrics too.
+
+Untick a value to leave it out, or the box beside a Metric's name to leave out all of its values. A line under the summary says when values would ask someone for Approval, such as "14 values would ask Ana for Approval".
+
+### Record as history
+
+The Metric Owner, and an Owner or Admin who submits for the Metric, see **Record as history** for that Metric: "No Unusual Value check, marked as imported". It applies only to past periods that have no value yet. Those values become an **Import**: they skip the Unusual Value check and its Approvals and are marked as imported in the Metric's history. A period that already has a value, the current period, and a Locked period are handled as usual. Nobody else gets the choice, and asking for it any other way changes nothing.
+
+### Recording
+
+**Record … values** records them one after the other, per Metric in period order, so each month is checked against the one before as the paste left it. If something changed since the preview (a colleague recorded a value, a period was Locked), a value gets the outcome it gets now, marked "changed since the preview". The result lists what became of each value, with a link to each Metric. **Paste more** starts again.
+
+### Limits
+
+A paste holds at most 256 KB of text and 2,000 values, and you may paste at most 10,000 values in 24 hours, across all your Workspaces. In the demo, where every visitor acts as the same made-up people, the day's limit is 500. A paste over a limit is refused whole, never cut. The result says how many values you may still paste today.
 
 ## New metric
 
@@ -199,7 +263,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
 | **Submitted by** | The person, Contact or Feed who sent it. |
 
-A Derived Metric has no values of its own, so it has no such list.
+A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
 **Questions and tasks** lists every **Action** on this Metric that you may read, with its status (**Open**, **Answered**, **Done** for a finished task, or **Closed**), its period and its **Assignee**. Click one to open its Thread. With none yet, the tab reminds you to click a point on the chart.
 

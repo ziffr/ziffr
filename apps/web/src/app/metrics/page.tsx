@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ClipboardPaste, Plus } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
@@ -19,6 +19,9 @@ export default async function MetricsPage() {
   return (
     <>
       <PageHeader title="Metrics" sub="Each metric is described once. Its values then arrive by chat, mail, a form link or the API.">
+        <Link href="/paste-values" className={buttonVariants({ variant: "outline" })}>
+          <ClipboardPaste aria-hidden /> Paste values
+        </Link>
         <Link href="/metrics/new" className={buttonVariants()}>
           <Plus aria-hidden /> New metric
         </Link>
