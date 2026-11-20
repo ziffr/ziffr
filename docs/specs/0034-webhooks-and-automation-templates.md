@@ -1,6 +1,6 @@
 # 0034 Webhooks and Automation Templates: tasks and questions reach the systems people already work in
 
-**Status:** draft. **Ticket:** #392 (the owner's wish, 2026-11-20); the tracking issue and the sub-issues labelled `spec:0034` are made once the owner has read this spec.
+**Status:** in progress. **Ticket:** #392 (the owner's wish, 2026-11-20); the tracking issue is #392 and its sub-issues are labelled `spec:0034`.
 
 ## Problem Statement
 
@@ -46,13 +46,13 @@ Slack's Connector, which reaches a person by direct message, stays native. Jira,
 
 ### Who, how many, and the address
 
-- **Who:** Owners and Admins, on a new page **Settings, Webhooks** (the Workspace settings chapter). Not Members, Guests, Contacts, Feeds, assistants or programs: v1 has **no API and no MCP tool to create or change a Webhook** (open question 3). Changing where data leaves is exactly what a prompt-injected assistant would be asked to do, and the page is enough.
+- **Who:** Owners and Admins, on a new page **Settings, Webhooks** (the Workspace settings chapter). Not Members, Guests, Contacts, Feeds, assistants or programs: v1 has **no API and no MCP tool to create or change a Webhook**. Changing where data leaves is exactly what a prompt-injected assistant would be asked to do, and the page is enough.
 - **Limits** (constants in `webhook-limits.ts`, to be tuned): 5 Webhooks per Workspace; a message of at most 16 KB; 10,000 sends per Workspace per day (past that, sends wait for tomorrow and the page says so); the log is kept 14 days.
 - **The address:** `https` only; no user name or password in it; no fragment; at most 2,000 characters; the host a name or a public IP; any port. It is **sealed** with the Workspace Key (ADR 0012), since automation tools put a secret in the path (n8n, Zapier and Make addresses do), and shown masked afterwards (host and the first characters of the path). There is no import of Webhooks from a file.
 - **SSRF, as the Marketplace connection has it** (`packages/core/src/marketplace.ts`, spec 0030): the shared piece, `pinnedRequest` with `mailHostResolver`, `privateAddress` and `privateMailHost`, moves to `outbound-request.ts` and both use it. The name is resolved, every address must be public, the connection goes only to an address that was checked (so a name that changes its answer between check and use, DNS rebinding, gets nowhere), TLS checks the name, no redirect is followed, the answer is read to at most 64 KB and then thrown away (never stored, never shown), and the whole send ends within 10 seconds. The check runs when the Webhook is saved **and at every send**. An address written as an IP, `localhost`, link-local and the cloud metadata addresses, IPv6 forms that map to any of those, and any name that resolves to one, are refused.
-- **A self-hoster's own n8n** on a private network is a real need: the operator, not a Workspace Admin, may name exact hosts in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` (comma-separated host names, never ranges). Only those pass the private-address check; `http` stays refused. The Installation Settings page lists them read-only (open question 2).
+- **A self-hoster's own n8n** on a private network is a real need: the operator, not a Workspace Admin, may name exact hosts in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` (comma-separated host names, never ranges). Only those pass the private-address check; `http` stays refused. The Installation Settings page lists them read-only.
 - **Test:** a **Send test event** button sends `ping` (id, time, the Webhook's name, nothing of the Workspace) at most once a minute, and the log shows what came back.
-- **Where not:** the demo has no Webhooks (it is read-only, spec 0029); Trial Workspaces cannot add one (a free trial that can make the server call any address is an abuse path); hosted Workspaces on any paid Size can (open question 7).
+- **Where not:** the demo has no Webhooks (it is read-only, spec 0029); Trial Workspaces cannot add one (a free trial that can make the server call any address is an abuse path); every other Workspace can, on Free and on every paid Size (every Size includes every feature).
 
 ### Events
 
@@ -100,7 +100,7 @@ Each Webhook chooses its events; none by default.
 - **`source`** says where the change came from, in every Action event: `{ "type": "app" | "api" | "mcp" | "email" | "slack" | "telegram" | "web_form" | "ticket_system" | "workflow" | "system" | "webhook", "webhook_id": "…" }` (`webhook_id` only for `webhook`, and then the Webhook's own id, which is not a secret). Nothing about the person who made it.
 - **`reason` on `action.done`:** `done` (a Task carried out), `answered` (a Question answered and closed), `closed` (closed by the asker or an Owner without an answer), `metric_archived`, `metric_deleted`, `assignee_left` (the person left the Workspace or became a Contact) and `workspace_closing` (the Trial ended or the Workspace is being deleted). The system closes in the last four fire the event once per Action, through the same function with `source: system`, so no external task lingers. They are sent redacted where the Metric is not Everyone's, as any Action event is. If an Action is simply removed with its Workspace, Workspace deletion destroys the Webhook rows first and no event is promised.
 - **The first change wins.** An Action closed in Slack and then answered in the app, or done in To Do and then answered in Slack, keeps the first change; the later one is refused with a clear word in the app and Slack as today, and from a Webhook answers `200 { "changed": false, "status": "done" }`: the same state is not an error and an inbound call may be repeated safely. Nothing is merged and no second event is sent.
-- **Reopening:** a reopen in the app or API reopens in Ziffr as today and fires `action.updated` with `status: open`, so a recipe can reopen the external task. A reopen **from a Webhook** (`reopen`, below) reopens a **Task** in Ziffr, never a Question (an answer cannot be un-given from a list), and never one that the system closed (`metric_archived`, `metric_deleted`, `assignee_left`, `workspace_closing`: there is no one to do it). It fires `action.updated` to every Webhook including the one it came from, with `source: webhook`. (Open question 10.)
+- **Reopening:** a reopen in the app or API reopens in Ziffr as today and fires `action.updated` with `status: open`, so a recipe can reopen the external task. A reopen **from a Webhook** (`reopen`, below) reopens a **Task** in Ziffr, never a Question (an answer cannot be un-given from a list), and never one that the system closed (`metric_archived`, `metric_deleted`, `assignee_left`, `workspace_closing`: there is no one to do it). It fires `action.updated` to every Webhook including the one it came from, with `source: webhook`.
 - **No echo loops:** a change that came in from Webhook Z is still sent to **every** Webhook, Z included, marked with `source.type = "webhook"` and `source.webhook_id = Z`. The recipe for Z ignores events whose `source.webhook_id` is its own Webhook (and, being idempotent, would do nothing harmful if it did not: closing a closed external task is a no-op, and its `done` call back answers `changed: false`). Other Webhooks act on it normally: a task done in To Do closes the one in Planner. The guide says: **a recipe must treat every event as possibly repeated and out of order, and must check the external task's state before it changes it.**
 - **The same Task, several channels and systems:** a Task that goes out by Slack and also reaches To Do through a Webhook is one Action; an answer in Slack fires `action.done` (`source: slack`, `reason: done` or `answered`) to the To Do Webhook, whose recipe closes the external task through the `external_ids` the event carries.
 
@@ -109,7 +109,7 @@ Each Webhook chooses its events; none by default.
 A Webhook is not a person, so there is no "what this person may see". The rule is that **a Webhook sees only what every Member sees** (the built-in Everyone Group, `withEveryone` in `visibility.ts`; Guests are not in it):
 
 - A **value event** goes out only for a Metric that Everyone sees. Otherwise nothing is sent, and nothing in the log hints at it.
-- An **Action event** goes out in full when its Metric is one Everyone sees **and** its Thread is not limited to a Group (`read_group_id` is empty). Otherwise it goes out **redacted**: `ref`, `kind`, `status`, `due`, `assignee`, `updated_at` and `link` only, with `"redacted": true`, so the assignee's own list still gets "A Ziffr task for you, due Friday, open it here" and the link's sign-in applies. That keeps the main use (a task in someone's list) without the words of a private Thread (open question 1; the alternative is sending nothing).
+- An **Action event** goes out in full when its Metric is one Everyone sees **and** its Thread is not limited to a Group (`read_group_id` is empty). Otherwise it goes out **redacted**: `ref`, `kind`, `status`, `due`, `assignee`, `updated_at` and `link` only, with `"redacted": true`, so the assignee's own list still gets "A Ziffr task for you, due Friday, open it here" and the link's sign-in applies. That keeps the main use (a task in someone's list) without the words of a private Thread.
 - **Checked at the moment of sending** against the current facts, not when the event happened, so a Metric made private between event and send is redacted or skipped. It is the rule of an Alert's message too.
 - **The link** goes to the app, where the sign-in applies. It is never a View Link.
 - `visibility.ts` gets one pure function, `webhookMayHear(ws, event, facts)`, so the rule has one home and a table test.
@@ -134,7 +134,7 @@ A Webhook is not a person, so there is no "what this person may see". The rule i
 
 ### Status back into Ziffr
 
-**Decision:** one endpoint, authenticated by the **Webhook's own secret** with the same signature as outgoing messages, not by an Access Key. Reason: an Access Key acts for a person within that person's rights, and whoever ticks off Ana's task in Microsoft To Do is Ana, not the Owner who made the key. A Webhook request instead acts as **the Webhook**, a Workspace-owned Actor like a Feed's, with a small fixed set of operations, only on Actions that were sent to it, and reading nothing (open question 5).
+**Decision:** one endpoint, authenticated by the **Webhook's own secret** with the same signature as outgoing messages, not by an Access Key. Reason: an Access Key acts for a person within that person's rights, and whoever ticks off Ana's task in Microsoft To Do is Ana, not the Owner who made the key. A Webhook request instead acts as **the Webhook**, a Workspace-owned Actor like a Feed's, with a small fixed set of operations, only on Actions that were sent to it, and reading nothing.
 
 - **Route:** `POST /api/webhooks/{webhook id}/in`, body at most 16 KB, signed as above (timestamp within five minutes, constant-time compare; the request's delivery id is claimed so a replay changes nothing, the discipline of Slack's `event_id` in spec 0007). `404` for anything unknown, unsigned or off, with no hint whether the id exists.
 - **Operations** (`op`):
@@ -162,7 +162,7 @@ A Webhook is not a person, so there is no "what this person may see". The rule i
 
 - **The Slack Connector stays native** (spec 0007). It reaches **a person** by direct message, matches them by their proven address, takes a number as the answer to a Prompt and has buttons for Approval. None of that fits a Webhook, which does not know who is in the channel. The Slack template is for **a channel**: Tasks given, Tasks done, team Alerts; a reply in a message's thread comes back as a Thread message and never as a value.
 - **Task lists go through Webhooks** (Microsoft To Do, Planner, Google Tasks, Asana, Todoist, and anything with an API and an automation tool): the need is a task and its done state, which the events, `link`, `done`, `reply` and `answer` cover.
-- **#7 (a real Jira, Linear or GitHub Issues Connector)** stays native only if the work needs what Webhooks do not give: matching and sign-in per person, comment-by-comment threads in both directions, statuses beyond done (in progress, won't fix) and attachments. That is the bar. Recommendation: keep #7 open and do not start it until the templates have been used for a while, then ask which system's users still ask for more; the simulated ticket-system Connector stays the prototype. The spec for #7 would then say what a Connector adds over a Webhook, and this spec makes that comparison possible (open question 9).
+- **#7 (a real Jira, Linear or GitHub Issues Connector)** stays native only if the work needs what Webhooks do not give: matching and sign-in per person, comment-by-comment threads in both directions, statuses beyond done (in progress, won't fix) and attachments. That is the bar. Recommendation: keep #7 open and do not start it until the templates have been used for a while, then ask which system's users still ask for more; the simulated ticket-system Connector stays the prototype. The spec for #7 would then say what a Connector adds over a Webhook, and this spec makes that comparison possible.
 - **The external id is Webhook-scoped,** so the same task can be in To Do through one Webhook and in Slack through another without a clash.
 
 ### Sealed, visible, audited
@@ -199,28 +199,28 @@ A Webhook is not a person, so there is no "what this person may see". The rule i
 - Streaming, batching or ordering guarantees; at least once is the promise.
 - Paid features and `ee/`.
 
-## Open questions
+## Decisions (2026-11-20, by the owner)
 
-For the owner. Each has a recommendation; the tickets below that depend on an answer say so.
+The owner accepted every recommendation of the draft, with one change to the seventh. They are written into the sections above and are:
 
-1. **Actions the whole Workspace may not see: redact or send nothing?** A Task on a private Metric, or with a Thread limited to a Group, is still a Task in someone's list. _Recommendation:_ send it redacted (ref, status, due date, assignee, link), so the assignee's list still shows it. Alternative: nothing for those, which is safest and leaves people without their private tasks in To Do. It is the product's main rule, so it is the owner's call.
-2. **Self-hosters' private n8n.** _Recommendation:_ an operator-only list of exact hosts (`ZIFFR_WEBHOOK_PRIVATE_HOSTS`), nothing a Workspace Admin can turn on. Alternative: no private addresses at all, so a self-hosted n8n on the same network is reachable only through a public name.
-3. **No API or MCP for Webhooks in v1.** _Recommendation:_ none, the page only; a read-only list for Owners' keys can follow. The cost: scripted setups need clicking.
-4. **`alert.fired` only through the Tell step (spec 0032).** _Recommendation:_ yes, so that no personal Alert is ever sent to an address another person controls; the event arrives when Tell does.
-5. **Status back by the Webhook's secret, acting as the assignee.** _Recommendation:_ yes, limited to Actions sent to it and to four operations. Alternative: an Access Key scope "Update Actions", which acts as one person and so fits one person's list but not a team's.
-6. **Name:** **Automation Template** and `docs/automations/` instead of "Recipe" and `docs/recipes/`. _Recommendation:_ as written, because Analysis Recipe already holds the word.
-7. **Trials and the free plan:** no Webhooks in Trial Workspaces, allowed on every paid Size. _Recommendation:_ as written; revisit if the demo story needs them.
-8. **Planner:** To Do and Google Tasks are "my list"; Planner needs a plan and bucket chosen per Webhook. _Recommendation:_ To Do first, Planner as its own template after Google Tasks.
-9. **#7:** keep it open and wait, or close it in favour of this spec. _Recommendation:_ keep it open, unstarted.
-10. **Reopen from outside.** A person un-ticks a Task in To Do: _Recommendation:_ it reopens in Ziffr (Tasks only, never system-closed ones), as an event to all Webhooks. Alternative: the external tool is only ever a mirror and a reopen there is ignored, which is simpler and surprises people less in Ziffr but lets the two drift.
+1. Actions the whole Workspace may not see go out redacted (ref, status, due date, assignee, link), not withheld.
+2. A self-hoster's private n8n is reached only through the operator's list of exact hosts, `ZIFFR_WEBHOOK_PRIVATE_HOSTS`; a Workspace Admin cannot turn it on.
+3. No API or MCP to manage Webhooks in the first version; the page only.
+4. `alert.fired` is sent only through a Workflow's Tell step, never for personal Alerts.
+5. Status comes back by the Webhook's own secret, acting as the assignee, limited to Actions sent to it.
+6. The words are Automation Template and `docs/automations/`, not "Recipe".
+7. Every Size includes every feature (spec 0029, ADR 0013), so Webhooks are allowed on Free (the default limit) and on every paid Size. Only Trial Workspaces and the demo have none.
+8. Microsoft To Do and Google Tasks come first; Planner is its own template after Google Tasks.
+9. #7 stays open and is not started until the templates have been used for a while.
+10. A reopen from outside reopens a Task in Ziffr (Tasks only, never one the system closed), as an event to every Webhook.
 
 ## Tickets
 
 1. Shared transport (the glossary entries are made with this spec): `outbound-request.ts` moved out of `marketplace.ts` with the private-address rules and the operator list, SSRF tests, the threat-model entry. Not blocked.
 2. Webhooks in the core: the tables (sealed, spec 0028), create, change, replace secret, switch on and off, delete (Actor first, Owner or Admin, limits), the Audit Log, notices to Owners, db tests; no sending yet. Blocked by 1 and spec 0028's sealing.
-3. Events and sending: `changeActionState` as the one writer of an Action's state (all the channels, the app, API, MCP and Workflow steps moved onto it, with the `source` and `reason` and the grep-test), the pure `webhookMayHear` and the message builders with their schema (`docs/reference/webhook-events.schema.json`, generated), the send rows written by the core's changes, signing, the sending path in the deliveries job, retries, auto-disable with the Owners' email, quiet loops. Blocked by 2 and open question 1.
+3. Events and sending: `changeActionState` as the one writer of an Action's state (all the channels, the app, API, MCP and Workflow steps moved onto it, with the `source` and `reason` and the grep-test), the pure `webhookMayHear` and the message builders with their schema (`docs/reference/webhook-events.schema.json`, generated), the send rows written by the core's changes, signing, the sending path in the deliveries job, retries, auto-disable with the Owners' email, quiet loops. Blocked by 2.
 4. Settings, Webhooks page: add, events, secret shown once, masked address, Send test event, the log with Send again, switch off, replace secret; user guide chapter 16, the clear-text note, a release note. Blocked by 3.
-5. Status back: `POST /api/webhooks/{id}/in`, `WebhookActor`, `applyWebhookAction` with `link` (several external ids per Action, returned in later events), `done`, `reply`, `answer`, `reopen`, idempotent answers, the link shown on the Action, replay claim, rate limit, tests. Blocked by 3 and open questions 5 and 10.
+5. Status back: `POST /api/webhooks/{id}/in`, `WebhookActor`, `applyWebhookAction` with `link` (several external ids per Action, returned in later events), `done`, `reply`, `answer`, `reopen`, idempotent answers, the link shown on the Action, replay claim, rate limit, tests. Blocked by 3.
 6. Guide and fixtures: `docs/guides/webhooks.md`, `docs/automations/fixtures/` produced by the builders, the contract test. Blocked by 3 and 5.
 7. Microsoft To Do templates (both directions), their tests (shape and fixture run), README. Blocked by 6.
 8. Google Tasks templates (both directions) in the same way. Blocked by 6.
