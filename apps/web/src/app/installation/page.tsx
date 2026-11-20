@@ -4,6 +4,7 @@
 import { notFound, redirect } from "next/navigation";
 import { installationAdmins, installationClaimed, installationEvents, isInstallationAdmin, prepareSetupCode } from "@ziffr/core/installation-admins";
 import { installationSettingsView } from "@ziffr/core/installation-settings";
+import { inboundMx, replyTestStatus } from "@ziffr/core/installation-replies";
 import { workspaceLimitRows } from "@ziffr/core/workspace-limits-admin";
 import { PageHeader } from "@/components/page-header";
 import { installationActor } from "@/lib/installation";
@@ -14,11 +15,11 @@ export default async function InstallationPage() {
   const actor = await installationActor();
   if (!actor) redirect("/login?next=/installation");
   if (await isInstallationAdmin(actor)) {
-    const [view, admins, events, limits] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor)]);
+    const [view, admins, events, limits, mx, replyTest] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor), inboundMx(actor), replyTestStatus(actor)]);
     return (
       <>
         <PageHeader title="Installation settings" sub="What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page." />
-        <InstallationScreen view={view} admins={admins} events={events} limits={limits} />
+        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} />
       </>
     );
   }

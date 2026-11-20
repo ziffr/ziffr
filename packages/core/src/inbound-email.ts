@@ -14,6 +14,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
 import { inboxOf } from "./sign-in-limits";
 import { createHash } from "node:crypto";
+import { takeReplyTest } from "./installation-replies";
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
@@ -39,7 +40,7 @@ export type InboundEmail = { tokens: string[]; from: string | null; text: string
 /** What became of an inbound email, for the provider's logs; it never says more than the outcome's name. */
 export type InboundOutcome =
   | "recorded" | "refused" | "form_link" | "replied" | "corrected"
-  | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited";
+  | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited" | "test";
 
 /** An Authentication-Results value (RFC 8601) as its parts: the authserv-id, then one result per method, lower case.
  * Comments in parentheses and quoted strings are taken out first, so text the sender controls inside them (an
@@ -154,6 +155,8 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   const token = email.tokens[0];
   if (!token) return "unknown_token";
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, connector, created_at").eq("reply_token", token).maybeSingle();
+  // A reply to an Installation Admin's test of replies (installation-replies.ts) is no Delivery's and reaches no Workspace.
+  if (!d && (await takeReplyTest(token, email))) return "test";
   if (!d || d.connector !== "email" || d.workspace_id === DEMO_WORKSPACE_ID) return "unknown_token";
   // An ended trial takes no reply and answers none, as if the message were too old (spec 0021).
   if (Date.now() - new Date(d.created_at).getTime() > REPLY_DAYS * 86_400_000 || (await trialEnded(d.workspace_id))) return log(d, "expired");

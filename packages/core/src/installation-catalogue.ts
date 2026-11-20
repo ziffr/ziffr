@@ -13,8 +13,8 @@ export type SettingsSection = { id: SettingsSectionId; title: string; purpose: s
 
 /** The sections, in the order the page shows them. */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
-  { id: "mail", title: "Mail", purpose: "Sign-in links aside, every email Ziffr sends: requests for values, reminders, replies and invitations.", ready: true },
-  { id: "replies", title: "Replies by email", purpose: "People answer a request for a value by replying to its email.", ready: false },
+  { id: "mail", title: "Mail", purpose: "Every email Ziffr sends: sign-in links, requests for values, reminders, replies and invitations. Sign-in links go through it where Supabase Auth hands them to Ziffr, as Docker sets up.", ready: true },
+  { id: "replies", title: "Replies by email", purpose: "People answer a request for a value, a question or a task by replying to its email. Your inbound mail provider takes the replies and forwards each one to Ziffr, signed.", ready: true },
   { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram. Each Workspace turns it on for itself.", ready: true },
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: true },
   { id: "limits", title: "Workspace Limits", purpose: "The most Metrics a Workspace may hold, Archived Metrics not counted. Without a default or a limit of its own, a Workspace has no limit.", ready: true },

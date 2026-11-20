@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RelativeTime } from "@/components/relative-time";
-import { addInstallationAdmin, checkTelegram, removeInstallationAdmin, saveInstallationSettings, sendTestEmail, startTelegramTest, telegramTestStatus } from "@/app/installation-actions";
+import { addInstallationAdmin, checkTelegram, makeInboundSecret, removeInstallationAdmin, replyTestStatus, saveInstallationSettings, sendTestEmail, startReplyTest, startTelegramTest, telegramTestStatus } from "@/app/installation-actions";
+import type { MxView, ReplyTestStatus } from "@ziffr/core/installation-replies";
 import type { TelegramTestStatus } from "@ziffr/core/installation-telegram-test";
 import type { InstallationAdminRow, InstallationEvent } from "@ziffr/core/installation-admins";
 import type { InstallationSettingsView, SectionView, SettingView, SlackSetupView } from "@ziffr/core/installation-settings";
@@ -24,6 +25,7 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.removed": "removed",
   "setting.test_email": "sent a test email with",
   "setting.test_telegram": "tested Telegram with",
+  "setting.test_replies": "tested replies by email with",
   "workspace.key_destroyed": "destroyed the key of a Workspace it is deleting:",
   "workspace_limit.set": "set the Workspace Limit of",
   "workspace_limit.removed": "gave the default limit back to",
@@ -48,7 +50,10 @@ function Standing({ section }: { section: SectionView }) {
 }
 
 /** The whole page: the sections in a side list, the Installation Admins, each section, and the latest changes. */
-export function InstallationScreen({ view, admins, events, limits }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[] }) {
+/** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
+type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
+
+export function InstallationScreen({ view, admins, events, limits, replies }: { view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView }) {
   return (
     <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
       <nav aria-label="Sections" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -62,7 +67,7 @@ export function InstallationScreen({ view, admins, events, limits }: { view: Ins
       </nav>
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} />)}
+        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} />)}
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>
           <p className="text-sm text-muted-foreground">Who changed what here, by the setting&apos;s name. Values are never recorded.</p>
@@ -133,7 +138,7 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
 
 /** One section: what it is for, how it stands, and its form when the page can set it up yet. Slack gets its steps
  * around the form: make the app from the manifest, then what Slack has checked and what comes next. */
-function Section({ section, canSeal, slack, siteUrl, limits }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[] }) {
+function Section({ section, canSeal, slack, siteUrl, limits, replies }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[]; replies?: RepliesView }) {
   return (
     <section id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -148,6 +153,7 @@ function Section({ section, canSeal, slack, siteUrl, limits }: { section: Sectio
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
       {slack && <SlackChecked slack={slack} section={section} />}
       {limits && <WorkspaceLimits rows={limits} />}
+      {replies && <RepliesSetup replies={replies} section={section} siteUrl={siteUrl} canSeal={canSeal} />}
     </section>
   );
 }
@@ -299,6 +305,91 @@ function TelegramTest({ disabled }: { disabled: boolean }) {
       <p className="text-xs text-muted-foreground">Sends you a message from the bot and waits for your reply, so you know Ziffr reaches Telegram and Telegram reaches Ziffr. It connects you to no Workspace.</p>
       {status?.state === "done" && status.at && <p role="status" className="text-sm">Tested <RelativeTime at={status.at} />: message sent, answer received.</p>}
       {url && status && status.state !== "done" && status.state !== "none" && <p role="status" aria-live="polite" className="text-sm">{testWords(status)}</p>}
+    </div>
+  );
+}
+
+/** Replies by email beside its form: where the provider forwards to, the MX record the domain needs and what it has
+ * now, a signing secret made here (shown this once, for the forwarder), and the test that waits for a real reply. */
+function RepliesSetup({ replies, section, siteUrl, canSeal }: { replies: RepliesView; section: SectionView; siteUrl: string | null; canSeal: boolean }) {
+  const [secret, setSecret] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const secretSetting = section.settings.find((x) => x.name === "ZIFFR_INBOUND_SECRET");
+  const domain = section.settings.find((x) => x.name === "ZIFFR_INBOUND_DOMAIN")?.value ?? replies.mx?.domain ?? null;
+  return (
+    <div className="max-w-[62ch] space-y-3 text-sm">
+      <h3 className="font-medium">Setting it up</h3>
+      <ol className="list-decimal space-y-2 pl-5">
+        <li>
+          Point the MX record of {domain ? <span className="font-mono text-xs">{domain}</span> : "the domain for replies"} at your inbound mail provider, such as Cloudflare Email Routing: <span className="font-mono text-xs">{domain ?? "in.example.com"} MX 10 &lt;the provider&apos;s inbound server&gt;</span>.
+          {replies.mx && (replies.mx.records.length
+            ? <span className="mt-1 block text-muted-foreground">Found now: <span className="font-mono text-xs">{replies.mx.records.join(", ")}</span></span>
+            : <span className="mt-1 block text-muted-foreground">{replies.mx.problem}</span>)}
+        </li>
+        <li>
+          Have the provider forward each message, unchanged and signed with the signing secret, to <span className="font-mono text-xs break-all">{siteUrl ? `${siteUrl.replace(/\/$/, "")}/api/inbound/email` : "<this Ziffr's address>/api/inbound/email"}</span>. The email guide has a forwarder for Cloudflare.
+          {secretSetting && secretSetting.source !== "server" && (
+            <span className="mt-2 block space-y-2">
+              <Button type="button" variant="outline" disabled={pending || !canSeal}
+                title={!canSeal ? "Needs ZIFFR_SECRETS_KEY on the server" : undefined}
+                onClick={() => {
+                  if (secretSetting.source === "page" && !window.confirm("Make a new signing secret? The forwarder must get it: the old one stops working at once.")) return;
+                  start(async () => {
+                    const r = await makeInboundSecret();
+                    if ("error" in r) { toast.error("Not done", { description: r.error }); return; }
+                    setSecret(r.secret);
+                    router.refresh();
+                  });
+                }}>
+                {secretSetting.source === "page" ? "Make a new signing secret" : "Make a signing secret"}
+              </Button>
+              {secret && (
+                <span role="status" className="block space-y-1">
+                  <span className="block">Copy it into the forwarder now; this page does not show it again.</span>
+                  <span className="flex gap-2">
+                    <Input readOnly value={secret} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} aria-label="The new signing secret" />
+                    <Button type="button" variant="outline" onClick={() => { void navigator.clipboard?.writeText(secret).then(() => toast.success("Copied.")); }}>Copy</Button>
+                  </span>
+                </span>
+              )}
+            </span>
+          )}
+        </li>
+        <li>Test it: Ziffr emails you, you reply, and the reply comes back through the provider.</li>
+      </ol>
+      {section.working ? <ReplyTest initial={replies.test} /> : <p className="text-muted-foreground">The test is offered once mail, the domain and the signing secret are set.</p>}
+    </div>
+  );
+}
+
+/** What the page says about a replies test. */
+function replyTestWords(s: ReplyTestStatus): string | null {
+  if (s.state === "waiting") return "Sent. Reply to the test email; this page shows the reply when it arrives. If nothing arrives, check the MX record and the forwarder's signing secret.";
+  if (s.state === "expired") return "The last test ran out after thirty minutes without a reply. Start a new one.";
+  if (s.state !== "received") return null;
+  const from = s.fromAdmin ? "from your address" : "but not from the address it went to, so a real reply like it would be refused";
+  const vouched = s.vouched ? "Your provider vouched for the sender." : s.vouchingAsked ? "Your provider did not vouch for the sender, so a real reply like it would be refused: check the provider's name (ZIFFR_INBOUND_AUTHSERV_ID)." : "Nobody vouched for the sender: no provider is named to.";
+  return `Your reply arrived, signed, ${from}. ${vouched}`;
+}
+
+/** The replies test: a button that sends the email, then where it stands, asked every few seconds while it waits. */
+function ReplyTest({ initial }: { initial: ReplyTestStatus }) {
+  const [status, setStatus] = useState<ReplyTestStatus>(initial);
+  const [pending, start] = useTransition();
+  useEffect(() => {
+    if (status.state !== "waiting") return;
+    const timer = setInterval(() => { replyTestStatus().then((s) => { if (!("error" in s)) setStatus(s); }); }, 5000);
+    return () => clearInterval(timer);
+  }, [status.state]);
+  const words = replyTestWords(status);
+  return (
+    <div className="space-y-2 rounded-[var(--radius-input)] border border-border p-3">
+      <Button type="button" variant="outline" disabled={pending}
+        onClick={() => start(async () => { if (await report(startReplyTest(), "Sent.")) setStatus({ state: "waiting", at: new Date().toISOString() }); })}>
+        Test replies by email
+      </Button>
+      {words && <p role="status" aria-live="polite">{status.state === "received" && <>Tested <RelativeTime at={status.at} />: </>}{words}</p>}
     </div>
   );
 }

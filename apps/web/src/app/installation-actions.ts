@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { Forbidden } from "@ziffr/core/actor";
 import * as admins from "@ziffr/core/installation-admins";
 import * as settings from "@ziffr/core/installation-settings";
+import * as replies from "@ziffr/core/installation-replies";
 import * as telegramTest from "@ziffr/core/installation-telegram-test";
 import * as limits from "@ziffr/core/workspace-limits-admin";
 import { installationActor } from "@/lib/installation";
@@ -93,6 +94,36 @@ export async function telegramTestStatus(): Promise<telegramTest.TelegramTestSta
   if (!actor) return { error: "Sign in first." };
   try {
     return await telegramTest.telegramTestStatus(actor);
+  } catch {
+    return { error: "Not found." };
+  }
+}
+
+/** Makes a new signing secret for replies by email and answers it this once, for the inbound provider's forwarder. */
+export async function makeInboundSecret(): Promise<{ error: string } | { secret: string }> {
+  const actor = await installationActor();
+  if (!actor) return { error: "Sign in first." };
+  try {
+    const r = await replies.makeInboundSecret(actor);
+    revalidatePath("/installation");
+    return r;
+  } catch (e) {
+    if (e instanceof Forbidden) return { error: "Not found." };
+    return { error: forPeople(e) ?? unforeseen(e) };
+  }
+}
+
+/** Starts the replies-by-email test: an email to your own address whose reply comes back through the provider. */
+export async function startReplyTest(): Promise<Result> {
+  return run(async (a) => `Sent to ${(await replies.startReplyTest(a)).to}. Reply to it; this page says when the reply arrives.`);
+}
+
+/** Where the actor's latest replies-by-email test stands, while the page waits for it. */
+export async function replyTestStatus(): Promise<replies.ReplyTestStatus | { error: string }> {
+  const actor = await installationActor();
+  if (!actor) return { error: "Sign in first." };
+  try {
+    return await replies.replyTestStatus(actor);
   } catch {
     return { error: "Not found." };
   }

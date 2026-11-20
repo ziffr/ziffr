@@ -80,6 +80,8 @@ services:
       # Installation, so a team signing in on a Monday morning is not stopped.
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
     healthcheck: { test: [CMD, wget, -qO-, "http://localhost:9999/health"], interval: 5s, timeout: 5s, retries: 30 }
+    # The second network reaches the app's Send Email Hook (docker/init.mjs) by a name Auth accepts for plain http.
+    networks: [default, authhook]
     restart: unless-stopped
 
   rest:
@@ -114,6 +116,11 @@ services:
     # Its settings from .env reach it through its file too, chosen by init: not Auth's secrets or the stack's.
     environment:
       ZIFFR_SETTINGS_FILE: /keys/app.env
+    # Auth calls Ziffr's Send Email Hook as http://host.docker.internal:3000 (Auth takes plain http only for that name
+    # and localhost); this network, shared with Auth alone and with no way out, gives the app that name.
+    networks:
+      default: {}
+      authhook: { aliases: [host.docker.internal] }
     depends_on:
       migrate: { condition: service_completed_successfully }
       init: { condition: service_completed_successfully, restart: true }
@@ -200,6 +207,10 @@ configs:
       	handle /rest/v1/* {
       		respond 404
       	}
+      	# Auth calls the Send Email Hook on the stack's own network (authhook): from outside it is not there.
+      	handle /api/auth/send-email {
+      		respond 404
+      	}
       	handle {
       		reverse_proxy app:3000
       	}
@@ -214,6 +225,11 @@ configs:
       		reverse_proxy rest:3000
       	}
       }
+
+networks:
+  default: {}
+  # Auth and the app only: Auth's sign-in emails go to the app's hook here, never through the proxy or outside.
+  authhook: { internal: true }
 
 volumes:
   db:
