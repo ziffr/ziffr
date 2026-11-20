@@ -6,6 +6,7 @@ import { Forbidden, type FeedActor } from "./actor";
 import { actorForKey, actorForSecret, createAccessKey, listAccessKeys } from "./access-keys";
 import { admitCall } from "./access-log";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import {
   addFeedToMetric, claimFeedBatch, createFeed, createFeedKey, deleteFeed, feedChoices, feedNames, feedOverview, FEED_VALUES_PER_DAY,
   finishFeedBatch, listFeeds, removeFeedFromMetric, renameFeed, revokeFeedKey, submitFeedObservations,
@@ -146,8 +147,9 @@ describe("a Feed as a Metric's Submitter", () => {
     expect(await runWorkspaceIfDue(clock, at(shiftPeriod(due, "day", 2)))).toBe("ran");
     const { count: prompts } = await db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", feedId);
     expect(prompts).toBe(0);
-    const { data: escalation } = await db().from("actions").select("assignee_id, question").eq("metric_id", m.id).eq("purpose", "escalation");
-    expect(escalation).toEqual([{ assignee_id: sara, question: expect.stringContaining("the Feed CRM") }]);
+    const { data: raw } = await db().from("actions").select("id, assignee_id, question, workspace_id").eq("metric_id", m.id).eq("purpose", "escalation");
+    const escalation = raw?.length ? await openRows("actions", raw[0].workspace_id as string, raw) : [];
+    expect(escalation).toEqual([expect.objectContaining({ assignee_id: sara, question: expect.stringContaining("the Feed CRM") })]);
   });
 });
 

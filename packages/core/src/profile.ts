@@ -2,6 +2,7 @@
 // by. A profile is one per person, so a change shows in every workspace they belong to.
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
+import { isSealed } from "./workspace-keys";
 import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The colours a person can be shown in; new people get one of them at random. */
@@ -24,6 +25,8 @@ export function cleanName(input: unknown): { ok: true; name: string } | { ok: fa
   if (HIDDEN_CHARACTERS.test(input)) return { ok: false, reason: "Your name has characters that cannot be shown." };
   const name = input.trim().replace(/\s+/g, " ");
   if (!name) return { ok: false, reason: "Give your name." };
+  // A name in the sealed format would read as a Contact's that does not open (spec 0028).
+  if (isSealed(name)) return { ok: false, reason: "Your name has characters that cannot be shown." };
   if ([...name].length > MAX_NAME) return { ok: false, reason: `Keep your name to ${MAX_NAME} characters.` };
   return { ok: true, name };
 }

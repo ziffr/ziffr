@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { actionThread } from "./page-data";
 import { ask, reply } from "./questions";
+import { peopleIn } from "./submissions";
+import { addContact, removeContact } from "./team";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import { getActions } from "./workspace-data";
 import { forgetWorkspaceKey, isSealed } from "./workspace-keys";
-import { insertSealed, SEALED_COLUMNS } from "./sealed-columns";
+import { insertSealed, openNames, SEALED_COLUMNS } from "./sealed-columns";
 
 const saved = process.env.ZIFFR_SECRETS_KEY;
 const cleanups: (() => Promise<void>)[] = [];
@@ -76,14 +78,20 @@ describe("Questions, Tasks and their Threads", () => {
   it("leave no clear text in any sealed column", async () => {
     const w = await setup();
     const words = `marker-${Date.now()}`;
+    await addContact(w.actor(w.owner), { name: `Contact ${words}`, email: `${words}@example.test`, slackHandle: `@${words}`, phone: "+49 30 999888" });
     const id = await ask(w.actor(w.owner), { metricId: w.m.id, period: "2026-10-01", assigneeId: w.ana, text: `Ask about ${words}` });
     await reply(w.actor(w.ana, "member"), id, `Answer about ${words}`, null);
     for (const [table, columns] of Object.entries(SEALED_COLUMNS)) {
+      // People's rows have no Workspace column: Contacts' names are checked with the Contacts below.
+      if (table === "profiles") continue;
       for (const column of columns) {
-        const { count } = await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", w.id).ilike(column, `%${words}%`);
+        const { count } = await db().from(table).select("*", { count: "exact", head: true }).eq("workspace_id", w.id).ilike(column, `%${words}%`);
         expect([table, column, count]).toEqual([table, column, 0]);
       }
     }
+    const { data: names } = await db().from("contacts").select("person_id").eq("workspace_id", w.id);
+    const { count: named } = await db().from("profiles").select("*", { count: "exact", head: true }).in("id", (names ?? []).map((n) => n.person_id)).ilike("name", `%${words}%`);
+    expect(named).toBe(0);
   });
 
   it("stay in clear without ZIFFR_SECRETS_KEY, which works as before", async () => {
@@ -110,6 +118,86 @@ describe("Questions, Tasks and their Threads", () => {
     await expect(ask(w.actor(w.owner), { metricId: w.m.id, period: "2026-10-01", assigneeId: w.ana, text: "Second" })).rejects.toThrow();
     const { data } = await db().from("actions").select("question").eq("workspace_id", w.id);
     expect(data!.map((a) => a.question)).not.toContain("Second");
+  });
+});
+
+describe("Contacts", () => {
+  it("are stored with name, address, handle and phone sealed, and read as given", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Zoe Fieldrep", email: "Zoe@Example.test", slackHandle: "@zoe.f", phone: "+49 30 1234567" });
+    const { data: c } = await db().from("contacts").select("*").eq("person_id", id).single();
+    for (const column of ["email", "slack_handle", "phone"]) expect([column, isSealed(c![column])]).toEqual([column, true]);
+    expect(JSON.stringify(c)).not.toMatch(/zoe|1234567/i);
+    expect(c!.email_index).toMatch(/^b1\.1\./);
+    const { data: p } = await db().from("profiles").select("name").eq("id", id).single();
+    expect(isSealed(p!.name)).toBe(true);
+    forgetWorkspaceKey(w.id);
+    const zoe = (await peopleIn(w.id, { contactDetails: true })).find((x) => x.id === id);
+    expect(zoe).toMatchObject({ name: "Zoe Fieldrep", email: "zoe@example.test", slack_handle: "@zoe.f", phone: "+49 30 1234567", contact: true });
+    // Without the details, only the name.
+    expect((await peopleIn(w.id)).find((x) => x.id === id)).toMatchObject({ name: "Zoe Fieldrep", email: "" });
+  });
+
+  it("keep an address and a handle unique in the Workspace through the blind index, also when added at once", async () => {
+    const w = await setup();
+    await addContact(w.actor(w.owner), { name: "First", email: "same@example.test" });
+    await expect(addContact(w.actor(w.owner), { name: "Second", email: "SAME@example.test" })).rejects.toThrow(/already uses/);
+    const both = await Promise.allSettled([addContact(w.actor(w.owner), { name: "A", slackHandle: "@twin" }), addContact(w.actor(w.owner), { name: "B", slackHandle: "@Twin" })]);
+    expect(both.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    // The one refused leaves no person row behind.
+    const { data: people } = await db().from("contacts").select("person_id").eq("workspace_id", w.id);
+    expect(people).toHaveLength(2);
+    // The same address is free in another Workspace.
+    const other = await setup();
+    await expect(addContact(other.actor(other.owner), { name: "Elsewhere", email: "same@example.test" })).resolves.toBeTruthy();
+  });
+
+  it("from before the upgrade, in clear, are still found and read", async () => {
+    const w = await setup();
+    const id = await w.contact({ email: "old@example.test" });
+    expect((await peopleIn(w.id, { contactDetails: true })).find((p) => p.id === id)?.email).toBe("old@example.test");
+    await expect(addContact(w.actor(w.owner), { name: "New", email: "old@example.test" })).rejects.toThrow(/already uses/);
+  });
+
+  it("read as \"A Contact\" when their name does not open, and their removal is recorded by name", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Kept Name", email: "k@example.test" });
+    await removeContact(w.actor(w.owner), id);
+    const { data: ev } = await db().from("audit_events").select("object_name").eq("workspace_id", w.id).eq("kind", "contact.removed").single();
+    expect(ev?.object_name).toBe("Kept Name");
+    const other = await setup();
+    const moved = await addContact(other.actor(other.owner), { name: "Moved", email: "m@example.test" });
+    const { data: p } = await db().from("profiles").select("name").eq("id", moved).single();
+    const elsewhere = await addContact(w.actor(w.owner), { name: "Target", email: "t@example.test" });
+    await db().from("profiles").update({ name: p!.name }).eq("id", elsewhere);
+    expect((await peopleIn(w.id)).find((x) => x.id === elsewhere)?.name).toBe("A Contact");
+  });
+
+  it("removed while the Workspace's key cannot be opened still lose their form links", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Leaving", email: "l@example.test" });
+    const code = await w.token(w.m.id, id);
+    await db().from("workspace_keys").delete().eq("workspace_id", w.id);
+    forgetWorkspaceKey(w.id);
+    await removeContact(w.actor(w.owner), id);
+    expect((await db().from("tokens").select("code").eq("code", code)).data).toEqual([]);
+  });
+
+  it("never show a sealed name read without its row, nor take a name in the sealed format", async () => {
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Hidden", email: "h@example.test" });
+    const { data: p } = await db().from("profiles").select("name").eq("id", id).single();
+    expect(await openNames(w.id, [{ name: p!.name }])).toEqual([{ name: "A Contact" }]);
+    await expect(addContact(w.actor(w.owner), { name: p!.name, email: "x@example.test" })).rejects.toThrow(/cannot be shown/);
+  });
+
+  it("stay in clear without ZIFFR_SECRETS_KEY, kept unique as before", async () => {
+    delete process.env.ZIFFR_SECRETS_KEY;
+    const w = await setup();
+    const id = await addContact(w.actor(w.owner), { name: "Plain", email: "p@example.test" });
+    const { data: c } = await db().from("contacts").select("email, email_index").eq("person_id", id).single();
+    expect(c).toEqual({ email: "p@example.test", email_index: null });
+    await expect(addContact(w.actor(w.owner), { name: "Again", email: "p@example.test" })).rejects.toThrow(/already uses/);
   });
 });
 

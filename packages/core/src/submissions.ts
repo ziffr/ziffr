@@ -3,7 +3,7 @@
 // members, Contacts and Feeds alike; a Metric owner
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { db } from "./db";
-import { insertSealed } from "./sealed-columns";
+import { insertSealed, openNames, openRows } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
@@ -348,12 +348,15 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
     db().from("memberships").select("user_id").eq("workspace_id", ws),
     db().from("contacts").select(columns).eq("workspace_id", ws),
   ]);
-  const rows = ((contacts ?? []) as unknown as Partial<ContactRow>[]).map((c) => ({ email: null, slack_handle: null, phone: null, ...c }) as ContactRow);
+  // A Contact's details are sealed (spec 0028): opened here, the one place they are loaded.
+  const opened = contactDetails ? await openRows("contacts", ws, (contacts ?? []) as unknown as Record<string, unknown>[]) : (contacts ?? []);
+  const rows = (opened as unknown as Partial<ContactRow>[]).map((c) => ({ email: null, slack_handle: null, phone: null, ...c }) as ContactRow);
   const ids = [...(members ?? []).map((m) => m.user_id as string), ...rows.map((c) => c.person_id)];
   if (!ids.length) return [];
-  const { data } = await db().from("profiles").select("*").in("id", ids).order("name");
+  const { data } = await db().from("profiles").select("*").in("id", ids);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
-  const profiles = (data ?? []) as Profile[];
+  // Sorted here, not by the database: a Contact's name is sealed, so its order there means nothing.
+  const profiles = ((await openNames(ws, (data ?? []) as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
 }
 

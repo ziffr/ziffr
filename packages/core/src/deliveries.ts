@@ -5,7 +5,7 @@
 import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openNames, openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
@@ -50,7 +50,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   const [a] = await openRows("actions", found.workspace_id, [found]);
   // A question that does not open (changed in the database, or under a destroyed key) is not sent at all.
   if (a.question === null) return;
-  const { data: people } = await db().from("profiles").select("*").in("id", [input.senderId, input.recipientId]);
+  const people = await openNames(a.workspace_id, (await db().from("profiles").select("*").in("id", [input.senderId, input.recipientId])).data);
   const sender = people?.find((p) => p.id === input.senderId) as Profile | undefined;
   const recipient = people?.find((p) => p.id === input.recipientId) as Profile | undefined;
   if (!sender || !recipient) return;
@@ -84,8 +84,11 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
     db().from("profiles").select("*").eq("id", input.submitterId).single().then(async (r) => {
       if (!r.data) return r;
       const { data: m } = await db().from("metrics").select("workspace_id").eq("id", input.metricId).single();
-      const { data: c } = m ? await db().from("contacts").select("email, slack_handle, phone").eq("workspace_id", m.workspace_id).eq("person_id", input.submitterId).maybeSingle() : { data: null };
-      return c ? { ...r, data: { ...r.data, email: c.email ?? "", slack_handle: c.slack_handle ?? "", phone: c.phone } } : r;
+      const { data: found } = m ? await db().from("contacts").select("person_id, email, slack_handle, phone").eq("workspace_id", m.workspace_id).eq("person_id", input.submitterId).maybeSingle() : { data: null };
+      if (!found || !m) return r;
+      // A Contact's details and name are sealed (spec 0028).
+      const [[c], [person]] = await Promise.all([openRows("contacts", m.workspace_id, [found]), openNames(m.workspace_id, [r.data])]);
+      return { ...r, data: { ...person, email: c.email ?? "", slack_handle: c.slack_handle ?? "", phone: c.phone } };
     }),
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", input.metricId),
   ]);

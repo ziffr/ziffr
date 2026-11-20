@@ -3,6 +3,7 @@
 // Joining by domain is off until an Owner sets the domain, and every request is approved by an Owner or Admin.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
@@ -116,7 +117,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
   }).select("id").single();
   if (error || !made) throw new Error("The invitation could not be made.");
   // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
-  const name = input.contactPersonId ? await personName(input.contactPersonId) : email;
+  const name = input.contactPersonId ? await personName(input.contactPersonId, actor.workspaceId) : email;
   await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: made.id, name }, details: { role: input.role, by: "email", contact: Boolean(input.contactPersonId) } });
   if (await mailOn()) await emailInvitation(made.id, actor.personId, transport);
   return t;
@@ -161,7 +162,7 @@ export async function revokeInvitation(actor: Actor, id: number) {
   assertCan(actor, "manage-members");
   const { data } = await db().from("invitations").update({ revoked_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId).select("id, email, role, contact_person_id");
   if (!data?.length) throw new Forbidden();
-  await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: data[0].id, name: await invitationName(data[0]) }, details: { role: data[0].role } });
+  await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: data[0].id, name: await invitationName(data[0], actor.workspaceId) }, details: { role: data[0].role } });
 }
 
 /** What an invitation offers, for its page: the workspace, the role and whether it still works. Nothing else. */
@@ -200,7 +201,7 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
     const { error } = await db().rpc("merge_contact", { ws: inv.workspace_id, contact: inv.contact_person_id, person: who.personId });
     if (error) throw new Error("Joining worked, but the contact's history could not be moved.");
   }
-  await recordAudit(inv.workspace_id, who.personId, { kind: "invitation.accepted", object: { type: "invitation", id: inv.id, name: await invitationName(inv) }, details: { role: existing ? (existing.role as string) : (inv.role as string), already_member: Boolean(existing) } });
+  await recordAudit(inv.workspace_id, who.personId, { kind: "invitation.accepted", object: { type: "invitation", id: inv.id, name: await invitationName(inv, inv.workspace_id) }, details: { role: existing ? (existing.role as string) : (inv.role as string), already_member: Boolean(existing) } });
   return inv.workspace_id as string;
 }
 
@@ -218,7 +219,7 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
   const { error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId);
   // The database refuses to leave a workspace without an Owner, also when two changes race.
   if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The role could not be changed.");
-  if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId) }, details: { from: current.role, to: role } });
+  if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId, actor.workspaceId) }, details: { from: current.role, to: role } });
 }
 
 /** Switches domain joining on for the domain of the Owner's own verified address, or off with null. */
@@ -260,7 +261,7 @@ export async function requestToJoin(who: SignedIn, workspaceId: string) {
   const { error } = await db().from("join_requests").insert({ workspace_id: workspaceId, person_id: who.personId });
   // Asked already: one open request per person is enough.
   if (error && error.code !== "23505") throw new Error("The request could not be sent.");
-  if (!error) await recordAudit(workspaceId, who.personId, { kind: "join_request.created", object: { type: "person", id: who.personId, name: await personName(who.personId) } });
+  if (!error) await recordAudit(workspaceId, who.personId, { kind: "join_request.created", object: { type: "person", id: who.personId, name: await personName(who.personId, workspaceId) } });
 }
 
 /** Open requests to join the workspace, with who asked, for Owners and Admins. */
@@ -280,17 +281,17 @@ export async function decideJoinRequest(actor: Actor, id: number, approve: boole
     .eq("id", id).eq("workspace_id", actor.workspaceId).eq("status", "open").select("person_id");
   if (!r?.length) throw new Forbidden();
   if (approve) await db().from("memberships").upsert({ workspace_id: actor.workspaceId, user_id: r[0].person_id, role: "member" }, { onConflict: "workspace_id,user_id", ignoreDuplicates: true });
-  await audit(actor, { kind: approve ? "join_request.approved" : "join_request.declined", object: { type: "person", id: r[0].person_id, name: await personName(r[0].person_id) }, details: approve ? { role: "member" } : {} });
+  await audit(actor, { kind: approve ? "join_request.approved" : "join_request.declined", object: { type: "person", id: r[0].person_id, name: await personName(r[0].person_id, actor.workspaceId) }, details: approve ? { role: "member" } : {} });
 }
 
 /** An invitation as the Audit Log names it: the Contact's name, the invited address, or a link. */
-async function invitationName(inv: { email: string | null; contact_person_id: string | null }): Promise<string | null> {
-  if (inv.contact_person_id) return personName(inv.contact_person_id);
+async function invitationName(inv: { email: string | null; contact_person_id: string | null }, workspaceId: string): Promise<string | null> {
+  if (inv.contact_person_id) return personName(inv.contact_person_id, workspaceId);
   return inv.email ?? "Invite link";
 }
 
-/** A person's name as the Audit Log keeps it. */
-async function personName(personId: string): Promise<string | null> {
-  const { data } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();
-  return (data?.name as string | undefined) ?? null;
+/** A person's name as the Audit Log keeps it; a Contact's opened with the Workspace's key. */
+async function personName(personId: string, workspaceId: string): Promise<string | null> {
+  const { data } = await db().from("profiles").select("id, name").eq("id", personId).maybeSingle();
+  return data ? (((await openNames(workspaceId, [data]))[0].name as string | undefined) ?? null) : null;
 }

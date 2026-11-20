@@ -3,6 +3,7 @@
 // that workspace, and the owners of the Metrics concerned are told. Questions, tasks and Thread replies keep coming.
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
+import { openNames } from "./sealed-columns";
 import { deliverNotice } from "./deliveries";
 import { OPT_OUT_KINDS } from "./mail";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -47,7 +48,7 @@ export async function tellOwnersOfStop(ws: string, personId: string, where: "by 
   if (mayTell !== true) return;
   const [{ data: tokens }, { data: person }] = await Promise.all([
     db().from("tokens").select("metric_id").eq("workspace_id", ws).eq("submitter_id", personId),
-    db().from("profiles").select("name").eq("id", personId).maybeSingle(),
+    db().from("profiles").select("id, name").eq("id", personId).maybeSingle().then(async (r) => ({ data: r.data ? (await openNames(ws, [r.data]))[0] : null })),
   ]);
   const metricIds = [...new Set((tokens ?? []).map((t) => t.metric_id as number))];
   const { data: metrics } = metricIds.length ? await db().from("metrics").select("owner_id").eq("workspace_id", ws).in("id", metricIds) : { data: [] };

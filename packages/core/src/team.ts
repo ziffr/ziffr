@@ -2,6 +2,8 @@
 // without a login. Owners and admins manage both; every function takes the Actor first.
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { openNames, sealRow, UNREADABLE_NAME } from "./sealed-columns";
+import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { cleanContact } from "./people";
 import { peopleIn } from "./submissions";
@@ -83,10 +85,21 @@ export async function addContact(actor: Actor, input: { name: string; email?: st
   const taken = (await peopleIn(actor.workspaceId, { contactDetails: true })).find((p) => (c.email && p.email?.toLowerCase() === c.email) || (c.slack_handle && p.slack_handle?.toLowerCase() === c.slack_handle));
   if (taken) throw new Error(`${taken.name} already uses that ${c.email && taken.email?.toLowerCase() === c.email ? "email address" : "Slack handle"} here.`);
   const id = randomUUID();
-  const { error: pe } = await db().from("profiles").insert({ id, name: c.name, role: "Contact", color: "#6B7280" });
+  // Name, address, handle and phone sealed with the Workspace Key (spec 0028); the blind indexes keep an address or
+  // handle unique here without the database reading it. In clear only in the demo or without ZIFFR_SECRETS_KEY.
+  const cipher = await workspaceCipher(actor.workspaceId);
+  const person = await sealRow("profiles", actor.workspaceId, { id, name: c.name });
+  const { error: pe } = await db().from("profiles").insert({ ...person, role: "Contact", color: "#6B7280" });
   if (pe) throw new Error("The contact could not be added.");
-  const { error } = await db().from("contacts").insert({ workspace_id: actor.workspaceId, person_id: id, email: c.email, slack_handle: c.slack_handle, phone: c.phone, created_by: actor.personId });
-  if (error) throw new Error("The contact could not be added.");
+  const details = await sealRow("contacts", actor.workspaceId, { person_id: id, email: c.email, slack_handle: c.slack_handle, phone: c.phone });
+  const { error } = await db().from("contacts").insert({
+    ...details, workspace_id: actor.workspaceId, created_by: actor.personId,
+    email_index: c.email ? cipher.blindIndex("contacts.email", c.email) : null, slack_index: c.slack_handle ? cipher.blindIndex("contacts.slack_handle", c.slack_handle) : null,
+  });
+  if (error) {
+    await db().from("profiles").delete().eq("id", id);
+    throw new Error(error.code === "23505" ? "Someone here already uses that email address or Slack handle." : "The contact could not be added.");
+  }
   // The Contact's name only: their address and handles are contact details, not part of the record.
   await audit(actor, { kind: "contact.added", object: { type: "person", id, name: c.name } });
   return id;
@@ -98,9 +111,11 @@ export async function removeContact(actor: Actor, personId: string) {
   const ws = actor.workspaceId;
   const { data } = await db().from("contacts").delete().eq("workspace_id", ws).eq("person_id", String(personId)).select("person_id");
   if (!data?.length) throw new Forbidden();
-  const { data: p } = await db().from("profiles").select("name").eq("id", String(personId)).maybeSingle();
-  await audit(actor, { kind: "contact.removed", object: { type: "person", id: String(personId), name: (p?.name as string | undefined) ?? null } });
-  // Their form links and Slack or mail submissions stop: their Tokens go, and they stand in for nobody any more.
+  // Their form links and Slack or mail submissions stop: their Tokens go, and they stand in for nobody any more. First,
+  // so that nothing after it (such as a Workspace Key that cannot be opened) can leave them working.
   await db().from("tokens").delete().eq("workspace_id", ws).eq("submitter_id", String(personId));
   await db().from("tokens").update({ stand_in_id: null }).eq("workspace_id", ws).eq("stand_in_id", String(personId));
+  const { data: found } = await db().from("profiles").select("id, name").eq("id", String(personId)).maybeSingle();
+  const name = await openNames(ws, found ? [found] : []).then(([p]) => (p?.name as string | undefined) ?? null, () => UNREADABLE_NAME);
+  await audit(actor, { kind: "contact.removed", object: { type: "person", id: String(personId), name } });
 }

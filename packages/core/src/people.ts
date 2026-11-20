@@ -1,6 +1,8 @@
 // People of a Workspace (GLOSSARY: Contact, Workspace Role): its members, who sign in, and its Contacts, who have no
 // login and only submit values. Pure: callers load the rows, these functions decide.
 import type { Profile } from "./types";
+import { HIDDEN_CHARACTERS } from "./profile";
+import { isSealed } from "./workspace-keys";
 
 /** A row that belongs to a Workspace. */
 type InWorkspace = { workspace_id: string };
@@ -11,7 +13,8 @@ export type ContactRow = InWorkspace & { person_id: string; email: string | null
 /** The channels a sender is recognised on. */
 export type SenderSource = "slack" | "mail";
 
-const norm = (s: string | null | undefined) => String(s ?? "").trim().toLowerCase();
+// NFC as the blind indexes take it (workspace-keys.ts), so the same address in another Unicode form is the same.
+const norm = (s: string | null | undefined) => String(s ?? "").normalize("NFC").trim().toLowerCase();
 
 /** Everyone a workspace knows: its members, then its Contacts with the details this workspace keeps for them.
  * Someone who is both a member and a contact counts as a member. Contacts of other workspaces are left out. */
@@ -43,6 +46,8 @@ export function cleanContact(input: { name: string; email?: string; slackHandle?
   const slack_handle = handle === "@" ? null : handle;
   const phone = String(input.phone ?? "").trim() || null;
   if (!name) return { ok: false, reason: "Give the contact a name." };
+  // Never text that reads as a sealed value (spec 0028), nor characters that could hide one name behind another.
+  if (isSealed(name) || HIDDEN_CHARACTERS.test(name)) return { ok: false, reason: "The name has characters that cannot be shown." };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, reason: "That email address does not look right." };
   if (slack_handle && !/^@[a-z0-9._-]{1,80}$/.test(slack_handle)) return { ok: false, reason: "A Slack handle has letters, digits, dots, dashes or underscores." };
   if (phone && !/^\+?[0-9 ()/-]{5,30}$/.test(phone)) return { ok: false, reason: "That phone number does not look right." };
