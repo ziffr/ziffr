@@ -63,6 +63,10 @@ const plusDays = (day: string, n: number) => iso(addDays(parseISO(day), n));
 const isDay = (v: unknown): v is string => typeof v === "string" && DAY.test(v) && isValid(parseISO(v)) && iso(parseISO(v)) === v;
 const KIND_ORDER: Record<ScheduleKind, number> = { value_due: 0, approval: 1, task: 2, question: 3 };
 
+/** A Member or Guest asking for someone else's Schedule: a Forbidden with the reason, which the API answers with 403
+ * rather than its usual "not found", because the person asked for is not what is hidden. */
+export class TeammateRefused extends Forbidden {}
+
 /** A span a Schedule cannot cover, with the sentence that says what to change (the API answers 400 with it). */
 export class SpanRefused extends Error {}
 
@@ -99,7 +103,7 @@ export function weekOf(day: string): { from: string; to: string } {
  * than themselves is refused, and so is a person who is not in the Workspace. */
 async function whose(actor: Actor | KeyActor, personId: unknown): Promise<string> {
   if (personId === undefined || personId === null || personId === actor.personId) return actor.personId;
-  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins see a teammate's Schedule.");
+  if (actor.role !== "owner" && actor.role !== "admin") throw new TeammateRefused("Only Owners and Admins see a teammate's Schedule.");
   if (typeof personId !== "string" || personId.length > 200) throw new Forbidden();
   const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).eq("user_id", personId).maybeSingle();
   if (!data) throw new Forbidden();

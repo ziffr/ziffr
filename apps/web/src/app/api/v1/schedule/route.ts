@@ -2,8 +2,7 @@
 // workspace, by day, overdue first, or, for an Owner or Admin, a teammate's (`person_id`), limited to the Metrics the
 // key's creator sees too. Scope metrics:read: every entry is about a Metric they see; the role decides the rest. The core decides everything;
 // this only shapes the answer and makes its paths into links, which carry no secret and need a sign-in.
-import { Forbidden } from "@ziffr/core/actor";
-import { schedule, SpanRefused, type Schedule, type ScheduleEntry } from "@ziffr/core/schedule";
+import { schedule, SpanRefused, TeammateRefused, type Schedule, type ScheduleEntry } from "@ziffr/core/schedule";
 import { ApiError, json, keyRoute, query } from "@/lib/api";
 import { ScheduleAnswer, scheduleQuery } from "../schemas";
 
@@ -29,7 +28,7 @@ export const GET = keyRoute("metrics:read", async (actor, req) => {
   } catch (e) {
     if (e instanceof SpanRefused) throw new ApiError("invalid_request", e.message);
     // A Member or Guest naming someone else is refused with the reason; a person not in the workspace stays "not found".
-    if (e instanceof Forbidden && e.message !== "Forbidden") throw new ApiError("forbidden", e.message);
+    if (e instanceof TeammateRefused) throw new ApiError("forbidden", e.message);
     throw e;
   }
 });
