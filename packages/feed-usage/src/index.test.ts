@@ -1,6 +1,7 @@
 // The Usage Feed with a pretend endpoint and a pretend Ziffr (spec 0031, ticket #366): events are summed and states
 // taken at the period's end, absent figures are absent and never zero, the settings turn it off, a failing endpoint
 // fails loudly. The same against the real app is in test/.
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { runFeed, type FeedItem, type FeedMetric } from "@ziffr/feed-kit";
 import { EVENT_FIGURES, STATE_FIGURES, figureForPeriod, readUsage, settingsFrom, slugOf, usageFeed, type Fetcher, type UsageRow } from "./index";
@@ -122,5 +123,17 @@ describe("settingsFrom", () => {
   });
   it("says what is missing when the keys are set but no Installation is named", () => {
     expect(() => settingsFrom({ ZIFFR_USAGE_KEY: "a", ZIFFR_USAGE_FEED_KEY: "b" })).toThrow(/ZIFFR_USAGE_SOURCE_URL/);
+  });
+});
+
+describe("the Ziffr operations Pack", () => {
+  it("holds one Metric Catalog entry for every figure, whose Metric slug is the figure's, with the period and Aggregation the Feed sums or takes the last by", () => {
+    const pack = JSON.parse(readFileSync(new URL("../../../packs/ziffr-operations.pack.json", import.meta.url), "utf8")) as { contents: { metrics: { metric: { name: string; period: string; aggregation: string } }[] } };
+    const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const entries = pack.contents.metrics.map((m) => ({ slug: slugify(m.metric.name), ...m.metric }));
+    expect(entries.map((e) => e.slug).sort()).toEqual([...STATE_FIGURES, ...EVENT_FIGURES].map(slugOf).sort());
+    expect(entries.every((e) => e.period === "day")).toBe(true);
+    for (const f of STATE_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("last");
+    for (const f of EVENT_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("sum");
   });
 });

@@ -1,0 +1,954 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/ziffr-operations",
+  "name": "Ziffr operations",
+  "version": "1.0.0",
+  "summary": "The figures of the Usage Feed as Metrics, with a dashboard: people, Workspaces, signups, trials, values by Source, calls and views. For whoever runs a Ziffr Installation.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "workspaces",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces",
+          "description": "Workspaces on the Installation at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-trial",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces: trial",
+          "description": "Workspaces in a trial at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-free",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces: free",
+          "description": "Workspaces on the free size at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-paid",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces: paid",
+          "description": "Workspaces on a paid size at the end of the day. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "people",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "People",
+          "description": "People with an account at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "people",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "people-active-7d",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "People: active 7d",
+          "description": "People who used Ziffr in the 7 days up to the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "people",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-active-7d",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces: active 7d",
+          "description": "Workspaces where something happened in the 7 days up to the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "metrics",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Metrics",
+          "description": "Metrics across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "metrics-archived",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Metrics: archived",
+          "description": "Archived Metrics across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "dashboards",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Dashboards",
+          "description": "Dashboards across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "dashboards",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "widgets",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Widgets",
+          "description": "Widgets on dashboards at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "widgets",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "decks",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Decks",
+          "description": "Decks across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "decks",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workflows",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workflows",
+          "description": "Workflows across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Workflows",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "feeds",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Feeds",
+          "description": "Feeds across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Feeds",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "packs-installed",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Packs installed",
+          "description": "Installed Packs across all Workspaces at the end of the day.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "Packs",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-created",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces created",
+          "description": "Workspaces created in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "trials-started",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Trials started",
+          "description": "Trials started in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "trials",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "trials-kept",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Trials kept",
+          "description": "Trials that turned into a Workspace kept in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "trials",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "trials-closed",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Trials closed",
+          "description": "Trials that ended without being kept in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "trials",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "sizes-booked",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Sizes booked",
+          "description": "Times a Workspace booked a size in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "bookings",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspaces-deleted",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspaces deleted",
+          "description": "Workspaces deleted in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "Workspaces",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "signups",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Signups",
+          "description": "People who signed up in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "signups",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-web",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: web",
+          "description": "Values that arrived through the web form in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-email",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: email",
+          "description": "Values that arrived by email in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-slack",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: Slack",
+          "description": "Values that arrived through Slack in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-telegram",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: Telegram",
+          "description": "Values that arrived through Telegram in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-api",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: API",
+          "description": "Values that arrived through the API in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-feed",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: Feed",
+          "description": "Values that arrived through a Feed in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-mcp",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: MCP",
+          "description": "Values that arrived through the MCP server in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "values-derived",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Values: derived",
+          "description": "Values computed for Derived Metrics in the period. Held back while the Installation has fewer than three Workspaces.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "api-calls",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "API calls",
+          "description": "Calls to the API in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "calls",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "feed-calls",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Feed calls",
+          "description": "Calls made with a Feed Key in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "calls",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "mcp-calls",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "MCP calls",
+          "description": "Calls to the MCP server in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "calls",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "emails-sent",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Emails sent",
+          "description": "Emails Ziffr sent in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "target",
+          "unit": "emails",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "views-dashboards",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Views: dashboards",
+          "description": "Dashboard views in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "views-decks",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Views: decks",
+          "description": "Deck views in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "views-metrics",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Views: metrics",
+          "description": "Metric page views in the period.",
+          "category": "Operations",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "ziffr-operations",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Ziffr operations",
+          "description": "How an Installation is used, day by day: people and Workspaces, signups and trials, values arriving by Feed, calls and views.",
+          "slots": [
+            {
+              "label": "Workspaces",
+              "suggests": "workspaces"
+            },
+            {
+              "label": "People: active 7d",
+              "suggests": "people-active-7d"
+            },
+            {
+              "label": "Workspaces: active 7d",
+              "suggests": "workspaces-active-7d"
+            },
+            {
+              "label": "Signups",
+              "suggests": "signups"
+            },
+            {
+              "label": "Trials started",
+              "suggests": "trials-started"
+            },
+            {
+              "label": "Trials kept",
+              "suggests": "trials-kept"
+            },
+            {
+              "label": "Values: Feed",
+              "suggests": "values-feed"
+            },
+            {
+              "label": "API calls",
+              "suggests": "api-calls"
+            },
+            {
+              "label": "Views: dashboards",
+              "suggests": "views-dashboards"
+            },
+            {
+              "label": "Metrics",
+              "suggests": "metrics"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                1
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                3
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 4,
+              "h": 6,
+              "settings": {
+                "window": 14
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                5
+              ],
+              "x": 4,
+              "y": 10,
+              "w": 4,
+              "h": 6,
+              "settings": {
+                "window": 14
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                6
+              ],
+              "x": 8,
+              "y": 10,
+              "w": 4,
+              "h": 6,
+              "settings": {
+                "window": 14
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                7
+              ],
+              "x": 0,
+              "y": 16,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                8
+              ],
+              "x": 6,
+              "y": 16,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                9
+              ],
+              "x": 0,
+              "y": 22,
+              "w": 3,
+              "h": 4
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

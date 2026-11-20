@@ -3,7 +3,8 @@
 // entries become Metrics, which of its Dashboard Templates becomes a dashboard with its Slots filled by them, and
 // which of its Workflow Templates becomes a Workflow, with its people picked. Every function takes the Actor first.
 // Security: only Owners and Admins, never through a key, and only with an install of their own Workspace; every
-// Metric is made through createMetric (the Workspace Limit, the trial's cap, the Audit Log), a Derived Metric's
+// Feed picked as Submitter must be a live Feed of this Workspace (checked before anything is made, set through
+// addFeedToMetric, which also turns the API Source on). Every Metric is made through createMetric (the Workspace Limit, the trial's cap, the Audit Log), a Derived Metric's
 // formula is checked against the Workspace's Metrics like any other, the dashboard through
 // createDashboardFromTemplate (every Metric must be seen) and the Workflow through createWorkflowFromTemplate
 // (Approvers must be members). Everything asked for is checked before anything is made. Keys from the browser are
@@ -12,6 +13,7 @@ import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
+import { liveFeed, feedChoices, addFeedToMetric } from "./feeds";
 import { addSubmitters, createMetric, deleteMetric, MetricKept } from "./metrics";
 import { checkFormula, formulaInputs, type FormulaInput } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
@@ -35,6 +37,8 @@ export type PackSetupOptions = {
   dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[] }[];
   workflows: { key: string; name: string; approvers: number }[];
   people: { id: string; name: string }[];
+  /** The Workspace's live Feeds (names and ids), one of which may be the Submitter of every Metric made. */
+  feeds: { id: string; name: string }[];
   metrics: { id: number; name: string }[];
   /** Why no Metric can be made now (the Workspace Limit), or null. */
   refusal: string | null;
@@ -45,6 +49,8 @@ export type PackSetupOptions = {
 export type PackSetupInput = {
   metrics: string[];
   submitters?: string[];
+  /** One of the Workspace's Feeds, made the Submitter of every Metric that takes values, with its API Source on. */
+  feed?: string | null;
   dashboard?: { key: string; name?: string; fills?: (number[] | null)[] } | null;
   workflow?: { key: string; name?: string; approvers: string[] } | null;
 };
@@ -137,6 +143,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
     // Members only, by name: Approvers must be members; Submitters may be Contacts too, but the set-up asks the
     // person themselves or their team, and Contacts are added on each Metric's page.
     people: people.filter((x) => memberIds.has(x.id)).map((x) => ({ id: x.id, name: x.name })),
+    feeds: await feedChoices(actor),
     metrics: choices,
     refusal: await roomFor(actor, 1),
   };
@@ -215,6 +222,9 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
   const submitters = [...new Set((Array.isArray(input?.submitters) ? input.submitters : []).slice(0, MAX_SUBMITTERS + 1).map(String))];
   if (submitters.length > MAX_SUBMITTERS) throw new Error(`Ask at most ${MAX_SUBMITTERS} people; add more on each Metric's page.`);
   await assertMembers(actor, [...submitters, ...(workflow?.approvers ?? [])]);
+  // A Feed from the browser: a string naming a live Feed of this Workspace, or nothing.
+  if (input?.feed != null && typeof input.feed !== "string") throw new Error("Pick one of this Workspace's Feeds.");
+  const feed = input?.feed ? await liveFeed(actor.workspaceId, input.feed).then((f) => f.person_id, () => { throw new Forbidden("Pick one of this Workspace's Feeds."); }) : null;
   const refusal = order.length ? await roomFor(actor, order.length) : null;
   if (refusal) throw new Error(refusal);
   if (!order.length && !dashboard && !workflow) throw new Error("Pick something to set up.");
@@ -238,6 +248,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
       made.set(e.pack_key, { ...m, name: e.name });
     }
     if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
+    if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);
     dashboardId = dashboard
       ? await createDashboardFromTemplate(actor, { template: dashboard.template.id, name: dashboard.name, fills: dashboard.fills.map((f) => (typeof f === "string" ? [made.get(f)!.id] : f)) })
       : null;
@@ -248,7 +259,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
     const why = wordsForPeople(e) ?? "Setting up stopped on something unexpected.";
     throw new Error(`${why}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
   }
-  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null } });
+  await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null, feed: feed !== null } });
   return { metrics: [...made.values()], dashboardId, workflowId };
 }
 

@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
+import { createFeed, deleteFeed } from "./feeds";
 import { installPackFile } from "./packs";
 import { packSetupOptions, setUpFromPack } from "./pack-setup";
 import { repoFile } from "./test/repo-file";
@@ -172,6 +173,50 @@ describe("who sets up", () => {
     await expect(setUpFromPack(w.actor(sara), install, { metrics: [], dashboard: { key: "saas-monthly" } })).rejects.toThrow(/Dashboard Templates/);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: [], workflow: { key: "constructor", approvers: [] } })).rejects.toThrow(/Workflow Templates/);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: [] })).rejects.toThrow(/Pick something/);
+    expect(await count("metrics", w.id)).toBe(0);
+  });
+});
+
+describe("a Feed as the Submitter", () => {
+  it("makes it the Submitter of every Metric of the operations Pack, with the API Source on, and no one else asked", async () => {
+    const { w, sara, install } = await withPack("ziffr-operations");
+    const { id: feed } = await createFeed(w.actor(sara), "Ziffr usage");
+    const options = await packSetupOptions(w.actor(sara), install);
+    expect(options.feeds).toEqual([{ id: feed, name: "Ziffr usage" }]);
+    const keys = options.entries.map((e) => e.key);
+    const made = await setUpFromPack(w.actor(sara), install, { metrics: keys, feed, dashboard: { key: "ziffr-operations" } });
+    expect(made.metrics).toHaveLength(keys.length);
+    expect(made.dashboardId).not.toBeNull();
+    // The Usage Feed sends by slug, and packages/feed-usage checks the slugs of this Pack's names are its figures.
+    const rows = await metricsOf(w.id);
+    expect(new Set(rows.map((m) => m.slug)).size).toBe(keys.length);
+    expect(rows.every((m) => m.slug === m.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))).toBe(true);
+    expect(rows.every((m) => (m.sources as string[]).includes("api"))).toBe(true);
+    const { data: tokens } = await db().from("tokens").select("submitter_id").eq("workspace_id", w.id);
+    expect(tokens).toHaveLength(keys.length);
+    expect(new Set(tokens!.map((t) => t.submitter_id))).toEqual(new Set([feed]));
+  });
+
+  it("refuses a Feed of another Workspace, a deleted Feed and anything that is not a Feed, making nothing", async () => {
+    const { w, sara, install } = await withPack("ziffr-operations");
+    const other = await workspace("Other"); cleanups.push(other.cleanup);
+    const zoe = await other.person("owner");
+    const { id: theirs } = await createFeed(other.actor(zoe), "Theirs");
+    const { id: gone } = await createFeed(w.actor(sara), "Gone");
+    await deleteFeed(w.actor(sara), gone);
+    for (const feed of [theirs, gone, sara, "nobody", 7 as unknown as string]) {
+      await expect(setUpFromPack(w.actor(sara), install, { metrics: ["signups"], feed })).rejects.toThrow(/Feeds/);
+    }
+    expect(await count("metrics", w.id)).toBe(0);
+    expect(await count("tokens", w.id)).toBe(0);
+  });
+
+  it("is for Owners and Admins only: a member cannot, and no one sees the Feeds' names through the options", async () => {
+    const { w, sara, install } = await withPack("ziffr-operations");
+    const { id: feed } = await createFeed(w.actor(sara), "Ziffr usage");
+    const ben = await w.person("member");
+    await expect(setUpFromPack(w.actor(ben, "member"), install, { metrics: ["signups"], feed })).rejects.toThrow();
+    await expect(packSetupOptions(w.actor(ben, "member"), install)).rejects.toThrow();
     expect(await count("metrics", w.id)).toBe(0);
   });
 });
