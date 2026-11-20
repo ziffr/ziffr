@@ -3,7 +3,7 @@
 -- cannot pass them (as the claim_* functions do). The limits themselves come from the core (alert-limits.ts).
 alter table deliveries drop constraint deliveries_kind_check;
 alter table deliveries add constraint deliveries_kind_check
-  check (kind in ('question','task','reminder','reply','correction','decision','closed','done','prompt','notice','alert'));
+  check (kind in ('question','task','reminder','reply','correction','decision','closed','done','prompt','notice','digest','alert'));
 
 -- Fires an Alert: true for the one call that moves it from armed to fired (a per-period kind: or from another period's
 -- fired state), so two values arriving at once send one message. An Alert that is paused fires nothing.
