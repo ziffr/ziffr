@@ -49,7 +49,7 @@ Anyone who can see a Metric can ask about it or give a Task on it, Guests and Vi
 
 ## Who can read an Action
 
-The asker, the Assignee and the Metric's Owner can always read an Action and its Thread. Everyone else in the Workspace can read it too, unless the asker chose a Group under **Who can read**. Then only the members of that Group can read it, besides those three people.
+The asker, the Assignee and the Metric's Owner can always read an Action and its Thread. Anyone else can read it only if they see its Metric, through a Share or a dashboard or deck shared with them; being an Owner or Admin of the Workspace is not enough. Of those, everyone can read it, unless the asker chose a Group under **Who can read**. Then only the members of that Group who see the Metric can read it, besides those three people. This holds for the Tasks a Workflow makes too, such as Approvals.
 
 ## The Actions page
 
@@ -75,7 +75,7 @@ Choose a row to open the Action. On a phone, the Metric, the period and who aske
 
 ### What the Action shows
 
-At the top you see the status, whether it is a Question or Task, the Due Date, the Metric (a link to its page), the period, the Breakdown row if there is one, and the value, written in the Workspace's Number Style with the Metric's unit. If the value was corrected, the old value is shown crossed out next to it. Below that is who asked whom and when, the question or task itself, and a small chart around the period with the period marked.
+At the top you see the status, whether it is a Question or Task, the Due Date, the Metric (a link to its page), the period, the Breakdown row if there is one, and the value, written in the Workspace's Number Style with the Metric's unit. If the value was corrected, the old value is shown crossed out next to it. Below that is who asked whom and when, the question or task itself, and a small chart around the period with the period marked. If you are on the Action but do not see its Metric, for example as an Approver it was never shared with, you see the Action and its value, but the Metric's name is not a link and there is no chart.
 
 **Sent through connectors** lists each time Ziffr sent this Action or a reply to someone: what kind of message, to whom, through which Connector and when. The **Outbox** link there shows all of them (see [Workspace settings](16-workspace-settings.md)).
 

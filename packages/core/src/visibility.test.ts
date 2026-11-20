@@ -32,7 +32,7 @@ describe("workspace isolation", () => {
     const shares = expandGroupShares(A, [inA({ id: 1, object_type: "dashboard", object_id: 1, group_id: 7, user_id: null as unknown as string, role: "viewer" })], groups);
     expect(shares).toEqual([]);
     expect(objectRole(A, "sara", "dashboard", inB({ id: 1, owner_id: "sara" }), [])).toBeNull();
-    expect(canReadThread(A, "sara", inB({ asker_id: "sara", assignee_id: "ben", metric_id: 1, read_group_id: null }), "sara", [])).toBe(false);
+    expect(canReadThread(A, "sara", inB({ asker_id: "sara", assignee_id: "ben", metric_id: 1, read_group_id: null }), "sara", [], true)).toBe(false);
   });
   it("refuses rows from another workspace, and missing rows", () => {
     const actor: Actor = { personId: "sara", workspaceId: A, role: "owner" };
@@ -68,13 +68,20 @@ describe("visibility inside a workspace", () => {
     expect(objectRole(A, "anna", "dashboard", inA({ id: 1, owner_id: "sara" }), shares)).toBe("editor");
     expect(objectRole(A, "zoe", "dashboard", inA({ id: 1, owner_id: "sara" }), shares)).toBeNull();
   });
-  it("lets the people on a thread read it, and others only if it is open or they are in its group", () => {
-    const groups = [inA({ id: 1, name: "Management", members: ["sara"] })];
+  it("lets the people on a thread read it, and others only if they see its Metric and it is open or they are in its group", () => {
+    const groups = [inA({ id: 1, name: "Management", members: ["sara", "zoe"] })];
     const limited = inA({ asker_id: "ben", assignee_id: "anna", metric_id: 1, read_group_id: 1 });
-    expect(canReadThread(A, "anna", limited, "sara", groups)).toBe(true);
-    expect(canReadThread(A, "sara", limited, "ben", groups)).toBe(true);
-    expect(canReadThread(A, "zoe", limited, "ben", groups)).toBe(false);
-    expect(canReadThread(A, "zoe", { ...limited, read_group_id: null }, "ben", groups)).toBe(true);
+    // The people on it, and the Metric's owner, whether or not they see the Metric otherwise.
+    expect(canReadThread(A, "anna", limited, "sara", groups, false)).toBe(true);
+    expect(canReadThread(A, "ben", limited, "sara", groups, false)).toBe(true);
+    expect(canReadThread(A, "sara", limited, "sara", groups, false)).toBe(true);
+    expect(canReadThread(A, "sara", limited, "ben", groups, true)).toBe(true);
+    expect(canReadThread(A, "eve", limited, "ben", groups, true)).toBe(false);
+    expect(canReadThread(A, "eve", { ...limited, read_group_id: null }, "ben", groups, true)).toBe(true);
+    // Ticket 323: neither an open Thread nor its Group lets in someone who does not see the Metric.
+    expect(canReadThread(A, "eve", { ...limited, read_group_id: null }, "ben", groups, false)).toBe(false);
+    expect(canReadThread(A, "zoe", limited, "ben", groups, false)).toBe(false);
+    expect(canReadThread(A, "zoe", limited, "ben", groups, true)).toBe(true);
   });
 });
 

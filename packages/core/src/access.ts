@@ -49,16 +49,17 @@ function byMetric(rows: { metric_id: number; period_start: string; state: string
   return out;
 }
 
-/** Who may read a Thread (decided by the core): the people on it, then everyone, or only its Group's members. */
-export function threadReader(viewer: string, groups: (Group & { workspace_id: string })[], metricOwner: (metricId: number) => string | undefined, ws: string) {
-  return (a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & { workspace_id: string }) => canReadThread(ws, viewer, a, metricOwner(a.metric_id), groups);
+/** Who may read a Thread (decided by the core): the people on it, anyone else only for a Metric they see
+ * (`visible`, from visibleMetricIds for the same viewer), then everyone, or only its Group's members. */
+export function threadReader(viewer: string, groups: (Group & { workspace_id: string })[], metricOwner: (metricId: number) => string | undefined, ws: string, visible: ReadonlySet<number>) {
+  return (a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & { workspace_id: string }) => canReadThread(ws, viewer, a, metricOwner(a.metric_id), groups, visible.has(a.metric_id));
 }
 
 /** The Actions this viewer may read. */
 export async function readableActions(ws: string, viewer: string, filter?: { metricId?: number }) {
-  const [actions, groups, { data: metrics }] = await Promise.all([getActions(ws, filter), getGroups(ws), db().from("metrics").select("id, owner_id").eq("workspace_id", ws)]);
-  const owners = new Map((metrics ?? []).map((m) => [m.id as number, m.owner_id as string]));
-  const can = threadReader(viewer, groups, (id) => owners.get(id), ws);
+  const [actions, groups, metrics] = await Promise.all([getActions(ws, filter), getGroups(ws), getMetrics(ws)]);
+  const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
+  const can = threadReader(viewer, groups, (id) => owners.get(id), ws, await visibleMetricIds(ws, viewer, metrics));
   return actions.filter((a) => can(a as Action & { workspace_id: string }));
 }
 
@@ -177,7 +178,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
-  const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws);
+  const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws, ids);
   const openActions: Record<number, number> = {};
   for (const a of actions) if (ids.has(a.metric_id) && canRead(a)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
   return {

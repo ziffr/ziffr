@@ -8,7 +8,7 @@ import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
 import { yearStartOf } from "@ziffr/core/fiscal-year";
 import { attainmentMethodOf, numberStyleOf } from "@ziffr/core/workspace-settings";
-import type { Metric, Profile } from "@ziffr/core/types";
+import type { Profile } from "@ziffr/core/types";
 
 /** The people of a Workspace, members then Contacts; it lives in the core (see peopleIn there). */
 export const getPeopleIn = peopleIn;
@@ -35,15 +35,11 @@ export const getAttainmentMethod = cache(async () => attainmentMethodOf(await cu
 
 /** The current workspace's Metrics. */
 export const getMetrics = cache(async () => data.getMetrics(await currentWorkspaceId()));
-/** One value of the current workspace by id. */
-export const getObservation = async (id: number | null | undefined) => data.getObservation(await currentWorkspaceId(), id);
 /** The last values of one Metric of the current workspace, oldest first. */
 export const getLastValues = async (metricId: number, n: number) => data.getLastValues(await currentWorkspaceId(), metricId, n);
 /** The current workspace's Metrics and series; with `points`, only each series' last periods. */
 export const getAllSeries = (opts?: { points?: number }) => allSeries(opts?.points ?? 0);
 const allSeries = cache(async (points: number) => data.getAllSeries(await currentWorkspaceId(), points ? { points } : {}));
-/** The series of some Metrics of the current workspace (with the inputs of Derived ones). */
-export const getSeriesOf = async (metrics: Metric[], ids: number[]) => data.getSeriesOf(await currentWorkspaceId(), metrics, ids);
 /** How many Actions wait for the person in the current workspace. */
 export const openActionCount = cache(async (viewer: string) => data.openActionCount(await currentWorkspaceId(), viewer));
 /** Target Series and Projections of the current workspace. */

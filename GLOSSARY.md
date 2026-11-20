@@ -441,7 +441,7 @@ The user an action is assigned to.
 _Avoid_: Owner, responsible
 
 **Thread**:
-The replies between asker and assignee on an action. Everyone can read it, unless the asker limits it to a Group; the people on it can always read it.
+The replies between asker and assignee on an action. Everyone who sees its Metric can read it, unless the asker limits it to a Group; the people on it and the Metric's owner can always read it.
 _Avoid_: Conversation, chat, comments
 
 **Correction**:

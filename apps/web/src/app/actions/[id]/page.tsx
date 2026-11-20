@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, PencilLine, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { getMetrics, getNumberStyle, getObservation, getProfileMap, getSeriesOf, getYearStart } from "@/lib/data";
+import { getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { actionThread } from "@ziffr/core/page-data";
 import { formatDate, formatValue } from "@ziffr/core/format";
@@ -23,16 +23,11 @@ import { periodLabel } from "@ziffr/core/periods";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
-  // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core.
-  const [thread0, metrics, people, viewer, yearStart, numberStyle] = await Promise.all([actionThread(await currentActor(), id), getMetrics(), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
+  // Only an Action the viewer may read, with its Thread (GLOSSARY: Thread), decided in the core: the value it is
+  // about, and the periods around it only for a viewer who sees the Metric (ticket 323).
+  const [thread0, people, viewer, yearStart, numberStyle] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle()]);
   if (!thread0) notFound();
-  const { action: a, messages: msgs, deliveries: sent } = thread0;
-  const m = metrics.find((x) => x.id === a.metric_id)!;
-  // Only this Metric's series (and its inputs when derived), and only the value the Action is about.
-  const [series, obs] = await Promise.all([getSeriesOf(metrics, [m.id]), getObservation(a.observation_id)]);
-  const pts = series[m.slug] ?? [];
-  const idx = pts.findIndex((p) => p.period === a.period_start);
-  const window = pts.slice(Math.max(0, idx - (m.period === "day" ? 20 : 8)), idx + (m.period === "day" ? 10 : 4));
+  const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent } = thread0;
   const isAsker = viewer === a.asker_id;
   // A Self-check is decided only by Confirm or Correct: closed or reopened by hand, it would decide nothing and leave
   // the value waiting (the core refuses it too).
@@ -49,7 +44,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <StatusBadge status={a.status} kind={a.kind} />
           <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {formatDate(a.due_date)}</span>}
-          <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link><span>{periodLabel(a.period_start, m.period, yearStart)}</span>
+          {seesMetric ? <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link> : <span className="font-medium text-foreground">{m.name}</span>}<span>{periodLabel(a.period_start, m.period, yearStart)}</span>
           {a.breakdown_label && <span>row <span className="font-medium text-foreground">{a.breakdown_label}</span></span>}
           {obs && <><span className="fig text-foreground">{formatValue(m, obs.value, numberStyle)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value, numberStyle)}</span>}</>}
         </div>
@@ -60,7 +55,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
           </div>
         </div>
-        {window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={m} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
+        {chartMetric && window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={chartMetric} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
         {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
         {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}
         {sent.length > 0 && (
