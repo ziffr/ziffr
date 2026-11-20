@@ -71,8 +71,10 @@ describe("setting up Metrics from a Pack", () => {
     const bens = await w.metric(ben, { name: "Ben's sessions", period: "week" });
     const own = await w.metric(sara, { name: "Visits", period: "week" });
     const fills = [null, null, null, [own.id], [own.id], [bens.id]];
-    await expect(setUpFromPack(w.actor(sara), install, { metrics: ["aov"], dashboard: { key: "shop-weekly", fills } })).rejects.toThrow();
+    await expect(setUpFromPack(w.actor(sara), install, { metrics: ["aov"], dashboard: { key: "shop-weekly", fills } })).rejects.toThrow(/Metrics you see/);
     expect(await count("dashboards", w.id)).toBe(0);
+    // Refused before anything is made: no Metric is left behind either.
+    expect(await count("metrics", w.id)).toBe(2);
     const made = await setUpFromPack(w.actor(sara), install, { metrics: ["aov"], dashboard: { key: "shop-weekly", fills: [null, null, null, [own.id], [own.id], [own.id]] } });
     expect(made.dashboardId).not.toBeNull();
   });
@@ -90,6 +92,35 @@ describe("setting up Metrics from a Pack", () => {
     const { data: wf } = await db().from("workflows").select("name, config").eq("id", made.workflowId!).single();
     expect(wf!.name).toBe("Close");
     expect(JSON.stringify(wf!.config)).toContain(ada);
+  });
+});
+
+describe("what is asked for", () => {
+  it("asks only members of the Workspace for values, and makes nothing for anyone else", async () => {
+    const { w, sara, install } = await withPack("online-shop");
+    const contact = await w.contact({ email: "c@example.test" });
+    const other = await workspace("Other"); cleanups.push(other.cleanup);
+    const zoe = await other.person("owner");
+    for (const submitters of [[contact], [zoe], ["t-nobody"], [sara, sara, "a", "b", "c", "d", "e"]]) {
+      await expect(setUpFromPack(w.actor(sara), install, { metrics: ["orders"], submitters })).rejects.toThrow();
+    }
+    expect(await count("metrics", w.id)).toBe(0);
+    expect(await count("tokens", w.id)).toBe(0);
+  });
+
+  it("refuses a Derived entry computed from another Derived one, and a formula too long once it names real slugs", async () => {
+    const { w, sara, install } = await withPack("online-shop");
+    const entry = async (row: Record<string, unknown>) => {
+      const { error } = await db().from("catalog_metrics").insert({ workspace_id: w.id, pack_install_id: install, category: "Shop", description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "week", submission_rule: "overwrite", polarity: "higher", sources: [], aggregation: "none", ...row });
+      if (error) throw new Error(error.message);
+    };
+    await entry({ name: "Twice the order value", pack_key: "twice-aov", formula: "{aov} * 2" });
+    await expect(setUpFromPack(w.actor(sara), install, { metrics: ["twice-aov"] })).rejects.toThrow(/a Derived Metric itself/);
+    // Inputs with names of 120 characters get slugs as long; a formula naming them often is refused before anything is made.
+    for (const k of ["long-a", "long-b"]) await entry({ name: `${k} `.padEnd(120, "q"), pack_key: k, formula: null, aggregation: "sum", sources: ["web_form"] });
+    await entry({ name: "Long sum", pack_key: "long-sum", formula: "{long-a} + {long-b} + {long-a} * {long-b}" });
+    await expect(setUpFromPack(w.actor(sara), install, { metrics: ["long-sum"] })).rejects.toThrow(/longer than 500/);
+    expect(await count("metrics", w.id)).toBe(0);
   });
 });
 
@@ -121,6 +152,8 @@ describe("who sets up", () => {
     const ben = await w.person("member");
     const ada = await w.person("admin");
     await expect(setUpFromPack(w.actor(ben, "member"), install, { metrics: ["orders"] })).rejects.toThrow(/Only Owners and Admins/);
+    const gus = await w.person("guest");
+    await expect(setUpFromPack(w.actor(gus, "guest"), install, { metrics: ["orders"] })).rejects.toThrow(/Only Owners and Admins/);
     await expect(packSetupOptions(w.actor(ben, "member"), install)).rejects.toThrow(/Only Owners and Admins/);
     await expect(setUpFromPack({ ...w.actor(ada, "admin"), key: { id: 1 } } as never, install, { metrics: ["orders"] })).rejects.toThrow();
     const other = await workspace("Other"); cleanups.push(other.cleanup);

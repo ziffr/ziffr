@@ -11,7 +11,7 @@
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
-import { addSubmitters, createMetric } from "./metrics";
+import { addSubmitters, createMetric, deleteMetric } from "./metrics";
 import { checkFormula, formulaInputs, type FormulaInput } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
 import { createWorkflowFromTemplate } from "./workflow-templates";
@@ -53,6 +53,12 @@ export type PackSetupResult = { metrics: { id: number; slug: string; name: strin
 
 /** The most entries one set-up makes: a Pack holds at most 50 of a kind. */
 const MAX_ENTRIES = 50;
+/** The most Submitters one set-up asks (each gets a first Prompt for every Metric): the page asks only the person. */
+const MAX_SUBMITTERS = 5;
+/** The most Approvers a Workflow's Approve step takes. */
+const MAX_APPROVERS = 3;
+/** The longest slug a Metric can get: a name of 120 characters, and a suffix when the slug is taken. */
+const LONGEST_SLUG = 130;
 const KEY = /^[a-z][a-z0-9-]{0,39}$/;
 
 // A person who manages the Workspace, not a program: setting up creates Metrics and sends Prompts.
@@ -161,7 +167,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
   if (input?.workflow) {
     const t = typeof input.workflow.key === "string" ? p.workflows.get(input.workflow.key) : undefined;
     if (!t) throw new Error("Pick one of this Pack's Workflow Templates.");
-    const approvers = Array.isArray(input.workflow.approvers) ? input.workflow.approvers.slice(0, 4).map(String) : [];
+    const approvers = Array.isArray(input.workflow.approvers) ? input.workflow.approvers.slice(0, MAX_APPROVERS + 1).map(String) : [];
     if (!fromWorkflowTemplate(t.body as WorkflowTemplateBody, approvers)) throw new Error("Pick each Approver the Workflow Template asks for, each person once.");
     workflow = { template: t, name: String(input.workflow.name ?? "").trim().slice(0, 120) || t.name, approvers };
   }
@@ -182,37 +188,57 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
     dashboard = { template: t, name: String(input.dashboard.name ?? "").trim().slice(0, 120) || t.name, fills };
   }
 
-  // A Derived Metric's formula, by the Metrics' slugs, checked against the Workspace's Metrics as they will be.
+  // A Derived Metric's formula, by the Metrics' slugs, checked against the Workspace's Metrics as they will be, with
+  // each slug as long as one can get, so the formula written later cannot be refused as too long.
   if (derived.length) {
     const existing = (await getMetrics(actor.workspaceId)).map((m): FormulaInput => m);
-    const planned = plain.map((e): FormulaInput => ({ slug: `pack-${e.pack_key}`, name: e.name, period: e.period as FormulaInput["period"], formula: null, aggregation: e.aggregation as FormulaInput["aggregation"] }));
+    const longest = (k: string) => `${k}-`.padEnd(LONGEST_SLUG, "x");
+    const planned = plain.map((e): FormulaInput => ({ slug: longest(e.pack_key), name: e.name, period: e.period as FormulaInput["period"], formula: null, aggregation: e.aggregation as FormulaInput["aggregation"] }));
     for (const e of derived) {
-      const why = checkFormula(withSlugs(e.formula!, (k) => `pack-${k}`), [...existing, ...planned], { slug: "pack-this-entry", period: e.period as FormulaInput["period"] });
+      const why = checkFormula(withSlugs(e.formula!, longest), [...existing, ...planned], { slug: "-", period: e.period as FormulaInput["period"] });
       if (why) throw new Error(`“${e.name}” cannot be made: ${why}`);
     }
   }
+  // The Metrics that fill the other Slots: ones the person sees and that are not archived, as the page offers.
+  if (dashboard) {
+    const { choices } = await metricChoices(actor);
+    const offered = new Set(choices.map((m) => m.id));
+    if (dashboard.fills.some((f) => typeof f !== "string" && f.some((id) => !offered.has(id)))) throw new Forbidden("Fill a Slot only with Metrics you see.");
+  }
+  // Submitters and Approvers are members of this Workspace: the page offers no one else.
+  const submitters = [...new Set((Array.isArray(input?.submitters) ? input.submitters : []).slice(0, MAX_SUBMITTERS + 1).map(String))];
+  if (submitters.length > MAX_SUBMITTERS) throw new Error(`Ask at most ${MAX_SUBMITTERS} people; add more on each Metric's page.`);
+  await assertMembers(actor, [...submitters, ...(workflow?.approvers ?? [])]);
   const refusal = order.length ? await roomFor(actor, order.length) : null;
   if (refusal) throw new Error(refusal);
-  const submitters = [...new Set((Array.isArray(input?.submitters) ? input.submitters : []).slice(0, 20).map(String))];
   if (!order.length && !dashboard && !workflow) throw new Error("Pick something to set up.");
 
-  // Made in order: the Workflow, the Metrics (inputs first), their Submitters, the dashboard.
-  const workflowId = workflow ? await createWorkflowFromTemplate(actor, { template: workflow.template.id, name: workflow.name, approvers: workflow.approvers }) : null;
+  // Made in order: the Workflow, the Metrics (inputs first), their Submitters, the dashboard. All of it was checked;
+  // only a Metric made by someone else at the same moment can still meet the limit, and then the words say what was
+  // made before it stopped.
   const made = new Map<string, { id: number; slug: string; name: string }>();
-  for (const e of [...plain, ...derived]) {
-    const m = await createMetric(actor, {
-      name: e.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
-      submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
-      // A Derived Metric takes no values, so no Source and no Workflow.
-      sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,
-    });
-    made.set(e.pack_key, { ...m, name: e.name });
-    if (e.formula) await writeFormula(actor, m.id, withSlugs(e.formula, (k) => made.get(k)!.slug));
+  let workflowId: number | null = null;
+  let dashboardId: number | null = null;
+  try {
+    workflowId = workflow ? await createWorkflowFromTemplate(actor, { template: workflow.template.id, name: workflow.name, approvers: workflow.approvers }) : null;
+    for (const e of [...plain, ...derived]) {
+      const m = await createMetric(actor, {
+        name: e.name, description: e.description, unit: e.unit, unitPosition: e.unit_position, format: e.format, decimals: e.decimals, period: e.period,
+        submissionRule: e.submission_rule, polarity: e.polarity, aggregation: e.aggregation, targetMin: e.target_min, targetMax: e.target_max,
+        // A Derived Metric takes no values, so no Source and no Workflow.
+        sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,
+      });
+      if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
+      made.set(e.pack_key, { ...m, name: e.name });
+    }
+    if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
+    dashboardId = dashboard
+      ? await createDashboardFromTemplate(actor, { template: dashboard.template.id, name: dashboard.name, fills: dashboard.fills.map((f) => (typeof f === "string" ? [made.get(f)!.id] : f)) })
+      : null;
+  } catch (e) {
+    const so = [...[...made.values()].map((m) => m.name), ...(workflowId !== null ? ["the Workflow"] : [])];
+    throw new Error(`${(e as Error).message}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
   }
-  if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
-  const dashboardId = dashboard
-    ? await createDashboardFromTemplate(actor, { template: dashboard.template.id, name: dashboard.name, fills: dashboard.fills.map((f) => (typeof f === "string" ? [made.get(f)!.id] : f)) })
-    : null;
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null } });
   return { metrics: [...made.values()], dashboardId, workflowId };
 }
@@ -222,14 +248,26 @@ function withSlugs(formula: string, slug: (key: string) => string): string {
   return formula.replace(/\{([a-z0-9-]+)\}/g, (_all, k: string) => `{${slug(k)}}`);
 }
 
-// The formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now.
-async function writeFormula(actor: Actor, metricId: number, formula: string) {
+// Refuses anyone who is not a member of the actor's Workspace.
+async function assertMembers(actor: Actor, ids: string[]) {
+  const wanted = [...new Set(ids)];
+  if (!wanted.length) return;
+  const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("user_id", wanted);
+  const found = new Set((data ?? []).map((m) => m.user_id as string));
+  if (!wanted.every((id) => found.has(id))) throw new Forbidden("Pick members of this Workspace.");
+}
+
+// The formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now. Refused,
+// the Metric goes again (it was made a moment ago and holds nothing), so no Metric that looks derived is left
+// without its formula.
+async function writeFormula(actor: Actor, m: { id: number; name: string }, formula: string) {
   const metrics = await getMetrics(actor.workspaceId);
-  const self = metrics.find((m) => m.id === metricId);
-  if (!self) throw new Forbidden();
-  const why = checkFormula(formula, metrics, self);
-  if (why) throw new Error(`“${self.name}” was made, but not its formula: ${why}`);
-  const { error } = await db().from("metrics").update({ formula, sources: [] }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
-  if (error) throw new Error(`“${self.name}” was made, but not its formula.`);
-  await recordVersion("metric", metricId, actor.personId, { message: "Made a Derived Metric from its Pack's entry" });
+  const self = metrics.find((x) => x.id === m.id);
+  const why = self ? checkFormula(formula, metrics, self) : "it is gone";
+  const { error } = why ? { error: null } : await db().from("metrics").update({ formula, sources: [] }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  if (why || error) {
+    if (self) await deleteMetric(actor, m.id, self.name).catch(() => undefined);
+    throw new Error(`“${m.name}” could not be made${why ? `: ${why}` : "."}`);
+  }
+  await recordVersion("metric", m.id, actor.personId, { message: "Made a Derived Metric from its Pack's entry" });
 }
