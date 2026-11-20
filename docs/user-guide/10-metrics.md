@@ -105,7 +105,7 @@ A paste holds at most 256 KB of text and 2,000 values, and you may paste at most
 **New metric** opens a page with two ways to begin. You can change everything afterwards.
 
 - **Start from scratch**: an empty form, for a number nobody has described before.
-- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog.
+- **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](16-workspace-settings.md#packs)).
 
 Owners, Admins and Members create Metrics. Guests create nothing.
 

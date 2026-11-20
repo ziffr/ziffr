@@ -52,7 +52,7 @@ const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-c
 
 export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string }> }) {
   const sp = await searchParams;
-  const items = (await metricCatalog()) as CatalogMetric[];
+  const items = (await metricCatalog(await currentActor())) as unknown as CatalogMetric[];
   const picked = sp.catalog ? items.find((c) => c.id === Number(sp.catalog)) : undefined;
   // A duplicate starts from a Metric the person sees; the core refuses Guests and Metrics hidden from them.
   const copy = sp.copy ? await draftOrNull(Number(sp.copy)) : null;

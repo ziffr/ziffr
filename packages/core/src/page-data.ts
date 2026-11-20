@@ -144,10 +144,16 @@ export async function workflowsView(actor: Actor) {
   return { workflows: workflows ?? [], states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 
-/** The Metric Catalog: example Metrics anyone may start from; the same for every workspace. */
-export async function metricCatalog() {
-  const { data } = await db().from("catalog_metrics").select("*").order("category").order("id");
-  return data ?? [];
+/** The Metric Catalog as this Workspace has it: the entries every Workspace has, and its own part, from the Packs it
+ * installed (spec 0030). A Derived Metric's entry is left out: its formula names other entries of its Pack, which
+ * only setting the Pack up (#277) turns into Metrics. Never another Workspace's entries. */
+export async function metricCatalog(actor: Pick<Actor, "workspaceId">) {
+  const cols = "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, pack_install_id";
+  const [shared, own] = await Promise.all([
+    db().from("catalog_metrics").select(cols).is("workspace_id", null).order("category").order("id"),
+    db().from("catalog_metrics").select(cols).eq("workspace_id", actor.workspaceId).is("formula", null).order("category").order("id"),
+  ]);
+  return [...(shared.data ?? []), ...(own.data ?? [])];
 }
 
 /** What a Metric's page adds for someone who sees it: its Submitters, the workspace's Workflows, this period's state,

@@ -118,7 +118,7 @@ export async function once(actor: KeyActor | FeedActor, idempotencyKey: string, 
 }
 
 /** JSON with sorted keys, so the same body hashes the same whatever order its fields came in. */
-function canonical(v: unknown): string {
+export function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
   if (v && typeof v === "object") return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(",")}}`;
   return JSON.stringify(v ?? null);

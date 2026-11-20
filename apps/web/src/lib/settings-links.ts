@@ -12,6 +12,8 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     { href: "/connectors", label: "Connectors" },
     { href: "/workflows", label: "Workflows" },
     { href: "/sources", label: "Sources" },
+    // Packs add to the Workspace; Guests see none of it (spec 0030).
+    ...(role !== "guest" ? [{ href: "/settings/packs", label: "Packs" }] : []),
     { href: "/settings/keys", label: "Access Keys" },
     // Feeds write into the workspace without a person, so only Owners and Admins set them up (spec 0012).
     ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }] : []),

@@ -95,6 +95,10 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   // A duplicate names its original in the first Version, so only someone who sees the original may claim it.
   const duplicateOf = numOrNull(input.duplicateOf);
   const original = duplicateOf === null ? null : await duplicable(actor, duplicateOf);
+  // A catalog entry is named only when this Workspace has it: one every Workspace has, or its own from a Pack.
+  const catalogId = original ? null : numOrNull(input.fromCatalogId);
+  const fromCatalog = catalogId === null ? null : (await db().from("catalog_metrics").select("id, workspace_id").eq("id", catalogId).maybeSingle()).data;
+  const fromCatalogId = fromCatalog && (fromCatalog.workspace_id === null || fromCatalog.workspace_id === actor.workspaceId) ? catalogId : null;
   let slug = slugify(name) || "metric";
   const { data: clash } = await db().from("metrics").select("id").eq("slug", slug).eq("workspace_id", actor.workspaceId);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
@@ -116,7 +120,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
     attainment_method: methodOrNull(input.attainmentMethod),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
-    from_catalog_id: original ? null : numOrNull(input.fromCatalogId),
+    from_catalog_id: fromCatalogId,
     workflow_id: workflowId,
     access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,
   }).select("id, slug, from_catalog_id").single();

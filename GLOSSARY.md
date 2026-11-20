@@ -55,7 +55,7 @@ The user responsible for a metric's description and for accepting corrections to
 _Avoid_: Admin, maintainer
 
 **Metric Catalog**:
-A library of predefined metric descriptions. Picking one copies its description into a new metric of your own, with no link back to the catalog.
+A library of predefined metric descriptions: the entries every Workspace has, and the Workspace's own part, from the Packs it installed. Picking one copies its description into a new metric of your own, with no link back to the catalog.
 _Avoid_: Template library, presets
 
 **Archived Metric**:
