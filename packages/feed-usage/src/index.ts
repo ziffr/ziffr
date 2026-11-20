@@ -52,7 +52,7 @@ export function settingsFrom(vars: Record<string, string | undefined>): UsageSet
 export type UsageRow = { day: string } & Record<string, unknown>;
 
 /** How the endpoint is called: a fetch, so tests can stand in for Ziffr. */
-export type Fetcher = (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+export type Fetcher = (url: string, init: { headers: Record<string, string>; signal: AbortSignal; redirect: "error" }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
 const DAY_MS = 86_400_000;
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
@@ -67,7 +67,8 @@ export async function readUsage(settings: Pick<UsageSettings, "sourceUrl" | "usa
   url.searchParams.set("from", addDays(yesterday, -(WINDOW_DAYS - 1)));
   url.searchParams.set("to", yesterday);
   const call = options.fetcher ?? ((u, init) => fetch(u, init));
-  const res = await call(url.toString(), { headers: { authorization: `Bearer ${settings.usageKey}`, accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+  const res = await call(url.toString(), { headers: { authorization: `Bearer ${settings.usageKey}`, accept: "application/json" }, signal: AbortSignal.timeout(30_000), redirect: "error" });
+  // No redirects: the Usage Key goes only to the address that was named.
   // The endpoint answers 404 to a key it does not know, so it is not known to be there.
   if (res.status === 404) throw new Error("The Installation did not accept the Usage Key (404): check ZIFFR_USAGE_KEY and ZIFFR_USAGE_SOURCE_URL.");
   if (res.status === 429) throw new Error("The Usage Key is over its limit of 60 calls an hour; the next run tries again.");
