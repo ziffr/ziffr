@@ -58,6 +58,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_TRIAL_MAX` | How many trials may run at once; default 200 |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | The most Metrics a Workspace may hold unless it has a limit of its own (Archived Metrics not counted); unset means no limit. Also on the Installation Settings page |
 | `ZIFFR_DEFAULT_LIMIT_LABEL` | What the default limit is called, such as Free; at most 30 characters |
+| `ZIFFR_CLOUD_KEY`, `ZIFFR_CLOUD_URL` | Hosted Ziffr only: the secret that signs Ziffr Cloud's API calls and the Owners' handover (at least 32 characters, environment only), and where Owners are handed over to. Self-hosters leave them unset |
 | `ZIFFR_TURNSTILE_SITE_KEY`, `ZIFFR_TURNSTILE_SECRET` | Cloudflare Turnstile on the sign-in form: no link is sent before the server has checked the answer with Cloudflare. For any public Ziffr |
 | `ZIFFR_SITE_URL`, `ZIFFR_PROXY_HOPS` | Only behind a reverse proxy of your own (see below): the address people reach, such as `https://ziffr.example.com`, and how many proxies add to `X-Forwarded-For` (yours and Caddy: `2`) |
 | `ZIFFR_REMOTE_MCP` | The remote MCP Server at `https://<your domain>/mcp`, for assistants such as Claude.ai. On with a domain, off at `http://localhost`; `0` turns it off, `1` on |

@@ -18,6 +18,7 @@ import { AttainmentMethodForm } from "./attainment-method";
 import { YearStartForm } from "./year-start";
 import { SizeAndUsage } from "./size-usage";
 import { sizeAndUsage } from "@ziffr/core/workspace-usage";
+import { handoverOffered } from "@ziffr/core/cloud-api";
 
 // Names for country and currency codes, in English like the rest of the app; the code itself where none is known.
 const named = (codes: readonly string[], type: "region" | "currency") => {
@@ -37,7 +38,7 @@ export default async function WorkspaceSettingsPage() {
       <div className="max-w-2xl space-y-8">
         <WorkspaceNameForm name={name} canEdit={canEdit} />
         {/* Size and usage: Owners and Admins only (spec 0029); the demo has no limit to show. */}
-        {usage && !demo && <SizeAndUsage usage={usage} />}
+        {usage && !demo && <SizeAndUsage usage={usage} cloud={handoverOffered(actor)} />}
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}
         {!demo && <WorkspaceClock timeZone={time.timeZone} runHour={time.runHour} canEdit={canEdit} />}
         <YearStartForm yearStart={year.yearStart} allowed={year.allowed} why={year.why} canEdit={canEdit} today={localTime(new Date(), time.timeZone).day} />

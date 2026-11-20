@@ -187,3 +187,9 @@ export async function installationEvents(actor: InstallationActor, limit = 30): 
   const { data } = await db().from("installation_audit_events").select("at, actor_name, kind, subject").order("id", { ascending: false }).limit(Math.min(Math.max(1, Math.floor(limit) || 30), 200));
   return (data ?? []).map((e) => ({ at: e.at as string, actorName: e.actor_name as string, kind: e.kind as string, subject: (e.subject as string | null) ?? null }));
 }
+
+/** Records an event of the Installation's audit done by a service, not a person (such as Ziffr Cloud setting a limit). */
+export async function recordServiceEvent(service: string, kind: string, subject: string | null): Promise<void> {
+  const { error } = await db().from("installation_audit_events").insert({ actor_id: null, actor_name: service.slice(0, 120), kind, subject: subject === null ? null : String(subject).slice(0, 120) });
+  if (error) console.error(`Installation audit: could not record ${kind} (${error.code ?? "error"})`);
+}
