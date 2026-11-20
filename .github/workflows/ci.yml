@@ -79,11 +79,10 @@ jobs:
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md): every Aggregation, Display
   # Period and Fiscal Year start against the reference on at least 1,000 generated series each, with a new seed.
-  # In the merge queue and on main, beside the other jobs, when a change touches a calculation path
-  # (.github/calculation-paths.txt); otherwise its steps are skipped and the job still succeeds. On a pull request the
-  # job is skipped, which counts as passed, so it can be a required check.
+  # On every pull request, beside the other jobs, when a change touches a calculation path
+  # (.github/calculation-paths.txt); otherwise its steps are skipped and the job still succeeds. A personal repository
+  # has no merge queue, so the pull request is the only gate: the full checks run there.
   numbers:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # The full-strength run takes a few minutes and mutation testing at most 20 (mutation-pr.sh stops it there).
     timeout-minutes: 30
@@ -133,7 +132,6 @@ jobs:
   # (its API over HTTP, its production build, and the SDK, MCP server and Feeds against it). The job named core-db,
   # the required check, waits for all four and passes only if each did.
   core-db-shard:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -159,7 +157,6 @@ jobs:
         run: pnpm --filter @ziffr/core test:db --shard=${{ matrix.shard }}/3
 
   core-db-app:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     name: core-db (the app, its API and its clients)
@@ -200,7 +197,7 @@ jobs:
   # The required check: skipped on a pull request (which counts as passed), and in the merge queue and on main passed
   # only if every database job above passed. Its name stays core-db, so the ruleset and the release need no change.
   core-db:
-    if: always() && github.event_name != 'pull_request'
+    if: always()
     needs: [core-db-shard, core-db-app]
     runs-on: ubuntu-latest
     timeout-minutes: 2
