@@ -38,6 +38,7 @@ export const AUDIT_KINDS = {
   "feed.key_revoked": "revoked a Feed Key of",
   "view_design.added": "added the View Design",
   "view_design.removed": "removed the View Design",
+  "pack.installed": "installed the Pack",
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
@@ -80,10 +81,10 @@ export const AUDIT_CATEGORIES = {
 } as const;
 
 /** What an Audit Log event can be about. */
-export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "view_design" | "workflow" | "audit_log";
+export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "view_design" | "workflow" | "pack" | "audit_log";
 
 /** Every object type, for checking a filter. */
-export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "view_design", "workflow", "audit_log"];
+export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "view_design", "workflow", "pack", "audit_log"];
 
 /** Objects whose names only people who see them may read: Owners and Admins do not see every Metric, dashboard or deck. */
 export const NAMED_IF_SEEN: AuditObjectType[] = ["metric", "dashboard", "deck"];

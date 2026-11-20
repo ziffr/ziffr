@@ -24,6 +24,8 @@ export const PACK_FORMATS = [PACK_FORMAT] as const;
 /** The exact limits a Pack is held to (spec 0030): 1 MiB, 200 items, 50 of a kind. Each item is also held to its own
  * format's limits. */
 export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200 } as const;
+/** What Ziffr says of a Pack file from outside the Marketplace, in the spec's words. */
+export const UNSIGNED_WARNING = "Uploaded file. The Marketplace did not check it.";
 /** The licenses a Pack may carry: CC BY 4.0 or MIT for a free one, the Ziffr Pack License for a paid one. */
 export const PACK_LICENSES = ["CC-BY-4.0", "MIT", "Ziffr-Pack-1.0"] as const;
 

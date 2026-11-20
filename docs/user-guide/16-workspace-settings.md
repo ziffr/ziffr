@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/packs/**, apps/web/src/app/settings/page.tsx, apps/web/src/app/settings/layout.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page in the **Workspace** menu of the top bar.
@@ -26,12 +26,13 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 | **Connectors** | Everyone | Below |
 | **Workflows** | Everyone | In [Workflows](11-workflows.md) |
 | **Sources** | Everyone | Below |
+| **Packs** | Everyone but Guests | Below |
 | **Access Keys** | Everyone | Below |
 | **Feeds** | Owners and Admins | Below |
 | **Activity** | Everyone | [Actions and Activity](15-actions.md#the-activity-page) |
 | **Audit log** | Owners and Admins | Below |
 
-General, Access Keys and Feeds open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
+General, Packs, Access Keys and Feeds open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
 ## Starting a Workspace
 
@@ -324,6 +325,22 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 - Pick who sends the message, including an unknown sender, type a message such as "closed 2 deals", and send it.
 - Under a Prompt from Ziffr, choose **Reply** to answer it as its recipient.
 - Each message shows what happened, such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, or a Derived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
+
+## Packs
+
+A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entries, Dashboard and Deck Templates, Workflow Templates, View Designs, Analysis Recipes and Themes. It holds no code. Open **Workspace → Packs**.
+
+**Installed in this Workspace** lists each Pack with its version, author and license, whether it was an uploaded file, when and by whom it was installed, and what it added: its Metric Catalog entries, templates, designs and Themes. A Pack's own page and help page open as plain links, when it has them. Owners, Admins and Members see the list; Guests see no Packs.
+
+**Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs.
+
+1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
+2. Ziffr shows the Pack: its name, version, summary, author and license, and every item it adds. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
+3. It says **Uploaded file. The Marketplace did not check it.** Tick **I install a file the Marketplace did not check.**
+4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
+5. Choose **Install**. The Pack is installed whole or not at all, and the Audit log records it.
+
+Installing makes no Metric, Workflow, dashboard or deck, sends nothing and changes nothing already in the Workspace. Its Metric Catalog entries appear under **New metric** (a Derived Metric's entry waits until setting up from a Pack comes), its templates where you start a dashboard, deck or Workflow, its View Designs under **Analyze → View Designs** (an Analysis Recipe as a View Design that draws it), and its Themes on the Themes page. A Pack that is installed already is not installed again; updating and uninstalling come later.
 
 ## Access Keys
 
