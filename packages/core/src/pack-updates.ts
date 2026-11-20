@@ -190,7 +190,10 @@ export async function updatePackFile(actor: Actor, installId: number, text: stri
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");
-  if (error) throw new Error(error.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "") ? "This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed." : "The Pack could not be updated; nothing was changed.");
+  // Only which constraint failed chooses the words; the database's own text never reaches a person.
+  const sameName = error?.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "");
+  if (sameName) throw new Error("This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed.");
+  if (error) throw new Error("The Pack could not be updated; nothing was changed.");
   await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: "upload" } });
   return res.plan;
 }
