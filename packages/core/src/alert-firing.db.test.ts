@@ -8,6 +8,8 @@ import { checkAlerts, ALERT_LIMIT_NOTE } from "./alert-firing";
 import type { AlertCondition } from "./alert-rules";
 import { createAlert, listMyAlerts, refreshAlertSight } from "./alerts";
 import { sendWaiting } from "./mail";
+import { deliverPrompt } from "./deliveries";
+import { optOutByToken, unsubscribeIsAlert } from "./email-opt-out";
 import { db } from "./db";
 import { connectorsView } from "./page-data";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
@@ -270,6 +272,14 @@ describe("never answerable", () => {
     expect((await db().from("thread_messages").select("id", { count: "exact", head: true }).eq("workspace_id", w.id)).count).toBe(0);
   });
 
+  it("keeps other people's Alerts from pushing a person's own messages out of the Outbox", async () => {
+    const { w, sara, ann, m, a } = await setup();
+    await createAlert(a, { metricId: m.id, condition: above("100") });
+    await put(w, m.id, P(1), 120, sara);
+    await db().from("deliveries").insert(Array.from({ length: 100 }, (_, i) => ({ workspace_id: w.id, connector: "email", recipient_id: sara, sender_id: null, kind: "alert", subject: `s${i}`, body: "b", mail_state: "outbox" })));
+    expect((await connectorsView(a)).deliveries.filter((d) => d.recipient_id === ann)).toHaveLength(1);
+  });
+
   it("is in the Outbox of its recipient only", async () => {
     const { w, sara, m, a } = await setup();
     await createAlert(a, { metricId: m.id, condition: above("100") });
@@ -301,5 +311,43 @@ describe("mail", () => {
     await db().from("shares").delete().eq("workspace_id", w.id).eq("user_id", ann);
     await sendWaiting();
     expect((await messages(w, ann))[1]).toMatchObject({ mail_state: "failed" });
+  });
+
+  it("sends Prompts before a long queue of Alert mail, and keeps Alert mail to its share of the day", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
+    const m = await w.metric(sara, { name: "Sales" }); await share(w, m.id, ann); await w.token(m.id, ann);
+    const rows = Array.from({ length: 60 }, (_, i) => ({ workspace_id: w.id, connector: "email", recipient_id: ann, sender_id: null, kind: "alert", subject: `a${i}`, body: "b", mail_state: "queued", alert_metric_id: m.id }));
+    await db().from("deliveries").insert(rows);
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, queue: true });
+    await sendWaiting(50);
+    const { data: prompt } = await db().from("deliveries").select("mail_state").eq("workspace_id", w.id).eq("kind", "prompt").single();
+    expect(prompt?.mail_state).toBe("sent");
+    // Past the Alert share a queued Alert waits, while a Prompt still goes.
+    const claim = async (kind: string) => {
+      const { data: d } = await db().from("deliveries").select("id").eq("workspace_id", w.id).eq("kind", kind).eq("mail_state", "queued").limit(1).single();
+      const r = await db().rpc("claim_delivery_send", { p_id: d!.id, p_address_key: "a".repeat(64), p_per_workspace: 500, p_per_address: 500, p_per_sender: 500, p_max_attempts: 5, p_alerts_per_workspace: 0 });
+      if (r.error) throw new Error(r.error.message);
+      return r.data;
+    };
+    expect(await claim("alert")).toBe("wait");
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, queue: true });
+    expect(await claim("prompt")).toBe("ok");
+  });
+
+  it("pauses that Alert only with the one-click link in its email", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
+    const m = await w.metric(sara, { name: "Sales" }); await share(w, m.id, ann);
+    const a = w.actor(ann, "member");
+    const one = await createAlert(a, { metricId: m.id, condition: above("100") });
+    await createAlert(a, { metricId: m.id, condition: above("200") });
+    await put(w, m.id, P(1), 120, sara);
+    await sendWaiting();
+    const { data: d } = await db().from("deliveries").select("unsubscribe_token, body, alert_id").eq("workspace_id", w.id).eq("kind", "alert").single();
+    expect(d).toMatchObject({ alert_id: one, unsubscribe_token: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/) });
+    expect(await unsubscribeIsAlert(d!.unsubscribe_token as string)).toBe(true);
+    expect(await optOutByToken(d!.unsubscribe_token as string)).toBe(true);
+    expect((await listMyAlerts(a)).map((x) => [x.id, x.pausedByPerson]).sort()).toEqual([[one, true], [one + 1, false]].sort());
+    expect((await db().from("email_opt_outs").select("person_id").eq("workspace_id", w.id)).data).toEqual([]);
+    expect(await optOutByToken("x".repeat(32))).toBe(false);
   });
 });

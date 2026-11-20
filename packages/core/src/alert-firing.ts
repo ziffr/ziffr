@@ -197,7 +197,7 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   const yearStart = await yearStartFor(ctx.ws, m.period);
   const text = claim === "note" ? ALERT_LIMIT_NOTE : alertText(m, c, view, ctx, yearStart);
   const link = `/metrics/${encodeURIComponent(m.slug)}`;
-  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id });
+  await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id, alertId: a.id });
 }
 
 /** "week of 9 Nov 2026" inside a sentence. */

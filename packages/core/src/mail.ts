@@ -22,6 +22,8 @@ export type SendResult = "sent" | "failed" | "skipped" | "waiting";
 
 /** Emails one workspace may send in 24 hours; the rest wait in the queue. */
 export const MAIL_PER_WORKSPACE_PER_DAY = 500;
+/** The share of a Workspace's daily emails that Alert messages may use (spec 0032); the rest is kept for Prompts, tasks and the like. */
+export const MAIL_ALERT_SHARE = 0.4;
 /** Emails one inbox may get in an hour, from all workspaces together (counted by mailboxKey); the rest wait. */
 export const MAIL_PER_RECIPIENT_PER_HOUR = 20;
 /** Emails one person may cause in 24 hours (as the sender of Prompts, questions, notices), from all their workspaces. */
@@ -219,7 +221,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_delivery_send", {
-    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: MAIL_PER_WORKSPACE_PER_DAY, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: MAIL_PER_SENDER_PER_DAY, p_max_attempts: MAX_ATTEMPTS,
+    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: MAIL_PER_WORKSPACE_PER_DAY, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: MAIL_PER_SENDER_PER_DAY, p_max_attempts: MAX_ATTEMPTS, p_alerts_per_workspace: Math.floor(MAIL_PER_WORKSPACE_PER_DAY * MAIL_ALERT_SHARE),
   });
   if (error) throw new Error("The email could not be claimed for sending.");
   if (claim === "wait") return "waiting";
@@ -231,11 +233,12 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   };
   let unsubscribe: string | undefined;
   let text = await withFormLink(String(claimed.body), claimed, String(settings.ZIFFR_SITE_URL));
-  if (stoppable) {
+  // An Alert email has a one-click link of its own that pauses that Alert only (email-opt-out.ts).
+  if (stoppable || claimed.kind === "alert") {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
-    text += `\n\n--\nTo get no more of these by email: ${unsubscribe}`;
+    text += `\n\n--\n${claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email"}: ${unsubscribe}`;
   }
   if (digest) {
     // A signed link that stops it with no sign-in (usage-digest-token.ts); an Installation with no key to sign it
