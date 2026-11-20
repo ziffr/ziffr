@@ -11,6 +11,7 @@ import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./int
 import { checkedMailHost } from "./mail-hosts";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { signDigestToken } from "./usage-digest-token";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
 /** How often a message is tried before it counts as failed. */
@@ -205,6 +206,15 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   }
   // Claimed in the database within the limits, counted by inbox and by sender across all workspaces, so neither
   // parallel sends nor many Contacts or workspaces for one inbox pass them; over a limit it waits.
+  // The usage digest (spec 0031): one switch per person for every Workspace, also for one queued before they used it.
+  const digest = claimed.kind === "digest";
+  if (digest) {
+    const { data: out } = await db().from("usage_digest_opt_outs").select("person_id").eq("person_id", claimed.recipient_id).maybeSingle();
+    if (out) return never("They stopped the usage digest.");
+    // Owners only, also when they were demoted while it waited: it names what an Owner sees.
+    const { data: role } = await db().from("memberships").select("role").eq("workspace_id", claimed.workspace_id).eq("user_id", claimed.recipient_id).maybeSingle();
+    if (role?.role !== "owner") return never("They are not an Owner of this workspace.");
+  }
   const trial = await claimTrialSend(id);
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
@@ -227,9 +237,17 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
     text += `\n\n--\nTo get no more of these by email: ${unsubscribe}`;
   }
+  if (digest) {
+    // A signed link that stops it with no sign-in (usage-digest-token.ts); an Installation with no key to sign it
+    // sends none rather than one that cannot be stopped.
+    const token = signDigestToken(claimed.recipient_id);
+    if (!token) return fail("No key to sign the unsubscribe link.");
+    unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/digest/${token}`;
+    text += `\n\n--\nTo get no more of these emails: ${unsubscribe}`;
+  }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
-  if (inboundEnabled(settings)) {
+  if (!digest && inboundEnabled(settings)) {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

@@ -69,17 +69,20 @@ export async function updateMyProfile(actor: Actor, input: { name?: unknown; col
  * they stopped Prompts and reminders by email here, and their Away dates. Nobody else's. */
 export async function myDeliverySettings(actor: Actor) {
   const ws = actor.workspaceId;
-  const [{ data: mine }, { data: team }, { data: optedOut }, { data: away }] = await Promise.all([
+  const [{ data: mine }, { data: team }, { data: optedOut }, { data: away }, digestOut] = await Promise.all([
     db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).eq("user_id", actor.personId),
     db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).is("user_id", null),
     db().from("email_opt_outs").select("person_id").eq("workspace_id", ws).eq("person_id", actor.personId).maybeSingle(),
     db().from("away").select("starts, ends").eq("user_id", actor.personId).maybeSingle(),
+    db().from("usage_digest_opt_outs").select("person_id").eq("person_id", actor.personId).maybeSingle(),
   ]);
   const rows = (r: { kind: unknown; connector: unknown }[] | null) => (r ?? []).map((p) => ({ kind: String(p.kind), connector: String(p.connector) }));
   return {
     mine: rows(mine),
     team: rows(team),
     optedOut: Boolean(optedOut),
+    // The monthly usage email goes to Owners only (spec 0031), so only they are shown the switch.
+    usageDigest: actor.role === "owner" ? { on: !digestOut.data } : null,
     away: away ? { starts: String(away.starts), ends: String(away.ends) } : null,
   };
 }

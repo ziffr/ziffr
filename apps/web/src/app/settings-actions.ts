@@ -6,6 +6,7 @@ import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import * as profile from "@ziffr/core/profile";
 import * as optOut from "@ziffr/core/email-opt-out";
+import * as usageDigest from "@ziffr/core/usage-digest";
 import * as workspace from "@ziffr/core/workspace-settings";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 
@@ -76,5 +77,13 @@ export async function setEmailReminders(on: boolean) {
     else await optOut.optOutOfEmail(actor);
     revalidatePath("/settings/deliveries");
     revalidatePath("/connectors");
+  });
+}
+
+/** Turns the monthly usage email on or off for you, in every workspace of yours (Owners get it). */
+export async function setUsageDigestOn(on: boolean) {
+  return attempt(async () => {
+    await usageDigest.setUsageDigest(await currentActor(), on === true);
+    revalidatePath("/settings/deliveries");
   });
 }

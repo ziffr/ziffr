@@ -187,6 +187,7 @@ const CASES: Record<string, Case> = {
   "settings-actions:setAttainmentMethod": { args: () => ["distance"] },
   "settings-actions:setWorkspaceProfile": { args: () => [{ industry: "retail", segment: null, country: "DE", currency: "EUR", employeeBand: null, revenueBand: null }] },
   "settings-actions:setEmailReminders": { args: () => [false] },
+  "settings-actions:setUsageDigestOn": { args: () => [false] },
   "snapshot-actions:takeSnapshot": { args: (i) => [i.dashboard, "month", i.lastMonth] },
   "snapshot-actions:setAutoSnapshots": { args: (i) => [i.dashboard, "month", 2] },
   "snapshot-actions:editSnapshotWords": { nothing: "words for none of its widgets change nothing", args: (i) => [i.snapshot, { summary: "Changed" }] },
