@@ -48,6 +48,11 @@ export async function workspace(name = "Test") {
   const lock = async (metricId: number, period: string) => { await must(db().from("period_states").insert({ metric_id: metricId, period_start: period, state: "locked", workspace_id: id })); };
   /** Makes the workspace a trial ending on `endsAt` (yyyy-mm-dd), as the trial's CSV download needs. */
   const trial = async (endsAt: string) => { await must(db().from("workspaces").update({ trial_ends_at: endsAt }).eq("id", id)); };
+  /** Gives the workspace a Workspace Limit of its own, over it since `overDaysAgo` days when given (spec 0029). */
+  const limit = async (metrics: number | null, label: string | null = null, overDaysAgo?: number) => {
+    await must(db().from("workspace_limits").insert({ workspace_id: id, metrics, label, set_by: "installation_admin" }));
+    if (overDaysAgo !== undefined) await must(db().from("workspaces").update({ over_limit_since: new Date(Date.now() - overDaysAgo * 86_400_000).toISOString() }).eq("id", id));
+  };
   const setRole = async (personId: string, role: Actor["role"]) => { await must(db().from("memberships").update({ role }).eq("workspace_id", id).eq("user_id", personId)); };
   const actor = (personId: string, role: Actor["role"] = "owner"): Actor => ({ personId, workspaceId: id, role });
   const cleanup = async () => {
@@ -60,7 +65,7 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, action, value, lock, trial, setRole, actor, cleanup };
+  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, actor, cleanup };
 }
 
 /** A key's Access Log as stored, oldest first: for tests of the API's HTTP layer, which may not query the database. */

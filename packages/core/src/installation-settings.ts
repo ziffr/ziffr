@@ -13,6 +13,7 @@ import { botUsername, forgetTelegramBot, registerTelegramWebhook, TELEGRAM_NEEDS
 import { callTelegram, TELEGRAM_TOKEN, TelegramError, telegramEnabled, telegramPolling, telegramToken } from "./telegram-api";
 import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
+import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -93,6 +94,8 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_SLACK_CLIENT_ID: (v) => (/^\d{4,20}\.\d{4,20}$/.test(v) ? null : "The Client ID is two numbers with a dot between them, such as 1234567890.1234567890."),
   ZIFFR_SLACK_CLIENT_SECRET: (v) => (/^[A-Za-z0-9]{32,128}$/.test(v) ? null : "The Client Secret is letters and digits, as Slack shows it under App Credentials."),
   ZIFFR_SLACK_SIGNING_SECRET: (v) => (/^[A-Za-z0-9]{32,128}$/.test(v) ? null : "The Signing Secret is letters and digits, as Slack shows it under App Credentials."),
+  ZIFFR_DEFAULT_METRICS_LIMIT: (v) => problemOf(() => limitNumber(v)),
+  ZIFFR_DEFAULT_LIMIT_LABEL: (v) => problemOf(() => limitLabel(v)),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
@@ -108,6 +111,11 @@ async function telegramCannotReach(settings: Record<string, string | undefined>)
   } catch {
     return null;
   }
+}
+
+/** The message a check throws, or null when the value passes. */
+function problemOf(check: () => unknown): string | null {
+  try { check(); return null; } catch (e) { return (e as Error).message; }
 }
 
 /** Whether a section works with these settings, for the dot next to its title. */
@@ -127,6 +135,13 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     if (!secretsKey(settings)) return { working: false, detail: "Needs ZIFFR_SECRETS_KEY on the server, which seals the Slack workspaces' bot tokens." };
     if (!/^https?:\/\/[^\s/]+/.test(settings.ZIFFR_SITE_URL ?? "")) return { working: false, detail: "Needs ZIFFR_SITE_URL on the server." };
     return { working: false, detail: "Needs all three values from Slack." };
+  }
+  if (id === "limits") {
+    const d = defaultLimitFrom(settings);
+    if (d.problem) return { working: false, detail: d.problem };
+    return d.metrics === null
+      ? { working: false, detail: "No default: a Workspace has no limit unless it has one of its own below." }
+      : { working: true, detail: `A Workspace without a limit of its own may hold ${d.metrics.toLocaleString("en-US")} Metrics${d.label ? ` (${d.label})` : ""}.` };
   }
   return { working: false, detail: null };
 }
@@ -212,6 +227,8 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     }
   }
   forgetStoredSettings();
+  // The default limit takes effect in the database at once, not with the next new Metric.
+  if (sec.id === "limits") await syncDefaultLimit(true);
   for (const { def, value } of changes) await recordInstallationEvent(actor.personId, value === null ? "setting.removed" : "setting.set", def.name);
   if (sec.id === "slack") return slackSaved(changes.some((c) => c.def.name === "ZIFFR_SLACK_SIGNING_SECRET" && c.value !== null));
   if (!telegram) return { notice: null, warning: null };

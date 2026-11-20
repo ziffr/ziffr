@@ -9,6 +9,7 @@ import { recordVersion } from "./versions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { visibleMetricIds } from "./access";
 import { allRows, getMetrics } from "./workspace-data";
+import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
 
 /** What a Source answers for a value sent to an Archived Metric, in the same words everywhere. */
 export const ARCHIVED_REFUSAL = "This Metric is archived.";
@@ -69,13 +70,17 @@ export class RestoreRefused extends Error {
   }
 }
 
-/** Brings an Archived Metric back: it is asked for and takes values again, and counts as a Metric in use. Bringing
- * back one that is not archived changes nothing. */
+/** Brings an Archived Metric back: it is asked for and takes values again, and counts as a Metric in use, so the
+ * Workspace Limit may refuse it (LimitReached). Bringing back one that is not archived changes nothing. */
 export async function restoreMetric(actor: Actor, metricId: number, origin: { accessKeyId?: number } = {}): Promise<{ restored: boolean }> {
   const m = await archivable(actor, metricId);
   if (!m.archived_at) return { restored: false };
+  // Bringing it back counts again: the trigger checks the Workspace Limit against the default in effect.
+  await syncDefaultLimit();
   const { data, error } = await db().from("metrics").update({ archived_at: null, archived_by: null })
     .eq("id", m.id).eq("workspace_id", actor.workspaceId).not("archived_at", "is", null).select("id");
+  const reached = await limitReachedFrom(error, actor.workspaceId);
+  if (reached) throw reached;
   if (error) throw new RestoreRefused(restoreRefusal(error.code));
   if (!data?.length) return { restored: false };
   await recordVersion("metric", m.id, actor.personId, { message: "Brought back from the archive", always: true });

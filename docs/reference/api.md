@@ -110,7 +110,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit. `workspace_limit`: the workspace holds as many Metrics as its Workspace Limit allows (after 14 days over it, or beyond 10 % more); the answer says how many it holds and its limit, and nothing was created.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first creation is still running.
 - 422: A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created.
@@ -321,7 +321,7 @@ Brings an Archived Metric back as the key's creator, when they are an Owner or A
 
 - 400: `invalid_request`: the query, path or body does not match.
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
-- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not bring it back.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not bring it back. `workspace_limit`: bringing it back would go past the Workspace Limit, with the count and limit.
 - 404: `not_found`: nothing here the key's creator may see.
 - 422: It could not be brought back; nothing was changed.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.

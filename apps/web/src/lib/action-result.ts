@@ -6,6 +6,7 @@ import { unstable_rethrow } from "next/navigation";
 import { Forbidden } from "@ziffr/core/actor";
 import { MetricChangeRefused } from "@ziffr/core/api-metrics";
 import { RestoreRefused } from "@ziffr/core/archived-metrics";
+import { LimitReached } from "@ziffr/core/workspace-limits";
 import { MailHostError } from "@ziffr/core/mail-hosts";
 import { MetricKept } from "@ziffr/core/metrics";
 import { TrialRefused } from "@ziffr/core/trials";
@@ -18,7 +19,7 @@ export type { ActionError } from "./action-error";
 export function forPeople(e: unknown): string | null {
   if (!(e instanceof Error)) return null;
   if (e instanceof Forbidden) return e.message === "Forbidden" ? "You may not do that here." : e.message;
-  if (e instanceof MetricKept || e instanceof MetricChangeRefused || e instanceof TrialRefused || e instanceof MailHostError || e instanceof RestoreRefused) return e.message;
+  if (e instanceof MetricKept || e instanceof MetricChangeRefused || e instanceof TrialRefused || e instanceof MailHostError || e instanceof RestoreRefused || e instanceof LimitReached) return e.message;
   // Exactly Error, not a subclass such as TypeError or a provider's error.
   return Object.getPrototypeOf(e) === Error.prototype && e.message ? e.message : null;
 }

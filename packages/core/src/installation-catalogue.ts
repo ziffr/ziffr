@@ -3,7 +3,7 @@
 // them; the values and their checks live on the server (settings-in-effect.ts, installation-settings.ts).
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "bots" | "trials" | "demo";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "bots" | "trials" | "demo";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string };
@@ -17,6 +17,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "replies", title: "Replies by email", purpose: "People answer a request for a value by replying to its email.", ready: false },
   { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram. Each Workspace turns it on for itself.", ready: true },
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: true },
+  { id: "limits", title: "Workspace Limits", purpose: "The most Metrics a Workspace may hold, Archived Metrics not counted. Without a default or a limit of its own, a Workspace has no limit.", ready: true },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page.", ready: false },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace, for how long and how many at once.", ready: false },
   { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo.", ready: false },
@@ -42,6 +43,10 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "Under App Credentials too: choose Show and copy it." },
   { name: "ZIFFR_SLACK_SIGNING_SECRET", section: "slack", label: "Signing Secret", secret: true,
     help: "Under App Credentials too. Slack signs every request it sends Ziffr with it." },
+  { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",
+    help: "The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more." },
+  { name: "ZIFFR_DEFAULT_LIMIT_LABEL", section: "limits", label: "Name of the default", secret: false, placeholder: "Free",
+    help: "What Owners and Admins see the default called, such as Free. At most 30 characters." },
 ];
 
 /** The setting of this name, or undefined for any name the page does not know. */

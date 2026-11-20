@@ -70,6 +70,16 @@ Slack cannot check the Client ID and Client Secret until a Slack workspace is co
 
 To connect Slack workspaces other than the one that owns the app, turn on **Manage Distribution** for the app in Slack. The Client Secret and the Signing Secret are secrets: once saved, the page shows only that they are saved and their last four characters. Saving a new Signing Secret means asking Slack to verify the events address again.
 
+## Workspace Limits
+
+A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics do not count; Derived Metrics do. Without a default and without a limit of its own, a Workspace has no limit, which is how most Installations run.
+
+- **Default limit** and **Name of the default** apply to every Workspace without a limit of its own, such as 10 and "Free". Empty means no limit. "Working" next to the title means a default is set. The demo never has a limit, and a Trial Workspace keeps its own rule of 25 Metrics while it runs.
+- **Workspaces** lists every Workspace by name with how many Metrics it holds and its limit, marked "the default" when it has none of its own, and since when it is over its limit. Nothing else of a Workspace is shown: being an Installation Admin still shows no Workspace's data.
+- **Change** on a Workspace sets a limit of its own: the most Metrics (empty for no limit at all) and its name, such as "Team". **Use the default** gives it back to the default. Under a limit of its own the page says who set it and when; a limit set by Ziffr Cloud says so, and saving here overrides it until Ziffr Cloud sets it again.
+
+Over its limit a Workspace keeps everything working: its Metrics, values, Prompts, Workflows, dashboards and the API, and values keep arriving. The first Metric that takes it over starts 14 days in which it may hold 10 % more (at least one Metric more). After that, no new Metric can be made, and no Archived Metric brought back, while it holds as many Metrics as its limit or more. People who try are told how many Metrics the Workspace holds and to archive one or ask an Owner. A limit set below what a Workspace already holds starts the 14 days the same way. Each change is in the Workspace's **Audit Log** and in **Changes** below.
+
 ## Set on the server
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
@@ -80,4 +90,4 @@ Replies by email, the check against bots, trials and the demo are listed with wh
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, and test emails. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the Telegram bot token or the Slack Client Secret, a Workspace's limit, and test emails. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.

@@ -10,6 +10,7 @@ import { AttainmentMethodField } from "../attainment-method-field";
 import { UnitFields } from "../unit-fields";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
+import { newMetricRefusal } from "@ziffr/core/workspace-limits";
 import { PageHeader } from "@/components/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
   // A new Metric takes values every way Ziffr knows (web form, email, Slack), so each submitter can use what suits
   // them; a duplicate keeps its original's. The owner can narrow it here or later on the Metric's Settings tab.
-  const [people, viewer, demo, profile, numberStyle, attainmentMethod] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle(), getAttainmentMethod()]);
+  const [people, viewer, demo, profile, numberStyle, attainmentMethod, refusal] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle(), getAttainmentMethod(), newMetricRefusal(await currentActor())]);
   // A new money Metric starts with the unit of the Workspace Profile's currency (spec 0022), one from the catalog too.
   const money = moneyUnit(profile.currency);
   const d: MetricDescription = copy ?? (picked ? { ...picked, ...(picked.format === "currency" ? money : {}), sources: BLANK.sources, attainment_method: null } : BLANK);
@@ -95,6 +96,8 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           ? "A new metric of yours with the same description. Values, Shares, Target Series and history stay with the original."
           : picked ? "Copied from the Metric Catalog. It’s your metric now: change anything, it won’t follow later catalog changes." : "Describe the metric before anyone can report values for it."}
       />
+      {/* The Workspace Limit (spec 0029): said before the form is filled in, in the core's words. */}
+      {refusal && <p role="alert" className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-4 text-sm">{refusal}</p>}
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
         <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />

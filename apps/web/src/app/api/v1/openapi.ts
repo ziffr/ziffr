@@ -30,7 +30,7 @@ const ENDPOINTS: Endpoint[] = [
     summary: "Create a Metric",
     description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well. Each key may create 50 Metrics in any 24 hours.",
     errors: [
-      { status: 403, description: "Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit." },
+      { status: 403, description: "Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit. `workspace_limit`: the workspace holds as many Metrics as its Workspace Limit allows (after 14 days over it, or beyond 10 % more); the answer says how many it holds and its limit, and nothing was created." },
       { status: 422, description: "A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
     ],
@@ -68,7 +68,7 @@ const ENDPOINTS: Endpoint[] = [
     summary: "Bring back an Archived Metric",
     description: "Brings an Archived Metric back as the key's creator, when they are an Owner or Admin of the workspace or own the Metric: it is asked for and takes values again. The Audit Log names the key.",
     errors: [
-      { status: 403, description: "Or the key's creator sees the Metric but may not bring it back." },
+      { status: 403, description: "Or the key's creator sees the Metric but may not bring it back. `workspace_limit`: bringing it back would go past the Workspace Limit, with the count and limit." },
       { status: 422, description: "It could not be brought back; nothing was changed." },
     ],
   },
