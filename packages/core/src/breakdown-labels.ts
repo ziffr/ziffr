@@ -43,10 +43,11 @@ function normaliseLegacy(label: string): string {
 }
 
 /** A history entry's label opened. A copy of a row's label is sealed for the row it was copied from (`row_id`); an
- * older entry, or one the re-encryption job sealed for itself, for its own id. A plain one reads as it is, also in a
- * Workspace whose row labels are all sealed: the job seals history apart from its rows. */
+ * older entry, or one the re-encryption job sealed for itself, for its own id. A plain one reads as it is only while its
+ * column is not finished. */
 export function openHistoryLabel(cipher: WorkspaceCipher, entry: { row_id: number | string | null; label: string; id?: number | string }): string | null {
-  if (!isSealed(entry.label)) return entry.label;
+  // Through cipher.open also when plain: a column the job has finished refuses plain values.
   if (entry.row_id !== null && entry.row_id !== undefined) return cipher.open({ table: "breakdown_rows", column: "label", row: entry.row_id }, entry.label);
-  return entry.id === undefined ? null : cipher.open({ table: "breakdown_history", column: "label", row: entry.id }, entry.label);
+  if (entry.id === undefined) return isSealed(entry.label) ? null : entry.label;
+  return cipher.open({ table: "breakdown_history", column: "label", row: entry.id }, entry.label);
 }

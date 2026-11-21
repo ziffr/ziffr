@@ -166,6 +166,34 @@ describe("the re-encryption job beyond the sealed columns", () => {
     expect((await db().rpc("seal_json", { p_workspace: world.w.id, p_table: "profiles", p_column: "name", p_id: 1, p_was: {}, p_new: {} })).error).not.toBeNull();
   });
 
+  it("refuses a plain history label once its row labels are finished", async () => {
+    const world = await plainWorld();
+    await reencryptionJob(only(world.w));
+    forgetWorkspaceKey(world.w.id);
+    const cipher = await workspaceCipher(world.w.id);
+    const { data: hist } = await db().from("breakdown_history").select("id, row_id, label").eq("workspace_id", world.w.id).not("row_id", "is", null).single();
+    expect(openHistoryLabel(cipher, { ...hist!, label: "Planted in clear" })).toBeNull();
+    expect(openHistoryLabel(cipher, hist!)).toBe(`Web ${world.marker}`);
+  });
+
+  it("does not finish a resumed scan that an earlier run left rows behind in, and destroys no key then", async () => {
+    const world = await plainWorld();
+    const { w } = world;
+    await reencryptionJob(only(w));
+    await changeWorkspaceKey((await admin()).actor, w.id);
+    await db().from("workspace_keys").update({ pending_until: new Date(Date.now() - 1000).toISOString() }).eq("workspace_id", w.id).eq("version", 2);
+    await reencryptionJob(only(w));
+    // An interrupted scan of one column that had left a row behind.
+    await db().from("workspace_seal_progress").update({ done_at: null, plain: 1, verified_through: "0", done_version: 2 }).eq("workspace_id", w.id).eq("table_name", "widgets").eq("column_name", "settings");
+    await db().from("workspace_keys").update({ retired_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("workspace_id", w.id).eq("version", 1);
+    const run = await reencryptionJob(only(w));
+    expect(run.keysDestroyed).toBe(0);
+    const { data: p } = await db().from("workspace_seal_progress").select("done_at, plain").eq("workspace_id", w.id).eq("table_name", "widgets").eq("column_name", "settings").single();
+    expect(p!.done_at).toBeNull();
+    expect(Number(p!.plain)).toBe(1);
+    expect((await db().from("workspace_keys").select("version").eq("workspace_id", w.id)).data).toHaveLength(2);
+  });
+
   it("lists every sealed thing in the progress page's words", () => {
     const expected = [...Object.entries(ALL_SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), ...SEALED_THINGS.map((t) => `${t.table}.${t.column}`), "audit_events.details"].sort();
     expect(Object.keys(SEALED_LABELS).sort()).toEqual(expected);
