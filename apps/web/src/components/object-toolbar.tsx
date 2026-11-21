@@ -4,7 +4,8 @@
 // shows seven equal buttons.
 import { useState } from "react";
 import { Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareDialog } from "./share-dialog";
@@ -13,6 +14,7 @@ import { ViewLinksDialog } from "./view-links";
 import { VersionsDialogOpen } from "./versions-dialog";
 import { ThemePicker } from "./theme-picker";
 import type { Group, Profile, Share, Theme } from "@ziffr/core/types";
+import { cn } from "@/lib/utils";
 
 type Open = "who" | "links" | "versions" | "theme" | null;
 
@@ -23,6 +25,8 @@ export type ObjectToolbarProps = {
   people: Profile[];
   /** Buttons that belong to this page, such as Present or Analyze, shown before Share. */
   children?: React.ReactNode;
+  /** On a phone only this stays in the row (with Share and ⋯), and `children` move into the ⋯ sheet (#535). */
+  phone?: React.ReactNode;
   share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
@@ -31,14 +35,15 @@ export type ObjectToolbarProps = {
 };
 
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
-export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme, menu }: ObjectToolbarProps) {
+export function ObjectToolbar({ type, id, people, children, phone, share, viewLinks, theme, menu }: ObjectToolbarProps) {
   const [open, setOpen] = useState<Open>(null);
+  const [sheet, setSheet] = useState(false);
   const close = () => setOpen(null);
   // Opened from a menu item: wait until the menu has closed and returned focus.
   const show = (o: Open) => () => setTimeout(() => setOpen(o), 0);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {children}
+      {phone ? <><div className="flex flex-wrap items-center gap-2 max-md:hidden">{children}</div>{phone}</> : children}
       {share && (
         <ShareDialog
           primary
@@ -52,8 +57,29 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
           ]}
         />
       )}
+      {phone && (
+        <>
+          <Button variant="outline" size="icon" aria-label={`More for this ${type}`} title={`More for this ${type}`} aria-haspopup="dialog" className="md:hidden" onClick={() => setSheet(true)}><MoreHorizontal aria-hidden /></Button>
+          <Sheet open={sheet} onOpenChange={setSheet}>
+            <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
+              <SheetHeader><SheetTitle>More for this {type}</SheetTitle></SheetHeader>
+              {/* The page's own buttons stacked one under the other, then the same entries as the menu on a bigger screen. */}
+              <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
+              <ul className="px-2 pb-3">
+                {[...(menu ?? []).map((m) => ({ label: m.label, icon: m.icon, go: () => { setSheet(false); m.onSelect(); } })),
+                  { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
+                  ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
+                  ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
+                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setOpen("versions"); } }].map((r) => (
+                  <li key={r.label}><button type="button" onClick={r.go} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}</button></li>
+                ))}
+              </ul>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
       <DropdownMenu>
-        <DropdownMenuTrigger aria-label={`More for this ${type}`} title={`More for this ${type}`} className={buttonVariants({ variant: "outline", size: "icon" })}>
+        <DropdownMenuTrigger aria-label={`More for this ${type}`} title={`More for this ${type}`} className={cn(buttonVariants({ variant: "outline", size: "icon" }), phone && "max-md:hidden")}>
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">

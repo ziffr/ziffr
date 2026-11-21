@@ -93,16 +93,16 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       </PageHeader>
       {demo && <p className="mb-4 text-sm text-muted-foreground">The demo keeps no Audit Log: its people are made up and anyone may act as them.</p>}
       <form method="get" action="/audit" className="mb-5 flex flex-wrap items-end gap-3 text-sm" aria-label="Filter the Audit Log">
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">Person</span>
-          <select name="person" defaultValue={filter.person ?? ""} className={field}>
+          <select name="person" defaultValue={filter.person ?? ""} className={`${field} w-full min-w-0`}>
             <option value="">Everyone</option>
             {[...named].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">What happened</span>
-          <select name="kind" defaultValue={filter.kind ?? filter.category ?? ""} className={field}>
+          <select name="kind" defaultValue={filter.kind ?? filter.category ?? ""} className={`${field} w-full min-w-0`}>
             <option value="">Everything</option>
             {(Object.entries(AUDIT_CATEGORIES) as [keyof typeof AUDIT_CATEGORIES, string][]).map(([cat, label]) => (
               <optgroup key={cat} label={label}>
@@ -112,11 +112,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             ))}
           </select>
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">From</span>
           <Input type="date" name="from" defaultValue={filter.from ?? ""} className="w-40" />
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">To</span>
           <Input type="date" name="to" defaultValue={filter.to ?? ""} className="w-40" />
         </label>
