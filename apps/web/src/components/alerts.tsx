@@ -115,8 +115,9 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
 
 /** "Alert me…" on a Metric's page: a dialog with the person's Alerts on this Metric, how near the limits they are,
  * and the form for another. Not shown in the demo, which is read-only. */
-export function AlertMe({ metric, mine, choices, slideOver }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; slideOver?: boolean }) {
-  const [open, setOpen] = useState(false);
+export function AlertMe({ metric, mine, choices, slideOver, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; slideOver?: boolean; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: { open: boolean; onOpenChange: (open: boolean) => void } }) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? controlled.open : ownOpen, setOpen = controlled ? controlled.onOpenChange : setOwnOpen;
   const { held } = choices;
   const full = held.person >= held.perPerson || held.metric >= held.perMetric;
   const trigger = <><Bell aria-hidden /> Alert me…{mine.length > 0 && <span className="fig text-muted-foreground">{mine.length}</span>}</>;
@@ -132,7 +133,7 @@ export function AlertMe({ metric, mine, choices, slideOver }: { metric: { id: nu
   if (slideOver) {
     return (
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>
+        {!controlled && <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>}
         <SheetContent>
           <SheetHeader><SheetTitle>Alert me about {metric.name}</SheetTitle></SheetHeader>
           <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
@@ -142,7 +143,7 @@ export function AlertMe({ metric, mine, choices, slideOver }: { metric: { id: nu
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</DialogTrigger>
+      {!controlled && <DialogTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</DialogTrigger>}
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogTitle>Alert me about {metric.name}</DialogTitle>
         {body}

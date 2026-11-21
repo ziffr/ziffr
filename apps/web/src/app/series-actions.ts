@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
+import { recordOwnValue } from "@ziffr/core/record-own-value";
 import { archiveMetric as coreArchiveMetric, restoreMetric as coreRestoreMetric } from "@ziffr/core/archived-metrics";
 import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
@@ -79,5 +80,18 @@ export async function askMeNow(metricId: number): Promise<AskNowResult | { error
     const r = await coreAskMeNow(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
+  });
+}
+
+/** What the Record a value form shows after sending: the intake's own words, and whether the value counted. */
+export type RecordedValue = { ok: boolean; detail: string };
+
+/** A Submitter records a value for a Metric from its page, through the same intake as their form link (Submission Rule,
+ * Locks, Approvals, Retention); the core checks they submit it and reads the text, so only strings are taken here. */
+export async function recordValue(metricId: number, input: { value: string; breakdown?: string; period?: string }): Promise<RecordedValue | { error: string }> {
+  return attempt(async () => {
+    const r = await recordOwnValue(await currentActor(), Number(metricId), { value: String(input?.value ?? ""), breakdown: String(input?.breakdown ?? ""), period: input?.period ? String(input.period) : undefined });
+    revalidatePath("/", "layout");
+    return { ok: r.ok, detail: r.detail };
   });
 }
