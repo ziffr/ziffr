@@ -209,6 +209,20 @@ describe("turning it on, the confirmation and the days to cancel", () => {
   });
 });
 
+describe("changing the Metric under its Retention", () => {
+  it("refuses a period and an Aggregation that its Retention does not fit, also when changed together", async () => {
+    const { w, ben } = await setup();
+    const actor = w.actor(ben, "member");
+    const empty = await w.metric(ben, { name: "Empty", period: "day", aggregation: "sum" });
+    await db().from("metrics").update({ retention: { keep_months: 25, then: "condense", into: "week" } }).eq("id", empty.id);
+    // A year cannot be condensed into weeks, nor can a rate be condensed at all.
+    expect(await refusal(updateMetricDetails(actor, empty.id, { period: "year" }))).toMatchObject({ message: expect.stringContaining("Retention would no longer fit") });
+    expect(await refusal(updateMetricDetails(actor, empty.id, { period: "year", aggregation: "sum" }))).toMatchObject({ message: expect.stringContaining("Retention would no longer fit") });
+    expect(await refusal(updateMetricDetails(actor, empty.id, { period: "week", aggregation: "none" }))).toMatchObject({ message: expect.stringContaining("Retention would no longer fit") });
+    await updateMetricDetails(actor, empty.id, { period: "week", aggregation: "average" }).catch((e: Error) => expect(e.message).toMatch(/Retention would no longer fit/));
+  });
+});
+
 describe("the reminder and the job's day", () => {
   it("sends one reminder on the 7th day to the Metric's owner and whoever set it, and starts it on the 8th", async () => {
     const { w, sara, ben, m } = await setup();

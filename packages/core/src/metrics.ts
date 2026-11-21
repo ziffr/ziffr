@@ -413,8 +413,6 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   if (p.targetMin !== undefined) update.target_min = numOrNull(p.targetMin);
   if (p.targetMax !== undefined) update.target_max = numOrNull(p.targetMax);
   if (p.attainmentMethod !== undefined) update.attainment_method = methodOrNull(p.attainmentMethod);
-  // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed).
-  assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
   const lo = (update.target_min ?? m.target_min) as number | null;
   const hi = (update.target_max ?? m.target_max) as number | null;
   if (lo !== null && hi !== null && Number(lo) > Number(hi)) throw new Error("The lower target is above the upper one.");
@@ -430,6 +428,9 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
     update.period = period;
   }
   if (!Object.keys(update).length) return;
+  // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed), checked
+  // against the final values, after the period above is settled.
+  assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
   const { error } = await db().from("metrics").update(update).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
   await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
