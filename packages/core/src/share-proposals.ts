@@ -82,13 +82,16 @@ export async function ownDashboard(actor: Pick<Actor, "workspaceId" | "personId"
   return { id: d.id, name: d.name };
 }
 
-/** What a View Link would show, as a short fingerprint: its name and introduction, the Metrics and each widget with the Metrics
- * it draws. The confirm page sends the one it showed; confirming refuses when the dashboard holds anything else by then, so
- * nothing added after the person looked goes out to a stranger unseen. */
+/** Everything a View Link would show, as a fingerprint of the whole payload: name, introduction, footer, theme, every widget with
+ * its settings and place, the Metrics with their series and the people's names shown. The confirm page sends the one it showed;
+ * confirming makes the link from a payload with that same fingerprint, so nothing changed after the person looked goes out unseen. */
 export function previewFingerprint(view: ViewPayload | null): string {
   if (!view) return "";
-  const shape = { name: view.name, intro: view.intro ?? "", snapshot: view.snapshot?.label ?? null, metrics: view.data.metrics.map((m) => m.id).sort((a, b) => a - b), widgets: (view.widgets ?? []).map((w) => [w.id, w.template, w.title ?? "", [...(w.metric_ids ?? [])].sort((a, b) => a - b)]) };
-  return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 32);
+  const stable = (v: unknown): unknown => Array.isArray(v) ? v.map(stable) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, stable(x)])) : v;
+  // `asOf` is the moment it was read, so it differs every time; everything else is what the recipient sees.
+  const shown: Record<string, unknown> = { ...view };
+  delete shown.asOf;
+  return createHash("sha256").update(JSON.stringify(stable(shown))).digest("hex").slice(0, 32);
 }
 
 /** Refuses a Share to someone who already has access to the dashboard: confirming would replace their role, and could take
@@ -240,6 +243,9 @@ async function linkMadeSince(actor: Actor, row: Row, since: string): Promise<boo
   return Boolean(count);
 }
 
+/** Why a confirmation is refused when what would go out is no longer what the person looked at. */
+const CHANGED = "The dashboard changed since you looked at it. Look at it again, then confirm.";
+
 /** Hands a claimed proposal back as open again, when what it was to do failed. */
 async function release(actor: Actor, id: number): Promise<void> {
   await db().from("share_proposals").update({ status: "open", decided_at: null }).eq("id", id).eq("workspace_id", actor.workspaceId).eq("status", "confirmed");
@@ -278,8 +284,7 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
   if (!key || key.revoked_at) throw new Refused("The assistant or program that prepared this is no longer connected. Decline it, and ask again if you still want it.");
   if (peek.kind === "share") await assertNoShareYet(actor.workspaceId, peek.dashboard_id, { person: peek.recipient_person_id, group: peek.recipient_group_id });
   if (peek.kind === "view_link") {
-    // What goes out is what the person looked at: anything added to the dashboard since must be looked at too.
-    if (!seen || previewFingerprint(await previewViewLink(actor, peek.dashboard_id, peek.snapshot_id)) !== seen) throw new Refused("The dashboard changed since you looked at it. Look at it again, then confirm.");
+    if (!seen) throw new Refused(CHANGED);
     await assertNotTrial(actor.workspaceId, "Sharing by email");
     if (!(await mailOn())) throw new Refused("Email is not set up on this Ziffr, so the recipient cannot be told. Make the View Link yourself on the dashboard and send it.");
     await assertEmailLimits(actor, peek.recipient_key ?? "");
@@ -297,7 +302,11 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
       await audit(actor, { kind: "share_proposal.confirmed", object: { type: "dashboard", id: dashboard.id, name: dashboard.name }, details: { proposal_id: id, how: "share", proposed_through: await connectionName(row) } });
       return { kind: "share", emailState: null, linkPath: null };
     }
-    const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `Shared by email (proposal ${id})`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id });
+    // Read once, after the claim: this payload is compared with what the person saw and is the one the link is made from, so a
+    // change made meanwhile cannot slip in. (A Snapshot's content does not change; it is compared right before it is read again.)
+    const view = await previewViewLink(actor, row.dashboard_id, row.snapshot_id);
+    if (previewFingerprint(view) !== seen) throw new Refused(CHANGED);
+    const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `Shared by email (proposal ${id})`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id }, { view: row.snapshot_id === null ? view ?? undefined : undefined });
     made = true;
     const { data: link } = await db().from("view_links").select("id").eq("token", token).eq("workspace_id", actor.workspaceId).maybeSingle();
     const { data: who } = await db().from("profiles").select("id, name").eq("id", actor.personId).maybeSingle();

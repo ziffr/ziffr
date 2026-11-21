@@ -239,8 +239,8 @@ export async function listViewLinks(actor: Actor, type: "dashboard" | "deck", id
 
 /** Makes a View Link to the actor's dashboard or deck, live or frozen, ending on a day within MAX_DAYS; for a
  * dashboard, `snapshotId` makes it show one of its shown Snapshots (spec 0013). A View Link is sharing, so Guests
- * make none. Returns the token. */
-export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }, opts: { accessKeyId?: number } = {}): Promise<string> {
+ * make none. `opts.view` makes a live or frozen link from that very payload (for a dashboard or deck, not a Snapshot). Returns the token. */
+export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }, opts: { accessKeyId?: number; view?: ViewPayload } = {}): Promise<string> {
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
@@ -248,7 +248,8 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
   const expires = String(input?.expires ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires < today || expires > latest) throw new Refused(`Pick an end date within ${MAX_DAYS} days.`);
-  const view = await buildView(type, id);
+  // `opts.view` is a payload the caller already checked (a Share Proposal's): the link is made from exactly it, with no second read in between.
+  const view = opts.view ?? await buildView(type, id);
   if (!view) throw new Forbidden();
   // Only what its owner may see goes out.
   await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));

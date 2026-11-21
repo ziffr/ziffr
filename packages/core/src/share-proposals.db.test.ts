@@ -7,6 +7,7 @@ import { type Actor, ASSISTANT_SCOPES, Forbidden, KEY_ONLY_SCOPES, Refused, type
 import { actorForKey, createAccessKey } from "./access-keys";
 import { proposeShareWithKey } from "./api-share-proposals";
 import { createDashboard, placeWidget } from "./dashboards";
+import { createViewLink, previewViewLink } from "./view-links";
 import { db } from "./db";
 import type { MailTransport } from "./mail";
 import {
@@ -265,6 +266,30 @@ describe("what the person confirms is what goes out, and what only an assistant 
     // Looking again shows the new widget, and then it can be confirmed.
     await confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), mail.transport);
     expect(mail.sent).toHaveLength(1);
+  });
+  it("refuses when a widget's setting or the dashboard's words changed between the preview and the confirmation", async () => {
+    const { w, sara, dash, key } = await setup();
+    const p = await proposeShareWithKey(key, viewLink(dash));
+    const before = await seen(w, sara, p.id);
+    const mail = outbox();
+    await changeRows("widgets", { dashboard_id: dash }, { settings: { window: 3 } });
+    await expect(confirmShareProposal(w.actor(sara), p.id, before, mail.transport)).rejects.toEqual(refused);
+    const again = await seen(w, sara, p.id);
+    expect(again).not.toBe(before);
+    await changeRows("dashboards", { id: dash }, { intro: "A new introduction" });
+    await expect(confirmShareProposal(w.actor(sara), p.id, again, mail.transport)).rejects.toEqual(refused);
+    expect(mail.sent).toEqual([]);
+    expect((await getShareProposal(w.actor(sara), p.id))?.status).toBe("open");
+  });
+  it("makes the link from the payload that was checked, whatever changes after", async () => {
+    const { w, sara, dash, m } = await setup();
+    const checked = await previewViewLink(w.actor(sara), dash, null);
+    const extra = await w.metric(sara, { name: "Payroll" });
+    await placeWidget(w.actor(sara), dash, { type: "metric", id: extra.id });
+    await createViewLink(w.actor(sara), "dashboard", dash, { label: "x", expires: inDays(3), frozen: false }, { view: checked! });
+    const [link] = await rowsOf("view_links", { workspace_id: w.id });
+    expect(link.metric_ids).toEqual([m.id]);
+    expect((link.widget_ids as number[]).length).toBe(1);
   });
   it("does not replace someone's existing access, when proposing or when confirming", async () => {
     const { w, sara, ben, dash, key } = await setup();
