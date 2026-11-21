@@ -75,6 +75,10 @@ describe("the look", () => {
     expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: svg("<svg><script>1</script></svg>") } }, "A").logo).toBeNull();
     expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: svg("<svg><rect/></svg>") } }, "A").logo).not.toBeNull();
   });
+  it("treats a logo with malformed base64 as absent instead of throwing", () => {
+    for (const bad of ["data:image/svg+xml;base64,A=A=A", "data:image/png;base64,=====", "data:image/svg+xml;base64,PHN2Zz4"]) expect(() => themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: bad } }, "A")).not.toThrow();
+    expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "data:image/svg+xml;base64,A=A=A" } }, "A").logo).toBeNull();
+  });
   it("draws a look as a Theme that names no stored Theme", () => {
     const look = themeLook(STARTER_THEME, "Acme");
     expect(lookTheme(look)).toMatchObject({ id: 0, tokens: { accent: look.accent, surface: look.surface } });
