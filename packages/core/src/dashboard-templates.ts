@@ -71,7 +71,7 @@ export async function createDashboardFromTemplate(actor: Actor, input: { templat
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));
   const id = await createDashboard(actor, String(input.name ?? "").trim() || t.name);
   if (widgets.length) {
-    const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false }))).catch(() => []);
+    const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false })));
     if (placed.length !== widgets.length) throw new Error("The dashboard could not be made from the template.");
   }
   await recordVersion("dashboard", id, actor.personId, { message: `Made from the template “${t.name}”` });

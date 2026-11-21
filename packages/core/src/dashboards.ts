@@ -164,8 +164,7 @@ export async function placeWidget(actor: Actor, dashboardId: number, source: Dro
     const { data: existing } = await db().from("widgets").select("x,y,w,h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
     ({ x, y } = firstFreePlace(existing ?? [], spec.w, spec.h));
   }
-  const placed = await insertSealed("widgets", actor.workspaceId, [{ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y }]).catch(() => []);
-  if (!placed.length) throw new Error("The widget could not be placed.");
+  const placed = await insertSealed("widgets", actor.workspaceId, [{ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y }]);
   await recordVersion("dashboard", dashboardId, actor.personId);
   return placed[0].id as number;
 }
@@ -242,8 +241,7 @@ export async function removeWidget(actor: Actor, id: number) {
 export async function saveToPool(actor: Actor, source: DropSource, name: string) {
   assertCan(actor, "create");
   const spec = await specFrom(actor, source);
-  const saved = await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(name), owner_id: actor.personId, dashboard_id: null, saved: true }]).catch(() => []);
-  if (!saved.length) throw new Error("The widget could not be saved.");
+  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(name), owner_id: actor.personId, dashboard_id: null, saved: true }]);
 }
 
 /** Deletes one of the actor's saved widgets. */
