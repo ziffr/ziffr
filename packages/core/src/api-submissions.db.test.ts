@@ -6,7 +6,7 @@ import { actorForKey, createAccessKey } from "./access-keys";
 import { admitValues, once, submitObservation, VALUES_PER_DAY } from "./api-submissions";
 import { db } from "./db";
 import type { SubmissionEffects } from "./submissions";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { opened, valuesOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { JANUARY, periodStart } from "./periods";
 
@@ -32,8 +32,8 @@ describe("submitObservation", () => {
     expect(await valuesOf(m.id)).toMatchObject([{ value: 42, submitter_id: ben, source: "api" }]);
     const { data: obs } = await db().from("observations").select("id, access_key_id").eq("metric_id", m.id).single();
     expect(obs!.access_key_id).toBe(id);
-    const { data: rows } = await db().from("breakdown_rows").select("label, value").eq("observation_id", obs!.id);
-    expect(rows).toEqual([{ label: "Shop", value: 2 }]);
+    const { data: rows } = await db().from("breakdown_rows").select("id, label, value").eq("observation_id", obs!.id);
+    expect(await opened("breakdown_rows", w.id, rows, { dropId: true })).toEqual([{ label: "Shop", value: 2 }]);
   });
   it("keeps every Breakdown row of values with breakdowns sent at the same moment (spec 0022, #126)", async () => {
     const w = await ws(); const ben = await w.person("member");
@@ -46,8 +46,8 @@ describe("submitObservation", () => {
     expect(results.every((r) => r.ok)).toBe(true);
     const { data: obs } = await db().from("observations").select("id, value").eq("metric_id", add.id).single();
     expect(Number(obs!.value)).toBe(30.4);
-    const { data: rows } = await db().from("breakdown_rows").select("label, value, position").eq("observation_id", obs!.id).order("position");
-    const byLabel = Object.fromEntries((rows ?? []).map((r) => [r.label.toLowerCase(), Number(r.value)]));
+    const { data: rows } = await db().from("breakdown_rows").select("id, label, value, position").eq("observation_id", obs!.id).order("position");
+    const byLabel = Object.fromEntries((await opened("breakdown_rows", w.id, rows)).map((r) => [r.label.toLowerCase(), Number(r.value)]));
     expect(byLabel).toEqual({ shop: 0.8, web: 1.6, ...Object.fromEntries(sent.map((_, i) => [`partner ${i}`, i])) });
     expect((rows ?? []).map((r) => r.position)).toEqual(Array.from({ length: 10 }, (_, i) => i));
 
@@ -63,8 +63,8 @@ describe("submitObservation", () => {
     const over = await w.metric(ben, { submission_rule: "overwrite" }); await w.token(over.id, ben);
     await Promise.all(["A", "B", "C", "D"].map((l) => submitObservation(key, over.slug, { value: 2, breakdown: [{ label: `${l}1`, value: 1 }, { label: `${l}2`, value: 1 }] }, quiet())));
     const { data: last } = await db().from("observations").select("id").eq("metric_id", over.id).single();
-    const { data: kept } = await db().from("breakdown_rows").select("label").eq("observation_id", last!.id).order("position");
-    const labels = (kept ?? []).map((r) => r.label);
+    const { data: kept } = await db().from("breakdown_rows").select("id, label").eq("observation_id", last!.id).order("position");
+    const labels = (await opened("breakdown_rows", w.id, kept)).map((r) => r.label as string);
     expect(labels).toHaveLength(2);
     expect(labels[1]).toBe(`${labels[0][0]}2`);
   });

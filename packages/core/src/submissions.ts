@@ -9,6 +9,7 @@ import { formatValue, SOURCE_LABEL } from "./format";
 import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
+import { breakdownRowsToWrite, type BreakdownInput } from "./breakdown-labels";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
@@ -243,7 +244,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // Admin of the Workspace (spec 0026).
   const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
   const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
-  const rows = (breakdown?.rows ?? []).map((r) => ({ label: r.label, value: r.value }));
+  // Labels are sealed here and matched in the database by blind index (breakdown-labels.ts, spec 0028).
+  const rows = await breakdownRowsToWrite(workspaceId, metric.id, period, breakdown?.rows ?? [], preview);
   const { data, error } = await record(metric, period, value, row, mayImport, rows);
   // Archived between the check above and the write: the database refuses it the same way.
   if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
@@ -309,7 +311,7 @@ function closedTo(metric: Metric, source: SourceId): { outcome: string; detail: 
 }
 
 type Recorded = { observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number };
-type Recording = (metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null }, imported: boolean, rows: { label: string; value: number }[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
+type Recording = (metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null }, imported: boolean, rows: BreakdownInput[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
 
 /** Records a value under its Metric's Submission Rule, in one call to the database. */
 const recordObservation: Recording = async (metric, period, value, row, imported, rows) =>

@@ -11,7 +11,8 @@ import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-key
  * that one Workspace; members' own profiles belong to the person and stay in clear (spec 0028). */
 export const SEALED_COLUMNS = {
   thread_messages: ["body"],
-  actions: ["question"],
+  // A Question's text and the label of the Breakdown row it points at (a copy of that row's sealed label).
+  actions: ["question", "breakdown_label"],
   contacts: ["email", "slack_handle", "phone"],
   profiles: ["name"],
   deliveries: ["subject", "body"],
@@ -26,16 +27,20 @@ export const SEALED_COLUMNS = {
   // The external task an Action is in another system, per Webhook (spec 0034, ticket 5): its id and address, written by
   // webhook-inbound.ts with the row's uuid made first.
   webhook_external_ids: ["external_id", "url"],
+  // A Breakdown row's label, written by submissions.ts through record_observation with its id taken first, found again
+  // by its blind index (breakdown-labels.ts). breakdown_history.label is a copy of it with the row's id in `row_id`:
+  // it opens as a row of this table (breakdown-labels.ts), and the re-encryption job rewrites it with its row.
+  breakdown_rows: ["label"],
 } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id" };
+const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id" };
 
 /** A table with sealed columns. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts" | "breakdown_rows";
 
 type Row = Record<string, unknown>;
 

@@ -1,7 +1,8 @@
 // Data of one Workspace (GLOSSARY: Metric, Observation, Action, Target Series, Projection, Breakdown). Every loader
 // takes the workspace and reads nothing outside it; what a person may see is decided in access.ts.
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openRow, openRows } from "./sealed-columns";
+import { workspaceCipher } from "./workspace-keys";
 import { formulaInputs } from "./formula";
 import { buildSeries } from "./series";
 import { normalizeMetric } from "./metric-row";
@@ -171,8 +172,10 @@ export async function getBreakdowns(ws: string, metricIds: number[], window: { f
     throw new Error("Breakdowns could not be read. Try again in a moment.");
   }
   const out: Record<number, Record<string, BreakdownRow[]>> = {};
-  for (const r of (data ?? []) as { metric_id: number; period_start: string; rows: { label: string; value: unknown }[] }[]) {
-    (out[r.metric_id] ??= {})[r.period_start] = r.rows.map((b) => ({ label: b.label, value: Number(b.value) }));
+  // Labels are sealed with the Workspace Key and open here; one that does not open reads as a dash, never as ciphertext.
+  const cipher = await workspaceCipher(ws);
+  for (const r of (data ?? []) as { metric_id: number; period_start: string; rows: { id: number; label: string; value: unknown }[] }[]) {
+    (out[r.metric_id] ??= {})[r.period_start] = r.rows.map((b) => ({ label: openRow(cipher, "breakdown_rows", b).label || "–", value: Number(b.value) }));
   }
   return out;
 }
