@@ -67,6 +67,7 @@ Nothing searches Workspace text in SQL today: the lists people filter (Metrics, 
 
 - A **re-encryption job** (`/api/jobs/workspace-keys`, with the job secret, run by the same scheduler as the other jobs) gives every Workspace a key, then seals plain rows table by table in small batches (500 rows), and re-encrypts rows under a retired key version. Each row is written only if it has not changed since it was read. It can stop and start at any time; a page for Installation Admins shows how far it is.
 - **Mixed state:** while it runs, the core reads plain and sealed rows alike and writes only sealed ones. The demo is skipped.
+- **The Audit Log stays add-only** (decided while building #247): old events are sealed too, through one database function that may change an event's object name and details only from plain to sealed text, or from a key version to a newer one, and nothing else; nobody else can update an event.
 - **Done** means no plain row is left in a sealed column, checked by one query per column; then the plain columns for values are dropped by a later migration, in a release of its own, once every Installation had time to finish.
 
 ### Performance

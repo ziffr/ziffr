@@ -13,11 +13,17 @@ create function sealed_version(p_value text) returns integer language sql immuta
   select case when sealed_format(p_value) then (regexp_match(p_value, '^w1\.([0-9]+)\.'))[1]::integer end
 $$;
 
+revoke all on function sealed_format(text) from public, anon, authenticated;
+revoke all on function sealed_version(text) from public, anon, authenticated;
+
 -- An Audit Log event's details are sealed as a whole, kept as an object holding the sealed text: {"sealed": "w1..."}.
 create function sealed_details(p_details jsonb) returns boolean language sql immutable as $$
-  select jsonb_typeof(p_details) = 'object' and (select count(*) from jsonb_object_keys(p_details)) = 1
-    and jsonb_typeof(p_details -> 'sealed') = 'string' and sealed_format(p_details ->> 'sealed')
+  -- Never null: details without a "sealed" key are plain, not unknown.
+  select coalesce(jsonb_typeof(p_details) = 'object' and (select count(*) from jsonb_object_keys(p_details)) = 1
+    and jsonb_typeof(p_details -> 'sealed') = 'string' and sealed_format(p_details ->> 'sealed'), false)
 $$;
+
+revoke all on function sealed_details(jsonb) from public, anon, authenticated;
 
 -- Where each sealed table keeps its rows of one Workspace: the column naming the row, its sealed columns and the
 -- condition that picks the Workspace's rows ($1). A Contact's name lives in a person row of their own (role
@@ -40,6 +46,8 @@ begin
   end case;
 end;
 $$;
+
+revoke all on function seal_table(text) from public, anon, authenticated;
 
 -- Up to p_limit rows of one Workspace that still need sealing: a sealed column holding plain text, or a value written
 -- under a key version older than p_current. p_skip names rows to leave out (ones this run could not seal). Rows come
@@ -121,6 +129,9 @@ create table workspace_seal_progress (
   -- In the sealed format but would not open (changed, or from another place): counted apart from plain rows, and
   -- never overwritten by the job. Found when the column is checked off.
   unopenable bigint not null default 0,
+  -- While the check of a big column is under way, the last row it has opened (and `unopenable` counts so far), so a
+  -- pass that runs out of time goes on from there next time instead of starting again.
+  verified_through text,
   -- Rows the last pass could not seal (two Contacts with the same address, a row that changed again and again).
   held_back bigint not null default 0,
   checked_at timestamptz not null default now(),
@@ -143,7 +154,7 @@ declare
   n integer;
 begin
   update workspaces set sealed_claimed_at = now()
-    where id = p_workspace and (sealed_claimed_at is null or sealed_claimed_at < now() - make_interval(mins => p_minutes));
+    where id = p_workspace and (sealed_claimed_at is null or sealed_claimed_at > now() or sealed_claimed_at < now() - make_interval(mins => p_minutes));
   get diagnostics n = row_count;
   return n = 1;
 end;
@@ -164,11 +175,16 @@ begin
   if tg_op = 'DELETE' and (old.at < now() - interval '730 days' or not exists (select 1 from workspaces w where w.id = old.workspace_id)) then
     return old;
   end if;
+  -- Only seal_audit_event, running as its owner, with the mark it sets for the length of its own statement.
   if tg_op = 'UPDATE' and current_setting('ziffr.sealing_audit', true) = 'on'
+     and current_user = (select pg_get_userbyid(proowner) from pg_proc where oid = 'seal_audit_event(bigint,text,text,jsonb,jsonb)'::regprocedure)
      and (to_jsonb(new) - 'object_name' - 'details') = (to_jsonb(old) - 'object_name' - 'details')
-     and (new.object_name is null) = (old.object_name is null)
-     and (new.object_name is null or sealed_format(new.object_name))
-     and sealed_details(new.details) then
+     -- Each of the two stays as it is, or goes from plain to sealed, or from a key version to a newer one: never to
+     -- plain text, never sideways to another value of the same version.
+     and (new.object_name is not distinct from old.object_name
+          or (new.object_name is not null and sealed_format(new.object_name) and (old.object_name is null or not sealed_format(old.object_name) or sealed_version(new.object_name) > sealed_version(old.object_name))))
+     and (new.details = old.details
+          or (sealed_details(new.details) and (not sealed_details(old.details) or sealed_version(new.details ->> 'sealed') > sealed_version(old.details ->> 'sealed')))) then
     return new;
   end if;
   raise exception 'The Audit Log is add-only.' using errcode = 'ZF403';
@@ -190,3 +206,19 @@ begin
 end;
 $$;
 revoke all on function seal_audit_event(bigint, text, text, jsonb, jsonb) from public, anon, authenticated;
+
+-- Seals a Contact's name, only if the person is still a Contact of this Workspace alone (a name is bound to one
+-- Workspace) and the name is still what the job read: the scope of seal_table is applied again at the moment of writing.
+create function seal_contact_name(p_workspace uuid, p_person text, p_name_was text, p_name text)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  update profiles set name = p_name
+    where id = p_person and name = p_name_was and role = 'Contact'
+      and id in (select c.person_id from contacts c where c.workspace_id = p_workspace and not exists (select 1 from contacts o where o.person_id = c.person_id and o.workspace_id <> c.workspace_id));
+  get diagnostics n = row_count;
+  return n = 1;
+end;
+$$;
+revoke all on function seal_contact_name(uuid, text, text, text) from public, anon, authenticated;

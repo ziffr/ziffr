@@ -190,6 +190,44 @@ describe("the re-encryption job", () => {
     expect(after!.object_name).toBe("Hamburg visits");
   });
 
+  it("lets the Audit Log change only to sealed text of a newer key version", async () => {
+    const w = await plainWorkspace();
+    await reencryptionJob(only(w));
+    const { data: ev } = await db().from("audit_events").select("id, object_name, details").eq("workspace_id", w.id).single();
+    // Sealed already, at the same version: a different sealed value does not replace it, not even one that opens.
+    const cipher = await workspaceCipher(w.id);
+    const other = cipher.seal({ table: "audit_events", column: "object_name", row: String(ev!.id) }, "Rewritten history");
+    const same = await db().rpc("seal_audit_event", { p_id: ev!.id, p_name_was: ev!.object_name, p_name: other, p_details_was: ev!.details, p_details: ev!.details });
+    expect(same.error).not.toBeNull();
+    // And the mark that allows the change cannot be set from outside the function.
+    expect((await db().from("audit_events").update({ object_name: other }).eq("id", ev!.id)).error).not.toBeNull();
+    const { data: after } = await db().from("audit_events").select("object_name").eq("id", ev!.id).single();
+    expect(after!.object_name).toBe(ev!.object_name);
+  });
+
+  it("checks a big column over several runs, from where the last one stopped", async () => {
+    const w = await plainWorkspace();
+    await reencryptionJob(only(w));
+    await db().from("workspace_seal_progress").update({ done_at: null }).eq("workspace_id", w.id);
+    // Every run may open only a few rows before its time is up: here no time at all after the sealing is done.
+    let doneAt: string | null = null;
+    for (let i = 0; i < 40 && !doneAt; i++) {
+      await reencryptionJob({ ...only(w), seconds: 1 });
+      doneAt = (await progressOf(w.id, "thread_messages", "body")).done_at as string | null;
+    }
+    expect(doneAt).not.toBeNull();
+  });
+
+  it("does not seal the name of a person who is a Contact of two Workspaces", async () => {
+    const w = await plainWorkspace();
+    const other = await plainWorkspace();
+    const { error } = await db().from("contacts").insert({ workspace_id: other.id, person_id: w.contactId, email: "twin@example.test" });
+    expect(error).toBeNull();
+    await reencryptionJob(only(w));
+    const { data } = await db().from("profiles").select("name").eq("id", w.contactId).single();
+    expect(isSealed(data!.name as string)).toBe(false);
+  });
+
   it("waits without ZIFFR_SECRETS_KEY", async () => {
     const w = await plainWorkspace();
     delete process.env.ZIFFR_SECRETS_KEY;
