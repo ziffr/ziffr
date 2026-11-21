@@ -12,6 +12,8 @@ import { DeckData, WidgetShapeUtil } from "./widget-shape";
 import { DeckMaster, SlideFrameUtil } from "./master";
 import { orderedSlides } from "./layouts";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
+import { tokensForViewer } from "@ziffr/core/theme-dark";
+import { useViewerDark } from "@/lib/use-viewer-dark";
 import { useFullscreen, useStepper } from "@/lib/use-stepper";
 import type { CanvasData } from "@ziffr/core/types";
 
@@ -25,7 +27,11 @@ export function Slideshow({ deck, data, start, publicNote }: { deck: { id: numbe
   const [count, setCount] = useState(0);
   const [snapshot] = useState(() => (deck.document ? ({ document: deck.document } as unknown as TLEditorSnapshot) : undefined));
   const theme = themeFor(data.themes, deck.theme_id);
-  const master = useMemo(() => slideDesign(theme, deck.footer), [theme, deck.footer]);
+  // The slides follow the viewer's dark Appearance unless the Theme says "always as designed"; through a View Link they
+  // keep the look they were shared with (#583).
+  const viewerDark = useViewerDark() && !pub;
+  const shown = useMemo(() => (theme ? { ...theme, tokens: tokensForViewer(theme.tokens, viewerDark) } : theme), [theme, viewerDark]);
+  const master = useMemo(() => slideDesign(shown, deck.footer), [shown, deck.footer]);
   const step = useStepper(count, start, pub ? undefined : () => router.push(back));
   const { go } = step;
   // The slides are known only once tldraw has loaded the deck: jump to the requested one then.
@@ -50,7 +56,7 @@ export function Slideshow({ deck, data, start, publicNote }: { deck: { id: numbe
   return (
     <DeckData.Provider value={data}>
       <DeckMaster.Provider value={master}>
-        <ThemeScope theme={theme} className="slideshow fixed inset-0 z-[var(--z-modal)] flex flex-col bg-[var(--color-desk)]">
+        <ThemeScope theme={theme} scheme={pub ? "designed" : "follow"} className="slideshow fixed inset-0 z-[var(--z-modal)] flex flex-col bg-[var(--color-desk)]">
           <div className="relative min-h-0 flex-1" {...step.swipe} style={{ touchAction: "pan-y", pointerEvents: "auto" }}>
             <div className="absolute inset-0" style={{ pointerEvents: "none" }}>
               <Tldraw
@@ -59,7 +65,7 @@ export function Slideshow({ deck, data, start, publicNote }: { deck: { id: numbe
                 hideUi
                 onMount={(ed) => {
                   ed.updateInstanceState({ isReadonly: true });
-                  ed.user.updateUserPreferences({ colorScheme: theme && isDark(theme.tokens) ? "dark" : "light", locale: "en" });
+                  ed.user.updateUserPreferences({ colorScheme: shown && isDark(shown.tokens) ? "dark" : "light", locale: "en" });
                   ed.selectNone();
                   setCount(orderedSlides(ed).length);
                   setEditor(ed);

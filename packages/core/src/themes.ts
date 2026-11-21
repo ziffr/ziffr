@@ -1,6 +1,6 @@
 // Themes (GLOSSARY: Theme): a theme becomes CSS custom properties on the element that holds content.
 // Widgets, stories and slides only use tokens, so one wrapper repaints all of them. Pure.
-import type { FontId, SlideDesign, Theme, ThemeSlides, ThemeTokens } from "./types";
+import type { FontId, SlideDesign, Theme, ThemeDarkColours, ThemeSlides, ThemeTokens } from "./types";
 
 type Font = { label: string; stack: string; href?: string; /** The name PowerPoint looks for. */ office: string; kind: "sans" | "serif" | "mono" };
 const G = (family: string) => `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
@@ -27,7 +27,9 @@ export function themeFor(themes: Theme[], id: number | null | undefined): Theme 
   return themes.find((t) => t.id === id) ?? themes.find((t) => t.is_default) ?? themes[0];
 }
 
-/** What a deck draws behind every slide: the theme's slide part in its colours, the deck's footer if it has one. */
+/** What a deck draws behind every slide: the theme's slide part in its colours, the deck's footer if it has one. Always
+ * the designed colours: a file people open (PowerPoint, an image) looks the same whoever made it and in whichever
+ * Appearance (#583); the screens that follow the viewer pass `tokensForViewer(...)` colours in a Theme of their own. */
 export function slideDesign(theme: Theme | undefined, footer?: string | null): SlideDesign | null {
   if (!theme) return null;
   return { ...theme.slides, footer: footer ?? theme.slides.footer, background_color: theme.tokens.surface, text_color: theme.tokens.ink };
@@ -36,8 +38,14 @@ export function slideDesign(theme: Theme | undefined, footer?: string | null): S
 const mix = (a: string, b: string, pct: number) => `color-mix(in oklab, ${a} ${pct}%, ${b})`;
 
 /** Every token the content uses, including the UI kit's aliases (they resolve where they are declared). */
-/** CSS custom properties and the two direct styles a theme sets on the element that holds content. */
-export function themeVars(t: ThemeTokens): Record<string, string | number | undefined> {
+/** CSS custom properties and the two direct styles a theme sets on the element that holds content. With `dark` (the
+ * Theme's dark variant, #583) every colour is `light-dark(designed, dark)`: the browser picks by the colour scheme the
+ * page inherits from the viewer's Appearance (appearance.css), so the first paint is right with no script. Without it
+ * the Theme is always as designed. */
+export function themeVars(t: ThemeTokens, dark?: ThemeDarkColours | null): Record<string, string | number | undefined> {
+  const pick = (k: "canvas" | "surface" | "ink" | "muted" | "rule" | "accent" | "good" | "bad" | "band", base: string = t[k]) => (dark ? `light-dark(${base}, ${dark[k]})` : base);
+  const dataAt = (i: number, fallback: string) => (dark && t.data[i] ? `light-dark(${t.data[i]}, ${dark.data[i] ?? dark.data[dark.data.length - 1]})` : t.data[i] ?? fallback);
+  t = { ...t, canvas: pick("canvas"), surface: pick("surface"), ink: pick("ink"), muted: pick("muted"), rule: pick("rule"), accent: pick("accent"), good: pick("good"), bad: pick("bad"), band: pick("band"), data: [0, 1, 2, 3, 4].map((i) => dataAt(i, "")).filter(Boolean) };
   const heading = FONTS[t.fontHeading]?.stack ?? FONTS["general-sans"].stack;
   const body = FONTS[t.fontBody]?.stack ?? FONTS["general-sans"].stack;
   const figures = FONTS[t.fontFigures]?.stack ?? body;

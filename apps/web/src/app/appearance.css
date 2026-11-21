@@ -3,7 +3,8 @@
  * from the person's choice, so the first paint is right and nothing flashes. `system` follows the device with a media
  * query, which is why the dark set is written twice; appearance.test.ts keeps the copies equal and checks every
  * text and outline pair against WCAG (AA; AAA for text in High contrast). Themes (Dashboards, Decks) set their own
- * colours inside their own area and are not touched here. */
+ * colours inside their own area: they follow this file only through the colour scheme set above (`color-scheme`), as
+ * themeVars() writes every Theme colour as light-dark(designed, dark) (#583). */
 
 /* Dark */
 :root[data-appearance="dark"] {

@@ -5,6 +5,8 @@ import { ThemeScope } from "@/components/theme-scope";
 import { ThemePicker } from "@/components/theme-picker";
 import { setDeckTheme } from "@/app/theme-actions";
 import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
+import { tokensForViewer } from "@ziffr/core/theme-dark";
+import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
 import { FileDown, Group as GroupIcon, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer, Ungroup } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
@@ -72,7 +74,12 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   const [themeId, setThemeId] = useState<number | null>(deck.theme_id);
   const theme = themeFor(data.themes, themeId);
   // What every slide shows comes from the deck's theme; the deck may have its own footer (GLOSSARY: Theme).
-  const master = useMemo(() => slideDesign(theme, footer), [theme, footer]);
+  // The slides follow the viewer's dark Appearance unless the Theme says "always as designed" (#583); the PowerPoint and
+  // PDF exports below always use the designed colours.
+  const viewerDark = useViewerDark();
+  const shown = useMemo(() => (theme ? { ...theme, tokens: tokensForViewer(theme.tokens, viewerDark) } : theme), [theme, viewerDark]);
+  const master = useMemo(() => slideDesign(shown, footer), [shown, footer]);
+  const designedMaster = useMemo(() => slideDesign(theme, footer), [theme, footer]);
   const [status, setStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
@@ -154,15 +161,15 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
   useEffect(() => {
-    setDeckExportMaster(master);
+    setDeckExportMaster(designedMaster);
     return () => {
       setDeckExportMaster(null);
     };
-  }, [master]);
+  }, [designedMaster]);
   // tldraw draws its own text and arrows: a dark theme needs its dark mode so "black" reads light.
   useEffect(() => {
-    if (editor && theme) editor.user.updateUserPreferences({ colorScheme: isDark(theme.tokens) ? "dark" : "light" });
-  }, [editor, theme]);
+    if (editor && theme) editor.user.updateUserPreferences({ colorScheme: isDark(shown!.tokens) ? "dark" : "light" });
+  }, [editor, theme, shown]);
   useEffect(() => {
     setDeckExportData(data);
     return () => {
@@ -248,7 +255,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         // Slides not on screen were never drawn, so a widget there may still lack its series: fetch them first.
         const ids = editor.store.allRecords().flatMap((r) => (r.typeName === "shape" && r.type === WIDGET_SHAPE ? (r as WidgetShape).props.metricIds : []));
         if (ensure) { await ensure([...new Set(ids)]); await new Promise((r) => setTimeout(r, 0)); }
-        await exportPptx(editor, latest.current, name, master, theme);
+        await exportPptx(editor, latest.current, name, designedMaster, theme);
       }
       else await exportPdf(editor, name);
       // For the Audit Log; a failure to note it never spoils the export the person already has.

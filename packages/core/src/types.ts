@@ -419,7 +419,15 @@ export type ThemeTokens = {
   radius: number;
   /** paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all. */
   cards: "paper" | "flat" | "plain";
+  /** The dark variant (#583): the colours shown to a viewer whose Appearance is dark. Absent: derived from the
+   * colours above (theme-dark.ts). Fonts, corners and cards are the same in both. */
+  dark?: ThemeDarkColours;
+  /** "follow" (the default, also when absent): the Theme goes dark with the viewer's Appearance. "fixed": always as
+   * designed, for brand decks and anything that must look the same for everyone. */
+  appearance?: "follow" | "fixed";
 };
+/** The colours of a Theme's dark variant. */
+export type ThemeDarkColours = Pick<ThemeTokens, "canvas" | "surface" | "ink" | "muted" | "rule" | "accent" | "data" | "good" | "bad" | "band">;
 /** A named look for everything that shows numbers (GLOSSARY: Theme). */
 export type Theme = { id: number; owner_id: string; name: string; tokens: ThemeTokens; slides: ThemeSlides; is_default: boolean; updated_at: string };
 

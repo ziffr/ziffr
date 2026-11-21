@@ -157,7 +157,7 @@ The page shows every Theme of the Workspace on the left. The one marked **team d
 
 Below your Themes, **Standard Themes** lists the six that come with Ziffr: Ziffr Light, Ziffr Dark, Tokyo (dark, vivid colours), Paris (warm, serif headlines), Oslo (cool and restrained) and Print (black on white, for PDF and PowerPoint). Choose one to see it on real Widgets, then **Add to this Workspace**: it becomes a Theme of your own, which you can pick for dashboards and decks and change like any other. Every standard Theme keeps text readable on cards (WCAG AA) and keeps Good and Bad apart for people with red-green colour blindness. A standard Theme you added never changes when Ziffr improves the original.
 
-On the right, a preview shows a sample slide and real Widgets drawn with the first Metrics you can see, so you judge a theme on what it will really show. The preview changes as you edit, before you save.
+On the right, a preview shows a sample slide and real Widgets drawn with the first Metrics you can see, so you judge a theme on what it will really show. The preview changes as you edit, before you save. When the Theme has a dark variant, **As designed** and **In a dark Appearance** above the preview switch between the two.
 
 If you are not an Owner or Admin, the page says "Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks." You can still look at every theme and its Versions.
 
@@ -186,6 +186,19 @@ Every colour is checked for contrast (WCAG AA) when it is used: an accent that i
 | **Bad** | Values that are bad. |
 | **Target band** | The band that shows the Target Range. |
 | **Data, first for single series** | Four colours for the lines and bars of charts. The first is used when a chart shows only one Metric. |
+
+### In a dark Appearance
+
+When someone's [Appearance](17-your-settings.md#appearance) is dark, dashboards and decks in a Theme can go dark with it. The setting **In a dark Appearance** (under the Cards option) decides:
+
+| Option | What it does |
+|---|---|
+| **Follows the viewer's Appearance** | The default. Dark viewers see the Theme's dark variant, everyone else the Theme as designed. This also holds in Present mode. |
+| **Always as designed** | The Theme looks the same for everyone: for brand decks, or when the Theme must show your colours exactly. |
+
+Every Theme has a dark variant. The Standard Themes carry one that was designed with them (Ziffr Dark and Tokyo are dark already and look the same in every Appearance). For any other Theme, Ziffr works out a dark variant from its colours and checks it for contrast (WCAG AA); if that fails, the colours of Ziffr Dark are used. The note under the setting says which one a Theme has. Fonts, corners and cards stay as they are.
+
+Snapshots, View Links and exports (PowerPoint, PDF) keep the look they were made or shared with, in whatever Appearance the viewer has. A Theme file holds the colours as designed; the setting is not part of it.
 
 ### Fonts and cards
 
@@ -231,7 +244,7 @@ The type sizes apply to new slides you add. Slides that already exist keep the s
 
 Only Owners and Admins see **Save theme**, **Make team default**, **Duplicate**, **Delete**, **Add to this Workspace** and **Import a Theme file**. A Workspace keeps at most 50 Themes. How to write a Theme file by hand, and how to share Themes as a Pack, is in the [Themes guide](../guides/themes.md).
 
-Ziffr's own screens, such as menus, settings and this guide, keep their look whatever theme you pick.
+Ziffr's own screens, such as menus, settings and this guide, keep their look whatever theme you pick; they follow your Appearance.
 
 ## Picking a theme for a dashboard or deck
 
