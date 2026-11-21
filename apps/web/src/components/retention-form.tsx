@@ -162,7 +162,7 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
   const unchanged = key === JSON.stringify(pending?.retention ?? retention);
 
   const show = () => run(() => previewRetention(metricId, setting), "Not shown", (counts) => setPreview({ for: key, counts }));
-  const save = (fingerprint?: string) => run(() => setMetricRetention(metricId, setting, fingerprint), "Not saved", (r) => {
+  const save = (fingerprint?: string) => run(() => setMetricRetention(metricId, setting, fingerprint, typed), "Not saved", (r) => {
     setOpen(false); setTyped(""); setPreview(null);
     toast.success(r.starts_on ? `It starts on ${dayWords(r.starts_on)}` : "Saved", { description: r.starts_on ? "Until then you can cancel it here. Nothing is changed before." : undefined });
     router.refresh();
@@ -236,9 +236,9 @@ export function WorkspaceRetention({ retention, canSet }: { retention: Retention
     router.refresh();
   });
   const show = () => run(() => previewRetentionForAll(setting), "Not shown", (counts) => setPreview({ for: key, counts }));
-  const apply = () => run(() => applyRetentionToAll(setting, shown?.fingerprint), "Not applied", (r) => {
+  const apply = () => run(() => applyRetentionToAll(setting, shown?.fingerprint, typed), "Not applied", (r) => {
     setOpen(false); setTyped(""); setPreview(null);
-    toast.success(`${plural(r.applied, "Metric")} now wait 7 days`, { description: "Each can be cancelled on its own page. Nothing is changed before." });
+    toast.success(`${plural(r.applied, "Metric")} now wait 7 days`, { description: `${r.changed ? `${plural(r.changed, "Metric")} changed meanwhile and were left out. ` : ""}Each can be cancelled on its own page. Nothing is changed before.` });
     router.refresh();
   });
   const deleting = setting?.then === "delete";

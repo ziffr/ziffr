@@ -35,8 +35,11 @@ export function storedRetention(value: unknown): Retention | null {
   return parsed.ok ? parsed.retention : null;
 }
 
-/** A confirmed Retention that has not started: the setting, its first day, who confirmed it and on what day. */
-export type PendingRetention = { retention: Retention; starts_on: string; confirmed_on: string; set_by: string; told: boolean; reminded: boolean };
+/** A confirmed Retention that has not started: the setting, its first day, who confirmed it and on what day, and what the
+ * person was shown (`counted`: the periods and values it would have touched then; the daily job must not take more than
+ * that without a new confirmation). `id` names this confirmation, so a cancel or a start cannot hit a newer one;
+ * `starts_after` is the instant it may start at the earliest (7 days on, whatever the Workspace's clock says by then). */
+export type PendingRetention = { id: string; retention: Retention; starts_on: string; starts_after: string; confirmed_on: string; set_by: string; counted: { periods: number; values: number }; told: boolean; reminded: boolean };
 
 /** A pending Retention read back from what the database holds, or null when it holds none or something else. */
 export function storedPending(value: unknown): PendingRetention | null {
@@ -44,8 +47,11 @@ export function storedPending(value: unknown): PendingRetention | null {
   const v = value as Record<string, unknown>;
   const day = (x: unknown) => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x);
   const retention = storedRetention(v.retention);
-  if (!retention || !day(v.starts_on) || !day(v.confirmed_on) || typeof v.set_by !== "string") return null;
-  return { retention, starts_on: v.starts_on as string, confirmed_on: v.confirmed_on as string, set_by: v.set_by, told: v.told === true, reminded: v.reminded === true };
+  const c = v.counted as { periods?: unknown; values?: unknown } | null;
+  const count = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 ? x : null);
+  const periods = count(c?.periods), values = count(c?.values);
+  if (!retention || !day(v.starts_on) || !day(v.confirmed_on) || typeof v.set_by !== "string" || typeof v.id !== "string" || typeof v.starts_after !== "string" || Number.isNaN(Date.parse(v.starts_after)) || periods === null || values === null) return null;
+  return { id: v.id, retention, starts_on: v.starts_on as string, starts_after: v.starts_after, confirmed_on: v.confirmed_on as string, set_by: v.set_by, counted: { periods, values }, told: v.told === true, reminded: v.reminded === true };
 }
 
 /** A day as people read it: "28 November 2026". */

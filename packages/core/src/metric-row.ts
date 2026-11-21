@@ -5,8 +5,13 @@ import type { Metric } from "./types";
 
 /** A Metric with its target bounds as numbers (or null), and its Attainment method one of the two or null. */
 export function normalizeMetric(m: Metric): Metric {
+  // A Retention and the confirmation waiting to start are not part of the Metric that browsers, View Links and Snapshots
+  // are given: they say who confirmed what and when. The Metric page reads them through `retentionFor`.
+  const rest: Metric = { ...m };
+  delete rest.retention;
+  delete rest.retention_pending;
   return {
-    ...m, target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
+    ...rest, target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     attainment_method: isAttainmentMethod(m.attainment_method) ? m.attainment_method : null,
   };
 }

@@ -7,7 +7,8 @@ import { db } from "./db";
 import { DemoReadOnly } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { createMetric, metricEffects, updateMetricDetails, type MetricEffects } from "./metrics";
-import { applyRetentionToExisting, cancelRetention, canSetRetention, defaultRetention, NUMBERS_CHANGED, retentionOf, retentionPreview, retentionPreviewAll, setDefaultRetention, setRetention, settleRetentions } from "./retention-setting";
+import { normalizeMetric } from "./metric-row";
+import { applyRetentionToExisting, cancelRetention, canSetRetention, defaultRetention, NUMBERS_CHANGED, retentionFor, retentionPreview, retentionPreviewAll, setDefaultRetention, setRetention, settleRetentions } from "./retention-setting";
 import { auditRowsOf, workspace } from "./test/db-fixtures";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
@@ -18,6 +19,8 @@ const fx = (): MetricEffects => ({ ...metricEffects, promptSubmitter: vi.fn(asyn
 const refusal = async (p: Promise<unknown>) => p.then(() => null, (e: Error) => e);
 const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 const months = (from: string, count: number) => Array.from({ length: count }, (_, i) => { const d = new Date(`${from}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() + i); return d.toISOString().slice(0, 8) + "01"; });
+const PAST = new Date(Date.now() - 86_400_000).toISOString();
+const NAME = "Field visits";
 const CONDENSE = { keep_months: 25, then: "condense", into: "quarter" };
 const DELETE = { keep_months: 25, then: "delete" };
 const pendingOf = async (id: number) => (await db().from("metrics").select("retention, retention_pending").eq("id", id).single()).data as { retention: unknown; retention_pending: { starts_on: string; confirmed_on: string; set_by: string; reminded: boolean; retention: unknown } | null };
@@ -127,16 +130,16 @@ describe("turning it on, the confirmation and the days to cancel", () => {
     const shown = await retentionPreview(actor, m.id, DELETE);
     // New open work appears after the preview: the numbers changed.
     const open = await w.action({ metric_id: m.id, period_start: "2018-06-01", asker_id: sara, assignee_id: ben, status: "open" });
-    expect(await refusal(setRetention(actor, m.id, DELETE, shown.fingerprint))).toMatchObject({ message: NUMBERS_CHANGED });
+    expect(await refusal(setRetention(actor, m.id, DELETE, shown.fingerprint, NAME))).toMatchObject({ message: NUMBERS_CHANGED });
     await db().from("actions").delete().eq("id", open);
-    const r = await setRetention(actor, m.id, DELETE, shown.fingerprint);
+    const r = await setRetention(actor, m.id, DELETE, shown.fingerprint, NAME);
     expect(r.starts_on).toBe(inDays(8));
     // It waits: nothing is in force, nothing was deleted.
     const row = await pendingOf(m.id);
     expect(row.retention).toBeNull();
     expect(row.retention_pending).toMatchObject({ starts_on: inDays(8), confirmed_on: inDays(0), set_by: ben, retention: DELETE });
     expect((await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id)).count).toBe(25);
-    expect(retentionOf(row).pending?.note).toMatch(/^Values before .* will be deleted from /);
+    expect((await retentionFor(actor, m.id)).pending?.note).toMatch(/^Values before .* will be deleted from /);
     // The owner and the person who set it are told once; the text holds no value.
     const { data: told } = await db().from("deliveries").select("recipient_id, kind, subject").eq("workspace_id", w.id).eq("kind", "notice");
     expect(told?.map((t) => t.recipient_id)).toEqual([ben]);
@@ -149,16 +152,16 @@ describe("turning it on, the confirmation and the days to cancel", () => {
     const { w, sara, ben, m } = await setup();
     const actor = w.actor(ben, "member");
     const shown = await retentionPreview(actor, m.id, CONDENSE);
-    await setRetention(actor, m.id, CONDENSE, shown.fingerprint);
+    await setRetention(actor, m.id, CONDENSE, shown.fingerprint, NAME);
     expect((await pendingOf(m.id)).retention_pending).not.toBeNull();
     expect(await cancelRetention(w.actor(sara), m.id)).toEqual({ cancelled: true });
     expect((await pendingOf(m.id)).retention_pending).toBeNull();
     expect(await cancelRetention(actor, m.id)).toEqual({ cancelled: false });
     expect(await auditRowsOf(w.id, "metric.retention_cancelled")).toHaveLength(1);
     // Once its first day has come it cannot be cancelled any more.
-    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint);
+    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint, NAME);
     const waiting = (await pendingOf(m.id)).retention_pending!;
-    await db().from("metrics").update({ retention_pending: { ...waiting, starts_on: inDays(0) } }).eq("id", m.id);
+    await db().from("metrics").update({ retention_pending: { ...waiting, starts_on: inDays(0), starts_after: PAST } }).eq("id", m.id);
     expect(await refusal(cancelRetention(actor, m.id))).toMatchObject({ message: expect.stringContaining("can no longer be cancelled") });
     expect(await refusal(cancelRetention(w.actor((await w.person("member")), "member"), m.id))).toBeInstanceOf(Forbidden);
   });
@@ -166,10 +169,10 @@ describe("turning it on, the confirmation and the days to cancel", () => {
   it("takes effect at once only when it keeps more: longer, softer, or off; shorter or harsher needs a new preview", async () => {
     const { w, ben, m } = await setup();
     const actor = w.actor(ben, "member");
-    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint);
+    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint, NAME);
     // The first day arrives: the job (#382) calls settleRetentions, and the Retention is in force.
     const waiting = (await pendingOf(m.id)).retention_pending!;
-    await db().from("metrics").update({ retention_pending: { ...waiting, confirmed_on: inDays(-8), starts_on: inDays(0) } }).eq("id", m.id);
+    await db().from("metrics").update({ retention_pending: { ...waiting, confirmed_on: inDays(-8), starts_on: inDays(0), starts_after: PAST } }).eq("id", m.id);
     expect(await settleRetentions()).toMatchObject({ started: 1 });
     expect(await pendingOf(m.id)).toMatchObject({ retention: CONDENSE, retention_pending: null });
     // Longer: no preview.
@@ -179,7 +182,7 @@ describe("turning it on, the confirmation and the days to cancel", () => {
     for (const harder of [{ keep_months: 24, then: "condense", into: "quarter" }, { keep_months: 36, then: "delete" }, { keep_months: 36, then: "condense", into: "year" }]) {
       expect(await refusal(setRetention(actor, m.id, harder))).toMatchObject({ message: NUMBERS_CHANGED });
       const shown = await retentionPreview(actor, m.id, harder);
-      expect((await setRetention(actor, m.id, harder, shown.fingerprint)).starts_on).toBe(inDays(8));
+      expect((await setRetention(actor, m.id, harder, shown.fingerprint, NAME)).starts_on).toBe(inDays(8));
       expect((await pendingOf(m.id)).retention).toMatchObject({ keep_months: 36, then: "condense" }); // what is in force stays until it starts
     }
     // Going back to what is in force drops the waiting one; turning it off removes both.
@@ -195,13 +198,13 @@ describe("turning it on, the confirmation and the days to cancel", () => {
     const { w, ben, m } = await setup();
     const actor = w.actor(ben, "member");
     expect(await refusal(setRetention(actor, m.id, { keep_months: 25, then: "condense", into: "decade" }))).toBeInstanceOf(Error);
-    await setRetention(actor, m.id, DELETE, (await retentionPreview(actor, m.id, DELETE)).fingerprint);
+    await setRetention(actor, m.id, DELETE, (await retentionPreview(actor, m.id, DELETE)).fingerprint, NAME);
     await updateMetricDetails(actor, m.id, { aggregation: "none" }); // delete works with a rate
     await setRetention(actor, m.id, null);
     await setRetention(actor, m.id, { keep_months: 25, then: "condense", into: "year" }).catch(() => {});
     await updateMetricDetails(actor, m.id, { aggregation: "sum" });
     const shown = await retentionPreview(actor, m.id, CONDENSE);
-    await setRetention(actor, m.id, CONDENSE, shown.fingerprint);
+    await setRetention(actor, m.id, CONDENSE, shown.fingerprint, NAME);
     expect(await refusal(updateMetricDetails(actor, m.id, { aggregation: "none" }))).toMatchObject({ message: expect.stringContaining("Retention would no longer fit") });
   });
 });
@@ -209,7 +212,7 @@ describe("turning it on, the confirmation and the days to cancel", () => {
 describe("the reminder and the job's day", () => {
   it("sends one reminder on the 7th day to the Metric's owner and whoever set it, and starts it on the 8th", async () => {
     const { w, sara, ben, m } = await setup();
-    await setRetention(w.actor(sara), m.id, CONDENSE, (await retentionPreview(w.actor(sara), m.id, CONDENSE)).fingerprint);
+    await setRetention(w.actor(sara), m.id, CONDENSE, (await retentionPreview(w.actor(sara), m.id, CONDENSE)).fingerprint, NAME);
     const waiting = (await pendingOf(m.id)).retention_pending!;
     // Day 6: nothing yet.
     await db().from("metrics").update({ retention_pending: { ...waiting, confirmed_on: inDays(-6), starts_on: inDays(2) } }).eq("id", m.id);
@@ -223,7 +226,7 @@ describe("the reminder and the job's day", () => {
     expect(told?.map((t) => t.recipient_id).sort()).toEqual([ben, sara].sort());
     expect(told![0].subject).toContain("starts tomorrow");
     // Day 8: it is in force.
-    await db().from("metrics").update({ retention_pending: { ...(await pendingOf(m.id)).retention_pending, starts_on: inDays(0) } }).eq("id", m.id);
+    await db().from("metrics").update({ retention_pending: { ...(await pendingOf(m.id)).retention_pending, starts_on: inDays(0), starts_after: PAST } }).eq("id", m.id);
     expect(await settleRetentions()).toEqual({ started: 1, reminded: 0 });
     expect((await pendingOf(m.id)).retention).toEqual(CONDENSE);
   });
@@ -245,7 +248,10 @@ describe("the Workspace default", () => {
     expect(await auditRowsOf(w.id, "workspace.retention_default_set")).toHaveLength(1);
     expect(await pendingOf(m.id)).toEqual({ retention: null, retention_pending: null });
     const made = await createMetric(w.actor(ben, "member"), { name: "New", period: "day", aggregation: "sum" }, fx());
-    expect((await pendingOf(made.id)).retention_pending).toMatchObject({ retention: { ...CONDENSE, into: "quarter" }, starts_on: inDays(8), set_by: ben });
+    expect((await pendingOf(made.id)).retention_pending).toMatchObject({ retention: { ...CONDENSE, into: "quarter" }, starts_on: inDays(8), set_by: ben, counted: { periods: 0, values: 0 } });
+    // It is recorded and told like any confirmed Retention, as a default.
+    expect(await auditRowsOf(w.id, "metric.retention_set")).toHaveLength(1);
+    expect((await db().from("deliveries").select("recipient_id").eq("workspace_id", w.id).eq("kind", "notice")).data?.map((d) => d.recipient_id)).toEqual([ben]);
     // A Metric the default does not fit (a rate cannot be condensed; a quarter cannot be condensed into months) gets none.
     expect((await pendingOf((await createMetric(w.actor(ben, "member"), { name: "Rate", aggregation: "none" }, fx())).id)).retention_pending).toBeNull();
     expect((await pendingOf((await createMetric(w.actor(ben, "member"), { name: "Quarterly", period: "year", aggregation: "sum" }, fx())).id)).retention_pending).toBeNull();
@@ -272,7 +278,7 @@ describe("the Workspace default", () => {
     await w.action({ metric_id: m.id, period_start: "2018-01-01", asker_id: sara, assignee_id: ben, status: "open" });
     expect(await refusal(applyRetentionToExisting(w.actor(sara), CONDENSE, p.fingerprint))).toMatchObject({ message: NUMBERS_CHANGED });
     const again = await retentionPreviewAll(w.actor(sara), CONDENSE);
-    expect(await applyRetentionToExisting(w.actor(sara), CONDENSE, again.fingerprint)).toEqual({ applied: 1 });
+    expect(await applyRetentionToExisting(w.actor(sara), CONDENSE, again.fingerprint)).toEqual({ applied: 1, changed: 0 });
     expect((await pendingOf(m.id)).retention_pending).toMatchObject({ starts_on: inDays(8), set_by: sara });
     expect((await pendingOf(other.id)).retention_pending).toBeNull();
     // Applied once: the next preview has nothing left to apply to but the rate.
@@ -281,11 +287,88 @@ describe("the Workspace default", () => {
   });
 });
 
+describe("what a confirmation holds", () => {
+  it("needs the Metric's name for a delete, and the counts of every Metric of an apply", async () => {
+    const { w, sara, ben, m } = await setup();
+    const actor = w.actor(ben, "member");
+    const shown = await retentionPreview(actor, m.id, DELETE);
+    expect(await refusal(setRetention(actor, m.id, DELETE, shown.fingerprint))).toMatchObject({ message: expect.stringContaining("Type") });
+    expect(await refusal(setRetention(actor, m.id, DELETE, shown.fingerprint, "field visits "))).toMatchObject({ message: expect.stringContaining("Type") });
+    expect((await pendingOf(m.id)).retention_pending).toBeNull();
+    // The Workspace-wide delete asks for the word.
+    const all = await retentionPreviewAll(w.actor(sara), DELETE);
+    expect(await refusal(applyRetentionToExisting(w.actor(sara), DELETE, all.fingerprint))).toMatchObject({ message: expect.stringContaining("Type") });
+    expect(await applyRetentionToExisting(w.actor(sara), DELETE, all.fingerprint, "delete")).toEqual({ applied: 1, changed: 0 });
+    // What is stored remembers what was shown: the job (#382) may take no more than this.
+    expect((await pendingOf(m.id)).retention_pending).toMatchObject({ counted: { periods: 24, values: 24 }, id: expect.any(String) });
+  });
+
+  it("is not changed by a Metric that appears after the preview", async () => {
+    const { w, sara, ben, m } = await setup();
+    const all = await retentionPreviewAll(w.actor(sara), CONDENSE);
+    const late = await w.metric(ben, { name: "Late" });
+    await w.share(late.id, sara);
+    expect(await refusal(applyRetentionToExisting(w.actor(sara), CONDENSE, all.fingerprint))).toMatchObject({ message: NUMBERS_CHANGED });
+    expect((await pendingOf(m.id)).retention_pending).toBeNull();
+    expect((await pendingOf(late.id)).retention_pending).toBeNull();
+  });
+
+  it("tells each owner once for all their Metrics, and tells nobody who no longer sees them", async () => {
+    const { w, sara, ben, m } = await setup();
+    const second = await w.metric(ben, { name: "Second" });
+    for (const p of months("2018-01-01", 3)) await w.value(second.id, p, 1, ben);
+    await w.share(second.id, sara);
+    const all = await retentionPreviewAll(w.actor(sara), CONDENSE);
+    expect(await applyRetentionToExisting(w.actor(sara), CONDENSE, all.fingerprint)).toEqual({ applied: 2, changed: 0 });
+    const { data } = await db().from("deliveries").select("recipient_id").eq("workspace_id", w.id).eq("kind", "notice");
+    expect(data?.map((d) => d.recipient_id).sort()).toEqual([ben, sara].sort());
+    // A reminder does not go to someone who has left the Workspace.
+    await db().from("deliveries").delete().eq("workspace_id", w.id);
+    await w.dropMember(ben);
+    const waiting = (await pendingOf(m.id)).retention_pending!;
+    await db().from("metrics").update({ retention_pending: { ...waiting, confirmed_on: inDays(-7), starts_on: inDays(1) } }).eq("id", m.id);
+    await settleRetentions();
+    expect((await db().from("deliveries").select("recipient_id").eq("workspace_id", w.id).eq("kind", "notice")).data?.map((d) => d.recipient_id)).toEqual([sara]);
+  });
+
+  it("cannot be cancelled or started through another confirmation, and never starts before 7 days have passed", async () => {
+    const { w, ben, m } = await setup();
+    const actor = w.actor(ben, "member");
+    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint);
+    const first = (await pendingOf(m.id)).retention_pending!;
+    // The Workspace's clock moved forward, so its day says "the 8th": 7 days still have not passed.
+    await db().from("metrics").update({ retention_pending: { ...first, starts_on: inDays(0), confirmed_on: inDays(-8) } }).eq("id", m.id);
+    expect(await settleRetentions()).toEqual({ started: 0, reminded: 0 });
+    expect(await cancelRetention(actor, m.id)).toEqual({ cancelled: true });
+    // A newer confirmation takes the place of the one a stale read still holds.
+    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint);
+    const newer = (await pendingOf(m.id)).retention_pending!;
+    expect(newer.starts_on).toBe(inDays(8));
+    await db().from("metrics").update({ retention_pending: { ...newer, starts_on: inDays(0), starts_after: PAST } }).eq("id", m.id);
+    expect(await settleRetentions()).toMatchObject({ started: 1 });
+  });
+
+  it("keeps the setting out of the Metric rows that browsers, View Links and Snapshots are given", async () => {
+    const { w, sara, ben, m } = await setup();
+    const actor = w.actor(ben, "member");
+    await setRetention(actor, m.id, CONDENSE, (await retentionPreview(actor, m.id, CONDENSE)).fingerprint);
+    const { data } = await db().from("metrics").select("*").eq("id", m.id).single();
+    expect(data).toHaveProperty("retention_pending");
+    expect(Object.keys(normalizeMetric(data as never))).not.toEqual(expect.arrayContaining(["retention"]));
+    expect(Object.keys(normalizeMetric(data as never))).not.toEqual(expect.arrayContaining(["retention_pending"]));
+    // The page reads it through the core, and no one who may not see the Metric does.
+    expect(await retentionFor(actor, m.id)).toMatchObject({ retention: null, pending: { starts_on: inDays(8), cancellable: true }, canSet: true });
+    expect(JSON.stringify(await retentionFor(actor, m.id))).not.toContain(sara);
+    const dan = await w.person("member");
+    expect(await refusal(retentionFor(w.actor(dan, "member"), m.id))).toBeInstanceOf(Forbidden);
+  });
+});
+
 describe("what is recorded", () => {
   it("is kept for the Metric, by its id and the name it had then; the setting and its days are the details", async () => {
     const { w, ben, m } = await setup({ name: "Secret revenue" });
     const actor = w.actor(ben, "member");
-    await setRetention(actor, m.id, DELETE, (await retentionPreview(actor, m.id, DELETE)).fingerprint);
+    await setRetention(actor, m.id, DELETE, (await retentionPreview(actor, m.id, DELETE)).fingerprint, "Secret revenue");
     const { data } = await db().from("audit_events").select("kind, object_type, object_id, object_name, details").eq("workspace_id", w.id).eq("kind", "metric.retention_set").single();
     expect(data).toMatchObject({ object_type: "metric", object_id: String(m.id) });
     expect(Object.keys(data!)).toEqual(["kind", "object_type", "object_id", "object_name", "details"]);

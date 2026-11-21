@@ -23,7 +23,7 @@ import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
-import { assertRetentionFits, defaultRetentionFor } from "./retention-setting";
+import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -139,6 +139,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const reached = await limitReachedFrom(error, actor.workspaceId);
   if (reached) throw reached;
   if (error || !metric) throw new Error("The Metric could not be created.");
+  if (retentionPending) await announceDefaultRetention(actor, { id: metric.id, slug: metric.slug, name, owner_id: actor.personId }, retentionPending);
   await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });
   if (submitters.length) {

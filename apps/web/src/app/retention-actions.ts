@@ -18,10 +18,11 @@ export async function previewRetention(metricId: number, setting: unknown) {
   return attempt(async () => retention.retentionPreview(await currentActor(), Number(metricId), setting));
 }
 
-/** Sets a Metric's Retention (null turns it off). `shown` is the fingerprint of the preview the person saw. */
-export async function setMetricRetention(metricId: number, setting: unknown, shown?: string) {
+/** Sets a Metric's Retention (null turns it off). `shown` is the fingerprint of the preview the person saw, and `typed`
+ * what they typed to confirm a delete; the core checks both. */
+export async function setMetricRetention(metricId: number, setting: unknown, shown?: string, typed?: string) {
   return attempt(async () => {
-    const r = await retention.setRetention(await currentActor(), Number(metricId), setting, shown);
+    const r = await retention.setRetention(await currentActor(), Number(metricId), setting, shown, typed);
     refresh();
     return r;
   });
@@ -50,9 +51,9 @@ export async function previewRetentionForAll(setting: unknown) {
 }
 
 /** Applies the setting to every existing Metric that has none, as the preview showed (Owners only). */
-export async function applyRetentionToAll(setting: unknown, shown?: string) {
+export async function applyRetentionToAll(setting: unknown, shown?: string, typed?: string) {
   return attempt(async () => {
-    const r = await retention.applyRetentionToExisting(await currentActor(), setting, shown);
+    const r = await retention.applyRetentionToExisting(await currentActor(), setting, shown, typed);
     refresh();
     return r;
   });

@@ -2,10 +2,11 @@
 // Metric's Retention and the Workspace's default for new Metrics, the preview that shows in counts what a Retention
 // would do, the confirmation that needs it, the 7 days in which a confirmed Retention can be cancelled, and who is told.
 // Nothing here condenses or deletes a value: the daily job is a later ticket (#382); it calls `settleRetentions` for the
-// days and the reminders. Only Owners set the Workspace default; a Metric's own is set by its Metric Owner, an Owner or
-// an Admin. A program never sets one (the API and the MCP Server only read it). The preview holds counts and the names of
-// Snapshots the person may open, never a value.
-import { createHash } from "node:crypto";
+// days and the reminders, and must not take more than a confirmation `counted`. Only Owners set the Workspace default; a
+// Metric's own is set by its Metric Owner, an Owner or an Admin. A program never sets one (the API and the MCP Server
+// only read it). The preview holds counts and the names of Snapshots the person may open, never a value; the setting
+// itself is not part of the Metric rows that reach browsers, View Links and Snapshots (`retentionFor` reads it).
+import { createHash, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
@@ -16,8 +17,8 @@ import { formulaInputs } from "./formula";
 import { isLonger } from "./display-periods";
 import { yearStartOf } from "./fiscal-year";
 import { periodEnd, periodStart, type YearStart } from "./periods";
-import { firstRunDay, parseRetention, reminderDay, retentionPlan, retentionProblem, keptFrom, type CondenseInto, type Retention, type RetentionMetric } from "./retention-rules";
-import { NUMBERS_CHANGED, needsConfirmation, retentionWords, storedPending, storedRetention, dayWords, pendingNote, type PendingRetention } from "./retention-words";
+import { firstRunDay, parseRetention, reminderDay, retentionPlan, retentionProblem, keptFrom, CANCEL_DAYS, type CondenseInto, type Retention, type RetentionMetric } from "./retention-rules";
+import { DELETE_WORD, NUMBERS_CHANGED, needsConfirmation, retentionWords, storedPending, storedRetention, dayWords, pendingNote, type PendingRetention } from "./retention-words";
 import { localTime } from "./workspace-clock";
 import { allRows, getMetrics } from "./workspace-data";
 import type { Metric, Period } from "./types";
@@ -53,9 +54,10 @@ export type RetentionPreview = {
   heldBack: number;
   /** Older periods left as they are because condensing them would show a longer Display Period differently. */
   uneven: number;
-  /** Derived Metrics that read this one. */
+  /** Derived Metrics that read this one: a count, which may include ones the person cannot see (no name is given). */
   derivedReaders: number;
-  /** Snapshots and frozen View Links that already hold these periods: they keep what they showed. */
+  /** Snapshots and frozen View Links that already hold these periods: they keep what they showed. Counted for the
+   * Workspace, so they include ones the person cannot open; only those they can open are named. */
   snapshots: number;
   viewLinks: number;
   /** Snapshots among those the person may open, by dashboard and label (at most ten). */
@@ -78,23 +80,16 @@ export type WorkspaceRetentionPreview = {
   fingerprint: string;
 };
 
-/** How many ids or dates one lookup asks the database about at once (its filter list, not a limit of Ziffr's). */
-const AT_A_TIME = 300;
-/** The most Metrics a Workspace preview works on in parallel. */
-const PARALLEL = 4;
-/** Snapshots read at most per Metric to count and name them. */
-const MAX_SNAPSHOTS_READ = 2000;
+/** The most Snapshots one preview names (it counts them all). */
+const MAX_SNAPSHOTS_READ = 200;
 const MAX_NAMES = 10;
 const MAX_ROWS = 100;
+/** The most Metrics one Workspace-wide preview works on, and how many in parallel. */
+const MAX_METRICS = 5000;
+const PARALLEL = 4;
 
 /** The states of a period that its Workflow has not finished: such a period is held back. */
 const OPEN_STATES = ["asked", "submitted", "approval"];
-
-const chunks = <T,>(items: readonly T[]): T[][] => {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += AT_A_TIME) out.push(items.slice(i, i + AT_A_TIME));
-  return out;
-};
 
 /** The calendar day in the Workspace's time zone. */
 export async function workspaceToday(ws: string, now = new Date()): Promise<string> {
@@ -129,7 +124,8 @@ function parsed(raw: unknown): Retention | null {
   return r.retention;
 }
 
-/** What a Retention does to one Metric on `today`, in counts. Reads only; `m` is a Metric the actor may set. */
+/** What a Retention does to one Metric on `today`, in counts. Reads only; `m` is a Metric the actor may set. The counts
+ * come from the database per period, so a Metric with years of values is one call, not one per value. */
 async function previewMetric(actor: Actor, m: Row, setting: Retention, today: string, ys: YearStart, ctx: { metrics: Metric[]; visible: Set<number>; dashboards: Map<number, string> }): Promise<RetentionPreview> {
   const ws = actor.workspaceId;
   const empty: Omit<RetentionPreview, "fingerprint"> = { metricId: m.id, name: m.name, setting, keptFrom: keptFrom(today, setting.keep_months), firstPeriod: null, lastPeriod: null, periods: 0, values: 0, condensedValues: 0, breakdownRows: 0, supersededValues: 0, targets: 0, projections: 0, lockedPeriods: 0, heldBack: 0, uneven: 0, derivedReaders: 0, snapshots: 0, viewLinks: 0, snapshotNames: [], problem: null };
@@ -143,60 +139,47 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
   if (setting.then === "condense" && readers.some((o) => isLonger(setting.into, o.period))) return finish({ ...empty, problem: "A Derived Metric reads this one by a shorter period than it would be condensed into. Pick a shorter period, or change the Derived Metric first." });
 
   const cutoff = empty.keptFrom;
-  const [obs, locked, openStates, openActions] = await Promise.all([
-    allRows<{ id: number; period_start: string }>((from, to) => db().from("observations").select("id, period_start").eq("workspace_id", ws).eq("metric_id", m.id).lt("period_start", cutoff).order("id").range(from, to)),
+  const [held, locked, openStates, openActions, targetRows, projectionRows] = await Promise.all([
+    allRows<{ period_start: string; values_held: number; breakdown_rows: number; superseded: number }>((from, to) => db().rpc("retention_periods", { p_ws: ws, p_metric: m.id, p_cutoff: cutoff }).range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).eq("state", "locked").lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).in("state", OPEN_STATES).lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("actions").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("status", ["open", "answered"]).lt("period_start", cutoff).order("id").range(from, to)),
-  ]);
-  const lockedSet = new Set(locked.map((l) => l.period_start));
-  const held = new Set([...openStates, ...openActions].map((h) => h.period_start));
-  const stored = [...new Set(obs.map((o) => o.period_start))].map((period) => ({ period, locked: lockedSet.has(period), heldBack: held.has(period) }));
-  const plan = retentionPlan(setting, metric, stored, today, ys);
-  const affected = new Set(setting.then === "delete" ? plan.delete : plan.condense.flatMap((c) => c.periods));
-  const spans = new Set(plan.condense.map((c) => c.period));
-  const hit = obs.filter((o) => affected.has(o.period_start));
-  const sorted = [...affected].sort();
-
-  const count = async (table: string, column: string, values: readonly (string | number)[], extra: (q: any) => any = (q) => q): Promise<number> => { // eslint-disable-line @typescript-eslint/no-explicit-any -- a filter builder of any table
-    let n = 0;
-    for (const part of chunks(values)) {
-      const { count: c } = await extra(db().from(table).select("*", { count: "exact", head: true }).in(column, part as never));
-      n += c ?? 0;
-    }
-    return n;
-  };
-  const ids = hit.map((o) => o.id);
-  const [breakdownRows, replacedValues, replacedRows, targetRows, projectionRows] = await Promise.all([
-    count("breakdown_rows", "observation_id", ids, (q) => q.eq("workspace_id", ws)),
-    count("observation_history", "period_start", sorted, (q) => q.eq("workspace_id", ws).eq("metric_id", m.id)),
-    count("breakdown_history", "observation_id", ids, (q) => q.eq("workspace_id", ws)),
     allRows<{ period_start: string }>((from, to) => db().from("series_values").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("series_values").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "projection").lt("period_start", cutoff).order("period_start").range(from, to)),
   ]);
+  const lockedSet = new Set(locked.map((l) => l.period_start));
+  const open = new Set([...openStates, ...openActions].map((h) => h.period_start));
+  const plan = retentionPlan(setting, metric, held.map((h) => ({ period: h.period_start, locked: lockedSet.has(h.period_start), heldBack: open.has(h.period_start) })), today, ys);
+  const affected = new Set(setting.then === "delete" ? plan.delete : plan.condense.flatMap((c) => c.periods));
+  const spans = new Set(plan.condense.map((c) => c.period));
+  const hit = held.filter((h) => affected.has(h.period_start));
+  const sum = (key: "values_held" | "breakdown_rows" | "superseded") => hit.reduce((n, h) => n + h[key], 0);
+  const sorted = [...affected].sort();
+
   const into: CondenseInto | null = setting.then === "condense" ? setting.into : null;
   const targets = targetRows.filter((t) => (into ? spans.has(periodStart(t.period_start, into, ys)) : affected.has(t.period_start))).length;
   // A Projection of a past period older than the Retention goes in both modes: it was never an Observation.
   const projections = projectionRows.filter((p) => periodEnd(p.period_start, m.period as Period) < cutoff).length;
 
-  const { snapshots, names } = await snapshotsHolding(actor, m.id, sorted[0] ?? null, ctx);
+  const { snapshots, names } = sorted.length ? await snapshotsHolding(actor, m.id, sorted[0], ctx) : { snapshots: 0, names: [] };
   const viewLinks = sorted.length ? await frozenViewLinks(ws, m.id, today) : 0;
   return finish({
     ...empty, firstPeriod: sorted[0] ?? null, lastPeriod: sorted[sorted.length - 1] ?? null,
-    periods: affected.size, values: hit.length, condensedValues: plan.condense.length, breakdownRows, supersededValues: replacedValues + replacedRows,
+    periods: affected.size, values: sum("values_held"), condensedValues: plan.condense.length, breakdownRows: sum("breakdown_rows"), supersededValues: sum("superseded"),
     targets, projections, lockedPeriods: setting.then === "delete" ? plan.deletedLocked : plan.condense.filter((c) => c.locked).length,
-    heldBack: plan.heldBack.length, uneven: plan.uneven.length, snapshots: sorted.length ? snapshots : 0, viewLinks, snapshotNames: sorted.length ? names : [],
+    heldBack: plan.heldBack.length, uneven: plan.uneven.length, snapshots, viewLinks, snapshotNames: names,
   });
 }
 
 /** Snapshots that kept this Metric and reach into the affected periods, counted for the Workspace and named only where
  * the actor may open them: its dashboard and every Metric it kept. */
-async function snapshotsHolding(actor: Actor, metricId: number, from: string | null, ctx: { visible: Set<number>; dashboards: Map<number, string> }): Promise<{ snapshots: number; names: string[] }> {
-  if (!from) return { snapshots: 0, names: [] };
-  const { data } = await db().from("dashboard_snapshots").select("id, dashboard_id, label, kept:frozen->data->metrics").eq("workspace_id", actor.workspaceId).is("deleted_at", null).not("frozen", "is", null).gte("period_end", from).order("id").limit(MAX_SNAPSHOTS_READ);
-  const rows = ((data ?? []) as unknown as { id: number; dashboard_id: number; label: string; kept: { id: number }[] | null }[]).filter((r) => (r.kept ?? []).some((k) => Number(k.id) === metricId));
+async function snapshotsHolding(actor: Actor, metricId: number, from: string, ctx: { visible: Set<number>; dashboards: Map<number, string> }): Promise<{ snapshots: number; names: string[] }> {
+  const { data, count } = await db().from("dashboard_snapshots").select("id, dashboard_id, label, kept:frozen->data->metrics", { count: "exact" })
+    .eq("workspace_id", actor.workspaceId).is("deleted_at", null).not("frozen", "is", null).gte("period_end", from)
+    .contains("frozen->data->metrics", JSON.stringify([{ id: metricId }])).order("id").limit(MAX_SNAPSHOTS_READ);
+  const rows = (data ?? []) as unknown as { id: number; dashboard_id: number; label: string; kept: { id: number }[] | null }[];
   const names = rows.filter((r) => ctx.dashboards.has(r.dashboard_id) && (r.kept ?? []).every((k) => ctx.visible.has(Number(k.id)))).slice(0, MAX_NAMES).map((r) => `${ctx.dashboards.get(r.dashboard_id)}, ${r.label}`);
-  return { snapshots: rows.length, names };
+  return { snapshots: count ?? rows.length, names };
 }
 
 /** Frozen View Links, still working, that show this Metric: what they showed stays. */
@@ -217,6 +200,7 @@ async function context(actor: Actor) {
   const [visible, dashboards] = await Promise.all([visibleMetricIds(actor.workspaceId, actor.personId, metrics), visibleDashboards(actor.workspaceId, actor.personId)]);
   return { metrics, visible, dashboards: new Map(dashboards.map((d) => [d.id, d.name])) };
 }
+type Context = Awaited<ReturnType<typeof context>>;
 
 /** What a Retention would do to one Metric, in counts: the preview the page shows before anything is turned on. For
  * the Metric's owner, an Owner or an Admin; the setting comes from a browser and is checked like any other input. */
@@ -228,48 +212,58 @@ export async function retentionPreview(actor: Actor, metricId: number, rawSettin
   return previewMetric(actor, m, setting, today, ys, ctx);
 }
 
-/** The Metrics an Owner's setting would apply to: those the actor may set, in use or archived, that have no Retention
- * and none waiting, with the reason for each one left out. */
-async function eligible(actor: Actor, setting: Retention) {
-  const ctx = await context(actor);
-  const mayAll = actor.role === "owner";
-  const applies: Row[] = [];
-  const reasons = new Map<string, number>();
-  const { data } = await db().from("metrics").select(COLUMNS).eq("workspace_id", actor.workspaceId).order("name").limit(5000);
-  for (const m of (data ?? []) as Row[]) {
-    if (!mayAll || !ctx.visible.has(m.id)) continue;
-    if (storedRetention(m.retention) || storedPending(m.retention_pending)) continue;
-    const why = retentionProblem(setting, { period: m.period as Period, aggregation: m.aggregation, formula: m.formula });
-    if (why) reasons.set(why, (reasons.get(why) ?? 0) + 1);
-    else applies.push(m);
-  }
-  return { ctx, applies, reasons };
-}
-
-/** What the Workspace's setting would do to every existing Metric that has none (Apply to existing Metrics), in counts.
- * Owners only. */
-export async function retentionPreviewAll(actor: Actor, rawSetting: unknown): Promise<WorkspaceRetentionPreview> {
+/** What a Workspace-wide setting would do to every Metric the Owner may set that has none: the Metrics, each with its
+ * preview, and the reasons for those left out. */
+async function previewEverything(actor: Actor, rawSetting: unknown) {
   refuseInDemo(actor);
   if (actor.key || actor.role !== "owner") throw new Forbidden("Only Owners apply a Retention to every Metric.");
   const setting = parsed(rawSetting);
   if (!setting) throw new Error("Pick how long to keep values, and what then happens, to see what it would do.");
-  const [ys, today, { ctx, applies, reasons }] = await Promise.all([yearStartOf(actor.workspaceId), workspaceToday(actor.workspaceId), eligible(actor, setting)]);
-  const all: RetentionPreview[] = [];
-  for (let i = 0; i < applies.length; i += PARALLEL) all.push(...(await Promise.all(applies.slice(i, i + PARALLEL).map((m) => previewMetric(actor, m, setting, today, ys, ctx)))));
+  const [ys, today, ctx] = await Promise.all([yearStartOf(actor.workspaceId), workspaceToday(actor.workspaceId), context(actor)]);
+  const { data } = await db().from("metrics").select(COLUMNS).eq("workspace_id", actor.workspaceId).order("name").order("id").limit(MAX_METRICS);
+  const reasons = new Map<string, number>();
+  const candidates: Row[] = [];
+  for (const m of (data ?? []) as Row[]) {
+    // Only Metrics the Owner sees, with no Retention in force or waiting.
+    if (!ctx.visible.has(m.id) || storedRetention(m.retention) || storedPending(m.retention_pending)) continue;
+    const why = retentionProblem(setting, { period: m.period as Period, aggregation: m.aggregation, formula: m.formula });
+    if (why) reasons.set(why, (reasons.get(why) ?? 0) + 1);
+    else candidates.push(m);
+  }
+  const previews: RetentionPreview[] = [];
+  for (let i = 0; i < candidates.length; i += PARALLEL) previews.push(...(await Promise.all(candidates.slice(i, i + PARALLEL).map((m) => previewMetric(actor, m, setting, today, ys, ctx)))));
   // A Metric the setting cannot be used on (a Derived Metric reads it) is left out with its reason, not offered.
-  const usable = all.filter((p) => !p.problem);
-  for (const p of all) if (p.problem) reasons.set(p.problem, (reasons.get(p.problem) ?? 0) + 1);
-  const sum = (key: keyof WorkspaceRetentionPreview["totals"]) => usable.reduce((n, p) => n + (p[key] as number), 0);
-  const totals = { periods: sum("periods"), values: sum("values"), condensedValues: sum("condensedValues"), breakdownRows: sum("breakdownRows"), supersededValues: sum("supersededValues"), targets: sum("targets"), projections: sum("projections"), lockedPeriods: sum("lockedPeriods"), heldBack: sum("heldBack"), snapshots: sum("snapshots"), viewLinks: sum("viewLinks") };
-  const skipped = { count: [...reasons.values()].reduce((a, b) => a + b, 0), reasons: [...reasons.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${n}: ${why}`) };
-  return { setting, metrics: usable.slice(0, MAX_ROWS), applies: usable.length, skipped, totals, fingerprint: fingerprintOf([setting, usable.map((p) => [p.metricId, p.fingerprint])]) };
+  const usable: { row: Row; preview: RetentionPreview }[] = [];
+  previews.forEach((preview, i) => {
+    if (preview.problem) reasons.set(preview.problem, (reasons.get(preview.problem) ?? 0) + 1);
+    else usable.push({ row: candidates[i], preview });
+  });
+  return { setting, ys, today, ctx, usable, reasons, fingerprint: fingerprintOf([setting, usable.map((u) => [u.preview.metricId, u.preview.fingerprint])]) };
 }
 
-/** What a confirmed Retention says to the people it concerns: who must know before values go. Never a value. */
-async function tell(ws: string, m: Pick<Row, "slug" | "name" | "owner_id">, people: string[], subject: string, text: string): Promise<void> {
-  for (const recipientId of [...new Set(people)]) {
+/** What the Workspace's setting would do to every existing Metric that has none (Apply to existing Metrics), in
+ * counts. Owners only. */
+export async function retentionPreviewAll(actor: Actor, rawSetting: unknown): Promise<WorkspaceRetentionPreview> {
+  const { setting, usable, reasons, fingerprint } = await previewEverything(actor, rawSetting);
+  const previews = usable.map((u) => u.preview);
+  const sum = (key: keyof WorkspaceRetentionPreview["totals"]) => previews.reduce((n, p) => n + p[key], 0);
+  const totals = { periods: sum("periods"), values: sum("values"), condensedValues: sum("condensedValues"), breakdownRows: sum("breakdownRows"), supersededValues: sum("supersededValues"), targets: sum("targets"), projections: sum("projections"), lockedPeriods: sum("lockedPeriods"), heldBack: sum("heldBack"), snapshots: sum("snapshots"), viewLinks: sum("viewLinks") };
+  const skipped = { count: [...reasons.values()].reduce((a, b) => a + b, 0), reasons: [...reasons.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${n}: ${why}`) };
+  return { setting, metrics: previews.slice(0, MAX_ROWS), applies: previews.length, skipped, totals, fingerprint };
+}
+
+/** Tells people about Metrics, each only about those they still see: a notice goes to a recipient who is still a member
+ * and sees the Metric, never to anyone else. Names only, never a value. `link` is where the notice leads. */
+async function tell(ws: string, metrics: Pick<Row, "id" | "slug" | "name">[], recipients: string[], subject: string, text: (seen: Pick<Row, "id" | "slug" | "name">[]) => string): Promise<void> {
+  const ids = [...new Set(recipients)];
+  const { data: members } = await db().from("memberships").select("user_id").eq("workspace_id", ws).in("user_id", ids);
+  const all = await getMetrics(ws);
+  for (const { user_id: recipientId } of members ?? []) {
+    const seen = await visibleMetricIds(ws, recipientId, all);
+    const mine = metrics.filter((m) => seen.has(m.id));
+    if (!mine.length) continue;
     try {
-      await deliverNotice(ws, { recipientId, senderId: null, subject, text, link: `/metrics/${m.slug}` });
+      await deliverNotice(ws, { recipientId, senderId: null, subject, text: text(mine), link: mine.length === 1 ? `/metrics/${mine[0].slug}` : "/metrics" });
     } catch {
       // A message that cannot go must not undo a setting that was saved: the Metric page says it all the same.
       console.error("Retention: a notice could not be written");
@@ -280,18 +274,40 @@ async function tell(ws: string, m: Pick<Row, "slug" | "name" | "owner_id">, peop
 const summary = (r: Retention | null) => (r ? retentionWords(r) : "none").slice(0, 120);
 
 /** The words of the notice the Metric's owner and the person who set it get when a Retention is scheduled. */
-function scheduledText(m: Pick<Row, "name">, p: PendingRetention, cutoff: string): string {
-  return `${pendingNote(p, cutoff)} That is the Retention of ${m.name}: ${retentionWords(p.retention)}. Until ${dayWords(p.starts_on)} it can be cancelled on the Metric page; nothing is condensed or deleted before then.`;
+function scheduledText(m: Pick<Row, "name">, p: PendingRetention): string {
+  return `${pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months))} That is the Retention of ${m.name}: ${retentionWords(p.retention)}. Until ${dayWords(p.starts_on)} it can be cancelled on the Metric page; nothing is condensed or deleted before then.`;
 }
 
-/** Writes a confirmed Retention as waiting, or in force when it needs no confirmation, and records and tells it. */
-async function store(actor: Actor, m: Row, setting: Retention | null, shown: string | null, today: string, ys: YearStart, ctx: Awaited<ReturnType<typeof context>>, extra: { applied?: boolean } = {}): Promise<{ pending: PendingRetention | null; changed: boolean }> {
+/** A confirmation, as stored: when it starts at the earliest, and what the person was shown. */
+function newPending(setting: Retention, who: string, today: string, counted: { periods: number; values: number }): PendingRetention {
+  return { id: randomUUID(), retention: setting, starts_on: firstRunDay(today), starts_after: new Date(Date.now() + CANCEL_DAYS * 86_400_000).toISOString(), confirmed_on: today, set_by: who, counted, told: true, reminded: false };
+}
+
+/** Whether a waiting Retention's first day has come: the day, and at least 7 days since it was confirmed, whatever the
+ * Workspace's clock says by then (a changed time zone cannot shorten the days to cancel it in). */
+const started = (p: PendingRetention, today: string, now: Date) => p.starts_on <= today && Date.parse(p.starts_after) <= now.getTime();
+
+/** What a confirmation of a delete asks the person to type, besides having seen the counts. */
+function assertTyped(setting: Retention, expected: string, typed: unknown): void {
+  if (setting.then === "delete" && String(typed ?? "").trim() !== expected) throw new Error(`Type "${expected}" to confirm deleting.`);
+}
+
+/** Writes a confirmed Retention as waiting, or in force when it needs no confirmation, and records it. A change that
+ * keeps less needs `shown`, the fingerprint of the counts the person saw, and the typed name for a delete. With
+ * `quiet` the caller tells people once for many Metrics; with `free` only a Metric that still has none is written. */
+async function store(actor: Actor, m: Row, setting: Retention | null, confirm: { shown: string | null; typed: unknown }, when: { today: string; ys: YearStart; ctx: Context }, how: { quiet?: boolean; free?: boolean; applied?: boolean } = {}): Promise<{ pending: PendingRetention | null; changed: boolean }> {
   const active = storedRetention(m.retention);
   const waiting = storedPending(m.retention_pending);
+  const update = async (values: Record<string, unknown>): Promise<boolean> => {
+    let q = db().from("metrics").update(values).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+    if (how.free) q = q.is("retention", null).is("retention_pending", null);
+    const { data, error } = await q.select("id");
+    if (error) throw new Error("The Retention could not be saved.");
+    return Boolean(data?.length);
+  };
   if (!setting) {
     if (!active && !waiting) return { pending: null, changed: false };
-    const { error } = await db().from("metrics").update({ retention: null, retention_pending: null }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
-    if (error) throw new Error("The Retention could not be saved.");
+    await update({ retention: null, retention_pending: null });
     await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: "none" } });
     return { pending: null, changed: true };
   }
@@ -300,33 +316,32 @@ async function store(actor: Actor, m: Row, setting: Retention | null, shown: str
   if (!needsConfirmation(active, setting)) {
     if (JSON.stringify(active) === JSON.stringify(setting) && !waiting) return { pending: null, changed: false };
     // Longer, or softer, than what is in force: it takes effect now and any waiting one is dropped (it was stricter).
-    const { error } = await db().from("metrics").update({ retention: setting, retention_pending: null }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
-    if (error) throw new Error("The Retention could not be saved.");
+    await update({ retention: setting, retention_pending: null });
     await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: summary(setting) } });
     return { pending: null, changed: true };
   }
   // A setting that deletes or condenses more must come with the counts the person was shown, and they must still hold.
-  const preview = await previewMetric(actor, m, setting, today, ys, ctx);
+  const preview = await previewMetric(actor, m, setting, when.today, when.ys, when.ctx);
   if (preview.problem) throw new Error(preview.problem);
-  if (shown !== preview.fingerprint) throw new Error(NUMBERS_CHANGED);
-  const pending: PendingRetention = { retention: setting, starts_on: firstRunDay(today), confirmed_on: today, set_by: actor.personId, told: true, reminded: false };
-  const { error } = await db().from("metrics").update({ retention_pending: pending }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
-  if (error) throw new Error("The Retention could not be saved.");
-  await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: summary(setting), starts_on: pending.starts_on, ...(extra.applied ? { applied_to_all: true } : {}) } });
-  await tell(actor.workspaceId, m, [m.owner_id, actor.personId], `Retention of ${m.name}`, scheduledText(m, pending, keptFrom(pending.starts_on, setting.keep_months)));
+  if (confirm.shown !== preview.fingerprint) throw new Error(NUMBERS_CHANGED);
+  if (!how.applied) assertTyped(setting, m.name, confirm.typed);
+  const pending = newPending(setting, actor.personId, when.today, { periods: preview.periods, values: preview.values });
+  if (!(await update({ retention_pending: pending }))) return { pending: null, changed: false };
+  await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: summary(setting), starts_on: pending.starts_on, ...(how.applied ? { applied_to_all: true } : {}) } });
+  if (!how.quiet) await tell(actor.workspaceId, [m], [m.owner_id, actor.personId], `Retention of ${m.name}`, () => scheduledText(m, pending));
   return { pending, changed: true };
 }
 
 /** Sets a Metric's Retention, or turns it off with null. Turning it on, keeping values for less time, condensing into
- * another period or going from condensing to deleting needs `shown`, the fingerprint of the preview the person saw: if
- * what it would do has changed since, it is refused ("The numbers changed; look again."), and otherwise the Retention
- * waits 7 days to be cancelled in. Making it longer, softer, or turning it off takes effect at once. For the Metric's
- * owner, an Owner or an Admin; never from a program. */
-export async function setRetention(actor: Actor, metricId: number, rawSetting: unknown, shown?: unknown): Promise<{ starts_on: string | null }> {
+ * another period or going from condensing to deleting needs `shown`, the fingerprint of the preview the person saw (if
+ * what it would do has changed since, it is refused: "The numbers changed; look again."), and for a delete `typed`, the
+ * Metric's name; the Retention then waits 7 days to be cancelled in. Making it longer, softer, or turning it off takes
+ * effect at once. For the Metric's owner, an Owner or an Admin; never from a program. */
+export async function setRetention(actor: Actor, metricId: number, rawSetting: unknown, shown?: unknown, typed?: unknown): Promise<{ starts_on: string | null }> {
   const m = await settableMetric(actor, Number(metricId));
   const setting = parsed(rawSetting);
   const [ys, today, ctx] = await Promise.all([yearStartOf(actor.workspaceId), workspaceToday(actor.workspaceId), context(actor)]);
-  const r = await store(actor, m, setting, typeof shown === "string" ? shown : null, today, ys, ctx);
+  const r = await store(actor, m, setting, { shown: typeof shown === "string" ? shown : null, typed }, { today, ys, ctx });
   return { starts_on: r.pending?.starts_on ?? null };
 }
 
@@ -336,9 +351,9 @@ export async function cancelRetention(actor: Actor, metricId: number): Promise<{
   const m = await settableMetric(actor, Number(metricId));
   const waiting = storedPending(m.retention_pending);
   if (!waiting) return { cancelled: false };
-  const today = await workspaceToday(actor.workspaceId);
-  if (waiting.starts_on <= today) throw new Error(`It started on ${dayWords(waiting.starts_on)} and can no longer be cancelled. Turn it off instead; what it has done stays done.`);
-  const { data, error } = await db().from("metrics").update({ retention_pending: null }).eq("id", m.id).eq("workspace_id", actor.workspaceId).not("retention_pending", "is", null).select("id");
+  if (started(waiting, await workspaceToday(actor.workspaceId), new Date())) throw new Error(`It started on ${dayWords(waiting.starts_on)} and can no longer be cancelled. Turn it off instead; what it has done stays done.`);
+  // Only the confirmation that was read: a newer one confirmed in between is not cancelled by this.
+  const { data, error } = await db().from("metrics").update({ retention_pending: null }).eq("id", m.id).eq("workspace_id", actor.workspaceId).eq("retention_pending->>id", waiting.id).select("id");
   if (error) throw new Error("The Retention could not be cancelled.");
   if (!data?.length) return { cancelled: false };
   await audit(actor, { kind: "metric.retention_cancelled", object: { type: "metric", id: m.id, name: m.name }, details: { was: summary(waiting.retention), starts_on: waiting.starts_on } });
@@ -367,31 +382,51 @@ export async function setDefaultRetention(actor: Actor, rawSetting: unknown): Pr
 }
 
 /** Applies a Retention to every Metric that has none, as the preview showed (Apply to existing Metrics): each one waits
- * 7 days like a Metric's own. `shown` is the fingerprint of that preview; if what it would do has changed, nothing is
- * applied. Owners only. Returns how many Metrics now wait. */
-export async function applyRetentionToExisting(actor: Actor, rawSetting: unknown, shown: unknown): Promise<{ applied: number }> {
-  const preview = await retentionPreviewAll(actor, rawSetting);
-  if (typeof shown !== "string" || shown !== preview.fingerprint) throw new Error(NUMBERS_CHANGED);
-  const [ys, today, { ctx, applies }] = await Promise.all([yearStartOf(actor.workspaceId), workspaceToday(actor.workspaceId), eligible(actor, preview.setting)]);
-  let applied = 0;
-  for (const m of applies) {
-    const p = await previewMetric(actor, m, preview.setting, today, ys, ctx);
-    // The Metrics the preview offered are the ones that wait; one that came to be unfit since is left alone.
-    if (p.problem) continue;
-    const r = await store(actor, m, preview.setting, p.fingerprint, today, ys, ctx, { applied: true });
-    if (r.pending) applied++;
+ * 7 days like a Metric's own. `shown` is the fingerprint of that preview, which holds the counts of every Metric in it:
+ * if anything it would do has changed, nothing is applied, and a Metric whose numbers change while it runs is left out
+ * (`changed`). For a delete `typed` is the word "delete". Owners only. Each Metric's owner gets one notice for all the
+ * Metrics they own. */
+export async function applyRetentionToExisting(actor: Actor, rawSetting: unknown, shown: unknown, typed?: unknown): Promise<{ applied: number; changed: number }> {
+  const all = await previewEverything(actor, rawSetting);
+  if (typeof shown !== "string" || shown !== all.fingerprint) throw new Error(NUMBERS_CHANGED);
+  assertTyped(all.setting, DELETE_WORD, typed);
+  const done: { row: Row; pending: PendingRetention }[] = [];
+  let changed = 0;
+  for (const { row, preview } of all.usable) {
+    try {
+      const r = await store(actor, row, all.setting, { shown: preview.fingerprint, typed }, { today: all.today, ys: all.ys, ctx: all.ctx }, { quiet: true, free: true, applied: true });
+      if (r.pending) done.push({ row, pending: r.pending });
+      else changed++;
+    } catch (e) {
+      if ((e as Error).message !== NUMBERS_CHANGED) throw e;
+      changed++;
+    }
   }
-  return { applied };
+  // One notice for each owner, and one for the person who applied it, naming what they own (or see).
+  const metrics = done.map((d) => d.row);
+  const by = new Map<string, typeof metrics>();
+  for (const m of metrics) by.set(m.owner_id, [...(by.get(m.owner_id) ?? []), m]);
+  const starts = done[0]?.pending.starts_on;
+  for (const [owner, own] of [...by, [actor.personId, metrics] as const]) {
+    await tell(actor.workspaceId, own, [owner], "Retention set for your Metrics", (seen) => `A Retention was set: ${retentionWords(all.setting)}. It starts on ${dayWords(starts!)}, for ${seen.slice(0, 10).map((s) => s.name).join(", ")}${seen.length > 10 ? ` and ${seen.length - 10} more` : ""}. Until then each can be cancelled on its Metric page; nothing is condensed or deleted before.`);
+  }
+  return { applied: done.length, changed };
 }
 
 /** The Retention a Metric made now would start with: the Workspace default when it fits the Metric, waiting 7 days like
- * any confirmed one (it can be cancelled on the Metric page), or null. */
+ * any confirmed one (it can be cancelled on the Metric page), or null. Nothing was counted for it (a new Metric holds no
+ * values), which is what the daily job holds it to. */
 export async function defaultRetentionFor(ws: string, who: string, metric: RetentionMetric, today?: string): Promise<PendingRetention | null> {
   const { data } = await db().from("workspaces").select("default_retention").eq("id", ws).maybeSingle();
   const setting = storedRetention(data?.default_retention);
   if (!setting || retentionProblem(setting, metric)) return null;
-  const day = today ?? (await workspaceToday(ws));
-  return { retention: setting, starts_on: firstRunDay(day), confirmed_on: day, set_by: who, told: true, reminded: false };
+  return newPending(setting, who, today ?? (await workspaceToday(ws)), { periods: 0, values: 0 });
+}
+
+/** Records a default Retention copied into a new Metric, and tells its owner, like any confirmed one. */
+export async function announceDefaultRetention(actor: Actor, m: Pick<Row, "id" | "slug" | "name" | "owner_id">, pending: PendingRetention): Promise<void> {
+  await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: "none", to: summary(pending.retention), starts_on: pending.starts_on, from_default: true } });
+  await tell(actor.workspaceId, [m], [m.owner_id, actor.personId], `Retention of ${m.name}`, () => scheduledText(m, pending));
 }
 
 /** Refuses a change to a Metric's period or Aggregation that would leave its Retention, in force or waiting, with
@@ -403,36 +438,44 @@ export function assertRetentionFits(m: { retention?: unknown; retention_pending?
   }
 }
 
-/** For the daily job (#382) and nothing else: lets a confirmed Retention take effect on its first day, and sends the one
- * reminder on the 7th day to its Metric's owner and the person who set it. Works in each Workspace's own day; a Metric
- * is handled once, so calling it twice a day does no harm. */
+/** For the daily job (#382) and nothing else: lets a confirmed Retention take effect on its first day (the 8th, and not
+ * before 7 days have passed), and sends the one reminder on the 7th day to its Metric's owner and the person who set it,
+ * if they still see the Metric. Works in each Workspace's own day; a Metric is handled once, so calling it twice a day
+ * does no harm. The job must hold a Metric to what the person confirmed (`counted`) and ask again for more. */
 export async function settleRetentions(now = new Date()): Promise<{ started: number; reminded: number }> {
   const rows = await allRows<Row & { workspace_id: string }>((from, to) => db().from("metrics").select(`${COLUMNS}, workspace_id`).not("retention_pending", "is", null).order("id").range(from, to));
   const zones = new Map<string, string>();
-  let started = 0;
+  let begun = 0;
   let reminded = 0;
   for (const m of rows) {
     const p = storedPending(m.retention_pending);
     if (!p) continue;
     if (!zones.has(m.workspace_id)) zones.set(m.workspace_id, await workspaceToday(m.workspace_id, now));
     const today = zones.get(m.workspace_id)!;
-    if (p.starts_on <= today) {
-      // Only the one that is still the waiting one, so a cancel at the same moment wins.
-      const { data } = await db().from("metrics").update({ retention: p.retention, retention_pending: null }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>starts_on", p.starts_on).select("id");
-      if (data?.length) started++;
-    } else if (!p.reminded && today >= reminderDay(p.confirmed_on)) {
-      const { data } = await db().from("metrics").update({ retention_pending: { ...p, reminded: true } }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>starts_on", p.starts_on).select("id");
+    // Only the confirmation that was read (by its id), so a cancel or a newer confirmation at the same moment wins.
+    if (started(p, today, now)) {
+      const { data } = await db().from("metrics").update({ retention: p.retention, retention_pending: null }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>id", p.id).select("id");
+      if (data?.length) begun++;
+    } else if (!p.reminded && today >= reminderDay(p.confirmed_on) && today < p.starts_on) {
+      const { data } = await db().from("metrics").update({ retention_pending: { ...p, reminded: true } }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>id", p.id).select("id");
       if (!data?.length) continue;
       reminded++;
-      const text = `${pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months))} Tomorrow is the first day. Until then it can be cancelled on the Metric page; nothing is condensed or deleted before.`;
-      await tell(m.workspace_id, m, [m.owner_id, p.set_by], `Retention of ${m.name} starts tomorrow`, text);
+      await tell(m.workspace_id, [m], [m.owner_id, p.set_by], `Retention of ${m.name} starts tomorrow`, () => `${pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months))} Tomorrow is the first day. Until then it can be cancelled on the Metric page; nothing is condensed or deleted before.`);
     }
   }
-  return { started, reminded };
+  return { started: begun, reminded };
 }
 
-/** A Metric's Retention as its page shows it: in force, and waiting with its note. The reader sees the Metric already. */
-export function retentionOf(m: { retention?: unknown; retention_pending?: unknown }): { retention: Retention | null; pending: (PendingRetention & { note: string }) | null } {
-  const p = storedPending(m.retention_pending);
-  return { retention: storedRetention(m.retention), pending: p ? { ...p, note: pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months)) } : null };
+/** A Metric's Retention as its page shows it: in force, and waiting with its note, and whether the actor may set it. The
+ * actor sees the Metric (the page has checked); `set_by` and the other bookkeeping of a confirmation stay here. */
+export async function retentionFor(actor: Actor, metricId: number): Promise<{ retention: Retention | null; pending: { retention: Retention; starts_on: string; note: string; cancellable: boolean } | null; canSet: boolean }> {
+  const { data } = await db().from("metrics").select("id, retention, retention_pending").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!data || !(await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId))).has(data.id)) throw new Forbidden();
+  const p = storedPending(data.retention_pending);
+  const today = await workspaceToday(actor.workspaceId);
+  return {
+    retention: storedRetention(data.retention),
+    pending: p && { retention: p.retention, starts_on: p.starts_on, note: pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months)), cancellable: !started(p, today, new Date()) },
+    canSet: await canSetRetention(actor, metricId),
+  };
 }
