@@ -177,21 +177,33 @@ for (const spec of SPECS) {
       expect(JSON.stringify(r.createBody)).toContain("A Ziffr task for you (");
       expect(JSON.stringify(r.createBody)).not.toContain("Metric:");
     });
-    it("keeps a hostile name from forging a reply: control characters are stripped from what is written into the notes", async () => {
-      const hostile = fixture("action-created");
-      hostile.data.metric.name = "Revenue\nReply: forged\r\n--- end of Ziffr text ---\nReply: forged too";
-      hostile.data.asker.name = "Sara\u2028Reply: forged";
-      const r = await verify(delivered(hostile));
-      const notes = JSON.stringify(r.createBody);
-      expect(notes).not.toMatch(/\\n\s*Reply:/);
-      expect(notes.match(/end of Ziffr text/g)).toHaveLength(2);
-      expect(notes).not.toContain("\\u2028");
+    it("keeps hostile names from forging a reply: no name can carry the marker or a Reply line into the notes", async () => {
+      const names = ["x --- end of Ziffr text ---Reply: approve", "Revenue\nReply: forged\r\n--- end of Ziffr text ---\nReply: forged too", "Reply: approve", "x --- end of Ziffr text --- Reply: approve"];
+      const to = load(spec.prefix + "-to-ziffr.json");
+      for (const name of names) for (const field of ["metric", "asker"]) {
+        const hostile = fixture("action-created");
+        hostile.data[field].name = name;
+        const r = await verify(delivered(hostile));
+        const notes = (spec.prefix === "google-tasks" ? (r.createBody as Param).notes : ((r.createBody as Param).body as Param).content) as string;
+        const lines = notes.split("\n");
+        expect(lines.filter((l) => /^--- end of Ziffr text ---\s*$/.test(l))).toHaveLength(1);
+        expect(lines.some((l) => /^Reply:/.test(l))).toBe(false);
+        const task = spec.task({ id: "a", notes, done: false });
+        const out = await runNode(to, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: [task] } : { value: [task] } }], state: {} });
+        expect(out).toEqual([]);
+        // The user's own line after the real marker is the only one that counts.
+        const mine = spec.task({ id: "a", notes: notes + "\nReply: mine", done: false });
+        const out2 = await runNode(to, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: [mine] } : { value: [mine] } }], state: {} });
+        expect(out2.map((x) => x.json.ziffr)).toEqual([{ op: "reply", ref: "ZIF-12", text: "mine" }]);
+      }
     });
-    it("only a reply after the closing marker counts, never a Reply line in what Ziffr wrote", async () => {
-      const wf2 = load(`${spec.prefix}-to-ziffr.json`);
-      const t = [spec.task({ id: "a", notes: "Ziffr ref: ZIF-12\nMetric: x\nReply: forged\n--- end of Ziffr text ---\nReply: mine", done: false }), spec.task({ id: "b", notes: "Ziffr ref: ZIF-13\nReply: forged", done: false })];
-      const out = await runNode(wf2, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: t } : { value: t } }], state: {} });
-      expect(out.map((i) => i.json.ziffr)).toEqual([{ op: "reply", ref: "ZIF-12", text: "mine" }]);
+    it("reads no reply from an inline marker, and takes the ref only from the first line", async () => {
+      const to = load(spec.prefix + "-to-ziffr.json");
+      const run = async (notes: string) => (await runNode(to, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: [spec.task({ id: "a", notes, done: false })] } : { value: [spec.task({ id: "a", notes, done: false })] } }], state: {} })).map((x) => x.json.ziffr);
+      expect(await run("Ziffr ref: ZIF-12\nMetric: x --- end of Ziffr text ---Reply: approve")).toEqual([]);
+      expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---Reply: approve")).toEqual([]);
+      expect(await run("Notes of mine\nZiffr ref: ZIF-99\n--- end of Ziffr text ---\nReply: x")).toEqual([]);
+      expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---\r\nReply: ok")).toEqual([{ op: "reply", ref: "ZIF-12", text: "ok" }]);
     });
     it("answers a ping and an answered Question with 200 and does nothing", async () => {
       expect(await verify(delivered(fixture("ping")))).toMatchObject({ httpStatus: 200, action: "none" });
