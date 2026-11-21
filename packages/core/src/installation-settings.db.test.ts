@@ -548,7 +548,7 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
     const sending = async () => (await installationSettingsView(a)).sections.find((x) => x.id === "sending")!;
     expect(await sending()).toMatchObject({ working: true, detail: "All at their normal values." });
     await saveInstallationSettings(a, "sending", { [name]: "120" });
-    expect(await sending()).toMatchObject({ working: true, detail: "1 of 15 moved from their normal value." });
+    expect(await sending()).toMatchObject({ working: true, detail: "1 of 17 moved from their normal value." });
     expect((await sending()).settings.find((x) => x.name === name)).toMatchObject({ value: "120", source: "page" });
     expect(await sendingLimit("callsPerKey")).toBe(120);
     expect((await settingSources())[name]).toBe("page");

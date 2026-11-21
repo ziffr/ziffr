@@ -9,7 +9,8 @@ import type { Actor } from "./actor";
 import { Forbidden } from "./actor";
 import { visibleMetricIds } from "./access";
 import { validCondition, type AlertCondition, type AlertKind, targetAllowsShare } from "./alert-rules";
-import { ALERTS_PER_METRIC, ALERTS_PER_PERSON } from "./alert-limits";
+import { ALERTS_PER_METRIC } from "./alert-limits";
+import { effectiveLimit } from "./limits";
 import { sendingLimit } from "./sending-limit";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
@@ -109,10 +110,10 @@ function checkOptions(delivery: unknown, include: unknown): { delivery: AlertDel
 }
 
 /** The words for each refusal of the limits, in numbers the person can act on. */
-const LIMIT_WORDS: Record<string, string> = {
-  person_limit: `You already hold ${ALERTS_PER_PERSON} Alerts in this Workspace, counting any on Metrics you can no longer see. Delete one to make another.`,
+const limitWords = (perPerson: number): Record<string, string> => ({
+  person_limit: `You already hold ${perPerson} Alerts in this Workspace, counting any on Metrics you can no longer see. Delete one to make another.`,
   metric_limit: `You already hold ${ALERTS_PER_METRIC} Alerts on this Metric. Change or delete one to make another.`,
-};
+});
 
 /** Makes an Alert for the acting person on a Metric they may see; returns its id. The limits are checked in the
  * database under a lock, so Alerts made at once cannot pass them together. Never in the demo. */
@@ -126,10 +127,10 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
   const { kind, level } = split(input.condition);
   const [id] = await reserveIds("alerts", 1);
   const row = await sealRow("alerts", actor.workspaceId, { id, level });
-  const perWorkspace = await sendingLimit("alertsPerWorkspace");
+  const [perWorkspace, perPerson] = await Promise.all([sendingLimit("alertsPerWorkspace"), effectiveLimit("alertsPerPerson", actor.workspaceId)]);
   const { data, error } = await db().rpc("create_alert", {
     p_id: id, p_ws: actor.workspaceId, p_person: actor.personId, p_metric: metric.id, p_kind: kind, p_level: row.level ?? null, p_delivery: delivery, p_include: include,
-    p_per_person: ALERTS_PER_PERSON, p_per_metric: ALERTS_PER_METRIC, p_per_workspace: perWorkspace,
+    p_per_person: perPerson, p_per_metric: ALERTS_PER_METRIC, p_per_workspace: perWorkspace,
   });
   if (error || typeof data !== "string") {
     console.error("create_alert failed:", error?.message ?? "no answer");
@@ -137,7 +138,8 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
   }
   if (data === "ok") return id;
   if (data === "workspace_limit") throw new AlertRefused(`This Workspace already holds ${perWorkspace} Alerts, the most it may.`);
-  if (data in LIMIT_WORDS) throw new AlertRefused(LIMIT_WORDS[data]);
+  const words = limitWords(perPerson);
+  if (data in words) throw new AlertRefused(words[data]);
   throw new Forbidden(NOT_FOUND);
 }
 
@@ -183,7 +185,7 @@ export async function alertChoices(actor: Actor, metricId: number): Promise<Aler
   // Counted as the database counts them, Alerts on Metrics the person can no longer see included.
   const mine = await db().from("alerts").select("metric_id").eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
   const rows = mine.data ?? [];
-  return { unavailable, held: { person: rows.length, metric: rows.filter((r) => Number(r.metric_id) === metric.id).length, perPerson: ALERTS_PER_PERSON, perMetric: ALERTS_PER_METRIC }, archived: Boolean(metric.archived_at) };
+  return { unavailable, held: { person: rows.length, metric: rows.filter((r) => Number(r.metric_id) === metric.id).length, perPerson: await effectiveLimit("alertsPerPerson", actor.workspaceId), perMetric: ALERTS_PER_METRIC }, archived: Boolean(metric.archived_at) };
 }
 
 /** What may be changed on an Alert: its condition, way of delivery, option, and whether it is paused. */

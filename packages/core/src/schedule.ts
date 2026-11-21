@@ -1,6 +1,7 @@
 // The Schedule (spec 0027, ticket #240; GLOSSARY: Schedule, Due Date, Stand-in, Away, Approval, Task, Question,
 // Escalation): what one person has to do in a Workspace, day by day. The API, the MCP Server, the My schedule page and
 // the Calendar Link all read this one function and add no rules of their own.
+import { effectiveLimit } from "./limits";
 import { openWorkflowRows } from "./workflow-rows";
 import { addDays, differenceInCalendarDays, format, isValid, isWeekend, parseISO } from "date-fns";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
@@ -59,7 +60,7 @@ export type Schedule = { today: string; personId: string; overdue: ScheduleEntry
 export const MAX_SCHEDULE_DAYS = 90;
 /** How far ahead a Schedule reaches, in days from today. */
 export const MAX_SCHEDULE_AHEAD = 366;
-/** How far back overdue entries reach, in days from today. */
+/** How far back overdue entries reach, in days from today: the most; a person may choose fewer (limits.ts). */
 export const OVERDUE_DAYS_BACK = 90;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -285,11 +286,14 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   assertScope(actor, "metrics:read");
   const person = await whose(actor, span.personId);
   const base = await loadContext(actor.workspaceId, now);
+  // The look-back is the person's own choice (ticket #518) and shapes only their own view: an Owner or Admin reading a
+  // teammate's Schedule sees everything overdue, so nobody hides work from them by choosing a short one.
+  const lookBack = person === actor.personId ? await effectiveLimit("overdueDaysBack", actor.workspaceId, person) : OVERDUE_DAYS_BACK;
   const week = weekOf(base.today, base.weekStart);
   const { from, to } = checkSpan({ from: span.from ?? week.from, to: span.to ?? week.to }, base.today);
-  const entries = await entriesOf(actor, person, base, from, to);
+  const entries = await entriesOf(actor, person, base, from, to, lookBack);
   if (person !== actor.personId) await auditTeammateRead(actor, person, from, to);
-  const overdue = entries.filter((e) => e.overdue && e.date !== null && e.date >= plusDays(base.today, -OVERDUE_DAYS_BACK))
+  const overdue = entries.filter((e) => e.overdue && e.date !== null && e.date >= plusDays(base.today, -lookBack))
     .sort((a, b) => b.overdueWorkingDays - a.overdueWorkingDays || a.date!.localeCompare(b.date!) || byKindAndName(a, b));
   const byDay = new Map<string, ScheduleEntry[]>();
   for (const e of entries) if (!e.overdue && e.date !== null && e.date >= from && e.date <= to) (byDay.get(e.date) ?? byDay.set(e.date, []).get(e.date)!).push(e);
@@ -300,9 +304,9 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
 
 /** Every entry of a person's Schedule dated from the overdue limit (or `from`, if earlier) to `to`, and the undated,
  * after the visibility checks. The span is checked by the caller. */
-async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<ReturnType<typeof loadContext>>, from: string, to: string): Promise<ScheduleEntry[]> {
+async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<ReturnType<typeof loadContext>>, from: string, to: string, lookBack: number = OVERDUE_DAYS_BACK): Promise<ScheduleEntry[]> {
   const ws = actor.workspaceId;
-  const lo = [from, plusDays(base.today, -OVERDUE_DAYS_BACK)].sort()[0];
+  const lo = [from, plusDays(base.today, -lookBack)].sort()[0];
   const hi = [to, base.today].sort().at(-1)!;
   const ctx: Ctx = { ...base, lo, hi };
   const all = await getMetrics(ws);
@@ -322,19 +326,20 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
   return [...(await valuesDue(ws, person, metrics, ctx, actor.role === "guest")), ...(await actionEntries(ws, person, onActions, ctx, readable))];
 }
 
-/** How far back a Calendar Link's events reach, in days. */
+/** How far back a Calendar Link's events reach, in days: the most; a person may choose fewer (limits.ts). */
 export const CALENDAR_DAYS_BACK = 30;
-/** How far ahead a Calendar Link's events reach, in days. */
+/** How far ahead a Calendar Link's events reach, in days: the most; a person may choose fewer (limits.ts). */
 export const CALENDAR_DAYS_AHEAD = 90;
 
-/** The dated entries a Calendar Link shows: the person's own, from 30 days back to 90 days ahead, overdue ones on
+/** The dated entries a Calendar Link shows: the person's own, from their days back (30 at most) to their days ahead (90 at most), overdue ones on
  * their own date, in date order. Undated Tasks and Questions are never in a calendar. Only for the person themselves:
  * the caller has checked the link and that they still belong to the Workspace. */
 export async function calendarEntries(actor: Actor, now = new Date()): Promise<{ today: string; timeZone: string; entries: ScheduleEntry[] }> {
   const base = await loadContext(actor.workspaceId, now);
-  const from = plusDays(base.today, -CALENDAR_DAYS_BACK);
-  const to = plusDays(base.today, CALENDAR_DAYS_AHEAD);
-  const entries = (await entriesOf(actor, actor.personId, base, from, to)).filter((e) => e.date !== null && e.date >= from && e.date <= to)
+  const [back, ahead, lookBack] = await Promise.all([effectiveLimit("calendarDaysBack", actor.workspaceId, actor.personId), effectiveLimit("calendarDaysAhead", actor.workspaceId, actor.personId), effectiveLimit("overdueDaysBack", actor.workspaceId, actor.personId)]);
+  const from = plusDays(base.today, -back);
+  const to = plusDays(base.today, ahead);
+  const entries = (await entriesOf(actor, actor.personId, base, from, to, lookBack)).filter((e) => e.date !== null && e.date >= from && e.date <= to)
     .sort((a, b) => a.date!.localeCompare(b.date!) || byKindAndName(a, b));
   return { today: base.today, timeZone: base.timeZone, entries };
 }

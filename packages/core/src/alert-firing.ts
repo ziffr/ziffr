@@ -8,7 +8,7 @@
 // claimed in the database first, so two values at once send one message, and the daily limits are claimed there too.
 import { format, parseISO } from "date-fns";
 import { visibleMetricIds } from "./access";
-import { ALERT_MESSAGES_PER_PERSON_PER_DAY } from "./alert-limits";
+import { effectiveLimit } from "./limits";
 import { sendingLimit } from "./sending-limit";
 import { alertHolds, alertStep, isPerPeriod, latestAndPrevious, valueCounts, validCondition, type AlertCondition, type AlertKind } from "./alert-rules";
 import type { AlertDelivery } from "./alerts";
@@ -215,7 +215,7 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   // that leaves is always one the person could have opened.
   const sees = (await visibleMetricIds(ctx.ws, a.person_id, ctx.metrics)).has(m.id);
   if (!sees) return pauseNoAccess(ctx.ws, a);
-  const { data: claim } = await db().rpc("claim_alert_message", { p_ws: ctx.ws, p_person: a.person_id, p_day: new Date().toISOString().slice(0, 10), p_per_person: ALERT_MESSAGES_PER_PERSON_PER_DAY, p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
+  const { data: claim } = await db().rpc("claim_alert_message", { p_ws: ctx.ws, p_person: a.person_id, p_day: new Date().toISOString().slice(0, 10), p_per_person: await effectiveLimit("alertMessagesPerPerson", ctx.ws, a.person_id), p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
   if (claim !== "send" && claim !== "note") return;
   const yearStart = await yearStartFor(ctx.ws, m.period);
   const text = claim === "note" ? ALERT_LIMIT_NOTE : alertText(m, c, view, ctx, yearStart);

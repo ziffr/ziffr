@@ -9,6 +9,7 @@ import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
+import { effectiveLimit } from "./limits";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
@@ -26,8 +27,6 @@ export type SendResult = "sent" | "failed" | "skipped" | "waiting";
 
 /** Emails one workspace may send in 24 hours, unless ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
 export const MAIL_PER_WORKSPACE_PER_DAY = sendingLimitDefault("mailPerWorkspace");
-/** The share of a Workspace's daily emails that Alert messages may use (spec 0032); the rest is kept for Prompts, tasks and the like. */
-export const MAIL_ALERT_SHARE = 0.4;
 /** Emails one inbox may get in an hour, from all workspaces together (counted by mailboxKey); the rest wait. */
 export const MAIL_PER_RECIPIENT_PER_HOUR = 20;
 /** Emails one person may cause in 24 hours (as the sender of Prompts, questions, notices), from all their workspaces, unless ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY says otherwise (the default). */
@@ -250,8 +249,10 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
   const perWorkspace = await sendingLimit("mailPerWorkspace");
+  // The share of the Workspace's daily emails that Alert messages may use (spec 0032, ticket #518); the rest is kept for Prompts, tasks and the like.
+  const alertShare = await effectiveLimit("alertMailShare", claimed.workspace_id as string);
   const { data: claim, error } = await db().rpc("claim_delivery_send", {
-    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: perWorkspace, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: await sendingLimit("mailPerPerson"), p_max_attempts: maxAttempts, p_alerts_per_workspace: Math.floor(perWorkspace * MAIL_ALERT_SHARE),
+    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: perWorkspace, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: await sendingLimit("mailPerPerson"), p_max_attempts: maxAttempts, p_alerts_per_workspace: Math.floor(perWorkspace * alertShare / 100),
   });
   if (error) throw new Error("The email could not be claimed for sending.");
   if (claim === "wait") return "waiting";

@@ -9,7 +9,7 @@ import { FEED_VALUES_PER_DAY } from "./feeds";
 import { WEBHOOKS_PER_WORKSPACE, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
 import { ALERTS_PER_WORKSPACE, ALERT_MESSAGES_PER_WORKSPACE_PER_DAY } from "./alert-limits";
 
-/** The review's rows 1 to 4 and 7 to 17 (docs/reviews/2026-11-fixed-values.md, section 2): [key, name, min, max, default]. */
+/** The review's rows 1 to 17 (docs/reviews/2026-11-fixed-values.md, section 2): [key, name, min, max, default]. */
 const REVIEW: [string, string, number, number, number][] = [
   ["mailPerWorkspace", "ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY", 50, 100_000, 500],
   ["chatPerWorkspace", "ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY", 50, 50_000, 500],
@@ -26,6 +26,9 @@ const REVIEW: [string, string, number, number, number][] = [
   ["signInLinksPerNetwork", "ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR", 5, 500, 20],
   ["contactsPerWorkspace", "ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE", 100, 100_000, 1_000],
   ["snapshotsPerDashboard", "ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD", 100, 50_000, 500],
+  // Rows 5 and 6 (ticket #518): the Operator's ceiling, which a Workspace and a person may only lower (limit-levels.ts).
+  ["alertsPerPerson", "ZIFFR_LIMIT_ALERTS_PER_PERSON", 1, 200, 20],
+  ["alertMessagesPerPerson", "ZIFFR_LIMIT_ALERT_MESSAGES_PER_PERSON_PER_DAY", 1, 200, 20],
 ];
 
 describe("the sending limits", () => {
