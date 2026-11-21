@@ -42,7 +42,7 @@ describe("createMetric says who was asked", () => {
     expect(made.asked).toEqual([expect.objectContaining({ personId: ana, connector: "email", state: "sent" })]);
     expect(await firstAsksFor(w.actor(sara), made.id)).toMatch(/got a form link and a first request by email\.$/);
   });
-  it("tells only the Metric's owner and Editors", async () => {
+  it("tells only the Metric's owner", async () => {
     mailOff();
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const made = await createMetric(w.actor(sara), { name: "Cups" });

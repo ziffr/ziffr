@@ -1,5 +1,5 @@
 // The first requests of a new Metric (GLOSSARY: Prompt, Submitter, Outbox), read from the Deliveries the core made, so
-// the sentence on the new Metric's page matches the Outbox. Only the Metric's owner and Editors may read it.
+// the sentence on the new Metric's page matches the Outbox. Only the Metric's owner, whose requests they are, may read it.
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { CONNECTORS, type ConnectorId } from "./connectors/index";
@@ -10,7 +10,8 @@ import { firstAsksMessage, type FirstAsk } from "./asked-message";
 /** What the first requests of a Metric did, as the sentence to show, or null for someone who may not change the Metric. */
 export async function firstAsksFor(actor: Actor, metricId: number): Promise<string | null> {
   try {
-    await editableMetric(actor, metricId);
+    // Only the owner, who made the Metric and sent its first requests: an Editor sees no one else's Deliveries.
+    if ((await editableMetric(actor, metricId)).owner_id !== actor.personId) return null;
   } catch (e) {
     if (e instanceof Forbidden) return null;
     throw e;
@@ -22,7 +23,7 @@ export async function firstAsksFor(actor: Actor, metricId: number): Promise<stri
   const submitters = new Set((tokens ?? []).map((t) => t.submitter_id as string)).size;
   const ids = (prompts ?? []).map((p) => p.id as number);
   const { data: rows } = ids.length
-    ? await db().from("deliveries").select("recipient_id, connector, mail_state").eq("workspace_id", actor.workspaceId).eq("kind", "prompt").in("prompt_id", ids).order("id")
+    ? await db().from("deliveries").select("recipient_id, connector, mail_state").eq("workspace_id", actor.workspaceId).eq("kind", "prompt").eq("sender_id", actor.personId).in("prompt_id", ids).order("id")
     : { data: [] };
   // One line per person: their first request.
   const first = new Map<string, { connector: ConnectorId; state: FirstAsk["state"] }>();
