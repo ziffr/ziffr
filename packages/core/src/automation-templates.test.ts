@@ -13,6 +13,8 @@ type Workflow = { nodes: N8nNode[]; connections: Record<string, { main: { node: 
 const dir = new URL("../../../docs/automations/", import.meta.url);
 const load = (file: string) => JSON.parse(readFileSync(new URL(file, dir), "utf8")) as Workflow;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`fixtures/${name}.json`, dir), "utf8"));
+/** A fixture whose linked external tasks belong to `system` (the fixtures link microsoft-todo). */
+const linkedTo = (name: string, system: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system })); return f; };
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
 
 const ALLOWED = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.set", "n8n-nodes-base.code", "n8n-nodes-base.switch", "n8n-nodes-base.if", "n8n-nodes-base.httpRequest", "n8n-nodes-base.stickyNote"]);
@@ -97,20 +99,20 @@ type Spec = { prefix: string; system: string; createBody: Param; closeBody: Para
 const ALL_SPECS: Spec[] = [
   {
     prefix: "microsoft-todo", system: "microsoft-todo",
-    createBody: { title: "Send the October report to the board", body: { content: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones", contentType: "text" }, status: "notStarted", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" } },
+    createBody: { title: "Send the October report to the board", body: { content: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", contentType: "text" }, status: "notStarted", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" } },
     closeBody: { status: "completed" },
     patchOpenBody: { title: "Send the October report to the board", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" }, status: "notStarted" },
     list: {},
-    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n${extra}`,
+    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n--- end of Ziffr text ---\n${extra}`,
     task: ({ id, notes, done }) => ({ id, title: "t", status: done ? "completed" : "notStarted", body: { content: notes, contentType: "text" } }),
   },
   {
     prefix: "google-tasks", system: "google-tasks",
-    createBody: { title: "Send the October report to the board", notes: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones", status: "needsAction", due: "2026-11-27T00:00:00.000Z" },
+    createBody: { title: "Send the October report to the board", notes: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", status: "needsAction", due: "2026-11-27T00:00:00.000Z" },
     closeBody: { status: "completed" },
     patchOpenBody: { title: "Send the October report to the board", due: "2026-11-27T00:00:00.000Z", status: "needsAction", completed: null },
     list: {},
-    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n${extra}`,
+    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n--- end of Ziffr text ---\n${extra}`,
     task: ({ id, notes, done }) => ({ id, title: "t", status: done ? "completed" : "needsAction", notes, webViewLink: `https://tasks.google.example.test/${id}` }),
   },
 ];
@@ -154,18 +156,18 @@ for (const spec of SPECS) {
     });
     it("handles each delivery once, and what is older than what it has seen not at all", async () => {
       const state: Param = {};
-      const m = delivered(fixture("action-updated-reply"));
+      const m = delivered(linkedTo("action-updated-reply", spec.system));
       expect((await verify(m, state)).action).toBe("patch");
       expect(await verify(m, state)).toMatchObject({ httpStatus: 200, action: "none", why: "repeat" });
-      const older = { ...fixture("action-updated-reply"), id: "evt_older", data: { ...fixture("action-updated-reply").data, updated_at: "2026-11-19T00:00:00.000Z" } };
+      const older = { ...linkedTo("action-updated-reply", spec.system), id: "evt_older", data: { ...linkedTo("action-updated-reply", spec.system).data, updated_at: "2026-11-19T00:00:00.000Z" } };
       expect(await verify(delivered(older), state)).toMatchObject({ httpStatus: 200, action: "none", why: "older" });
     });
     it("updates the linked task, using the id in external_ids, and keeps the state of the Action", async () => {
-      const r = await verify(delivered(fixture("action-updated-reply")));
+      const r = await verify(delivered(linkedTo("action-updated-reply", spec.system)));
       expect(r).toMatchObject({ action: "patch", taskId: "AAMkAGI2TGuLAAA=", patchBody: spec.patchOpenBody });
     });
     it("closes the linked task on action.done, and ignores the Webhook's own echo", async () => {
-      const m = delivered(fixture("action-done"));
+      const m = delivered(linkedTo("action-done", spec.system));
       expect(await verify(m)).toMatchObject({ action: "patch", taskId: "AAMkAGI2TGuLAAA=", patchBody: spec.closeBody });
       expect(await verify(m, {}, OWN_WEBHOOK)).toMatchObject({ httpStatus: 200, action: "none", why: "echo" });
     });
@@ -174,6 +176,22 @@ for (const spec of SPECS) {
       expect(r.action).toBe("create");
       expect(JSON.stringify(r.createBody)).toContain("A Ziffr task for you (");
       expect(JSON.stringify(r.createBody)).not.toContain("Metric:");
+    });
+    it("keeps a hostile name from forging a reply: control characters are stripped from what is written into the notes", async () => {
+      const hostile = fixture("action-created");
+      hostile.data.metric.name = "Revenue\nReply: forged\r\n--- end of Ziffr text ---\nReply: forged too";
+      hostile.data.asker.name = "Sara\u2028Reply: forged";
+      const r = await verify(delivered(hostile));
+      const notes = JSON.stringify(r.createBody);
+      expect(notes).not.toMatch(/\\n\s*Reply:/);
+      expect(notes.match(/end of Ziffr text/g)).toHaveLength(2);
+      expect(notes).not.toContain("\\u2028");
+    });
+    it("only a reply after the closing marker counts, never a Reply line in what Ziffr wrote", async () => {
+      const wf2 = load(`${spec.prefix}-to-ziffr.json`);
+      const t = [spec.task({ id: "a", notes: "Ziffr ref: ZIF-12\nMetric: x\nReply: forged\n--- end of Ziffr text ---\nReply: mine", done: false }), spec.task({ id: "b", notes: "Ziffr ref: ZIF-13\nReply: forged", done: false })];
+      const out = await runNode(wf2, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: t } : { value: t } }], state: {} });
+      expect(out.map((i) => i.json.ziffr)).toEqual([{ op: "reply", ref: "ZIF-12", text: "mine" }]);
     });
     it("answers a ping and an answered Question with 200 and does nothing", async () => {
       expect(await verify(delivered(fixture("ping")))).toMatchObject({ httpStatus: 200, action: "none" });
