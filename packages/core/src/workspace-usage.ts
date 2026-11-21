@@ -5,7 +5,7 @@
 import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
-import { GRACE_DAYS, limitOf, limitRule, metricCount, roomOf } from "./workspace-limits";
+import { GRACE_DAYS, limitOf, limitRule, metricCount, nextGraceOn, roomOf } from "./workspace-limits";
 
 /** A Workspace's Size and usage: how many Metrics it holds, its limit and the name to show, its room over the limit,
  * when it went over and when new Metrics start to wait, whether they wait now, and a coming change if one is set. */
@@ -17,6 +17,8 @@ export type Usage = {
   overSince: string | null;
   graceEnds: string | null;
   waiting: boolean;
+  /** When the Workspace may next have a grace (90 days after its last started), or null when it may have one now. */
+  nextGraceOn: string | null;
   next: { label: string; on: string } | null;
 };
 
@@ -26,15 +28,18 @@ const DAY = 86_400_000;
 async function usageOf(ws: string): Promise<Usage> {
   const [metrics, limit, { data: w }, { data: own }] = await Promise.all([
     metricCount(ws), limitOf(ws),
-    db().from("workspaces").select("id, over_limit_since").eq("id", ws).maybeSingle(),
+    db().from("workspaces").select("id, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(),
     db().from("workspace_limits").select("next_label, next_on").eq("workspace_id", ws).maybeSingle(),
   ]);
   const overSince = (w?.over_limit_since as string | null) ?? null;
   const since = overSince ? new Date(overSince) : null;
+  const last = w?.last_grace_started_at ? new Date(w.last_grace_started_at as string) : null;
+  const now = new Date();
   return {
     metrics, limit: limit?.metrics ?? null, label: limit?.label ?? null, room: limit ? roomOf(limit.metrics) : null,
     overSince, graceEnds: since ? new Date(since.getTime() + GRACE_DAYS * DAY).toISOString() : null,
-    waiting: limit ? limitRule(metrics, limit.metrics, since, new Date()) === "refuse" : false,
+    waiting: limit ? limitRule(metrics, limit.metrics, since, now, last) === "refuse" : false,
+    nextGraceOn: nextGraceOn(last, now)?.toISOString() ?? null,
     next: own?.next_label && own.next_on ? { label: own.next_label as string, on: own.next_on as string } : null,
   };
 }
@@ -68,7 +73,7 @@ export function overLimitBanner(u: Usage): string | null {
   const size = u.label ? `its Size ${u.label}` : "its limit";
   const holds = `This Workspace holds ${u.metrics.toLocaleString("en-US")} Metrics, more than the ${u.limit.toLocaleString("en-US")} ${size} allows.`;
   return u.waiting
-    ? `${holds} New Metrics wait now. Everything else keeps working.`
+    ? `${holds} New Metrics wait now${u.nextGraceOn ? `; the next 14 days over the limit are possible from ${dayWords(u.nextGraceOn)}` : ""}. Everything else keeps working.`
     : `${holds} New Metrics can be made until ${dayWords(u.graceEnds!)}. Everything else keeps working.`;
 }
 

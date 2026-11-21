@@ -329,7 +329,7 @@ What an Installation talks to, such as its mail server, set by an Installation A
 _Avoid_: Admin settings, system settings, global config
 
 **Workspace Limit**:
-The most Metrics a Workspace may hold, Archived Metrics not counted, set for it by an Installation Admin or by Ziffr Cloud, or else the Installation's default; without any there is no limit, as on most self-hosted Installations. A Workspace over it keeps everything working and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more.
+The most Metrics a Workspace may hold, Archived Metrics not counted, set for it by an Installation Admin or by Ziffr Cloud, or else the Installation's default; without any there is no limit, as on most self-hosted Installations. A Workspace over it keeps everything working and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more; those 14 days come at most once in 90 days.
 _Avoid_: Quota, cap, allowance, plan
 
 **Size**:

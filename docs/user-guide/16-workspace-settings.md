@@ -86,6 +86,8 @@ Owners and Admins see **Size and usage** under the name: how many Metrics the Wo
 
 Over its limit, the section says since when and until when new Metrics can still be made (14 days, with room for 10 % more), or that they wait now. Everything else keeps working and values keep arriving. Owners and Admins then see a line under the top bar on every page with the same news and a link here, and every Owner gets one email when the 14 days start and one when they end. Archiving Metrics you no longer track makes room (see the Metrics chapter).
 
+The 14 days come at most once in 90 days. If the Workspace goes over its limit again within 90 days of the day the last 14 days started, new Metrics wait at once, bringing an Archived Metric back included, and Size and usage says from which day the next 14 days are possible. Archiving down always works.
+
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
 **Download the values** saves the values of every Metric you see as a CSV file, written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span); the warning before an unused Workspace is deleted links to it.
