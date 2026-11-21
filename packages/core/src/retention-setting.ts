@@ -21,7 +21,9 @@ import { periodEnd, periodStart, type YearStart } from "./periods";
 import { firstRunDay, parseRetention, reminderDay, retentionPlan, retentionProblem, keptFrom, CANCEL_DAYS, type CondenseInto, type Retention, type RetentionMetric, type RetentionPlan } from "./retention-rules";
 import { DELETE_WORD, NUMBERS_CHANGED, capOf, needsConfirmation, retentionWords, storedPending, storedRetention, dayWords, pendingNote, type Counted, type PendingRetention } from "./retention-words";
 import { localTime } from "./workspace-clock";
-import { allRows, getBreakdowns, getMetrics } from "./workspace-data";
+import { openRow } from "./sealed-columns";
+import { workspaceCipher } from "./workspace-keys";
+import { allRows, getMetrics } from "./workspace-data";
 import type { Metric, Period } from "./types";
 
 export { NUMBERS_CHANGED };
@@ -148,7 +150,11 @@ export async function planRetention(ws: string, m: Pick<Row, "id" | "slug" | "pe
     allRows<PeriodCount>((from, to) => db().rpc("retention_periods", { p_ws: ws, p_metric: m.id, p_cutoff: cutoff }).range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).eq("state", "locked").lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).in("state", OPEN_STATES).lt("period_start", cutoff).order("period_start").range(from, to)),
-    allRows<{ period_start: string }>((from, to) => db().from("actions").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("status", ["open", "answered"]).lt("period_start", cutoff).order("id").range(from, to)),
+    // Open Actions, and those closed with a Correction still waiting for a decision (it would write into the period).
+    Promise.all([
+      allRows<{ period_start: string }>((from, to) => db().from("actions").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("status", ["open", "answered"]).lt("period_start", cutoff).order("id").range(from, to)),
+      allRows<{ period_start: string }>((from, to) => db().from("actions").select("period_start, thread_messages!inner(id)").eq("workspace_id", ws).eq("metric_id", m.id).eq("thread_messages.correction_status", "proposed").lt("period_start", cutoff).order("id").range(from, to)),
+    ]).then(([a, b]) => [...a, ...b]),
     allRows<{ period_start: string }>((from, to) => db().from("series_values").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("series_values").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "projection").lt("period_start", cutoff).order("period_start").range(from, to)),
   ]);
@@ -332,7 +338,9 @@ async function store(actor: Actor, m: Row, setting: Retention | null, confirm: {
   }
   const problem = retentionProblem(setting, { period: m.period as Period, aggregation: m.aggregation, formula: m.formula });
   if (problem) throw new Error(problem);
-  if (!needsConfirmation(active, setting)) {
+  // The same setting again, with the counts shown: how a Retention the job holds back or stopped is confirmed anew.
+  const again = Boolean(active) && JSON.stringify(active) === JSON.stringify(setting) && !waiting && confirm.shown !== null;
+  if (!needsConfirmation(active, setting) && !again) {
     if (JSON.stringify(active) === JSON.stringify(setting) && !waiting) return { pending: null, changed: false };
     // Longer, or softer, than what is in force: it takes effect now and any waiting one is dropped (it was stricter).
     await update({ retention: setting, retention_pending: null });
@@ -528,17 +536,29 @@ export async function retentionValuesCsv(actor: Actor, metricId: number, rawSett
   if (r.held.filter((h) => periods.has(h.period_start)).reduce((n, h) => n + h.values_held + h.superseded + h.breakdown_rows, 0) > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
   const sorted = [...periods].sort();
   const [first, last] = [sorted[0], sorted[sorted.length - 1]];
-  const [values, earlier, targets, breakdowns] = await Promise.all([
-    allRows<{ period_start: string; value: unknown; source: string | null; created_at: string }>((a, b) => db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("created_at").order("id").range(a, b)),
-    allRows<{ period_start: string; value: unknown; source: string | null; recorded_at: string }>((a, b) => db().from("observation_history").select("period_start, value, source, recorded_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
+  const [values, earlier, targets] = await Promise.all([
+    allRows<{ id: number; period_start: string; value: unknown; source: string | null; created_at: string }>((a, b) => db().from("observations").select("id, period_start, value, source, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("created_at").order("id").range(a, b)),
+    allRows<{ observation_id: number; period_start: string; value: unknown; source: string | null; recorded_at: string }>((a, b) => db().from("observation_history").select("observation_id, period_start, value, source, recorded_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
     allRows<{ period_start: string; value: unknown }>((a, b) => db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
-    getBreakdowns(ws, [m.id], { from: first, to: last }),
   ]);
   const inPeriods = <T extends { period_start: string }>(rows: T[]) => rows.filter((x) => periods.has(x.period_start));
   const lines: unknown[][] = [];
   for (const v of inPeriods(values)) lines.push([v.period_start, "value", v.value, "", String(v.created_at).slice(0, 10), v.source]);
   for (const v of inPeriods(earlier)) lines.push([v.period_start, "earlier value", v.value, "", String(v.recorded_at).slice(0, 10), v.source]);
-  for (const [period, rows] of Object.entries(breakdowns[m.id] ?? {})) if (periods.has(period)) for (const b of rows) lines.push([period, "breakdown row", b.value, b.label, "", ""]);
+  // Every Breakdown row of every value that goes (also of the earlier values), not only the latest: the job deletes them all.
+  const periodOf = new Map<number, string>([...inPeriods(values).map((v) => [v.id, v.period_start] as const), ...inPeriods(earlier).map((v) => [v.observation_id, v.period_start] as const)]);
+  const ids = [...periodOf.keys()];
+  const cipher = await workspaceCipher(ws);
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const [rows, history] = await Promise.all([
+      allRows<{ id: number; observation_id: number; label: string; value: unknown }>((a, b) => db().from("breakdown_rows").select("id, observation_id, label, value").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+      allRows<{ id: number; row_id: number | null; observation_id: number; label: string; value: unknown }>((a, b) => db().from("breakdown_history").select("id, row_id, observation_id, label, value").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+    ]);
+    // Labels are sealed with the Workspace Key; one that does not open reads as a dash, never as ciphertext. A replaced row's label is sealed for its row's id.
+    for (const b of rows) lines.push([periodOf.get(b.observation_id), "breakdown row", b.value, openRow(cipher, "breakdown_rows", b).label || "–", "", ""]);
+    for (const b of history) lines.push([periodOf.get(b.observation_id), "earlier breakdown row", b.value, openRow(cipher, "breakdown_rows", { ...b, id: b.row_id ?? b.id }).label || "–", "", ""]);
+  }
   for (const t of inPeriods(targets)) lines.push([t.period_start, "target", t.value, "", "", ""]);
   if (lines.length > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
   lines.sort((a, b) => String(a[0]).localeCompare(String(b[0])));

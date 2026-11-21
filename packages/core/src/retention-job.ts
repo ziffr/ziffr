@@ -90,6 +90,14 @@ function backlogOf(setting: Retention, own: Metric["period"], cap: RetentionCap,
   return { periods: hit.length, values: hit.reduce((n, p) => n + (valuesOf.get(p) ?? 0), 0) };
 }
 
+/** The periods and values the Metric's earlier runs removed under this confirmation (their counts, which a
+ * failed run keeps as far as it got). */
+async function takenUnder(ws: string, metricId: number, confirmation: string): Promise<{ periods: number; values: number }> {
+  const runs = await allRows<{ counts: { periods?: unknown; values?: unknown } | null }>((a, b) => db().from("retention_runs").select("counts").eq("workspace_id", ws).eq("metric_id", metricId).eq("confirmation", confirmation).in("state", ["done", "failed"]).order("id").range(a, b));
+  const sum = (k: "periods" | "values") => runs.reduce((n, r) => n + (Number(r.counts?.[k]) || 0), 0);
+  return { periods: sum("periods"), values: sum("values") };
+}
+
 /** A shown series, in the parts that must come out the same before and after condensing. */
 function seenOf(s: Shown): string {
   return JSON.stringify([s.by, s.combined, s.reason ?? null, s.points.map((p) => [p.period, p.value, p.held, p.length, p.toDate, p.through, p.condensed?.into ?? null]), s.targets && [s.targets.at, s.targets.line, s.targets.range, s.targets.note]]);
@@ -135,8 +143,8 @@ const codeOf = (e: unknown): string | null => {
 };
 
 /** Removes values with their history through the one transaction that checks open work and the count. */
-async function removeValues(ws: string, metricId: number, from: string, to: string, periods: string[] | null, expected: number, states: boolean): Promise<{ values: number; breakdown_rows: number; superseded: number; targets: number }> {
-  const { data, error } = await db().rpc("retention_remove_values", { p_ws: ws, p_metric: metricId, p_from: from, p_to: to, p_periods: periods, p_expected: expected, p_states: states });
+async function removeValues(ws: string, metricId: number, from: string, to: string, periods: string[] | null, expected: number, states: boolean, condensed: string | null = null): Promise<{ values: number; breakdown_rows: number; superseded: number; targets: number }> {
+  const { data, error } = await db().rpc("retention_remove_values", { p_ws: ws, p_metric: metricId, p_from: from, p_to: to, p_periods: periods, p_expected: expected, p_states: states, p_condensed: condensed });
   if (error) throw error;
   return data as { values: number; breakdown_rows: number; superseded: number; targets: number };
 }
@@ -170,7 +178,7 @@ async function condenseSpan(r: Run, span: string, into: Extract<Retention, { the
     // Another run finished this span while we were on the way: nothing is left to do.
     if (point && checked.originals === 0) return;
     if (!point || !checked.same) { await take(); r.tally.mismatches++; r.tally.note = mismatchNote(span); await recordAudit(ws, null, { kind: "retention.mismatch", object: { type: "metric", id: metric.id, name: metric.name }, details: { span, into } }); return; }
-    const gone = await removeValues(ws, metric.id, point.period, point.periodEnd, null, checked.originals, false);
+    const gone = await removeValues(ws, metric.id, point.period, point.periodEnd, null, checked.originals, false, id);
     r.tally.condensed++; r.tally.values += gone.values; r.tally.breakdownRows += gone.breakdown_rows; r.tally.superseded += gone.superseded; r.tally.targets += gone.targets;
     r.tally.periods += expected;
   } catch (e) {
@@ -232,7 +240,10 @@ async function work(r: Run, cap: RetentionCap): Promise<void> {
   const plan = await planRetention(ws, metric, setting, today, ys, r.metrics);
   if (plan.problem) { r.tally.note = plan.problem; return; }
   const backlog = backlogOf(setting, metric.period, cap, plan.held, plan.plan, ys);
-  if (backlog.periods > cap.periods + cap.held_back_periods || backlog.values > cap.values + cap.held_back_values) { r.tally.needsConfirmation = true; r.tally.note = NEEDS_CONFIRMATION; return; }
+  // What earlier runs took counts against the cap too: values that arrive for periods already cleared (they are not refused
+  // when deleted) must not make room for more than was confirmed.
+  const taken = await takenUnder(ws, metric.id, cap.id);
+  if (backlog.periods + taken.periods > cap.periods + cap.held_back_periods || backlog.values + taken.values > cap.values + cap.held_back_values) { r.tally.needsConfirmation = true; r.tally.note = NEEDS_CONFIRMATION; return; }
   const valuesOf = new Map(plan.held.map((h) => [h.period_start, h.values_held]));
   if (setting.then === "delete") await deletePeriods(r, plan.plan.delete, plan.held);
   else {
@@ -268,6 +279,7 @@ async function runMetric(ws: string, metric: Metric, ctx: { today: string; ys: Y
   }
   const { data: claimed } = await db().rpc("claim_retention_run", { p_ws: ws, p_metric: metric.id, p_day: ctx.today });
   if (claimed === null || claimed === undefined) { out.claimedElsewhere++; return; }
+  await db().from("retention_runs").update({ confirmation: cap.id }).eq("id", claimed);
   const run: Run = { claim: Number(claimed), ws, metric, setting, ys: ctx.ys, today: ctx.today, started: Date.now(), tally: noTally(), metrics: ctx.metrics };
   try {
     await work(run, cap);

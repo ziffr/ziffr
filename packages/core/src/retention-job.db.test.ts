@@ -263,6 +263,9 @@ describe("deleting", () => {
     const { data: first } = await db().from("observations").select("id").eq("metric_id", m.id).eq("period_start", "2022-01-02").single();
     await db().from("breakdown_rows").insert([{ observation_id: first!.id, label: "North", value: 1, workspace_id: w.id }]);
     await db().from("observations").update({ value: 8.8 }).eq("id", first!.id);
+    // A Breakdown row replaced by a later one stays in its history, and goes with the value: the download holds it too.
+    await db().from("breakdown_rows").delete().eq("observation_id", first!.id);
+    await db().from("breakdown_rows").insert([{ observation_id: first!.id, label: "North", value: 2, workspace_id: w.id }]);
     await db().from("series_values").insert([{ metric_id: m.id, kind: "target", period_start: "2022-01-03", value: 3, workspace_id: w.id }, { metric_id: m.id, kind: "projection", period_start: "2022-01-04", value: 3, workspace_id: w.id }]);
     await w.lock(m.id, "2022-01-05");
     // Open work holds one period back: neither in the download nor deleted.
@@ -273,8 +276,10 @@ describe("deleting", () => {
     expect(lines[0]).toBe('"Metric","Period","What","Value","Label","Recorded on","Source"');
     const kinds = (what: string) => lines.filter((l) => l.includes(`"${what}"`)).length;
     expect(kinds("value")).toBe(p.values);
-    expect([kinds("earlier value"), kinds("breakdown row"), kinds("target")]).toEqual([p.supersededValues, p.breakdownRows, 1]);
+    // The preview counts the replaced Breakdown rows with the Superseded Values.
+    expect([kinds("earlier value") + kinds("earlier breakdown row"), kinds("breakdown row"), kinds("target")]).toEqual([p.supersededValues, p.breakdownRows, 1]);
     expect(csv).toContain('"North"');
+    expect(kinds("earlier breakdown row")).toBe(1);
     expect(csv).not.toContain('"2022-02-02"');
     expect(await auditRowsOf(w.id, "export.retention_values")).toHaveLength(1);
     // Someone who may not set the Retention gets nothing.
@@ -368,5 +373,55 @@ describe("what it never touches", () => {
     await w.cleanup();
     expect((await db().from("retention_runs").select("id").eq("workspace_id", w.id)).data).toEqual([]);
     expect((await db().from("retention_state").select("metric_id").eq("workspace_id", w.id)).data).toEqual([]);
+  });
+});
+
+describe("review fixes (ticket #384)", () => {
+  it("counts what earlier runs took against the cap, so values that arrive later for cleared periods do not make room", async () => {
+    // A first run took 10 of the 90 confirmed periods; the second finishes the rest.
+    const earlier = async (arrive: boolean) => {
+      const { w, ben, m, actor } = await setup();
+      await bulk(w, m.id, ben, valuesFor(daysFrom("2022-01-01", 90)));
+      const { cap } = await turnOn(w, actor, m.id, DELETE);
+      const batch = daysFrom("2022-01-01", 10);
+      await db().rpc("retention_remove_values", { p_ws: w.id, p_metric: m.id, p_from: batch[0], p_to: batch[9], p_periods: batch, p_expected: 10, p_states: true, p_condensed: null });
+      await db().from("retention_runs").insert({ workspace_id: w.id, metric_id: m.id, day: TODAY, state: "done", finished_at: new Date().toISOString(), counts: { periods: 10, values: 10 }, confirmation: cap.id });
+      // A Feed sends values for periods that were deleted already (they are not refused: the cap holds them).
+      if (arrive) await bulk(w, m.id, ben, valuesFor(batch.slice(0, 3)));
+      return { out: await job(w, new Date(Date.now() + 86_400_000)), left: await count("observations", m.id) };
+    };
+    expect(await earlier(false)).toMatchObject({ out: { needConfirmation: 0, values: 80 }, left: 0 });
+    expect(await earlier(true)).toMatchObject({ out: { needConfirmation: 1, values: 0 }, left: 83 });
+  });
+
+  it("refuses to remove originals unless the Condensed Value that stands for them is still there", async () => {
+    const { w, ben, m } = await setup();
+    await bulk(w, m.id, ben, valuesFor(daysFrom("2022-01-01", 31)));
+    const gone = await db().rpc("retention_remove_values", { p_ws: w.id, p_metric: m.id, p_from: "2022-01-01", p_to: "2022-01-31", p_periods: null, p_expected: 31, p_states: false, p_condensed: randomUUID() });
+    expect(gone.error?.code).toBe("ZF445");
+    expect(await count("observations", m.id)).toBe(31);
+  });
+
+  it("holds a period whose Correction waits for a decision although its Action was closed", async () => {
+    const { w, ben, m, actor } = await setup();
+    await bulk(w, m.id, ben, valuesFor(daysFrom("2022-01-01", 31)));
+    const action = await w.action({ metric_id: m.id, period_start: "2022-01-10", asker_id: ben, assignee_id: ben, status: "closed" });
+    await db().from("thread_messages").insert({ action_id: action, author_id: ben, body: "Should be 9", correction_value: 9, correction_status: "proposed", workspace_id: w.id });
+    const preview = await retentionPreview(actor, m.id, DELETE);
+    expect(preview.heldBack).toBe(1);
+    await turnOn(w, actor, m.id, DELETE);
+    expect(await job(w)).toMatchObject({ heldBack: 0, values: 30 });
+    expect(await count("observations", m.id)).toBe(1);
+  });
+
+  it("lets a Retention the job holds back be confirmed again with the same setting", async () => {
+    const { w, ben, m, actor } = await setup();
+    await bulk(w, m.id, ben, valuesFor(daysFrom("2022-01-01", 30)));
+    await db().from("metrics").update({ retention: DELETE }).eq("id", m.id);
+    const shown = await retentionPreview(actor, m.id, DELETE);
+    // Nothing without the counts shown; with them it waits its 7 days again, with a cap that covers what is there.
+    expect((await setRetention(actor, m.id, DELETE)).starts_on).toBeNull();
+    await expect(setRetention(actor, m.id, DELETE, shown.fingerprint)).rejects.toThrow(/Type/);
+    expect((await setRetention(actor, m.id, DELETE, shown.fingerprint, "Field visits")).starts_on).toBe(inDays(8));
   });
 });

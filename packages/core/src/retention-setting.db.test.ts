@@ -372,6 +372,7 @@ describe("what a confirmation holds", () => {
     expect(data).toHaveProperty("retention_pending");
     expect(Object.keys(normalizeMetric(data as never))).not.toEqual(expect.arrayContaining(["retention"]));
     expect(Object.keys(normalizeMetric(data as never))).not.toEqual(expect.arrayContaining(["retention_pending"]));
+    expect(Object.keys(normalizeMetric({ ...data, retention_cap: { id: "x" } } as never))).not.toContain("retention_cap");
     // The page reads it through the core, and no one who may not see the Metric does.
     expect(await retentionFor(actor, m.id)).toMatchObject({ retention: null, pending: { starts_on: inDays(8), cancellable: true }, canSet: true });
     expect(JSON.stringify(await retentionFor(actor, m.id))).not.toContain(sara);

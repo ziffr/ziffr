@@ -19,7 +19,7 @@ import { allRows, getMetrics } from "./workspace-data";
 import type { Metric } from "./types";
 
 /** The database's code for a value refused because its period was condensed (trigger observations_not_condensed). */
-export const CONDENSED_CODE = "ZF441";
+export const CONDENSED_CODE = "ZF446";
 /** The database's code for a span that overlaps one condensed already (trigger condensed_values_no_overlap). */
 const OVERLAP_CODE = "ZF442";
 
