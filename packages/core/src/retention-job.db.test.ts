@@ -5,6 +5,7 @@
 // touched.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { changeActionState } from "./action-state";
 import { condensedFor, discardCondensed, storeCondensed } from "./condensed-values";
 import { db, seedingDemo } from "./db";
 import { shownSeries, type DisplayPeriod } from "./display-periods";
@@ -180,7 +181,7 @@ describe("condensing", () => {
     expect(await job(w)).toMatchObject({ condensed: 2 });
     expect((await condensedFor(w.id, [m.id]))[m.id].map((c) => c.period)).toEqual(["2022-01-01", "2022-03-01"]);
     expect(await count("observations", m.id)).toBe(28);
-    await db().from("actions").update({ status: "closed" }).eq("id", action);
+    await changeActionState(w.id, action, { to: "closed" });
     // Freed, it is within what was confirmed (the confirmation said it was held back).
     expect(await job(w, new Date(Date.now() + 86_400_000))).toMatchObject({ condensed: 1, needConfirmation: 0 });
     expect(await count("observations", m.id)).toBe(0);
@@ -200,7 +201,7 @@ describe("condensing", () => {
     expect(await discardCondensed(w.id, february)).toBe(true);
     // The Retention is confirmed again, into quarters, once the open work is closed: the quarter would swallow the months
     // condensed already, so it is left as it is, with its months and its February.
-    await db().from("actions").update({ status: "closed" }).eq("id", action);
+    await changeActionState(w.id, action, { to: "closed" });
     await turnOn(w, actor, m.id, { keep_months: 25, then: "condense", into: "quarter" });
     const out = await job(w, new Date(Date.now() + 86_400_000));
     expect(out).toMatchObject({ condensed: 0, mismatches: 1 });
