@@ -2,9 +2,12 @@
 // members and Groups, other Workflows, or anyone's email, against the real database.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { Forbidden } from "./actor";
+import { Forbidden, type Actor } from "./actor";
+import { visibleMetricIds } from "./access";
+import { getMetrics } from "./workspace-data";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { db } from "./db";
-import { activityView, connectorsView, metricExtras, teamView, workflowsView } from "./page-data";
+import { activityView, connectorsView, metricExtras, sourcesView, teamView, workflowsView } from "./page-data";
 import { listWorkflowNames, periodTimeline, workflowPeriods } from "./period-timeline";
 import { tellEditorFacts } from "./tell";
 import { saveWorkflow, setMetricWorkflow, workflowAskingRun } from "./workflows";
@@ -160,4 +163,25 @@ describe("the people a page is given", () => {
     expect(forIntake.email).toMatch(/^sara-.*@example\.test$/);
     expect(forIntake.slack_handle).toMatch(/^@sara-/);
   });
+});
+
+describe("the demo, viewed as each Role (ticket #609)", () => {
+  it("shows a form link under Who submits only to its person, the Metric's owner; the Guest sees none", async () => {
+    const { error } = await db().rpc("demo_reset", { min_gap: "0 seconds" });
+    expect(error).toBeNull();
+    const demo = (personId: string, role: Actor["role"]): Actor => ({ personId, workspaceId: DEMO_WORKSPACE_ID, role });
+    const metrics = await getMetrics(DEMO_WORKSPACE_ID);
+    const seen = [...(await visibleMetricIds(DEMO_WORKSPACE_ID, "greta", metrics))];
+    const { data: tokens } = await db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", DEMO_WORKSPACE_ID).in("metric_id", seen);
+    const others = (tokens ?? []).filter((t) => t.submitter_id !== "greta");
+    expect(others.length).toBeGreaterThan(0);
+    const codesOf = async (a: Actor, metricId: number) => (await metricExtras(a, metricId, "month")).tokens.filter((t) => t.code);
+    for (const t of others) {
+      const forGreta = await codesOf(demo("greta", "guest"), t.metric_id as number);
+      expect(forGreta.every((c) => c.submitter_id === "greta")).toBe(true);
+      expect((await codesOf(demo("sara", "owner"), t.metric_id as number)).length).toBeGreaterThan(0);
+    }
+    expect((await connectorsView(demo("greta", "guest"))).tokens.every((t) => t.submitter_id === "greta")).toBe(true);
+    expect((await sourcesView(demo("greta", "guest"))).tokens.every((t) => t.submitter_id === "greta")).toBe(true);
+  }, 120_000);
 });
