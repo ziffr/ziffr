@@ -133,3 +133,15 @@ export async function installationAdmin() {
   };
   return { actor: { personId: pid }, cleanup };
 }
+
+/** The Audit Log rows of a workspace whose kind starts with `kind` (a test reads them back without the core's filters). */
+export async function auditRowsOf(workspaceId: string, kind: string) {
+  const { data } = await db().from("audit_events").select("kind, access_key_id, details").eq("workspace_id", workspaceId).like("kind", `${kind}%`);
+  return data ?? [];
+}
+
+/** Tries to store an assistant's key row with the given scopes, as the database alone would see it; answers the error code, if any. */
+export async function insertAssistantKey(workspaceId: string, createdBy: string, scopes: string[]): Promise<string | null> {
+  const { error } = await db().from("access_keys").insert({ workspace_id: workspaceId, created_by: createdBy, name: "Assistant", kind: "assistant", scopes, expires_on: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), prefix: "test00000000", secret_hash: "x".repeat(64) });
+  return error?.code ?? null;
+}

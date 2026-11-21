@@ -5,12 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkKeyRequest, createAccessKey } from "@ziffr/core/access-keys";
 import type { Scope } from "@ziffr/core/actor";
 import { createDashboard, placeWidget } from "@ziffr/core/dashboards";
-import { db } from "@ziffr/core/db";
 import { share } from "@ziffr/core/sharing";
 import { showSnapshot, takeSnapshot } from "@ziffr/core/snapshots";
 import { openViewLink } from "@ziffr/core/view-links";
 import { VIEW_LINKS_PER_DAY } from "@ziffr/core/api-view-links";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { auditRowsOf, insertAssistantKey, workspace } from "@ziffr/core/test/db-fixtures";
 import { matchRoute } from "@/lib/api-in-process";
 import { GET as listSnapshots, POST as take } from "./[id]/snapshots/route";
 import { GET as readSnapshot } from "../snapshots/[id]/route";
@@ -80,7 +79,7 @@ describe("Snapshots over HTTP", () => {
     // A Viewer takes none (404, as for anything she may not change).
     expect((await take(viewer.req("POST", `/dashboards/${dash}/snapshots`, { kind: "month", start: "2026-09-01" }), viewer.params(dash))).status).toBe(404);
     // The Audit Log names the key that took it, and nothing about it says more.
-    const { data: events } = await db().from("audit_events").select("access_key_id, details").eq("workspace_id", w.id).eq("kind", "snapshot.taken");
+    const events = await auditRowsOf(w.id, "snapshot.taken");
     expect(events).toEqual([expect.objectContaining({ access_key_id: k.id, details: expect.objectContaining({ via: "api" }) })]);
   });
 
@@ -124,7 +123,7 @@ describe("View Links over HTTP", () => {
     expect(text).not.toContain(made.token);
     expect(JSON.parse(text).items).toEqual([{ id: made.id, dashboard: dash, label: "Board", expires: inDays(7), revoked: false, created: expect.any(String), frozen: true, snapshot: null }]);
     // Nor does the Audit Log, which names the key; nor the Access Log.
-    const { data: events } = await db().from("audit_events").select("kind, access_key_id, details").eq("workspace_id", w.id).like("kind", "view_link.%");
+    const events = await auditRowsOf(w.id, "view_link.");
     expect(JSON.stringify(events)).not.toContain(made.token);
     expect(events).toEqual([expect.objectContaining({ kind: "view_link.created", access_key_id: k.id })]);
     // An Editor of the dashboard is not its owner: 404 for her list, her link and her revoke.
@@ -155,8 +154,7 @@ describe("View Links over HTTP", () => {
     await expect(createAccessKey(w.actor(guest, "guest"), { name: "G", scopes: ["view-links:write"], expiresOn: inDays(30) })).rejects.toThrow(/cannot share/);
     expect(() => checkKeyRequest(w.actor(sara), ["metrics:read", "view-links:write"], inDays(30), { assistant: true })).toThrow(/cannot be allowed/);
     expect(checkKeyRequest(w.actor(sara), ["view-links:write"], inDays(30)).scopes).toEqual(["view-links:write"]);
-    const { error } = await db().from("access_keys").insert({ workspace_id: w.id, created_by: sara, name: "Assistant", kind: "assistant", scopes: ["view-links:write"], expires_on: inDays(30), prefix: "test00000000", secret_hash: "x".repeat(64) });
-    expect(error?.code).toBe("23514");
+    expect(await insertAssistantKey(w.id, sara, ["view-links:write"])).toBe("23514");
   });
 
   it("refuses an end date outside 90 days, a Snapshot not shown yet, and takes one that is shown", async () => {
