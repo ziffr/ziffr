@@ -222,3 +222,6 @@ begin
 end;
 $$;
 revoke all on function seal_contact_name(uuid, text, text, text) from public, anon, authenticated;
+
+-- The demo is read-only: the job never writes it (it has no key and is skipped), and the guard keeps anyone else out too.
+select attach_demo_guard('workspace_seal_progress');
