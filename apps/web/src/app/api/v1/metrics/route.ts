@@ -4,12 +4,13 @@
 // Idempotency-Key and at most 50 a day per key; its Sources, and its Submitters with metrics:edit too (ticket #217).
 import { Forbidden } from "@ziffr/core/actor";
 import { admitMetric, createMetricWithKey, MetricChangeRefused, METRICS_PER_DAY, TooManyMetrics } from "@ziffr/core/api-metrics";
+import { WorkflowRefused } from "@ziffr/core/workflows";
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listMetrics } from "@ziffr/core/api";
 import { errorBody, json, jsonBody, keyRoute, limitErrorBody, query, toCursor } from "@/lib/api";
 import { LimitReached } from "@ziffr/core/workspace-limits";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
-import { CreateMetric, MetricDescription, MetricList, metricsQuery } from "../schemas";
+import { CreateMetric, MetricDetail, MetricList, metricsQuery } from "../schemas";
 
 /** Lists the visible Metrics. */
 export const GET = keyRoute("metrics:read", async (actor, req) => {
@@ -32,7 +33,7 @@ export const POST = keyRoute("metrics:write", async (actor, req) => {
     const admitted = await admitMetric(actor);
     if (!admitted.ok) return limited(admitted.retryAfter);
     try {
-      return { status: 201, body: MetricDescription.parse(await createMetricWithKey(actor, input)) };
+      return { status: 201, body: MetricDetail.parse(await createMetricWithKey(actor, input)) };
     } catch (e) {
       // Parallel calls that passed the early check meet the database's limit here.
       if (e instanceof TooManyMetrics) {
@@ -41,8 +42,8 @@ export const POST = keyRoute("metrics:write", async (actor, req) => {
       }
       // There is no Metric to hide here: a refusal is about the key's creator, so it is said (403), not "not found".
       if (e instanceof Forbidden) return errorBody("forbidden", e.message === "Forbidden" ? "The key's creator may not create Metrics." : e.message);
-      // A Source or Submitter refused: checked before the Metric exists, so nothing was created.
-      if (e instanceof MetricChangeRefused) return errorBody("unprocessable", e.message);
+      // A Source, Submitter or Workflow refused: checked before the Metric exists, so nothing was created.
+      if (e instanceof MetricChangeRefused || e instanceof WorkflowRefused) return errorBody("unprocessable", e.message);
       // The Workspace Limit (spec 0029): nothing was created; the same words as the app, with the count and limit.
       if (e instanceof LimitReached) return { ...limitErrorBody(e), keep: false };
       throw e;

@@ -7,6 +7,7 @@ import { createAccessKey } from "@ziffr/core/access-keys";
 import type { Scope } from "@ziffr/core/actor";
 import { db } from "@ziffr/core/db";
 import { createDashboard, placeWidget } from "@ziffr/core/dashboards";
+import { saveWorkflow } from "@ziffr/core/workflows";
 import { rowsOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { Ziffr } from "@ziffr/sdk";
 import { createServer } from "../src/server.js";
@@ -38,7 +39,7 @@ describe("@ziffr/mcp against the app", () => {
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_finding", "add_widget", "archive_metric", "create_alert", "create_dashboard", "create_dashboard_from_template", "create_metric", "create_workflow", "delete_alert", "delete_metric", "delete_workflow", "find", "get_dashboard", "get_metric", "get_snapshot", "get_thread", "get_unusual_value_check", "get_workflow", "get_workspace",
-      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "propose_share", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
+      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "propose_share", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_metric_workflow", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
       "submit_value", "take_snapshot", "update_alert", "update_dashboard", "update_finding", "update_metric", "update_widget", "update_workflow",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
@@ -76,6 +77,37 @@ describe("@ziffr/mcp against the app", () => {
     const nps = json(await client.callTool({ name: "create_metric", arguments: { name: "Quarterly NPS", period: "quarter", submit: true } })).metric;
     expect(nps).toMatchObject({ period: "quarter" });
     expect(json(await client.callTool({ name: "submit_value", arguments: { slug: nps.slug, value: 41, period: "2026-07-01" } }))).toMatchObject({ status: "recorded", period: "2026-07-01" });
+  });
+  it("changes everything about a Metric and sets its schedule (ticket #612)", async () => {
+    const { client, ben, w } = await connect(["metrics:read", "values:submit", "metrics:write", "metrics:edit"]);
+    const daily = await saveWorkflow(w.actor(ben, "member"), null, "Ask me each day", { dueWorkingDays: 1, steps: [{ type: "publish", lock: false }] });
+    // A Metric made here takes values here: leaving api out of the sources does not turn it off, unless asked for.
+    const calls = json(await client.callTool({ name: "create_metric", arguments: { name: "Calls", period: "week", submit: true, sources: ["web_form", "mail"], workflow: "Ask me each day" } })).metric;
+    expect(calls.sources).toEqual(["web_form", "mail", "api"]);
+    expect(calls.workflow).toEqual({ id: daily, name: "Ask me each day", yours: true });
+    expect(calls.next_due).toMatchObject({ date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    expect(json(await client.callTool({ name: "get_metric", arguments: { slug: calls.slug } })).metric).toMatchObject({ workflow: { name: "Ask me each day" }, next_due: calls.next_due });
+    const noApi = json(await client.callTool({ name: "create_metric", arguments: { name: "Forms only", submit: true, sources: ["web_form"], exclude_api: true } })).metric;
+    expect(noApi.sources).toEqual(["web_form"]);
+    // The refusal says which Sources the Metric takes and how to change them; update_metric then turns the API on.
+    const refused = await client.callTool({ name: "submit_value", arguments: { slug: noApi.slug, value: 1 } });
+    expect(refused.isError).toBe(true);
+    expect(JSON.stringify(refused.content)).toMatch(/accepts values from: Web form.*update_metric/);
+    const changed = json(await client.callTool({ name: "update_metric", arguments: { slug: noApi.slug, name: "Forms and API", description: "Count of forms", unit: "forms", format: "number", period: "week", submission_rule: "add", sources: ["web_form", "api"] } })).metric;
+    expect(changed).toMatchObject({ slug: noApi.slug, name: "Forms and API", description: "Count of forms", unit: "forms", period: "week", sources: ["web_form", "api"] });
+    expect(json(await client.callTool({ name: "submit_value", arguments: { slug: noApi.slug, value: 4 } }))).toMatchObject({ status: "recorded" });
+    // Once there are values, the period stays.
+    const stuck = await client.callTool({ name: "update_metric", arguments: { slug: noApi.slug, period: "month" } });
+    expect(stuck.isError).toBe(true);
+    expect(JSON.stringify(stuck.content)).toMatch(/cannot change once the Metric has values/);
+    // The schedule: given, shown, taken away; a Workflow that is not the user's own is refused.
+    expect(json(await client.callTool({ name: "set_metric_workflow", arguments: { slug: noApi.slug, workflow: daily } })).metric).toMatchObject({ workflow: { id: daily } });
+    expect(json(await client.callTool({ name: "set_metric_workflow", arguments: { slug: noApi.slug, workflow: null } })).metric).toMatchObject({ workflow: null, next_due: null });
+    expect((await client.callTool({ name: "set_metric_workflow", arguments: { slug: noApi.slug, workflow: "Nobody's" } })).isError).toBe(true);
+    // Reading keys cannot change a thing.
+    const reading = (await connect(["metrics:read"])).client;
+    expect((await reading.callTool({ name: "update_metric", arguments: { slug: calls.slug, name: "x" } })).isError).toBe(true);
+    expect((await reading.callTool({ name: "set_metric_workflow", arguments: { slug: calls.slug, workflow: null } })).isError).toBe(true);
   });
   it("makes a dashboard from a template and writes one up with Findings (spec 0014, spec 0013)", async () => {
     const { client, orders } = await connect(["metrics:read", "dashboards:read", "dashboards:write"]);

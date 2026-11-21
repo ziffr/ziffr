@@ -27,18 +27,18 @@ const ENDPOINTS: Endpoint[] = [
     summary: "List Metrics", description: "The Metrics the key's creator sees, oldest first, a page at a time: those in use, or with `archived=true` only the Archived Metrics.",
   },
   {
-    method: "post", path: "/metrics", scope: "metrics:write", body: S.CreateMetric, idempotent: true, ok: { status: 201, name: "Metric", schema: S.MetricDescription },
+    method: "post", path: "/metrics", scope: "metrics:write", body: S.CreateMetric, idempotent: true, ok: { status: 201, name: "MetricDetail", schema: S.MetricDetail },
     summary: "Create a Metric",
-    description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well. Each key may create 50 Metrics in any 24 hours.",
+    description: "Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well; so does `workflow`, one of your own Workflows by id or exact name, so the Metric is asked for on its schedule at once. Each key may create 50 Metrics in any 24 hours.",
     errors: [
       { status: 403, description: "Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit. `workspace_limit`: the workspace holds as many Metrics as its Workspace Limit allows (after 14 days over it, or beyond 10 % more); the answer says how many it holds and its limit, and nothing was created." },
-      { status: 422, description: "A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created." },
+      { status: 422, description: "A Source or Submitter that is not one of the workspace's, or a Workflow that is not one of yours or that this key may not use; checked first, so no Metric was created." },
       { status: 409, description: "The Idempotency-Key was used with another body, or its first creation is still running." },
     ],
   },
   {
-    method: "get", path: "/metrics/{slug}", scope: "metrics:read", ok: { status: 200, name: "Metric", schema: S.MetricDescription },
-    summary: "Describe a Metric", description: "One Metric's description: period, format, unit, Polarity and target. A Metric the key's creator may not see is not found.",
+    method: "get", path: "/metrics/{slug}", scope: "metrics:read", ok: { status: 200, name: "MetricDetail", schema: S.MetricDetail },
+    summary: "Describe a Metric", description: "One Metric's description: period, format, unit, Polarity and target, with its Workflow and the next day a value is due. A Metric the key's creator may not see is not found.",
   },
   {
     method: "delete", path: "/metrics/{slug}", scope: "metrics:write", query: S.deleteMetricQuery, ok: { status: 200, name: "DeletedMetric", schema: S.DeletedMetric },
@@ -50,12 +50,12 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
-    method: "patch", path: "/metrics/{slug}", scope: "metrics:edit", body: S.UpdateMetric, ok: { status: 200, name: "Metric", schema: S.MetricDescription },
-    summary: "Change a Metric's Target Range or Sources",
-    description: "Changes a Metric's Sources (all of them: the ones left out are turned off), Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.",
+    method: "patch", path: "/metrics/{slug}", scope: "metrics:edit", body: S.UpdateMetric, ok: { status: 200, name: "MetricDetail", schema: S.MetricDetail },
+    summary: "Change a Metric",
+    description: "Changes a Metric's name, description, unit, format, period (only while it has no values), Submission Rule, Sources (all of them: the ones left out are turned off), Polarity, Target Range, Attainment method or Workflow (one of your own by id or exact name, or null for none) as the key's creator, only when they own it or are its Editor, as on its page; the Workflow only its owner. Each part left out stays. Everything is checked before the first change. The Metric's history keeps the change under the key's name. A Workflow with an Approve or Tell step decides who sees values: a key joins or leaves one only with workflows:people on a program's key.",
     errors: [
       { status: 403, description: "Or the key's creator sees the Metric but may not change it, or their role may not create (Guests)." },
-      { status: 422, description: "The lower target is above the upper one, or Sources for a Derived Metric; nothing was changed." },
+      { status: 422, description: "The lower target is above the upper one, Sources or a Workflow for a Derived Metric, a period that already has values, a Workflow that is not one of yours or that this key may not use; nothing was changed." },
     ],
   },
   {

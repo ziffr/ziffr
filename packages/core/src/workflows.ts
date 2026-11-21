@@ -176,12 +176,16 @@ export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeopl
 }
 
 /** A Metric's owner decides which Workflow its values take (none for Derived Metrics). */
-export async function setMetricWorkflow(actor: Actor, metricId: number, workflowId: number | null) {
+export async function setMetricWorkflow(actor: Actor, metricId: number, workflowId: number | null, opts: { from?: number | null } = {}) {
   const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("id, name, owner_id, formula, workflow_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!m || m.owner_id !== actor.personId || m.formula) throw new Forbidden();
   const wf = workflowId === null ? null : (await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data;
   if (workflowId !== null && !wf) throw new Forbidden();
-  await db().from("metrics").update({ workflow_id: workflowId }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
+  // `from`: a key checked who approves for the Workflow the Metric had then, so it is written only if it still has it.
+  let write = db().from("metrics").update({ workflow_id: workflowId }).eq("id", metricId).eq("workspace_id", actor.workspaceId);
+  if (opts.from !== undefined) write = opts.from === null ? write.is("workflow_id", null) : write.eq("workflow_id", opts.from);
+  const { data: changed } = await write.select("id");
+  if (opts.from !== undefined && !changed?.length) throw new WorkflowRefused("The Metric's Workflow changed meanwhile. Read it again and retry.");
   if ((m.workflow_id ?? null) !== workflowId) {
     await audit(actor, { kind: "metric.workflow_set", object: { type: "metric", id: metricId, name: m.name }, details: { workflow_id: workflowId, workflow_name: (wf?.name as string | undefined) ?? null, from_workflow_id: m.workflow_id ?? null } });
   }

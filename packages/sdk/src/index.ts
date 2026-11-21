@@ -34,6 +34,14 @@ export type Metric = {
   retention_pending: (Retention & { starts_on: string }) | null;
 };
 
+/** A Metric on its own (`metrics.get`, `create` and `update` answer this): its description, its Workflow and when a value is due next. */
+export type MetricDetail = Metric & {
+  /** The Workflow that asks for its values, or null; `yours` says whether the key's creator owns it. */
+  workflow: { id: number; name: string; yours: boolean } | null;
+  /** The next Due Date (YYYY-MM-DD) and the first day of the period it is for; null without a Workflow, and for a Derived or Archived Metric. */
+  next_due: { date: string; period: string } | null;
+};
+
 /** A Retention (GLOSSARY: Retention): keep values for `keep_months` months (at least 13), then condense older ones into a longer period or delete them. */
 export type Retention = { keep_months: number; then: "condense"; into: "week" | "month" | "quarter" | "year" } | { keep_months: number; then: "delete" };
 
@@ -115,11 +123,22 @@ export type NewMetric = {
   sources?: Source[];
   /** Who submits: ids from `people` and `feeds`, at most 20; each gets a first Prompt. Needs scope metrics:edit too. */
   submitters?: string[];
+  /** One of your own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs scope metrics:edit too. */
+  workflow?: number | string | null;
 };
 
-/** What `metrics.update` may change of a Metric (scope metrics:edit): its Polarity, Target Range and Attainment method.
- * Each part left out stays; null clears an end of the Target Range or the Metric's own method. */
+/** What `metrics.update` may change of a Metric (scope metrics:edit): its description, Sources, Target Range and
+ * Workflow. Each part left out stays; null clears an end of the Target Range, the Metric's own Attainment method or its Workflow. */
 export type MetricPatch = {
+  name?: string;
+  description?: string;
+  unit?: string;
+  format?: Metric["format"];
+  /** Only while the Metric has no values and no targets or projections by period. */
+  period?: Metric["period"];
+  submission_rule?: "reject" | "overwrite" | "add" | "keep_both";
+  /** One of your own Workflows, by id or exact name, or null for none; only the Metric's owner. */
+  workflow?: number | string | null;
   /** Its Sources, all of them: the ones left out are turned off. */
   sources?: Source[];
   polarity?: "higher" | "lower" | "target";
@@ -479,11 +498,11 @@ export class Ziffr {
     /** Every Metric in use, or with `archived` every Archived Metric, page by page. */
     all: (options: { archived?: boolean } = {}) => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100, archived: options.archived })),
     /** One Metric's description. */
-    get: (slug: string) => this.get<Metric>(`/metrics/${encodeURIComponent(slug)}`),
+    get: (slug: string) => this.get<MetricDetail>(`/metrics/${encodeURIComponent(slug)}`),
     /** Creates a Metric owned by the key's creator (scope metrics:write). A fresh idempotency key is sent unless one is
      * given; pass your own to make retries across runs of your program safe too. */
-    create: async (metric: NewMetric, options: { idempotencyKey?: string } = {}): Promise<Metric & { replayed: boolean }> => {
-      const { body, headers } = await this.request<Metric>("POST", "/metrics", undefined, metric, options.idempotencyKey ?? newIdempotencyKey());
+    create: async (metric: NewMetric, options: { idempotencyKey?: string } = {}): Promise<MetricDetail & { replayed: boolean }> => {
+      const { body, headers } = await this.request<MetricDetail>("POST", "/metrics", undefined, metric, options.idempotencyKey ?? newIdempotencyKey());
       return { ...body, replayed: headers.get("idempotent-replayed") === "true" };
     },
     /** Deletes a Metric the key's creator owns (scope metrics:write), repeating its exact name to confirm. Refused
@@ -495,9 +514,9 @@ export class Ziffr {
     archive: async (slug: string): Promise<Metric> => (await this.request<Metric>("POST", `/metrics/${encodeURIComponent(slug)}/archive`)).body,
     /** Brings an Archived Metric back (scope metrics:write), under the same rule. Answers the Metric as it is now. */
     restore: async (slug: string): Promise<Metric> => (await this.request<Metric>("POST", `/metrics/${encodeURIComponent(slug)}/restore`)).body,
-    /** Changes a Metric's Polarity, Target Range or Attainment method (scope metrics:edit), when
-     * the key's creator owns it or is its Editor. Answers the Metric as it is now. */
-    update: async (slug: string, patch: MetricPatch): Promise<Metric> => (await this.request<Metric>("PATCH", `/metrics/${encodeURIComponent(slug)}`, undefined, patch)).body,
+    /** Changes a Metric's description, Sources, Target Range or Workflow (scope metrics:edit), when the key's creator
+     * owns it or is its Editor (its Workflow: its owner). Answers the Metric as it is now. */
+    update: async (slug: string, patch: MetricPatch): Promise<MetricDetail> => (await this.request<MetricDetail>("PATCH", `/metrics/${encodeURIComponent(slug)}`, undefined, patch)).body,
     /** Who submits to a Metric (scope metrics:read). */
     submitters: async (slug: string): Promise<Submitter[]> => (await this.get<{ items: Submitter[] }>(`/metrics/${encodeURIComponent(slug)}/submitters`)).items,
     /** Adds and removes up to 20 Submitters each (scope metrics:edit), when the key's creator owns the Metric or is its

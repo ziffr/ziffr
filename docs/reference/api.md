@@ -58,7 +58,7 @@ The Metrics the key's creator sees, oldest first, a page at a time: those in use
 
 `POST /metrics` · scope `metrics:write`
 
-Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well. Each key may create 50 Metrics in any 24 hours.
+Creates a Metric owned by the key's creator, checked like one made in the web form; its history names the key. `sources` sets how values may arrive (every Source when left out); `submitters` names who sends them, people and Contacts from GET /people and Feeds from GET /feeds, each with a first Prompt, and needs the scope metrics:edit as well; so does `workflow`, one of your own Workflows by id or exact name, so the Metric is asked for on its schedule at once. Each key may create 50 Metrics in any 24 hours.
 
 **Parameters**
 
@@ -86,6 +86,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `submit` | boolean | no | Make the key's creator its Submitter, so the key can submit values to it at once. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, the ways values may arrive; left out, every one. |
 | `submitters` | array of string, at most 64 characters (at most 20) | no | Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well. |
+| `workflow` | integer or string, at most 120 characters or null | no | One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key. |
 
 **Answer** (201)
 
@@ -109,6 +110,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
+| `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
 **Errors**
 
@@ -117,7 +120,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator's role may not create Metrics (Guests), or `submitters` without the scope metrics:edit. `workspace_limit`: the workspace holds as many Metrics as its Workspace Limit allows (after 14 days over it, or beyond 10 % more); the answer says how many it holds and its limit, and nothing was created.
 - 404: `not_found`: nothing here the key's creator may see.
 - 409: The Idempotency-Key was used with another body, or its first creation is still running.
-- 422: A Source or Submitter that is not one of the workspace's; checked first, so no Metric was created.
+- 422: A Source or Submitter that is not one of the workspace's, or a Workflow that is not one of yours or that this key may not use; checked first, so no Metric was created.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
@@ -125,7 +128,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 
 `GET /metrics/{slug}` · scope `metrics:read`
 
-One Metric's description: period, format, unit, Polarity and target. A Metric the key's creator may not see is not found.
+One Metric's description: period, format, unit, Polarity and target, with its Workflow and the next day a value is due. A Metric the key's creator may not see is not found.
 
 **Parameters**
 
@@ -155,6 +158,8 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
+| `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
 **Errors**
 
@@ -195,11 +200,11 @@ Deletes a Metric the key's creator owns, with its values, targets, questions and
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
-## Change a Metric's Target Range or Sources
+## Change a Metric
 
 `PATCH /metrics/{slug}` · scope `metrics:edit`
 
-Changes a Metric's Sources (all of them: the ones left out are turned off), Polarity, Target Range or Attainment method as the key's creator, only when they own it or are its Editor, as on its page. Each part left out stays. Its name and description are changed only in Ziffr. The Metric's history keeps the change under the key's name.
+Changes a Metric's name, description, unit, format, period (only while it has no values), Submission Rule, Sources (all of them: the ones left out are turned off), Polarity, Target Range, Attainment method or Workflow (one of your own by id or exact name, or null for none) as the key's creator, only when they own it or are its Editor, as on its page; the Workflow only its owner. Each part left out stays. Everything is checked before the first change. The Metric's history keeps the change under the key's name. A Workflow with an Approve or Tell step decides who sees values: a key joins or leaves one only with workflows:people on a program's key.
 
 **Parameters**
 
@@ -211,11 +216,18 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
+| `name` | string, at most 120 characters | no | What it is called. Its slug stays. |
+| `description` | string, at most 2000 characters | no |  |
+| `unit` | string, at most 20 characters | no | Shown next to the value, such as orders, € or $. |
+| `format` | `"number"`, `"currency"`, `"percent"` | no |  |
+| `period` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` | no | Only while the Metric has no values and no targets or projections by period: later its values would sit in the wrong periods (422). |
+| `submission_rule` | `"reject"`, `"overwrite"`, `"add"`, `"keep_both"` | no | What a second value for a period does. |
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, all of them: the ones left out are turned off. Not for a Derived Metric. |
 | `polarity` | `"higher"`, `"lower"`, `"target"` | no | Whether higher or lower values are better, or a range (target). |
 | `target_min` | number, -1000000000000000 to 1000000000000000 or null | no | The low end of its Target Range; null for none. |
 | `target_max` | number, -1000000000000000 to 1000000000000000 or null | no | The high end of its Target Range; null for none. |
 | `attainment_method` | `"ratio"`, `"distance"` or null | no | ratio or distance for an Attainment method of its own; null follows the workspace's default. |
+| `workflow` | integer or string, at most 120 characters or null | no | One of your own Workflows, by id or exact name (GET /workflows), or null for none. Only the Metric's owner; not for a Derived Metric. A Workflow with an Approve or Tell step, or leaving one, only with workflows:people on a program's key. |
 
 **Answer** (200)
 
@@ -239,6 +251,8 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
+| `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
 **Errors**
 
@@ -246,7 +260,7 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator sees the Metric but may not change it, or their role may not create (Guests).
 - 404: `not_found`: nothing here the key's creator may see.
-- 422: The lower target is above the upper one, or Sources for a Derived Metric; nothing was changed.
+- 422: The lower target is above the upper one, Sources or a Workflow for a Derived Metric, a period that already has values, a Workflow that is not one of yours or that this key may not use; nothing was changed.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
