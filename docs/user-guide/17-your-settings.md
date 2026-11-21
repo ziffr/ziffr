@@ -52,7 +52,7 @@ Some pages have a dashed box marked **Demo controls**. Its buttons show what wou
 
 You can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds "Start a trial to try it with your own numbers." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
 
-The simulators on **Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
+The simulators on **Connectors → Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
 
 The demo's people keep their names and colours, and the demo sends no email. It has no Access Keys, Feeds or Audit Log.
 
@@ -74,7 +74,7 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
@@ -239,6 +239,8 @@ If a Workflow has a **Tell** step that names you, directly or through a Group, a
 **You → Connected assistants** lists the AI assistants you connected to Ziffr by its address, such as Claude.ai: for each, the name it gave itself, the Workspace, what it may do, when you connected it, when it was last used and until when it works. **Disconnect** ends one at once. A connection also ends on its end date and when you leave its Workspace, and an Owner can end it on the Workspace's **Access Keys** page, where it shows as a **Connected assistant**.
 
 ### Connecting an assistant
+
+**Connected assistants** also shows how to connect one: the address to add in Claude.ai and other assistants on the web, and the lines for Claude Code and Claude Desktop with an Access Key. Connectors only points here.
 
 In the assistant, add a connector with your Ziffr's address followed by `/mcp`, such as `https://ziffr.example.com/mcp`. The page shows the exact address. The assistant opens Ziffr's page **Connect an assistant to Ziffr?**, after you sign in if you are not signed in yet:
 

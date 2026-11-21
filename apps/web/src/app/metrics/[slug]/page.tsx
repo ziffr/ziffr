@@ -166,7 +166,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       {sp.created && (
         <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
           <span className="font-medium">Metric created.</span> It has no values yet. {createdNote}
-          {demo && <>{" "}<Link href="/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
+          {demo && <>{" "}<Link href="/connectors/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
         </div>
       )}
       <PageHeader

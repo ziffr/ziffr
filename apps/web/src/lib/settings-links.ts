@@ -14,7 +14,6 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     ...(member ? [{ href: "/team", label: "Members and Groups" }] : []),
     { href: "/connectors", label: "Connectors" },
     ...(member ? [{ href: "/workflows", label: "Workflows" }] : []),
-    { href: "/sources", label: "Sources" },
     // Packs add to the Workspace; Guests see none of it (spec 0030).
     ...(member ? [{ href: "/settings/packs", label: "Packs" }] : []),
     ...(member ? [{ href: "/settings/keys", label: "Access Keys" }] : []),
@@ -39,9 +38,8 @@ export function workspaceTree(role: WorkspaceRoleName): TreeLink[] {
   return [
     { href: "/team", label: "Members and Groups" },
     { href: "/workflows", label: "Workflows" },
-    // Sources joins Connectors as a tab of its own (#532); until then it keeps a row beside it.
+    // Sources, the Outbox and Who gets what are tabs of Connectors (#532).
     { href: "/connectors", label: "Connectors" },
-    { href: "/sources", label: "Sources" },
     { href: "/settings/workspace", label: "Settings" },
   ];
 }

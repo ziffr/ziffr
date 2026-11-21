@@ -1,4 +1,4 @@
-// Claude and other AI assistants on the Connectors page (spec 0021, ticket 7; spec 0023; GLOSSARY: MCP Server, Access
+// How to connect Claude and other AI assistants, on Connected assistants (moved from Connectors, #532; spec 0021, ticket 7; spec 0023; GLOSSARY: MCP Server, Access
 // Key): how to connect one, filled in with this Installation's address. Assistants on the web, such as Claude.ai,
 // connect to the remote MCP Server's address and sign in on Ziffr's consent screen; assistants on the person's
 // computer use an Access Key they make on the Access Keys page and paste in place of zk_..., so nothing secret is
@@ -11,7 +11,7 @@ export function McpPanel({ siteUrl, remote }: { siteUrl: string; remote: string 
   const claudeCode = `claude mcp add ziffr --env ZIFFR_URL=${siteUrl} --env ZIFFR_ACCESS_KEY=zk_... -- npx -y @ziffr/mcp`;
   const desktop = JSON.stringify({ mcpServers: { ziffr: { command: "npx", args: ["-y", "@ziffr/mcp"], env: { ZIFFR_URL: siteUrl, ZIFFR_ACCESS_KEY: "zk_..." } } } }, null, 2);
   return (
-    <section aria-labelledby="mcp-h" className="stock mb-12 rounded-[var(--radius-card)] p-4 text-sm">
+    <section aria-labelledby="mcp-h" className="stock mt-8 rounded-[var(--radius-card)] p-4 text-sm">
       <h2 id="mcp-h" className="flex items-center gap-2 text-[length:var(--text-lg)]"><Bot aria-hidden className="size-4" /> Claude and other AI assistants</h2>
       <p className="mt-2 text-muted-foreground">
         An assistant reads your Metrics, records values, starts Metrics and builds dashboards through Ziffr&apos;s MCP Server. It sees no more than you do, and does only what you allow.
@@ -25,7 +25,7 @@ export function McpPanel({ siteUrl, remote }: { siteUrl: string; remote: string 
               <pre className="mt-1 overflow-x-auto rounded-[var(--radius-input)] bg-muted p-2 text-xs"><code>{remote}</code></pre>
             </li>
             <li>Press Connect. Ziffr opens: sign in, pick the workspace and what the assistant may do, and confirm.</li>
-            <li>See and disconnect it under <Link href="/settings/assistants" className="underline">Connected assistants</Link>.</li>
+            <li>It then shows in the list above, where you can disconnect it.</li>
           </ol>
         </>
       )}
