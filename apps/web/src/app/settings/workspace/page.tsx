@@ -16,6 +16,8 @@ import { NumberStyleForm } from "./number-style";
 import { AnswerLanguagesForm } from "./answer-languages";
 import { AttainmentMethodForm } from "./attainment-method";
 import { YearStartForm } from "./year-start";
+import { WorkspaceRetention } from "@/components/retention-form";
+import { defaultRetention } from "@ziffr/core/retention-setting";
 import { SizeAndUsage } from "./size-usage";
 import { sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { handoverOffered } from "@ziffr/core/cloud-api";
@@ -29,6 +31,8 @@ const named = (codes: readonly string[], type: "region" | "currency") => {
 export default async function WorkspaceSettingsPage() {
   const actor = await currentActor();
   const [name, time, profile, demo, year, numbers, answers, attainment, usage] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null)]);
+  // The default Retention is for Owners and Admins to read, and for Owners to set (spec 0033); everyone else sees no section.
+  const retention = actor.role === "owner" || actor.role === "admin" ? await defaultRetention(actor) : null;
   const countryName = (c: string | null) => c && (new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c);
   // The demo is shared by every visitor, so nobody changes it; the core refuses it too.
   const canEdit = !demo && (actor.role === "owner" || actor.role === "admin");
@@ -45,6 +49,7 @@ export default async function WorkspaceSettingsPage() {
         <NumberStyleForm style={numbers.style} chosen={numbers.chosen} country={countryName(numbers.fromCountry)} canEdit={canEdit} />
         <AnswerLanguagesForm languages={answers.languages} options={Object.values(ANSWER_LANGUAGES).map(({ code, name }) => ({ code, name }))} chosen={answers.chosen} country={countryName(answers.fromCountry)} canEdit={canEdit} />
         <AttainmentMethodForm method={attainment} canEdit={canEdit} />
+        {(actor.role === "owner" || actor.role === "admin") && !demo && <WorkspaceRetention retention={retention} canSet={actor.role === "owner"} />}
         <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
       </div>
     </>

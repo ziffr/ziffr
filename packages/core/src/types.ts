@@ -64,6 +64,10 @@ export type Metric = MetricDescription & {
   created_at: string;
   /** When it was archived (GLOSSARY: Archived Metric); null or missing while it is in use. */
   archived_at?: string | null;
+  /** The Retention in force and one confirmed but not yet started, as stored (GLOSSARY: Retention). Only rows read from
+   * the database whole carry them; `normalizeMetric` drops them, and `retentionFor` (retention-setting.ts) reads them. */
+  retention?: unknown;
+  retention_pending?: unknown;
 };
 
 /** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */

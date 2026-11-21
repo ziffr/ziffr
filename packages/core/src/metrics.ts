@@ -7,7 +7,7 @@ import { openOne, reserveIds, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
-import type { Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
+import type { Aggregation, Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
 import { deliverPrompt } from "./deliveries";
 import { audit } from "./audit-log";
@@ -23,6 +23,7 @@ import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
+import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -110,18 +111,22 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
   // The trigger checks the Workspace Limit against the Installation's default in effect.
   await syncDefaultLimit();
+  const period = pick(input.period, PERIODS, "month");
+  const aggregation = pick(input.aggregation, AGGREGATIONS, "sum") as Aggregation;
+  // The Workspace's default Retention is copied in, waiting its 7 days like any confirmed one (spec 0033).
+  const retentionPending = await defaultRetentionFor(actor.workspaceId, actor.personId, { period, aggregation });
   // The description is sealed for its row, so the row's id is taken first (spec 0028).
   const [metricId] = await reserveIds("metrics", 1);
   const { data: metric, error } = await db().from("metrics").insert({
-    id: metricId, slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId,
+    id: metricId, slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId, retention_pending: retentionPending,
     description: (await sealRow("metrics", actor.workspaceId, { id: metricId, description: String(input.description ?? "").slice(0, 2000) })).description,
     ...unit,
     format,
     decimals: Math.min(6, Math.max(0, Math.round(Number(input.decimals) || 0))),
-    period: pick(input.period, PERIODS, "month"),
+    period,
     submission_rule: pick(input.submissionRule, RULES, "overwrite"),
     polarity: pick(input.polarity, POLARITIES, "higher"),
-    aggregation: pick(input.aggregation, AGGREGATIONS, "sum"),
+    aggregation,
     target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
     attainment_method: methodOrNull(input.attainmentMethod),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
@@ -134,6 +139,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const reached = await limitReachedFrom(error, actor.workspaceId);
   if (reached) throw reached;
   if (error || !metric) throw new Error("The Metric could not be created.");
+  if (retentionPending) await announceDefaultRetention(actor, { id: metric.id, slug: metric.slug, name, owner_id: actor.personId }, retentionPending);
   await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });
   if (submitters.length) {
@@ -422,6 +428,9 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
     update.period = period;
   }
   if (!Object.keys(update).length) return;
+  // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed), checked
+  // against the final values, after the period above is settled.
+  assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
   const { error } = await db().from("metrics").update(update).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
   await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
