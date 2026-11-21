@@ -427,6 +427,23 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
 }
 
+/** Everyone whose name may sit in a Workspace's words, to hide it: the people (Members, Guests, Contacts) with their
+ * contact details, and those who left but whose names remain in values, threads, Versions, Snapshots and questions
+ * (ticket #598). Only for finding names in text to hide (hide-names.ts): never sent to a browser, a Connector or a
+ * View Link, and never used to show a person. */
+export async function peopleToHide(ws: string): Promise<Profile[]> {
+  const [people, { data: ids, error }] = await Promise.all([peopleIn(ws, { contactDetails: true }), db().rpc("former_person_ids", { ws })]);
+  // Fails closed: a text that cannot be checked for names is not sent, rather than sent with them.
+  if (error) throw new Error("former people could not be listed");
+  const known = new Set(people.map((p) => p.id));
+  const former = ((ids ?? []) as { person_id: string }[]).map((r) => r.person_id).filter((id) => !known.has(id));
+  if (!former.length) return people;
+  const { data, error: profilesError } = await db().from("profiles").select("id, name, role, color, email, slack_handle, phone").in("id", former);
+  if (profilesError) throw new Error("former people could not be read");
+  const named = (await openNames(ws, (data ?? []).map((p) => ({ ...p, phone: p.phone ?? null })) as Profile[])) as Profile[];
+  return [...people, ...named.map((p) => ({ ...p, contact: false }))];
+}
+
 /** The oldest period an Import may fill: 1,000 periods back (about 33 months of days, 19 years of weeks, 83 years of
  * months), what a Feed is told about. Further back, a Feed's value is checked like anyone's. */
 function importFloor(current: string, period: Metric["period"]): string {

@@ -6,14 +6,14 @@ import type { Profile } from "./types";
 type Person = Pick<Profile, "name" | "email" | "slack_handle">;
 const escape = (w: string) => w.replace(/[\\^$*+?.()|[\]{}]/g, "\\$&");
 const longestFirst = (words: string[]) => [...new Set(words)].sort((a, b) => b.length - a.length).map(escape);
-const usable = (words: (string | null | undefined)[]) => words.filter((w): w is string => typeof w === "string" && w.length >= 3);
+const usable = (words: (string | null | undefined)[], min = 3) => words.filter((w): w is string => typeof w === "string" && w.length >= min);
 
 /** A function that replaces the names, first names, emails and Slack handles of these people with "Someone". Names
  * and first names are whole words and case-sensitive, so a surname inside another word, or a first name written as an
- * ordinary word in lower case, stays; a first name under three letters is left alone, since it would hit ordinary
- * words. Emails and handles are matched in any capitalisation, as they are the same address either way. */
+ * ordinary word in lower case, stays ("Al sent late" is hidden, "also" and "al dente" are not); a first name is a
+ * name from two letters, since matching only as written and as a whole word keeps it off ordinary words. Emails and handles are matched in any capitalisation, as they are the same address either way. */
 export function nameHider(others: readonly Person[]): (text: string) => string {
-  const names = longestFirst(usable(others.flatMap((p) => [p.name, p.name.split(/\s+/)[0]])));
+  const names = longestFirst([...usable(others.map((p) => p.name)), ...usable(others.map((p) => p.name.trim().split(/\s+/)[0]), 2)]);
   const contacts = longestFirst(usable(others.flatMap((p) => [p.email, p.slack_handle])));
   const edge = (alternatives: string[], flags: string) => (alternatives.length ? new RegExp(`(?<![\\p{L}\\p{N}@])(?:${alternatives.join("|")})(?![\\p{L}\\p{N}])`, flags) : null);
   const byName = edge(names, "gu");

@@ -8,7 +8,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
 import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
-import { peopleIn } from "./submissions";
+import { peopleIn, peopleToHide } from "./submissions";
 import { nameHider } from "./hide-names";
 import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
@@ -171,7 +171,7 @@ export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | 
  * sent a late value): they read "Someone" (peopleFor, ticket #560). Anyone else gets the text as it is. */
 export async function systemTextFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<(text: string, system: boolean) => string> {
   if (actor.role !== "guest") return (text) => text;
-  const hide = nameHider((await peopleIn(actor.workspaceId, { contactDetails: true })).filter((p) => p.id !== actor.personId));
+  const hide = nameHider((await peopleToHide(actor.workspaceId)).filter((p) => p.id !== actor.personId));
   return (text, system) => (system ? hide(text) : text);
 }
 

@@ -23,15 +23,19 @@ async function setUp() {
   const sara = await w.person("owner", { email: `sara-${tag}@example.test`, slack_handle: `@sara-${tag}` });
   const ben = await w.person("member", { email: `ben-${tag}@example.test`, slack_handle: `@ben-${tag}` });
   const cleo = await w.person("member", { email: `cleo-${tag}@example.test` });
-  for (const [id, name] of [[sara, `Sara Ownerly ${tag}`], [ben, `Ben Builder ${tag}`], [cleo, `Cleo Hidden ${tag}`]] as const) await db().from("profiles").update({ name }).eq("id", id);
+  // Dan left the Workspace after he submitted a value: his name still sits in words, and the link must not tell it.
+  const dan = await w.person("member", { email: `dan-${tag}@example.test`, slack_handle: `@dan-${tag}` });
+  for (const [id, name] of [[sara, `Sara Ownerly ${tag}`], [ben, `Ben Builder ${tag}`], [cleo, `Cleo Hidden ${tag}`], [dan, `Dan Departed ${tag}`]] as const) await db().from("profiles").update({ name }).eq("id", id);
   const owner = w.actor(sara);
   // Ben owns and submits a Metric, and a Metric's own name carries a colleague's name.
   const visits = await w.metric(ben, { name: `Field visits of Cleo Hidden ${tag}` });
   await w.value(visits.id, "2026-10-01", 10, ben);
+  await w.value(visits.id, "2026-09-01", 8, dan);
+  await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", dan);
   await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: visits.id, user_id: sara, role: "viewer" });
   await w.token(visits.id, ben);
   const dash = await createDashboard(owner, `Overview by Sara Ownerly ${tag}`);
-  await saveDashboardText(owner, dash, { intro: `Written by Ben Builder ${tag}, mail ${`ben-${tag}@example.test`.toUpperCase()}.` });
+  await saveDashboardText(owner, dash, { intro: `Written by Ben Builder ${tag} after Dan Departed ${tag} (DAN-${tag}@Example.test, @dan-${tag}) left, mail ${`ben-${tag}@example.test`.toUpperCase()}.` });
   await placeWidget(owner, dash, { type: "spec", template: "story", metricIds: [visits.id], settings: { headline: `Cleo ${tag} said it grew`, panels: [] } });
   await placeWidget(owner, dash, { type: "spec", template: "number", metricIds: [visits.id], settings: {} });
   // A Theme made by a colleague, with a footer that names one and a name in capitals.
@@ -45,6 +49,7 @@ async function setUp() {
     { id: sara, name: `Sara Ownerly ${tag}`, email: `sara-${tag}@example.test`, handle: `@sara-${tag}` },
     { id: ben, name: `Ben Builder ${tag}`, email: `ben-${tag}@example.test`, handle: `@ben-${tag}` },
     { id: cleo, name: `Cleo Hidden ${tag}`, email: `cleo-${tag}@example.test`, handle: "" },
+    { id: dan, name: `Dan Departed ${tag}`, email: `dan-${tag}@example.test`, handle: `@dan-${tag}` },
   ];
   return { w, owner, dash, deck, snap, others, tag, ben, visits };
 }

@@ -4,7 +4,7 @@
 // slack-send.ts); WhatsApp and tickets are still simulated.
 import { feedIdsAmong } from "./feed-people";
 import { nameHider } from "./hide-names";
-import { peopleIn } from "./submissions";
+import { peopleToHide } from "./submissions";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { insertSealed, openNames, openOne, openRows } from "./sealed-columns";
@@ -216,7 +216,7 @@ async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recip
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
   if (member?.role === "guest") {
-    const hide = nameHider((await peopleIn(ws, { contactDetails: true })).filter((p) => p.id !== input.recipientId));
+    const hide = nameHider((await peopleToHide(ws)).filter((p) => p.id !== input.recipientId));
     input = { ...input, subject: hide(input.subject), text: hide(input.text) };
   }
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);

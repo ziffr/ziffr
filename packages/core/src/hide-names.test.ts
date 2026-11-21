@@ -8,13 +8,18 @@ describe("nameHider", () => {
     const hide = nameHider([sara]);
     expect(hide("Sara Lindqvist asks: why? Sara wrote to sara@example.test and @sara.")).toBe("Someone asks: why? Someone wrote to Someone and Someone.");
   });
-  it("leaves words that only contain a name, and first names under three letters", () => {
+  it("leaves words that only contain a name", () => {
     expect(nameHider([sara])("Sarah and Sarasota stay.")).toBe("Sarah and Sarasota stay.");
-    expect(nameHider([{ name: "Al Fox", email: "", slack_handle: "" }])("Al said hi; Al Fox too.")).toBe("Al said hi; Someone too.");
+  });
+  it("hides a short first name as a whole word as written, never inside or as an ordinary word", () => {
+    const al = nameHider([{ name: "Al Fox", email: "", slack_handle: "" }]);
+    expect(al("Al sent late; Al Fox too.")).toBe("Someone sent late; Someone too.");
+    expect(al("It was also al dente, said Alex, in ALL caps.")).toBe("It was also al dente, said Alex, in ALL caps.");
+    expect(nameHider([{ name: "A", email: "", slack_handle: "" }])("A day")).toBe("A day");
   });
   it("changes nothing when there is no one to hide", () => {
     expect(nameHider([])("Sara asks")).toBe("Sara asks");
-    expect(nameHider([{ name: "Al", email: "", slack_handle: "" }])("Al")).toBe("Al");
+    expect(nameHider([{ name: "A", email: "", slack_handle: "" }])("A")).toBe("A");
   });
 });
 

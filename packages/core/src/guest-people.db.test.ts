@@ -56,7 +56,9 @@ async function setUp() {
   const ben = await w.person("member", { email: `ben-${tag}@example.test`, slack_handle: `@ben-${tag}` });
   const cleo = await w.person("member", { email: `cleo-${tag}@example.test` });
   const gus = await w.person("guest");
-  for (const [id, name] of [[sara, `Sara Ownerly ${tag}`], [ben, `Ben Builder ${tag}`], [cleo, `Cleo Hidden ${tag}`]] as const) await db().from("profiles").update({ name }).eq("id", id);
+  // Dan left the Workspace but his name stays in what he wrote and in Ziffr's words about him (ticket #598).
+  const dan = await w.person("member", { email: `dan-${tag}@example.test`, slack_handle: `@dan-${tag}` });
+  for (const [id, name] of [[sara, `Sara Ownerly ${tag}`], [ben, `Ben Builder ${tag}`], [cleo, `Cleo Hidden ${tag}`], [dan, `Dan Departed ${tag}`]] as const) await db().from("profiles").update({ name }).eq("id", id);
   const owner = w.actor(sara); const editor = w.actor(ben, "member"); const guest = w.actor(gus, "guest");
   const shared = await w.metric(sara, { name: "Field visits" });
   await w.value(shared.id, month, 10, ben);
@@ -87,10 +89,15 @@ async function setUp() {
   const action = await ask(owner, { metricId: shared.id, period: month, assigneeId: gus, text: "Why the dip?" });
   await reply(guest, action, "Rain.", null);
   await db().from("thread_messages").insert({ workspace_id: w.id, action_id: action, author_id: ben, body: "Checked on site." });
+  await db().from("actions").insert({ workspace_id: w.id, metric_id: shared.id, period_start: month, asker_id: dan, assignee_id: sara, kind: "question", purpose: "approval", question: `Field visits is locked. Dan Departed ${tag} (@dan-${tag}, DAN-${tag}@Example.test) sent 14 late: accept it?`, read_group_id: null });
+  await db().from("thread_messages").insert({ workspace_id: w.id, action_id: action, author_id: dan, body: "Seen it too." });
+  await deliverNotice(w.id, { recipientId: gus, senderId: sara, subject: `Dan Departed ${tag} left`, text: `Ask dan-${tag}@example.test or Dan Departed ${tag}.`, link: "/dashboards" });
+  await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", dan);
   const others = [
     { id: sara, name: `Sara Ownerly ${tag}`, email: `sara-${tag}@example.test`, handle: `@sara-${tag}` },
     { id: ben, name: `Ben Builder ${tag}`, email: `ben-${tag}@example.test`, handle: `@ben-${tag}` },
     { id: cleo, name: `Cleo Hidden ${tag}`, email: `cleo-${tag}@example.test`, handle: "" },
+    { id: dan, name: `Dan Departed ${tag}`, email: `dan-${tag}@example.test`, handle: `@dan-${tag}` },
   ];
   return { w, closedDash, closedDeck, guest, owner, shared, dash, deck, widget, snap, action, flow, tag, others, gus };
 }
