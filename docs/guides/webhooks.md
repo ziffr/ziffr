@@ -218,7 +218,7 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Log | 14 days |
 | Answer within | 10 seconds |
 | Requests back | 60 a minute per Webhook, 16 KB each |
-| Failed requests, before the secret is opened | 20 a minute per Webhook and network address (an IPv6 sender counts by its /56), then 429; past 600 a minute for the Webhook as a whole only known senders pass (an address that sent a valid signed request in the last hour, 16 per Webhook). Signed requests are never counted by it. A gate in memory, per Ziffr process |
+| Failed requests, before the secret is opened | 20 a minute per Webhook and network address (an IPv6 sender counts by its /56) or 100 a minute to all Webhooks together, then 429; past 600 a minute for the Webhook as a whole only known senders pass (an address that sent a valid signed request in the last day, 16 per Webhook, remembered by the Ziffr process that saw it). Signed requests are never counted by it. A gate in memory, per Ziffr process |
 | Links per Action | 10 |
 | Secret overlap after a replacement | 24 hours |
 

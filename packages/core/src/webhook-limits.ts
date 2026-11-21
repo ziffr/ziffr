@@ -40,5 +40,7 @@ export const WEBHOOK_SEND_NOW_BUDGET_MS = 15_000;
 export const WEBHOOK_INBOUND_FAILURES_PER_ADDRESS = 20;
 /** Failed requests per minute to one Webhook's inbound address from anywhere before only known senders are let through. */
 export const WEBHOOK_INBOUND_FAILURES_PER_ID = 600;
-/** Network addresses remembered per Webhook as having sent a valid signed request in the last hour; they are never refused by the gate. */
+/** Network addresses remembered per Webhook as having sent a valid signed request in the last day; they are never refused by the gate. */
 export const WEBHOOK_INBOUND_KNOWN_SENDERS = 16;
+/** Failed requests per minute from one network address (an IPv6 /56) to all Webhook ids together before more are refused (429), so made-up ids cannot be tried freely. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID = 100;

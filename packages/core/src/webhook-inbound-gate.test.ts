@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { admitWebhookInbound as admit, recordWebhookInboundFailure as fail, recordWebhookInboundSender as sender, resetWebhookInboundGate } from "./webhook-inbound-gate";
-import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN } from "./webhook-limits";
+import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY } from "./webhook-limits";
 
 const A = "6f1c2d3e-0000-4000-8000-000000000001";
 const B = "6f1c2d3e-0000-4000-8000-000000000002";
@@ -52,7 +52,7 @@ describe("a real sender keeps passing", () => {
     expect(admit(A, "7.7.7.7", 2)).toBe(true);
     expect(admit(A, "6.6.6.6", 2)).toBe(true);
   });
-  it("is known for an hour only, and only 16 senders per Webhook are remembered, the oldest dropped", () => {
+  it("is known for a day only, and only 16 senders per Webhook are remembered, the oldest dropped", () => {
     sender(A, "7.7.7.7", 0);
     sender(A, "7.7.7.7", 10);
     for (let i = 0; i < PER_ID; i++) fail(A, ip(i), 20);
@@ -64,11 +64,20 @@ describe("a real sender keeps passing", () => {
     expect(admit(A, "5.5.5.16", 41)).toBe(true);
     sender(A, null, 41);
   });
-  it("an address known an hour ago but not since is judged like any other", () => {
+  it("an address known a day ago but not since is judged like any other", () => {
     sender(A, "7.7.7.7", 0);
-    const late = 3_600_001;
+    const late = 86_400_001;
     for (let i = 0; i < PER_ADDRESS; i++) fail(A, "7.7.7.7", late);
     expect(admit(A, "7.7.7.7", late + 1)).toBe(false);
+  });
+});
+
+describe("trying made-up ids", () => {
+  it("one address failing across many ids is refused for all of them, another address is not", () => {
+    for (let i = 0; i < ANY; i++) fail(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, "4.4.4.4", 0);
+    expect(admit(A, "4.4.4.4", 1)).toBe(false);
+    expect(admit(A, "4.4.4.5", 1)).toBe(true);
+    expect(admit(A, "4.4.4.4", 60_000)).toBe(true);
   });
 });
 
