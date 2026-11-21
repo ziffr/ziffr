@@ -8,7 +8,7 @@ create table workspace_settable_limits (
   alerts_per_person int check (alerts_per_person between 1 and 200),
   alert_messages_per_person int check (alert_messages_per_person between 1 and 200),
   view_link_days int check (view_link_days between 1 and 90),
-  alert_mail_share int check (alert_mail_share between 10 and 90),
+  alert_mail_share int check (alert_mail_share between 10 and 50),
   unused_days int check (unused_days between 30 and 365),
   updated_at timestamptz not null default now()
 );
