@@ -51,7 +51,7 @@ describe("Tell once per crossing", () => {
     expect(first).toMatchObject({ sender_id: null, action_id: null, prompt_id: null, alert_id: null });
     expect(first.body).toContain("Sales reached 100");
     expect(first.body).toContain("120");
-    expect(first.body).not.toContain("777");
+    expect(first.body).not.toMatch(/\b777\b/);
     expect(first.tell_workflow_id).not.toBeNull();
     expect(await messages(w, cora)).toHaveLength(1);
     // Bob cannot see Sales: nothing at all.

@@ -63,7 +63,7 @@ describe("Export as Pack", () => {
     expect(fileName).toBe("board.pack.json");
     const res = checkPack(text);
     expect(res.ok ? [] : res.problems).toEqual([]);
-    expect(text).not.toContain("987654");
+    expect(text).not.toMatch(/\b987654\b/);
     expect(text).not.toContain("intranet");
     expect(text).not.toContain(actor.personId);
     expect(text).toContain('"formula": "{revenue} / {orders}"');

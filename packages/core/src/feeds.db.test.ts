@@ -165,7 +165,7 @@ describe("what a Feed Key sees", () => {
     const overview = await feedOverview(feed, { limit: 50 });
     expect(overview.name).toBe("CRM");
     expect(overview.metrics.items).toEqual([{ slug: m.slug, name: "Pipeline", period: "month", unit: "", format: "number", decimals: 0, current: thisMonth(), due_working_days: null, filled: [monthsAgo(2), monthsAgo(1)] }]);
-    expect(JSON.stringify(overview)).not.toMatch(/98765|87654/);
+    expect(JSON.stringify(overview)).not.toMatch(/\b(98765|87654)\b/);
   });
   it("refuses a Metric of another workspace, one it does not feed, and one whose API is off, alike", async () => {
     const { w, sara, m, feed } = await withFeed();

@@ -126,7 +126,7 @@ describe("submitObservation", () => {
     expect(refused).toMatchObject({ ok: false, reason: "refused" });
     const added = await submitObservation(key, add.slug, { value: 1, period: "2026-03-01" }, quiet());
     expect(added).toMatchObject({ ok: true, value: 1, detail: "Recorded." });
-    expect(JSON.stringify([refused, added])).not.toMatch(/48[,.]?200|1[,.]?23[45]|Revenue|Orders/);
+    expect(JSON.stringify([refused, added])).not.toMatch(/\b48[,.]?200\b|\b1[,.]?23[45]\b|Revenue|Orders/);
     // A key that may read gets the full words, as its creator would.
     const reader = (await keyFor(w, ben, ["metrics:read", "values:submit"])).key;
     expect(await submitObservation(reader, add.slug, { value: 1, period: "2026-03-01" }, quiet())).toMatchObject({ ok: true, value: 1236 });

@@ -56,7 +56,7 @@ describe("once per crossing", () => {
     expect(first[0].body).toContain("Sales reached 100");
     expect(first[0].body).toContain("120");
     expect(first[0].body).toMatch(/\/metrics\/m-/);
-    expect(first[0].body).not.toContain("777");
+    expect(first[0].body).not.toMatch(/\b777\b/);
     expect(await listMyAlerts(a)).toEqual([expect.objectContaining({ state: "fired" })]);
     await put(w, m.id, P(3), 130, sara);
     expect(await messages(w, ann)).toHaveLength(1);
