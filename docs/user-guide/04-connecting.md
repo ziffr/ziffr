@@ -48,6 +48,8 @@ Without a Prompt, for example on the form link, a period you name is used instea
 
 Every Submitter has a personal link for each Metric they send in. It needs no password, which is why Contacts such as an outside bookkeeper can use it. The link only lets them send values for their own Metrics; it shows them nothing else.
 
+If Ziffr cannot read what you typed, it says so under the field, with an example such as "Type a number, such as 88 or 1,250." What you typed stays in the field so you can correct it, and the cursor goes back to it.
+
 ### Feeds: numbers from other systems
 
 A **Feed** is a small program that reads a number from another system and sends it to Ziffr, for example the value of open deals from HubSpot every night. A Feed belongs to the Workspace, not to a person, so it keeps working when the colleague who set it up leaves. Its values appear under its own name, such as "HubSpot".

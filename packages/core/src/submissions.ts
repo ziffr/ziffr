@@ -8,6 +8,7 @@ import { insertSealed, openNames, openOne, openRows, reserveIds, sealRow } from 
 import { formatValue, SOURCE_LABEL } from "./format";
 import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
+import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { recordObservation, type Recording } from "./record-value";
 import { addUp } from "./adding-up";
@@ -210,7 +211,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     // Period words are read with the workspace's Fiscal Year even for a monthly Metric, so the reply names "Q3"
     // rightly when it says that is not one of its periods.
     const answer = readAnswer(input.text, { style, today: new Date(), period: metric.period, yearStart: workspaceYearStart, promptPeriod: prompt?.period_start ?? null, ...reading });
-    if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current) });
+    if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current, input.source === "web_form" ? style : null) });
     value = answer.value;
     period = answer.period;
   }
@@ -354,16 +355,22 @@ function listed(items: string[]): string {
   return q.length < 2 ? q.join("") : `${q.slice(0, -1).join(", ")} and ${q[q.length - 1]}`;
 }
 
+/** Two examples of a number written in a Number Style, for a form's error. */
+function numberExample(style: NumberStyle): string {
+  return `88 or 1${NUMBER_STYLE_MARKS[style].group}250`;
+}
+
 /** Why an answer recorded nothing, as an outcome and a reply that asks back, naming what was found (spec 0022:
  * a wrong number recorded quietly is worse than a question). */
-function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearStart: YearStart, fallback: string): { outcome: string; detail: string } {
+function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearStart: YearStart, fallback: string, formStyle: NumberStyle | null): { outcome: string; detail: string } {
   const label = (start: string, span: Span) => midSentence(periodLabel(start, span, yearStart));
   const forNow = label(fallback, metric.period);
   switch (a.reason) {
     case "no_number":
-      return { outcome: "rejected_no_value", detail: "Couldn’t find a number in the message." };
+      // The form link shows this at its field, so it says how to fix it; a chat reply speaks of the message.
+      return { outcome: "rejected_no_value", detail: formStyle ? `Type a number, such as ${numberExample(formStyle)}.` : "Couldn’t find a number in the message." };
     case "unreadable_number":
-      return { outcome: "rejected_no_value", detail: `Couldn’t read ${listed([a.text])} as a number. Nothing was recorded.` };
+      return { outcome: "rejected_no_value", detail: formStyle ? `${listed([a.text])} is not a number. Type one, such as ${numberExample(formStyle)}.` : `Couldn’t read ${listed([a.text])} as a number. Nothing was recorded.` };
     case "several_numbers":
       return { outcome: "rejected_several_numbers", detail: `Found several numbers: ${listed(a.numbers)}. Nothing was recorded: send the value for ${metric.name} alone.` };
     case "year_or_value": {
