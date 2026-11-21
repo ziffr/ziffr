@@ -12,6 +12,8 @@
       "ignoreBinaries": ["eslint"]
     },
     "packages/core": {
+      // Stryker loads the mutation test config by the name in stryker.config.mjs, which knip does not follow.
+      "entry": ["vitest.mutation.config.ts"],
       // The Marketplace's test makes a TLS certificate for its own server with the system's openssl, when there is one.
       "ignoreBinaries": ["openssl"]
     },
