@@ -34,8 +34,8 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | Theme picker (the palette icon) | Chooses the deck's Theme. **(team default)** follows whatever theme the team uses by default. |
 | **Who can see this** | Lists everyone who can open the deck, and why. |
 | **View link** | Makes a link for someone outside the team. Only the deck's owner sees this button. |
-| **Share** | Shares the deck with people or Groups. Only the deck's owner sees this button. |
-| **Versions** | Shows earlier states of the deck and lets you go back to one. |
+| **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
+| **Versions** | Opens a panel on the right with earlier states of the deck, and lets you go back to one. |
 | **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this button. |
 | **Delete…** | Deletes the deck after you confirm: its slides, Shares and View Links go with it. Widgets and Metrics stay. Only the deck's owner sees this button. |
 | **Present** | Shows the deck one slide at a time, filling the screen. |

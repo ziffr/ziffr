@@ -21,7 +21,9 @@ import { keptWords, trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { QuickLookHost } from "@/components/metric-quick-look";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 import { appearanceFor, browserAppearance } from "@/lib/appearance";
@@ -147,6 +149,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         )}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
+        <Suspense fallback={null}><QuickLookHost /></Suspense>
         <ServiceWorker />
       </body>
     </html>

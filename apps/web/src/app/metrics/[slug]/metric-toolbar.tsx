@@ -9,6 +9,7 @@ import { Archive, ArchiveRestore, Bell, Copy, LayoutDashboard, Send, Sigma, Tras
 import { placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { AlertMe } from "@/components/alerts";
+import { usePanel } from "@/lib/panel-param";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
 import { ArchiveMetric, useBringBack } from "./archive-metric";
@@ -34,13 +35,14 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
 /** The Metric page's toolbar: Record a value, Share and a ⋯ menu with the rest. */
 export function MetricToolbar(p: MetricToolbarProps) {
   const router = useRouter();
-  const [open, setOpen] = useState<"alert" | "archive" | "delete" | null>(null);
+  const [open, setOpen] = useState<"archive" | "delete" | null>(null);
+  const [, setAlertOpen] = usePanel("alert");
   const bringBack = useBringBack(p.metric.id, p.metric.name);
   // Opened from a menu item: wait until the menu has closed and returned focus.
-  const show = (o: "alert" | "archive" | "delete") => () => { setTimeout(() => setOpen(o), 0); };
+  const show = (o: "archive" | "delete") => () => { setTimeout(() => setOpen(o), 0); };
   const menu: MenuEntry[] = [
     ...(p.askable ? [{ label: "Ask me now", icon: <Send aria-hidden />, onSelect: () => { void askNow(p.metric.id); } }] : []),
-    ...(p.alert ? [{ label: "Alert me…", icon: <Bell aria-hidden />, onSelect: show("alert") }] : []),
+    ...(p.alert ? [{ label: "Alert me…", icon: <Bell aria-hidden />, onSelect: () => { setTimeout(() => setAlertOpen(true), 0); } }] : []),
     { label: "Analyze", icon: <Sigma aria-hidden />, onSelect: () => router.push(`/analyze?add=${p.metric.id}`) },
     // Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over.
     ...(p.canDuplicate ? [{ label: "Duplicate", icon: <Copy aria-hidden />, onSelect: () => router.push(`/metrics/new?copy=${p.metric.id}`) }] : []),
@@ -57,7 +59,7 @@ export function MetricToolbar(p: MetricToolbarProps) {
   return (
     <>
       <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} slideOver={p.slideOver} /> : undefined} />
-      {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} slideOver={p.slideOver} controlled={{ open: open === "alert", onOpenChange: (o) => setOpen(o ? "alert" : null) }} />}
+      {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} controlled />}
       {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
       {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}
     </>

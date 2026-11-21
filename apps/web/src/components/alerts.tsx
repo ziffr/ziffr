@@ -13,8 +13,8 @@ import { ALERT_SHARE_MAX, ALERT_SHARE_MIN, type AlertCondition, type AlertKind }
 import type { AlertChoices, AlertDelivery, MyAlert } from "@ziffr/core/alerts";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { usePanel } from "@/lib/panel-param";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 const KIND_LABEL: Record<AlertKind, string> = {
@@ -113,11 +113,10 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
   );
 }
 
-/** "Alert me…" on a Metric's page: a dialog with the person's Alerts on this Metric, how near the limits they are,
+/** "Alert me…" on a Metric's page: a slide-over (`?panel=alert` is its direct URL) with the person's Alerts on this Metric, how near the limits they are,
  * and the form for another. Not shown in the demo, which is read-only. */
-export function AlertMe({ metric, mine, choices, slideOver, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; slideOver?: boolean; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: { open: boolean; onOpenChange: (open: boolean) => void } }) {
-  const [ownOpen, setOwnOpen] = useState(false);
-  const open = controlled ? controlled.open : ownOpen, setOpen = controlled ? controlled.onOpenChange : setOwnOpen;
+export function AlertMe({ metric, mine, choices, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: boolean }) {
+  const [open, setOpen] = usePanel("alert");
   const { held } = choices;
   const full = held.person >= held.perPerson || held.metric >= held.perMetric;
   const trigger = <><Bell aria-hidden /> Alert me…{mine.length > 0 && <span className="fig text-muted-foreground">{mine.length}</span>}</>;
@@ -129,25 +128,13 @@ export function AlertMe({ metric, mine, choices, slideOver, controlled }: { metr
       {choices.archived ? <p className="text-sm">This Metric is archived. Bring it back to set an Alert on it.</p> : full ? <p className="text-sm">You have reached a limit. Delete an Alert to make another.</p> : <AlertForm metricId={metric.id} choices={choices} onDone={() => setOpen(false)} />}
     </>
   );
-  // The layout preview (docs/specs/0036-app-layout.md): the same content slides in beside the page instead of a dialog.
-  if (slideOver) {
-    return (
-      <Sheet open={open} onOpenChange={setOpen}>
-        {!controlled && <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>}
-        <SheetContent>
-          <SheetHeader><SheetTitle>Alert me about {metric.name}</SheetTitle></SheetHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {!controlled && <DialogTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</DialogTrigger>}
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogTitle>Alert me about {metric.name}</DialogTitle>
-        {body}
-      </DialogContent>
-    </Dialog>
+    <Sheet open={open} onOpenChange={setOpen}>
+      {!controlled && <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>}
+      <SheetContent>
+        <SheetHeader><SheetTitle>Alert me about {metric.name}</SheetTitle></SheetHeader>
+        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
+      </SheetContent>
+    </Sheet>
   );
 }

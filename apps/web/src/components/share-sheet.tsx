@@ -3,15 +3,16 @@ import { useState, useTransition } from "react";
 import { Share2 } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { usePanel } from "@/lib/panel-param";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Group, Profile, Share } from "@ziffr/core/types";
 
-/** GLOSSARY: Share. Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
-export function ShareDialog({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** The page's main button. */ primary?: boolean; /** Related dialogs offered at the bottom ("Who can see this", "View links"); the share dialog closes first. */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+/** GLOSSARY: Share, Slide-over. Opens beside the page (`?panel=share` is its direct URL). Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
+export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** The page's main button. */ primary?: boolean; /** Related dialogs offered at the bottom ("Who can see this", "View links"); the share panel closes first. */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = usePanel("share");
   // Contacts have no login: nothing is shared with them.
   const others = people.filter((p) => p.id !== ownerId && !p.contact);
   const initial = (id: string) => shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === id)?.role ?? "";
@@ -21,21 +22,22 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
   const n = others.filter((p) => roleOf(p.id)).length + groups.filter((g) => groupRoles[g.id]).length;
   const select = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={buttonVariants({ variant: primary ? "default" : "outline" })}>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger className={buttonVariants({ variant: primary ? "default" : "outline" })}>
         <Share2 aria-hidden /> Share{n ? <span className={cn("fig", primary ? "opacity-80" : "text-muted-foreground")}>{n}</span> : null}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share “{name}”</DialogTitle>
-          <DialogDescription>
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Share “{name}”</SheetTitle>
+          <SheetDescription>
             {objectType === "dashboard"
               ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."
               : objectType === "deck"
                 ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics on its slides."
                 : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
         <ul className="space-y-2">
           {others.map((p) => (
             <li key={p.id} className="flex items-center gap-3 text-sm">
@@ -86,15 +88,16 @@ export function ShareDialog({ objectType, objectId, name, ownerId, people, share
             </ul>
           </>
         )}
+        </div>
         {more.length > 0 && (
-          <div className="-mx-4 -mb-4 flex flex-wrap gap-2 rounded-b-xl border-t bg-muted/50 p-3">
+          <div className="flex flex-wrap gap-2 border-t bg-muted/50 p-3">
             {more.map((m) => (
               <Button key={m.label} type="button" variant="ghost" size="sm" onClick={() => { setOpen(false); setTimeout(m.onClick, 0); }}>{m.icon} {m.label}</Button>
             ))}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
