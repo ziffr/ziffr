@@ -57,7 +57,7 @@ function detailText(e: AuditEvent): string {
     case "schedule.read": return `${d.from && d.to ? `${d.from} to ${d.to}` : ""}${d.key_name ? `, with the key ${d.key_name}` : ""}`;
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
-    case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
+    case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00${d.from_week_start !== d.to_week_start ? `, week starts on ${d.to_week_start === 0 ? "Sunday" : "Monday"}` : ""}`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;
     case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : followed(d)} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
