@@ -265,6 +265,7 @@ const CASES: Record<string, Case> = {
   "view-link-actions:shownSnapshots": { reads: (i) => [i.snapshotDashboard] },
   "share-proposal-actions:confirmProposal": { nothing: "the demo has no Share Proposals", args: () => [1, ""] },
   "share-proposal-actions:declineProposal": { nothing: "the demo has no Share Proposals", args: () => [1] },
+  "view-link-actions:setViewLinkNames": { nothing: "the demo has no View Links", args: () => [1, true] },
   "view-link-actions:revokeViewLink": { nothing: "the demo has no View Links", args: () => [1] },
   "workflow-actions:saveWorkflow": { args: (i) => [i.workflow, "Renamed workflow", i.workflowConfig] },
   "workflow-actions:deleteWorkflow": { args: (i) => [i.workflow] },
