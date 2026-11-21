@@ -11,6 +11,9 @@ import { ANSWER_LANGUAGES } from "@ziffr/core/numbers";
 import { COUNTRIES, CURRENCIES } from "@ziffr/core/workspace-profile";
 import { PageHeader } from "@/components/page-header";
 import { WorkspaceClock } from "./clock";
+import { quietHours } from "@ziffr/core/quiet-hours";
+import { setWorkspaceQuietHours } from "@/app/settings-actions";
+import { QuietHoursForm } from "../quiet-hours-form";
 import { WorkspaceNameForm, WorkspaceProfileForm } from "./forms";
 import { NumberStyleForm } from "./number-style";
 import { AnswerLanguagesForm } from "./answer-languages";
@@ -30,7 +33,7 @@ const named = (codes: readonly string[], type: "region" | "currency") => {
 
 export default async function WorkspaceSettingsPage() {
   const actor = await currentActor();
-  const [name, time, profile, demo, year, numbers, answers, attainment, usage] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null)]);
+  const [name, time, profile, demo, year, numbers, answers, attainment, usage, quiet] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null), quietHours(actor)]);
   // The default Retention is for Owners and Admins to read, and for Owners to set (spec 0033); everyone else sees no section.
   const retention = actor.role === "owner" || actor.role === "admin" ? await defaultRetention(actor) : null;
   const countryName = (c: string | null) => c && (new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c);
@@ -45,6 +48,15 @@ export default async function WorkspaceSettingsPage() {
         {usage && !demo && <div id="size" className="scroll-mt-4"><SizeAndUsage usage={usage} cloud={handoverOffered(actor)} /></div>}
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}
         {!demo && <WorkspaceClock timeZone={time.timeZone} runHour={time.runHour} weekStart={time.weekStart} canEdit={canEdit} />}
+        {!demo && (
+          <section aria-labelledby="quiet-heading" className="space-y-3 border-t border-border pt-6">
+            <div>
+              <h2 id="quiet-heading" className="font-medium">Quiet hours</h2>
+              <p className="text-sm text-muted-foreground">The default for everyone who has set none of their own: no requests for numbers, reminders or Alerts at night or on the days you pick. They wait and go out when it ends.</p>
+            </div>
+            <QuietHoursForm rule={quiet.workspace} inherited={null} own={false} canEdit={canEdit} workspaceTimeZone={quiet.workspaceTimeZone} save={setWorkspaceQuietHours} />
+          </section>
+        )}
         <YearStartForm yearStart={year.yearStart} allowed={year.allowed} why={year.why} canEdit={canEdit} today={localTime(new Date(), time.timeZone).day} />
         <NumberStyleForm style={numbers.style} chosen={numbers.chosen} country={countryName(numbers.fromCountry)} canEdit={canEdit} />
         <AnswerLanguagesForm languages={answers.languages} options={Object.values(ANSWER_LANGUAGES).map(({ code, name }) => ({ code, name }))} chosen={answers.chosen} country={countryName(answers.fromCountry)} canEdit={canEdit} />

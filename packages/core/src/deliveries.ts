@@ -9,6 +9,7 @@ import { insertSealed, openNames, openOne, openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
+import { holdFor } from "./quiet-hours";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEscape } from "./connectors/slack";
 import type { Period, Profile } from "./types";
@@ -43,6 +44,15 @@ export async function connectorFor(ws: string, recipientId: string, kind: Delive
   return (own ?? team ?? "email") as ConnectorId;
 }
 
+/** Makes one Delivery. A Prompt, reminder or Alert that will be sent while its recipient is in quiet hours (GLOSSARY:
+ * Quiet Hours) is given a `not_before` at their end, so the sending queue holds it until then and never drops it; this is
+ * the one place quiet hours are checked. Says whether it is held, so the caller does not send it at once. */
+async function insertDelivery(ws: string, row: { recipient_id: string; kind: string; mail_state: string } & Record<string, unknown>): Promise<{ id: number | undefined; held: boolean }> {
+  const until = row.mail_state === "queued" ? await holdFor(ws, row.recipient_id, row.kind) : null;
+  const [d] = await insertSealed("deliveries", ws, [until ? { ...row, not_before: until.toISOString() } : row]) as { id: number }[];
+  return { id: d?.id, held: until !== null };
+}
+
 /** Sends one Delivery about an Action. Nobody gets a message about their own doing. With `queue`, an email is
  * only queued, for the deliveries job to send. */
 export async function deliver(input: { kind: DeliveryKind; actionId: number; senderId: string; recipientId: string; text?: string; correction?: number | null; via?: ConnectorId | null; queue?: boolean; source?: ChangeSource }) {
@@ -71,12 +81,12 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id, await settingsInEffect()),
   });
   const mail_state = await initialDeliveryState(via, a.workspace_id, recipient.id);
-  const [d] = await insertSealed("deliveries", a.workspace_id, [{
+  const d = await insertDelivery(a.workspace_id, {
     connector: via, recipient_id: recipient.id, sender_id: sender.id, kind: input.kind, action_id: a.id,
     subject, body, external_ref: via === "tickets" ? ref : null, mail_state,
-  }]) as { id: number }[];
+  });
   // A queued one waits for the deliveries job (sendWaiting): a run that sends many must not wait on the mail server.
-  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
+  if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
 }
 
 /** What became of a Prompt: the Connector it went through, and whether it left Ziffr (sent), waits to (queued), or
@@ -138,10 +148,10 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }]) as { id: number }[];
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
   const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
-  const [d] = await insertSealed("deliveries", metric.workspace_id, [{ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id }]) as { id: number }[];
-  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
+  const d = await insertDelivery(metric.workspace_id, { connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id });
+  if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
   // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
-  const now = d?.id && mail_state === "queued" && !input.queue ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
+  const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
   return { connector: via, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
 }
 
@@ -164,12 +174,12 @@ export async function deliverAlert(ws: string, input: { recipientId: string; sub
 async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
-  const [d] = await insertSealed("deliveries", ws, [{
+  const d = await insertDelivery(ws, {
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null,
-  }]) as { id: number }[];
+  });
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.
-  if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
-  return d?.id ?? null;
+  if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
+  return d.id ?? null;
 }

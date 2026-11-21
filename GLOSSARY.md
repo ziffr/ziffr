@@ -154,6 +154,10 @@ _Avoid_: Deputy, backup, substitute
 The dates a person is not available. While someone is away, Prompts meant for them go to their Stand-in.
 _Avoid_: Absence, out of office, leave
 
+**Quiet Hours**:
+The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder or Alert, in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
+_Avoid_: Do not disturb, silent hours, mute
+
 **Escalation**:
 A Workflow step that, when a value is still missing, asks the Stand-in or tells the metric owner.
 _Avoid_: Warning. Not an Alert, which a person sets for themselves and which asks nobody for anything

@@ -9,6 +9,7 @@ import * as optOut from "@ziffr/core/email-opt-out";
 import * as usageDigest from "@ziffr/core/usage-digest";
 import * as workspace from "@ziffr/core/workspace-settings";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
+import * as quiet from "@ziffr/core/quiet-hours";
 
 /** Changes your own name and colour. */
 export async function updateMyProfile(input: { name?: string; color?: string }) {
@@ -84,6 +85,23 @@ export async function setEmailReminders(on: boolean) {
 export async function setUsageDigestOn(on: boolean) {
   return attempt(async () => {
     await usageDigest.setUsageDigest(await currentActor(), on === true);
+    revalidatePath("/settings/deliveries");
+  });
+}
+
+/** Sets your own quiet hours, or with null follows the Workspace's default again; the core checks the shape. */
+export async function setMyQuietHours(rule: { fromHour: number; toHour: number; days: number[]; timeZone: string | null } | null) {
+  return attempt(async () => {
+    await quiet.setMyQuietHours(await currentActor(), rule === null ? null : { fromHour: Number(rule?.fromHour), toHour: Number(rule?.toHour), days: Array.isArray(rule?.days) ? rule.days.map(Number) : [], timeZone: rule?.timeZone == null ? null : String(rule.timeZone) });
+    revalidatePath("/settings/deliveries");
+  });
+}
+
+/** Sets the Workspace's default quiet hours, or with null removes them (Owners and Admins). */
+export async function setWorkspaceQuietHours(rule: { fromHour: number; toHour: number; days: number[] } | null) {
+  return attempt(async () => {
+    await quiet.setWorkspaceQuietHours(await currentActor(), rule === null ? null : { fromHour: Number(rule?.fromHour), toHour: Number(rule?.toHour), days: Array.isArray(rule?.days) ? rule.days.map(Number) : [], timeZone: null });
+    revalidatePath("/settings/workspace");
     revalidatePath("/settings/deliveries");
   });
 }

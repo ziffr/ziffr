@@ -235,6 +235,12 @@ Owners also see **Email me when Metrics, dashboards or decks go unused**. It is 
 
 Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
 
+### Quiet hours
+
+Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders and Alerts that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
+
+If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
+
 ## Your Alerts
 
 Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: 20 Alerts in a Workspace, at most 5 on one Metric, and 20 Alert messages a day.
