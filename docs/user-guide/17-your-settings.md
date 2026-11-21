@@ -172,6 +172,16 @@ Open it from your own menu at the bottom of the sidebar. Your profile is how oth
 
 In the demo, the made-up people keep their names and colours, the address is made up, and the last button is **Leave the demo** instead of **Sign out**.
 
+### Your limits
+
+Under your profile, **Your limits** lets you choose how much of this Workspace you want, in this Workspace only. Each field shows what is **In effect** and the range **Allowed**; leave it empty to follow the Workspace, and press **Save** to set or clear it. You can only go lower than what the Workspace allows.
+
+- **Alert messages per person per day**: the most Alert messages you are sent in a day (1 up to what the Workspace allows). After it your Alerts still fire into the list.
+- **How far back the overdue list reaches** (7 to 90 days; normal 90): overdue entries older than this are left off your Schedule.
+- **Calendar Link: days back** (0 to 30; normal 30) and **days ahead** (7 to 90; normal 90): how far your [Calendar Link](#in-your-calendar) shows events.
+
+Your changes show in the Workspace's Audit Log, which Owners and Admins read. The demo has no limits to set.
+
 ## Appearance
 
 Open it from your own menu at the bottom of the sidebar. It decides how Ziffr's own screens look to you, including the sign-in page. Pick one of four, each shown as a small preview; the page changes at once.
@@ -186,16 +196,6 @@ Open it from your own menu at the bottom of the sidebar. It decides how Ziffr's 
 The choice is saved to you, so every device and every Workspace you use looks the same. A browser that is not signed in, such as the sign-in page, uses the choice last made in it, and System before any. In the demo nothing is saved, so the choice stays in this browser.
 
 Dashboards and Decks follow your Appearance too: when it is dark, a [Theme](14-decks-and-themes.md) shows its dark variant, unless the Theme is set to **Always as designed**. Snapshots, View Links and exported files keep the look they were made or shared with, so they can show a light page inside a dark screen.
-
-### Your limits
-
-Under your profile, **Your limits** lets you choose how much of this Workspace you want, in this Workspace only. Each field shows what is **In effect** and the range **Allowed**; leave it empty to follow the Workspace, and press **Save** to set or clear it. You can only go lower than what the Workspace allows.
-
-- **Alert messages per person per day**: the most Alert messages you are sent in a day (1 up to what the Workspace allows). After it your Alerts still fire into the list.
-- **How far back the overdue list reaches** (7 to 90 days; normal 90): overdue entries older than this are left off your Schedule.
-- **Calendar Link: days back** (0 to 30; normal 30) and **days ahead** (7 to 90; normal 90): how far your [Calendar Link](#in-your-calendar) shows events.
-
-Your changes show in the Workspace's Audit Log, which Owners and Admins read. The demo has no limits to set.
 
 ## Your Deliveries
 
