@@ -274,6 +274,12 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   }
 }
 
+/** Marks queued Deliveries of a Connector that already used as many tries as the limit now allows as failed, so a lowered
+ * ZIFFR_LIMIT_SEND_ATTEMPTS never leaves a message queued forever: the Outbox shows it. */
+export async function giveUpAfter(maxAttempts: number, connector: "email" | "telegram" | "slack"): Promise<void> {
+  await db().from("deliveries").update({ mail_state: "failed", last_error: `Gave up after ${maxAttempts} tries.` }).eq("connector", connector).eq("mail_state", "queued").gte("attempts", maxAttempts);
+}
+
 /** Sends what is waiting: queued Deliveries whose wait after the last attempt is over (1, 2, 4, 8 minutes), and ones
  * left "sending" for over ten minutes by a stopped server. At most `limit` per run. */
 export async function sendWaiting(limit = 50, transport: MailTransport = smtpTransport): Promise<{ sent: number; failed: number }> {
@@ -281,7 +287,9 @@ export async function sendWaiting(limit = 50, transport: MailTransport = smtpTra
   await db().from("deliveries").update({ mail_state: "queued" }).eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
   // Chosen in the database: ones waiting out a limit (not_before) or a failed attempt's wait are left out before the
   // run's limit, so however many must wait, they hold up nobody else's.
-  const { data: ids, error } = await db().rpc("due_deliveries", { p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
+  const maxAttempts = await sendingLimit("sendAttempts");
+  await giveUpAfter(maxAttempts, "email");
+  const { data: ids, error } = await db().rpc("due_deliveries", { p_limit: limit, p_max_attempts: maxAttempts });
   if (error) throw new Error("The waiting emails could not be read.");
   const due = ((ids ?? []) as (number | { due_deliveries: number })[]).map((r) => ({ id: typeof r === "number" ? r : r.due_deliveries }));
   let sent = 0;

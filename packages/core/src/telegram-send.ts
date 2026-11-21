@@ -5,7 +5,7 @@
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { openRows } from "./sealed-columns";
-import { OPT_OUT_KINDS, type SendResult } from "./mail";
+import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
@@ -132,7 +132,9 @@ export async function sendWaitingTelegram(limit = 50): Promise<{ sent: number; f
   await forgetStaleTelegramTests();
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "telegram").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
+  const maxAttempts = await sendingLimit("sendAttempts");
+  await giveUpAfter(maxAttempts, "telegram");
+  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: maxAttempts });
   if (error) throw new Error("The waiting Telegram messages could not be read.");
   let sent = 0;
   let failed = 0;

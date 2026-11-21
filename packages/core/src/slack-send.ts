@@ -5,7 +5,7 @@
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { openRows } from "./sealed-columns";
-import { OPT_OUT_KINDS, type SendResult } from "./mail";
+import { giveUpAfter, OPT_OUT_KINDS, type SendResult } from "./mail";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
@@ -129,7 +129,9 @@ async function trouble(e: unknown, bot: SlackBot, id: number, attempts: number, 
 export async function sendWaitingSlack(limit = 50): Promise<{ sent: number; failed: number }> {
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "slack").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "slack", p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
+  const maxAttempts = await sendingLimit("sendAttempts");
+  await giveUpAfter(maxAttempts, "slack");
+  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "slack", p_limit: limit, p_max_attempts: maxAttempts });
   if (error) throw new Error("The waiting Slack messages could not be read.");
   let sent = 0;
   let failed = 0;

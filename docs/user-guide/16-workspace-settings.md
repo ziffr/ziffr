@@ -249,7 +249,7 @@ Every Workspace also has the Group **Everyone in the workspace**: all its member
 
 A **Contact** is someone without a login, such as a field worker or an outside bookkeeper. They send in values by Slack, by email or with their personal form link, and the values are recorded under their name. They see nothing in Ziffr.
 
-Owners and Admins add a Contact with **Name** and at least one of **Email**, **Slack handle** (such as @cleo) or **Phone**, then **Add contact**. The address or handle must not belong to anyone else in the Workspace. Owners and Admins also see each Contact's details, and the bin icon removes a Contact. Their values stay; their form link stops working and they can no longer send in values.
+Owners and Admins add a Contact with **Name** and at least one of **Email**, **Slack handle** (such as @cleo) or **Phone**, then **Add contact**. The address or handle must not belong to anyone else in the Workspace. Owners and Admins also see each Contact's details, and the bin icon removes a Contact. A Workspace keeps 1,000 Contacts unless the person who runs this Ziffr has set another number under **Sending limits**. Their values stay; their form link stops working and they can no longer send in values.
 
 To give a Contact a login later, invite them by email and pick them under **who is the Contact**.
 
@@ -449,7 +449,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 **Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo and a trial have no Webhooks: they send a Workspace's data to addresses outside Ziffr.
 
-A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks.
+A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks and they send at most 10,000 messages a day, unless the person who runs this Ziffr has set other numbers under **Sending limits** in the [Installation settings](18-installation-settings.md); the page shows the numbers in force. Lowering them never removes a Webhook that exists.
 
 Messages leave Ziffr in **clear text over TLS**. Workspace Keys seal data in the database, not on its way out, and the receiving system keeps what it gets as it sees fit. This is not end-to-end encryption, and the page says so above the list. A message holds only what everyone in the Workspace may see; other things reach the Webhook with their words left out.
 
