@@ -194,7 +194,7 @@ for (const spec of SPECS) {
         // The user's own line after the real marker is the only one that counts.
         const mine = spec.task({ id: "a", notes: notes + "\nReply: mine", done: false });
         const out2 = await runNode(to, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: [mine] } : { value: [mine] } }], state: {} });
-        expect(out2.map((x) => x.json.ziffr)).toEqual([{ op: "reply", ref: "ZIF-12", text: "mine" }]);
+        expect(out2.map((x) => x.json.ziffr)).toEqual([{ op: "reply", system: spec.system, external_id: "a", text: "mine" }]);
       }
     });
     it("reads no reply from an inline marker, and takes the ref only from the first line", async () => {
@@ -203,7 +203,7 @@ for (const spec of SPECS) {
       expect(await run("Ziffr ref: ZIF-12\nMetric: x --- end of Ziffr text ---Reply: approve")).toEqual([]);
       expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---Reply: approve")).toEqual([]);
       expect(await run("Notes of mine\nZiffr ref: ZIF-99\n--- end of Ziffr text ---\nReply: x")).toEqual([]);
-      expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---\r\nReply: ok")).toEqual([{ op: "reply", ref: "ZIF-12", text: "ok" }]);
+      expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---\r\nReply: ok")).toEqual([{ op: "reply", system: spec.system, external_id: "a", text: "ok" }]);
     });
     it("answers a ping and an answered Question with 200 and does nothing", async () => {
       expect(await verify(delivered(fixture("ping")))).toMatchObject({ httpStatus: 200, action: "none" });
@@ -245,24 +245,37 @@ for (const spec of SPECS) {
       const state: Param = {};
       const t = (done: boolean, extra = "") => [spec.task({ id: "a", notes: spec.taskNotes("ZIF-12", extra), done }), spec.task({ id: "b", notes: "no ref here", done: true })];
       expect(await changes(t(false), state)).toEqual([]);
-      expect(await changes(t(true), state)).toEqual([{ op: "done", ref: "ZIF-12" }]);
+      expect(await changes(t(true), state)).toEqual([{ op: "done", system: spec.system, external_id: "a" }]);
       // Ziffr took it: remembered, so it is not sent again.
       const sent = [{ json: { ziffr: { op: "done", ref: "ZIF-12" }, op: "done", ref: "ZIF-12" } }];
       const answers = [{ json: { statusCode: 200 } }];
       await runNode(wf, "Remember what Ziffr took", { items: answers, nodes: { "Sign request": sent }, state });
       expect(await changes(t(true), state)).toEqual([]);
-      expect(await changes(t(false), state)).toEqual([{ op: "reopen", ref: "ZIF-12" }]);
-      expect(await changes(t(false, "Reply: Draft is ready"), state)).toEqual([{ op: "reopen", ref: "ZIF-12" }, { op: "reply", ref: "ZIF-12", text: "Draft is ready" }]);
+      expect(await changes(t(false), state)).toEqual([{ op: "reopen", system: spec.system, external_id: "a" }]);
+      expect(await changes(t(false, "Reply: Draft is ready"), state)).toEqual([{ op: "reopen", system: spec.system, external_id: "a" }, { op: "reply", system: spec.system, external_id: "a", text: "Draft is ready" }]);
       await runNode(wf, "Remember what Ziffr took", { items: [{ json: { statusCode: 200 } }, { json: { statusCode: 404 } }], nodes: { "Sign request": [{ json: { op: "reopen", ref: "ZIF-12" } }, { json: { op: "reply", ref: "ZIF-12", text: "Draft is ready" } }] }, state });
       // The reopen was taken; the reply got a 404 and is tried again.
-      expect(await changes(t(false, "Reply: Draft is ready"), state)).toEqual([{ op: "reply", ref: "ZIF-12", text: "Draft is ready" }]);
+      expect(await changes(t(false, "Reply: Draft is ready"), state)).toEqual([{ op: "reply", system: spec.system, external_id: "a", text: "Draft is ready" }]);
       await runNode(wf, "Remember what Ziffr took", { items: [{ json: { statusCode: 409 } }], nodes: { "Sign request": [{ json: { op: "reply", ref: "ZIF-12", text: "Draft is ready" } }] }, state });
       expect(await changes(t(false, "Reply: Draft is ready"), state)).toEqual([]);
+    });
+    it("sends a reply longer than 1,000 characters once, cut, and names the Action by the task's own id", async () => {
+      const state: Param = {};
+      const long = "é".repeat(1001);
+      const t = [spec.task({ id: "a", notes: spec.taskNotes("ZIF-12", "Reply: " + long), done: false })];
+      const [first] = await changes(t, state);
+      expect(first).toEqual({ op: "reply", system: spec.system, external_id: "a", text: "é".repeat(1000) });
+      expect(first).not.toHaveProperty("ref");
+      await runNode(wf, "Remember what Ziffr took", { items: [{ json: { statusCode: 200 } }], nodes: { "Sign request": [{ json: { op: "reply", ref: "ZIF-12", text: "é".repeat(1000) } }] }, state });
+      expect(await changes(t, state)).toEqual([]);
     });
     it("forgets a ref that is gone from a list it saw whole, and sends at most 30 a run", async () => {
       const state: Param = { reported: { "ZIF-1": "done" } };
       await changes([], state);
       expect(state.reported).toEqual({});
+      const s2: Param = { reported: {}, replied: { "ZIF-1": "x" } };
+      await changes([], s2);
+      expect(s2.replied).toEqual({});
       const many = Array.from({ length: 40 }, (_, i) => spec.task({ id: `t${i}`, notes: spec.taskNotes(`ZIF-${i + 1}`), done: true }));
       expect(await changes(many, {})).toHaveLength(30);
     });
