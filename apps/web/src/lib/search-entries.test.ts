@@ -7,7 +7,11 @@ const labels = (r: { label: string }[]) => r.map((e) => e.label);
 describe("pageEntries", () => {
   it("offers a Guest only the pages their menus lead to", () => {
     const guest = labels(pageEntries("guest"));
-    expect(guest).toEqual(expect.arrayContaining(["Actions", "Metrics", "Members and Groups", "My schedule"]));
+    expect(guest).toEqual(expect.arrayContaining(["Actions", "Metrics", "My schedule"]));
+    // A Guest sees only what is shared with them (#504): no member list, Workflows or Access Keys.
+    expect(guest).not.toContain("Members and Groups");
+    expect(guest).not.toContain("Workflows");
+    expect(guest).not.toContain("Access Keys");
     expect(guest).not.toContain("Webhooks");
     expect(guest).not.toContain("Audit log");
     expect(guest).not.toContain("Themes");
