@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-dialog.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/components/first-run.tsx, apps/web/src/canvas/layout-editor.tsx -->
+<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/components/first-run.tsx, apps/web/src/canvas/layout-editor.tsx -->
 # Dashboards and Findings
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
@@ -70,7 +70,7 @@ The buttons to the right of the name are:
 | **Snapshots** | Everyone, once there is a Snapshot; the owner and Editors always | The dashboard as it stood for a past period (see [Snapshots](#snapshots)). |
 | **Present** | Everyone | Shows the dashboard on the whole screen (see [Presenting](#presenting)). |
 | **Edit** / **Done** | The owner and Editors, in Grid | Switches edit mode on and off. |
-| **Share** | The owner | Opens the Share window. The number on it says how many people and Groups have access. |
+| **Share** | The owner | Opens the Share panel beside the dashboard. The number on it says how many people and Groups have access. |
 | **⋯** (More) | Everyone | The menu below. |
 
 The **⋯** menu holds:
@@ -82,7 +82,7 @@ The **⋯** menu holds:
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
-| **Versions** | Everyone | The dashboard's history (see [Versions](#versions)). |
+| **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
 **Theme…** opens a small window with one list. Its first choice is the team's default Theme, marked "(team default)"; the others follow. The **Themes** link next to it leads to the Themes page. A Theme changes the dashboard's colours and fonts, also when presenting and through View Links; Ziffr's own screens keep their look.
 
@@ -165,6 +165,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
 | **Open metric** | Everyone | Opens the Metric's page. With several Metrics, there is one **Open** entry per Metric, with its name. |
+| **Quick look** | Everyone | Opens the Widget's Metric in a panel on the right: its latest value, target, trend and owner, with **Open the Metric** at the bottom. A Widget with one Metric also shows a small button for it beside its title. |
 | **Remove from dashboard** | The owner and Editors, in edit mode | Takes the Widget off the dashboard, at once. **Versions** of the dashboard keep it. |
 
 If a Widget draws a Metric you may not see, it shows "No access to this metric. Ask its owner to share it." instead.
@@ -361,7 +362,7 @@ Free layouts are left out, and the window lists them. Press **Save template**. A
 
 ## Sharing
 
-Only a dashboard's owner shares it. **Share** opens a window listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
+Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
@@ -466,7 +467,7 @@ Each period's Snapshot is then taken in the owner's name as soon as every Metric
 
 A **Version** is a saved state of something you build, with who made it and when. Dashboards, single Widgets, team Widget Templates, Decks and a Snapshot's words all keep Versions. Edits by one person within ten minutes form one Version.
 
-**Versions** opens the list, newest first. Each shows its number (such as "v12"), its name or "Current" or "Edited", who made it and when, and what changed.
+**Versions** opens a panel on the right with the list, newest first. Each shows its number (such as "v12"), its name or "Current" or "Edited", who made it and when, and what changed.
 
 If you may change the thing (its owner and Editors), you also see:
 
@@ -481,3 +482,7 @@ A Version keeps how something was built; a Snapshot keeps what a dashboard showe
 ## Old story addresses
 
 Earlier, Ziffr had stories as a screen of their own. They are now dashboards with an introduction, read in the Read view. An old address of a story opens that dashboard in its Read view, and the old stories list opens the Dashboards list.
+
+## Panels have their own address
+
+Share, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share`, `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.

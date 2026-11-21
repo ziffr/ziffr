@@ -18,7 +18,9 @@ import { keptWords, trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { QuickLookHost } from "@/components/metric-quick-look";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 
@@ -69,6 +71,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <Toaster />
+        <Suspense fallback={null}><QuickLookHost /></Suspense>
           <ServiceWorker />
         </body>
       </html>
@@ -131,6 +134,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         )}
         {demo && <Tour />}
         <Toaster />
+        <Suspense fallback={null}><QuickLookHost /></Suspense>
         <ServiceWorker />
       </body>
     </html>

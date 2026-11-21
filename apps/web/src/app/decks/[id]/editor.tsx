@@ -37,8 +37,8 @@ import { freeSpot } from "@/decks/placement";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
-import { VersionsDialog } from "@/components/versions-dialog";
-import { ShareDialog } from "@/components/share-dialog";
+import { VersionsSheet } from "@/components/versions-sheet";
+import { ShareSheet } from "@/components/share-sheet";
 import { WhoCanSee } from "@/components/who-can-see";
 import { ViewLinks } from "@/components/view-links";
 
@@ -312,8 +312,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); return setDeckTheme(deck.id, id); }} />
         <WhoCanSee type="deck" id={deck.id} people={data.people} />
         {sharing && <ViewLinks type="deck" id={deck.id} />}
-        {sharing && <ShareDialog objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
-        <VersionsDialog type="deck" id={deck.id} people={data.people} reload="page" />
+        {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
+        <VersionsSheet type="deck" id={deck.id} people={data.people} reload="page" />
         {sharing && <DeleteDeck deckId={deck.id} name={name} />}
         {sharing && <Button variant="outline" disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>

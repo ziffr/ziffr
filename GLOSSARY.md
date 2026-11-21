@@ -188,6 +188,13 @@ _Avoid_: Freeze, finalize, close
 A way of drawing a metric, such as a number with sparkline, a line chart, bars, a gauge or a history table. Ziffr ships its own Views; more can be added to a Workspace as View Designs.
 _Avoid_: Chart type, visualization plugin
 
+**Slide-over**:
+A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it.
+_Avoid_: Drawer, side panel, modal, dialog (a dialog is a small window for a decision, such as a confirmation)
+
+**Quick look**:
+A Slide-over with a Metric's latest value, target, trend and owner, opened from the Metric's name in a list or on a Widget without leaving the page. _Avoid_: Peek, Details
+
 **View Design**:
 A View written as a file: its Slots, its marks and what each shows, and its Theme colours. Ziffr checks it and draws it with its own renderer; it holds no code. Every built-in View that draws Metrics or an Analysis is one; Findings and the Free layout are drawn by code of their own.
 _Avoid_: Chart plugin, visualization plugin, custom widget

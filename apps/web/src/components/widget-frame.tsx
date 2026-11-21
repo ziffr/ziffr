@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, Trash2 } from "lucide-react";
+import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -22,6 +22,7 @@ import { templatesFor, TEMPLATES, templateOf } from "@/views/templates";
 import { StoryEditor } from "@/components/story-editor";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import { CompareTable } from "@/components/compare-table";
+import { openQuickLook, QuickLookButton } from "@/components/metric-quick-look";
 import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@ziffr/core/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@ziffr/core/compare";
@@ -244,6 +245,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
+      {ms.map((x) => <K.Item key={`q${x.id}`} onClick={() => openQuickLook(x.slug)}><PanelRightOpen /> Quick look{ms.length > 1 ? ` at ${x.name}` : ""}</K.Item>)}
       {ms.map((x) => <K.Item key={x.id} onClick={() => router.push(`/metrics/${x.slug}`)}><ExternalLink /> Open {ms.length > 1 ? x.name : "metric"}</K.Item>)}
       {editable && widget.id && (
         <>
@@ -265,6 +267,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
             <span className="truncate text-sm font-semibold">{title}</span>
+            {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><Archive aria-hidden className="size-3.5" /> Archived</span>}
             {open > 0 && <span title={`${open} open action(s)`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"><MessageSquare aria-hidden className="size-3.5" /><span className="fig">{open}</span> open</span>}

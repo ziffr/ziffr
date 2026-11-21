@@ -15,7 +15,7 @@ import { makeDeckFromSnapshot } from "@/app/convert-actions";
 import { ViewLinksDialog } from "@/components/view-links";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { useConfirm } from "@/components/confirm-dialog";
-import { VersionsDialog } from "@/components/versions-dialog";
+import { VersionsSheet } from "@/components/versions-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,7 +80,7 @@ export function SnapshotScreen({ snapshot: s, takenBy, canCreate = false, viewLi
         {canCreate && <Button variant="outline" disabled={pending} onClick={() => run(() => makeDeckFromSnapshot(s.id))}><Presentation aria-hidden /> Make a deck</Button>}
         {viewLinks && <Button variant="outline" onClick={() => setLinking(true)}><Link2 aria-hidden /> View link</Button>}
         {linking && <ViewLinksDialog type="dashboard" id={s.dashboardId} snapshot={{ id: s.id, label: s.label }} onClose={() => setLinking(false)} />}
-        <VersionsDialog type="snapshot" id={s.id} people={s.data.people} />
+        <VersionsSheet type="snapshot" id={s.id} people={s.data.people} />
         {s.canDelete && (
           <Button variant="outline" disabled={pending} onClick={async () => {
             if (await confirm({ title: `Delete the Snapshot of ${s.label}?`, description: "Its numbers and words go for good. The dashboard and its values stay.", confirmLabel: "Delete Snapshot" })) run(() => deleteSnapshot(s.id, s.dashboardId));

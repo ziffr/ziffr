@@ -14,7 +14,7 @@ import type { Profile } from "@ziffr/core/types";
 type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template" | "theme" | "workflow" | "snapshot";
 type Row = Awaited<ReturnType<typeof listVersions>>["versions"][number];
 
-export function VersionsPanel({ type, id, people, onRestored }: { type: VersionType; id: number; people: Profile[]; onRestored?: () => void }) {
+export function VersionsPanel({ type, id, people, onRestored, hideTitle }: { type: VersionType; id: number; people: Profile[]; onRestored?: () => void; hideTitle?: boolean }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [canRestore, setCanRestore] = useState(false);
   const [name, setName] = useState("");
@@ -28,7 +28,7 @@ export function VersionsPanel({ type, id, people, onRestored }: { type: VersionT
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-center gap-2 font-semibold"><History aria-hidden className="size-4" /> Versions</div>
+      {!hideTitle && <div className="flex items-center gap-2 font-semibold"><History aria-hidden className="size-4" /> Versions</div>}
       {canRestore && (
         <form
           className="flex gap-2"
