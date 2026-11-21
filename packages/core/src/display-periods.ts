@@ -174,7 +174,7 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     // A span with a Condensed Value in it combines parts, values and Condensed Values alike, so the number is the one
     // shown before they were condensed (spec 0033); a Condensed Value the cut falls inside has no part to give.
     const inside = condensed.filter((c) => periodStart(c.period, display, ys) === start);
-    if (inside.some((c) => c.period > end)) continue;
+    if (inside.some((c) => c.periodEnd > end)) continue;
     const parts: Part[] = inside.length ? [...inSpan.map(partOfPoint), ...inside.map(partOfCondensed)].sort((a, b) => a.period.localeCompare(b.period)) : [];
     const value = inside.length ? valueOfParts(metric.aggregation, parts, expected) : metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
@@ -309,8 +309,7 @@ function condensedPoint(metric: Metric, c: CondensedPoint): DisplayPoint | null 
 
 /** The note under a widget that draws Condensed Values: "Before November 2023 shown by month, condensed from daily
  * values." It names the span after the newest one condensed, so it says where the detail starts again. */
-function condensedNote(metric: Metric, drawn: readonly CondensedPoint[], yearStart: YearStart): string | undefined {
-  if (!drawn.length) return undefined;
+function condensedNote(metric: Metric, drawn: readonly CondensedPoint[], yearStart: YearStart): string {
   const newest = drawn.reduce((a, b) => (b.periodEnd > a.periodEnd ? b : a));
   return `Before ${periodLabel(dayAfter(newest.periodEnd), newest.into, yearStart)} shown by ${newest.into}, condensed from ${ADJECTIVE[metric.period]} values.`;
 }

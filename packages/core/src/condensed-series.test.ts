@@ -8,6 +8,7 @@ import { resolverFrom } from "./compare";
 import { partOfCondensed, partOfPoint, targetOfParts, targetPartOf, type CondensedPoint } from "./condensed-parts";
 import { latestOfEach, pointName, seriesBy, shownSeries, targetsBy } from "./display-periods";
 import { periodEnd, type YearStart } from "./periods";
+import { dataAsOf, dataAsOfEach } from "./snapshot-periods";
 import { condense, condensedTarget, condensesInto, retentionPlan, type CondenseInto } from "./retention-rules";
 import { canvas, metric } from "./test/fixtures";
 import { dayOf, textOf } from "./test/reference/calendar";
@@ -100,6 +101,44 @@ describe("shown by a period shorter than the Condensed Value", () => {
     const both = canvas([m], { revenue: [...originals, ...days] }, { condensed: { 1: condensed } });
     expect(shownSeries(m, both, undefined, { today: "2026-12-01" }).points.map((p) => p.period)).toEqual(["2024-02-01", "2024-03-01", ...days.map((d) => d.period)]);
     expect(shownSeries(m, both, "quarter", { today: "2026-12-01" }).points.map((p) => [p.period, p.value, p.held])).toEqual([["2024-01-01", 91, 60], ["2026-10-01", 5, 1]]);
+  });
+  it("draws a Metric whose values all went, from its Condensed Values alone", () => {
+    const only = canvas([m], {}, { condensed: { 1: condensed } });
+    expect(shownSeries(m, only, undefined, { today: "2026-12-01" }).points.map((p) => p.period)).toEqual(["2024-02-01", "2024-03-01"]);
+    expect(shownSeries(m, only, "quarter", { today: "2026-12-01" }).points.map((p) => [p.period, p.value])).toEqual([["2024-01-01", 91]]);
+  });
+  it("leaves out a Condensed Value with fewer than half of its periods, as a span of a Display Period would be", () => {
+    const few = condense(m, "month", "2024-03-01", Array.from({ length: 10 }, (_, i) => ({ period: day(i + 1), value: 1 })), 1)!;
+    const sparse = canvas([m], {}, { condensed: { 1: [{ ...few, periodEnd: "2024-03-31", target: null, condensedOn: "2026-12-01" }] } });
+    expect(shownSeries(m, sparse, undefined, { today: "2026-12-01" }).points).toEqual([]);
+  });
+  it("names the newest span in its note, whatever order they come in", () => {
+    const newestFirst = canvas([m], {}, { condensed: { 1: [...condensed].reverse() } });
+    expect(shownSeries(m, newestFirst, undefined, { today: "2026-12-01" }).note).toBe("Before April 2024 shown by month, condensed from daily values.");
+  });
+  it("gives a span no value where a Comparison's cut falls inside a Condensed Value", () => {
+    const resolve = resolverFrom([m], { revenue: [] });
+    const whole = seriesBy(m, resolve, "quarter", { yearStart: 1, today: "2026-12-01", condensed });
+    expect(whole.ok && whole.points.map((p) => p.period)).toEqual(["2024-01-01"]);
+    // Cut at 10 February: February's Condensed Value is not over by it, and nothing of the quarter can be given.
+    const cut = seriesBy(m, resolve, "quarter", { yearStart: 1, today: "2026-12-01", alignTo: "2024-02-10", condensed });
+    expect(cut.ok && cut.points).toEqual([]);
+  });
+  it("has no Target for a rate or a span without one", () => {
+    expect(condensedTarget(metric({ period: "month", aggregation: "none" }), "quarter", "2024-01-01", [{ period: "2024-01-01", value: 1 }], 1)).toBeNull();
+    expect(condensedTarget(metric({ period: "month" }), "quarter", "2024-01-01", [], 1)).toBeNull();
+  });
+  it("is part of the data of a Snapshot once its span is over, for one Metric or all", () => {
+    const other = metric({ id: 2, slug: "cost", name: "Cost" });
+    const both = canvas([m, other], { revenue: [], cost: [] }, { condensed: { 1: condensed, 2: condensed } });
+    const ids = (d: ReturnType<typeof canvas>) => Object.fromEntries(Object.entries(d.condensed ?? {}).map(([id, cs]) => [id, cs.map((c) => c.period)]));
+    expect(ids(dataAsOf(both, "2024-02-29"))).toEqual({ 1: ["2024-02-01"], 2: ["2024-02-01"] });
+    expect(ids(dataAsOfEach(both, new Map([[1, "2024-02-29"]])))).toEqual({ 1: ["2024-02-01"], 2: ["2024-02-01", "2024-03-01"] });
+    // A Metric with none among Metrics cut at their own days gets none.
+    expect(ids(dataAsOfEach(canvas([m, other], { revenue: [], cost: [] }, { condensed: { 1: condensed } }), new Map([[1, "2024-02-29"], [2, "2024-02-29"]])))).toEqual({ 1: ["2024-02-01"], 2: [] });
+    // Data without any stays without.
+    expect(dataAsOf(canvas([m], { revenue: [] }), "2024-02-29").condensed).toBeUndefined();
+    expect(dataAsOfEach(canvas([m], { revenue: [] }), new Map([[1, "2024-02-29"]])).condensed).toBeUndefined();
   });
   it("names a span with gaps by what it held", () => {
     const some = condense(m, "month", "2024-03-01", Array.from({ length: 20 }, (_, i) => ({ period: day(i + 1), value: 1 })), 1)!;

@@ -64,7 +64,8 @@ export function dataAsOfEach(data: CanvasData, ends: ReadonlyMap<number, string>
     const one = dataAsOf({ ...data, metrics: [m], series: { [m.slug]: data.series[m.slug] ?? [] }, breakdowns: { [m.id]: data.breakdowns?.[m.id] ?? {} }, ...(data.condensed ? { condensed: { [m.id]: data.condensed[m.id] ?? [] } } : {}), pending: { [m.id]: data.pending?.[m.id] ?? [] }, locked: { [m.id]: data.locked?.[m.id] ?? [] } }, end);
     out.series[m.slug] = one.series[m.slug];
     out.breakdowns[m.id] = one.breakdowns[m.id];
-    if (out.condensed) out.condensed[m.id] = one.condensed?.[m.id] ?? [];
+    // The Metric's Condensed Values, cut at its own day (none to take when the data has none).
+    Object.assign(out.condensed ?? {}, one.condensed);
     out.pending[m.id] = one.pending[m.id];
     out.locked[m.id] = one.locked[m.id];
   }
