@@ -8,7 +8,7 @@ import { Copy, Link2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createViewLink, listViewLinks, revokeViewLink, shownSnapshots } from "@/app/view-link-actions";
+import { createViewLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots } from "@/app/view-link-actions";
 import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
@@ -34,6 +34,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
   const [frozen, setFrozen] = useState(false);
   const [snapshots, setSnapshots] = useState<{ id: number; label: string }[]>(snapshot ? [snapshot] : []);
   const [shows, setShows] = useState<string>(snapshot ? String(snapshot.id) : "live");
+  const [showNames, setShowNames] = useState(false);
   const [pending, start] = useTransition();
   const load = () => listViewLinks(type, id).then(setLinks);
   const url = (token: string) => `${window.location.origin}/v/${token}`;
@@ -43,7 +44,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
     load();
     if (type === "dashboard") shownSnapshots(id).then(setSnapshots).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
-  const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows) } : { label, expires, frozen });
+  const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows), showNames } : { label, expires, frozen, showNames });
   return (
     <>
       {(
@@ -74,6 +75,10 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
                   <span>Freeze today&rsquo;s numbers<span className="block text-xs text-muted-foreground">Otherwise it shows live numbers until it ends.</span></span>
                 </label>
               )}
+              <label className="flex items-start gap-2">
+                <input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
+                <span>Show names<span className="block text-xs text-muted-foreground">Off by default: the link shows no one&rsquo;s name, only &ldquo;Someone&rdquo;. Tick it for an internal link.</span></span>
+              </label>
               <Button type="submit" disabled={pending}>Make link and copy it</Button>
             </form>
             <ul className="mt-2 space-y-2 border-t border-border pt-3 text-sm">
@@ -83,8 +88,9 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
                   <li key={l.id} className="flex flex-wrap items-center gap-2">
                     <span className="min-w-0 flex-1">
                       <span className={ended ? "text-muted-foreground line-through" : "font-medium"}>{l.label || "Untitled link"}</span>
-                      <span className="block text-xs text-muted-foreground">{l.snapshotLabel ? `Snapshot of ${l.snapshotLabel}` : l.frozen ? "Frozen numbers" : "Live numbers"},{l.revoked ? "revoked" : `until ${formatDate(l.expires_at)}`}</span>
+                      <span className="block text-xs text-muted-foreground">{l.snapshotLabel ? `Snapshot of ${l.snapshotLabel}` : l.frozen ? "Frozen numbers" : "Live numbers"},{l.revoked ? "revoked" : `until ${formatDate(l.expires_at)}`}{l.showNames ? ", shows names" : ""}</span>
                     </span>
+                    {!ended && <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { if (told(await setViewLinkNames(l.id, !l.showNames), "Not changed")) return; await load(); toast.success(l.showNames ? "Names hidden" : "Names shown"); })}>{l.showNames ? "Hide names" : "Show names"}</Button>}
                     {!ended && <Button size="sm" variant="ghost" onClick={() => copy(l.token)}><Copy aria-hidden /> Copy</Button>}
                     {!ended && <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => start(async () => { if (told(await revokeViewLink(l.id), "Not revoked")) return; await load(); toast.success("Link revoked"); })}>Revoke</Button>}
                   </li>

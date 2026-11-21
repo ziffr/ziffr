@@ -24,6 +24,7 @@ export const AUDIT_KINDS = {
   "group.member_removed": "took someone out of the Group",
   "view_link.created": "made a View Link to",
   "view_link.revoked": "revoked a View Link to",
+  "view_link.names_changed": "changed whether a View Link shows names, on",
   "share_proposal.proposed": "received a Share Proposal, from an assistant or program, for",
   "share_proposal.confirmed": "confirmed a Share Proposal for",
   "share_proposal.declined": "declined a Share Proposal for",
