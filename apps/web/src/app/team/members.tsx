@@ -18,7 +18,7 @@ const ROLES: { id: WorkspaceRoleName; label: string }[] = [
 const field = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
 
 /** What an invitation did, from the core's answer: emailed, or made for the person to send the link themselves. */
-export function invitationMessage(emailed: boolean, email: string, mailOn: boolean): string {
+function invitationMessage(emailed: boolean, email: string, mailOn: boolean): string {
   if (emailed) return `Invitation emailed to ${email}`;
   return mailOn ? "Invitation made, but the email could not be sent: copy the link and send it yourself" : "Invitation made: copy the link and send it yourself, email is not set up";
 }
