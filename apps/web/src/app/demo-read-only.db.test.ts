@@ -168,6 +168,7 @@ const CASES: Record<string, Case> = {
   "oauth/authorize/actions:answerConsent": { outside: "connects an assistant to one's own Workspace; refused during a demo visit" },
   "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
   "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
+  "quick-look-actions:metricQuickLook": { reads: () => ["revenue"] },
   // Reading or fetching a Pack is refused in the demo like a change: it would make work for an anonymous visitor.
   "pack-actions:readPack": { args: () => [PACK] },
   "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/export", name: "Export", version: "1.0.0", summary: "An export.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },

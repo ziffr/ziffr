@@ -9,7 +9,7 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import type { Metric, Point } from "@ziffr/core/types";
 
 /** The Metric fields the panel draws, no more (not its description, formula, owner id or settings). */
-export type QuickLookMetric = Pick<Metric, "name" | "slug" | "period" | "sources" | "decimals" | "unit" | "unit_position" | "polarity" | "target_min" | "target_max"> & { derived: boolean };
+type QuickLookMetric = Pick<Metric, "name" | "slug" | "period" | "sources" | "decimals" | "unit" | "unit_position" | "polarity" | "target_min" | "target_max"> & { derived: boolean };
 
 /** What the quick look draws. */
 export type QuickLook = { metric: QuickLookMetric; points: Point[]; ownerName: string | null; yearStart: Awaited<ReturnType<typeof getYearStart>>; numberStyle: NumberStyle };
