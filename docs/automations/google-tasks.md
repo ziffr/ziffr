@@ -7,7 +7,7 @@ Two n8n workflows that keep Google Tasks in step with the Tasks given in Ziffr. 
 | File | Direction | What it does |
 |---|---|---|
 | [`google-tasks-from-ziffr.json`](google-tasks-from-ziffr.json) | Ziffr to Google Tasks | A Task given to someone becomes a Google task; changes to its text, due date or state follow; a Task done in Ziffr is ticked off. |
-| [`google-tasks-to-ziffr.json`](google-tasks-to-ziffr.json) | Google Tasks to Ziffr | Ticking a task marks the Task done, un-ticking reopens it, and a line `Reply: …` in the task's details becomes a message in the Thread. |
+| [`google-tasks-to-ziffr.json`](google-tasks-to-ziffr.json) | Google Tasks to Ziffr | Ticking a task marks the Task done, un-ticking reopens it, and a line `Reply: …` after the line `--- end of Ziffr text ---` in the task's details becomes a message in the Thread. |
 
 Import one or both: each works alone, but without the first, tasks have no ref in their details and the second has nothing to report.
 
@@ -29,7 +29,8 @@ The limits of the To Do templates apply, with these differences:
 - **Tasks only**, in the one list you chose, in the account of the credential; no lookup of the assignee. A redacted message becomes a task titled "A Ziffr task for you (ZIF-12)" with a link.
 - **The date only.** Google Tasks keeps a due date without a time, so a due date reaches it as a day.
 - **Five minutes** until a tick reaches Ziffr (Google Tasks does not push). The workflow asks for tasks changed in the last seven days, at most 100, including completed and hidden ones (a task cleared from the completed list is hidden, not gone); a list with more changes than that in a week may miss some.
-- **Replies** are a line `Reply:` followed by text in the task's details, up to 1,000 characters.
+- **Replies** are a line `Reply:` below the line `--- end of Ziffr text ---` followed by text in the task's details, up to 1,000 characters.
 - **Memory is n8n's static data**, which holds only while the workflow is active; the worst case after losing it is a `done` sent twice, which Ziffr takes as `changed: false`.
 - **Ziffr allows 60 requests a minute** per Webhook; a run sends at most 30.
 - Editing the title or date in Google Tasks does not change it in Ziffr. Ziffr's rules win: a Task Ziffr closed itself cannot be reopened from Google Tasks.
+- **Details are written safely.** Every value Ziffr sends (a name, the link) has line breaks and other control characters stripped before it goes into the details, and only a `Reply:` line **after** the closing marker line is read, so no name can forge a reply.

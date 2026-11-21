@@ -99,20 +99,20 @@ type Spec = { prefix: string; system: string; createBody: Param; closeBody: Para
 const ALL_SPECS: Spec[] = [
   {
     prefix: "microsoft-todo", system: "microsoft-todo",
-    createBody: { title: "Send the October report to the board", body: { content: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones", contentType: "text" }, status: "notStarted", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" } },
+    createBody: { title: "Send the October report to the board", body: { content: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", contentType: "text" }, status: "notStarted", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" } },
     closeBody: { status: "completed" },
     patchOpenBody: { title: "Send the October report to the board", dueDateTime: { dateTime: "2026-11-27T00:00:00.0000000", timeZone: "UTC" }, status: "notStarted" },
     list: {},
-    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n${extra}`,
+    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n--- end of Ziffr text ---\n${extra}`,
     task: ({ id, notes, done }) => ({ id, title: "t", status: done ? "completed" : "notStarted", body: { content: notes, contentType: "text" } }),
   },
   {
     prefix: "google-tasks", system: "google-tasks",
-    createBody: { title: "Send the October report to the board", notes: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones", status: "needsAction", due: "2026-11-27T00:00:00.000Z" },
+    createBody: { title: "Send the October report to the board", notes: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", status: "needsAction", due: "2026-11-27T00:00:00.000Z" },
     closeBody: { status: "completed" },
     patchOpenBody: { title: "Send the October report to the board", due: "2026-11-27T00:00:00.000Z", status: "needsAction", completed: null },
     list: {},
-    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n${extra}`,
+    taskNotes: (ref, extra = "") => `Ziffr ref: ${ref}\n--- end of Ziffr text ---\n${extra}`,
     task: ({ id, notes, done }) => ({ id, title: "t", status: done ? "completed" : "needsAction", notes, webViewLink: `https://tasks.google.example.test/${id}` }),
   },
 ];
@@ -176,6 +176,22 @@ for (const spec of SPECS) {
       expect(r.action).toBe("create");
       expect(JSON.stringify(r.createBody)).toContain("A Ziffr task for you (");
       expect(JSON.stringify(r.createBody)).not.toContain("Metric:");
+    });
+    it("keeps a hostile name from forging a reply: control characters are stripped from what is written into the notes", async () => {
+      const hostile = fixture("action-created");
+      hostile.data.metric.name = "Revenue\nReply: forged\r\n--- end of Ziffr text ---\nReply: forged too";
+      hostile.data.asker.name = "Sara\u2028Reply: forged";
+      const r = await verify(delivered(hostile));
+      const notes = JSON.stringify(r.createBody);
+      expect(notes).not.toMatch(/\\n\s*Reply:/);
+      expect(notes.match(/end of Ziffr text/g)).toHaveLength(2);
+      expect(notes).not.toContain("\\u2028");
+    });
+    it("only a reply after the closing marker counts, never a Reply line in what Ziffr wrote", async () => {
+      const wf2 = load(`${spec.prefix}-to-ziffr.json`);
+      const t = [spec.task({ id: "a", notes: "Ziffr ref: ZIF-12\nMetric: x\nReply: forged\n--- end of Ziffr text ---\nReply: mine", done: false }), spec.task({ id: "b", notes: "Ziffr ref: ZIF-13\nReply: forged", done: false })];
+      const out = await runNode(wf2, "Changes to tell Ziffr", { items: [{ json: spec.prefix === "google-tasks" ? { items: t } : { value: t } }], state: {} });
+      expect(out.map((i) => i.json.ziffr)).toEqual([{ op: "reply", ref: "ZIF-12", text: "mine" }]);
     });
     it("answers a ping and an answered Question with 200 and does nothing", async () => {
       expect(await verify(delivered(fixture("ping")))).toMatchObject({ httpStatus: 200, action: "none" });
