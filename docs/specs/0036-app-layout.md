@@ -1,6 +1,6 @@
 # 0036 App layout: sidebar, inset page, slide-overs
 
-**Status:** draft. **Ticket:** #502. A preview behind a switch; the top bar stays the default until the owner decides from the screenshots.
+**Status:** in progress (the preview is built; the follow-ups are #509 to #511). **Ticket:** #502. A preview behind a switch; the top bar stays the default until the owner decides from the screenshots.
 
 ## Problem Statement
 
@@ -75,13 +75,17 @@ The Workspace settings pages keep their own side list inside the page (`settings
 
 More slide-overs (Share, Version history, Add to deck) and moving each into a Sheet; a customisable sidebar (pinned dashboards in it); dark mode.
 
-## Open questions for the owner
+## Decided (owner, 2026-11-21)
 
-1. **Which frame?** Sidebar with inset card (built), or the sidebar flat with no card? Recommendation: inset; it separates the frame from the numbers.
-2. **Workspace pages**: a collapsible group, closed unless you are in it (built), or one **Settings** entry that opens a page listing them? Recommendation: the collapsible group, closed by default for everyone unless the current page is in it; Owners and Admins open it with one click.
-3. **Pinned dashboards in the sidebar** (a list under Dashboards)? Recommendation: yes, in the step after the preview; it replaces the dashboard switcher on the page.
-4. **Which details become slide-overs next?** Recommendation: Alert me…, Share, Version history and a Metric's quick look first (all keep the reader on the page); forms that create something stay dialogs.
-5. **Dark mode:** the app is light only today. Make a dark set of tokens as part of this move, or later? Recommendation: later, as its own ticket; the frame already uses tokens only.
-6. **Phone tabs:** are Dashboards, Metrics, Actions, Search, More the right five? Recommendation: yes; Decks and Analyze are reading and analysing on a larger screen.
-7. **Collapsed by default** for new people? Recommendation: expanded; it remembers the person's last choice.
-8. **Name of the switch** when it becomes the default: "Use the classic top bar" for one release, then removed. Recommendation: as written in Rollout.
+All eight recommendations were accepted:
+
+1. **Frame:** sidebar with the inset card.
+2. **Workspace pages:** a collapsible group, closed unless the current page is in it; Owners and Admins open it with one click.
+3. **Pinned dashboards in the sidebar:** yes, after the preview: #509.
+4. **More slide-overs** (Alert me…, Share, Version history, a Metric's quick look first; forms that create something stay dialogs): #510.
+5. **Dark mode:** later, as its own ticket: #505. The frame already uses tokens only.
+6. **Phone tabs:** Dashboards, Metrics, Actions, Search, More.
+7. **Collapsed by default:** no; expanded, remembering the person's last choice.
+8. **Switch:** the preview stays opt-in; making the sidebar the default (with "Use the classic top bar" for one release) and then removing the top bar and the switch: #511.
+
+This pull request delivers the opt-in preview only; the top bar stays the default.
