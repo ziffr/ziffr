@@ -187,6 +187,8 @@ With Docker, back up the `ziffr_db` and `ziffr_keys` volumes ([docker/README.md]
 
 All of Ziffr's data is in the Postgres database: Metrics, values, dashboards, decks, Threads and the Access Log. Back it up the way your Supabase plan or your own Postgres does, and try a restore once before you rely on it.
 
+**Encrypting what was written before.** Since spec 0028 every Workspace has a Workspace Key and new data is sealed with it. Data written before is sealed by a job, `POST /api/jobs/workspace-keys` ([scheduled jobs](jobs.md)), a few hundred rows at a time; Docker Compose's clock calls it every five minutes, elsewhere call it from your scheduler. Nothing stops while it runs, and it needs no setting beyond `ZIFFR_SECRETS_KEY`: without that key it waits. Watch it on the Installation settings page, under Encryption of Workspaces. **Back up `ZIFFR_SECRETS_KEY` (with Docker, the `ziffr_keys` volume) apart from the database before you upgrade:** once data is sealed, losing the key loses every Workspace, with no way back. A dump stored next to the key protects nothing.
+
 **Deleted Workspaces and backups.** Deleting a Workspace, such as a trial that ended, destroys its Workspace Key first (spec 0028). Once a Workspace's data is sealed with that key (from spec 0028's step 1 on), the live database and every backup taken afterwards cannot open what is left of it. A backup taken before the deletion still holds the wrapped key, and `ZIFFR_SECRETS_KEY` still unwraps it, so that backup opens until it is itself deleted. A deleted Workspace is therefore unreadable in backups after the retention period: tell people your retention period (N days), and promise nothing stronger.
 
 ## Before you invite anyone

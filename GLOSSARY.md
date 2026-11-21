@@ -357,7 +357,7 @@ An importable file for an automation tool such as n8n that joins a Webhook to an
 _Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow
 
 **Workspace Key**:
-The key a Workspace's sensitive data is encrypted with in the database: its values, the words people write and its Contacts' details. Each Workspace has its own, kept only wrapped by the Installation's key, and deleting the Workspace destroys it, so what is left of the Workspace can no longer be read. It is not end-to-end encryption: the Installation reads the data to check, combine and send it. The demo has none.
+The key a Workspace's sensitive data is encrypted with in the database: its values, the words people write and its Contacts' details. Each Workspace has its own, kept only wrapped by the Installation's key, and deleting the Workspace destroys it, so what is left of the Workspace can no longer be read. It is not end-to-end encryption: the Installation reads the data to check, combine and send it. The demo has none. Data written before a Workspace had a key is sealed by a job, which Installation Admins can follow on the Installation Settings page: they see how far it is and which key versions each Workspace has, never a key.
 _Avoid_: Tenant key, encryption key, data key, customer key
 
 **Installed app**:

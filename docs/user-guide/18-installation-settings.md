@@ -138,6 +138,17 @@ Under **The last 30 days**, the page lists the days newest first. With fewer tha
 
 **Workspace left out.** Pick one of the Workspaces you own, by name, usually the one that holds your own numbers, to leave it out of every figure and of the count of Workspaces, so those numbers do not count themselves. Only a Workspace you own can be picked, and only its Owner can change or remove the choice: leaving a Workspace out changes the next day's totals by exactly that Workspace, so two days side by side would show its size. It takes effect with the next day's count. The setting holds the Workspace's id (`ZIFFR_USAGE_EXCLUDE_WORKSPACE`); the endpoint never names the Workspace.
 
+## Encryption
+
+Every Workspace has a **Workspace Key** of its own, kept only wrapped under this Installation's `ZIFFR_SECRETS_KEY`, and Ziffr seals the words people write, its Contacts' details and the Outbox, the intake log and the Audit Log with it. Rows written before an upgrade are in clear until a job seals them, a few hundred at a time, every five minutes; nothing stops while it runs. The **Encryption of Workspaces** section shows how far it is.
+
+- At the top, how many Workspaces are fully encrypted and have a key, how many values are still in clear and how many are moving to a newer key version. Without `ZIFFR_SECRETS_KEY` the section says that nothing is encrypted, and the job waits until the key is set.
+- **Held back** rows are ones the job could not seal, such as two Contacts of one Workspace with the same address. Nothing is deleted; a Workspace's Owners can remove one of them. Values that **do not open** (changed in the database, or copied from another place) are counted apart and left alone.
+- A table by kind of value: how many there are, how many are still in clear and in how many Workspaces the kind is done.
+- A list of Workspaces, the ones that need most attention first, with their key versions, whether a key is still wrapped under the previous Installation key, and how many values are in clear. When a line says so for no Workspace, `ZIFFR_SECRETS_KEY_PREVIOUS` can go.
+
+The page shows counts and version numbers only, never a key, not even in wrapped form. Back up `ZIFFR_SECRETS_KEY` apart from the database: without it, the database holds nothing readable of any Workspace.
+
 ## Demo
 
 **Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.

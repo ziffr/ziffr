@@ -54,7 +54,7 @@ const NEVER_NULL: Partial<Record<OpenedTable, readonly string[]>> = { dashboards
 const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
+export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
 
 /** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;

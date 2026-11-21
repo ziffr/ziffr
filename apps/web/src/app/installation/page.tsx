@@ -6,6 +6,7 @@ import { installationAdmins, installationClaimed, installationEvents, isInstalla
 import { installationSettingsView } from "@ziffr/core/installation-settings";
 import { inboundMx, replyTestStatus } from "@ziffr/core/installation-replies";
 import { installationUsage, usageExclusionChoices, usageKeyInfo } from "@ziffr/core/installation-usage";
+import { keyProgress } from "@ziffr/core/workspace-key-progress";
 import { workspaceLimitRows } from "@ziffr/core/workspace-limits-admin";
 import { PageHeader } from "@/components/page-header";
 import { installationActor, ziffrVersion } from "@/lib/installation";
@@ -17,11 +18,11 @@ export default async function InstallationPage() {
   if (!actor) redirect("/login?next=/installation");
   if (await isInstallationAdmin(actor)) {
     const version = ziffrVersion();
-    const [view, admins, events, limits, mx, replyTest, usageKey, usageDays, leaveOut] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor), inboundMx(actor), replyTestStatus(actor), usageKeyInfo(actor), installationUsage(actor), usageExclusionChoices(actor)]);
+    const [view, admins, events, limits, mx, replyTest, usageKey, usageDays, leaveOut, encryption] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor), inboundMx(actor), replyTestStatus(actor), usageKeyInfo(actor), installationUsage(actor), usageExclusionChoices(actor), keyProgress(actor)]);
     return (
       <>
         <PageHeader title="Installation settings" sub={`What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page.${version ? ` This is Ziffr ${version}.` : ""}`} />
-        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} />
+        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} />
       </>
     );
   }
