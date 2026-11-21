@@ -92,6 +92,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
 - `updateMyProfile` (profile.ts): one's own profile
+- `setMyAppearance` (profile.ts): one's own Appearance
 - `setPreference` (questions.ts): one's own reminder channel
 - `startSlackLink` (slack-people.ts): linking oneself to Slack
 - `slackOptBackIn` (slack-people.ts): linking oneself to Slack

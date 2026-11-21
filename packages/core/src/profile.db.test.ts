@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db, seedingDemo } from "./db";
 import { emailOptedOut, optBackIn, optOutOfEmail } from "./email-opt-out";
-import { cleanName, myDeliverySettings, myProfile, PERSON_COLORS, updateMyProfile } from "./profile";
+import { cleanName, myAppearance, myDeliverySettings, myProfile, PERSON_COLORS, setMyAppearance, updateMyProfile } from "./profile";
 import { setPreference } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
@@ -53,6 +53,32 @@ describe("your profile", () => {
     await expect(updateMyProfile({ personId: contact, workspaceId: w.id, role: "member" }, { name: "Mallory" })).rejects.toEqual(expect.any(Forbidden));
     expect((await nameOf(zoe)).name).toMatch(/^owner /);
     expect((await nameOf(contact)).name).toMatch(/^Contact /);
+  });
+});
+
+describe("your Appearance", () => {
+  it("is System until chosen, then kept for the actor and nobody else", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    expect(await myAppearance(w.actor(ben, "member"))).toBe("system");
+    expect(await setMyAppearance(w.actor(ben, "member"), "dark")).toBe("dark");
+    expect(await myAppearance(w.actor(ben, "member"))).toBe("dark");
+    expect(await myAppearance(w.actor(sara))).toBe("system");
+    await setMyAppearance(w.actor(ben, "member"), "contrast");
+    expect(await myAppearance(w.actor(ben, "member"))).toBe("contrast");
+  });
+  it("follows the person into every workspace they belong to", async () => {
+    const a = await ws(); const b = await ws(); const ann = await a.person("guest");
+    await db().from("memberships").insert({ workspace_id: b.id, user_id: ann, role: "member" });
+    await setMyAppearance(a.actor(ann, "guest"), "light");
+    expect(await myAppearance(b.actor(ann, "member"))).toBe("light");
+  });
+  it("refuses anything but the four choices, the demo, and someone not in the workspace", async () => {
+    const w = await ws(); const other = await ws(); const sara = await w.person("owner"); const zoe = await other.person("owner");
+    for (const choice of ["sepia", "", "Dark", null, 1, "dark; drop"]) await expect(setMyAppearance(w.actor(sara), choice)).rejects.toThrow(/choices/);
+    expect(await myAppearance(w.actor(sara))).toBe("system");
+    await expect(setMyAppearance({ personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, "dark")).rejects.toEqual(expect.any(Forbidden));
+    await expect(setMyAppearance({ personId: zoe, workspaceId: w.id, role: "owner" }, "dark")).rejects.toEqual(expect.any(Forbidden));
+    expect(await myAppearance(w.actor(sara))).toBe("system");
   });
 });
 

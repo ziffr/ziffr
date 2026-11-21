@@ -36,6 +36,7 @@ const PAGES: Entry[] = [
   page("/settings/profile", "Your profile", "Your settings", "settings profile name email account language"),
   page("/settings/deliveries", "Your Deliveries", "Your settings", "deliveries preferences email slack how to be asked"),
   page("/settings/alerts", "Your Alerts", "Your settings", "alerts alert notify threshold"),
+  page("/settings/appearance", "Appearance", "Your settings", "appearance dark mode light theme night contrast display colours"),
   page("/settings/assistants", "Connected assistants", "Your settings", "assistant ai claude chatgpt mcp connect"),
 ];
 
@@ -44,7 +45,7 @@ const NOT_FOR_GUESTS = new Set(["/themes"]);
 /** Pages only Owners and Admins have (a section of General, so no menu link lists it). */
 const ADMINS_ONLY = new Set(["/settings/workspace#size"]);
 /** Pages everyone has. */
-const EVERYONE = new Set(["/actions", "/dashboards", "/decks", "/metrics", "/analyze", "/settings/schedule", "/settings/profile", "/settings/deliveries", "/settings/alerts", "/settings/assistants"]);
+const EVERYONE = new Set(["/actions", "/dashboards", "/decks", "/metrics", "/analyze", "/settings/schedule", "/settings/profile", "/settings/deliveries", "/settings/alerts", "/settings/appearance", "/settings/assistants"]);
 
 /** The pages this role may open: the ones everyone has, and those the Workspace menu draws for the role. */
 export function pageEntries(role: WorkspaceRoleName): Entry[] {

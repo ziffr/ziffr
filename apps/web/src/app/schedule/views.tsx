@@ -21,7 +21,7 @@ const KIND_EDGE: Record<Duty["kind"], string> = {
   value_due: "var(--color-success)",
   approval: "var(--color-accent-2)",
   task: "var(--color-ink-2)",
-  question: "oklch(48% 0.1 280)",
+  question: "var(--color-violet)",
 };
 
 const dayName = (d: string) => format(parseISO(d), "EEE d MMM");
@@ -66,7 +66,7 @@ function Chip({ p, today, compact }: { p: Placed<Duty>; today: string; compact?:
       className="block rounded-[var(--radius-sm)] border border-border border-l-[3px] bg-[var(--color-cotton)] px-2 py-1 text-xs leading-snug hover:bg-[var(--color-paper-2)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
     >
       <span className={cn("block font-medium", compact && "line-clamp-2")}>
-        {d.overdue && <span className="mr-1 rounded-sm bg-[var(--color-error)] px-1 py-px text-xs font-semibold text-white">Overdue</span>}
+        {d.overdue && <span className="mr-1 rounded-sm bg-[var(--color-error)] px-1 py-px text-xs font-semibold text-background">Overdue</span>}
         {d.title}
       </span>
       {p.originalDate && <span className="block text-xs text-muted-foreground">{p.originalDate !== today && `from ${dayName(p.originalDate)}, `}{plural(d.lateDays, "working day")} late</span>}

@@ -51,7 +51,7 @@ function ConfirmDialog({ title, description, confirmLabel, destructive = true, o
           <Button type="button" variant="outline" autoFocus onClick={() => onAnswer(false)}>Cancel</Button>
           <Button
             type="button"
-            className={destructive ? "bg-destructive text-white shadow-none [text-shadow:none] hover:bg-destructive/90" : undefined}
+            className={destructive ? "bg-destructive text-background shadow-none [text-shadow:none] hover:bg-destructive/90" : undefined}
             onClick={() => onAnswer(true)}
           >
             {confirmLabel}

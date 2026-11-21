@@ -1,8 +1,8 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
-This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
+This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
 
 ## Signing in
 
@@ -102,6 +102,7 @@ The top bar is on every page once you are in a Workspace, if you chose it.
 | **New workspace** | Starts another Workspace, of which you become the Owner |
 | **My schedule** | What you have to do in this Workspace, overdue first; see [My schedule and your calendar](#my-schedule-and-your-calendar) |
 | **Your profile** | Your name, colour and address |
+| **Appearance** | Light, dark, system or high contrast; see [Appearance](#appearance) |
 | **Your Deliveries** | Where Ziffr reaches you, and when you are Away |
 | **Your Alerts** | The Alerts you set on Metrics, and where each stands |
 | **Installation settings** | Only for Installation Admins: what this Ziffr talks to and who runs it; see [Installation settings](18-installation-settings.md) |
@@ -201,6 +202,21 @@ Open it from your own menu at the bottom of the sidebar, or, in the classic top 
 | **Sign out** | Signs you out |
 
 In the demo, the made-up people keep their names and colours, the address is made up, and the last button is **Leave the demo** instead of **Sign out**.
+
+## Appearance
+
+Open it from your own menu at the bottom of the sidebar, or, in the classic top bar, from **Appearance** in the side list of the settings area. It decides how Ziffr's own screens look to you, including the sign-in page. Pick one of four, each shown as a small preview; the page changes at once.
+
+| Choice | What it does |
+| --- | --- |
+| **System** | Light or dark, as this device is set. It follows the device when that changes. |
+| **Light** | Always light |
+| **Dark** | Always dark |
+| **High contrast** | Black on white, or white on black when the device is set to dark, with strong outlines and the highest contrast for text |
+
+The choice is saved to you, so every device and every Workspace you use looks the same. A browser that is not signed in, such as the sign-in page, uses the choice last made in it, and System before any. In the demo nothing is saved, so the choice stays in this browser.
+
+Dashboards, Decks and exports keep the look of their [Theme](14-decks-and-themes.md); Appearance changes only what is around them. A dashboard or deck can therefore show a light page inside a dark screen.
 
 ## Your Deliveries
 

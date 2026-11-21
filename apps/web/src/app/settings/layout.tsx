@@ -11,7 +11,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if ((await layoutChoice()) === "sidebar") return <>{children}</>;
   const actor = await currentActor();
   const groups = [
-    { label: "You", links: [{ href: "/schedule", label: "My schedule" }, { href: "/settings/profile", label: "Profile" }, { href: "/settings/deliveries", label: "Deliveries" }, { href: "/settings/alerts", label: "Alerts" }, { href: "/settings/assistants", label: "Connected assistants" }] },
+    { label: "You", links: [{ href: "/schedule", label: "My schedule" }, { href: "/settings/profile", label: "Profile" }, { href: "/settings/deliveries", label: "Deliveries" }, { href: "/settings/alerts", label: "Alerts" }, { href: "/settings/appearance", label: "Appearance" }, { href: "/settings/assistants", label: "Connected assistants" }] },
     { label: "Workspace", links: workspaceLinks(actor.role) },
   ];
   return (

@@ -1,6 +1,7 @@
 // Your profile (spec 0006, ticket #94; GLOSSARY: Workspace, Contact, Demo Mode): the name and colour others see you
 // by. A profile is one per person, so a change shows in every workspace they belong to.
 import { Forbidden, type Actor } from "./actor";
+import { APPEARANCES, parseAppearance, type Appearance } from "./appearance";
 import { db } from "./db";
 import { isSealed } from "./workspace-keys";
 
@@ -63,6 +64,22 @@ export async function updateMyProfile(actor: Actor, input: { name?: unknown; col
   if (!Object.keys(change).length) return;
   const { error } = await db().from("profiles").update(change).eq("id", actor.personId);
   if (error) throw new Error("Your profile could not be saved.");
+}
+
+/** The actor's own Appearance (GLOSSARY: Appearance); System when none was chosen. Nobody else's can be read. */
+export async function myAppearance(actor: Actor): Promise<Appearance> {
+  const { data } = await db().from("profiles").select("appearance").eq("id", actor.personId).maybeSingle();
+  return parseAppearance(data?.appearance);
+}
+
+/** Sets the actor's own Appearance; there is no person to pass, so nobody else's can change. Refused in the demo and
+ * for its people (their rows never change); the demo keeps the choice in the browser only. */
+export async function setMyAppearance(actor: Actor, choice: unknown): Promise<Appearance> {
+  await assertOwnRealProfile(actor);
+  if (!(APPEARANCES as readonly unknown[]).includes(choice)) throw new Error("Pick one of the choices.");
+  const { error } = await db().from("profiles").update({ appearance: choice as Appearance }).eq("id", actor.personId);
+  if (error) throw new Error("Your appearance could not be saved.");
+  return choice as Appearance;
 }
 
 /** What the actor's own Deliveries page shows: their Delivery Preferences and the team default beside them, whether
