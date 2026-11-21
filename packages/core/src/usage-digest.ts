@@ -14,7 +14,7 @@ import { initialDeliveryState } from "./outbound";
 import { insertSealed } from "./sealed-columns";
 import { settingsInEffect } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { UNUSED_DAYS, workspaceUsage, type UsageReport } from "./usage-report";
+import { workspaceUsage, type UsageReport } from "./usage-report";
 import { digestTokenAvailable, verifyDigestToken } from "./usage-digest-token";
 
 /** Names shown per list. */
@@ -43,9 +43,9 @@ function parts(r: UsageReport): Part[] {
   const s = (n: number) => (n === 1 ? "" : "s");
   const plain = (rows: { name: string; why: string }[]) => rows.map((x) => ({ name: x.name, why: x.why }));
   const all: Part[] = [
-    { count: r.notOpened.dashboards.length, heading: (n) => `${n} dashboard${s(n)} not opened for ${UNUSED_DAYS} days`, items: plain(r.notOpened.dashboards) },
-    { count: r.notOpened.decks.length, heading: (n) => `${n} deck${s(n)} not opened for ${UNUSED_DAYS} days`, items: plain(r.notOpened.decks) },
-    { count: r.notOpened.metrics.length, heading: (n) => `${n} Metric${s(n)} not opened for ${UNUSED_DAYS} days`, items: plain(r.notOpened.metrics) },
+    { count: r.notOpened.dashboards.length, heading: (n) => `${n} dashboard${s(n)} not opened for ${r.unusedDays} days`, items: plain(r.notOpened.dashboards) },
+    { count: r.notOpened.decks.length, heading: (n) => `${n} deck${s(n)} not opened for ${r.unusedDays} days`, items: plain(r.notOpened.decks) },
+    { count: r.notOpened.metrics.length, heading: (n) => `${n} Metric${s(n)} not opened for ${r.unusedDays} days`, items: plain(r.notOpened.metrics) },
     { count: r.noValues.length, heading: (n) => `${n} Metric${s(n)} without values`, items: plain(r.noValues) },
     { count: r.submitters.length, heading: (n) => `${n} Submitter${s(n)} who ${n === 1 ? "has" : "have"} not sent a value`, items: r.submitters.map((x) => ({ name: x.name, why: `asked for ${x.metrics.length} Metric${s(x.metrics.length)}` })) },
   ];
@@ -103,7 +103,10 @@ async function digestFor(ws: { id: string; name: string }, ownerId: string, mont
   if (error || !claimed?.length) return false;
   try {
     const owner: Actor = { personId: ownerId, workspaceId: ws.id, role: "owner" };
-    const text = digestText(await workspaceUsage(owner, now), ws.name);
+    const report = await workspaceUsage(owner, now);
+    // Not before the Workspace's own unused days have been counted (the job's date test is the shortest they may be).
+    if (report.countingSince === null || report.fillsInOn !== null) { await release(ws.id, ownerId, month); return false; }
+    const text = digestText(report, ws.name);
     if (text === null) return false;
     const state = await initialDeliveryState("email", ws.id, ownerId);
     // Held back (a trial, say) or not queued for sending: nothing is made for the Outbox either.
@@ -132,7 +135,8 @@ export async function usageDigestJob(now = new Date()): Promise<{ sent: number; 
   if (!mailEnabled(settings)) { console.error("Usage digest: this Ziffr cannot send email; nothing is sent."); return none; }
   if (!digestTokenAvailable()) { console.error("Usage digest: neither ZIFFR_SECRETS_KEY nor ZIFFR_JOB_SECRET can sign the unsubscribe link; nothing is sent."); return none; }
   const month = monthOf(now);
-  const since = new Date(now.getTime() - UNUSED_DAYS * DAY).toISOString().slice(0, 10);
+  // The shortest a Workspace may set (30 days); each Workspace's own days are checked by its report, which lists nothing before they have been counted.
+  const since = new Date(now.getTime() - 30 * DAY).toISOString().slice(0, 10);
   const { data: workspaces, error } = await db().from("workspaces").select("id, name").neq("id", DEMO_WORKSPACE_ID).is("trial_ends_at", null).not("usage_since", "is", null).lte("usage_since", since).order("id");
   if (error) throw new Error("The Workspaces could not be read.");
   const started = Date.now();

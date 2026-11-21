@@ -216,6 +216,8 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | `20` | The sign-in links one network address may ask for in an hour, for any addresses. A company or school behind one address, all signing in at nine on Monday, needs more. 5 to 500; empty: 20. |
 | `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | `1000` | The Contacts one Workspace keeps at most. 100 to 100,000; empty: 1,000. |
 | `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | `500` | The Snapshots one dashboard keeps at most. 100 to 50,000; empty: 500. |
+| `ZIFFR_LIMIT_ALERTS_PER_PERSON` | Alerts per person | `20` | The most Alerts one person may hold in one Workspace. This is the ceiling: a Workspace's Owners may lower it for their Workspace, never raise it. Alerts held above a lowered number stay. 1 to 200; empty: 20. |
+| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_PERSON_PER_DAY` | Alert messages per person per day | `20` | The Alert messages one person is sent in a day; after it Alerts still fire into the list. This is the ceiling: a Workspace's Owners may lower it, and each person may lower it for themselves, never raise it. 1 to 200; empty: 20. |
 
 **How long logs are kept**
 

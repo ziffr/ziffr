@@ -122,7 +122,11 @@ Generated from the code, with the range each may be set to and its normal value 
 | `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | 5 to 500 | 20 | The sign-in links one network address may ask for in an hour, for any addresses. A company or school behind one address, all signing in at nine on Monday, needs more. |
 | `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | 100 to 100,000 | 1,000 | The Contacts one Workspace keeps at most. |
 | `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | 100 to 50,000 | 500 | The Snapshots one dashboard keeps at most. |
+| `ZIFFR_LIMIT_ALERTS_PER_PERSON` | Alerts per person | 1 to 200 | 20 | The most Alerts one person may hold in one Workspace. This is the ceiling: a Workspace's Owners may lower it for their Workspace, never raise it. Alerts held above a lowered number stay. |
+| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_PERSON_PER_DAY` | Alert messages per person per day | 1 to 200 | 20 | The Alert messages one person is sent in a day; after it Alerts still fire into the list. This is the ceiling: a Workspace's Owners may lower it, and each person may lower it for themselves, never raise it. |
 <!-- /generated:sending-limits -->
+
+Alerts per person and Alert messages per person per day are ceilings: a Workspace's Owners may lower them for their Workspace and each person for themselves, never raise them (see [Workspace settings](16-workspace-settings.md#limits)). If you lower a ceiling below what a Workspace set, the lower one applies.
 
 None of them can be switched off: a number outside the range is refused with its range, and a wrong value on the server is ignored in favour of the normal one. They are the same for every Workspace, whatever its Metrics limit, and Ziffr Cloud never changes them. Lowering one never deletes or stops what already exists: a Workspace with more Webhooks than you now allow keeps them and only cannot add new ones; messages already waiting are sent as the new limit allows. A change takes effect within seconds, without a restart. Limits the database itself enforces, such as how many values a Metric takes in a day, are not set here.
 

@@ -8,6 +8,7 @@
 // for seven days; a person has at most MAX_OPEN_PROPOSALS open; the recipient and the message are returned in plain
 // words for the confirm screen; the Audit Log names the connection that proposed and the person who decided, never the
 // message. Never for people management or approvals.
+import { effectiveLimit } from "./limits";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { db } from "./db";
 import { audit } from "./audit-log";
@@ -136,7 +137,7 @@ export async function createShareProposal(actor: Actor, accessKeyId: number, inp
     if (snapshot !== null && !Number.isInteger(snapshot)) throw new Refused("The Snapshot was not found.");
     // The preview is what the recipient would see; none means nothing to show (a Snapshot not shown yet, an empty dashboard).
     if (!(await previewViewLink(actor, dashboard.id, snapshot))) throw new Refused(snapshot === null ? "The dashboard has nothing to show yet." : "Show the Snapshot to everyone with access first, then propose a link to it.");
-    Object.assign(row, { kind: "view_link", recipient_email: email, recipient_key: mailboxKey(email), ends_on: endDate(input.ends), message: cleanMessage(input.message), snapshot_id: snapshot, frozen: snapshot !== null || input.live !== true });
+    Object.assign(row, { kind: "view_link", recipient_email: email, recipient_key: mailboxKey(email), ends_on: endDate(input.ends, await effectiveLimit("viewLinkDays", actor.workspaceId)), message: cleanMessage(input.message), snapshot_id: snapshot, frozen: snapshot !== null || input.live !== true });
     recipient = "email";
   } else {
     if (input.message !== undefined && input.message !== null && input.message !== "") throw new Refused("A message goes only with a View Link.");
