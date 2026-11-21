@@ -9,7 +9,7 @@ import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
-import { headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { brandedParts, headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial } from "./trials";
 import { refuseInDemo } from "./demo";
@@ -81,17 +81,14 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   const inviter = named((inv.profiles as unknown as { name: string } | null)?.name ?? "someone");
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
   try {
-    await sendMail({
-      to: inv.email,
-      subject: "You are invited to a workspace on Ziffr",
-      text: [
+    const text = [
         "Hi,", "",
         `You are invited to join the workspace “${workspace}” on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}, by “${inviter}”.`, "",
         `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
         `The invitation works until ${until}, and only for this address (${inv.email}).`,
         "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
-      ].join("\n"),
-    }, transport);
+      ].join("\n");
+    await sendMail({ to: inv.email, subject: "You are invited to a workspace on Ziffr", text, ...(await brandedParts(inv.workspace_id, { text })) }, transport);
     return true;
   } catch (e) {
     // Only the kind of failure: the server's own words may hold addresses or settings.

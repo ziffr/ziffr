@@ -161,6 +161,16 @@ On the right, a preview shows a sample slide and real Widgets drawn with the fir
 
 If you are not an Owner or Admin, the page says "Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks." You can still look at every theme and its Versions.
 
+### Outside the app
+
+The team default Theme also dresses what Ziffr sends and shows outside the app (it is not the same as a person's **Appearance**, which only changes Ziffr's own screens):
+
+- **Emails** (Prompts, reminders, Alerts, invitations, the usage digest, Share Proposals) get the Theme's logo or the Workspace's name, a bar in its accent, its footer and its fonts, in a layout that stays readable when the reader's mail app is dark. Only a PNG or JPEG logo of up to about 150 KB is attached; for any other, the Workspace's name stands in its place. The plain text is always sent too.
+- **The form link** and **View Link** pages show the logo or name under a bar in the accent (see [The personal form link](10-metrics.md#the-personal-form-link) and [View Links](12-dashboards.md#view-links)).
+- **Slack** messages get a side bar in the accent. Block Kit has no other colours.
+
+Every colour is checked for contrast (WCAG AA) when it is used: an accent that is too pale to read on the cards is replaced by a darker shade of it. Under the sample Widgets, the **Email** preview shows the layout in light and dark colours and changes as you edit. A logo that is an SVG is accepted only when it is a plain drawing: one with a script, an event handler, a link to another site or embedded content is not kept.
+
 ### Name and colours
 
 | Option | What it colours |

@@ -13,9 +13,11 @@ import { useFullscreen, useStepper } from "@/lib/use-stepper";
 import type { DashboardAccess } from "@/lib/access";
 import type { CanvasData, Widget } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { BrandBar } from "@/components/brand-bar";
+import type { ThemeLook } from "@ziffr/core/theme-look";
 
-/** publicNote: seen through a View Link: read-only cards, no way back into the app, and when the numbers are from. */
-export function PresentDashboard({ dashboard, data, widgets, start, publicNote }: { dashboard: DashboardAccess; data: CanvasData; widgets: Widget[]; start: number; publicNote?: string }) {
+/** publicNote: seen through a View Link: read-only cards, no way back into the app, and when the numbers are from. `brand`: the Workspace's logo or name in the Theme's accent (ticket #542). */
+export function PresentDashboard({ dashboard, data, widgets, start, publicNote, brand }: { dashboard: DashboardAccess; data: CanvasData; widgets: Widget[]; start: number; publicNote?: string; brand?: ThemeLook }) {
   const pub = publicNote !== undefined;
   const router = useRouter();
   const back = `/dashboards/${dashboard.id}`;
@@ -30,6 +32,7 @@ export function PresentDashboard({ dashboard, data, widgets, start, publicNote }
   return (
     <ThemeScope theme={theme} className="desk fixed inset-0 z-[var(--z-modal)] flex flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 pb-2 sm:px-6">
+        {brand && <BrandBar look={brand} compact />}
         <h1 className="min-w-0 flex-1 truncate font-[family-name:var(--font-heading)] text-[length:clamp(1.1rem,2.2vw,1.6rem)] font-semibold tracking-[-0.02em]">{dashboard.name}</h1>
         <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
           <button type="button" aria-label="Overview" aria-pressed={mode === "overview"} onClick={() => setMode("overview")} className={cn(bar, mode === "overview" && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden className="size-4" /> <span className="hidden sm:inline">Overview</span></button>

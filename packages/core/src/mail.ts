@@ -14,6 +14,8 @@ import { sendingLimitDefault } from "./sending-limits";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { signDigestToken } from "./usage-digest-token";
+import { emailHtml, emailLogo, LOGO_CID } from "./branded-email";
+import { workspaceLook } from "./workspace-look";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
 /** How often a message is tried before it counts as failed, unless ZIFFR_LIMIT_SEND_ATTEMPTS says otherwise (the default). */
@@ -37,8 +39,21 @@ export { FORM_LINK };
 /** The kinds of Delivery a person can stop by email with one click: asking for values and reminding. */
 export const OPT_OUT_KINDS = ["prompt", "reminder"];
 
-/** A plain-text email ready to go out; `replyTo` is the Delivery's own reply address, when replies come back. */
-export type OutgoingMail = { to: string; subject: string; text: string; replyTo?: string; unsubscribe?: string };
+/** An email ready to go out: always the plain text, and with the Workspace's Theme also the same words as HTML (branded-email.ts)
+ * and its logo as a picture to attach (shown as cid:ziffr-logo). `replyTo` is the Delivery's own reply address, when replies come back. */
+export type OutgoingMail = { to: string; subject: string; text: string; html?: string; logo?: { content: Buffer; contentType: string }; replyTo?: string; unsubscribe?: string };
+
+/** The HTML part and logo of an email in a Workspace's Theme (GLOSSARY: Theme), for the words in `text`. */
+export async function brandedParts(workspaceId: string, content: { text: string; stop?: { label: string; url: string }; preheader?: string }): Promise<Pick<OutgoingMail, "html" | "logo">> {
+  // A Theme that cannot be read never holds a message back: it goes out as plain text.
+  try {
+    const look = await workspaceLook(workspaceId);
+    const logo = emailLogo(look) ?? undefined;
+    return { html: emailHtml(look, content, { logo: Boolean(logo) }), ...(logo ? { logo } : {}) };
+  } catch {
+    return {};
+  }
+}
 
 /** Sends one email and returns the provider's Message-ID; tests pass their own. */
 export type MailTransport = (mail: OutgoingMail) => Promise<{ messageId: string }>;
@@ -126,6 +141,8 @@ export function smtpTransportWith(settings: Settings): MailTransport {
     const info = await transporter.t.sendMail({
       from: name ? { name: headerSafe(name), address: fromAddress(settings) } : fromAddress(settings),
       to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+      ...(mail.html ? { html: mail.html } : {}),
+      ...(mail.html && mail.logo ? { attachments: [{ filename: mail.logo.contentType === "image/png" ? "logo.png" : "logo.jpg", cid: LOGO_CID, content: mail.logo.content, contentType: mail.logo.contentType, contentDisposition: "inline" as const }] } : {}),
       // Automated mail: no out-of-office replies to it (RFC 3834). One-click unsubscribe where it applies (RFC 8058).
       headers: {
         "Auto-Submitted": "auto-generated",
@@ -144,7 +161,7 @@ export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(aw
 export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
   if (!(await mailOn())) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text) })).messageId;
+  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}) })).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
@@ -237,13 +254,17 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   };
   let unsubscribe: string | undefined;
   let text = await withFormLink(String(claimed.body), claimed, String(settings.ZIFFR_SITE_URL));
+  // The same words again as HTML in the Workspace's Theme; the plain text below is sent with it, always.
+  const words = text;
+  let stop: { label: string; url: string } | undefined;
   // An Alert email has a one-click link of its own that pauses that Alert only (email-opt-out.ts).
   // (the daily limit note names no Alert and has no link: deliveryFor would refuse it)
   if (stoppable || (claimed.kind === "alert" && (claimed.alert_id || claimed.tell_workflow_id))) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
-    text += `\n\n--\n${claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email"}: ${unsubscribe}`;
+    stop = { label: claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email", url: unsubscribe };
+    text += `\n\n--\n${stop.label}: ${unsubscribe}`;
   }
   if (digest) {
     // A signed link that stops it with no sign-in (usage-digest-token.ts); an Installation with no key to sign it
@@ -251,7 +272,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     const token = signDigestToken(claimed.recipient_id);
     if (!token) return fail("No key to sign the unsubscribe link.");
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/digest/${token}`;
-    text += `\n\n--\nTo get no more of these emails: ${unsubscribe}`;
+    stop = { label: "To get no more of these emails", url: unsubscribe };
+    text += `\n\n--\n${stop.label}: ${unsubscribe}`;
   }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
@@ -262,7 +284,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
     replyTo = replyAddress(token, settings);
   }
   try {
-    const { messageId } = await (transport === smtpTransport ? smtpTransportWith(settings) : transport)({ to, subject: headerSafe(claimed.subject), text, replyTo, unsubscribe });
+    const parts = await brandedParts(claimed.workspace_id, { text: words, stop });
+    const { messageId } = await (transport === smtpTransport ? smtpTransportWith(settings) : transport)({ to, subject: headerSafe(claimed.subject), text, ...parts, replyTo, unsubscribe });
     await db().from("deliveries").update({ mail_state: "sent", attempts, sent_at: new Date().toISOString(), provider_id: messageId.slice(0, 300) || null, last_error: null }).eq("id", id);
     return "sent";
   } catch (e) {

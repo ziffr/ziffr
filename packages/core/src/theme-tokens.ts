@@ -1,6 +1,7 @@
 // Theme checks (GLOSSARY: Theme): a theme's tokens and slide settings before they are stored. Colours are hex,
 // fonts are known, sizes are sane, images are inline pictures of a limited size.
 import { FONTS, HEX } from "./themes";
+import { svgIsPlain } from "./theme-look";
 import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
@@ -28,7 +29,8 @@ const MAX_IMAGE = 3_000_000; // characters of data URL
 
 /** The slide part of a theme: images must be inline pictures of a sane size, numbers within range. */
 export function cleanSlides(s: ThemeSlides): ThemeSlides {
-  const img = (v: string | null) => (v && DATA_IMAGE.test(v) && v.length <= MAX_IMAGE ? v : null);
+  // An SVG must also be plain (no script, handler or link out): it is drawn on pages and in files people open.
+  const img = (v: string | null) => (v && DATA_IMAGE.test(v) && v.length <= MAX_IMAGE && (!v.startsWith("data:image/svg+xml") || svgIsPlain(Buffer.from(v.slice(v.indexOf(",") + 1), "base64").toString("utf8"))) ? v : null);
   const int = (v: number, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
   return {
     background_image: img(s?.background_image ?? null),
