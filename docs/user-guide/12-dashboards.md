@@ -4,7 +4,7 @@
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
 
-Everyone in a Workspace can open the dashboards they own and those shared with them. Members, Admins and Owners can also create dashboards. A Guest only looks at the dashboards shared with them and creates none. Who may change what is said for each option below.
+Everyone in a Workspace can open the dashboards they own and those shared with them. Members, Admins and Owners can also create dashboards. A Guest only looks at the dashboards shared with them and creates none. A Guest is never shown who else is in the Workspace: in a dashboard or a Snapshot, owners, Submitters and authors read as "Someone", and a dashboard that is not shared with them says to ask "the owner" without a name. Who may change what is said for each option below.
 
 ## The Dashboards list
 
