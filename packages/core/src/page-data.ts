@@ -20,6 +20,7 @@ import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
+import { nameHider } from "./hide-names";
 import type { Action, Metric, Period, Point, Widget } from "./types";
 import { periodStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
@@ -45,12 +46,9 @@ async function recentDeliveries(actor: Actor) {
  * sender's, and a Guest does not see who else is in the Workspace (peopleFor, ticket #560). */
 async function withoutOthersNames<T extends { subject?: unknown; body?: unknown }>(actor: Actor, rows: T[]): Promise<T[]> {
   if (actor.role !== "guest" || !rows.length) return rows;
-  const names = (await peopleIn(actor.workspaceId)).filter((p) => p.id !== actor.personId).flatMap((p) => [p.name, p.name.split(/\s+/)[0]]).filter((n) => n.length >= 3);
-  if (!names.length) return rows;
-  const escaped = [...new Set(names)].sort((a, b) => b.length - a.length).map((n) => n.replace(/[\\^$*+?.()|[\]{}]/g, "\\$&"));
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join("|")})(?![\\p{L}\\p{N}])`, "gu");
-  const hide = (v: unknown) => (typeof v === "string" ? v.replace(re, "Someone") : v);
-  return rows.map((r) => ({ ...r, subject: hide(r.subject), body: hide(r.body) }));
+  const hide = nameHider((await peopleIn(actor.workspaceId, { contactDetails: true })).filter((p) => p.id !== actor.personId));
+  const hidden = (v: unknown) => (typeof v === "string" ? hide(v) : v);
+  return rows.map((r) => ({ ...r, subject: hidden(r.subject), body: hidden(r.body) }));
 }
 
 /** The Connectors page: preferences, the Deliveries the person may read, and the Token codes that are theirs. */

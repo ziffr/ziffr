@@ -3,7 +3,7 @@
 // Guest sees (owner, Submitter, Editor, Approver, thread author, Snapshot author), walked read by read.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Actor, KeyActor } from "./actor";
+import { Forbidden, type Actor, type KeyActor } from "./actor";
 import { db } from "./db";
 import { getCanvasData, peopleFor } from "./access";
 import { getMetric, getThreads, listGroups, listMetrics, listObservations, listPeople } from "./api";
@@ -15,6 +15,10 @@ import { createDashboard, placeWidget, updateWidget } from "./dashboards";
 import { createDeck, saveDeck } from "./decks";
 import { activityView, actionThread, closedDashboardOwner, connectorsView, dashboardWidgets, deckView, metricExtras, savedWidgets, sourcesView, workflowsView } from "./page-data";
 import { ask, reply } from "./questions";
+import { periodRecord } from "./period-record";
+import { schedule } from "./schedule";
+import { deliverNotice } from "./deliveries";
+import { showSnapshot } from "./snapshots";
 import { search } from "./search";
 import { share, whoCanSee } from "./sharing";
 import { listSnapshots, openSnapshot, takeSnapshot } from "./snapshots";
@@ -31,7 +35,7 @@ afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 const month = periodStart(new Date(), "month", JANUARY);
 /** Fields that only point at a person (resolved to a name through peopleFor, so "Someone" for a Guest). An id is
  * opaque; the name, email and handle behind it are what a Guest is never shown. Anywhere else, an id is a leak. */
-const REFERENCES = new Set(["owner_id", "author_id", "author", "asker_id", "assignee_id", "submitter_id", "sender_id", "recipient_id", "asked_by", "assignee", "submitter", "owner", "by", "person_id", "user_id", "requester_id", "taken_by", "approvers", "people"]);
+const REFERENCES = new Set(["owner_id", "author_id", "author", "asker_id", "assignee_id", "submitter_id", "sender_id", "recipient_id", "asked_by", "assignee", "submitter", "owner", "by", "person_id", "user_id", "requester_id", "taken_by", "takenBy", "approvers", "people"]);
 
 /** Every string in a value that is not a reference field's, with the id-only strings in references left out. */
 function strings(value: unknown, field = ""): { text: string; reference: boolean }[] {
@@ -40,6 +44,8 @@ function strings(value: unknown, field = ""): { text: string; reference: boolean
   if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => [{ text: k, reference: false }, ...strings(v, k)]);
   return [];
 }
+/** The reads a Guest is refused (they show nobody): a Theme's history, and the key's sharing scope. */
+const REFUSED = new Set(["versionsTheme", "apiWhoCanSee"]);
 const key = (a: Actor): KeyActor => ({ personId: a.personId, workspaceId: a.workspaceId, role: a.role, key: { id: "1", scopes: ["metrics:read", "dashboards:read", "actions:read", "shares:write"] } });
 
 async function setUp() {
@@ -54,7 +60,7 @@ async function setUp() {
   const owner = w.actor(sara); const editor = w.actor(ben, "member"); const guest = w.actor(gus, "guest");
   const shared = await w.metric(sara, { name: "Field visits" });
   await w.value(shared.id, month, 10, ben);
-  await w.token(shared.id, ben);
+  await w.token(shared.id, ben, { stand_in_id: gus });
   await w.share(shared.id, gus);
   const flow = await saveWorkflow(owner, null, "Close", { dueWorkingDays: 1, steps: [{ type: "approve", approvers: [ben], values: "every" }, { type: "publish", lock: false }] });
   await setMetricWorkflow(owner, shared.id, flow);
@@ -68,6 +74,9 @@ async function setUp() {
   const deck = await createDeck(owner, "Board");
   await saveDeck(owner, deck, { store: { "shape:1": { type: "ziffr-widget", props: { metricIds: [shared.id], settings: "{}" } } } });
   await share(owner, "deck", deck, gus, "viewer");
+  await showSnapshot(editor, snap);
+  const ownerName = `Sara Ownerly ${tag}`;
+  await deliverNotice(w.id, { recipientId: gus, senderId: sara, subject: `${ownerName} shared Overview`, text: `Sara wrote to sara-${tag}@example.test about Overview.`, link: "/dashboards" });
   const closedDash = await createDashboard(owner, "Closed");
   const closedDeck = await createDeck(owner, "Closed deck");
   const field = await createGroup(owner, "Field");
@@ -113,6 +122,10 @@ describe("a Guest, whatever they read", () => {
       snapshot: () => openSnapshot(guest, snap),
       closedDashboard: () => closedDashboardOwner(guest, closedDash),
       closedDeck: () => deckView(guest, closedDeck),
+      periodRecord: () => periodRecord(guest, shared.slug, month),
+      schedule: () => schedule(guest, { from: month, to: month }),
+      versionsWorkflow: () => listVersions(guest, "workflow", flow),
+      versionsTheme: () => listVersions(guest, "theme", 1),
       searchSara: () => search(guest, "Sara"),
       searchBen: () => search(guest, "Ben"),
       searchCleo: () => search(guest, "Cleo"),
@@ -133,7 +146,11 @@ describe("a Guest, whatever they read", () => {
     const leaks: string[] = [];
     for (const [name, read] of Object.entries(reads)) {
       let found: ReturnType<typeof strings>;
-      try { found = strings(await read()); } catch { continue; } // A refusal shows nobody.
+      try { found = strings(await read()); } catch (e) {
+        // A refusal shows nobody, but only the reads listed here may refuse: a crash must not read as clean.
+        if (!(e instanceof Forbidden) || !REFUSED.has(name)) throw e;
+        continue;
+      }
       for (const o of s.others) {
         for (const needle of [o.name, o.name.split(" ")[0], o.email, o.handle]) if (needle && found.some((f) => f.text.includes(needle))) leaks.push(`${name}: ${needle}`);
         if (found.some((f) => !f.reference && f.text.includes(o.id))) leaks.push(`${name}: ${o.id}`);
