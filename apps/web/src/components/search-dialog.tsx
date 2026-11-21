@@ -12,6 +12,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { cn } from "@/lib/utils";
 
+/** The window event that opens the search from another button. */
+export const OPEN_SEARCH = "ziffr:search";
+
 /** How long typing pauses before a search is asked for. */
 const PAUSE_MS = 200;
 
@@ -23,7 +26,7 @@ function title(r: SearchRow): string {
 }
 
 /** The search button for the top bar, and the dialog it opens (also by ⌘K / Ctrl+K from anywhere). */
-export function SearchDialog({ className }: { className?: string }) {
+export function SearchDialog({ className, hideButton }: { className?: string; hideButton?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [words, setWords] = useState("");
@@ -41,8 +44,11 @@ export function SearchDialog({ className }: { className?: string }) {
         setOpen((o) => !o);
       }
     };
+    // Other buttons (the sidebar's search field, the phone's tab bar) open it with this event.
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_SEARCH, onOpen);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener(OPEN_SEARCH, onOpen); };
   }, []);
 
   // Closed: forget the words and drop any answer still on its way.
@@ -85,11 +91,11 @@ export function SearchDialog({ className }: { className?: string }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Search (Ctrl+K)" className={cn("flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className)}>
+      {!hideButton && <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Search (Ctrl+K)" className={cn("flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className)}>
         <Search aria-hidden className="size-4" />
         <span className="sr-only md:not-sr-only md:hidden xl:inline">Search</span>
         <kbd aria-hidden className="hidden rounded border border-border px-1.5 text-xs md:inline">⌘K</kbd>
-      </button>
+      </button>}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent showCloseButton={false} className="top-[15%] -translate-y-0 gap-0 p-0 sm:max-w-xl">
           <DialogTitle className="sr-only">Search</DialogTitle>

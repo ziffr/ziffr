@@ -42,14 +42,14 @@ export function Tour() {
   const count = done.filter(Boolean).length;
   if (small) {
     return (
-      <button onClick={() => save(done, true, false)} aria-label={`Open the guided tour, ${count} of ${STEPS.length} done`} title="Guided tour" className="stock fixed right-4 bottom-4 z-40 flex h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium">
+      <button onClick={() => save(done, true, false)} aria-label={`Open the guided tour, ${count} of ${STEPS.length} done`} title="Guided tour" className="stock fixed right-4 bottom-4 max-md:[body:has(nav[aria-label=Tabs])_&]:bottom-20 z-40 flex h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium">
         <Compass aria-hidden className="size-4 text-primary" />
         <span className="fig text-muted-foreground">{count}/{STEPS.length}</span>
       </button>
     );
   }
   return (
-    <div className="fixed right-4 bottom-4 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)]">
+    <div className="fixed right-4 bottom-4 max-md:[body:has(nav[aria-label=Tabs])_&]:bottom-20 z-40 w-[min(24rem,calc(100vw-2rem))] stock rounded-[var(--radius-card)]">
       <div className="flex items-center">
         <button onClick={() => save(done, !open)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 text-left text-sm font-medium">
           <Compass className="size-4 shrink-0 text-primary" />

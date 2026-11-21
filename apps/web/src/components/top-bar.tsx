@@ -13,10 +13,10 @@ import { told } from "@/lib/action-toast";
 import { cn } from "@/lib/utils";
 
 /** A link in a menu. */
-type NavItem = { href: string; label: string };
+export type NavItem = { href: string; label: string };
 
 /** Where most people spend their day. */
-const MAIN: NavItem[] = [
+export const MAIN: NavItem[] = [
   // Watch and explain, present (spec 0010, spec 0013), then the numbers themselves.
   { href: "/dashboards", label: "Dashboards" },
   { href: "/decks", label: "Decks" },
@@ -25,7 +25,7 @@ const MAIN: NavItem[] = [
 ];
 
 /** The person's own settings. */
-const YOU: NavItem[] = [
+export const YOU: NavItem[] = [
   { href: "/settings/schedule", label: "My schedule" },
   { href: "/settings/profile", label: "Your profile" },
   { href: "/settings/deliveries", label: "Your Deliveries" },
@@ -43,7 +43,7 @@ export type Account = { name: string; workspaces: { id: string; name: string }[]
 const DEMO_ENTRY = { href: "/demo", label: "The demo", hint: "read-only, shared" };
 
 /** The Installation's page, for Installation Admins only. */
-const INSTALLATION: NavItem = { href: "/installation", label: "Installation settings" };
+export const INSTALLATION: NavItem = { href: "/installation", label: "Installation settings" };
 
 /** The link to the user guide: Ziffr's own /guide, or a team's own page in a new tab (ZIFFR_USER_GUIDE_URL). */
 export function GuideLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
@@ -104,7 +104,7 @@ export function TopBar({ workspace, open, account, guide, demo }: { workspace: N
 }
 
 /** Everything in the bar, as one list, for screens too narrow for the bar. */
-function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; account: Account | null; guide: string }) {
+export function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; account: Account | null; guide: string }) {
   const [pending, start] = useTransition();
   const group = (label: string, items: NavItem[]) => (
     <div>
@@ -139,6 +139,33 @@ function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; accoun
   );
 }
 
+/** The Workspace list of a menu: pick one to switch to it, and under a line the demo where this Ziffr offers it; then a
+ * line before what follows. Nothing when there is only one Workspace and no demo. Shared by the top bar and the sidebar. */
+export function WorkspaceChoices({ account, start }: { account: Account; start: (action: () => Promise<void>) => void }) {
+  if (account.workspaces.length <= 1 && !account.demo) return null;
+  return (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={account.current} onValueChange={(id) => { if (id !== account.current) start(async () => { told(await switchWorkspace(String(id))); }); }}>
+          {account.workspaces.map((w) => <DropdownMenuRadioItem key={w.id} value={w.id}>{w.name}</DropdownMenuRadioItem>)}
+        </DropdownMenuRadioGroup>
+        {/* The demo is not one of their workspaces: a line sets it apart, but it is switched to the same way. */}
+        {account.demo && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<a href={DEMO_ENTRY.href} />}>
+              <span>{DEMO_ENTRY.label}</span>
+              <span className="ml-auto text-xs text-muted-foreground">{DEMO_ENTRY.hint}</span>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+    </>
+  );
+}
+
 /** The signed-in person's menu: which workspace they are in, switching, a new one, their settings and signing out. */
 function AccountMenu({ account }: { account: Account }) {
   const [pending, start] = useTransition();
@@ -151,27 +178,7 @@ function AccountMenu({ account }: { account: Account }) {
         <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {(account.workspaces.length > 1 || account.demo) && (
-          <>
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={account.current} onValueChange={(id) => { if (id !== account.current) start(async () => { told(await switchWorkspace(String(id))); }); }}>
-                {account.workspaces.map((w) => <DropdownMenuRadioItem key={w.id} value={w.id}>{w.name}</DropdownMenuRadioItem>)}
-              </DropdownMenuRadioGroup>
-              {/* The demo is not one of their workspaces: a line sets it apart, but it is switched to the same way. */}
-              {account.demo && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem render={<a href={DEMO_ENTRY.href} />}>
-                    <span>{DEMO_ENTRY.label}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{DEMO_ENTRY.hint}</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-          </>
-        )}
+        <WorkspaceChoices account={account} start={start} />
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link href="/welcome?another=1" />}><Plus aria-hidden /> New workspace</DropdownMenuItem>
         </DropdownMenuGroup>

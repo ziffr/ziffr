@@ -7,6 +7,8 @@ import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
 import { workspaceLinks } from "@/lib/settings-links";
 import { GuideLink, TopBar } from "@/components/top-bar";
+import { AppShell } from "@/components/app-shell";
+import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { Tour } from "@/components/tour";
@@ -81,6 +83,29 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
+  // The layout preview (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
+  const sidebar = (await layoutChoice()) === "sidebar";
+  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
+  const demoControls = demo ? (
+    <>
+      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
+      {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
+      <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
+    </>
+  ) : undefined;
+  // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
+  const demoNote = demo ? (
+    <p className={sidebar ? "px-4 pt-3 text-xs text-muted-foreground sm:px-6" : "mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6"}>
+      Look around as anyone: nothing you do in the demo is saved, and nothing is sent.
+      {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
+    </p>
+  ) : null;
+  const banners = (
+    <>
+      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} />}
+      {overLimit && <OverLimitBar words={overLimit} />}
+    </>
+  );
   return (
     <html lang="en">
       <head>
@@ -91,29 +116,18 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <TopBar
-          workspace={workspaceLinks(role)}
-          open={open}
-          guide={guideHref()}
-          account={demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() }}
-          demo={demo ? (
-            <>
-              <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
-              {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
-              <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
-            </>
-          ) : undefined}
-        />
-        {/* The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials. */}
-        {demo && (
-          <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">
-            Look around as anyone: nothing you do in the demo is saved, and nothing is sent.
-            {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
-          </p>
+        {sidebar ? (
+          <AppShell workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+            {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
+          </AppShell>
+        ) : (
+          <>
+            <TopBar workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} />
+            {demoNote}
+            {banners}
+            <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
+          </>
         )}
-        {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} />}
-        {overLimit && <OverLimitBar words={overLimit} />}
-        <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
         {demo && <Tour />}
         <Toaster />
         <ServiceWorker />

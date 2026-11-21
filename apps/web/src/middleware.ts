@@ -20,6 +20,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { authSettings } from "@/lib/auth-settings";
+import { LAYOUT_COOKIE, parseLayout } from "@/lib/layout-cookie";
 
 // The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
 const DEMO_COOKIE = "ziffr-demo";
@@ -63,6 +64,16 @@ export async function middleware(req: NextRequest) {
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
   if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
+  // The layout preview (docs/specs/0036-app-layout.md): `?layout=sidebar` or `?layout=top` sets the browser's choice
+  // and drops the parameter. A preference only: it grants and shows nothing.
+  const wanted = req.nextUrl.searchParams.get("layout");
+  if (req.method === "GET" && (wanted === "sidebar" || wanted === "top")) {
+    const to = req.nextUrl.clone();
+    to.searchParams.delete("layout");
+    const back = NextResponse.redirect(to);
+    back.cookies.set(LAYOUT_COOKIE, parseLayout(wanted), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+    return back;
+  }
   let res = NextResponse.next({ request: { headers } });
   // Whether the demo is offered is an Installation Setting (spec 0025). The middleware reads only the environment,
   // which wins over the page: there ZIFFR_DEMO=0 closes the demo outright. Otherwise the page may decide, so the

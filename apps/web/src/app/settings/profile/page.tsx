@@ -4,6 +4,8 @@ import { isDemo, signedIn } from "@/lib/auth";
 import { myProfile, PERSON_COLORS } from "@ziffr/core/profile";
 import { PageHeader } from "@/components/page-header";
 import { ProfileForm } from "./form";
+import { LayoutSwitch } from "@/components/layout-switch";
+import { layoutChoice } from "@/lib/layout-choice";
 
 export default async function ProfilePage() {
   const actor = await currentActor();
@@ -14,6 +16,7 @@ export default async function ProfilePage() {
     <>
       <PageHeader title="Your profile" sub="How others see you in every workspace you belong to." />
       <ProfileForm name={me.name} color={me.color} colors={[...PERSON_COLORS]} email={email} demo={demo} />
+      <div className="mt-8"><LayoutSwitch initial={(await layoutChoice()) === "sidebar"} /></div>
     </>
   );
 }

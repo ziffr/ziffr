@@ -12,6 +12,8 @@ import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
 import { cn } from "@/lib/utils";
+import { layoutChoice } from "@/lib/layout-choice";
+import { MetricPeek } from "./metric-peek";
 
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
@@ -22,6 +24,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   const showArchived = sp.show === "archived";
   const archivedCount = seen.filter(isArchived).length;
   const metrics = showArchived ? seen.filter(isArchived) : inUse(seen);
+  const slideOver = (await layoutChoice()) === "sidebar";
   const filter = (archived: boolean) => cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
@@ -78,6 +81,33 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
                       </Link>
+                      {slideOver && (
+                        <MetricPeek name={m.name} sub={`${PERIOD_LABEL[m.period]}, ${m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}`} href={`/metrics/${m.slug}`}>
+                          <div>
+                            <div className="fig text-3xl font-semibold tracking-tight">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
+                              {last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}
+                              <Change numberStyle={numberStyle} pct={change} />
+                            </div>
+                          </div>
+                          {pts.length > 1 && <Sparkline points={pts.slice(-30)} height={64} tone={tone} />}
+                          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                            <dt className="text-muted-foreground">Target</dt><dd className="fig text-right">{targetText(m, numberStyle)}</dd>
+                            <dt className="text-muted-foreground">Owner</dt><dd className="text-right">{people[m.owner_id]?.name ?? "–"}</dd>
+                          </dl>
+                          {pts.length > 0 && (
+                            <table className="w-full text-sm">
+                              <caption className="pb-1 text-left text-xs text-muted-foreground">Latest values</caption>
+                              <tbody>
+                                {pts.slice(-6).reverse().map((p) => (
+                                  <tr key={p.period} className="border-t border-border"><th scope="row" className="py-1 text-left font-normal text-muted-foreground">{periodLabel(p.period, m.period, yearStart, true)}</th><td className="fig py-1 text-right">{formatValue(m, p.value, numberStyle)}</td></tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </MetricPeek>
+                      )}
                       <div className="mt-0.5 text-xs text-muted-foreground">
                         {PERIOD_LABEL[m.period]}, {m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
                       </div>
