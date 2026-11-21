@@ -36,7 +36,9 @@ export const WEBHOOK_SEND_CONCURRENCY = 3;
 
 /** How long the sends made just before a Metric or a Workspace is deleted may take in all, so a stalling address cannot hold the delete back. */
 export const WEBHOOK_SEND_NOW_BUDGET_MS = 15_000;
-/** Requests per minute to one Webhook's inbound address from one network address, signed or not, counted before its secret is opened. */
-export const WEBHOOK_INBOUND_GATE_PER_ADDRESS = 120;
-/** Requests per minute to one Webhook's inbound address from anywhere: counts only traffic from addresses past a quiet sender's volume (20 a minute), or all of it when the address is unknown (ZIFFR_PROXY_HOPS unset); well above the 60 signed requests a Webhook may make. */
-export const WEBHOOK_INBOUND_GATE_PER_ID = 600;
+/** Failed requests per minute to one Webhook's inbound address from one network address (an IPv6 /56) before more are refused (429) without opening the secret. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ADDRESS = 20;
+/** Failed requests per minute to one Webhook's inbound address from anywhere before only known senders are let through. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ID = 600;
+/** Network addresses remembered per Webhook as having sent a valid signed request in the last hour; they are never refused by the gate. */
+export const WEBHOOK_INBOUND_KNOWN_SENDERS = 16;
