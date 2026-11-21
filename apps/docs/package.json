@@ -15,7 +15,6 @@
     "astro": "^7.4.13",
     "sharp": "^0.35.5",
     "starlight-links-validator": "^0.27.0",
-    "starlight-openapi": "^0.27.1",
-    "vite": "8.3.8"
+    "starlight-openapi": "^0.27.1"
   }
 }
