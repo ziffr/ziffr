@@ -9,7 +9,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { createMetric, metricEffects, updateMetricDetails, type MetricEffects } from "./metrics";
 import { normalizeMetric } from "./metric-row";
 import { applyRetentionToExisting, cancelRetention, canSetRetention, defaultRetention, NUMBERS_CHANGED, retentionFor, retentionPreview, retentionPreviewAll, setDefaultRetention, setRetention, settleRetentions } from "./retention-setting";
-import { auditRowsOf, workspace } from "./test/db-fixtures";
+import { auditRowsOf, opened, workspace } from "./test/db-fixtures";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const cleanups: (() => Promise<void>)[] = [];
@@ -141,9 +141,10 @@ describe("turning it on, the confirmation and the days to cancel", () => {
     expect((await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id)).count).toBe(25);
     expect((await retentionFor(actor, m.id)).pending?.note).toMatch(/^Values before .* will be deleted from /);
     // The owner and the person who set it are told once; the text holds no value.
-    const { data: told } = await db().from("deliveries").select("recipient_id, kind, subject").eq("workspace_id", w.id).eq("kind", "notice");
-    expect(told?.map((t) => t.recipient_id)).toEqual([ben]);
-    expect(told![0].subject).toContain("Field visits");
+    const { data: raw } = await db().from("deliveries").select("id, recipient_id, kind, subject").eq("workspace_id", w.id).eq("kind", "notice");
+    const told = await opened("deliveries", w.id, raw);
+    expect(told.map((t) => t.recipient_id)).toEqual([ben]);
+    expect(told[0].subject).toContain("Field visits");
     const rows = await auditRowsOf(w.id, "metric.retention_set");
     expect(rows).toHaveLength(1);
   });
@@ -236,9 +237,10 @@ describe("the reminder and the job's day", () => {
     await db().from("deliveries").delete().eq("workspace_id", w.id);
     expect(await settleRetentions()).toEqual({ started: 0, reminded: 1 });
     expect(await settleRetentions()).toEqual({ started: 0, reminded: 0 });
-    const { data: told } = await db().from("deliveries").select("recipient_id, subject").eq("workspace_id", w.id).eq("kind", "notice");
-    expect(told?.map((t) => t.recipient_id).sort()).toEqual([ben, sara].sort());
-    expect(told![0].subject).toContain("starts tomorrow");
+    const { data: raw } = await db().from("deliveries").select("id, recipient_id, subject").eq("workspace_id", w.id).eq("kind", "notice");
+    const told = await opened("deliveries", w.id, raw);
+    expect(told.map((t) => t.recipient_id).sort()).toEqual([ben, sara].sort());
+    expect(told[0].subject).toContain("starts tomorrow");
     // Day 8: it is in force.
     await db().from("metrics").update({ retention_pending: { ...(await pendingOf(m.id)).retention_pending, starts_on: inDays(0), starts_after: PAST } }).eq("id", m.id);
     expect(await settleRetentions()).toEqual({ started: 1, reminded: 0 });
