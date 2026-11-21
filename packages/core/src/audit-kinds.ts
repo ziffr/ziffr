@@ -95,6 +95,8 @@ export const AUDIT_KINDS = {
   "workspace.answer_languages_changed": "changed the languages answers are read in",
   "workspace.retention_default_set": "set the Workspace's default Retention",
   "workspace.attainment_method_changed": "changed how the workspace computes Attainment",
+  "workspace.settable_limit_changed": "changed a limit of the workspace",
+  "person.settable_limit_changed": "changed a limit of their own",
   "slack.connected": "connected a Slack workspace",
   "slack.disconnected": "disconnected Slack",
   "telegram.turned_on": "turned Telegram on",

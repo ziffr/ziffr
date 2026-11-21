@@ -86,6 +86,8 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `pinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `unpinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `setPinnedOrder` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `setMySettableLimit` (limits.ts): Your profile, Your limits (#518)
+- `mySettableLimits` (limits.ts): Your profile, Your limits (#518)
 - `askMeNow` (ask-now.ts): asking for one's own open Questions now
 - `approveConnection` (assistant-connections.ts): one's own assistant connections
 - `disconnectMine` (assistant-connections.ts): one's own assistant connections
@@ -170,6 +172,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `setNumberStyle` (workspace-settings.ts): Workspace settings
 - `setAnswerLanguages` (workspace-settings.ts): Workspace settings
 - `setAttainmentMethod` (workspace-settings.ts): Workspace settings
+- `setWorkspaceSettableLimit` (limits.ts): Workspace settings, Limits (#518)
+- `workspaceSettableLimits` (limits.ts): Workspace settings, Limits (#518)
 - `sizeAndUsage` (workspace-usage.ts): the Usage page
 - `metricsOfLimit` (workspace-usage.ts): the Usage page
 

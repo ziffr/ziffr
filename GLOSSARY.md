@@ -355,6 +355,10 @@ _Avoid_: Admin settings, system settings, global config
 One of the abuse safeguards of an Installation that an Installation Admin may move within a range, as an Installation Setting named `ZIFFR_LIMIT_*`: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute. None can be switched off; they are the same for every Workspace whatever its Size, and Ziffr Cloud never sets them. Lowering one never deletes or stops what exists: only what is new waits. Not a Workspace Limit, which counts Metrics.
 _Avoid_: Rate limit setting, quota
 
+**Settable Limit**:
+A value with a range that is set one level at a time, each level only going down from the level above: the Installation (its range, and for the two Alert limits the ceiling an Installation Admin sets as a Sending Limit), then the Workspace (set by its Owners and Admins), then a person for themselves where it concerns them. The value in effect is the lowest of the three. The Workspace sets how many Alerts and Alert messages a person gets, how long a View Link may live, the share of daily emails Alerts may use and when a Metric counts as unused; a person sets their own Alert messages a day, how far back the overdue list reaches and the window of their Calendar Link. Lowering one never deletes or stops what exists: only what is new waits. Not a Sending Limit, which only an Installation Admin moves, nor a Workspace Limit, which counts Metrics.
+_Avoid_: Quota, preference, cap
+
 **Workspace Limit**:
 The most Metrics a Workspace may hold, Archived Metrics not counted, set for it by an Installation Admin or by Ziffr Cloud, or else the Installation's default; without any there is no limit, as on most self-hosted Installations. A Workspace over it keeps everything working and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more; those 14 days come at most once in 90 days.
 _Avoid_: Quota, cap, allowance, plan

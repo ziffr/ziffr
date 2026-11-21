@@ -83,7 +83,7 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 ## General
 
-**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style, its Answer Languages and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style, its Answer Languages, its limits and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
 ### Size and usage
 
@@ -158,6 +158,18 @@ Every Workspace computes by ratio until an Owner or Admin changes it, as Ziffr d
 The default is **copied** into a new Metric when it is made, with no link back: changing it later changes no Metric that exists. A Metric it does not fit (a rate cannot be condensed) gets none, and the copy waits 7 days like any confirmed Retention, so it can be cancelled on the Metric's page. Choose **Save as the default**.
 
 **Apply to existing Metrics…** shows what the setting would do to every Metric you may see that has no Retention yet, in counts: how many Metrics get it, how many periods and values would be condensed or deleted, and which Metrics are left out and why. **Turn on for N Metrics…** repeats the counts; for a delete you type "delete". If the numbers changed since you looked, Ziffr refuses with "The numbers changed; look again." and you show them again. Each Metric then waits 7 days, and its owner gets a message now and one the day before. See [A Metric's Retention](10-metrics.md#retention) for what a Retention does. The Audit Log records the default and each Metric it was applied to.
+
+### Limits
+
+For Owners and Admins, a section **Limits** lists five values the Workspace may set for itself, each within the range its Installation allows. Under each field it says what is **In effect** and the range **Allowed**; leave the field empty to follow the Installation, and press **Save** to set or clear it.
+
+- **Alerts per person** (1 up to the Installation's ceiling; normal 20): the most Alerts one person may hold in this Workspace.
+- **Alert messages per person per day** (1 up to the Installation's ceiling; normal 20): after it, Alerts still fire into the list and only the messages wait for tomorrow. Each person may lower it further for themselves under [Your profile](17-your-settings.md#your-limits).
+- **Longest life of a View Link** (1 to 90 days; normal 90): the furthest end date a new View Link may have. Links that exist keep their end date.
+- **Share of the daily emails Alerts may use** (10 to 90 %; normal 40): the rest of the Workspace's emails per day is kept for requests for values and tasks.
+- **Days after which a Metric counts as unused** (30 to 365; normal 90): the Usage page and its monthly email list Metrics, dashboards and decks not opened for that long. It is only a suggestion.
+
+Alerts per person, Alert messages per person per day and the View Link life can only go lower than the Installation allows, never higher. Lowering a limit never deletes or stops what exists: a person who holds more Alerts than you now allow keeps them and only cannot add new ones. Every change is written to the Audit Log. In the demo the section is not shown.
 
 ### Workspace Profile
 

@@ -63,6 +63,7 @@ function detailText(e: AuditEvent): string {
     case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;
     case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : followed(d)} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
     case "workspace.attainment_method_changed": return `${d.from} → ${d.to}`;
+    case "workspace.settable_limit_changed": case "person.settable_limit_changed": return `${d.limit}: ${d.from ?? "follows the level above"} → ${d.to ?? "follows the level above"}`;
     case "export.deck": return String(d.format ?? "").toUpperCase();
     default: return "";
   }

@@ -12,7 +12,8 @@
 // first, so two values at once tell once, and the daily message limits are the Alerts' own.
 import { openWorkflowRow } from "./workflow-rows";
 import { getGroups, visibleMetricIds } from "./access";
-import { ALERT_MESSAGES_PER_PERSON_PER_DAY, TELL_PEOPLE_PER_STEP } from "./alert-limits";
+import { TELL_PEOPLE_PER_STEP } from "./alert-limits";
+import { effectiveLimit } from "./limits";
 import { sendingLimit } from "./sending-limit";
 import { alertHolds, alertStep, isPerPeriod, validCondition, type AlertCondition } from "./alert-rules";
 import { alertContext, alertText, latestView, ALERT_LIMIT_NOTE, type Ctx } from "./alert-firing";
@@ -106,7 +107,7 @@ async function tell(ctx: Ctx, m: Metric, workflowId: number, step: TellStep, c: 
     // The moment of sending (AGENTS.md rule 3): sight is asked here, for this person, and a person without it is skipped
     // with no word; the Delivery is checked once more when it leaves (delivery-send.ts).
     if (!(await visibleMetricIds(ctx.ws, person, ctx.metrics)).has(m.id)) continue;
-    const { data: claim } = await db().rpc("claim_alert_message", { p_ws: ctx.ws, p_person: person, p_day: new Date().toISOString().slice(0, 10), p_per_person: ALERT_MESSAGES_PER_PERSON_PER_DAY, p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
+    const { data: claim } = await db().rpc("claim_alert_message", { p_ws: ctx.ws, p_person: person, p_day: new Date().toISOString().slice(0, 10), p_per_person: await effectiveLimit("alertMessagesPerPerson", ctx.ws, person), p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
     if (claim !== "send" && claim !== "note") continue;
     const note = claim === "note";
     await deliverAlert(ctx.ws, { recipientId: person, subject: note ? "More Alerts fired today" : `Update: ${m.name}`, text: note ? ALERT_LIMIT_NOTE : text, link: note ? "/settings/alerts" : `/metrics/${encodeURIComponent(m.slug)}`, metricId: note ? null : m.id, alertId: null, tellWorkflowId: note ? undefined : workflowId });

@@ -187,6 +187,16 @@ The choice is saved to you, so every device and every Workspace you use looks th
 
 Dashboards and Decks follow your Appearance too: when it is dark, a [Theme](14-decks-and-themes.md) shows its dark variant, unless the Theme is set to **Always as designed**. Snapshots, View Links and exported files keep the look they were made or shared with, so they can show a light page inside a dark screen.
 
+### Your limits
+
+Under your profile, **Your limits** lets you choose how much of this Workspace you want, in this Workspace only. Each field shows what is **In effect** and the range **Allowed**; leave it empty to follow the Workspace, and press **Save** to set or clear it. You can only go lower than what the Workspace allows.
+
+- **Alert messages per person per day**: the most Alert messages you are sent in a day (1 up to what the Workspace allows). After it your Alerts still fire into the list.
+- **How far back the overdue list reaches** (7 to 90 days; normal 90): overdue entries older than this are left off your Schedule.
+- **Calendar Link: days back** (0 to 30; normal 30) and **days ahead** (7 to 90; normal 90): how far your [Calendar Link](#in-your-calendar) shows events.
+
+Your changes show in the Workspace's Audit Log, which Owners and Admins read. The demo has no limits to set.
+
 ## Your Deliveries
 
 Open it from your own menu at the bottom of the sidebar, or from **Deliveries** in the settings area. A **Delivery** is one message Ziffr sends you through a Connector. This page sets where those messages go in the current Workspace, and who is asked while you are away. You can only change your own.
@@ -228,7 +238,7 @@ If you set nothing, you follow the Workspace's default, if its Owners or Admins 
 
 ## Your Alerts
 
-Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: 20 Alerts in a Workspace, at most 5 on one Metric, and 20 Alert messages a day.
+Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: the Alerts you may hold in a Workspace (20 unless the Workspace or Installation sets fewer), at most 5 on one Metric, and the Alert messages a day (20 unless set lower, which you can do under [Your limits](#your-limits)).
 
 On a Metric's page, **Alert me…** opens the same list and the form for another Alert in a panel on the right, over the page; its address ends in `?panel=alert`.
 
