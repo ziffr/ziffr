@@ -59,12 +59,13 @@ afterEach(async () => {
 });
 
 const P = (n: number) => `2026-${String(n).padStart(2, "0")}-01`;
+let scope = "";
 const sends = async (w: { id: string }) => (await db().from("webhook_sends").select("*").eq("workspace_id", w.id).eq("type", "alert.fired")).data ?? [];
 const tell = (webhooks: string[], over: Partial<Extract<WorkflowStep, { type: "tell" }>> = {}): WorkflowStep => ({ type: "tell", id: "step-one-aaaa", condition: { kind: "at_or_above", value: "100" }, people: [], groups: [], webhooks, ...over });
 
 /** Sara owns the Workspace, the Workflow and "Sales"; the Webhook chose alert.fired; the Metric is Everyone's when `shared`. */
 async function setup(opts: { shared?: boolean; events?: string[] } = {}) {
-  const w = await workspace(); cleanups.push(w.cleanup);
+  const w = await workspace(); cleanups.push(w.cleanup); scope = w.id;
   const sara = await w.person("owner", { email: `sara-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const a = w.actor(sara);
   const hook = await createWebhook(a, { name: "Chat", url: `https://localhost:${port}/hook/alerts`, events: opts.events ?? ["alert.fired"] });
@@ -87,7 +88,7 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     expect(await sends(c.w)).toHaveLength(1);
     // The row holds ids only: no value, no name.
     expect(JSON.stringify((await sends(c.w))[0])).not.toMatch(/120|Sales/);
-    expect(await sendWaitingWebhooks(100)).toEqual({ sent: 1, failed: 0 });
+    expect(await sendWaitingWebhooks(100, scope)).toEqual({ sent: 1, failed: 0 });
     const msg = JSON.parse(seen[0].body) as { type: string; workspace: { id: string }; data: Record<string, unknown> };
     expect(seen[0].headers["x-ziffr-event"]).toBe("alert.fired");
     expect(msg).toMatchObject({ type: "alert.fired", workspace: { id: c.w.id }, data: { metric: { id: c.m.id, name: "Sales <b>" }, period: P(2), condition: { kind: "at_or_above", level: "100" }, target: null } });
@@ -106,7 +107,7 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     const c = await setup({ shared: false });
     await c.put(P(1), 120);
     expect(await sends(c.w)).toHaveLength(1);
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
     expect((await sends(c.w))[0].state).toBe("dropped");
   });
@@ -115,12 +116,12 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     const c = await setup();
     await c.put(P(1), 120);
     await db().from("shares").delete().eq("workspace_id", c.w.id).eq("object_id", c.m.id);
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
     const d = await setup();
     await d.put(P(1), 120);
     await saveWorkflow(d.a, d.flow, "Sales close", { dueWorkingDays: 2, steps: [tell([]), { type: "publish", lock: false }] });
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
   });
 
@@ -146,12 +147,12 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     const c = await setup();
     await c.put(P(1), 120);
     await c.w.value(c.m.id, P(1), 50, c.sara);
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
     const d = await setup();
     await d.put(P(1), 120);
     await setMetricWorkflow(d.a, d.m.id, null);
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
   });
 
@@ -160,7 +161,7 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     await c.put(P(1), 120);
     await c.w.person("owner");
     await c.w.setRole(c.sara, "member");
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen).toHaveLength(0);
   });
 });

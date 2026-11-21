@@ -69,7 +69,7 @@ afterEach(async () => {
 
 /** A Workspace with two Owners, an assignee and a Metric (private until `share`), and a Webhook to the local server. */
 async function setup(events: string[] = ["action.done"], path = "/hook/one", url = `https://localhost:${port}${path}`) {
-  const w = await workspace(); cleanups.push(w.cleanup);
+  const w = await workspace(); cleanups.push(w.cleanup); scope = w.id;
   const sara = await w.person("owner", { email: `sara-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const tom = await w.person("owner", { email: `tom-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
@@ -84,7 +84,9 @@ async function setup(events: string[] = ["action.done"], path = "/hook/one", url
   const rowOf = async (id: number, type = "action.done") => (await db().from("webhook_sends").select("*").eq("action_id", id).eq("type", type).order("created_at").limit(1).single()).data!;
   return { w, sara, tom, ann, m, a, hook, task, share, unshare, done, rowOf };
 }
-const run = () => sendWaitingWebhooks(100);
+/** The Workspace of the test that is running: its run takes only that Workspace's sends, so files running at the same time cannot take each other's. */
+let scope = "";
+const run = () => sendWaitingWebhooks(100, scope);
 const json = (s: Seen) => JSON.parse(s.body) as { id: string; type: string; workspace: { id: string }; data: Record<string, unknown> };
 const notices = async (ws: string, to: string) => (await db().from("deliveries").select("kind").eq("workspace_id", ws).eq("recipient_id", to).eq("kind", "notice")).data?.length ?? 0;
 

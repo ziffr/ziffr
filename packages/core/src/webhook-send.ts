@@ -240,11 +240,12 @@ export async function sendWebhookNow(workspaceId: string, sendId: string): Promi
 
 /** Sends the Webhook messages that are due, for the deliveries job: at most `limit`, each claimed once by a conditional
  * update, at most a few at a time (WEBHOOK_SEND_CONCURRENCY). Answers only counts. */
-export async function sendWaitingWebhooks(limit = 50): Promise<{ sent: number; failed: number }> {
+export async function sendWaitingWebhooks(limit = 50, onlyWorkspaceId?: string): Promise<{ sent: number; failed: number }> {
   // The log is kept 14 days.
   await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - WEBHOOK_LOG_DAYS * 86_400_000).toISOString());
   await db().from("webhook_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
-  const { data: claimed, error } = await db().rpc("claim_webhook_sends", { p_limit: limit });
+  // `onlyWorkspaceId` is for tests that share a database with others: only that Workspace's due sends are taken.
+  const { data: claimed, error } = onlyWorkspaceId ? await db().rpc("claim_webhook_sends_for", { p_workspace: onlyWorkspaceId, p_metric: null, p_limit: limit }) : await db().rpc("claim_webhook_sends", { p_limit: limit });
   if (error || !Array.isArray(claimed) || !claimed.length) return { sent: 0, failed: 0 };
   return runSends(claimed as Send[]);
 }
