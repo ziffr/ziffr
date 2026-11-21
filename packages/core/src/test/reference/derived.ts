@@ -2,7 +2,8 @@
 // Aggregation, Display Period): a Derived Metric's value per period and over a longer span, worked out day by day
 // with exact numbers, from the rules as written, sharing nothing with display-periods.ts or workspace-data.ts:
 // - per period: the formula on the latest value of each input in that period; none where an input has none, or the
-//   formula has no value (a division by zero);
+//   formula has no value (a division by zero). prev and change look at the input's value in the period right before
+//   this one (a day before, seven days, a month, three or twelve), and give none when it has no value there;
 // - over a span: each input is combined by its own Aggregation over the Metric periods the span counts, and counts
 //   when it holds at least half of them (as any Metric's span); the formula is worked out on those combined values,
 //   so a margin of sums and never a sum of margins; it is exact on each combined value as Ziffr holds it, the double
@@ -13,7 +14,7 @@
 // - what a span holds is what the input with the fewest values in it holds.
 import type { Span, YearStart } from "../../periods";
 import type { Aggregation, Point } from "../../types";
-import { dayOf, samePoint, spanEnd, spanStart, startsSpan, textOf, type Day } from "./calendar";
+import { dayOf, monthsLater, samePoint, spanEnd, spanStart, startsSpan, textOf, type Day } from "./calendar";
 import { combine, latestOfEach, type ReferenceSpan } from "./combine";
 import { exactOf, nearestDoubleOf, type Exact } from "./exact";
 import { referenceEvaluate, referenceInputs } from "./formula";
@@ -24,15 +25,25 @@ export type ReferenceInput = { slug: string; points: readonly Point[]; aggregati
 /** The inputs a formula names: only those count, whatever else is at hand. */
 const named = (formula: string, given: readonly ReferenceInput[]) => given.filter((i) => referenceInputs(formula).includes(i.slug));
 
-/** The Derived Metric's value per period, oldest first. */
-export function referenceDerivedPeriods(formula: string, given: readonly ReferenceInput[]): { day: Day; value: Exact }[] {
+/** The first day of the period before the one starting on `day`, for a Metric counted by `own`. */
+function before(day: Day, own: Span): Day {
+  if (own === "day") return day - 1;
+  if (own === "week") return day - 7;
+  return monthsLater(day, -{ month: 1, quarter: 3, half: 6, year: 12 }[own]);
+}
+
+/** The Derived Metric's value per period, oldest first; `own` is its period, which prev and change step back by. */
+export function referenceDerivedPeriods(formula: string, given: readonly ReferenceInput[], own: Span = "month"): { day: Day; value: Exact }[] {
   const inputs = named(formula, given);
   const each = inputs.map((i) => new Map(latestOfEach(i.points).map((v) => [v.day, v.value])));
   const days = [...new Set(each.flatMap((m) => [...m.keys()]))].sort((a, b) => a - b);
   const out: { day: Day; value: Exact }[] = [];
   for (const day of days) {
     if (!each.every((m) => m.has(day))) continue;
-    const value = referenceEvaluate(formula, Object.fromEntries(inputs.map((i, k) => [i.slug, each[k].get(day)!])));
+    const earlier = before(day, own);
+    const now = inputs.map((i, k) => [i.slug, each[k].get(day)!] as const);
+    const was = inputs.flatMap((i, k) => (each[k].has(earlier) ? [[`prev:${i.slug}`, each[k].get(earlier)!] as const] : []));
+    const value = referenceEvaluate(formula, Object.fromEntries([...now, ...was]));
     if (value) out.push({ day, value });
   }
   return out;

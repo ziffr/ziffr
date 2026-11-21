@@ -4,7 +4,7 @@
 import { exactTotal } from "./exact";
 import { inCondensed, partOfCondensed, partOfPoint, targetOfParts, valueOfParts, type CondensedPoint, type CondensedSpan, type Part } from "./condensed-parts";
 import { format } from "date-fns";
-import { evaluate, formulaInputs, inputsNotCombined, inputsProblem } from "./formula";
+import { evaluate, formulaInputs, inputsNotCombined, inputsProblem, usesPrevious } from "./formula";
 import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import type { CanvasData, Metric, Point, TemplateId } from "./types";
 
@@ -76,6 +76,23 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
   const r = resolve(slug);
   if (!r) return undefined;
   const { metric, points } = r;
+  // A Derived Metric whose inputs cannot be combined (one is Derived itself, or another period) has no value, and no
+  // formula is ever followed from one Derived Metric to another: nothing can recurse, whatever is stored.
+  if (metric.formula && inputsProblem(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []))) return undefined;
+  if (metric.formula && usesPrevious(metric.formula)) {
+    // It reaches back one of its own periods, so it has a value for one period only, never for a longer span.
+    if (start !== end) return undefined;
+    const vars: Record<string, number> = {};
+    const before: Record<string, number> = {};
+    const earlier = shiftPeriod(start, metric.period, -1);
+    for (const input of formulaInputs(metric.formula)) {
+      const now = valueOver(input, start, end, resolve, expected);
+      const was = valueOver(input, earlier, earlier, resolve, expected);
+      if (now !== undefined) vars[input] = now;
+      if (was !== undefined) before[input] = was;
+    }
+    return evaluate(metric.formula, vars, before) ?? undefined;
+  }
   if (metric.formula) {
     // A Derived Metric is computed from its inputs' combined values (revenue minus cost per quarter), not by adding
     // up its own periods: a margin of sums, not a sum of margins.

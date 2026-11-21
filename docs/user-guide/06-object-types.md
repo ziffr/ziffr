@@ -8,7 +8,7 @@ This chapter lists the kinds of things you meet in Ziffr, what each one is for, 
 | Thing | What it is | Who makes it |
 | --- | --- | --- |
 | **Metric** | A named, fully described number tracked over time, such as "Revenue" or "Open tickets" | Owners, Admins and Members |
-| **Derived Metric** | A Metric worked out by a formula from other Metrics, such as "Gross margin" | No screen yet: the demo shows some |
+| **Derived Metric** | A Metric worked out by a formula from other Metrics, such as "Gross margin" | **New metric**, **Calculated from other Metrics**; the demo shows some |
 | **Observation** | One value of a Metric for one period: "Revenue, October: 84,000 €" | Its Submitters |
 | **Breakdown** | Labelled values that split one Observation, such as revenue by country | Its Submitters, together with the value |
 | **Target Series** | Targets for individual periods, such as a monthly budget | The Metric's Owner and Editors |

@@ -11,6 +11,9 @@ import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionR
 import * as questions from "@ziffr/core/questions";
 import { simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
 import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
+import { createDerivedMetric as coreCreateDerivedMetric } from "@ziffr/core/derived-metrics";
+import { attempt } from "@/lib/action-result";
+import { isActionError, type ActionError } from "@/lib/action-error";
 import { LimitReached } from "@ziffr/core/workspace-limits";
 import type { SourceId } from "@ziffr/core/types";
 
@@ -45,6 +48,21 @@ export async function createMetric(form: FormData) {
     const back = num("duplicate_of") ? `copy=${num("duplicate_of")}` : num("from_catalog_id") ? `catalog=${num("from_catalog_id")}` : "scratch=1";
     redirect(`/metrics/new?${back}`);
   }
+  revalidatePath("/", "layout");
+  redirect(`/metrics/${made.slug}?created=1`);
+}
+
+/** Creates a Derived Metric from the "Calculated from other Metrics" form: back to the form with the core's words
+ * when it is refused (a Metric the person cannot see, a period that does not fit), else on to the new Metric. Every
+ * field is checked again in the core; empty fields are left out, so the core proposes them. */
+export async function createDerivedMetric(_previous: ActionError | null, form: FormData): Promise<ActionError | null> {
+  const text = (k: string) => String(form.get(k) ?? "").trim() || undefined;
+  const num = (k: string) => (text(k) === undefined || !Number.isFinite(Number(text(k))) ? undefined : Number(text(k)));
+  const made = await attempt(async () => coreCreateDerivedMetric(await currentActor(), {
+    name: String(form.get("name") ?? ""), formula: String(form.get("formula") ?? ""), description: text("description"), unit: text("unit"), decimals: num("decimals"),
+    period: text("period"), polarity: text("polarity"), targetMin: num("target_min"), targetMax: num("target_max"),
+  }));
+  if (isActionError(made)) return made;
   revalidatePath("/", "layout");
   redirect(`/metrics/${made.slug}?created=1`);
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
+import { ArrowLeft, BookOpen, PenLine, Sigma } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
 import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
 import { can, Forbidden } from "@ziffr/core/actor";
@@ -23,6 +23,8 @@ import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
 import { NameField } from "../name-field";
 import { CatalogBrowser } from "./catalog-browser";
+import { DerivedForm } from "./derived-form";
+import { formulaChoices } from "@ziffr/core/derived-metrics";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { INDUSTRY_LABEL } from "@ziffr/core/workspace-profile";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
@@ -53,7 +55,7 @@ const BLANK: MetricDescription = {
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
-export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string }> }) {
+export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string }> }) {
   const sp = await searchParams;
   // The Metric Catalog and the form are for people who may create; the core refuses a Guest too.
   if (!can(await currentActor(), "create")) notFound();
@@ -65,6 +67,18 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
 
   // Near the Workspace Limit, everyone sees how many it holds of how many (spec 0029), on the Catalog and the form.
   const note = nearLimitNote(await metricsOfLimit(await currentActor()));
+  // "Calculated from other Metrics": a Derived Metric, which takes a formula instead of values and Sources.
+  if (sp.derived && !picked && !copy) {
+    const [choices, refusal] = await Promise.all([formulaChoices(await currentActor()), newMetricRefusal(await currentActor())]);
+    return (
+      <>
+        <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>
+        <PageHeader title="New calculated metric" sub="A number worked out from other Metrics, such as a margin or the change since last week. Nobody is asked for its values." />
+        <LimitNotes refusal={refusal} note={note} />
+        <DerivedForm choices={choices} />
+      </>
+    );
+  }
   if (!picked && !sp.scratch && !copy) {
     // The Workspace Profile's industry and segment suggest Metrics; only these two keys go to the browser.
     const [profile, numberStyle, refusal] = await Promise.all([workspaceProfile(await currentActor()), getNumberStyle(), newMetricRefusal(await currentActor())]);
@@ -73,11 +87,18 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <>
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
         <LimitNotes refusal={refusal} note={note} />
-        <Link href="/metrics/new?scratch=1" className="mb-8 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
+        <Link href="/metrics/new?scratch=1" className="mb-3 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
           <PenLine className="size-5 text-muted-foreground" />
           <div>
             <div className="font-medium">Start from scratch</div>
             <div className="text-xs text-muted-foreground">Describe every dimension yourself.</div>
+          </div>
+        </Link>
+        <Link href="/metrics/new?derived=1" className="mb-8 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
+          <Sigma className="size-5 text-muted-foreground" />
+          <div>
+            <div className="font-medium">Calculated from other Metrics</div>
+            <div className="text-xs text-muted-foreground">A formula over Metrics you already have, such as a margin or the change since last week.</div>
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>

@@ -1,12 +1,20 @@
 // Formulas of Derived Metrics (GLOSSARY: Derived Metric), like "({revenue} - {cost}) / {revenue} * 100": + - * /,
-// brackets, numbers such as 12 or 0.5, and {slug} for another Metric. A formula is read whole or refused (spec 0022):
-// anything it cannot read gives no value, never a number from the part it could read.
+// brackets, numbers such as 12 or 0.5, and {slug} for another Metric. Two functions reach back one period:
+// prev({odometer}) is the input's value in the period before, change({odometer}) this period's minus the previous
+// one's (ticket #619). A formula is read whole or refused (spec 0022): anything it cannot read gives no value, never
+// a number from the part it could read.
 import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric } from "./types";
 
 /** The slugs of the metrics a Derived Metric's formula reads, each once. */
 export function formulaInputs(formula: string): string[] {
   return [...new Set([...formula.matchAll(/\{([a-z0-9-]+)\}/g)].map((m) => m[1]))];
+}
+
+/** Whether a formula reaches back to the previous period (prev or change): such a Derived Metric has a value for a
+ * period only, never for a longer span, since "the previous quarter" of a monthly Metric is not what it was asked for. */
+export function usesPrevious(formula: string): boolean {
+  return /\b(?:prev|change)\s*\(/.test(formula);
 }
 
 /** The longest formula read, in characters: a formula is a short expression, and these bounds keep the exact
@@ -20,7 +28,7 @@ export const FORMULA_MAX_DIGITS = 20;
  * the bounds above and values of at most 10^15 with six decimals, as values are kept, no formula comes near it. */
 export const FORMULA_MAX_BITS = 8192;
 
-type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
+type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "back"; slug: string; change: boolean } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
 type Token = { t: string; at: number };
 
 /** A formula read into a tree, or why it cannot be read, in words for the person writing it. */
@@ -28,12 +36,14 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
   if (formula.length > FORMULA_MAX_LENGTH) return { ok: false, reason: `The formula is longer than ${FORMULA_MAX_LENGTH} characters.` };
   const tokens: Token[] = [];
   // Stryker disable next-line Regex: white space is read one character or a run at a time, and left out either way
-  const re = /\s+|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
+  const re = /\s+|(?:prev|change)\s*\(\s*\{[a-z0-9-]+\}\s*\)|\{[a-z0-9-]+\}|\d+(?:\.\d+)?|[()+\-*/]/y;
   for (let at = 0; at < formula.length; ) {
     re.lastIndex = at;
     const m = re.exec(formula);
     if (!m) {
       const ch = formula[at];
+      const fn = /^(prev|change)\b/.exec(formula.slice(at));
+      if (fn) return { ok: false, reason: `${fn[1]} takes one Metric: write ${fn[1]}({odometer}), with the Metric's slug in lower case.` };
       if (ch === "{") return { ok: false, reason: `"${formula.slice(at, formula.indexOf("}", at) + 1 || undefined)}" does not name a Metric: write its slug in lower case, such as {revenue}.` };
       // Right after a digit, or a point: written as part of a number.
       if (/\d$/.test(formula.slice(0, at)) || ch === ".") return { ok: false, reason: `"${ch}" is not part of a number here: write numbers such as 12 or 0.5.` };
@@ -60,6 +70,7 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     }
     if (tok.t === "-") return { k: "neg", a: primary() };
     if (tok.t.startsWith("{")) return { k: "ref", slug: tok.t.slice(1, -1) };
+    if (/^[a-z]/.test(tok.t)) return { k: "back", change: tok.t.startsWith("change"), slug: tok.t.slice(tok.t.indexOf("{") + 1, tok.t.indexOf("}")) };
     if (tok.t === ")") return fail("A bracket is closed that was not opened.");
     if (OPERATORS.has(tok.t)) return fail(`"${tok.t}" stands where a value is missing.`);
     // What is left is a number.
@@ -102,19 +113,27 @@ const OPERATORS = new Set(["+", "-", "*", "/"]);
 // Worked out exactly on the inputs' text and the formula's numbers (exact.ts), so {a} - {b} for 0.3 and 0.1 is 0.2 and
 // a margin is the double nearest to the exact one. Null for no value: an input that is missing or not a number, a
 // division by zero, or a result past FORMULA_MAX_BITS.
-function run(n: Node, vars: Record<string, number>): Fraction | null {
+function run(n: Node, vars: Record<string, number>, before: Record<string, number>): Fraction | null {
   switch (n.k) {
     case "num": return fractionOfText(n.v);
     case "ref": {
       const v = vars[n.slug];
       return Number.isFinite(v) ? fractionOf(v) : null;
     }
+    case "back": {
+      // Both this period's value and the previous one's are needed, for prev as for change: a Derived Metric has a
+      // value only in a period where each of its inputs has one.
+      const was = before[n.slug];
+      const now = vars[n.slug];
+      if (!Number.isFinite(was) || !Number.isFinite(now)) return null;
+      return n.change ? minus(fractionOf(now), fractionOf(was)) : fractionOf(was);
+    }
     case "neg": {
-      const a = run(n.a, vars);
+      const a = run(n.a, vars, before);
       return a && { num: -a.num, den: a.den };
     }
     case "op": {
-      const a = run(n.a, vars), b = run(n.b, vars);
+      const a = run(n.a, vars, before), b = run(n.b, vars, before);
       if (!a || !b || (n.op === "/" && b.num === BigInt(0))) return null;
       // Kept in lowest terms after every step, and stopped past FORMULA_MAX_BITS, so nothing grows without limit.
       const r = lowestTerms(n.op === "+" ? plus(a, b) : n.op === "-" ? minus(a, b) : n.op === "*" ? times(a, b) : over(a, b));
@@ -127,11 +146,12 @@ function run(n: Node, vars: Record<string, number>): Fraction | null {
 }
 
 /** A formula's value for the given inputs; null when the formula cannot be read whole, an input is missing, or the
- * result is not a finite number (a division by zero). */
-export function evaluate(formula: string, vars: Record<string, number>): number | null {
+ * result is not a finite number (a division by zero). `before` holds the inputs' values one period earlier, for prev
+ * and change; left out, a formula that uses them has no value. */
+export function evaluate(formula: string, vars: Record<string, number>, before: Record<string, number> = {}): number | null {
   const p = parse(formula);
   if (!p.ok) return null;
-  const v = run(p.node, vars);
+  const v = run(p.node, vars, before);
   if (!v) return null;
   const x = nearest(v);
   // −0 is 0; a result beyond the doubles (a division by a tiny value) is none.
@@ -173,6 +193,7 @@ const noneWords = (names: string[]) => `${names.join(" and ")} ${names.length ==
 /** Why a Derived Metric's inputs cannot be combined into longer periods (a quarter of months), or null: an input
  * set to Aggregation none has no quarter, so neither has the Derived Metric. */
 export function inputsNotCombined(metric: Pick<Metric, "formula">, inputs: FormulaInput[]): string | null {
+  if (metric.formula && usesPrevious(metric.formula)) return "Shown by its own period: it reaches back to the previous period (prev or change), so it cannot be combined into longer periods.";
   const names = metric.formula ? notCombining(metric.formula, inputs) : [];
   return names.length ? `Shown by its own period: ${noneWords(names)}, so it cannot be combined into longer periods.` : null;
 }
@@ -195,6 +216,7 @@ export function checkFormula(formula: string, inputs: FormulaInput[], metric?: P
   const own = metric?.period ?? bySlug.get(slugs[0])!.period;
   const periods = inputsProblem({ formula, period: own }, inputs);
   if (periods) return periods;
-  const none = notCombining(formula, inputs);
+  // A formula that reaches back is never combined into longer periods, so an input without an Aggregation is fine.
+  const none = usesPrevious(formula) ? [] : notCombining(formula, inputs);
   return none.length ? `${noneWords(none)}: set ${none.length === 1 ? "it" : "them"} to sum, average or last value, so this Metric can be combined into longer periods.` : null;
 }

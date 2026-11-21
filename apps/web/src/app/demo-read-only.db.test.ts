@@ -54,6 +54,7 @@ const CASES: Record<string, Case> = {
   "access-actions:decideAccess": { nothing: "the demo holds no access request to decide", args: () => [1, true] },
   "actions:setViewer": { outside: "chooses whose view is shown: a cookie, no row" },
   "actions:createMetric": { args: () => [form({ name: "Visitor metric", period: "month", format: "number", submission_rule: "overwrite", polarity: "higher", aggregation: "sum", decimals: "0", sources: "web_form" })] },
+  "actions:createDerivedMetric": { args: () => [null, form({ name: "Visitor calculation", formula: "{revenue} * 2" })] },
   "actions:simulateMessage": { reads: () => [{ source: "slack", sender: "@sara", text: "closed 2 deals" }] },
   "actions:submitWebForm": { args: (i) => [i.formCode, null, form({ value: "42" })] },
   "actions:createAction": { args: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },

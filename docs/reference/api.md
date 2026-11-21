@@ -87,6 +87,7 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` (at most 5) | no | Its Sources, the ways values may arrive; left out, every one. |
 | `submitters` | array of string, at most 64 characters (at most 20) | no | Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well. |
 | `workflow` | integer or string, at most 120 characters or null | no | One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key. |
+| `formula` | string, at most 500 characters | no | Makes a Derived Metric: computed from other Metrics you own or edit, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well. |
 
 **Answer** (201)
 
@@ -110,6 +111,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
 | `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
@@ -160,6 +163,8 @@ One Metric's description: period, format, unit, Polarity and target, with its Wo
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
 | `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
@@ -255,6 +260,8 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `formula` | string or null | yes | A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see. |
+| `defaults` | array of string | no | Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words. |
 | `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
 | `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
@@ -538,6 +545,7 @@ Sets or removes 1 to 500 periods: a number sets the period's value, null removes
 | `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
 | `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
 | `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+| `formula` | string, at most 500 characters | no | A Derived Metric's new formula, checked as when creating one; only its owner and Editors. Needs metrics:read as well. |
 
 **Answer** (200)
 
@@ -604,6 +612,7 @@ Sets or removes 1 to 500 periods of the current period or later: a number sets t
 | `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
 | `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
 | `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+| `formula` | string, at most 500 characters | no | A Derived Metric's new formula, checked as when creating one; only its owner and Editors. Needs metrics:read as well. |
 
 **Answer** (200)
 

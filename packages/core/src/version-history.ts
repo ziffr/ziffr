@@ -3,7 +3,8 @@
 // Every function takes the Actor first and works only inside the actor's Workspace.
 import { assertSettingsDesigns, assertWidgetDesigns } from "./widget-designs";
 import { db } from "./db";
-import { can, Forbidden, type Actor } from "./actor";
+import { can, Forbidden, Refused, type Actor } from "./actor";
+import { checkedFormula } from "./derived-metrics";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { deckMetricIds } from "./visibility";
@@ -195,7 +196,22 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       const fields = ["name", "description", "unit", "unit_position", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "attainment_method", "sources", "aggregation", "formula"];
       // A version from before units had a side gets the unit its format used to add, so it shows as it did then.
       const kept: Record<string, unknown> = "format" in s && "unit" in s && !("unit_position" in s) ? keptUnit({ ...s, unit: String(s.unit ?? ""), format: s.format as Format }) : s;
-      await db().from("metrics").update(await sealedPatch("metrics", ws, id, Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]])))).eq("id", id).eq("workspace_id", ws);
+      // A restore never turns a Derived Metric into a plain one or back: the kind stays what it is now, with its Sources.
+      // A formula it brings back goes through the checks of changing one, so an old formula cannot reach what a change
+      // would be refused (an input the Editor or the owner may not share, a Metric that is Derived since, itself).
+      const { data: now } = await db().from("metrics").select("slug, period, owner_id, formula").eq("id", id).eq("workspace_id", ws).single();
+      const patch = Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]));
+      if (now?.formula) {
+        // Its period follows its inputs', and it has no Sources: those stay.
+        delete patch.sources;
+        delete patch.period;
+        if (typeof patch.formula === "string") patch.formula = await checkedFormula(actor, { id, slug: now.slug, period: now.period, owner_id: now.owner_id }, patch.formula).catch((e) => { throw e instanceof Refused ? new Refused(`This version cannot be restored: ${e.message}`) : e; });
+        else delete patch.formula;
+      } else {
+        delete patch.formula;
+        if (s.formula) { delete patch.sources; delete patch.period; delete patch.aggregation; }
+      }
+      await db().from("metrics").update(await sealedPatch("metrics", ws, id, patch)).eq("id", id).eq("workspace_id", ws);
       break;
     }
   }

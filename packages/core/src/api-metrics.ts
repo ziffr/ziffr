@@ -4,10 +4,11 @@
 // has no values, Submission Rule, Polarity, Target Range, Attainment method), its Sources, its Workflow, its Target
 // Series and its Projections through the same core functions as the Metric's page, so every field is checked the same
 // way: only the Metric's owner and its Editors change it (only its owner its Workflow), and only while the creator's
-// role may create. Not writable by a key: sharing, Submitters beyond those named at creation, a formula or a Catalog
-// entry. Each change names the key: in the Metric's history, and in the note of each Target Series or Projection value.
+// role may create. Not writable by a key: sharing, Submitters beyond those named at creation, or a Catalog entry. A formula only for
+// a Derived Metric (ticket #619): made with it, changed by its owner and Editors, same checks. Each change names the key: in the Metric's history, and in the note of each Target Series or Projection value.
 import { openWorkflowRow } from "./workflow-rows";
-import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
+import { assertScope, can, Forbidden, Refused, type Actor, type KeyActor } from "./actor";
+import { createDerivedMetric, setMetricFormula } from "./derived-metrics";
 import { describeMetric, toApi, type ApiMetric, type ApiMetricDetail } from "./api";
 import { checkWorkflowChoice, type WorkflowRef } from "./api-metric-workflow";
 import { db } from "./db";
@@ -56,6 +57,10 @@ export type ApiMetricInput = {
   /** One of the creator's own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs
    * metrics:edit as well; null or left out: none. */
   workflow?: WorkflowRef | null;
+  /** Makes a Derived Metric instead: computed from other Metrics the key's creator owns or edits, such as "{revenue} / {orders}"
+   * or "change({odometer}) / 7" (this period minus the previous one). It takes no values, Sources, Submitters or
+   * Workflow; the period is its inputs' own unless given. Needs metrics:read as well. */
+  formula?: string;
 };
 
 /** First Prompts a key may set off for one person in 24 hours, over all Metrics: a Submitter added through a key is
@@ -111,6 +116,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   assertScope(actor, "metrics:write");
   // The key's creator, with their role as it is now (actorForKey reads it on every call).
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
+  if (input.formula !== undefined) return createDerivedWithKey(actor, creator, input, effects);
   const sources = input.sources === undefined ? SOURCE_IDS : sourcesFrom(input.sources);
   const named = input.submitters ?? [];
   if (named.length) assertScope(actor, "metrics:edit");
@@ -136,6 +142,24 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   if (workflow?.id != null) await asKey(actor, () => setMetricWorkflow(creator, id, workflow.id, { from: null }));
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data);
   return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+}
+
+/** A Derived Metric for a key (scope metrics:write and metrics:read: it is made from what the creator sees, and
+ * answering whether an input exists would otherwise tell a key that cannot read). What a Derived Metric does not take is
+ * refused rather than ignored, so a program never believes it set a Submitter or a Workflow. */
+async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, input: ApiMetricInput, effects: MetricEffects): Promise<ApiMetricDetail> {
+  assertScope(actor, "metrics:read");
+  if (input.submit || input.submitters?.length || input.workflow != null || input.sources !== undefined || input.aggregation !== undefined || input.submission_rule !== undefined) {
+    throw new MetricChangeRefused("A Derived Metric is computed from other Metrics: it takes no values, so no submit, submitters, sources, aggregation, submission_rule or workflow.");
+  }
+  const keyName = actor.key ? await nameOf(actor) : null;
+  const made = await createDerivedMetric(creator, {
+    name: String(input?.name ?? ""), formula: input.formula as string, description: input.description, unit: input.unit, unitPosition: input.unit_position, format: input.format,
+    decimals: input.decimals, period: input.period, polarity: input.polarity, targetMin: input.target_min, targetMax: input.target_max, attainmentMethod: input.attainment_method,
+  }, { ...effects, recordCreated: (metricId, by) => effects.recordCreated(metricId, by, keyName ? `Created through the API (key “${keyName}”)` : "Created through the API") }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined })
+    .catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
+  const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", made.id).eq("workspace_id", actor.workspaceId).single()).data);
+  return { ...(await describeMetric(actor, normalizeMetric(data as Metric) as Metric)), defaults: made.defaults };
 }
 
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
@@ -195,6 +219,8 @@ export type ApiMetricPatch = {
   attainment_method?: "ratio" | "distance" | null;
   /** One of the creator's own Workflows by id or exact name, or null for none; only the Metric's owner. */
   workflow?: WorkflowRef | null;
+  /** A Derived Metric's new formula, checked as when creating one (needs metrics:read as well). */
+  formula?: string;
 };
 
 const FORMAT_WORDS = ["number", "currency", "percent"];
@@ -243,6 +269,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   const { creator, metric } = await changeableByKey(actor, slug);
   const p = patch ?? {};
   assertPatchWords(p);
+  if (p.formula !== undefined) assertScope(actor, "metrics:read");
   // The core checks this too, but as a plain error; said here so a program gets 422 with the reason.
   const lo = p.target_min !== undefined ? p.target_min : metric.target_min ?? null;
   const hi = p.target_max !== undefined ? p.target_max : metric.target_max ?? null;
@@ -258,6 +285,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   const workflow = p.workflow === undefined ? undefined : await checkWorkflowChoice(actor, creator, metric, p.workflow);
   const keyName = actor.key ? await nameOf(actor) : null;
   await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
+    if (p.formula !== undefined) await setMetricFormula(creator, metric.id as number, p.formula, { accessKeyId: actor.key ? Number(actor.key.id) : undefined }).catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
     // The editor's own refusals (a period that has values, a Retention that would not fit) are plain errors: said as 422.
     await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
     // A key's change of what a Metric is called or says is read by other people and their assistants: the Audit Log names
