@@ -1141,7 +1141,7 @@ The workspace's Workflows by id and name, to name the one to ask about with GET 
 
 `POST /workflows` · scope `workflows:write`
 
-Makes a Workflow owned by the key's creator, through the same function as the Workflow editor: a Due Date in working days and steps in order (remind, escalate, check, approve, publish, tell), cleaned the same way (a publish step is always last). Needs the scope Build workflows, while the creator's role may create. Who approves and who a Tell step tells are a person's decision: an Approve or Tell step needs the scope Name who approves and who is told as well, which only a program's Access Key can hold, never an assistant connected through OAuth. TODO(#361): the asking schedule (a time and days) comes with its own ticket.
+Makes a Workflow owned by the key's creator, through the same function as the Workflow editor: a Due Date in working days and steps in order (remind, escalate, check, approve, publish, tell), cleaned the same way (a publish step is always last). Needs the scope Build workflows, while the creator's role may create. Who approves and who a Tell step tells are a person's decision: an Approve or Tell step needs the scope Name who approves and who is told as well, which only a program's Access Key can hold, never an assistant connected through OAuth. `asking` sets when it runs on its own (the Asking Schedule: an hour and the days); it names nobody, so it needs no scope of its own.
 
 **Body** (JSON)
 
@@ -1151,6 +1151,7 @@ Makes a Workflow owned by the key's creator, through the same function as the Wo
 | `due_working_days` | integer, 0 to 30 | no | Default 0: due the day the period ends. |
 | `lock_summary` | boolean | no |  |
 | `steps` | array of any (at most 12) | no | Default: only the publish step. A publish step is added last if missing. |
+| `asking` | object or null | no | When it runs on its own. Default: with the Workspace's daily run. |
 
 **Answer** (201)
 
@@ -1161,6 +1162,7 @@ Makes a Workflow owned by the key's creator, through the same function as the Wo
 | `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
 | `lock_summary` | boolean | yes | Tell the owner when a period locks. |
 | `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
 | `updated_at` | string | yes |  |
 
@@ -1195,6 +1197,7 @@ A Workflow the key's creator owns, with its Due Date and steps, to change it wit
 | `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
 | `lock_summary` | boolean | yes | Tell the owner when a period locks. |
 | `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
 | `updated_at` | string | yes |  |
 
@@ -1227,6 +1230,7 @@ Changes the name, Due Date or steps of a Workflow the creator owns; parts left o
 | `due_working_days` | integer, 0 to 30 | no |  |
 | `lock_summary` | boolean | no |  |
 | `steps` | array of any (at most 12) | no |  |
+| `asking` | object or null | no | When it runs on its own; null goes back to the Workspace's daily run. |
 
 **Answer** (200)
 
@@ -1237,6 +1241,7 @@ Changes the name, Due Date or steps of a Workflow the creator owns; parts left o
 | `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
 | `lock_summary` | boolean | yes | Tell the owner when a period locks. |
 | `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
 | `updated_at` | string | yes |  |
 

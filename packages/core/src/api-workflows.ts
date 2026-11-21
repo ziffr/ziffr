@@ -7,14 +7,14 @@
 // "workflows:people" may change them, never an assistant (not offered, refused where a connection is made, and a check
 // in the database); any other key sends those steps back exactly as it read them, or leaves them out when making a
 // Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals.
-// TODO(#361): the asking schedule (a time and days per Workflow) is built apart and is not on main yet; add its
-// fields to ApiWorkflow and the two inputs once its core type exists, rather than guessing its shape here.
+// The Asking Schedule (spec 0035, when the Workflow asks: an hour and the days) is a field of the Workflow like the
+// others and is checked by the same function as in the editor; it names nobody, so it needs no scope of its own.
 import { assertCan, assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { getMetrics } from "./workspace-data";
 import { deleteWorkflow, saveWorkflow, WorkflowRefused } from "./workflows";
-import type { ApprovalScope, NobodyElse, TellCondition, WorkflowConfig, WorkflowStep } from "./types";
+import type { ApprovalScope, AskingSchedule, NobodyElse, TellCondition, WorkflowConfig, WorkflowStep } from "./types";
 
 export { WorkflowRefused };
 
@@ -29,11 +29,11 @@ export type ApiWorkflowStep =
   | { type: "tell"; id?: string; condition: TellCondition; people: string[]; groups: number[] };
 
 /** A Workflow of the key's creator as a program sees it: its Due Date, its steps in order and how many Metrics use it. */
-export type ApiWorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: ApiWorkflowStep[]; metrics: number; updated_at: string };
+export type ApiWorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: ApiWorkflowStep[]; asking: AskingSchedule | null; metrics: number; updated_at: string };
 
 /** What to say to make a Workflow. `steps` left out: just the publish step. */
-export type NewApiWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: ApiWorkflowStep[] };
-/** What to say to change one: each part left out stays; `steps`, when given, replaces all of them. */
+export type NewApiWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: ApiWorkflowStep[]; asking?: AskingSchedule | null };
+/** What to say to change one: each part left out stays; `steps`, when given, replaces all of them; `asking: null` goes back to the Workspace's daily run. */
 export type ApiWorkflowPatch = Partial<NewApiWorkflow>;
 
 const toStep = (s: ApiWorkflowStep): WorkflowStep => {
@@ -95,7 +95,7 @@ async function detail(actor: KeyActor, id: number): Promise<ApiWorkflowDetail> {
   // Only the Metrics the creator sees are counted, so a program learns nothing of hidden ones.
   const { data: users } = await db().from("metrics").select("id").eq("workspace_id", actor.workspaceId).eq("workflow_id", id);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
-  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), metrics: (users ?? []).filter((u) => seen.has(u.id as number)).length, updated_at: w.updated_at };
+  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), asking: w.config.asking ?? null, metrics: (users ?? []).filter((u) => seen.has(u.id as number)).length, updated_at: w.updated_at };
 }
 
 /** Approvers are members of this Workspace; the editor would drop others without a word, a program is told (scope workflows:write). */
@@ -121,7 +121,7 @@ export async function createWorkflowWithKey(actor: KeyActor, input: NewApiWorkfl
   const steps = input.steps ?? [];
   const people = await mayNamePeople(actor);
   await assertMembers(actor, steps);
-  const config: WorkflowConfig = { dueWorkingDays: input.due_working_days ?? 0, steps: steps.map(toStep), ...(input.lock_summary ? { lockSummary: true } : {}) };
+  const config: WorkflowConfig = { dueWorkingDays: input.due_working_days ?? 0, steps: steps.map(toStep), ...(input.lock_summary ? { lockSummary: true } : {}), ...(input.asking ? { asking: input.asking } : {}) };
   const id = await refusing(() => saveWorkflow(creatorOf(actor), null, input.name, config, { message: `Made through the API by key ${actor.key.id}`, keepPeople: !people, keepWebhooks: true }));
   return detail(actor, id);
 }
@@ -137,6 +137,8 @@ export async function updateWorkflowWithKey(actor: KeyActor, id: number, patch: 
     dueWorkingDays: patch.due_working_days ?? w.config.dueWorkingDays,
     steps: patch.steps ? patch.steps.map(toStep) : w.config.steps,
     ...((patch.lock_summary ?? w.config.lockSummary === true) ? { lockSummary: true } : {}),
+    // Left out stays, null goes back to the Workspace's run.
+    ...((patch.asking === undefined ? w.config.asking : patch.asking) ? { asking: (patch.asking === undefined ? w.config.asking : patch.asking) as AskingSchedule } : {}),
   };
   await refusing(() => saveWorkflow(creatorOf(actor), id, patch.name ?? w.name, config, { message: `Changed through the API by key ${actor.key.id}`, keepPeople: !people, keepWebhooks: true }));
   return detail(actor, id);

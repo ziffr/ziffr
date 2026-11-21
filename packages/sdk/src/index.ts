@@ -200,10 +200,13 @@ export type WorkflowStep =
   | { type: "publish"; lock: boolean }
   | { type: "tell"; id?: string; condition: { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string }; people: string[]; groups: number[] };
 
+/** When a Workflow runs on its own (the Asking Schedule): a whole hour in the Workspace's time zone (null: the Workspace's run hour) and the days. */
+export type AskingSchedule = { hour: number | null; days: { kind: "every_day" } | { kind: "weekdays" } | { kind: "chosen_weekdays"; days: number[] } | { kind: "every_n_days"; n: number; from: string } | { kind: "month_day"; day: number | "last" } };
+
 /** A Workflow of the key's creator with its steps. */
-export type WorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: WorkflowStep[]; metrics: number; updated_at: string };
+export type WorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: WorkflowStep[]; asking: AskingSchedule | null; metrics: number; updated_at: string };
 /** What to say to make a Workflow. */
-export type NewWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: WorkflowStep[] };
+export type NewWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: WorkflowStep[]; asking?: AskingSchedule | null };
 /** What to change in one; each part left out stays, `steps` replaces all of them. */
 export type WorkflowPatch = Partial<NewWorkflow>;
 

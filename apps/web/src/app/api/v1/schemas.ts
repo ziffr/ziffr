@@ -642,12 +642,25 @@ const WorkflowStepSchema = z.discriminatedUnion("type", [
   }).strict(),
 ]);
 
+/** When a Workflow runs on its own (GLOSSARY: Asking Schedule): a whole hour in the Workspace's time zone (null: the Workspace's run hour) and the days. */
+const AskingScheduleSchema = z.object({
+  hour: z.number().int().min(0).max(23).nullable().describe("The hour of the day, 0 to 23, in the Workspace's time zone; null for the Workspace's run hour."),
+  days: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("every_day") }).strict(),
+    z.object({ kind: z.literal("weekdays") }).strict(),
+    z.object({ kind: z.literal("chosen_weekdays"), days: z.array(z.number().int().min(1).max(7)).min(1).max(7).describe("1 is Monday, 7 is Sunday.") }).strict(),
+    z.object({ kind: z.literal("every_n_days"), n: z.number().int().min(2).max(90), from: periodDate.describe("The day it starts on, YYYY-MM-DD.") }).strict(),
+    z.object({ kind: z.literal("month_day"), day: z.union([z.number().int().min(1).max(31), z.literal("last")]).describe("A day of the month, or the last; a day the month lacks runs on its last.") }).strict(),
+  ]),
+}).strict();
+
 /** A Workflow of the key's creator, with its steps (GLOSSARY: Workflow). */
 export const ApiWorkflowDetail = z.object({
   id: z.number().int(), name: z.string(),
   due_working_days: z.number().int().describe("Working days after a period ends by which its values are due."),
   lock_summary: z.boolean().describe("Tell the owner when a period locks."),
   steps: z.array(WorkflowStepSchema),
+  asking: AskingScheduleSchema.nullable().describe("When it runs on its own; null: with the Workspace's daily run."),
   metrics: z.number().int().describe("How many Metrics use it."),
   updated_at: z.string(),
 });
@@ -658,6 +671,7 @@ export const CreateWorkflow = z.object({
   due_working_days: z.number().int().min(0).max(30).optional().describe("Default 0: due the day the period ends."),
   lock_summary: z.boolean().optional(),
   steps: z.array(WorkflowStepSchema).max(12).optional().describe("Default: only the publish step. A publish step is added last if missing."),
+  asking: AskingScheduleSchema.nullable().optional().describe("When it runs on its own. Default: with the Workspace's daily run."),
 }).strict();
 
 /** PATCH /workflows/{id} takes this. Each part left out stays; `steps` replaces all of them. */
@@ -666,6 +680,7 @@ export const UpdateWorkflow = z.object({
   due_working_days: z.number().int().min(0).max(30).optional(),
   lock_summary: z.boolean().optional(),
   steps: z.array(WorkflowStepSchema).max(12).optional(),
+  asking: AskingScheduleSchema.nullable().optional().describe("When it runs on its own; null goes back to the Workspace's daily run."),
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
 
 /** What DELETE /workflows/{id} answers. */

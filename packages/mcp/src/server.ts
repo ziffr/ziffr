@@ -246,6 +246,15 @@ function registerWorkflowTools(server: McpServer, ziffr: Ziffr): void {
     }).strict().describe("Only as get_workflow gave it: an assistant cannot choose who is told."),
   ]);
   const steps = z.array(step).max(12).describe("The steps in the order they run: remind, escalate, check (an Unusual Value), approve, tell, publish (always last). At most one check, approve and publish.");
+  const asking = z.object({
+    hour: z.number().int().min(0).max(23).nullable().describe("The hour of the day in the Workspace's time zone; null for the Workspace's run hour."),
+    days: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("every_day") }).strict(), z.object({ kind: z.literal("weekdays") }).strict(),
+      z.object({ kind: z.literal("chosen_weekdays"), days: z.array(z.number().int().min(1).max(7)).min(1).max(7).describe("1 is Monday, 7 is Sunday.") }).strict(),
+      z.object({ kind: z.literal("every_n_days"), n: z.number().int().min(2).max(90), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("The day it starts on, YYYY-MM-DD.") }).strict(),
+      z.object({ kind: z.literal("month_day"), day: z.union([z.number().int().min(1).max(31), z.literal("last")]) }).strict(),
+    ]),
+  }).strict().nullable().describe("The Asking Schedule: when the Workflow asks, reminds and escalates on its own, such as every third day at 14:00. null (or left out): with the Workspace's daily run.");
   const id = z.number().int().positive().describe("The Workflow's id, from list_workflows.");
   const name = z.string().trim().min(1).max(80);
   const due = z.number().int().min(0).max(30).describe("Working days after a period ends by which its values are due.");
@@ -267,14 +276,14 @@ function registerWorkflowTools(server: McpServer, ziffr: Ziffr): void {
   server.registerTool("create_workflow", {
     title: "Make a Workflow",
     description: "Makes a Workflow for the user, as the Workflow editor does: a Due Date and steps (reminders, escalation, an Unusual Value check, publishing). Only when the user asked, after they confirmed the steps. An assistant cannot add an Approve or Tell step: who approves and who is told is chosen by the person in Ziffr; say so instead of trying. Needs a key that may build workflows.",
-    inputSchema: { name, due_working_days: due.optional(), lock_summary: z.boolean().optional().describe("Tell the owner when a period locks."), steps: steps.optional() },
+    inputSchema: { name, due_working_days: due.optional(), lock_summary: z.boolean().optional().describe("Tell the owner when a period locks."), steps: steps.optional(), asking: asking.optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, (input) => guarded(async () => answer({ workflow: await ziffr.workflows.create(input) })));
 
   server.registerTool("update_workflow", {
     title: "Change a Workflow",
     description: "Changes the name, Due Date or steps of a Workflow the user owns; what is left out stays, and steps, when given, replace all of them: call get_workflow first and send the steps back with the change, Approve and Tell steps exactly as read. A Workflow is shared by its Metrics: say which it changes (get_workflow tells how many). Only after the user confirmed. Needs a key that may build workflows.",
-    inputSchema: { id, name: name.optional(), due_working_days: due.optional(), lock_summary: z.boolean().optional(), steps: steps.optional() },
+    inputSchema: { id, name: name.optional(), due_working_days: due.optional(), lock_summary: z.boolean().optional(), steps: steps.optional(), asking: asking.optional() },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   }, ({ id, ...patch }) => guarded(async () => answer({ workflow: await ziffr.workflows.update(id, patch) })));
 

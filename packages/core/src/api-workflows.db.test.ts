@@ -40,8 +40,16 @@ describe("making, reading, changing and deleting a Workflow with a key", () => {
     // The editor's own cleaning: a publish step is always there, and last.
     expect((await createWorkflowWithKey(key, { name: "Bare" })).steps).toEqual([{ type: "publish", lock: false }]);
     const changed = await updateWorkflowWithKey(key, made.id, { due_working_days: 5, lock_summary: true });
-    expect(changed).toMatchObject({ name: "Weekly close", due_working_days: 5, lock_summary: true, steps: made.steps });
+    expect(changed).toMatchObject({ name: "Weekly close", due_working_days: 5, lock_summary: true, asking: null, steps: made.steps });
     expect(await getWorkflowWithKey(key, made.id)).toEqual(changed);
+    // The Asking Schedule: set, kept when something else changes, cleared with null, and refused when it makes no sense.
+    const asking = { hour: 14, days: { kind: "chosen_weekdays" as const, days: [1, 4] } };
+    expect((await updateWorkflowWithKey(key, made.id, { asking })).asking).toEqual(asking);
+    expect((await updateWorkflowWithKey(key, made.id, { name: "Weekly close" })).asking).toEqual(asking);
+    await expect(updateWorkflowWithKey(key, made.id, { asking: { hour: 25, days: { kind: "every_day" } } })).rejects.toBeInstanceOf(WorkflowRefused);
+    expect((await getWorkflowWithKey(key, made.id)).asking).toEqual(asking);
+    expect((await updateWorkflowWithKey(key, made.id, { asking: null })).asking).toBeNull();
+    expect((await createWorkflowWithKey(key, { name: "Scheduled", asking: { hour: null, days: { kind: "every_n_days", n: 3, from: "2026-12-01" } } })).asking).toEqual({ hour: null, days: { kind: "every_n_days", n: 3, from: "2026-12-01" } });
     // Somebody else's Workflow is not there for them: not read, not changed, not deleted.
     const anns = await keyOf(w, ann, "member", PEOPLE);
     await expect(getWorkflowWithKey(anns, made.id)).rejects.toBeInstanceOf(Forbidden);
