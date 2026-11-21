@@ -115,7 +115,21 @@ async function workflowOf(actor: Actor | KeyActor, workflowId: number) {
   if (!Number.isInteger(workflowId)) throw new Forbidden();
   const { data } = await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();
+  const guestSees = await guestWorkflowIds(actor);
+  if (guestSees && !guestSees.has(workflowId)) throw new Forbidden();
   return data as { id: number; name: string };
+}
+
+/** For a Guest, the Workflows they may know of: those of the Metrics shared with them, since a Guest sees only what
+ * is shared with them (GLOSSARY: Workspace Role). Null for everyone else, who sees the Workspace's Workflows. */
+export async function guestWorkflowIds(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<Set<number> | null> {
+  if (actor.role !== "guest") return null;
+  const all = await getMetrics(actor.workspaceId);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
+  return new Set(all.flatMap((m) => {
+    const id = (m as Metric & { workflow_id?: number | null }).workflow_id;
+    return seen.has(m.id) && typeof id === "number" ? [id] : [];
+  }));
 }
 
 /** The Workflow's Metrics, with the ones the viewer sees. */
@@ -343,7 +357,11 @@ export async function listWorkflowNames(actor: Actor | KeyActor, page: { after?:
   viewerOf(actor);
   const limit = Math.max(1, Math.min(100, Math.floor(page.limit) || 50));
   const after = Number.isInteger(page.after) ? (page.after as number) : 0;
-  const { data } = await db().from("workflows").select("id, name").eq("workspace_id", actor.workspaceId).gt("id", after).order("id").limit(limit + 1);
+  // A Guest's list holds only the Workflows of the Metrics shared with them.
+  const guestSees = await guestWorkflowIds(actor);
+  let q = db().from("workflows").select("id, name").eq("workspace_id", actor.workspaceId).gt("id", after);
+  if (guestSees) q = q.in("id", [...guestSees]);
+  const { data } = await q.order("id").limit(limit + 1);
   const rows = (data ?? []) as { id: number; name: string }[];
   const items = rows.slice(0, limit);
   return { items, next: rows.length > limit ? items[items.length - 1].id : null };

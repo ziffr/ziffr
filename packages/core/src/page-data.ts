@@ -1,6 +1,7 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { openWorkflowRows } from "./workflow-rows";
+import { guestWorkflowIds } from "./period-timeline";
 import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
 import { openNames, openOne, openRows } from "./sealed-columns";
@@ -66,7 +67,9 @@ export async function connectorsView(actor: Actor) {
   const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
   // A form link in an older Prompt's text opens its recipient's form: only they (and the demo) see it.
   const shown = visible.map((d) => (inDemo(actor) || d.recipient_id === actor.personId ? d : { ...d, body: String(d.body).replace(/\S*\/submit\/tk-[A-Za-z0-9_-]+/g, "[their personal form link]") }));
-  return { prefs: prefs ?? [], deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
+  // A Guest sees their own Delivery Preferences and the team default, not every member's (rule 3).
+  const prefsShown = (prefs ?? []).filter((p) => actor.role !== "guest" || p.user_id === null || p.user_id === actor.personId);
+  return { prefs: prefsShown, deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
 }
 
 /** How many of the latest Prompts and incoming messages the Sources page shows. */
@@ -109,6 +112,7 @@ export async function activityView(actor: Actor) {
     db().from("widgets").select("id, dashboard_id, owner_id, metric_ids, title").eq("workspace_id", ws),
   ]);
   const visible = await visibleMetricIds(ws, me, metrics);
+  const guestSees = await guestWorkflowIds(actor);
   const dash = new Set(dashboards.map((d) => d.id));
   const myDecks = new Set((decks ?? []).map((d) => d.id));
   const seenWidget = (id: number) => { const w = widgets?.find((x) => x.id === id); return w ? (w.dashboard_id ? dash.has(w.dashboard_id) : w.owner_id === me) : false; };
@@ -133,6 +137,8 @@ export async function activityView(actor: Actor) {
     : v.object_type === "deck" ? myDecks.has(v.object_id)
     : v.object_type === "widget" ? seenWidget(v.object_id)
     : v.object_type === "snapshot" ? seenSnapshot(v)
+    // A Guest sees only what is shared with them: of the rest, only the Workflows of their Metrics (rule 3).
+    : guestSees ? v.object_type === "workflow" && guestSees.has(v.object_id)
     : ["template", "theme", "workflow", "master"].includes(v.object_type);
   const shown = (versions ?? []).filter(keep);
   const widgetIds = new Set(shown.filter((v) => v.object_type === "widget").map((v) => v.object_id));
@@ -153,7 +159,9 @@ export async function activityView(actor: Actor) {
 export async function workflowsView(actor: Actor) {
   const ws = actor.workspaceId;
   const [all, { data: sealedWorkflows }] = await Promise.all([getMetrics(ws), db().from("workflows").select("*").eq("workspace_id", ws).order("id")]);
-  const workflows = await openWorkflowRows(ws, sealedWorkflows);
+  // A Guest gets only the Workflows of the Metrics shared with them, never the rest of the Workspace's (rule 3).
+  const guestSees = await guestWorkflowIds(actor);
+  const workflows = await openWorkflowRows(ws, guestSees ? (sealedWorkflows ?? []).filter((w) => guestSees.has(w.id as number)) : sealedWorkflows);
   const ids = [...(await visibleMetricIds(ws, actor.personId, all))];
   const [{ data: states }, { data: tokens }] = await Promise.all([
     db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids),
@@ -209,7 +217,9 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   const feedIds = new Set((feeds ?? []).map((f) => f.person_id as string));
   const shown = (tokens ?? []).map((t) => ({ ...t, feed: feedIds.has(t.submitter_id), code: !feedIds.has(t.submitter_id) && (allCodes || t.submitter_id === actor.personId) ? t.code : null }));
   const pending = (waiting ?? []).map((p) => p.period_start as string);
-  return { tokens: shown, workflows: workflows ?? [], workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
+  // A Guest is shown only the Workflows of Metrics shared with them, not every Workflow's steps and people (rule 3).
+  const guestSees = await guestWorkflowIds(actor);
+  return { tokens: shown, workflows: (workflows ?? []).filter((w) => !guestSees || guestSees.has(w.id as number)), workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
 }
 
 /** The actor's saved widgets (their Pool). */
@@ -254,8 +264,10 @@ export async function closedDashboardOwner(actor: Actor, dashboardId: number): P
   return (p?.name as string | undefined)?.split(" ")[0] ?? "the owner";
 }
 
-/** The Team page's facts: everyone's role, domain joining, and the away dates of the workspace's people. */
+/** The Team page's facts: everyone's role, domain joining, and the away dates of the workspace's people. Refused to a
+ * Guest, who only sees what is shared with them: not who else is here, their roles, Groups or days away. */
 export async function teamView(actor: Actor) {
+  if (actor.role === "guest") throw new Forbidden("Guests see what is shared with them, not the Workspace's members and Groups.");
   const ws = actor.workspaceId;
   const people = await peopleIn(ws);
   const [{ data: roles }, { data: space }, { data: away }] = await Promise.all([

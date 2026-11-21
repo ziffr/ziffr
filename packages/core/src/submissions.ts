@@ -409,8 +409,13 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
   if (!ids.length) return [];
   const { data } = await db().from("profiles").select("*").in("id", ids);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
+  // Security (AGENTS.md rule 3): pages hand these profiles to the browser, so a member's email, Slack handle and phone,
+  // and the sign-in account behind them, are not loaded unless `contactDetails` asks for them (intake, Prompts).
+  const named = (data ?? []).map((p) => contactDetails
+    ? { id: p.id, name: p.name, role: p.role, color: p.color, email: p.email, slack_handle: p.slack_handle, phone: p.phone ?? null }
+    : { id: p.id, name: p.name, role: p.role, color: p.color, email: "", slack_handle: "", phone: null });
   // Sorted here, not by the database: a Contact's name is sealed, so its order there means nothing.
-  const profiles = ((await openNames(ws, (data ?? []) as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
+  const profiles = ((await openNames(ws, named as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
 }
 

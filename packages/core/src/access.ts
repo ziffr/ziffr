@@ -180,6 +180,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
+  const guest = !me || me.role === "guest";
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
@@ -196,19 +197,22 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     targets,
     projections,
     condensed,
-    templates: (templates ?? []) as TeamTemplate[],
+    templates: guest ? [] : ((templates ?? []) as TeamTemplate[]),
     // Guests place nothing; a row that no longer passes the checks is never sent.
     designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],
     themes: (themes ?? []) as Theme[],
     // Owners and admins manage themes (GLOSSARY: Workspace Role).
     canEditThemes: me?.role === "owner" || me?.role === "admin",
-    groups,
+    // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, never
+    // who else is in which (AGENTS.md rule 3).
+    groups: guest ? groups.filter((g) => g.members.includes(viewer)) : groups,
     pending: byMetric(states, "approval", ids),
     locked: byMetric(states, "locked", ids),
     yearStart,
     numberStyle,
     attainmentMethod,
-    submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
+    // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know.
+    submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }
 
