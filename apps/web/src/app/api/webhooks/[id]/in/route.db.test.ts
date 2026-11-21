@@ -3,8 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { ask } from "@ziffr/core/questions";
-import { db } from "@ziffr/core/db";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { markSentToWebhook, workspace } from "@ziffr/core/test/db-fixtures";
 import { signWebhookBody } from "@ziffr/core/webhook-send";
 import { createWebhook } from "@ziffr/core/webhooks";
 import { WEBHOOK_INBOUND_MAX_BYTES } from "@ziffr/core/webhook-limits";
@@ -35,7 +34,7 @@ async function setup() {
   const m = await w.metric(sara, { name: "Orders" }); await w.share(m.id, ann);
   const hook = await createWebhook(w.actor(sara), { name: "To Do", url: "https://localhost:9/hook", events: ["action.done"] });
   const id = await ask(w.actor(sara), { metricId: m.id, period: "2026-10-01", assigneeId: ann, text: "Do it", kind: "task" });
-  await db().from("webhook_sends").insert({ workspace_id: w.id, webhook_id: hook.id, type: "action.created", action_id: id, metric_id: m.id, period_start: "2026-10-01", source_type: "app", state: "delivered" });
+  await markSentToWebhook(w.id, hook.id, id, m.id);
   return { hook, id };
 }
 
