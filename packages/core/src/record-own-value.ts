@@ -7,6 +7,7 @@
 // recorded in a demo.
 import { Forbidden, type Actor } from "./actor";
 import { assertSeesMetrics } from "./sharing";
+import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { yearStartOf } from "./fiscal-year";
@@ -63,21 +64,45 @@ async function ownToken(actor: Actor, metricId: number): Promise<Own | null> {
 /** What the Record a value form offers the actor for a Metric, or null when they do not submit it (the page then shows
  * no button). The same check as recording, so a button is shown only to someone who can use it. */
 export async function recordingOffer(actor: Actor, metricId: number): Promise<RecordingOffer | null> {
-  const own = await ownToken(actor, metricId);
-  if (!own) return null;
-  const { metric, yearStart } = own;
-  const style = await numberStyleOf(actor.workspaceId);
-  const current = periodStart(new Date(), metric.period, yearStart);
-  const starts = Array.from({ length: RECORDABLE_PERIODS }, (_, i) => shiftPeriod(current, metric.period, -i));
-  const have = new Map((await getLatestObservations(actor.workspaceId, { metricIds: [metric.id], from: starts[starts.length - 1], to: current })).map((o) => [o.period_start, Number(o.value)]));
-  return {
-    metricId: metric.id,
-    name: metric.name,
-    rule: RULE_LABEL[metric.submission_rule],
-    placeholder: metric.unit || (metric.format === "currency" ? "€" : metric.format === "percent" ? "%" : "Value"),
-    numberStyle: style,
-    periods: starts.map((start) => ({ start, label: periodLabel(start, metric.period, yearStart), has: have.has(start) ? formatValue(metric, have.get(start)!, style) : null })),
-  };
+  return (await recordingOffers(actor, [metricId]))[metricId] ?? null;
+}
+
+/** The offers for several Metrics at once (the Metrics list), keyed by Metric id, with one entry only for each the actor
+ * submits: the same checks as recording, made with a few reads for all of them instead of a few for each. */
+export async function recordingOffers(actor: Actor, metricIds: number[]): Promise<Record<number, RecordingOffer>> {
+  if (actor.key || !actor.personId || !metricIds.length) return {};
+  const ws = actor.workspaceId, person = actor.personId;
+  const wanted = new Set(metricIds);
+  const metrics = await getMetrics(ws);
+  const visible = await visibleMetricIds(ws, person, metrics);
+  const candidates = metrics.filter((m) => wanted.has(m.id) && visible.has(m.id) && !m.formula && !m.archived_at && m.sources.includes("web_form"));
+  if (!candidates.length) return {};
+  const { data } = await db().from("tokens").select("code, metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("workspace_id", ws).in("metric_id", candidates.map((m) => m.id));
+  const tokens = (data ?? []) as (TokenRow & { code: string })[];
+  const submits = candidates.filter((m) => tokens.some((t) => t.metric_id === m.id && t.submitter_id === person && tokenValid(t, tokens.filter((o) => o.metric_id === m.id))));
+  if (!submits.length) return {};
+  const [style, yearStart] = await Promise.all([numberStyleOf(ws), yearStartOf(ws)]);
+  const spans = submits.map((metric) => {
+    const ys = metric.period === "quarter" || metric.period === "year" ? yearStart : JANUARY;
+    const current = periodStart(new Date(), metric.period, ys);
+    return { metric, ys, starts: Array.from({ length: RECORDABLE_PERIODS }, (_, i) => shiftPeriod(current, metric.period, -i)) };
+  });
+  // One read of the values for all: from the oldest period offered to the newest, then each Metric takes its own.
+  const all = spans.flatMap((s) => s.starts).sort();
+  const found = await getLatestObservations(ws, { metricIds: submits.map((m) => m.id), from: all[0], to: all[all.length - 1] });
+  const offers: Record<number, RecordingOffer> = {};
+  for (const { metric, ys, starts } of spans) {
+    const have = new Map(found.filter((o) => o.metric_id === metric.id).map((o) => [o.period_start, Number(o.value)]));
+    offers[metric.id] = {
+      metricId: metric.id,
+      name: metric.name,
+      rule: RULE_LABEL[metric.submission_rule],
+      placeholder: metric.unit || (metric.format === "currency" ? "€" : metric.format === "percent" ? "%" : "Value"),
+      numberStyle: style,
+      periods: starts.map((start) => ({ start, label: periodLabel(start, metric.period, ys), has: have.has(start) ? formatValue(metric, have.get(start)!, style) : null })),
+    };
+  }
+  return offers;
 }
 
 /** What the form sends: the total as typed, the Breakdown as pasted lines, and the period start if not the current one. */

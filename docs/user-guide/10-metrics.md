@@ -32,7 +32,7 @@ The list shows every Metric you may see, one row each.
 
 Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
-With the [preview layout](17-your-settings.md#preview-the-new-layout) on, each row also has a **Details** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. **Esc** or **Close** closes it and you are back in the list.
+With the [preview layout](17-your-settings.md#preview-the-new-layout) on, each row also has a **Details** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. **Esc** or **Close** closes it and you are back in the list. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below).
 
 ## Paste values from a spreadsheet
 

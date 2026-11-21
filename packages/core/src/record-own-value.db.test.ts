@@ -6,7 +6,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { DemoReadOnly } from "./demo";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
-import { RECORDABLE_PERIODS, recordingOffer, recordOwnValue } from "./record-own-value";
+import { RECORDABLE_PERIODS, recordingOffer, recordingOffers, recordOwnValue } from "./record-own-value";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
@@ -172,5 +172,22 @@ describe("recording", () => {
     const w = await ws(); const sara = await w.person("owner");
     const m = await w.metric(sara); await w.token(m.id, sara);
     await expect(recordOwnValue({ personId: sara, workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, m.id, { value: "1" }, quiet())).rejects.toBeInstanceOf(DemoReadOnly);
+  });
+});
+
+describe("offers for several Metrics", () => {
+  it("lists only the Metrics the person submits and may see, with their own periods and values", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("member");
+    const monthly = await w.metric(sara, { name: "Signups" }); await w.token(monthly.id, ann); await w.value(monthly.id, ago(1), 7, ann);
+    const quarterly = await w.metric(sara, { name: "Revenue", period: "quarter" }); await w.token(quarterly.id, ann);
+    const notMine = await w.metric(sara, { name: "Costs" }); await w.share(notMine.id, ann);
+    const noForm = await w.metric(sara, { name: "Calls", sources: ["slack"] }); await w.token(noForm.id, ann);
+    const offers = await recordingOffers(w.actor(ann, "member"), [monthly.id, quarterly.id, notMine.id, noForm.id]);
+    expect(Object.keys(offers).map(Number).sort()).toEqual([monthly.id, quarterly.id].sort());
+    expect(offers[monthly.id].periods[1].has).toContain("7");
+    expect(offers[monthly.id].periods[0].start).toBe(thisMonth());
+    expect(offers[quarterly.id].periods[1].start).toBe(shiftPeriod(offers[quarterly.id].periods[0].start, "quarter", -1));
+    expect(await recordingOffers(w.actor(sara), [monthly.id, quarterly.id])).toEqual({});
+    expect(await recordingOffers(w.actor(ann, "member"), [])).toEqual({});
   });
 });

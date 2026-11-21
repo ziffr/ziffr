@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 /** The Record a value button with its form. `slideOver` is the sidebar layout. */
-export function RecordValue({ offer, slideOver }: { offer: RecordingOffer; slideOver: boolean }) {
+export function RecordValue({ offer, slideOver, wide }: { offer: RecordingOffer; slideOver: boolean; /** Fills its row, as in the list's slide-over. */ wide?: boolean }) {
   const [open, setOpen] = useState(false);
   const trigger = <><Plus aria-hidden /> Record a value</>;
   const intro = `Goes the way a value sent by your form link does: ${offer.rule.toLowerCase()}, and the Metric's checks and approvals apply.`;
@@ -24,7 +24,7 @@ export function RecordValue({ offer, slideOver }: { offer: RecordingOffer; slide
   if (slideOver) {
     return (
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className={buttonVariants()}>{trigger}</SheetTrigger>
+        <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</SheetTrigger>
         <SheetContent>
           <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>{intro}</SheetDescription></SheetHeader>
           <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
@@ -34,7 +34,7 @@ export function RecordValue({ offer, slideOver }: { offer: RecordingOffer; slide
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={buttonVariants()}>{trigger}</DialogTrigger>
+      <DialogTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogTitle>Record a value for {offer.name}</DialogTitle>
         <DialogDescription>{intro}</DialogDescription>
