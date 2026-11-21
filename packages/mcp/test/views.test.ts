@@ -6,7 +6,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Ziffr } from "@ziffr/sdk";
 import { createServer } from "../src/server.js";
 import { VIEW_APPS, viewAppHtml } from "../src/views-app.js";
-import { formatValue, shapeDashboard, shapeMetric, shapePeriodStatus } from "../src/view-shape.js";
+import { formatValue, periodName, shapeDashboard, shapeMetric, shapePeriodStatus } from "../src/view-shape.js";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -16,27 +16,27 @@ const value = (period: string, v: number, state = "recorded") => ({ period, valu
 
 describe("shapeMetric", () => {
   it("gives the latest value, the change, the Target Range, the points and the last periods, newest first", () => {
-    const s = shapeMetric({ metric: METRIC, values: [value("2026-11-02", 80), value("2026-11-09", 100), value("2026-11-16", 1250, "locked")] }, "en-US")!;
-    expect(s.latest).toEqual({ period: "2026-11-16", text: "1,250", state: "locked" });
+    const s = shapeMetric({ metric: METRIC, values: [value("2026-11-02", 80), value("2026-11-09", 100), value("2026-11-16", 1250, "locked")] })!;
+    expect(s.latest).toEqual({ period: "Wk of 16 Nov", text: "1,250", state: "locked" });
     expect(s.change).toEqual({ text: "+1150.0 %", better: true });
     expect(s.target).toEqual({ text: "at least 100", status: "within" });
     expect(s.points).toEqual([80, 100, 1250]);
-    expect(s.rows.map((r) => r.period)).toEqual(["2026-11-16", "2026-11-09", "2026-11-02"]);
+    expect(s.rows.map((r) => r.period)).toEqual(["Wk of 16 Nov", "Wk of 9 Nov", "Wk of 2 Nov"]);
   });
   it("says below, above and lower-is-better, shows a Condensed Value as its span, and cuts long words", () => {
     const lower = { ...METRIC, polarity: "lower", target_min: 10, target_max: 20, description: "x".repeat(900), name: "n".repeat(900) };
-    const s = shapeMetric({ metric: lower, values: [{ ...value("2025-01-06", 5), condensed_from: 4, period_end: "2025-01-31" }, value("2026-01-01", 30)] }, "en-US")!;
+    const s = shapeMetric({ metric: lower, values: [{ ...value("2025-01-06", 5), condensed_from: 4, period_end: "2025-01-31" }, value("2026-01-01", 30)] })!;
     expect(s.target).toEqual({ text: "10 to 20", status: "above" });
-    expect(s.rows[1].period).toBe("2025-01-06 to 2025-01-31");
+    expect(s.rows[1].period).toBe("Jan 25\u2013Jan 25");
     expect(s.description).toHaveLength(300); expect(s.name).toHaveLength(200);
-    expect(shapeMetric({ metric: { ...lower, target_min: 40 }, values: [value("2026-01-01", 30)] }, "en-US")!.target?.status).toBe("below");
-    expect(shapeMetric({ metric: { ...METRIC, target_min: null, target_max: 9 }, values: [value("2026-01-01", 30)] }, "en-US")!.target).toEqual({ text: "at most 9", status: "above" });
+    expect(shapeMetric({ metric: { ...lower, target_min: 40 }, values: [value("2026-01-01", 30)] })!.target?.status).toBe("below");
+    expect(shapeMetric({ metric: { ...METRIC, target_min: null, target_max: 9 }, values: [value("2026-01-01", 30)] })!.target).toEqual({ text: "at most 9", status: "above" });
   });
   it("copes with no values, a previous value of zero, a Metric without a target and answers it cannot read", () => {
     const none = shapeMetric({ metric: { ...METRIC, target_min: null }, values: [] })!;
     expect(none).toMatchObject({ latest: null, change: null, target: null, points: [], rows: [] });
     expect(shapeMetric({ metric: { ...METRIC, polarity: "target" }, values: [value("a", 0), value("b", 5)] })!.change).toBeNull();
-    expect(shapeMetric({ metric: { ...METRIC, polarity: "target" }, values: [value("a", 2), value("b", 1)] })!.change).toMatchObject({ text: "-50.0 %", better: null });
+    expect(shapeMetric({ metric: { ...METRIC, polarity: "target" }, values: [value("a", 2), value("b", 1)] })!.change).toMatchObject({ text: "\u221250.0 %", better: null });
     expect(shapeMetric({ metric: { ...METRIC, polarity: "lower" }, values: [value("a", 2), value("b", 1)] })!.change?.better).toBe(true);
     expect(shapeMetric({ metric: METRIC })).toBeNull();
     expect(shapeMetric(null)).toBeNull();
@@ -44,14 +44,39 @@ describe("shapeMetric", () => {
   });
 });
 
+describe("order", () => {
+  it("lists the last periods newest first by period start, whatever order the values came in", () => {
+    const s = shapeMetric({ metric: { ...METRIC, period: "month" }, values: [value("2026-09-01", 2), value("2026-01-01", 1), value("2026-10-01", 3)] })!;
+    expect(s.rows.map((r) => r.period)).toEqual(["Oct 26", "Sep 26", "Jan 26"]);
+    expect(s.points).toEqual([1, 2, 3]);
+    expect(s.latest?.period).toBe("Oct 26");
+  });
+});
+
 describe("formatValue", () => {
-  it("puts the unit on its side, percent without a gap, and refuses what is not a number", () => {
-    expect(formatValue(12.5, { decimals: 1, unit: "$", unit_position: "before", format: "currency" }, "en-US")).toBe("$12.5");
-    expect(formatValue(12.5, { decimals: 1, unit: "%", unit_position: "after", format: "percent" }, "en-US")).toBe("12.5%");
-    expect(formatValue(1200, { decimals: 0, unit: "EUR", unit_position: "after", format: "currency" }, "en-US")).toBe("1,200 EUR");
-    expect(formatValue(1, { decimals: 99, unit: "" }, "en-US")).toBe("1.000000");
-    expect(formatValue(1, {}, "en-US")).toBe("1");
-    expect(formatValue(Number.NaN, {}, "en-US")).toBe("");
+  it("writes one style whatever the viewer's locale: unit on its side, the minus sign, and nothing for what is not a number", () => {
+    expect(formatValue(11200, { decimals: 0, unit: "$", unit_position: "before", format: "currency" })).toBe("$11,200");
+    expect(formatValue(12.5, { decimals: 1, unit: "%", unit_position: "after", format: "percent" })).toBe("12.5\u00a0%");
+    expect(formatValue(-1200, { decimals: 0, unit: "EUR", unit_position: "after" })).toBe("\u22121,200\u00a0EUR");
+    expect(formatValue(-0.2, { decimals: 0, unit: "" })).toBe("0");
+    expect(formatValue(1, { decimals: 99, unit: "" })).toBe("1.000000");
+    expect(formatValue(1, {})).toBe("1");
+    expect(formatValue(Number.NaN, {})).toBe("");
+  });
+});
+
+describe("periodName", () => {
+  it("names a period from its first day by the Metric's period, in words that hold for any fiscal year", () => {
+    expect(periodName("2026-10-01", "month")).toBe("Oct 26");
+    expect(periodName("2026-11-16", "week")).toBe("Wk of 16 Nov");
+    expect(periodName("2026-11-16", "day")).toBe("16 Nov");
+    expect(periodName("2026-07-01", "quarter")).toBe("Jul\u2013Sep 26");
+    expect(periodName("2026-11-01", "quarter")).toBe("Nov\u2013Jan 27");
+    expect(periodName("2026-01-01", "year")).toBe("2026");
+    expect(periodName("2026-04-01", "year")).toBe("Apr 26\u2013Mar 27");
+    expect(periodName("2025-01-06", "week", "2025-02-02")).toBe("Jan 25\u2013Feb 25");
+    expect(periodName("2025-01-06", "week", "later")).toBe("Jan 25");
+    expect(periodName("nonsense", "month")).toBe("nonsense");
   });
 });
 

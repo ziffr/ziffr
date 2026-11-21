@@ -5,7 +5,7 @@
 // nothing from outside (its policy says so, and the host enforces it), draws every word with textContent, never as
 // markup, and holds nothing to act with; the one link, "Open in Ziffr", only opens the dashboard's own address (https, or
 // http on this computer) in the person's browser. Colours follow the host's theme variables, with light and dark fallbacks.
-import { formatValue, shapeDashboard, shapeMetric, shapePeriodStatus } from "./view-shape.js";
+import { formatValue, periodName, shapeDashboard, shapeMetric, shapePeriodStatus } from "./view-shape.js";
 import { SHARE_PROPOSAL_APP_META } from "./share-proposal-app.js";
 
 /** Nothing may be fetched, framed or connected to: the same policy as the Share Proposal preview. */
@@ -23,7 +23,7 @@ export const viewMeta = (kind: keyof typeof VIEW_APPS) => ({ ui: { resourceUri: 
 
 const RENDER = {
   metric: `
-    var s = shapeMetric(data, navigator.language); if (!s) return false;
+    var s = shapeMetric(data); if (!s) return false;
     add(root, "h2", s.name, "name");
     if (s.latest) {
       var big = add(root, "div", s.latest.text, "big"); add(big, "small", s.latest.period);
@@ -31,7 +31,7 @@ const RENDER = {
     } else add(root, "p", "No values yet.", "note");
     if (s.target) add(root, "div", "Target Range: " + s.target.text + (s.target.status ? ", the latest is " + s.target.status : ""), "target " + (s.target.status === "within" ? "good" : s.target.status ? "bad" : ""));
     spark(root, s.points);
-    if (s.rows.length) { var t = add(root, "table"); s.rows.forEach(function (r) { var tr = add(t, "tr"); add(tr, "td", r.period); add(tr, "td", r.text, "num"); if (r.state !== "recorded") add(tr, "td", r.state === "locked" ? "locked" : "awaiting approval", "note"); }); }
+    if (s.rows.length) { var t = add(root, "table"); s.rows.forEach(function (r) { var tr = add(t, "tr"); add(tr, "td", r.period); var c = add(tr, "td", r.text, "num"); if (r.state !== "recorded") add(c, "small", r.state === "locked" ? "locked" : "awaiting approval"); }); }
     return true;`,
   dashboard: `
     var s = shapeDashboard(data); if (!s) return false;
@@ -79,7 +79,7 @@ body { margin: 0; padding: 12px; font: 14px/1.45 var(--font-sans, system-ui, san
 .name { margin: 0 0 6px; font-size: 16px; } .big { font-size: 28px; font-weight: 600; line-height: 1.2; } .big small { display: block; font-weight: 400; }
 .change, .target { font-size: 13px; margin-top: 2px; } .good { color: var(--good); } .bad { color: var(--bad); }
 .spark { display: block; width: 100%; max-width: 240px; height: 48px; margin: 10px 0; fill: none; stroke: var(--color-text-secondary, var(--mute)); stroke-width: 1.5; } .spark circle { fill: var(--color-text-primary, var(--ink)); stroke: none; }
-table { border-collapse: collapse; width: 100%; max-width: 320px; } td { padding: 2px 8px 2px 0; border-top: 1px solid var(--color-border-primary, var(--rule)); } td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; max-width: 320px; } td { padding: 2px 8px 2px 0; border-top: 1px solid var(--color-border-primary, var(--rule)); } td.num { text-align: right; font-variant-numeric: tabular-nums; } td.num small { display: block; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 8px 0; }
 .tile { border: 1px solid var(--color-border-primary, var(--rule)); border-radius: 6px; background: var(--color-background-secondary, var(--card)); padding: 8px; font-size: 13px; overflow-wrap: anywhere; } .tile small { display: block; }
 .bar { height: 8px; border-radius: 4px; background: var(--color-border-primary, var(--rule)); margin: 8px 0 10px; overflow: hidden; } .bar div { height: 100%; background: var(--good); }
@@ -90,6 +90,7 @@ button { font: inherit; margin-top: 4px; padding: 7px 12px; border-radius: 6px; 
 <div id="view" hidden></div>
 <script>
 ${formatValue.toString()}
+${periodName.toString()}
 ${shapeMetric.toString()}
 ${shapeDashboard.toString()}
 ${shapePeriodStatus.toString()}
