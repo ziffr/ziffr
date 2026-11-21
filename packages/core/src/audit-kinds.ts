@@ -60,6 +60,7 @@ export const AUDIT_KINDS = {
   "period.unlocked": "unlocked a period of",
   "period.closed": "closed a period of the Workflow",
   "workflow.run_now": "ran today's Workflow steps now",
+  "workflow.webhooks_set": "changed the Webhooks the Tell steps tell, of the Workflow",
   "approval.given": "approved a value of",
   "approval.sent_back": "sent back a value of",
   "approval.skipped": "counted without Approval, as nobody else could approve it, a value of",

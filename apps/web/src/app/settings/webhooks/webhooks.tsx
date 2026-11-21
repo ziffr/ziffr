@@ -20,6 +20,7 @@ const EVENTS: { id: string; label: string }[] = [
   { id: "action.done", label: "A task is done or closed" },
   { id: "value.recorded", label: "A value is recorded" },
   { id: "value.unusual", label: "A value is unusual" },
+  { id: "alert.fired", label: "A Tell step fires" },
 ];
 
 const STATE: Record<string, string> = { queued: "waiting", sending: "sending", retrying: "will try again", delivered: "delivered", failed: "failed", dropped: "not sent" };

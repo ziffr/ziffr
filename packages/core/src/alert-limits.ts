@@ -18,3 +18,5 @@ export const TELL_STEPS_PER_WORKFLOW = 3;
 export const TELL_PEOPLE_PER_STEP = 20;
 /** Groups one Tell step names. */
 export const TELL_GROUPS_PER_STEP = 10;
+/** Webhooks one Tell step names (spec 0034): they get the message as a program, so the number is small. */
+export const TELL_WEBHOOKS_PER_STEP = 3;

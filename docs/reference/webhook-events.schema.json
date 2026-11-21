@@ -1708,6 +1708,111 @@
         "id",
         "type",
         "created_at",
+        "workspace",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$"
+        },
+        "type": {
+          "const": "alert.fired"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "metric",
+            "period",
+            "value",
+            "target",
+            "condition",
+            "link"
+          ],
+          "properties": {
+            "metric": {
+              "type": "object",
+              "required": [
+                "id",
+                "name"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "period": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "condition": {
+              "type": "object",
+              "required": [
+                "kind",
+                "level"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "share_of_target",
+                    "at_or_above",
+                    "below",
+                    "changed_more"
+                  ]
+                },
+                "level": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "link": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "created_at",
         "data"
       ],
       "properties": {

@@ -11,15 +11,18 @@ import { deliverNotice, linkTo, refFor } from "./deliveries";
 import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./outbound-request";
 import { openNames, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
-import { buildActionMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
+import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
+import { alertContext, viewAt } from "./alert-firing";
+import { tellCondition, type TellStep } from "./tell-firing";
+import { formatValue } from "./format";
 import type { DoneReason } from "./webhook-events";
 
 /** One row of `webhook_sends` as the job reads it. */
 type Send = {
   id: string; workspace_id: string; webhook_id: string; type: string; action_id: number | null; thread_message_id: number | null; metric_id: number | null;
-  period_start: string | null; source_type: string; source_webhook_id: string | null; reason: DoneReason | null; attempts: number; created_at: string;
+  period_start: string | null; workflow_id: number | null; tell_step_id: string | null; source_type: string; source_webhook_id: string | null; reason: DoneReason | null; attempts: number; created_at: string;
 };
 
 /** What became of one send, for the log and for the job's counts. */
@@ -71,6 +74,29 @@ async function seenByEveryone(ws: string, metricId: number): Promise<boolean> {
 /** An Approval or Self-check names the pending value and why it is unusual in its title, which `value.unusual` leaves out on purpose: a fixed title goes out instead. */
 const systemTitle = (purpose: unknown) => purpose === "approval" ? "Approve a value" : purpose === "self_check" ? "Check a value" : null;
 
+/** `alert.fired`, built now from what the Tell step says and the value as it counts now (spec 0034): null, so nothing is
+ * sent, when the step is gone or no longer names this Webhook, when the value no longer counts (sent back, or waiting for
+ * Approval: a Tell step never tells an unapproved value) or when the Metric is archived or Derived. */
+async function alertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string): Promise<{ full: WebhookMessage; redacted: null } | null> {
+  const ws = send.workspace_id;
+  if (send.workflow_id === null || !send.tell_step_id || !period) return null;
+  const { data: wf } = await db().from("workflows").select("config, owner_id").eq("id", send.workflow_id).eq("workspace_id", ws).maybeSingle();
+  // Only an Owner or Admin names a Webhook: a Workflow whose owner no longer is one tells none until someone who is saves it again.
+  const { data: owner } = wf ? await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", wf.owner_id as string).maybeSingle() : { data: null };
+  if (owner?.role !== "owner" && owner?.role !== "admin") return null;
+  const step = ((wf?.config as { steps?: TellStep[] } | null)?.steps ?? []).find((s) => s.type === "tell" && s.id === send.tell_step_id);
+  const c = step ? tellCondition(step) : null;
+  if (!step || !c || c.kind === "missing_after_due" || !step.webhooks?.includes(send.webhook_id)) return null;
+  const ctx = await alertContext(ws);
+  const m = ctx.metrics.find((x) => x.id === metric.id);
+  if (!m || m.archived_at || m.formula) return null;
+  const view = await viewAt(ctx, m, period);
+  if (!view || view.pending || view.value === null) return null;
+  const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
+  const level = c.kind === "at_or_above" || c.kind === "below" ? c.value : c.share;
+  return { full: buildAlertFiredMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), condition: { kind: c.kind, level }, link: linkTo(`/metrics/${metric.id}`) }, env), redacted: null };
+}
+
 /** The message for one send as the Webhook may hear it now, or null when it may hear nothing (or the thing is gone). */
 async function buildMessage(send: Send, webhookName: string): Promise<{ full: WebhookMessage; redacted: WebhookMessage | null } | null> {
   const eventId = `evt_${send.id.replace(/-/g, "")}`;
@@ -95,6 +121,7 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
   if (hearing === "none") return null;
   const metricFacts = { id: metric.id as number, name: String(metric.name) };
   const period = String(send.period_start ?? action?.period_start ?? "");
+  if (!action && send.type === "alert.fired") return alertFired(send, env, metricFacts, period);
   if (!action) {
     const link = linkTo(`/metrics/${metric.id}`);
     if (send.type === "value.unusual") return { full: buildValueUnusualMessage({ metric: metricFacts, period, link }, env), redacted: null };

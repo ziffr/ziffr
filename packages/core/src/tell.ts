@@ -9,6 +9,7 @@ import { getGroups, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { tellRecipients, type TellStep } from "./tell-firing";
+import { listWebhooks, mayManageWebhooks } from "./webhooks";
 import { getMetrics } from "./workspace-data";
 import type { WorkflowStep } from "./types";
 
@@ -24,17 +25,21 @@ export type TellGroup = { id: number; name: string; members: number };
  * who is told and who is left out for lack of sight of a Metric. `skipped` lists only Metrics the actor sees. */
 export type TellEditorFacts = {
   groups: TellGroup[];
+  /** The Webhooks a step may name, for an Owner or Admin only (empty for anyone else): the name and whether it is on and
+   * chose `alert.fired`; never the address or the secret. */
+  webhooks: { id: string; name: string; enabled: boolean; hearsAlerts: boolean }[];
   steps: { id: string; skipped: { person: string; metric: string }[] }[];
 };
 
 /** The Groups and, for a saved Workflow the actor owns, who each Tell step reaches and who it skips. */
 export async function tellEditorFacts(actor: Actor, workflowId: number | null): Promise<TellEditorFacts> {
   const groups = (await getGroups(actor.workspaceId)).map((g) => ({ id: g.id, name: g.name, members: g.members.length }));
-  if (workflowId === null || !Number.isInteger(workflowId)) return { groups, steps: [] };
+  const webhooks = mayManageWebhooks(actor) ? (await listWebhooks(actor)).map((w) => ({ id: w.id, name: w.name, enabled: w.enabled, hearsAlerts: w.events.includes("alert.fired") })) : [];
+  if (workflowId === null || !Number.isInteger(workflowId)) return { groups, webhooks, steps: [] };
   const { data: wf } = await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!wf || wf.owner_id !== actor.personId) return { groups, steps: [] };
+  if (!wf || wf.owner_id !== actor.personId) return { groups, webhooks, steps: [] };
   const steps = tellSteps(wf.config);
-  if (!steps.length) return { groups, steps: [] };
+  if (!steps.length) return { groups, webhooks, steps: [] };
   const [metrics, { data: on }] = await Promise.all([getMetrics(actor.workspaceId), db().from("metrics").select("id").eq("workspace_id", actor.workspaceId).eq("workflow_id", workflowId).is("archived_at", null).is("formula", null)]);
   const mine = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
   const onIt = metrics.filter((m) => (on ?? []).some((o) => o.id === m.id) && mine.has(m.id));
@@ -48,7 +53,7 @@ export async function tellEditorFacts(actor: Actor, workflowId: number | null): 
     }
     out.push({ id: step.id, skipped });
   }
-  return { groups, steps: out };
+  return { groups, webhooks, steps: out };
 }
 
 /** A Workflow that tells the person, as Your settings lists it. */

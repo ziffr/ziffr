@@ -135,7 +135,23 @@ export async function latestView(ctx: Ctx, m: Metric): Promise<View | null> {
   const { latest } = found;
   // Only the period right before counts as "the period before" (the Unusual Value check reads it so).
   const before = shiftPeriod(latest.period, m.period, -1);
-  const previous = found.previous?.period === before ? found.previous.value : null;
+  return finishView(ctx, m, latest, found.previous?.period === before ? found.previous.value : null);
+}
+
+/** The Metric's value for one given period as an Alert sees it, or null when that period has no value any more. Used to
+ * build a Webhook's message when it is sent, so what it says is the value as it counts then (a value sent back since is
+ * not told); the period is the one a Tell step fired for, not the latest. */
+export async function viewAt(ctx: Ctx, m: Metric, period: string): Promise<View | null> {
+  const series = (await getSeriesOf(ctx.ws, ctx.metrics, [m.id]))[m.slug] ?? [];
+  const points = series.map((p) => ({ period: p.period, value: plain(p.value) }));
+  const at = points.find((p) => p.period === period);
+  if (!at || at.value === null) return null;
+  const before = shiftPeriod(period, m.period, -1);
+  return finishView(ctx, m, at, points.find((p) => p.period === before)?.value ?? null);
+}
+
+/** What a view needs besides the value itself: whether it waits for Approval, and the target for its period. */
+async function finishView(ctx: Ctx, m: Metric, latest: { period: string; value: string | null }, previous: string | null): Promise<View> {
   const inputs = [m.id, ...(m.formula ? ctx.metrics.filter((x) => formulaInputs(m.formula!).includes(x.slug)).map((x) => x.id) : [])];
   const [{ data: states }, { targets }] = await Promise.all([
     db().from("period_states").select("state").in("metric_id", inputs).eq("period_start", latest.period),

@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
-import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW } from "@ziffr/core/alert-limits";
+import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "@ziffr/core/alert-limits";
 import type { TellEditorFacts } from "@ziffr/core/tell";
 import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
@@ -45,7 +45,7 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], steps: [] } }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] } }: {
   /** Groups a Tell step may name, and who each of the Workflow's Tell steps skips (decided in the core). */
   tellFacts?: TellEditorFacts;
   /** The last run of this Workflow on its own Asking Schedule (spec 0035). */
@@ -334,6 +334,9 @@ function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<Work
   for (const k of skipped) byPerson.set(k.person, [...(byPerson.get(k.person) ?? []), k.metric]);
   const pickable = people.filter((p) => !p.contact && !s.people.includes(p.id));
   const groups = tellFacts.groups.filter((g) => !s.groups.includes(g.id));
+  const hooks = s.webhooks ?? [];
+  const hook = (id: string) => tellFacts.webhooks.find((w) => w.id === id);
+  const pickableHooks = tellFacts.webhooks.filter((w) => !hooks.includes(w.id));
   return (
     <>
       <label className="flex items-center gap-1.5">
@@ -362,6 +365,15 @@ function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<Work
           {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.members})</option>)}
         </select>
       )}
+      {hooks.map((id) => <span key={id} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">Webhook {hook(id)?.name ?? "(not shown to you)"}{tellFacts.webhooks.length > 0 && <IconBtn label={`Do not tell Webhook ${hook(id)?.name ?? ""}`} onClick={() => onChange({ ...s, webhooks: hooks.filter((x) => x !== id) })}><Trash2 className="size-3.5" /></IconBtn>}</span>)}
+      {pickableHooks.length > 0 && hooks.length < TELL_WEBHOOKS_PER_STEP && (
+        <select aria-label="Add a Webhook to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, webhooks: [...hooks, e.target.value] })} className={field}>
+          <option value="">Add a Webhook…</option>
+          {pickableHooks.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+        </select>
+      )}
+      {hooks.some((id) => hook(id) && (!hook(id)!.enabled || !hook(id)!.hearsAlerts)) && <span role="note" className="basis-full text-[var(--color-ink)]">{hooks.filter((id) => hook(id) && (!hook(id)!.enabled || !hook(id)!.hearsAlerts)).map((id) => hook(id)!.name).join(", ")} {hooks.filter((id) => hook(id) && (!hook(id)!.enabled || !hook(id)!.hearsAlerts)).length === 1 ? "is" : "are"} switched off or did not choose the event “A Tell step fires” on the Webhooks page, and will get nothing until then.</span>}
+      <span className="basis-full">A Webhook gets the Metric, period, value, target and condition, and only for a Metric shared with Everyone. Only an Owner or Admin names one.</span>
       <span className="basis-full">Once per crossing, for approved values only, and never more than {TELL_PEOPLE_PER_STEP} people. Each person is told by their Delivery Preference, only about Metrics they can see, and can stop it in Your settings.</span>
       {[...byPerson].map(([person, metrics]) => <span key={person} role="note" className="basis-full text-[var(--color-ink)]">{name(person)} cannot see {metrics.join(", ")} and will not be told about {metrics.length === 1 ? "it" : "them"}.</span>)}
     </>
