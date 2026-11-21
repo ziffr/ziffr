@@ -10,6 +10,7 @@ import * as settings from "@ziffr/core/installation-settings";
 import * as replies from "@ziffr/core/installation-replies";
 import * as telegramTest from "@ziffr/core/installation-telegram-test";
 import * as limits from "@ziffr/core/workspace-limits-admin";
+import * as keyChange from "@ziffr/core/workspace-key-change";
 import * as usage from "@ziffr/core/installation-usage";
 import { installationActor } from "@/lib/installation";
 
@@ -138,6 +139,11 @@ export async function replyTestStatus(): Promise<replies.ReplyTestStatus | { err
 /** Sets one Workspace's own limit (`metrics` empty for none), or with null gives it back to the default. */
 export async function setWorkspaceLimit(workspaceId: string, value: { metrics: string; label: string } | null): Promise<Result> {
   return run((a) => limits.setWorkspaceLimit(a, String(workspaceId ?? ""), value === null ? null : { metrics: String(value?.metrics ?? ""), label: String(value?.label ?? "") }));
+}
+
+/** Makes a new key version current for one Workspace; the re-encryption job moves its data over (spec 0028). */
+export async function changeWorkspaceKey(workspaceId: string): Promise<Result> {
+  return run(async (a) => { await keyChange.changeWorkspaceKey(a, String(workspaceId ?? "")); return "The Workspace Key was changed. The encryption job moves the data over, a little at a time."; });
 }
 
 /** Makes a Usage Key and answers its secret this once; a live one stops working. */

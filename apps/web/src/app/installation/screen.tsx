@@ -31,6 +31,7 @@ const EVENT_WORDS: Record<string, string> = {
   "setting.test_telegram": "tested Telegram with",
   "setting.test_replies": "tested replies by email with",
   "workspace.key_destroyed": "destroyed the key of a Workspace it is deleting:",
+  "workspace.key_changed": "changed the key of a Workspace:",
   "usage_key.made": "made a Usage Key",
   "usage_key.revoked": "revoked the Usage Key",
   "workspace_limit.set": "set the Workspace Limit of",
@@ -86,7 +87,7 @@ export function InstallationScreen({ view, admins, events, limits, replies, usag
                 <li key={i} className="flex flex-wrap gap-x-2 py-2">
                   <span className="font-medium">{e.actorName}</span>
                   <span>{EVENT_WORDS[e.kind] ?? e.kind}</span>
-                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" ? "font-mono text-xs leading-5" : ""}>{e.subject}</span>}
+                  {e.subject && <span className={e.kind.startsWith("setting.") || e.kind === "workspace.key_destroyed" || e.kind === "workspace.key_changed" ? "font-mono text-xs leading-5" : ""}>{e.subject}</span>}
                   <RelativeTime at={e.at} className="ml-auto text-muted-foreground" />
                 </li>
               ))}
