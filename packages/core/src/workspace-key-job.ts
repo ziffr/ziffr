@@ -390,7 +390,7 @@ async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: Se
     if (rows.length < SCAN_PAGE) { complete = true; break; }
   }
   // A row left behind (changed while it was read, or a write that failed) is looked at again by the next scan.
-  const finished = complete && !failed && left === 0;
+  const finished = complete && !failed && left === 0 && stuck === 0;
   if (finished) out.columnsDone += 1;
   await db().from("workspace_seal_progress").upsert({
     workspace_id: workspaceId, table_name: thing.table, column_name: thing.column, total, plain: left, old_version: 0, unopenable: bad, held_back: stuck,
