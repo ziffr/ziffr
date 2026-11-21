@@ -192,7 +192,7 @@ describe("over the limit nothing else stops", () => {
     await setSince(w.id, days(GRACE_DAYS + 5));
     expect((await submitValue({ source: "web_form", sender: code, text: "4" }, { notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).ok).toBe(true);
     expect((await submitValue({ source: "mail", sender: "cleo@field.test", text: "5", workspaceId: w.id }, { notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).ok).toBe(true);
-    expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: cleo, senderId: sara })).toBeTruthy();
   });
 });
 

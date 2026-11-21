@@ -186,7 +186,7 @@ If a Widget draws a Metric you may not see, it shows "No access to this metric. 
 | **Who can read** | **Everyone**, or one Group only. |
 | **Send via** | The person's own choice, or one Connector just for this time. |
 
-Press **Send question** or **Assign task**. A note confirms it, with **Open thread**. What happens next is in [Actions](15-actions.md).
+Press **Send question** or **Assign task**. A note says "Question put to …" or "Task put to …", with **Open thread**; it does not say whether the message went out, which the Outbox shows. What happens next is in [Actions](15-actions.md).
 
 ### Change view
 

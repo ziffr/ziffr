@@ -119,7 +119,7 @@ A schedule you save after its hour has passed today does not run today: the firs
 
 In a real Workspace, Workflows run by themselves once a day. The panel says when, such as "Workflows without their own schedule run every day at 07:00 (Europe/Berlin)". Owners and Admins set the time zone and the hour under **Workspace → General**, in **Workspace time** (see [Workspace settings](16-workspace-settings.md)). Each run sends the day's Prompts, Remind steps and Escalations. A Workflow can also have an [Asking Schedule](#asking-schedule) of its own.
 
-The panel also shows the last run: when it was, whether it was started by hand, and how many people were asked, reminded and escalated, or that it failed.
+Running today's steps by hand answers with "Done: N requests, N reminders and N escalations made", and the Outbox shows which have gone out. The panel also shows the last run: when it was, whether it was started by hand, and how many people were asked, reminded and escalated, or that it failed.
 
 | Option | What it does | Who sees it |
 | --- | --- | --- |
