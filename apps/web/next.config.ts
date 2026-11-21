@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   // The user guide's chapters and the glossary are read from the checkout when a page is asked for; a traced build takes them along.
   outputFileTracingIncludes: { "/guide/**": ["../../docs/user-guide/*.md", "../../GLOSSARY.md"] },
   // No framing (clickjacking), no type sniffing, and no full URLs to other sites (View Link tokens are in paths).
+  // The Changes page was called Activity (#524); bookmarks and old links keep working, filter included.
+  async redirects() {
+    return [{ source: "/activity", destination: "/changes", permanent: true }];
+  },
   async headers() {
     return [{
       source: "/:path*",

@@ -11,7 +11,7 @@ import { periodLabel } from "@ziffr/core/periods";
 // Governance: who changed what, and when, across everything the viewer may see.
 const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard", deck: "deck", metric: "metric description", template: "template", theme: "theme", workflow: "Workflow", master: "slide master", snapshot: "words of a Snapshot" };
 
-export default async function ActivityPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
+export default async function ChangesPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
   // The core passes only versions and replaced values the person may see, and what labels them.
   const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart, numberStyle] = await Promise.all([getProfiles(), activityView(await currentActor()), getYearStart(), getNumberStyle()]);
@@ -42,11 +42,11 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Activity" sub="Every change to what people build, and every number that was replaced. Nothing here can be edited." />
+      <PageHeader title="Changes" sub="Every change to what people build, and every number that was replaced. Nothing here can be edited." />
       <nav aria-label="Filter by person" className="mb-4 flex flex-wrap gap-1 text-sm">
-        <Link href="/activity" aria-current={!sp.who ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", !sp.who ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Everyone</Link>
+        <Link href="/changes" aria-current={!sp.who ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", !sp.who ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Everyone</Link>
         {people.map((p) => (
-          <Link key={p.id} href={`/activity?who=${p.id}`} aria-current={sp.who === p.id ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", sp.who === p.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>{p.name.split(" ")[0]}</Link>
+          <Link key={p.id} href={`/changes?who=${p.id}`} aria-current={sp.who === p.id ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", sp.who === p.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>{p.name.split(" ")[0]}</Link>
         ))}
       </nav>
       {items.length === 0 ? (

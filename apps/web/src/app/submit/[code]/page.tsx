@@ -29,11 +29,11 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
           For <span className="font-medium">{periodLabel(period, m.period, form.yearStart)}</span>
           {current !== null && <>, already has <span className="font-medium">{formatValue(m, current, form.numberStyle)}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
         </div>
-        <SubmitForm code={code} numberStyle={form.numberStyle} placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} />
+        <SubmitForm code={code} label={m.name} numberStyle={form.numberStyle} placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} />
       </div>
       {telegram?.telegramOn && <TelegramConnect code={code} linked={telegram.linked} />}
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        This link is {person.name.split(" ")[0]}’s Token for {m.name}. <Link href={`/metrics/${m.slug}`} className="underline">Open metric</Link>
+        This is your own link for {m.name}; anyone with it can submit. <Link href={`/metrics/${m.slug}`} className="underline">Open metric</Link>
       </p>
     </div>
   );

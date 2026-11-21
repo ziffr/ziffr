@@ -19,7 +19,7 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }] : []),
     // Webhooks send Workspace data to addresses outside Ziffr, so the same people set them (spec 0034).
     ...(admin ? [{ href: "/settings/webhooks", label: "Webhooks" }] : []),
-    { href: "/activity", label: "Activity" },
+    { href: "/changes", label: "Changes" },
     // What could be tidied: counts only, for those who manage the Workspace (spec 0031).
     ...(admin ? [{ href: "/settings/usage", label: "Usage" }] : []),
     ...(admin ? [{ href: "/audit", label: "Audit log" }] : []),

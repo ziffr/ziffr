@@ -32,7 +32,7 @@ const ICONS: Record<string, React.ReactNode> = {
   "/settings/keys": <KeyRound aria-hidden />,
   "/settings/feeds": <Rss aria-hidden />,
   "/settings/webhooks": <Webhook aria-hidden />,
-  "/activity": <Activity aria-hidden />,
+  "/changes": <Activity aria-hidden />,
   "/settings/usage": <BarChart3 aria-hidden />,
   "/audit": <ScrollText aria-hidden />,
 };
