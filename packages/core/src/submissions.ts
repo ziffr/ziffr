@@ -196,7 +196,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
   const current = periodStart(new Date(), metric.period, ys);
   // A program names its value and period; so does a paste, whose cells the paste reader has read already, and a value typed on the Metric's page.
-  const given = input.source === "api" || pasted !== null || (input.typed === true && input.source === "web_form");
+  const given = valueIsGiven(input, pasted !== null);
   const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
@@ -297,6 +297,11 @@ async function refusedByDatabase(error: { code?: string } | null, ws: string, me
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;
+}
+
+/** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
+function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
+  return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
 }
 
 /** How a value with the sender's only Token arrived, in words for the reply. */
