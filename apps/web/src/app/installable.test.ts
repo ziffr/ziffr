@@ -44,6 +44,10 @@ describe("the manifest", () => {
     expect(paper).not.toBeNull();
     const [, L, C, h] = paper!.map(Number);
     expect(APP_COLOURS.background).toBe(oklchToHex(L / 100, C, h));
+    const dark = /data-appearance="dark"\][^}]*?--color-paper:\s*oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/.exec(readFileSync(join(import.meta.dirname, "appearance.css"), "utf8"));
+    expect(dark).not.toBeNull();
+    const [, dL, dC, dh] = dark!.map(Number);
+    expect(APP_COLOURS.backgroundDark).toBe(oklchToHex(dL / 100, dC, dh));
   });
 });
 

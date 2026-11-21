@@ -84,6 +84,10 @@ _Avoid_: Dimension, segment, table, drill-down
 A metric's latest value against an earlier span: the previous period, or the same span one day, week, month, quarter, half-year or year earlier (DoD, WoW, MoM, QoQ, HoH, YoY), as an absolute and a relative change. Spans longer than the metric's period compare to date against the same span before, unless a widget asks for full periods.
 _Avoid_: Delta, variance, period over period
 
+**Appearance**:
+How Ziffr's own screens are drawn for one person: System (light or dark as the device is set), Light, Dark, or High contrast (black on white, or white on black when the device is set to dark, with strong outlines). It is a personal choice, kept with the person so it follows them to every device and Workspace, and chosen in Your settings. It does not change a Theme: dashboards, decks and exports keep the look of their Theme.
+_Avoid_: Dark mode (as the name of the setting), skin, colour scheme
+
 **Attainment**:
 How far a value reaches its target, as a percentage where higher is always better, whichever way the metric's polarity runs. It is computed one of two ways. **By ratio**: value ÷ target, or target ÷ value when lower is better, as Ziffr did up to 0.9.0; it has no percentage for a target at or below zero, or a value at or below zero when lower is better. **By distance**: 100 % plus the distance to the target in steps of the target's size, so 100 % is on target also for targets below zero; a target of 0 has no percentage. Where there is no percentage, or the percentage would be below 0 %, the difference to the target is shown instead. The Workspace sets the default method, a Metric may choose its own in its Metric Description, and Snapshots and frozen View Links keep the method they were made with.
 _Avoid_: Achievement, target fulfilment, performance
@@ -295,7 +299,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Theme**:
-A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens keep their look. Owners and Admins change Themes. A Theme can be written as a file and read back from one.
+A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. A Theme can be written as a file and read back from one.
 _Avoid_: Master, skin, style, brand kit, palette
 
 **Standard Theme**:

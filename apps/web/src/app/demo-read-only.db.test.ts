@@ -206,6 +206,7 @@ const CASES: Record<string, Case> = {
   "series-actions:updateMetricDetails": { args: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
   "series-actions:askMeNow": { args: (i) => [i.ownMetric] },
   "settings-actions:updateMyProfile": { args: () => [{ name: "Not Sara" }] },
+  "settings-actions:setAppearance": { outside: "in the demo the choice is a cookie of the visitor's browser, no row" },
   "settings-actions:renameWorkspace": { args: () => ["Visitor's company"] },
   "settings-actions:setYearStart": { args: () => [4] },
   "settings-actions:setNumberStyle": { args: () => ["1.234,5"] },

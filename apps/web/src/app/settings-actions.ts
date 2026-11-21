@@ -2,6 +2,9 @@
 // Settings (spec 0006; GLOSSARY: Delivery Preference, Away, Workspace Profile): thin calls into the core, which
 // changes only the acting person's own profile and email choice, and lets only Owners and Admins change the workspace.
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { isDemo } from "@/lib/auth";
+import { APPEARANCE_COOKIE, parseAppearance } from "@ziffr/core/appearance";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import * as profile from "@ziffr/core/profile";
@@ -14,6 +17,20 @@ import * as fiscalYear from "@ziffr/core/fiscal-year";
 export async function updateMyProfile(input: { name?: string; color?: string }) {
   return attempt(async () => {
     await profile.updateMyProfile(await currentActor(), { name: input?.name, color: input?.color });
+    revalidatePath("/", "layout");
+  });
+}
+
+/** Sets how Ziffr's own screens are drawn for you (GLOSSARY: Appearance). A person's choice is stored by the core and
+ * follows them to every device; the browser keeps a copy for the sign-in page. In the demo, where nothing is stored,
+ * only the browser's copy is set. */
+export async function setAppearance(choice: string) {
+  return attempt(async () => {
+    const appearance = parseAppearance(choice);
+    // Strict: a value that is not one of the four is refused, not turned into System.
+    if (appearance !== choice) throw new Error("Pick one of the choices.");
+    if (!(await isDemo())) await profile.setMyAppearance(await currentActor(), choice);
+    (await cookies()).set(APPEARANCE_COOKIE, appearance, { path: "/", maxAge: 31536000, sameSite: "lax", httpOnly: false });
     revalidatePath("/", "layout");
   });
 }

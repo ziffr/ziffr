@@ -8,12 +8,17 @@
 /* Hallmark · reworded "What does good look like?" to "Target and polarity" · the finish review named the head as copy any analytics tool could carry */
 /* reworded figures: chart axis ticks (€93k → 93k €) follow the euro-after-number format the app already used in its values */
 @import "./tokens.css";
+@import "./appearance.css";
 @import "./base.css" layer(base);
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* shadcn's `dark:` classes follow the Appearance (appearance.css): Dark, or System on a dark device. High contrast keeps its own tokens. */
+@custom-variant dark {
+  &:where([data-appearance="dark"], [data-appearance="dark"] *) { @slot; }
+  @media (prefers-color-scheme: dark) { &:where([data-appearance="system"], [data-appearance="system"] *) { @slot; } }
+}
 
 @theme inline {
   --color-background: var(--background);

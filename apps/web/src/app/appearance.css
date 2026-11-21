@@ -1,0 +1,74 @@
+/* Appearance (#505; GLOSSARY: Appearance): the colour tokens of Ziffr's own screens for Dark and High contrast. The light
+ * set is tokens.css. The root element carries `data-appearance` (light, dark, system, contrast), drawn by the server
+ * from the person's choice, so the first paint is right and nothing flashes. `system` follows the device with a media
+ * query, which is why the dark set is written twice; appearance.test.ts keeps the copies equal and checks every
+ * text and outline pair against WCAG (AA; AAA for text in High contrast). Themes (Dashboards, Decks) set their own
+ * colours inside their own area and are not touched here. */
+
+/* Dark */
+:root[data-appearance="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(17.5% 0.008 50); --color-paper-2: oklch(21% 0.009 50); --color-paper-3: oklch(26% 0.01 50);
+  --color-ink: oklch(94% 0.006 70); --color-ink-2: oklch(88% 0.008 65); --color-muted: oklch(73% 0.012 60);
+  --color-rule: oklch(31% 0.01 50); --color-rule-2: oklch(42% 0.012 50);
+  --color-accent: oklch(74% 0.125 30); --color-accent-ink: oklch(21% 0.012 38); --color-accent-2: oklch(74% 0.14 29); --color-focus: oklch(74% 0.15 30);
+  --color-cotton: oklch(23% 0.009 50); --color-desk: oklch(14.5% 0.008 50); --color-print: oklch(93% 0.007 65);
+  --color-board: oklch(92% 0.008 70); --color-board-type: oklch(19% 0.01 40); --color-paid: oklch(74% 0.14 33);
+  --color-error: oklch(73% 0.15 15); --color-success: oklch(75% 0.14 150); --color-violet: oklch(74% 0.1 280); --color-band: oklch(31% 0.014 50);
+  --color-data: oklch(88% 0.008 65); --color-data-2: oklch(72% 0.05 55); --color-data-3: oklch(42% 0.012 50); --color-data-4: oklch(73% 0.1 160);
+  --shade: 4% 0.01 50; --lit: 100% 0 0;
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.4);
+  --edge-stock: inset 0 1px 0 oklch(var(--lit) / 0.06), 0 0 0 0.5px oklch(var(--lit) / 0.12), 0 1px 0 oklch(0% 0 0 / 0.5);
+  --cast-stock: 6px 5px 10px -6px oklch(0% 0 0 / 0.6); --cast-stock-lift: 12px 10px 18px -8px oklch(0% 0 0 / 0.6);
+  --press-groove: inset 1px 1.5px 2px oklch(0% 0 0 / 0.5), inset -1px -1px 0 oklch(var(--lit) / 0.07), 0 0 0 0.5px oklch(var(--lit) / 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-appearance="system"] {
+    color-scheme: dark;
+    --color-paper: oklch(17.5% 0.008 50); --color-paper-2: oklch(21% 0.009 50); --color-paper-3: oklch(26% 0.01 50);
+    --color-ink: oklch(94% 0.006 70); --color-ink-2: oklch(88% 0.008 65); --color-muted: oklch(73% 0.012 60);
+    --color-rule: oklch(31% 0.01 50); --color-rule-2: oklch(42% 0.012 50);
+    --color-accent: oklch(74% 0.125 30); --color-accent-ink: oklch(21% 0.012 38); --color-accent-2: oklch(74% 0.14 29); --color-focus: oklch(74% 0.15 30);
+    --color-cotton: oklch(23% 0.009 50); --color-desk: oklch(14.5% 0.008 50); --color-print: oklch(93% 0.007 65);
+    --color-board: oklch(92% 0.008 70); --color-board-type: oklch(19% 0.01 40); --color-paid: oklch(74% 0.14 33);
+    --color-error: oklch(73% 0.15 15); --color-success: oklch(75% 0.14 150); --color-violet: oklch(74% 0.1 280); --color-band: oklch(31% 0.014 50);
+    --color-data: oklch(88% 0.008 65); --color-data-2: oklch(72% 0.05 55); --color-data-3: oklch(42% 0.012 50); --color-data-4: oklch(73% 0.1 160);
+    --shade: 4% 0.01 50; --lit: 100% 0 0;
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.4);
+    --edge-stock: inset 0 1px 0 oklch(var(--lit) / 0.06), 0 0 0 0.5px oklch(var(--lit) / 0.12), 0 1px 0 oklch(0% 0 0 / 0.5);
+    --cast-stock: 6px 5px 10px -6px oklch(0% 0 0 / 0.6); --cast-stock-lift: 12px 10px 18px -8px oklch(0% 0 0 / 0.6);
+    --press-groove: inset 1px 1.5px 2px oklch(0% 0 0 / 0.5), inset -1px -1px 0 oklch(var(--lit) / 0.07), 0 0 0 0.5px oklch(var(--lit) / 0.14);
+  }
+}
+
+/* High contrast, light: black on white, outlines you can see */
+:root[data-appearance="contrast"] {
+  color-scheme: light;
+  --color-paper: oklch(100% 0 0); --color-paper-2: oklch(96% 0.003 55); --color-paper-3: oklch(92% 0.004 55);
+  --color-ink: oklch(0% 0 0); --color-ink-2: oklch(12% 0.005 40); --color-muted: oklch(34% 0.01 45);
+  --color-rule: oklch(50% 0.008 50); --color-rule-2: oklch(38% 0.01 50);
+  --color-accent: oklch(74% 0.125 30); --color-accent-ink: oklch(0% 0 0); --color-accent-2: oklch(40% 0.17 29); --color-focus: oklch(38% 0.2 262);
+  --color-cotton: oklch(100% 0 0); --color-desk: oklch(95% 0.003 55); --color-print: oklch(0% 0 0);
+  --color-board: oklch(0% 0 0); --color-board-type: oklch(100% 0 0); --color-paid: oklch(40% 0.16 33);
+  --color-error: oklch(38% 0.17 27); --color-success: oklch(36% 0.1 150); --color-violet: oklch(38% 0.14 280);
+  --color-data: oklch(15% 0.005 40); --color-data-2: oklch(40% 0.06 50); --color-data-3: oklch(50% 0.008 50); --color-data-4: oklch(38% 0.09 160);
+  --tex-cotton: none; --tex-desk: none;
+  --edge-stock: 0 0 0 1.5px oklch(0% 0 0); --cast-stock: none; --cast-stock-lift: none;
+  --press-groove: inset 0 0 0 1.5px oklch(0% 0 0);
+}
+/* High contrast follows the device to white on black */
+@media (prefers-color-scheme: dark) {
+  :root[data-appearance="contrast"] {
+    color-scheme: dark;
+    --color-paper: oklch(0% 0 0); --color-paper-2: oklch(12% 0.003 50); --color-paper-3: oklch(19% 0.004 50);
+    --color-ink: oklch(100% 0 0); --color-ink-2: oklch(96% 0.003 60); --color-muted: oklch(85% 0.008 60);
+    --color-rule: oklch(62% 0.008 50); --color-rule-2: oklch(76% 0.008 50);
+    --color-accent: oklch(74% 0.125 30); --color-accent-ink: oklch(0% 0 0); --color-accent-2: oklch(82% 0.14 30); --color-focus: oklch(85% 0.15 95);
+    --color-cotton: oklch(9% 0.003 50); --color-desk: oklch(0% 0 0); --color-print: oklch(100% 0 0);
+    --color-board: oklch(100% 0 0); --color-board-type: oklch(0% 0 0); --color-paid: oklch(82% 0.14 33);
+    --color-error: oklch(84% 0.14 20); --color-success: oklch(84% 0.14 150); --color-violet: oklch(84% 0.1 280);
+    --color-data: oklch(96% 0.003 60); --color-data-2: oklch(80% 0.06 55); --color-data-3: oklch(62% 0.008 50); --color-data-4: oklch(82% 0.1 160);
+    --edge-stock: 0 0 0 1.5px oklch(100% 0 0);
+    --press-groove: inset 0 0 0 1.5px oklch(100% 0 0);
+  }
+}

@@ -24,6 +24,7 @@ import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
+import { appearanceFor, browserAppearance } from "@/lib/appearance";
 
 export const metadata: Metadata = {
   title: "Ziffr",
@@ -34,7 +35,12 @@ export const metadata: Metadata = {
 };
 
 /** The browser's colour around the page (address bar, installed app's title bar), as the manifest's. */
-export const viewport: Viewport = { themeColor: APP_COLOURS.background };
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: APP_COLOURS.background },
+    { media: "(prefers-color-scheme: dark)", color: APP_COLOURS.backgroundDark },
+  ],
+};
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const workspaces = person ? await myWorkspaces(person) : [];
   if (!demo && !workspaces.length) {
     return (
-      <html lang="en">
+      <html lang="en" data-appearance={await browserAppearance()}>
         <head>
           <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -118,7 +124,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     </>
   );
   return (
-    <html lang="en">
+    <html lang="en" data-appearance={await appearanceFor(actor, demo)}>
       <head>
         <link rel="preconnect" href="https://api.fontshare.com" />
         {/* App Router root layout: these load on every route. */}
