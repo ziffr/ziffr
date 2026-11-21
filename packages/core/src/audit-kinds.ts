@@ -83,6 +83,7 @@ export const AUDIT_KINDS = {
   "self_check.corrected": "corrected, as its submitter, a value of",
   "correction.accepted": "accepted a Correction to",
   "correction.declined": "declined a Correction to",
+  "workspace.quiet_hours_changed": "changed the Workspace's default quiet hours",
   "workspace.clock_changed": "changed the workspace's time zone, run hour or first day of the week",
   "workspace.renamed": "renamed the workspace",
   "workspace.limit_changed": "changed the Workspace Limit",

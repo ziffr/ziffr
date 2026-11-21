@@ -157,6 +157,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `sendTestWebhook` (webhook-log.ts): Webhooks settings (#401)
 - `resendWebhookSend` (webhook-log.ts): Webhooks settings (#401)
 - `setWorkspaceClock` (workspace-clock.ts): Workspace settings
+- `setWorkspaceQuietHours` (quiet-hours.ts): Workspace settings
 - `workspaceLimitRows` (workspace-limits-admin.ts): Installation limits
 - `setWorkspaceLimit` (workspace-limits-admin.ts): Installation limits
 - `changeWorkspaceKey` (workspace-key-change.ts): Installation encryption (#250)

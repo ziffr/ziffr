@@ -210,6 +210,8 @@ const CASES: Record<string, Case> = {
   "settings-actions:setAppearance": { outside: "in the demo the choice is a cookie of the visitor's browser, no row" },
   "settings-actions:renameWorkspace": { args: () => ["Visitor's company"] },
   "settings-actions:setYearStart": { args: () => [4] },
+  "settings-actions:setMyQuietHours": { args: () => [{ fromHour: 19, toHour: 7, days: [0, 6], timeZone: null }] },
+  "settings-actions:setWorkspaceQuietHours": { args: () => [{ fromHour: 19, toHour: 7, days: [] }] },
   "settings-actions:setNumberStyle": { args: () => ["1.234,5"] },
   "settings-actions:setAnswerLanguages": { args: () => [["en", "de"]] },
   "settings-actions:setAttainmentMethod": { args: () => ["distance"] },
