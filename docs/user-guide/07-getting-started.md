@@ -5,7 +5,7 @@ This chapter takes you from nothing to a team that sees its numbers each month. 
 
 ## Look around the demo first
 
-On the sign-in page, choose **Try the demo**. It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month.
+On the sign-in page, choose **Try the demo** under the form (the picture beside it shows the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out). It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month.
 
 - Use **Viewing as** in the sidebar's footer to see Ziffr through the eyes of a different person, such as the Owner, an Admin or the Guest, whose role the list shows ("Ben, Admin"). Notice how each one sees different numbers.
 - Follow the **guided tour** (bottom right). It walks through describing a Metric, sending in a value, building a dashboard, asking a question, running an analysis and making a deck.
@@ -14,7 +14,7 @@ Nothing you do in the demo is saved, and nothing is sent: a line above the page 
 
 ## 1. Start your Workspace
 
-Sign in with your work email: Ziffr sends you a sign-in link. Then give your Workspace a name, such as your name, your team or your company, and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
+Sign in with your work email: Ziffr sends you a sign-in link, and the page then says **Check your email** with the address it went to; **Use another address** takes you back to the form. Then give your Workspace a name, such as your name, your team or your company, and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
 
 Under **Workspace → General**, tell Ziffr about your business (your industry, who you sell to, your size). It uses the answers to suggest Metrics that fit.
 
