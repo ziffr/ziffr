@@ -10,7 +10,7 @@ const names = (list: FirstAsk[]) => list.map((a) => a.name).join(", ");
 /** The sentence under a created Metric. With no Submitters it says so; otherwise it names who got a form link and
  * how, who is still waiting for the mail job, and who was not reached because that way sends nothing here. */
 export function firstAsksMessage(input: { submitters: number; asked: FirstAsk[] }): string {
-  if (!input.submitters) return "Nobody submits it yet: add Submitters under Who submits on its Settings tab.";
+  if (!input.submitters) return "Nobody submits it yet: add Submitters under Who submits on its Description tab.";
   if (!input.asked.length) return "Nobody was asked: its Submitters are programs, which send values themselves.";
   const parts: string[] = [];
   for (const way of [...new Set(input.asked.filter((a) => a.state === "sent").map(WAY))]) {

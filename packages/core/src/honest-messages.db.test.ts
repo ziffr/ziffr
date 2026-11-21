@@ -25,7 +25,7 @@ describe("createMetric says who was asked", () => {
     const w = await ws(); const sara = await w.person("owner");
     const made = await createMetric(w.actor(sara), { name: "Cups" });
     expect(made).toMatchObject({ submitters: 0, asked: [] });
-    expect(await firstAsksFor(w.actor(sara), made.id)).toBe("Nobody submits it yet: add Submitters under Who submits on its Settings tab.");
+    expect(await firstAsksFor(w.actor(sara), made.id)).toBe("Nobody submits it yet: add Submitters under Who submits on its Description tab.");
   });
   it("with no mail set up, the request stays in the Outbox and the sentence says nothing was sent", async () => {
     mailOff();

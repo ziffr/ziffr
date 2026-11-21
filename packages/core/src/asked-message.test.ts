@@ -5,7 +5,7 @@ const ask = (name: string, state: FirstAsk["state"], connector = "email", label 
 
 describe("firstAsksMessage", () => {
   it("says nobody submits it yet", () => {
-    expect(firstAsksMessage({ submitters: 0, asked: [] })).toBe("Nobody submits it yet: add Submitters under Who submits on its Settings tab.");
+    expect(firstAsksMessage({ submitters: 0, asked: [] })).toBe("Nobody submits it yet: add Submitters under Who submits on its Description tab.");
   });
   it("says when only programs submit", () => {
     expect(firstAsksMessage({ submitters: 1, asked: [] })).toContain("programs");
