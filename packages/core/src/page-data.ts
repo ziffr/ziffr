@@ -159,7 +159,7 @@ export async function workflowsView(actor: Actor) {
   const feeds = (feedRows ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
   // Webhook ids in a Tell step are for those who manage Webhooks; the rest of the Workspace gets the step without them (rule 3).
   const manages = mayManageWebhooks(actor);
-  const shown = (workflows ?? []).map((w) => (manages ? w : { ...w, config: { ...w.config, steps: ((w.config as { steps?: Record<string, unknown>[] } | null)?.steps ?? []).map(({ webhooks: _hidden, ...step }) => step) } }));
+  const shown = (workflows ?? []).map((w) => (manages ? w : { ...w, config: { ...w.config, steps: ((w.config as { steps?: Record<string, unknown>[] } | null)?.steps ?? []).map((step) => Object.fromEntries(Object.entries(step).filter(([k]) => k !== "webhooks"))) } }));
   return { workflows: shown, states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 

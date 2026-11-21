@@ -90,10 +90,10 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   await recordVersion("workflow", id, actor.personId, opts);
   // Where a Workflow sends the Workspace's data is Audit Log business, as the Webhooks themselves are.
   const named = (cfg: WorkflowConfig | null) => new Set((cfg?.steps ?? []).flatMap((x) => (x.type === "tell" ? x.webhooks ?? [] : [])));
-  const [before, after] = [named(stored), named(row.config)];
-  const added = [...after].filter((h) => !before.has(h)).length;
-  const removed = [...before].filter((h) => !after.has(h)).length;
-  if (added || removed) await audit(actor, { kind: "workflow.webhooks_set", object: { type: "workflow", id, name: row.name }, details: { added, removed, added_ids: [...after].filter((h) => !before.has(h)), removed_ids: [...before].filter((h) => !after.has(h)) } });
+  const [hooksBefore, hooksAfter] = [named(stored), named(row.config)];
+  const added = [...hooksAfter].filter((h) => !hooksBefore.has(h)).length;
+  const removed = [...hooksBefore].filter((h) => !hooksAfter.has(h)).length;
+  if (added || removed) await audit(actor, { kind: "workflow.webhooks_set", object: { type: "workflow", id, name: row.name }, details: { added, removed, added_ids: [...hooksAfter].filter((h) => !hooksBefore.has(h)), removed_ids: [...hooksBefore].filter((h) => !hooksAfter.has(h)) } });
   return id;
 }
 
