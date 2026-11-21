@@ -333,6 +333,9 @@ describe("who sees a Snapshot", () => {
     await expect(editSnapshotWords(owner, id, { intro: "x" })).rejects.toEqual(forbidden);
     await expect(showSnapshot(owner, id)).rejects.toEqual(forbidden);
     await expect(listVersions(owner, "snapshot", id)).rejects.toEqual(forbidden);
+    // Nor is the draft listed to her: its label and period would say what it covers (#448). Ben, who sees it all, gets it.
+    expect((await listSnapshots(owner, dash)).map((s) => s.id)).not.toContain(id);
+    expect((await listSnapshots(ben, dash)).map((s) => s.id)).toContain(id);
     // Ben sees all it kept: he reads, writes and shows it; then it is the dashboard's, like any shown Snapshot.
     await editSnapshotWords(ben, id, { intro: "Payroll held." });
     await showSnapshot(ben, id);
@@ -340,6 +343,7 @@ describe("who sees a Snapshot", () => {
     // does, through the dashboard's Share, as on the live dashboard; Ben owns it.
     const sees = async (a: typeof owner) => (await visibleMetricIds(w.id, a.personId, await getMetrics(w.id))).has(payroll.id);
     expect([await sees(owner), await sees(ann), await sees(ben)]).toEqual([false, true, true]);
+    expect((await listSnapshots(owner, dash)).map((s) => s.id)).toContain(id);
     const sara = await openSnapshot(owner, id);
     expect([sara.intro, sara.hiddenParts, sara.data.metrics.some((m) => m.id === payroll.id), JSON.stringify(sara).includes("Payroll\"")]).toEqual(["Payroll held.", 1, false, false]);
     for (const reader of [ann, ben]) expect((await openSnapshot(reader, id)).hiddenParts).toBe(0);
