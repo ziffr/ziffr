@@ -204,7 +204,7 @@ begin
     and ((new.value is not distinct from old.value and new.value_sealed is not distinct from old.value_sealed) or current_setting('ziffr.sealing_values', true) = 'on') then return new; end if;
   if exists (select 1 from condensed_values c where c.metric_id = new.metric_id and new.period_start between c.period_start and c.period_end)
     or (tg_op = 'UPDATE' and exists (select 1 from condensed_values c where c.metric_id = old.metric_id and old.period_start between c.period_start and c.period_end)) then
-    raise exception using errcode = 'ZF441', message = 'This period was condensed';
+    raise exception using errcode = 'ZF446', message = 'This period was condensed';
   end if;
   return new;
 end;

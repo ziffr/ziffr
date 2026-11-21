@@ -52,7 +52,8 @@ async function rows(table: string, column: string, where: Record<string, unknown
   let q = db().from(table).select("*");
   for (const [k, v] of Object.entries(where)) q = q.eq(k, v as string | number);
   const { data } = await q;
-  return (data ?? []).map((r) => r as Record<string, unknown>).filter((r) => column in r);
+  // Oldest first: the order of a table's rows without an ORDER BY is not promised.
+  return (data ?? []).map((r) => r as Record<string, unknown>).filter((r) => column in r).sort((a, b) => Number(a.id) - Number(b.id));
 }
 
 describe("a value", () => {
