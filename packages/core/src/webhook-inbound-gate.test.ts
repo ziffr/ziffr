@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { admitWebhookInbound as admit, recordWebhookInboundFailure as fail, recordWebhookInboundSender as sender, resetWebhookInboundGate } from "./webhook-inbound-gate";
-import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY } from "./webhook-limits";
+import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE as NEW } from "./webhook-limits";
 
 const A = "6f1c2d3e-0000-4000-8000-000000000001";
 const B = "6f1c2d3e-0000-4000-8000-000000000002";
@@ -38,10 +38,9 @@ describe("a real sender keeps passing", () => {
     expect(admit(A, "9.9.9.9", 2)).toBe(false);
     expect(admit(A, "7.7.7.7", 2)).toBe(true);
   });
-  it("(b) during a distributed flood over 10k addresses, which others cannot join but a known sender can", () => {
+  it("(b) during a distributed flood over 10k addresses, which an address that already failed cannot join but a known sender can", () => {
     sender(A, "7.7.7.7", 0);
     for (let i = 0; i < 10_000; i++) fail(A, ip(i), 1);
-    expect(admit(A, "8.8.8.8", 2)).toBe(false);
     expect(admit(A, ip(5), 2)).toBe(false);
     expect(admit(A, "7.7.7.7", 2)).toBe(true);
     expect(admit(B, "8.8.8.8", 2)).toBe(true);
@@ -58,6 +57,9 @@ describe("a real sender keeps passing", () => {
     for (let i = 0; i < PER_ID; i++) fail(A, ip(i), 20);
     expect(admit(A, "7.7.7.7", 30)).toBe(true);
     for (let i = 0; i < KNOWN + 1; i++) sender(A, `5.5.5.${i}`, 40);
+    // Dropped senders are told apart from known ones by failing once: only a known sender is let past the ceiling.
+    fail(A, "7.7.7.7", 41);
+    fail(A, "5.5.5.0", 41);
     expect(admit(A, "7.7.7.7", 41)).toBe(false);
     expect(admit(A, "5.5.5.0", 41)).toBe(false);
     expect(admit(A, "5.5.5.1", 41)).toBe(true);
@@ -69,6 +71,31 @@ describe("a real sender keeps passing", () => {
     const late = 86_400_001;
     for (let i = 0; i < PER_ADDRESS; i++) fail(A, "7.7.7.7", late);
     expect(admit(A, "7.7.7.7", late + 1)).toBe(false);
+  });
+});
+
+describe("past the Webhook's failure ceiling", () => {
+  const flood = () => { for (let i = 0; i < PER_ID; i++) fail(A, ip(i), 0); };
+  it("a known sender whose own address starts failing is refused", () => {
+    sender(A, "7.7.7.7", 0);
+    for (let i = 0; i < PER_ADDRESS; i++) fail(A, "7.7.7.7", 1);
+    expect(admit(A, "7.7.7.7", 2)).toBe(false);
+  });
+  it("a new sender with no failures of its own gets through a distributed flood, and is not refused for its neighbours' failures", () => {
+    flood();
+    expect(admit(A, "3.3.3.3", 1)).toBe(true);
+  });
+  it("the budget caps a flood of fresh addresses at 60 a minute, then starts over", () => {
+    flood();
+    let through = 0;
+    for (let i = 0; i < 1000; i++) if (admit(A, ip(100_000 + i), 1)) through++;
+    expect(through).toBe(NEW);
+    expect(admit(A, "3.3.3.3", 60_001 + 1)).toBe(true);
+  });
+  it("an address that already failed is not admitted by the budget, nor is an unknown address", () => {
+    flood();
+    expect(admit(A, ip(1), 1)).toBe(false);
+    expect(admit(A, null, 1)).toBe(false);
   });
 });
 

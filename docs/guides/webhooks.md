@@ -218,11 +218,11 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Log | 14 days |
 | Answer within | 10 seconds |
 | Requests back | 60 a minute per Webhook, 16 KB each |
-| Failed requests, before the secret is opened | 20 a minute per Webhook and network address (an IPv6 sender counts by its /56) or 100 a minute to all Webhooks together, then 429; past 600 a minute for the Webhook as a whole only known senders pass (an address that sent a valid signed request in the last day, 16 per Webhook, remembered by the Ziffr process that saw it). Signed requests are never counted by it. A gate in memory, per Ziffr process |
+| Failed requests, before the secret is opened | 20 a minute per Webhook and network address (an IPv6 sender counts by its /56) or 100 a minute to all Webhooks together, then 429; past 600 a minute for the Webhook as a whole only known senders pass, plus up to 60 new addresses a minute that have not failed (an address that sent a valid signed request in the last day, 16 per Webhook, remembered by the Ziffr process that saw it). A known sender whose address keeps failing is refused too. A sender that is neither known nor lucky in the new-address budget waits until a flood eases. Signed requests are never counted by it. A gate in memory, per Ziffr process |
 | Links per Action | 10 |
 | Secret overlap after a replacement | 24 hours |
 
-Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it no sender can be known, so a flood of failed requests past 600 a minute locks out the real sender until it stops.
+Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it no sender can be known or admitted as new, so a flood of failed requests past 600 a minute locks out the real sender until it stops.
 
 Webhooks are available on Free and every paid Size. The demo and a trial have none, since they would send a Workspace's data to an address outside Ziffr.
 

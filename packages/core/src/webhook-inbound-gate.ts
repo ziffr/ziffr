@@ -4,14 +4,16 @@
 // successful ones, in memory:
 //  - an address (IPv4 address, IPv6 /56) with 20 failures in a minute to one Webhook, or 100 to all Webhooks together, is
 //    refused (429) before the secret is opened;
-//  - a Webhook with 600 failures in a minute from anywhere refuses everyone except known senders;
+//  - a Webhook with 600 failures in a minute from anywhere refuses everyone except known senders and, at most 60 a minute,
+//    addresses with no failures of their own (a real new sender); a known sender is still refused if its own address fails;
 //  - a known sender is a network address that sent a valid signed request to that Webhook in the last day (16 per
 //    Webhook, held on this process only): it is never refused, so a real sender keeps working through any flood from other addresses.
-// Without a network address (ZIFFR_PROXY_HOPS unset) nobody can be a known sender, so a flood past the Webhook's ceiling
-// locks the real sender out until it stops. Tables are bounded and expire from the front in O(1) per request; when full
+// Remaining trade-off: past the ceiling, a sender that is neither known (on this process, in the last day) nor lucky in the
+// 60-a-minute budget is refused until the flood eases. Without a network address (ZIFFR_PROXY_HOPS unset) nobody can be
+// known or admitted by the budget, so a flood past the ceiling locks the real sender out until it stops. Tables are bounded and expire from the front in O(1) per request; when full
 // they drop the oldest entry, never refuse. Counters are per process: this bounds the cost of a flood, it is not the
 // 60-a-minute limit for senders who proved the secret (that stays in the database). Only the network address is held.
-import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID, WEBHOOK_INBOUND_FAILURES_PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS } from "./webhook-limits";
+import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID, WEBHOOK_INBOUND_FAILURES_PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE } from "./webhook-limits";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MINUTE = 60_000;
@@ -48,6 +50,7 @@ type Known = { at: number; units: { unit: string; at: number }[] };
 const addressFailures = new Table<Count>(MINUTE);
 const idFailures = new Table<Count>(MINUTE);
 const anyIdFailures = new Table<Count>(MINUTE);
+const newSenders = new Table<Count>(MINUTE);
 // Kept apart from the failure tables so a flood of failures can never push a known sender out.
 const known = new Table<Known>(DAY, MAX_KNOWN);
 
@@ -71,10 +74,20 @@ export function admitWebhookInbound(webhookId: string, network: string | null, n
   const id = idOf(webhookId);
   if (!id) return true;
   const unit = unitOf(network);
+  const own = unit ? addressFailures.get(`${id}:${unit}`, now)?.n ?? 0 : 0;
+  // An address that keeps failing is refused whoever it is, a known sender included.
+  if (unit && (own >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS || (anyIdFailures.get(unit, now)?.n ?? 0) >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID)) return false;
   if (unit && known.get(id, now)?.units.some((u) => u.unit === unit && now - u.at < DAY)) return true;
-  if (unit && (addressFailures.get(`${id}:${unit}`, now)?.n ?? 0) >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS) return false;
-  if (unit && (anyIdFailures.get(unit, now)?.n ?? 0) >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID) return false;
-  return (idFailures.get(id, now)?.n ?? 0) < WEBHOOK_INBOUND_FAILURES_PER_ID;
+  if ((idFailures.get(id, now)?.n ?? 0) < WEBHOOK_INBOUND_FAILURES_PER_ID) return true;
+  // Past the ceiling: only an address with no failures of its own, and only 60 of those a minute, so a real new sender
+  // can still get in. A flood of fresh addresses uses the budget up, and each one that then fails counts against itself.
+  if (!unit || own > 0) return false;
+  const budget = newSenders.get(id, now);
+  if (!budget) {
+    newSenders.put(id, { at: now, n: 1 });
+    return true;
+  }
+  return ++budget.n <= WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE;
 }
 
 /** Counts a request that was not taken (unknown, unsigned, wrong, old or replayed) against its address and its Webhook. */
@@ -110,5 +123,6 @@ export function resetWebhookInboundGate(): void {
   addressFailures.clear();
   idFailures.clear();
   anyIdFailures.clear();
+  newSenders.clear();
   known.clear();
 }
