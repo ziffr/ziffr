@@ -41,8 +41,8 @@ function itemOf(r: SearchRow): Item {
   const key = `${r.kind}-${"id" in r ? r.id : "slug" in r ? r.slug : ""}-${r.href}`;
   const group = KIND_GROUP[r.kind];
   switch (r.kind) {
-    case "period": return { key, group, label: `${r.name} · ${r.label}`, hint: "Value", archived: r.archived, href: r.href };
-    case "metric": return { key, group, label: r.name, hint: "Metric", archived: r.archived, href: r.href };
+    case "period": return { key, group, label: `${r.name}${r.hint ? ` (${r.hint})` : ""} · ${r.label}`, hint: "Value", archived: r.archived, href: r.href };
+    case "metric": return { key, group, label: `${r.name}${r.hint ? ` (${r.hint})` : ""}`, hint: "Metric", archived: r.archived, href: r.href };
     case "record": return { key, group, label: `Record a value for ${r.name}`, href: r.href };
     case "person": return { key, group, label: r.you ? `${r.name} (you)` : r.name, hint: r.contact ? "Contact" : "Member", href: r.href };
     case "group": return { key, group, label: r.name, hint: "Group", href: r.href };

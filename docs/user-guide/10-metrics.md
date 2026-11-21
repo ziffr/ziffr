@@ -303,6 +303,8 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 
 **Edit details…** opens the description as a form, for the Metric Owner and Editors:
 
+When you name a new Metric, or rename one, and a Metric you can see already has that name, a note appears once you leave the field: "There is already a Metric called … owned by …: open it, or use another name." It is a warning only: you can keep the name.
+
 | Field | Notes |
 | --- | --- |
 | **Name**, **Description** | As on the new metric form. Links to the Metric keep working when its name changes. |

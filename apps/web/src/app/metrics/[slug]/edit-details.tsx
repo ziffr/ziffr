@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { Metric, Period, Polarity, SubmissionRule, UnitPosition } from "@ziffr/core/types";
+import { NameField } from "../name-field";
 import { UnitFields } from "../unit-fields";
 import { AttainmentMethodField } from "../attainment-method-field";
 import type { AttainmentMethod } from "@ziffr/core/attainment-method";
@@ -71,7 +72,7 @@ export function EditDetails({ metric, fixed, money, numberStyle, attainmentMetho
             });
           }}
         >
-          <div className="sm:col-span-2"><Label htmlFor="ed-name">Name</Label><Input id="ed-name" name="name" defaultValue={metric.name} required maxLength={120} /></div>
+          <div className="sm:col-span-2"><Label htmlFor="ed-name">Name</Label><NameField id="ed-name" defaultValue={metric.name} exceptMetricId={metric.id} /></div>
           <div className="sm:col-span-2"><Label htmlFor="ed-desc">Description</Label><Textarea id="ed-desc" name="description" defaultValue={metric.description ?? ""} maxLength={2000} rows={3} /></div>
           <UnitFields format={metric.format} unit={metric.unit ?? ""} unitPosition={metric.unit_position} decimals={metric.decimals} money={money} numberStyle={numberStyle} idPrefix="ed" />
           <div>

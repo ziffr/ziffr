@@ -21,6 +21,7 @@ import { POLARITY_LABEL, RULE_LABEL } from "@ziffr/core/format";
 import type { CatalogMetric, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "@ziffr/core/types";
 import { SOURCES } from "@/sources";
 import { isDemo } from "@/lib/auth";
+import { NameField } from "../name-field";
 import { CatalogBrowser } from "./catalog-browser";
 import { workspaceProfile } from "@ziffr/core/workspace-settings";
 import { INDUSTRY_LABEL } from "@ziffr/core/workspace-profile";
@@ -109,7 +110,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
         <div className="space-y-6">
           <Section title="What is it?">
             <div className="grid gap-4 sm:grid-cols-2">
-              <F label="Name" className="sm:col-span-2"><Input name="name" required defaultValue={d.name} placeholder="e.g. Customer satisfaction" /></F>
+              <F label="Name" className="sm:col-span-2"><NameField defaultValue={d.name} placeholder="e.g. Customer satisfaction" /></F>
               <F label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={d.description} rows={2} placeholder="What exactly is counted, and what isn’t?" /></F>
               <UnitFields format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new" />
             </div>

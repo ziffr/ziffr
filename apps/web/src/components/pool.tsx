@@ -1,4 +1,5 @@
 "use client";
+import { tellApart } from "@ziffr/core/metric-names";
 import { useEnsure } from "@/canvas/series-store";
 import { inUse } from "@ziffr/core/metric-row";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
@@ -32,6 +33,8 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase());
   // Archived Metrics are not offered (GLOSSARY: Archived Metric); widgets that already show one keep it.
   const metrics = inUse(data.metrics).filter((m) => match(m.name));
+  // Metrics with the same name are told apart by owner, then period and unit.
+  const notes = tellApart(inUse(data.metrics), (id) => people[id]?.name.split(" ")[0] ?? "someone");
   const widgets = saved.filter((w) => match(w.title ?? ""));
   // Slide layouts live under + Slide in decks; the Pool holds templates for single widgets.
   const templates = data.templates.filter((t): t is WidgetTemplate => t.kind === "widget" && match(t.name));
@@ -122,7 +125,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
                 <span className="truncate">{m.name}</span>
                 {m.formula && <Sigma aria-label="derived" className="size-3.5 shrink-0 text-muted-foreground" />}
               </span>
-              {m.owner_id !== data.viewer && <span className="shrink-0 text-xs text-muted-foreground">{people[m.owner_id]?.name.split(" ")[0]}</span>}
+              {(m.owner_id !== data.viewer || notes.has(m.id)) && <span className="shrink-0 text-xs text-muted-foreground">{notes.get(m.id) ?? people[m.owner_id]?.name.split(" ")[0]}</span>}
             </Item>
           ))}
           {metrics.length === 0 && (
