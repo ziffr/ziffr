@@ -1,14 +1,15 @@
 // Metrics created and changed by programs (spec 0003, ticket #211; GLOSSARY: Metric, Access Key, Target Range,
 // Target Series, Projection). A key with metrics:write creates a Metric as its creator, through the web form's
-// createMetric; one with metrics:edit changes a Metric's Polarity, Target Range and Attainment method, its Target Series and its
-// Projections through the same core functions as the Metric's page, so every field is checked the same
-// way: only the Metric's owner and its Editors change it, and only while the creator's role may create. Nothing else
-// of a Metric is writable by a key: not its name or description (which other people's assistants read), not sharing,
-// not Submitters beyond its creator, not a formula or a Catalog entry. Each change names the key: in the Metric's
-// history, and in the note of each Target Series or Projection value.
+// createMetric; one with metrics:edit changes a Metric's description (name, description, unit, format, period while it
+// has no values, Submission Rule, Polarity, Target Range, Attainment method), its Sources, its Workflow, its Target
+// Series and its Projections through the same core functions as the Metric's page, so every field is checked the same
+// way: only the Metric's owner and its Editors change it (only its owner its Workflow), and only while the creator's
+// role may create. Not writable by a key: sharing, Submitters beyond those named at creation, a formula or a Catalog
+// entry. Each change names the key: in the Metric's history, and in the note of each Target Series or Projection value.
 import { openWorkflowRow } from "./workflow-rows";
 import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
-import { toApi, type ApiMetric } from "./api";
+import { describeMetric, toApi, type ApiMetric, type ApiMetricDetail } from "./api";
+import { checkWorkflowChoice, type WorkflowRef } from "./api-metric-workflow";
 import { db } from "./db";
 import { openOne } from "./sealed-columns";
 import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, sealedSeriesSaves, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
@@ -16,7 +17,8 @@ import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { archiveMetric, restoreMetric } from "./archived-metrics";
 import { yearStartFor } from "./fiscal-year";
 import { withVersionNote } from "./versions";
-import { setWorkflowCheck } from "./workflows";
+import { setMetricWorkflow, setWorkflowCheck } from "./workflows";
+import { auditedAsKey } from "./audit-log";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { isPeriodStart, periodStart } from "./periods";
 import { normalizeMetric } from "./metric-row";
@@ -51,6 +53,9 @@ export type ApiMetricInput = {
   /** Who submits: ids of people, Contacts or Feeds (list_people, list_feeds). Needs metrics:edit as well, since each
    * gets a first Prompt. */
   submitters?: string[];
+  /** One of the creator's own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs
+   * metrics:edit as well; null or left out: none. */
+  workflow?: WorkflowRef | null;
 };
 
 /** First Prompts a key may set off for one person in 24 hours, over all Metrics: a Submitter added through a key is
@@ -102,7 +107,7 @@ async function splitSubmitters(creator: Actor, ids: unknown): Promise<{ people: 
 /** Creates a Metric owned by the key's creator (scope metrics:write) and returns it as programs see it. Refused when
  * the creator's current role may not create (Guests), and in the demo. With `submitters`, the key needs metrics:edit
  * too: each one gets a first Prompt, so naming others reaches people. Everything is checked before the Metric exists. */
-export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMetricInput, effects: MetricEffects = metricEffects): Promise<ApiMetric> {
+export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMetricInput, effects: MetricEffects = metricEffects): Promise<ApiMetricDetail> {
   assertScope(actor, "metrics:write");
   // The key's creator, with their role as it is now (actorForKey reads it on every call).
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
@@ -110,6 +115,8 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   const named = input.submitters ?? [];
   if (named.length) assertScope(actor, "metrics:edit");
   const { people, feeds } = await splitSubmitters(creator, named);
+  // Checked before anything exists, so a Workflow the key may not use leaves no Metric behind.
+  const workflow = input.workflow === undefined || input.workflow === null ? null : await checkWorkflowChoice(actor, creator, { id: 0, owner_id: creator.personId, formula: null }, input.workflow);
   const keyName = actor.key ? await nameOf(actor) : null;
   const { id } = await createMetric(creator, {
     name: String(input?.name ?? ""),
@@ -126,8 +133,9 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
   // A Feed is added as on the Metric's page, which turns the API Source on, since a Feed sends nothing else.
   for (const f of feeds) await addFeedToMetric(creator, id, f);
+  if (workflow?.id != null) await asKey(actor, () => setMetricWorkflow(creator, id, workflow.id, { from: null }));
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric) as Metric, data);
+  return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
 }
 
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
@@ -169,16 +177,49 @@ export class MetricChangeRefused extends Error {
   }
 }
 
-/** What a program may change of a Metric's description (PATCH /metrics/{slug}): its Polarity, Target Range and
- * Attainment method. Each part left out stays. */
+/** What a program may change of a Metric (PATCH /metrics/{slug}): its description, Sources and Workflow. Each part
+ * left out stays. */
 export type ApiMetricPatch = {
+  name?: string;
+  description?: string;
+  unit?: string;
+  format?: "number" | "currency" | "percent";
+  /** Only while the Metric has no values and no targets or projections by period (the core says so otherwise). */
+  period?: "day" | "week" | "month" | "quarter" | "year";
+  submission_rule?: "reject" | "overwrite" | "add" | "keep_both";
   /** Its Sources, all of them: the ones left out are turned off. */
   sources?: string[];
   polarity?: "higher" | "lower" | "target";
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: "ratio" | "distance" | null;
+  /** One of the creator's own Workflows by id or exact name, or null for none; only the Metric's owner. */
+  workflow?: WorkflowRef | null;
 };
+
+const FORMAT_WORDS = ["number", "currency", "percent"];
+const PERIOD_WORDS = ["day", "week", "month", "quarter", "year"];
+const RULE_WORDS = ["reject", "overwrite", "add", "keep_both"];
+const POLARITY_WORDS = ["higher", "lower", "target"];
+
+/** The words of the patch checked again where the core takes them (the API's schema checked them first): the core's
+ * own cleaning would keep the old value for an unknown word without saying so, a program is told instead. */
+function assertPatchWords(p: ApiMetricPatch): void {
+  const text = (v: unknown, max: number, label: string, required = false) => {
+    if (v === undefined) return;
+    if (typeof v !== "string" || v.length > max || (required && !v.trim())) throw new MetricChangeRefused(`${label} must be text of at most ${max} characters${required ? ", not empty" : ""}.`);
+  };
+  text(p.name, 120, "The name", true);
+  text(p.description, 2000, "The description");
+  text(p.unit, 20, "The unit");
+  const word = (v: unknown, words: string[], label: string) => {
+    if (v !== undefined && !words.includes(v as string)) throw new MetricChangeRefused(`${label} must be one of ${words.join(", ")}.`);
+  };
+  word(p.format, FORMAT_WORDS, "The format");
+  word(p.period, PERIOD_WORDS, "The period");
+  word(p.submission_rule, RULE_WORDS, "The submission rule");
+  word(p.polarity, POLARITY_WORDS, "The polarity");
+}
 
 /** The Metric a key with metrics:edit is about to change, and its creator as a person's Actor. A Metric that is
  * missing, of another workspace or hidden from the creator is refused without a reason (404); a creator whose role may
@@ -194,27 +235,47 @@ async function changeableByKey(actor: Actor | KeyActor, slug: string): Promise<{
   return { creator, metric };
 }
 
-/** Changes a Metric's Polarity, Target Range or Attainment method for a key with metrics:edit, as its creator: only
- * when they own the Metric or are its Editor, as on its page. Its history names the key. Returns it as programs see it. */
-export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string, patch: ApiMetricPatch): Promise<ApiMetric> {
+/** Changes a Metric for a key with metrics:edit, as its creator: its description (name, description, unit, format,
+ * Submission Rule, Polarity, Target Range, Attainment method, and the period while it has no values), its Sources and,
+ * for its owner, its Workflow, as the Metric's page and the Workflow dropdown do. Everything is checked before the
+ * first change. Its history names the key. Returns it as programs see it. */
+export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string, patch: ApiMetricPatch): Promise<ApiMetricDetail> {
   const { creator, metric } = await changeableByKey(actor, slug);
   const p = patch ?? {};
+  assertPatchWords(p);
   // The core checks this too, but as a plain error; said here so a program gets 422 with the reason.
   const lo = p.target_min !== undefined ? p.target_min : metric.target_min ?? null;
   const hi = p.target_max !== undefined ? p.target_max : metric.target_max ?? null;
   if (lo !== null && hi !== null && lo > hi) throw new MetricChangeRefused("The lower target is above the upper one.");
   for (const v of [p.target_min, p.target_max]) if (v !== undefined && v !== null && !inRange(v)) throw new MetricChangeRefused(`A target must be a number between -${SERIES_VALUE_MAX} and ${SERIES_VALUE_MAX}.`);
-  // Only these parts, whatever else the patch holds: never a name, a description, a unit or a period.
-  const details = { polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method };
+  // Only these parts, whatever else the patch holds: never the unit's side, the decimals or the Aggregation.
+  const details = {
+    name: p.name, description: p.description, unit: p.unit, format: p.format, period: p.period, submissionRule: p.submission_rule,
+    polarity: p.polarity, targetMin: p.target_min, targetMax: p.target_max, attainmentMethod: p.attainment_method,
+  };
   const sources = p.sources === undefined ? undefined : sourcesFrom(p.sources);
   if (sources && metric.formula) throw new MetricChangeRefused("A Derived Metric is computed; values do not arrive for it.");
+  const workflow = p.workflow === undefined ? undefined : await checkWorkflowChoice(actor, creator, metric, p.workflow);
   const keyName = actor.key ? await nameOf(actor) : null;
-  await withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
-    await updateMetricDetails(creator, metric.id as number, details);
+  await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
+    // The editor's own refusals (a period that has values, a Retention that would not fit) are plain errors: said as 422.
+    await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
     if (sources) await setMetricSources(creator, metric.id as number, sources);
-  });
+    if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });
+  }));
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric) as Metric, data);
+  return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+}
+
+/** Runs work so that every Audit Log event it records names the key, as for a person's own change through a key. */
+const asKey = <T>(actor: Actor | KeyActor, work: () => Promise<T>): Promise<T> => (actor.key ? auditedAsKey(Number(actor.key.id), work) : work());
+
+/** The editor's plain refusals become MetricChangeRefused (422); a fault, a Forbidden or any other error stays itself.
+ * Only sentences of Ziffr's own (they end in a full stop): a library's plain Error, such as a failed decryption, never
+ * reaches a program as words. */
+function refusedWithReason(e: unknown): never {
+  if (e instanceof Error && e.constructor === Error && /[.!?]$/.test(e.message) && !/could not be saved/.test(e.message)) throw new MetricChangeRefused(e.message);
+  throw e;
 }
 
 /** Which series of a Metric: its Target Series or its Projections. */

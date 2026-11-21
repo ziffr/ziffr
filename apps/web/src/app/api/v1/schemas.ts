@@ -38,6 +38,22 @@ export const MetricDescription = z.object({
   retention_pending: retentionOf({ starts_on: z.string().describe("The first day it runs, YYYY-MM-DD; until then it can be cancelled in the app and nothing is changed.") }).nullable().describe("A confirmed Retention that has not started yet, or null."),
 });
 
+/** The Workflow a program names for a Metric: the id or the exact name of one of the key's creator's own Workflows. */
+const workflowRef = z.union([z.number().int().positive(), z.string().trim().min(1).max(120)]);
+
+/** A Metric on its own (GET, POST and PATCH answer this): its description, its Workflow and when a value is due next. */
+export const MetricDetail = MetricDescription.extend({
+  workflow: z.object({
+    id: z.number().int(),
+    name: z.string(),
+    yours: z.boolean().describe("Whether the key's creator owns the Workflow: only they may give it to a Metric or change it."),
+  }).nullable().describe("The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule."),
+  next_due: z.object({
+    date: z.string().describe("The Due Date, YYYY-MM-DD, in the workspace's calendar."),
+    period: z.string().describe("The first day of the period the value is for, YYYY-MM-DD."),
+  }).nullable().describe("The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric."),
+});
+
 /** One page of a list; `next` is the cursor for the following page, null on the last. */
 const pageOf = <T extends z.ZodType>(item: T) => z.object({
   items: z.array(item).describe("This page, at most `limit` long."),
@@ -117,19 +133,27 @@ export const CreateMetric = z.object({
   submit: z.boolean().optional().describe("Make the key's creator its Submitter, so the key can submit values to it at once."),
   sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, the ways values may arrive; left out, every one."),
   submitters: submitterIds.optional().describe("Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well."),
+  workflow: workflowRef.nullable().optional().describe("One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key."),
 }).strict();
 
 /** A target or Projection: a number at most 10^15 either way. */
 const seriesValue = z.number().min(-1e15).max(1e15);
 
-/** PATCH /api/v1/metrics/{slug} takes this (ticket #211): the parts of a Metric's description a program may change, its
- * Polarity, Target Range and Attainment method. Each part left out stays as it is. Not its name or description. */
+/** PATCH /api/v1/metrics/{slug} takes this (ticket #211, #612): the parts of a Metric a program may change: its
+ * description, Sources, Target Range and Workflow. Each part left out stays as it is. */
 export const UpdateMetric = z.object({
+  name: z.string().trim().min(1).max(120).optional().describe("What it is called. Its slug stays."),
+  description: z.string().max(2000).optional(),
+  unit: z.string().max(20).optional().describe("Shown next to the value, such as orders, € or $."),
+  format: z.enum(["number", "currency", "percent"]).optional(),
+  period: z.enum(["day", "week", "month", "quarter", "year"]).optional().describe("Only while the Metric has no values and no targets or projections by period: later its values would sit in the wrong periods (422)."),
+  submission_rule: z.enum(["reject", "overwrite", "add", "keep_both"]).optional().describe("What a second value for a period does."),
   sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, all of them: the ones left out are turned off. Not for a Derived Metric."),
   polarity: z.enum(["higher", "lower", "target"]).optional().describe("Whether higher or lower values are better, or a range (target)."),
   target_min: seriesValue.nullable().optional().describe("The low end of its Target Range; null for none."),
   target_max: seriesValue.nullable().optional().describe("The high end of its Target Range; null for none."),
   attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("ratio or distance for an Attainment method of its own; null follows the workspace's default."),
+  workflow: workflowRef.nullable().optional().describe("One of your own Workflows, by id or exact name (GET /workflows), or null for none. Only the Metric's owner; not for a Derived Metric. A Workflow with an Approve or Tell step, or leaving one, only with workflows:people on a program's key."),
 }).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
 
 /** One period's value of a Target Series or a Projection (GLOSSARY: Target Series, Projection). */

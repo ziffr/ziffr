@@ -11,6 +11,7 @@ import { openRows } from "./sealed-columns";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
 import { periodStart } from "./periods";
+import { SOURCE_LABEL } from "./format";
 import { yearStartFor } from "./fiscal-year";
 
 /** Refusals in words that hold nothing but the rule, for keys that may not read values (and Feeds, which never do). */
@@ -67,6 +68,12 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
   if (result.outcome === "proposed_locked") return { ok: false, reason: "locked", detail: reads ? result.detail : "The period is locked; the value went to the Metric's owner as a proposed correction." };
   // Before the other refusals, so a program can tell a condensed period (409) from a rule that refused its value (422).
   if (result.outcome === "rejected_period_condensed") return { ok: false, reason: "period_condensed", detail: reads ? result.detail : REFUSED.rejected_period_condensed };
+  // A key that reads is told which Sources the Metric takes and how to change them, so a Metric made without the API
+  // Source is not a dead end (ticket #612); one that may not read learns nothing it could not send.
+  if (!result.ok && result.outcome === "rejected_source" && reads) {
+    const accepted = metric.sources.map((x) => SOURCE_LABEL[x] ?? x).join(", ") || "none";
+    return { ok: false, reason: "refused", detail: `${metric.name} doesn’t accept values from the API. It accepts values from: ${accepted}. The Metric's owner or an Editor can turn the API Source on with update_metric (sources: list every Source to keep, api among them; PATCH /metrics/{slug} for programs), or in the Metric's settings in Ziffr.` };
+  }
   if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
   const { data: state } = await db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
   const { data: latestRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);

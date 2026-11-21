@@ -105,10 +105,10 @@ describe("targets with a key", () => {
     await expect(updateMetricWithKey(reader, mine.slug, { target_min: 1 })).rejects.toEqual(forbidden);
     await expect(updateMetricWithKey(key, saras.slug, { target_min: 1 })).rejects.toEqual(forbidden);
     expect(await updateMetricWithKey(key, mine.slug, { target_min: 1, target_max: 9 })).toMatchObject({ target_min: 1, target_max: 9 });
-    // The Metric's history names the key; nothing but these parts is changed, whatever the patch holds.
+    // The Metric's history names the key; nothing but the parts a key may change is changed, whatever the patch holds.
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", mine.id);
     expect(versions?.map((v) => v.message).join(" ")).toContain("key “Setup script”");
-    await updateMetricWithKey(key, mine.slug, { target_min: 2, name: "Renamed" } as never);
+    await updateMetricWithKey(key, mine.slug, { target_min: 2, decimals: 5 } as never);
     const [kept] = await opened("metrics", w.id, (await db().from("metrics").select("id, name, target_min, target_min_sealed").eq("id", mine.id)).data, { dropId: true });
     expect(kept).toEqual({ name: "Revenue", target_min: 2 });
     await expect(updateMetricWithKey(key, mine.slug, { target_min: 10 })).rejects.toBeInstanceOf(MetricChangeRefused);

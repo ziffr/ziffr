@@ -2,19 +2,21 @@
 // may not see, of another workspace, or missing answers 404 alike (the core's Forbidden).
 // DELETE /api/v1/metrics/{slug}?confirm=<its exact name>: deletes it as the key's creator (scope metrics:write), only
 // when they own it and nothing uses it, as in the app; the Audit Log names the key.
-// PATCH /api/v1/metrics/{slug} (ticket #211; GLOSSARY: Target Range): changes its Polarity, Target Range or Attainment
-// method as the key's creator (scope metrics:edit), only when they own it or are its Editor.
+// PATCH /api/v1/metrics/{slug} (ticket #211, #612; GLOSSARY: Target Range, Workflow): changes its description,
+// Sources, Target Range or Workflow as the key's creator (scope metrics:edit), only when they own it or are its
+// Editor (its Workflow only its owner).
 import { metricRoute } from "@/lib/api-metric-route";
 import { getMetric } from "@ziffr/core/api";
 import { deleteMetricWithKey, MetricChangeRefused, updateMetricWithKey } from "@ziffr/core/api-metrics";
+import { WorkflowRefused } from "@ziffr/core/workflows";
 import { MetricKept } from "@ziffr/core/metrics";
 import { Forbidden } from "@ziffr/core/actor";
 import { ApiError, apiError, json, jsonBody } from "@/lib/api";
-import { DeletedMetric, deleteMetricQuery, MetricDescription, UpdateMetric } from "../../schemas";
+import { DeletedMetric, deleteMetricQuery, MetricDetail, UpdateMetric } from "../../schemas";
 
 /** Describes one visible Metric. */
 export const GET = metricRoute("metrics:read", async (actor, _req, slug) => {
-  return json(MetricDescription.parse(await getMetric(actor, slug)));
+  return json(MetricDetail.parse(await getMetric(actor, slug)));
 });
 
 /** Deletes one Metric the key's creator owns. The name must be repeated in `confirm`, so a wrong slug deletes nothing. */
@@ -38,11 +40,11 @@ export const DELETE = metricRoute("metrics:write", async (actor, req, slug) => {
 export const PATCH = metricRoute("metrics:edit", async (actor, req, slug) => {
   const patch = UpdateMetric.parse(await jsonBody(req));
   try {
-    return json(MetricDescription.parse(await updateMetricWithKey(actor, slug, patch)));
+    return json(MetricDetail.parse(await updateMetricWithKey(actor, slug, patch)));
   } catch (e) {
     // Without a reason: missing or hidden (404). With one: seen, but not theirs to change.
     if (e instanceof Forbidden) { if (e.message === "Forbidden") throw e; return apiError("forbidden", e.message); }
-    if (e instanceof MetricChangeRefused) return apiError("unprocessable", e.message);
+    if (e instanceof MetricChangeRefused || e instanceof WorkflowRefused) return apiError("unprocessable", e.message);
     throw e;
   }
 });
