@@ -46,25 +46,33 @@ function countsOf(log: string[]): RunCounts {
   };
 }
 
-/** Runs a claimed day: the Workflows as of that day, as one of the workspace's Owners (the one who asks when an
- * Escalation goes to a Metric's owner), then the due-task reminders. The run's row says how it went. */
-export async function runClaimedDay(runId: number, workspaceId: string, day: string): Promise<RunCounts> {
+/** Does a claimed run's work and writes how it went into its row (`table`): done with counts, or failed with only the
+ * kind of failure, since the details may name people or Metrics. The first Owner of the workspace is who acts. */
+async function recorded(table: "workflow_runs" | "workflow_asking_runs", runId: number, workspaceId: string, work: (owner: string) => Promise<RunCounts>): Promise<RunCounts> {
   try {
     const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").order("created_at").limit(1).maybeSingle();
     if (!owner) throw Object.assign(new Error("no owner"), { kind: "no_owner" });
+    const counts = await work(owner.user_id as string);
+    await db().from(table).update({ ...counts, state: "done", finished_at: new Date().toISOString() }).eq("id", runId);
+    return counts;
+  } catch (e) {
+    await db().from(table).update({ state: "failed", finished_at: new Date().toISOString(), error: String((e as { kind?: string }).kind ?? (e as Error).name ?? "error").slice(0, 100) }).eq("id", runId);
+    throw e;
+  }
+}
+
+/** Runs a claimed day: the Workflows as of that day, as one of the workspace's Owners (the one who asks when an
+ * Escalation goes to a Metric's owner), then the due-task reminders. The run's row says how it went. */
+export function runClaimedDay(runId: number, workspaceId: string, day: string): Promise<RunCounts> {
+  return recorded("workflow_runs", runId, workspaceId, async (owner) => {
     // Its emails are queued for the deliveries job, which sends them within minutes.
     // Workflows with an Asking Schedule run by their own run (runAskingWorkflowsIfDue), not here.
-    const log = await runWorkflows(workspaceId, day, owner.user_id as string, { queue: true, scope: "unscheduled" });
+    const log = await runWorkflows(workspaceId, day, owner, { queue: true, scope: "unscheduled" });
     const counts: RunCounts = { ...countsOf(log), reminders: countsOf(log).reminders + (await remindDueTasks(workspaceId, day)) };
     // Automatic Snapshots (spec 0013) of the day: a failing one never fails the Workflows' run.
     try { await takeDueSnapshots(workspaceId, day); } catch { console.error("Automatic Snapshots failed for a workspace"); }
-    await db().from("workflow_runs").update({ ...counts, state: "done", finished_at: new Date().toISOString() }).eq("id", runId);
     return counts;
-  } catch (e) {
-    // Only the kind of failure: the run's details may name people or Metrics.
-    await db().from("workflow_runs").update({ state: "failed", finished_at: new Date().toISOString(), error: String((e as { kind?: string }).kind ?? (e as Error).name ?? "error").slice(0, 100) }).eq("id", runId);
-    throw e;
-  }
+  });
 }
 
 /** Claims a Workflow's day for its own run (GLOSSARY: Asking Schedule): the run's id for the one call that may run it,
@@ -79,17 +87,8 @@ export async function claimAskingDay(workspaceId: string, workflowId: number, da
 /** Runs a claimed day of one Workflow with an Asking Schedule, as one of the workspace's Owners, as the Workspace's run
  * does. The run's row says how it went. A Workflow whose schedule was just added or removed while the Workspace's run
  * is still going could be asked about twice in that moment; the next runs never repeat a step (the period's state). */
-export async function runClaimedAskingDay(runId: number, workspaceId: string, workflowId: number, day: string): Promise<RunCounts> {
-  try {
-    const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").order("created_at").limit(1).maybeSingle();
-    if (!owner) throw Object.assign(new Error("no owner"), { kind: "no_owner" });
-    const counts = countsOf(await runWorkflows(workspaceId, day, owner.user_id as string, { queue: true, scope: { workflowId } }));
-    await db().from("workflow_asking_runs").update({ ...counts, state: "done", finished_at: new Date().toISOString() }).eq("id", runId);
-    return counts;
-  } catch (e) {
-    await db().from("workflow_asking_runs").update({ state: "failed", finished_at: new Date().toISOString(), error: String((e as { kind?: string }).kind ?? (e as Error).name ?? "error").slice(0, 100) }).eq("id", runId);
-    throw e;
-  }
+export function runClaimedAskingDay(runId: number, workspaceId: string, workflowId: number, day: string): Promise<RunCounts> {
+  return recorded("workflow_asking_runs", runId, workspaceId, async (owner) => countsOf(await runWorkflows(workspaceId, day, owner, { queue: true, scope: { workflowId } })));
 }
 
 /** A Workflow's new schedule never runs for a day that has begun: when today is a run day and its hour has already
