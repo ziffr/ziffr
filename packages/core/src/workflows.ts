@@ -7,7 +7,9 @@ import { assertMembersIn } from "./sharing";
 import { assertSubmittersIn } from "./metrics";
 import { FROM_APP, type ChangeSource } from "./webhook-events";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, runWorkflows, sendBack, setLock } from "./workflow-engine";
-import { claimDay, runClaimedDay, type RunCounts } from "./scheduled-runs";
+import { claimAskingDay, claimDay, runClaimedAskingDay, runClaimedDay, skipPassedAskingDay, type RunCounts } from "./scheduled-runs";
+import { cleanAsking } from "./asking-schedule";
+import { DEMO_READ_ONLY } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { ensureBaseline, recordVersion } from "./versions";
@@ -48,7 +50,8 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
   const pub = steps.filter((s) => s.type === "publish");
-  return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])], ...(c?.lockSummary === true ? { lockSummary: true } : {}) };
+  const asking = cleanAsking(c?.asking);
+  return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])], ...(c?.lockSummary === true ? { lockSummary: true } : {}), ...(asking ? { asking } : {}) };
 }
 
 /** A Workflow of the actor's workspace that the actor owns, or Forbidden. */
@@ -60,8 +63,10 @@ async function ownWorkflow(actor: Actor, id: number) {
 /** Saves a Workflow: a new one (Guests create nothing) or one the actor owns. Returns its id. */
 export async function saveWorkflow(actor: Actor, id: number | null, name: string, config: WorkflowConfig, opts: { message?: string } = {}): Promise<number> {
   const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config), updated_at: new Date().toISOString() };
+  let before: string | undefined;
   if (id) {
     await ownWorkflow(actor, id);
+    before = JSON.stringify(((await db().from("workflows").select("config").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data?.config as WorkflowConfig | undefined)?.asking);
     await ensureBaseline("workflow", id, actor.personId);
     await db().from("workflows").update(row).eq("id", id).eq("workspace_id", actor.workspaceId);
   } else {
@@ -70,6 +75,8 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
     if (error || !data) throw new Error("The workflow could not be saved.");
     id = data.id as number;
   }
+  // A new or changed Asking Schedule never runs for a day that has begun (spec 0035).
+  if (row.config.asking && JSON.stringify(row.config.asking) !== before) await skipPassedAskingDay(actor.workspaceId, id, row.config.asking);
   await recordVersion("workflow", id, actor.personId, opts);
   return id;
 }
@@ -122,30 +129,52 @@ export async function runWorkflowsAsOf(actor: Actor, asOf: string): Promise<stri
 export type RunInfo = { day: string; trigger: "schedule" | "manual"; state: "running" | "done" | "failed"; startedAt: string; counts: RunCounts };
 
 /** When Workflows run in the actor's workspace, the last run, and whether today has run (spec 0005). */
-export async function workflowSchedule(actor: Actor): Promise<{ timeZone: string; runHour: number; today: string; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean }> {
+export async function workflowSchedule(actor: Actor): Promise<{ timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean }> {
   const clock = await workspaceClock(actor);
-  const { day: today } = localTime(new Date(), clock.timeZone);
+  const { day: today, hour } = localTime(new Date(), clock.timeZone);
   const [{ data: last }, { count: scheduled }] = await Promise.all([
     db().from("workflow_runs").select("day, trigger, state, started_at, prompts, reminders, escalations").eq("workspace_id", actor.workspaceId).order("day", { ascending: false }).limit(1).maybeSingle(),
     db().from("workflow_runs").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("trigger", "schedule"),
   ]);
   return {
     // A day at or after today was claimed (also before a change of time zone): today will not run again.
-    ...clock, today, todayRan: Boolean(last && last.day >= today), scheduled: (scheduled ?? 0) > 0,
+    ...clock, today, hour, todayRan: Boolean(last && last.day >= today), scheduled: (scheduled ?? 0) > 0,
     lastRun: last ? { day: last.day, trigger: last.trigger, state: last.state, startedAt: last.started_at, counts: { prompts: last.prompts, reminders: last.reminders, escalations: last.escalations } } : null,
   };
 }
 
 /** Runs today's steps now, for Owners and Admins of a real workspace: the same claim as the clock's run, so it does
- * nothing once today ran, and the clock then leaves today alone. Returns the counts, or null when today ran already. */
-export async function runTodayNow(actor: Actor): Promise<RunCounts | null> {
-  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins run today's steps.");
+ * nothing once today ran, and the clock then leaves today alone. Without `workflowId` it is the Workspace's run (the
+ * Workflows without an Asking Schedule and the due-task reminders); with one, that Workflow's own run, also for its
+ * owner (spec 0035). Returns the counts, or null when today ran already. */
+export async function runTodayNow(actor: Actor, workflowId?: number): Promise<RunCounts | null> {
   const { day: today } = localTime(new Date(), (await workspaceClock(actor)).timeZone);
+  if (workflowId !== undefined) {
+    // Guests run nothing, and the demo is never scheduled.
+    assertCan(actor, "create");
+    if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden(DEMO_READ_ONLY);
+    const { data: wf } = await db().from("workflows").select("id, owner_id, config").eq("id", Number(workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+    // Not in this workspace, or not the actor's to run: the same answer, so ids of other workspaces are not told apart.
+    if (!wf || (wf.owner_id !== actor.personId && actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden("Only the Workflow's owner, Owners and Admins run it.");
+    if (!(wf.config as WorkflowConfig).asking) throw new Error("This Workflow runs with the workspace's daily run: run today's steps from the workspace.");
+    const runId = await claimAskingDay(actor.workspaceId, wf.id as number, today, "manual");
+    if (runId === null) return null;
+    const counts = await runClaimedAskingDay(runId, actor.workspaceId, wf.id as number, today);
+    await audit(actor, { kind: "workflow.run_now", object: { type: "workflow", id: wf.id as number }, details: { day: today, ...counts } });
+    return counts;
+  }
+  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins run today's steps.");
   const runId = await claimDay(actor.workspaceId, today, "manual");
   if (runId === null) return null;
   const counts = await runClaimedDay(runId, actor.workspaceId, today);
   await audit(actor, { kind: "workflow.run_now", object: { type: "workspace", id: actor.workspaceId }, details: { day: today, ...counts } });
   return counts;
+}
+
+/** The last run of a Workflow on its own Asking Schedule, or null when it has none yet (a skipped day is no run). */
+export async function workflowAskingRun(actor: Actor, workflowId: number): Promise<RunInfo | null> {
+  const { data } = await db().from("workflow_asking_runs").select("day, trigger, state, started_at, prompts, reminders, escalations").eq("workspace_id", actor.workspaceId).eq("workflow_id", Number(workflowId)).neq("state", "skipped").order("day", { ascending: false }).limit(1).maybeSingle();
+  return data ? { day: data.day, trigger: data.trigger === "manual" ? "manual" : "schedule", state: data.state, startedAt: data.started_at, counts: { prompts: data.prompts, reminders: data.reminders, escalations: data.escalations } } : null;
 }
 
 /** The approver approves a value waiting for them. */

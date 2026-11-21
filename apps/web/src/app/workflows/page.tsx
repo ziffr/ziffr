@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { currentActor } from "@/lib/viewer";
 import { getProfiles, getYearStart } from "@/lib/data";
 import { workflowsView } from "@ziffr/core/page-data";
-import { workflowSchedule } from "@ziffr/core/workflows";
+import { workflowAskingRun, workflowSchedule } from "@ziffr/core/workflows";
 import { periodTimeline, workflowPeriods } from "@ziffr/core/period-timeline";
 import { listWorkflowTemplates } from "@ziffr/core/workflow-templates";
 import { can } from "@ziffr/core/actor";
@@ -25,6 +25,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const current = list.find((w) => w.id === Number(sp.id)) ?? list[0] ?? null;
   // The periods of the Workflow, each as this viewer may see it; the core leaves out what they may not.
   const timelines = current ? await Promise.all((await workflowPeriods(actor, current.id, 4)).map((p) => periodTimeline(actor, current.id, p))) : [];
+  const askingRun = current?.config.asking && !demo ? await workflowAskingRun(actor, current.id) : null;
   const asOf = sp.asOf && /^\d{4}-\d{2}-\d{2}$/.test(sp.asOf) ? sp.asOf : format(new Date(), "yyyy-MM-dd");
   return (
     <>
@@ -41,6 +42,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         feeds={feeds}
         asOf={schedule ? schedule.today : asOf}
         schedule={schedule}
+        askingRun={askingRun}
         canRun={actor.role === "owner" || actor.role === "admin"}
         yearStart={yearStart}
         templates={await listWorkflowTemplates(actor)}

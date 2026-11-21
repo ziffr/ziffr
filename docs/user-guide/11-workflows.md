@@ -97,15 +97,33 @@ The right side lists every Metric that uses this Workflow and that you may see. 
 
 You do not add Metrics here. "A metric's owner picks its workflow on the metric's page." See [A Metric's Workflow box](#a-metrics-workflow-box).
 
+### Asking Schedule
+
+By default a Workflow runs with the Workspace's daily run, at the Workspace's hour. Under the Name and Due Date, **Runs** lets you give the Workflow its own time and days instead: choose **On its own schedule**.
+
+| Option | What it does |
+| --- | --- |
+| **With the workspace's daily run** | The default. Nothing changes. |
+| **On its own schedule** | The Workflow runs by itself on the days and at the hour you set, in the Workspace's time zone. |
+| **at** | A whole hour, or the Workspace's hour when left empty. |
+| **every day**, **every weekday** | Every day, or Monday to Friday. Holidays are not known to Ziffr. |
+| **on chosen weekdays** | Tick the weekdays, such as Monday and Thursday. |
+| **every few days** | Every second to 90th day, from a **Starting day**: "every third day" from 1 December runs on 1, 4, 7 and 10 December. Saving other changes never moves the rhythm. |
+| **on a day of the month** | Day 1 to 31, or the last day. A month without that day, such as the 31st in November, runs on its last day. |
+
+The Ask step then says it in words, with the next run: "Runs every third day from 1 December 2026 at 14:00 (Europe/Berlin). Next: 4 December 2026." The schedule decides only when Ziffr runs the Workflow: Due Dates never move. A reminder or an Escalation whose day is not a run day goes out on the next run day, once. A run asks for the last period that ended, so a Workflow that runs less often than a Metric's period asks only for the last period: a note under the schedule says so ("Metrics with a short period are asked for the last period only"), and says when a Prompt can reach people after the Due Date.
+
+A schedule you save after its hour has passed today does not run today: the first run is the next run day. On a scheduled Workflow the panel on the right shows the schedule and its last run, and **Run this workflow now** runs it once for today, for the Workflow's owner, Owners and Admins; the clock then leaves today alone. Workflow Templates and Packs do not carry the schedule: a Workflow made from one runs with the daily run until its owner sets one. The demo ignores schedules.
+
 ### When Workflows run
 
-In a real Workspace, Workflows run by themselves once a day. The panel says when, such as "Runs every day at 07:00 (Europe/Berlin)". Owners and Admins set the time zone and the hour under **Workspace → General**, in **Workspace time** (see [Workspace settings](16-workspace-settings.md)). Each run sends the day's Prompts, Remind steps and Escalations.
+In a real Workspace, Workflows run by themselves once a day. The panel says when, such as "Workflows without their own schedule run every day at 07:00 (Europe/Berlin)". Owners and Admins set the time zone and the hour under **Workspace → General**, in **Workspace time** (see [Workspace settings](16-workspace-settings.md)). Each run sends the day's Prompts, Remind steps and Escalations. A Workflow can also have an [Asking Schedule](#asking-schedule) of its own.
 
 The panel also shows the last run: when it was, whether it was started by hand, and how many people were asked, reminded and escalated, or that it failed.
 
 | Option | What it does | Who sees it |
 | --- | --- | --- |
-| **Run today's steps now** | Runs today's steps at once, instead of waiting for the hour. Each day runs only once: afterwards the button reads "Today's steps ran", and the clock leaves today alone. | Owners and Admins |
+| **Run today's steps now** | Runs today's steps at once, instead of waiting for the hour, for the Workflows that run with the daily run. Each day runs only once: afterwards the button reads "Today's steps ran", and the clock leaves today alone. | Owners and Admins |
 
 If the panel says that nothing has run by the clock yet, whoever runs Ziffr for this workspace still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
 
