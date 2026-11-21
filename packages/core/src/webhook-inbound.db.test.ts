@@ -64,9 +64,12 @@ function signed(secret: string, payload: unknown, over: Partial<InboundRequest> 
   return { timestamp: String(at), signature: signWebhookBody([secret], at, body), body, ...over };
 }
 
+/** The Workspace of the running test: only its sends are taken, so files running at once do not take each other's. */
+let scope = "";
+
 /** A Workspace with an owner, an assignee who sees the Metric, and two Webhooks (To Do and Planner). */
 async function setup(events: string[] = ["action.created", "action.updated", "action.answered", "action.done"]) {
-  const w = await workspace(); cleanups.push(w.cleanup);
+  const w = await workspace(); cleanups.push(w.cleanup); scope = w.id;
   const sara = await w.person("owner", { email: `sara-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const m = await w.metric(sara, { name: "Revenue" });
@@ -391,7 +394,7 @@ describe.skipIf(!openssl)("the next message carries only the links its own Webho
     await c.call(c.todo, { op: "link", ref, system: "planner", external_id: "TODO-PL" });
     await c.call(c.planner, { op: "link", ref, system: "planner", external_id: "PLAN-9" });
     await changeActionState(c.w.id, id, { to: "answered", from: ["open"], reason: "done", guard: { assigneeId: c.ann } }, { type: "slack" });
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     const to = (path: string) => JSON.parse(seen.find((s) => s.path === path)!.body).data as { external_ids: { system: string; external_id: string; url: string | null }[]; source: unknown };
     expect(to("/todo").external_ids).toEqual([{ system: "microsoft-todo", external_id: "TODO-1", url: "https://to-do.example.test/1" }, { system: "planner", external_id: "TODO-PL", url: null }]);
     expect(to("/planner").external_ids).toEqual([{ system: "planner", external_id: "PLAN-9", url: null }]);
@@ -404,7 +407,7 @@ describe.skipIf(!openssl)("the next message carries only the links its own Webho
     await c.call(c.todo, { op: "link", ref: `ZIF-${id}`, system: "microsoft-todo", external_id: "T-1" });
     await c.call(c.planner, { op: "link", ref: `ZIF-${id}`, system: "planner", external_id: "P-1" });
     await c.call(c.todo, { op: "done", ref: `ZIF-${id}` });
-    await sendWaitingWebhooks(100);
+    await sendWaitingWebhooks(100, scope);
     expect(seen.map((s) => s.path)).toEqual(["/planner"]);
     const msg = JSON.parse(seen[0].body).data;
     expect(msg.source).toEqual({ type: "webhook", webhook_id: c.todo.id });

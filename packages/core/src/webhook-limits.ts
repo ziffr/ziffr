@@ -33,3 +33,6 @@ export const WEBHOOK_RETRY_AFTER_MAX_MS = 3_600_000;
  * rest of the server: a slow answer from some Webhook's DNS holds a thread until it gives up, so the lookups are bounded
  * below the pool and a few slow names cannot starve the job's other work. */
 export const WEBHOOK_SEND_CONCURRENCY = 3;
+
+/** How long the sends made just before a Metric or a Workspace is deleted may take in all, so a stalling address cannot hold the delete back. */
+export const WEBHOOK_SEND_NOW_BUDGET_MS = 15_000;

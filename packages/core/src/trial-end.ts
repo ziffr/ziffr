@@ -3,6 +3,8 @@
 // the checks in trials.ts); a week later it is deleted with everything in it, and its Owner too when it was their only
 // workspace, so the Installation keeps no address of someone who is gone. The Owner may end it at once. A scheduler
 // calls trialCleanup (POST /api/jobs/trial-cleanup); each step claims its rows first, so two runs never do one twice.
+import { closeForSystem } from "./system-closes";
+import { sendWebhooksNow } from "./webhook-send";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
@@ -95,6 +97,8 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
   }
   const { data } = await db().from("workspaces").update({ trial_closed_at: at }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
   for (const w of data ?? []) {
+    // The Workspace is closing: its open Actions close with their events, so external tasks do not linger.
+    await closeForSystem(w.id as string, { statuses: ["open", "answered"] }, "workspace_closing");
     await db().from("access_keys").update({ revoked_at: at }).eq("workspace_id", w.id).is("revoked_at", null);
     await db().from("slack_installations").update({ revoked_at: at }).eq("workspace_id", w.id).is("revoked_at", null);
     await db().from("telegram_links").delete().eq("workspace_id", w.id);
@@ -117,6 +121,9 @@ async function deleteTrial(workspaceId: string): Promise<void> {
   ]);
   // Only a trial is deleted here: its key is destroyed only once that is certain.
   if (!trial) return;
+  // What is still open is closed, and everything queued is sent now: the send rows go with the Workspace, its key next.
+  await closeForSystem(workspaceId, { statuses: ["open", "answered"] }, "workspace_closing");
+  await sendWebhooksNow(workspaceId);
   await destroyWorkspaceKeys(workspaceId);
   const { data: gone, error } = await db().from("workspaces").delete().eq("id", workspaceId).not("trial_ends_at", "is", null).is("trial_kept_at", null).select("id");
   if (error || gone?.length !== 1) throw new Error("The trial could not be deleted.");

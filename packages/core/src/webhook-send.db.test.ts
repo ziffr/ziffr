@@ -11,13 +11,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeActionState } from "./action-state";
+import { deleteMetric } from "./metrics";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
 import { ask } from "./questions";
 import { workspace } from "./test/db-fixtures";
 import { queueWebhookEvent } from "./webhook-events";
 import { WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, WEBHOOK_SEND_CONCURRENCY } from "./webhook-limits";
-import { sendWaitingWebhooks, verifyWebhookSignature } from "./webhook-send";
+import { sendWaitingWebhooks, sendWebhooksNow, verifyWebhookSignature } from "./webhook-send";
 import { createWebhook, replaceWebhookSecret } from "./webhooks";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
@@ -68,7 +69,7 @@ afterEach(async () => {
 
 /** A Workspace with two Owners, an assignee and a Metric (private until `share`), and a Webhook to the local server. */
 async function setup(events: string[] = ["action.done"], path = "/hook/one", url = `https://localhost:${port}${path}`) {
-  const w = await workspace(); cleanups.push(w.cleanup);
+  const w = await workspace(); cleanups.push(w.cleanup); scope = w.id;
   const sara = await w.person("owner", { email: `sara-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const tom = await w.person("owner", { email: `tom-${Math.random().toString(36).slice(2, 8)}@example.test` });
   const ann = await w.person("member", { email: `ann-${Math.random().toString(36).slice(2, 8)}@example.test` });
@@ -83,7 +84,9 @@ async function setup(events: string[] = ["action.done"], path = "/hook/one", url
   const rowOf = async (id: number, type = "action.done") => (await db().from("webhook_sends").select("*").eq("action_id", id).eq("type", type).order("created_at").limit(1).single()).data!;
   return { w, sara, tom, ann, m, a, hook, task, share, unshare, done, rowOf };
 }
-const run = () => sendWaitingWebhooks(100);
+/** The Workspace of the test that is running: its run takes only that Workspace's sends, so files running at the same time cannot take each other's. */
+let scope = "";
+const run = () => sendWaitingWebhooks(100, scope);
 const json = (s: Seen) => JSON.parse(s.body) as { id: string; type: string; workspace: { id: string }; data: Record<string, unknown> };
 const notices = async (ws: string, to: string) => (await db().from("deliveries").select("kind").eq("workspace_id", ws).eq("recipient_id", to).eq("kind", "notice")).data?.length ?? 0;
 
@@ -311,8 +314,7 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
   });
   it("holds sends past the daily cap until tomorrow", async () => {
     const c = await setup();
-    const rows = Array.from({ length: 1000 }, () => ({ workspace_id: c.w.id, webhook_id: c.hook.id, type: "ping", source_type: "system", state: "delivered", attempts: 1, last_attempt_at: new Date().toISOString() }));
-    for (let i = 0; i < WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY / 1000; i++) expect((await db().from("webhook_sends").insert(rows)).error).toBeNull();
+    await db().from("webhook_send_days").insert({ workspace_id: c.w.id, day: new Date().toISOString().slice(0, 10), n: WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY });
     const id = await c.task();
     await c.done(id);
     expect(await run()).toEqual({ sent: 0, failed: 0 });
@@ -320,6 +322,36 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
     const row = await c.rowOf(id);
     expect(row.state).toBe("queued");
     expect(new Date(row.next_attempt_at).getTime()).toBeGreaterThan(Date.now());
+  });
+  it("claims the daily cap atomically: runs at the same moment cannot pass it together", async () => {
+    const c = await setup();
+    const takes = await Promise.all(Array.from({ length: 25 }, () => db().rpc("take_webhook_send_slot", { p_workspace: c.w.id, p_cap: 5 })));
+    expect(takes.filter((t) => t.data === true)).toHaveLength(5);
+    expect((await db().from("webhook_send_days").select("n").eq("workspace_id", c.w.id).single()).data?.n).toBe(5);
+  });
+  it("a Metric that is deleted still tells the Webhooks: its open Actions close with metric_deleted and are sent before the rows go", async () => {
+    const c = await setup();
+    await c.share();
+    const id = await c.task();
+    await deleteMetric(c.a, c.m.id, "Revenue <b>");
+    expect(seen).toHaveLength(1);
+    expect(json(seen[0])).toMatchObject({ type: "action.done", data: { ref: `ZIF-${id}`, status: "closed", reason: "metric_deleted", source: { type: "system" } } });
+    expect((await db().from("actions").select("id").eq("id", id)).data).toEqual([]);
+  });
+  it("sends made just before a delete stop at their budget: a stalling receiver is cut, the rest is dropped, and nothing is left running", async () => {
+    const c = await setup();
+    answer = () => { /* never answers */ };
+    for (let i = 0; i < 6; i++) await c.done(await c.task());
+    const started = Date.now();
+    await sendWebhooksNow(c.w.id, null, 400);
+    expect(Date.now() - started).toBeLessThan(5000);
+    // Only as many as were in flight reached the receiver; no send is left claimed or waiting.
+    expect(seen.length).toBeLessThanOrEqual(WEBHOOK_SEND_CONCURRENCY);
+    const states = ((await db().from("webhook_sends").select("state").eq("workspace_id", c.w.id).eq("type", "action.done")).data ?? []).map((r) => r.state);
+    expect(states).toHaveLength(6);
+    expect(states.every((x) => x === "dropped")).toBe(true);
+    // The Webhook's failure count is not touched by a send the budget cut.
+    expect((await db().from("webhooks").select("failure_count").eq("id", c.hook.id).single()).data?.failure_count).toBe(0);
   });
   it("sends at most a few at a time, so a slow name or answer cannot take every lookup", async () => {
     const c = await setup();

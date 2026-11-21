@@ -11,7 +11,7 @@ import { setActionStatus } from "./questions";
 import { openRows } from "./sealed-columns";
 import { finishTask, postReply } from "./threads";
 import { workspace } from "./test/db-fixtures";
-import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
+import { approve, claimTask, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
 import { confirmOwnValue, saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { NobodyElse, WorkflowConfig } from "./types";
 
@@ -233,5 +233,20 @@ describe("Every value in a Trial Workspace", () => {
     expect(await onValue(coffee!.id, today, owner)).toEqual(["nobody else can approve it: its submitter checks it"]);
     expect(await confirmOwnValue(actor, (await openCheck(coffee!.id)).id)).toBe("Confirmed by you; published.");
     expect((await getState(coffee!.id, today))?.state).toBe("published");
+  });
+});
+
+describe("claiming a Self-check", () => {
+  it("is for its assignee only: once it is someone else's, the submitter's claim changes nothing", async () => {
+    const { w, sara, m } = await alone();
+    await w.value(m.id, thisMonth(), 100, sara);
+    await onValue(m.id, thisMonth(), sara);
+    const check = await openCheck(m.id);
+    const other = await w.person("member");
+    await db().from("actions").update({ assignee_id: other }).eq("id", check.id);
+    await expect(claimTask(w.id, check.id, sara, { type: "app" })).rejects.toThrow(/not yours, or it is done/);
+    expect((await db().from("actions").select("status").eq("id", check.id).single()).data?.status).toBe("open");
+    await claimTask(w.id, check.id, other, { type: "app" });
+    expect((await db().from("actions").select("status").eq("id", check.id).single()).data?.status).toBe("closed");
   });
 });
