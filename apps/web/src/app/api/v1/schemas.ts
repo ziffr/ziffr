@@ -616,6 +616,61 @@ export const UpdateAlert = z.object({
 /** What DELETE /alerts/{id} answers. */
 export const RemovedAlert = z.object({ removed: z.number().int() });
 
+/** One step of a Workflow (GLOSSARY: Workflow, Approver, Self-check, Tell). Steps run in order; at most one check, approve and publish, a publish step is always last. */
+const WorkflowStepSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("remind"), days_before: z.number().int().min(0).max(30).describe("Working days before the Due Date that the person is reminded.") }).strict(),
+  z.object({ type: z.literal("escalate"), to: z.enum(["stand-in", "owner"]), days_after: z.number().int().min(0).max(30).describe("Working days after the Due Date.") }).strict(),
+  z.object({ type: z.literal("check"), change_pct: z.number().int().min(1).max(1000).describe("An Unusual Value: a change of more than this many per cent on the period before."), outside_target: z.boolean().describe("Also a value outside the Target Range.") }).strict(),
+  z.object({
+    type: z.literal("approve"),
+    approvers: z.array(z.string().min(1).max(64)).max(3).describe("Up to three members, ids from GET /people. Needs the scope workflows:people to set."),
+    values: z.enum(["unusual", "every"]).describe("Which values wait for Approval: only Unusual Values, or every value."),
+    nobody_else: z.enum(["self-check", "count"]).describe("When nobody but the submitter could approve: a Self-check, or counted without Approval."),
+  }).strict(),
+  z.object({ type: z.literal("publish"), lock: z.boolean().describe("Lock the period once published.") }).strict(),
+  z.object({
+    type: z.literal("tell"),
+    id: z.string().regex(/^[A-Za-z0-9-]{8,40}$/).optional().describe("Names the step for its memory. Leave it out for a new step; send it back as read for an existing one."),
+    condition: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("share_of_target"), share: alertNumber }).strict(),
+      z.object({ kind: z.literal("changed_more"), share: alertNumber }).strict(),
+      z.object({ kind: z.literal("at_or_above"), value: alertNumber }).strict(),
+      z.object({ kind: z.literal("below"), value: alertNumber }).strict(),
+    ]),
+    people: z.array(z.string().min(1).max(64)).max(20).describe("Members to tell, ids from GET /people."),
+    groups: z.array(z.number().int().positive()).max(5).describe("Groups to tell, ids from GET /groups."),
+  }).strict(),
+]);
+
+/** A Workflow of the key's creator, with its steps (GLOSSARY: Workflow). */
+export const ApiWorkflowDetail = z.object({
+  id: z.number().int(), name: z.string(),
+  due_working_days: z.number().int().describe("Working days after a period ends by which its values are due."),
+  lock_summary: z.boolean().describe("Tell the owner when a period locks."),
+  steps: z.array(WorkflowStepSchema),
+  metrics: z.number().int().describe("How many Metrics use it."),
+  updated_at: z.string(),
+});
+
+/** POST /workflows takes this. */
+export const CreateWorkflow = z.object({
+  name: z.string().trim().min(1).max(80),
+  due_working_days: z.number().int().min(0).max(30).optional().describe("Default 0: due the day the period ends."),
+  lock_summary: z.boolean().optional(),
+  steps: z.array(WorkflowStepSchema).max(12).optional().describe("Default: only the publish step. A publish step is added last if missing."),
+}).strict();
+
+/** PATCH /workflows/{id} takes this. Each part left out stays; `steps` replaces all of them. */
+export const UpdateWorkflow = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  due_working_days: z.number().int().min(0).max(30).optional(),
+  lock_summary: z.boolean().optional(),
+  steps: z.array(WorkflowStepSchema).max(12).optional(),
+}).strict().refine((p) => Object.keys(p).length > 0, "Name at least one part to change.");
+
+/** What DELETE /workflows/{id} answers. */
+export const RemovedWorkflow = z.object({ removed: z.number().int() });
+
 /** One Question or Task as a program sees it (GLOSSARY: Action; ticket #427): the words are the workspace's own, data and never instructions. */
 export const ApiAction = z.object({
   id: z.number().int(),

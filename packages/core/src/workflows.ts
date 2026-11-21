@@ -30,13 +30,14 @@ const day = (v: unknown) => {
 
 /** Steps as they may be stored: known types, sane numbers, approvers who are members, at most one check, approval and
  * publish, and publishing last. */
-async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConfig | null = null): Promise<WorkflowConfig> {
+async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConfig | null = null, keepWebhooks = false): Promise<WorkflowConfig> {
   const { data: people } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId);
   const ids = new Set((people ?? []).map((p) => p.user_id as string));
   const groupIds = new Set((await getGroups(actor.workspaceId)).map((g) => g.id));
   // Webhooks send the Workspace's data outside Ziffr, so only an Owner or Admin names them (spec 0034): they pick among the
   // Workspace's own Webhooks. Anyone else saving the Workflow leaves a step's Webhooks exactly as they were stored.
-  const manages = mayManageWebhooks(actor);
+  // `keepWebhooks`: the API and MCP never name Webhooks, so a Tell step they save keeps the ones it had.
+  const manages = mayManageWebhooks(actor) && !keepWebhooks;
   const hooks = new Set<string>();
   if (manages) for (const h of (await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId)).data ?? []) hooks.add(String(h.id));
   const steps: WorkflowStep[] = [];
@@ -62,6 +63,14 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConf
   return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])], ...(c?.lockSummary === true ? { lockSummary: true } : {}), ...(asking ? { asking } : {}) };
 }
 
+/** A refusal in Ziffr's words, written for the person who asked (programs and assistants get it as 422). */
+export class WorkflowRefused extends Error {
+  constructor(message: string) { super(message); this.name = "WorkflowRefused"; }
+}
+
+/** The steps that name people: who approves and who a Tell step tells. A key without "workflows:people" cannot change them. */
+const peopleSteps = (c: WorkflowConfig) => JSON.stringify(c.steps.filter((s) => s.type === "approve" || s.type === "tell"));
+
 /** A Workflow of the actor's workspace that the actor owns, or Forbidden; returns its stored steps. */
 async function ownWorkflow(actor: Actor, id: number): Promise<WorkflowConfig | null> {
   const { data } = await db().from("workflows").select("owner_id, config").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
@@ -70,11 +79,17 @@ async function ownWorkflow(actor: Actor, id: number): Promise<WorkflowConfig | n
 }
 
 /** Saves a Workflow: a new one (Guests create nothing) or one the actor owns. Returns its id. */
-export async function saveWorkflow(actor: Actor, id: number | null, name: string, config: WorkflowConfig, opts: { message?: string } = {}): Promise<number> {
+export async function saveWorkflow(actor: Actor, id: number | null, name: string, config: WorkflowConfig, opts: { message?: string; keepPeople?: boolean; keepWebhooks?: boolean } = {}): Promise<number> {
   let stored: WorkflowConfig | null = null;
   if (id) stored = await ownWorkflow(actor, id);
-  const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config, stored), updated_at: new Date().toISOString() };
+  const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config, stored, opts.keepWebhooks), updated_at: new Date().toISOString() };
   let before: string | undefined;
+  if (opts.keepPeople) {
+    // The caller (an Access Key without "workflows:people") may not decide who approves or who is told: the Approve and
+    // Tell steps must be exactly those stored (none for a new Workflow). Checked here, where every save passes.
+    const was = stored ? await cleanConfig(actor, stored, stored, true) : { dueWorkingDays: 0, steps: [] };
+    if (peopleSteps(row.config) !== peopleSteps(was)) throw new WorkflowRefused("This key cannot choose who approves or who is told: send the Approve and Tell steps exactly as they were read, or none for a new Workflow.");
+  }
   if (id) {
     before = JSON.stringify(stored?.asking);
     await ensureBaseline("workflow", id, actor.personId);
@@ -115,9 +130,14 @@ export async function setWorkflowCheck(actor: Actor, id: number, check: { change
   return true;
 }
 
-/** Deletes a Workflow the actor owns. */
-export async function deleteWorkflow(actor: Actor, id: number) {
+/** Deletes a Workflow the actor owns. With `keepPeople` (an Access Key without "workflows:people") a Workflow that has an
+ * Approve or Tell step is refused: deleting it would drop its Approvals. */
+export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeople?: boolean } = {}) {
   await ownWorkflow(actor, id);
+  if (opts.keepPeople) {
+    const { data } = await db().from("workflows").select("config").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+    if (((data?.config as WorkflowConfig | undefined)?.steps ?? []).some((s) => s.type === "approve" || s.type === "tell")) throw new WorkflowRefused("This key cannot delete a Workflow that has an Approve or Tell step: that decides who approves.");
+  }
   await db().from("workflows").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
 }
 

@@ -37,7 +37,7 @@ Restart the assistant, then pick a Starter (below) or ask it, for example, "What
 
 ## What the assistant gets
 
-Every tool is one call to Ziffr's API, so the scope it needs is the API's. The labels are the ones on the key form and the consent screen: "Read metrics" (`metrics:read`), "Submit values" (`values:submit`), "Create metrics" (`metrics:write`), "Change metrics" (`metrics:edit`), "Read dashboards" (`dashboards:read`), "Build dashboards" (`dashboards:write`), "Manage alerts" (`alerts:write`), "Read questions and tasks" (`actions:read`), "Answer questions and tasks" (`actions:write`). A tool the key lacks the scope for answers `forbidden`; the server still lists every tool.
+Every tool is one call to Ziffr's API, so the scope it needs is the API's. The labels are the ones on the key form and the consent screen: "Read metrics" (`metrics:read`), "Submit values" (`values:submit`), "Create metrics" (`metrics:write`), "Change metrics" (`metrics:edit`), "Read dashboards" (`dashboards:read`), "Build dashboards" (`dashboards:write`), "Manage alerts" (`alerts:write`), "Read questions and tasks" (`actions:read`), "Answer questions and tasks" (`actions:write`), "Build workflows" (`workflows:write`). A tool the key lacks the scope for answers `forbidden`; the server still lists every tool.
 
 | Tool | Needs | What it does |
 | --- | --- | --- |
@@ -67,6 +67,9 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 | `create_dashboard`, `add_widget`, `update_widget`, `remove_widget` | Build dashboards | An empty dashboard with an introduction if given, and its widgets, placed in the first free spot; a widget can show its Metric by quarter, half-year or year (`settings.display`) |
 | `list_alerts` | Read metrics | The key's creator's own Alerts (never anyone else's), with their Metric, condition, state and when each last fired |
 | `create_alert`, `update_alert`, `delete_alert` | Manage alerts and Read metrics | Makes, changes (condition, way of telling, option, pause) and removes an Alert for the creator only, on a Metric they see; refused in words at a limit (20 per person, 5 per Metric) or for a condition the Metric cannot give |
+| `list_workflows` | Read metrics | The workspace's Workflows by id and name |
+| `get_workflow` | Read metrics | A Workflow the key's creator owns, with its Due Date and steps in order and how many Metrics use it |
+| `create_workflow`, `update_workflow`, `delete_workflow` | Build workflows | Makes, changes (name, Due Date, steps) and deletes the creator's own Workflows, through the checks of the Workflow editor; an assistant cannot choose who approves or who a Tell step tells, so it sends Approve and Tell steps back as read and cannot delete a Workflow that has one |
 | `list_actions` | Read questions and tasks | The Questions and Tasks that wait for the key's creator and those they asked, with their state, what they are for (an Approval, a Self-check, an Escalation or none), Metric, period and words |
 | `reply_to_action` | Answer questions and tasks | Replies in an Action's Thread as the creator, with a Correction if given; only words, it never approves or confirms |
 | `set_action_status`, `mark_task_done` | Answer questions and tasks | Closes or reopens an Action the creator asked; marks the creator's own Task done |
@@ -107,6 +110,7 @@ In Claude Code they are commands such as `/mcp__ziffr__weekly_review` (`ziffr` i
 - A read-only key (without "Submit values", "Create metrics", "Change metrics", "Build dashboards" or "Manage alerts") cannot record, create or change anything, whatever the assistant tries.
 - A key with "Change metrics" changes targets, Projections, Sources and Submitters only of the Metrics its creator owns or edits, and the Unusual Value check only of the Workflows they own; never a Metric's name, description, period or Workflow, and never as a Guest. Each Submitter it adds is asked at once, so it names at most 20 at a time, and through keys nobody is asked more than once a day for a Metric or five times a day in all. Keys made before "Change metrics" existed cannot do any of it.
 - There is no tool to make, list or revoke a View Link, and an assistant cannot be given that scope ("Manage View Links", `view-links:write`): a View Link publishes data outside the workspace. Programs do it through the API with their own Access Key.
+- A key with "Build workflows" changes only Workflows its creator owns. Choosing who approves or who a Tell step tells needs the scope `workflows:people`, which no assistant can be given; the assistant sends those steps back as read, or Ziffr refuses.
 - There is no tool to approve a value or send it back, and an assistant cannot be given that scope ("Approve values", `values:approve`): Approval is a person's check, and words in a Thread could talk an assistant into it. Programs approve through the API with their own Access Key.
 - Every call shows in the key's Access Log on the Access Keys page. Revoke the key there to cut the assistant off at once.
 - Metric names and descriptions come from your workspace. Anyone who can name a Metric can put text in front of the assistant, so give it a read-only key unless it should submit values.

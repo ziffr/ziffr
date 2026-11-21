@@ -378,6 +378,8 @@ In a **Trial Workspace**, at most two Access Keys work at a time, and none works
 | **Approve values** | It may approve a value waiting for you, or send it back, as you. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants, and never for your own values. |
 | **Manage View Links** | It may make, list and revoke View Links to the dashboards you own, which show them to people outside the Workspace. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants or Guests. The address of a new link is shown once, to the program that made it. |
 | **Read usage figures** | Only for Owners and Admins. It may read counts of how the Workspace is used: views of dashboards, decks and Metrics per day, values by Source, and how many Metrics, dashboards and Submitters go unused. Never a name, an id or a value, and never who looked. Not offered to assistants. The [Usage Feed](#usage) can send them into the Workspace as Metrics. |
+| **Build workflows** | It may make, change and delete **your own Workflows** and their steps (reminders, escalation, the Unusual Value check, publishing, the asking schedule). Needs Read metrics too. |
+| **Name who approves and who is told** | On top of Build workflows: it may choose the Approvers of a Workflow and who a Tell step tells. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants. |
 | **Until** | The last day the key works, through the end of that day in UTC. At most a year ahead. |
 | **Create key** | Makes the key |
 

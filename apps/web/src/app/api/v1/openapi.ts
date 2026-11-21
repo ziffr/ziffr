@@ -209,6 +209,27 @@ const ENDPOINTS: Endpoint[] = [
     summary: "List Workflows", description: "The workspace's Workflows by id and name, to name the one to ask about with GET /workflows/{id}/period-status.",
   },
   {
+    method: "post", path: "/workflows", scope: "workflows:write", body: S.CreateWorkflow, ok: { status: 201, name: "WorkflowDetail", schema: S.ApiWorkflowDetail },
+    summary: "Make a Workflow",
+    description: "Makes a Workflow owned by the key's creator, through the same function as the Workflow editor: a Due Date in working days and steps in order (remind, escalate, check, approve, publish, tell), cleaned the same way (a publish step is always last). Needs the scope Build workflows, while the creator's role may create. Who approves and who a Tell step tells are a person's decision: an Approve or Tell step needs the scope Name who approves and who is told as well, which only a program's Access Key can hold, never an assistant connected through OAuth. TODO(#361): the asking schedule (a time and days) comes with its own ticket.",
+    errors: [{ status: 422, description: "A step that cannot be (a Tell step without a level, a person who is not a member), or an Approve or Tell step without the scope workflows:people." }],
+  },
+  {
+    method: "get", path: "/workflows/{id}", scope: "metrics:read", ok: { status: 200, name: "WorkflowDetail", schema: S.ApiWorkflowDetail },
+    summary: "Read a Workflow's steps", description: "A Workflow the key's creator owns, with its Due Date and steps, to change it with PATCH. Someone else's Workflow is not found; see GET /workflows for names.",
+  },
+  {
+    method: "patch", path: "/workflows/{id}", scope: "workflows:write", body: S.UpdateWorkflow, ok: { status: 200, name: "WorkflowDetail", schema: S.ApiWorkflowDetail },
+    summary: "Change a Workflow",
+    description: "Changes the name, Due Date or steps of a Workflow the creator owns; parts left out stay, `steps` replaces all of them, and the Workflow's history names the key. Without the scope workflows:people the Approve and Tell steps must be sent back exactly as read (GET /workflows/{id}).",
+    errors: [{ status: 422, description: "A step that cannot be, or an Approve or Tell step changed without the scope workflows:people." }],
+  },
+  {
+    method: "delete", path: "/workflows/{id}", scope: "workflows:write", ok: { status: 200, name: "RemovedWorkflow", schema: S.RemovedWorkflow },
+    summary: "Delete a Workflow", description: "Deletes a Workflow the creator owns; the Metrics that used it have none then. A Workflow with an Approve or Tell step is deleted only with the scope workflows:people, since that drops its Approvals.",
+    errors: [{ status: 422, description: "It has an Approve or Tell step and the key lacks the scope workflows:people." }],
+  },
+  {
     method: "get", path: "/workflows/{id}/period-status", scope: "metrics:read", query: S.periodStatusQuery, ok: { status: 200, name: "PeriodStatus", schema: S.PeriodStatus },
     summary: "How a Workflow's period is going",
     description: "A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline): how many of the values it asks for are in (`in` of `of`), how many are published and locked, and what happened, oldest first: who was asked and reminded and by which Connectors, which values came in, Approvals and Actions about them, what published and locked, and the Snapshots made. Events of one kind close together are one line. A Metric the key's creator does not see appears only as a count (\"1 value\"), never by name, value or sender; a Thread's words appear only as their first words and only for a Thread the creator may read. `period` is a period's first day; the newest period that has anything when left out. Every call is in the Access Log.",
@@ -416,7 +437,7 @@ export function openApiDocument() {
   for (const e of ENDPOINTS) {
     schemas[e.ok.name] = json(e.ok.schema);
     const parameters: unknown[] = [];
-    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : name === "id" && e.path.startsWith("/actions") ? "The Action's id." : name === "id" && e.path.startsWith("/snapshots") ? "The Snapshot's id." : name === "id" && e.path.startsWith("/view-links") ? "The View Link's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
+    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : name === "id" && e.path.startsWith("/actions") ? "The Action's id." : name === "id" && e.path.startsWith("/workflows") ? "The Workflow's id." : name === "id" && e.path.startsWith("/snapshots") ? "The Snapshot's id." : name === "id" && e.path.startsWith("/view-links") ? "The View Link's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
     if (e.query) {
       const q = json(e.query, "input") as { properties?: Record<string, Record<string, unknown>>; required?: string[] };
       for (const [name, schema] of Object.entries(q.properties ?? {})) {

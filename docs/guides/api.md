@@ -131,6 +131,20 @@ A Metric's **Sources** are the ways its values may arrive (`web_form`, `mail`, `
 
 Per day: values recorded in total and by Source, and views of dashboards, decks and Metrics, never who looked. In `state`, as of the call: Metrics in use, Metrics without values, Metrics, dashboards and decks not opened for 90 days, Submitters without values and Metrics that are safe to archive. No name, id, person or value. Only what the key's creator sees counts (a Workspace Role grants no Metric). While fewer than 3 people are in the Workspace the values, views and Submitters are left out, as are days before the third person joined, and until 90 days were counted so is what is not opened; `withheld` names them. A Workspace's keys may call it 30 times an hour. See the [Usage guide](usage.md) for sending them into the Workspace as Metrics.
 
+## Workflows
+
+A key with **Build workflows** (`workflows:write`) makes, changes and deletes the Workflows its creator owns, steps included, through the same function as the Workflow editor, so the steps are cleaned the same way (a publish step is always last). Another person's Workflow, or one of another workspace, is `404`; a step that cannot be is `422` with the reason in words.
+
+| Call | Scope | What it does |
+| --- | --- | --- |
+| `GET /api/v1/workflows` | `metrics:read` | The workspace's Workflows, id and name. |
+| `GET /api/v1/workflows/{id}` | `metrics:read` | One of the creator's own Workflows: `due_working_days`, `lock_summary`, the `steps` in order and how many Metrics use it. |
+| `POST /api/v1/workflows` | `workflows:write` | Makes one: `name`, optional `due_working_days` and `steps` (`remind`, `escalate`, `check`, `approve`, `publish`, `tell`). |
+| `PATCH /api/v1/workflows/{id}` | `workflows:write` | Changes the `name`, `due_working_days`, `lock_summary` or `steps`; what is left out stays, `steps` replaces all of them. |
+| `DELETE /api/v1/workflows/{id}` | `workflows:write` | Deletes it; the Metrics that used it have none then. |
+
+**Who approves is a person's decision.** The Approve step (its Approvers, which values wait, what happens when nobody else could approve: a Self-check or counting the value) and who a Tell step tells are set only with the scope "Name who approves and who is told" (`workflows:people`) on top of `workflows:write`. Like `values:approve` it is never ticked by default and only a program's Access Key can hold it, not an assistant. Without it, an edit must send the Approve and Tell steps back exactly as `GET /workflows/{id}` gave them (or leave them out when making a Workflow), and a Workflow that has one is not deleted. Approvers and people told must be members, ids from `GET /people`. The asking schedule (a time and days per Workflow) is not part of the API yet.
+
 ## Questions, Tasks and Approvals
 
 A key acts on the **Actions** (Questions and Tasks, including the Approvals and Self-checks a Workflow asks) of the person who made it, by the same rules as the app. Every answer holds only Actions that person may read: the ones they are on, and others by the Metric's visibility and the Action's Group. An Action they may not read, or one of another workspace, is `404`; one they may read but may not change that way is `422` with the reason in words.

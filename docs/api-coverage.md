@@ -203,8 +203,6 @@ Ticketed. MCP follows where the ticket says so.
 
 - `ask` (questions.ts): Questions and Tasks for programs, #427
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
-- `saveWorkflow` (workflows.ts): Workflows for programs, #433
-- `deleteWorkflow` (workflows.ts): Workflows for programs, #433
 - `setMetricWorkflow` (workflows.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
