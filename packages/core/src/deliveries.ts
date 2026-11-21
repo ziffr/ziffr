@@ -12,9 +12,11 @@ import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type Deli
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { holdFor } from "./quiet-hours";
+import { planPrompt } from "./prompt-reach";
+import { NOT_SENT, notSentReason } from "./prompt-route";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEscape } from "./connectors/slack";
-import type { Period, Profile } from "./types";
+import type { Period, Profile, SourceId } from "./types";
 import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 import { announceNewAction } from "./action-state";
@@ -97,7 +99,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 
 /** What became of a Prompt: the Connector it went through, and whether it left Ziffr (sent), waits to (queued), or
  * stays in the Outbox because that Connector does not really send here (outbox), or failed. */
-export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" | "outbox" | "failed" };
+export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" | "outbox" | "failed"; /** Whether it went the way the person chose (else the first way the Metric allows that reaches them). */ chosen: boolean; /** Why it was not sent, when no allowed way reaches them. */ notSent?: string };
 
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
  * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
@@ -106,7 +108,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
-    db().from("metrics").select("id, name, period, sources, formula, workspace_id, archived_at").eq("id", input.metricId).single(),
+    db().from("metrics").select("id, name, slug, owner_id, period, sources, formula, workspace_id, archived_at").eq("id", input.metricId).single(),
     // A Contact is reached by the details this workspace keeps for them; a member by their own.
     db().from("profiles").select("*").eq("id", input.submitterId).single().then(async (r) => {
       if (!r.data) return r;
@@ -140,25 +142,43 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const metric = await openOne("metrics", metricRow?.workspace_id ?? "", metricRow);
   // A Derived Metric is computed and an Archived Metric asks for nothing: neither is ever prompted for.
   if (!metric || !person || !token || metric.formula || metric.archived_at) return false;
-  let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(metric.workspace_id, person.id, "prompt", null);
-  if (!CONNECTORS[via].renderPrompt) via = "email"; // a ticket system does not ask for numbers
-  const c = CONNECTORS[via];
-  // Answering in place only where the connector receives values and the metric accepts them from there.
-  const answerHere = Boolean(c.sourceId && c.capabilities.includes("values") && (metric.sources as string[]).includes(c.sourceId)) && repliesReturn(via, metric.workspace_id, await settingsInEffect());
   const ys = await yearStartFor(metric.workspace_id, metric.period as Period);
   const current = periodStart(new Date(), metric.period as Period, ys);
   const period = input.period ?? current;
   const label = period !== current ? `for ${periodLabel(period, metric.period as Period, ys)}` : CURRENT_PERIOD[metric.period as Period];
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
+  // The person's chosen way counts only where the Metric accepts answers; else the first way both allow that reaches
+  // them (prompt-route.ts). With none, the Prompt waits in the Outbox and the owner is told, never sent elsewhere.
+  const chosen = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(metric.workspace_id, person.id, "prompt", null);
+  const accepts = metric.sources as SourceId[];
+  const plan = await planPrompt(metric.workspace_id, person.id, accepts, chosen, true);
+  if (!plan.route.via) return keepNotSent({ metric: { id: metric.id, name: metric.name, slug: metric.slug as string, ownerId: metric.owner_id as string, workspaceId: metric.workspace_id }, person: person as Profile, tokenId: token.id, chosen, question, reason: notSentReason(accepts, plan.mailReplies, plan.reach) });
+  const { route } = plan;
+  const via: ConnectorId = route.via;
+  const c = CONNECTORS[via];
+  const answerHere = route.answerHere;
   // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
   const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }]) as { id: number }[];
-  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
+  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: route.formLink ? FORM_LINK : "" });
   const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
   const d = await insertDelivery(metric.workspace_id, { connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id });
   if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
   // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
   const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
-  return { connector: via, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+  return { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+}
+
+/** A Prompt no allowed way reaches the person with: one Delivery that stays in the Outbox as "Not sent: …" (the reason
+ * holds no names: Metric names are sealed), and the Metric's owner told, once until a Prompt goes again. It carries no
+ * form link and no Prompt, so nothing can be answered from it; it is tied to the Metric by the person's Token only. */
+async function keepNotSent(n: { metric: { id: number; name: string; slug: string; ownerId: string; workspaceId: string }; person: Profile; tokenId: number; chosen: ConnectorId; question: string; reason: string }): Promise<PromptOutcome> {
+  const ws = n.metric.workspaceId;
+  const connector: ConnectorId = CONNECTORS[n.chosen].renderPrompt ? n.chosen : "email";
+  const { data: last } = await db().from("deliveries").select("last_error").eq("workspace_id", ws).eq("recipient_id", n.person.id).eq("kind", "prompt").eq("form_token_id", n.tokenId).order("id", { ascending: false }).limit(1);
+  const told = String(last?.[0]?.last_error ?? "").startsWith(NOT_SENT);
+  await insertSealed("deliveries", ws, [{ connector, recipient_id: n.person.id, sender_id: null, kind: "prompt", prompt_id: null, subject: `${n.metric.name}: not sent`, body: n.question, mail_state: "outbox", form_token_id: n.tokenId, last_error: n.reason }]);
+  if (!told) await deliverNotice(ws, { recipientId: n.metric.ownerId, senderId: null, subject: `${n.person.name} was not asked for ${n.metric.name}`, text: `${n.person.name} was not asked for ${n.metric.name}, and the request waits in the Outbox. ${n.reason}`, link: `/metrics/${n.metric.slug}` });
+  return { connector, chosen: false, state: "outbox", notSent: n.reason };
 }
 
 /** A plain notice through someone's Connector, not about a question or task (e.g. an access request). A null sender

@@ -50,13 +50,12 @@ describe("sending by Telegram", () => {
     expect(sent.text).toContain("Reply to this message with the number.");
   });
 
-  it("adds the form link only to the message when the Metric does not take answers by Telegram", async () => {
-    const { w, sara, ann, m, code } = await setup({ sources: ["web_form"] });
+  it("sends no Prompt on Telegram for a Metric that does not take answers by Telegram", async () => {
+    const { w, sara, ann, m } = await setup({ sources: ["web_form"] });
+    const before = sends().length;
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
-    const d = await latest(w.id, ann);
-    expect(d.mail_state).toBe("sent");
-    expect(d.body).not.toContain(code);
-    expect(sends().at(-1)!.params.text).toContain(`https://ziffr.example.test/submit/${code}`);
+    expect((await latest(w.id, ann)).connector).toBe("email");
+    expect(sends()).toHaveLength(before);
   });
 
   it("sends what people wrote literally: no formatting, no hidden link", async () => {
@@ -72,7 +71,8 @@ describe("sending by Telegram", () => {
     const { w, sara, ann, m } = await setup({ connected: false });
     const before = sends().length;
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
-    expect(await latest(w.id, ann)).toMatchObject({ mail_state: "failed", last_error: "Not connected to Telegram." });
+    // Not connected: a Prompt goes the way that does reach them, an email.
+    expect((await latest(w.id, ann)).connector).toBe("email");
 
     await setTelegramEnabled(w.actor(sara), false);
     expect(await telegramSends(w.id)).toBe(false);

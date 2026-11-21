@@ -59,13 +59,12 @@ describe("sending by Slack", () => {
     expect(attachment.color).toMatch(/^#[0-9A-F]{6}$/);
   });
 
-  it("adds the form link only to the message, never to the text the Outbox keeps", async () => {
-    const { w, sara, ann, m, code } = await setup(["web_form"]);
+  it("posts no Prompt on Slack for a Metric that does not take answers by Slack", async () => {
+    const { w, sara, ann, m } = await setup(["web_form"]);
+    const before = posts().length;
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
-    const d = await latest(w.id, ann);
-    expect(d.mail_state).toBe("sent");
-    expect(d.body).not.toContain(code);
-    expect(posts().at(-1)!.params.text).toContain(`https://ziffr.example.test/submit/${code}`);
+    expect((await latest(w.id, ann)).connector).toBe("email");
+    expect(posts()).toHaveLength(before);
   });
 
   it("escapes what people wrote, so it cannot become a link or a mention", async () => {
@@ -97,7 +96,8 @@ describe("sending by Slack", () => {
     const nobody = await s.w.person("member", { email: mail("nobody") });
     await s.w.token(s.m.id, nobody);
     await deliverPrompt({ metricId: s.m.id, submitterId: nobody, senderId: s.sara, via: "slack" });
-    expect(await latest(s.w.id, nobody)).toMatchObject({ mail_state: "failed", last_error: "Nobody on the connected Slack has their address." });
+    // Nobody on Slack has their address: the Prompt goes the way that does reach them, an email.
+    expect((await latest(s.w.id, nobody)).connector).toBe("email");
     await db().from("slack_opt_outs").insert({ workspace_id: s.w.id, person_id: s.ann });
     await deliverPrompt({ metricId: s.m.id, submitterId: s.ann, senderId: s.sara, via: "slack" });
     expect(await latest(s.w.id, s.ann)).toMatchObject({ mail_state: "failed", last_error: "They stopped reminders on Slack." });

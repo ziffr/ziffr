@@ -5,6 +5,7 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { CONNECTOR_IDS, CONNECTORS, type ConnectorId } from "./connectors/index";
 import { deliverPrompt } from "./deliveries";
+import { isNotSentReason } from "./prompt-route";
 import { TRIAL_HOLDS_BACK } from "./trials";
 import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
 
@@ -12,7 +13,7 @@ import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
 export const ASK_NOW_EVERY_MINUTES = 10;
 
 /** What became of a press: where the Prompt went, and whether it really left Ziffr or stayed in the Outbox and why. */
-export type AskNowResult = { connector: ConnectorId; label: string; state: "sent" | "queued" | "outbox" | "failed"; note: string | null };
+export type AskNowResult = { connector: ConnectorId; label: string; state: "sent" | "queued" | "outbox" | "failed"; note: string | null; /** Whether it went the way the person chose; else the first way the Metric accepts answers by that reaches them. */ chosen: boolean };
 
 /** Whether the actor may press Ask me now on a Metric: they own it and are one of its Submitters themselves. */
 export async function canAskNow(actor: Actor, metricId: number): Promise<boolean> {
@@ -38,7 +39,7 @@ export const NOT_ASKED = "It could not be asked for this way.";
 /** A Delivery's stored reason as it may be shown, or null when there is none. */
 export function shownReason(lastError: string | null | undefined): string | null {
   if (!lastError) return null;
-  return SHOWN_REASONS.has(lastError) ? lastError : NOT_DELIVERED;
+  return SHOWN_REASONS.has(lastError) || isNotSentReason(lastError) ? lastError : NOT_DELIVERED;
 }
 
 /** Sends the Metric's current Prompt to the actor now. Refused unless they own and submit the Metric; at most once
@@ -63,21 +64,21 @@ export async function askMeNowBy(actor: Actor, metricId: number, via: ConnectorI
   for (const c of ways.length ? ways : [null]) {
     const fallback = c ?? "email";
     const since = new Date().toISOString();
-    let asked = false;
+    let asked: Awaited<ReturnType<typeof deliverPrompt>> = false;
     try {
-      asked = Boolean(await deliverPrompt({ metricId, submitterId: actor.personId, senderId: null, via: c }));
+      asked = (await deliverPrompt({ metricId, submitterId: actor.personId, senderId: null, via: c }));
     } catch (e) {
       console.error("Ask me now could not make a Prompt:", (e as Error).message);
     }
     if (!asked) {
-      out.push({ connector: fallback, label: CONNECTORS[fallback].label, state: "failed", note: NOT_ASKED });
+      out.push({ connector: fallback, label: CONNECTORS[fallback].label, state: "failed", note: NOT_ASKED, chosen: true });
       continue;
     }
     const { data: d } = await db().from("deliveries").select("connector, mail_state, last_error").eq("workspace_id", actor.workspaceId)
       .eq("recipient_id", actor.personId).eq("kind", "prompt").gte("created_at", since).order("id", { ascending: false }).limit(1).maybeSingle();
     const connector = (d?.connector ?? fallback) as ConnectorId;
     const state = (["sent", "queued", "outbox", "failed"].includes(d?.mail_state) ? d!.mail_state : "outbox") as AskNowResult["state"];
-    out.push({ connector, label: CONNECTORS[connector].label, state, note: shownReason(d?.last_error as string | null) });
+    out.push({ connector, label: CONNECTORS[connector].label, state, note: shownReason(d?.last_error as string | null), chosen: asked.chosen });
   }
   return out;
 }

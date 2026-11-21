@@ -30,7 +30,7 @@ describe("createMetric says who was asked", () => {
   it("with no mail set up, the request stays in the Outbox and the sentence says nothing was sent", async () => {
     mailOff();
     const w = await ws(); const sara = await w.person("owner"); const ana = await w.contact({ email: address() });
-    const made = await createMetric(w.actor(sara), { name: "Cups", submitters: [ana] });
+    const made = await createMetric(w.actor(sara), { name: "Cups", submitters: [ana], sources: ["web_form", "mail"] });
     expect(made.submitters).toBe(1);
     expect(made.asked).toEqual([expect.objectContaining({ personId: ana, connector: "email", state: "outbox" })]);
     expect(await firstAsksFor(w.actor(sara), made.id)).toContain("Email is not set up on this Ziffr, so nothing was sent to");
@@ -38,7 +38,7 @@ describe("createMetric says who was asked", () => {
   it("with mail set up, the request is sent and the sentence says by email", async () => {
     mailOn();
     const w = await ws(); const sara = await w.person("owner"); const ana = await w.contact({ email: address() });
-    const made = await createMetric(w.actor(sara), { name: "Cups", submitters: [ana] });
+    const made = await createMetric(w.actor(sara), { name: "Cups", submitters: [ana], sources: ["web_form", "mail"] });
     expect(made.asked).toEqual([expect.objectContaining({ personId: ana, connector: "email", state: "sent" })]);
     expect(await firstAsksFor(w.actor(sara), made.id)).toMatch(/got a form link and a first request by email\.$/);
   });

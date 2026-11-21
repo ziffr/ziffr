@@ -116,7 +116,7 @@ describe("what a held message does", () => {
     const to = (await db().from("profiles").select("email").eq("id", ann).single()).data!.email as string;
     await setMyQuietHours(w.actor(ann, "member"), aroundNow());
     const outcome = await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
-    expect(outcome).toEqual({ connector: "email", state: "queued" });
+    expect(outcome).toMatchObject({ connector: "email", state: "queued" });
     const held = await lastDelivery(w.id, ann);
     expect(held.mail_state).toBe("queued");
     expect(new Date(held.not_before!).getTime()).toBeGreaterThan(Date.now());
