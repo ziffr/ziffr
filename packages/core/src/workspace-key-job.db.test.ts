@@ -7,7 +7,8 @@ import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { openRows, SEALED_COLUMNS } from "./sealed-columns";
+import { ALL_SEALED_COLUMNS, openRows } from "./sealed-columns";
+import { SEALED_THINGS } from "./sealed-things";
 import { installationAdmin, workspace } from "./test/db-fixtures";
 import { sealCandidate, reencryptionJob } from "./workspace-key-job";
 import { SEALED_LABELS } from "./sealed-labels";
@@ -229,15 +230,17 @@ describe("the re-encryption job", () => {
     expect(isSealed(data!.name as string)).toBe(false);
   });
 
-  it("leaves old plain Breakdown labels plain, as they merge only while plain, and seals the rest", async () => {
+  it("seals old plain Breakdown labels with their index", async () => {
     const w = await plainWorkspace();
     const obs = await w.value(w.m.id, "2026-10-01", 10, w.owner);
     await db().from("breakdown_rows").insert([{ observation_id: obs, label: "Hamburg", value: 6, position: 0 }, { observation_id: obs, label: "Berlin", value: 4, position: 1 }]);
     const run = await reencryptionJob(only(w));
     expect(run.errors).toBe(0);
-    const { data: rows } = await db().from("breakdown_rows").select("label, label_index").eq("observation_id", obs);
-    expect(rows!.map((r) => r.label).sort()).toEqual(["Berlin", "Hamburg"]);
-    expect(rows!.every((r) => r.label_index === null)).toBe(true);
+    const { data: rows } = await db().from("breakdown_rows").select("id, label, label_index").eq("observation_id", obs);
+    const cipher = await workspaceCipher(w.id);
+    expect(rows!.map((r) => cipher.open({ table: "breakdown_rows", column: "label", row: r.id as number }, r.label as string)).sort()).toEqual(["Berlin", "Hamburg"]);
+    expect(rows!.every((r) => isSealed(r.label as string) && /^b1\.1\./.test(r.label_index as string))).toBe(true);
+    expect(rows!.find((r) => cipher.open({ table: "breakdown_rows", column: "label", row: r.id as number }, r.label as string) === "Hamburg")!.label_index).toBe(cipher.blindIndex("breakdown_rows.label", " hamburg "));
     for (const id of w.messages) expect(isSealed(await body(id))).toBe(true);
   });
 
@@ -252,12 +255,13 @@ describe("the re-encryption job", () => {
 describe("the lists of sealed columns", () => {
   it("are the same in SEALED_COLUMNS, the job's SQL and the progress page's words", async () => {
     // Whoever seals a column adds it to all three; this fails until they do.
-    const expected = [...Object.entries(SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), "audit_events.details"].sort();
+    const columns = [...Object.entries(ALL_SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), "audit_events.details"].sort();
+    const expected = [...columns, ...SEALED_THINGS.map((t) => `${t.table}.${t.column}`)].sort();
     const w = await plainWorkspace();
     const { data, error } = await db().rpc("seal_counts", { p_workspace: w.id, p_current: 1 });
     expect(error).toBeNull();
-    expect((data as { table_name: string; column_name: string }[]).map((r) => `${r.table_name}.${r.column_name}`).sort()).toEqual(expected);
-    for (const table of Object.keys(SEALED_COLUMNS)) {
+    expect((data as { table_name: string; column_name: string }[]).map((r) => `${r.table_name}.${r.column_name}`).sort()).toEqual(columns);
+    for (const table of Object.keys(ALL_SEALED_COLUMNS)) {
       const { error: e } = await db().rpc("seal_candidates", { p_workspace: w.id, p_table: table, p_current: 1, p_skip: [], p_limit: 1 });
       expect([table, e]).toEqual([table, null]);
     }
@@ -273,7 +277,7 @@ describe("the progress for Installation Admins", () => {
     const view = await keyProgress(a.actor);
     const mine = view.listed.find((l) => l.workspaceId === w.id);
     expect(view.encrypting).toBe(true);
-    expect(mine?.versions).toEqual([{ version: 1, current: true, wrappedUnderPrevious: false }]);
+    expect(mine?.versions).toEqual([{ version: 1, current: true, pending: false, wrappedUnderPrevious: false }]);
     expect(mine?.columnsDone).toBe(mine?.columns);
     const { data: key } = await db().from("workspace_keys").select("wrapped").eq("workspace_id", w.id).single();
     expect(JSON.stringify(view)).not.toContain(key!.wrapped as string);

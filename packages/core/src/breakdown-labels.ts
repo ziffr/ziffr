@@ -42,8 +42,13 @@ function normaliseLegacy(label: string): string {
   return normaliseForIndex(label);
 }
 
-/** A history entry's label opened: it is the sealed label of the row it was copied from, bound to that row's id. */
-export function openHistoryLabel(cipher: WorkspaceCipher, entry: { row_id: number | string | null; label: string }): string | null {
-  if (entry.row_id === null || entry.row_id === undefined) return isSealed(entry.label) ? null : entry.label;
-  return cipher.open({ table: "breakdown_rows", column: "label", row: entry.row_id }, entry.label);
+/** A history entry's label opened. A copy of a row's label is sealed for the row it was copied from (`row_id`); an
+ * older entry, or one the re-encryption job sealed for itself, for its own id. A plain one reads as it is only while its
+ * column is not finished. */
+export function openHistoryLabel(cipher: WorkspaceCipher, entry: { row_id: number | string | null; label: string; id?: number | string }): string | null {
+  // A plain label is judged by the history's own column (once the job has finished it, plain values are refused); a
+  // sealed one opens for the row it was copied from, or for its own id.
+  if (!isSealed(entry.label)) return cipher.open({ table: "breakdown_history", column: "label", row: entry.id ?? 0 }, entry.label);
+  if (entry.row_id !== null && entry.row_id !== undefined) return cipher.open({ table: "breakdown_rows", column: "label", row: entry.row_id }, entry.label);
+  return entry.id === undefined ? null : cipher.open({ table: "breakdown_history", column: "label", row: entry.id }, entry.label);
 }

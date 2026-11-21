@@ -44,17 +44,19 @@ export const SEALED_COLUMNS = {
  * column of SEALED_COLUMNS on its own, and a Breakdown label sealed without its `label_index` (and its history) could no
  * longer merge. A Breakdown row's label is written by submissions.ts through record_observation with its id taken
  * first and found again by its blind index (breakdown-labels.ts); breakdown_history.label is a copy of it with the row's
- * id in `row_id`. Old plain labels stay plain and keep merging until they are re-sealed with their index and history in
- * #250. */
-export const INDEXED_COLUMNS = { breakdown_rows: ["label"] } as const;
+ * id in `row_id`. Old plain labels stay plain and keep merging until the re-encryption job re-seals them with their index and
+ * history (#250). */
+export const INDEXED_COLUMNS = { breakdown_rows: ["label"], breakdown_history: ["label"] } as const;
 
 /** The sealed columns the database never leaves null: unreadable ones read empty, not missing. */
 const NEVER_NULL: Partial<Record<OpenedTable, readonly string[]>> = { dashboards: ["intro"], metrics: ["description"] };
 
-const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
+/** Every table with sealed columns, also the ones sealed with an index: what the re-encryption job walks. */
+export const ALL_SEALED_COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
+const COLUMNS = ALL_SEALED_COLUMNS;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
+export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id" };
 
 /** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;

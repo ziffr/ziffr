@@ -191,6 +191,21 @@ All of Ziffr's data is in the Postgres database: Metrics, values, dashboards, de
 
 **Deleted Workspaces and backups.** Deleting a Workspace, such as a trial that ended, destroys its Workspace Key first (spec 0028). Once a Workspace's data is sealed with that key (from spec 0028's step 1 on), the live database and every backup taken afterwards cannot open what is left of it. A backup taken before the deletion still holds the wrapped key, and `ZIFFR_SECRETS_KEY` still unwraps it, so that backup opens until it is itself deleted. A deleted Workspace is therefore unreadable in backups after the retention period: tell people your retention period (N days), and promise nothing stronger.
 
+## Changing keys
+
+Two keys can change without taking Ziffr down. Neither is on a schedule you must keep, but the first is cheap enough to do once a year, and both are for after an incident.
+
+**The Installation's key, `ZIFFR_SECRETS_KEY`**, once a year and after an incident (spec 0028, spec 0009):
+
+1. Keep the old key somewhere safe. Make a new one: `openssl rand -base64 32`.
+2. Set `ZIFFR_SECRETS_KEY_PREVIOUS` to the old key and `ZIFFR_SECRETS_KEY` to the new one, and restart. With Docker, put both in the settings file: a value there wins over the key kept in the `ziffr_keys` volume, which still holds the old one, so do not rely on the volume any more and back the new key up apart from the database.
+3. The job ([scheduled jobs](jobs.md)) wraps every Workspace Key again under the new key, one row per Workspace, within a few runs. Watch the Installation settings page, under Encryption of Workspaces: it says when no Workspace Key is wrapped under the previous key any more. The job's answer counts the keys it could not open (`rewrapFailed`).
+4. Then remove `ZIFFR_SECRETS_KEY_PREVIOUS` and restart. Slack bot tokens and the Installation's own sealed settings are sealed again as they are used ([Slack](slack.md)); check them before the old key goes.
+
+Start with the new key alone, without the old one in `ZIFFR_SECRETS_KEY_PREVIOUS`, and no Workspace can be opened: put the old key back as previous at once, nothing is lost as long as you still have it.
+
+**A Workspace's key**, when an Owner asks or after an incident, never on a schedule. On the Installation settings page, under Encryption of Workspaces, an Installation Admin picks **Change key** on the Workspace. The new key version is added at once but takes over only after about eleven minutes, so that every running server has loaded it (servers keep a Workspace's keys for 10 minutes) before anything is sealed with it. Then it seals everything written from then on, and the job seals everything written before again under it, a few hundred rows at a time while Ziffr keeps running; a big Workspace takes a while. The old key version is destroyed by the job once nothing is sealed under it any more and 15 minutes have passed since it was retired, by which time no running server can still write under it; the page lists it as retired until then. A removed Contact whose Workspace cannot be told (from before this release) keeps old key versions alive, since their name may be sealed under any of them. A value that does not open keeps the old version alive: the page counts those. Changing a Workspace's key protects what is written after it and the live database. A dump or backup taken before the change still holds the old key in wrapped form, and `ZIFFR_SECRETS_KEY` still unwraps it: that copy stays readable until it is deleted.
+
 ## Before you invite anyone
 
 - [ ] Migrations applied, and `supabase db push` reports nothing left to do (with Docker: `migrate` did it; `docker compose logs migrate`)

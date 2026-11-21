@@ -7,4 +7,6 @@ export const SEALED_LABELS: Record<string, string> = {
   "contacts.phone": "Contacts' phone numbers", "profiles.name": "Contacts' names", "deliveries.subject": "Outbox subjects", "deliveries.body": "Outbox texts",
   "intake_log.sender": "Intake senders", "intake_log.raw": "Intake texts", "intake_log.detail": "Intake details", "audit_events.object_name": "Audit Log names",
   "audit_events.details": "Audit Log details", "alerts.level": "Alert levels", "webhooks.url": "Webhook addresses", "webhooks.secret": "Webhook secrets", "webhooks.secret_previous": "Webhook previous secrets", "condensed_values.payload": "Condensed values", "dashboards.intro": "Dashboard introductions", "widgets.title": "Widget titles", "metrics.description": "Metric descriptions", "webhook_external_ids.external_id": "External task ids", "webhook_external_ids.url": "External task addresses",
+  "breakdown_rows.label": "Breakdown labels", "breakdown_history.label": "Breakdown label history", "widgets.settings": "Finding words", "dashboard_snapshots.words": "Snapshot words", "dashboard_snapshots.frozen": "Snapshot Breakdown labels",
+  "versions.snapshot": "Version words", "view_links.frozen": "View Link copies", "view_links.snapshot_words": "View Link Snapshot words",
 };
