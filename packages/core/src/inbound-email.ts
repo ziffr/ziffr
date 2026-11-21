@@ -8,13 +8,14 @@ import PostalMime from "postal-mime";
 import { db } from "./db";
 import { addressIn, headerSafe, isAddress, mailOn, sendMail, type MailTransport } from "./mail";
 import { settingsInEffect } from "./settings-in-effect";
-import { routeReply } from "./reply-routing";
+import { REPLY_DAYS, routeReply } from "./reply-routing";
 import type { SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
 import { inboxOf } from "./sign-in-limits";
 import { createHash } from "node:crypto";
 import { takeReplyTest } from "./installation-replies";
+import { holdReply } from "./held-replies";
 
 /** Largest raw message taken, in bytes. */
 export const MAX_INBOUND_BYTES = 1024 * 1024;
@@ -29,18 +30,18 @@ export const INBOUND_ALL = 10_000;
 export const REFUSALS_PER_DELIVERY = 50;
 /** Messages naming a real reply address for their recipient, taken by the whole Installation in an hour. */
 export const INBOUND_TOTAL = 1000;
-/** How long a reply address works. */
-const REPLY_DAYS = 30;
 
 /** What the webhook found in a message: the reply tokens it was sent to, who sent it, its new text, its Message-ID,
  * whether it was written by a machine (an out-of-office reply), which is never taken, and whether the receiving
  * provider vouched for the sender (see senderVerified). */
-export type InboundEmail = { tokens: string[]; from: string | null; text: string; messageId: string | null; automatic: boolean; verified: boolean };
+export type InboundEmail = { tokens: string[]; from: string | null; text: string; messageId: string | null; automatic: boolean; verified: boolean;
+  /** The named provider said, in its own topmost Authentication-Results, that DMARC failed for the sender's domain: a positive sign of forgery (see senderFailed). */
+  failed?: boolean };
 
 /** What became of an inbound email, for the provider's logs; it never says more than the outcome's name. */
 export type InboundOutcome =
   | "recorded" | "refused" | "form_link" | "replied" | "corrected"
-  | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited" | "test";
+  | "held" | "unknown_token" | "expired" | "wrong_sender" | "unverified" | "automatic" | "duplicate" | "too_many" | "empty" | "limited" | "test";
 
 /** An Authentication-Results value (RFC 8601) as its parts: the authserv-id, then one result per method, lower case.
  * Comments in parentheses and quoted strings are taken out first, so text the sender controls inside them (an
@@ -82,6 +83,19 @@ export function senderVerified(headers: { key: string; value: string }[], from: 
   });
 }
 
+/** Whether the provider named in ZIFFR_INBOUND_AUTHSERV_ID said, in the topmost Authentication-Results it wrote, that DMARC
+ * failed for the From address's domain. That is a verdict against the sender, not just a missing vouch: such mail is
+ * refused and no one is emailed about it, so a forger cannot make Ziffr send the person a link to confirm. */
+export function senderFailed(headers: { key: string; value: string }[], from: string | null, authservId: string | undefined): boolean {
+  if (!authservId || !from) return false;
+  const top = headers.find((h) => h.key.toLowerCase() === "authentication-results");
+  if (!top) return false;
+  const [id, ...results] = authResults(top.value);
+  if (id.split(/\s+/)[0] !== authservId.toLowerCase()) return false;
+  const fromDomain = from.split("@")[1] ?? "";
+  return results.some((r) => /^dmarc\s*=\s*fail\b/.test(r) && /(?:^|\s)header\.from\s*=\s*([^\s]+)/.exec(r)?.[1] === fromDomain);
+}
+
 /** Whether a forwarded body was signed a moment ago (within five minutes) with ZIFFR_INBOUND_SECRET of the settings
  * in effect: `sha256=<hex>` of the HMAC-SHA256 of "<timestamp>.<body>", compared in constant time. */
 export async function inboundSigned(timestamp: string, signature: string, body: Uint8Array): Promise<boolean> {
@@ -111,8 +125,10 @@ export async function parseInbound(raw: ArrayBuffer | Uint8Array | string): Prom
   // RFC 3834 and the usual markers of auto-replies: answering those would start a loop.
   const automatic = (header("auto-submitted") !== "" && header("auto-submitted") !== "no") || /^(auto_reply|bulk|junk|list)$/.test(header("precedence")) || header("x-autoreply") !== "" || header("x-autorespond") !== "";
   const text = newText(email.text ?? stripHtml(email.html ?? ""));
-  const verified = senderVerified(email.headers.map((h) => ({ key: h.key, value: h.value })), from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
-  return { tokens, from, text, messageId: email.messageId ? headerSafe(email.messageId).slice(0, 300) : null, automatic, verified };
+  const parts = email.headers.map((h) => ({ key: h.key, value: h.value }));
+  const verified = senderVerified(parts, from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
+  const failed = !verified && senderFailed(parts, from, settings.ZIFFR_INBOUND_AUTHSERV_ID);
+  return { tokens, from, text, messageId: email.messageId ? headerSafe(email.messageId).slice(0, 300) : null, automatic, verified, failed };
 }
 
 /** HTML as plain text, for replies that have no text part. */
@@ -163,22 +179,33 @@ export async function receiveEmail(email: InboundEmail, effects: { submission?: 
   // Only the person it went to, at the address the workspace keeps for them now: a forwarded copy answers nothing.
   const address = await addressIn(d.workspace_id, d.recipient_id);
   if (!address || !email.from || email.from !== address.toLowerCase()) return log(d, "wrong_sender");
-  // A From header can be forged by anyone holding the email (a forwarded copy). With a provider named to vouch for
-  // senders, nothing unvouched is taken; without one, Approvals, which change what is published, are only given in
-  // Ziffr, never by email.
-  if (!email.verified && ((await settingsInEffect()).ZIFFR_INBOUND_AUTHSERV_ID || (d.action_id && (await isApproval(d.workspace_id, d.action_id))))) return log(d, "unverified");
+  // A From header can be forged by anyone holding the email (a forwarded copy). Approvals, which change what is
+  // published, are only given in Ziffr, or by email when the provider vouched for the sender. Anything else from a
+  // sender nobody vouched for (no provider named, or its Authentication-Results did not pass) is held: it changes
+  // nothing until the person confirms it with a link sent to the address on file (held-replies.ts, ticket #513).
+  // A provider that says DMARC failed has told us it is forged: refused, with nobody emailed.
+  if (!email.verified && (email.failed || (d.action_id && (await isApproval(d.workspace_id, d.action_id))))) return log(d, "unverified");
   // The Installation's total counts only mail that got this far, naming a real reply address for its own recipient:
   // junk to made-up addresses cannot use up what real replies need.
   if (!(await claimInbound("total", INBOUND_TOTAL))) return log(d, "limited");
   // Only replies that were taken count, so refused ones (from someone else) cannot use up the person's own.
-  const { count } = await db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_sender,unverified,too_many,limited)");
+  const { count } = await db().from("inbound_emails").select("id", { count: "exact", head: true }).eq("delivery_id", d.id).not("outcome", "in", "(expired,wrong_sender,unverified,too_many,limited,held)");
   if ((count ?? 0) >= MAX_REPLIES_PER_DELIVERY) return log(d, "too_many");
   // Claimed by its Message-ID first, so the same message delivered twice is taken once.
   const { data: claim, error } = await db().from("inbound_emails").insert({ message_id: email.messageId, delivery_id: d.id, workspace_id: d.workspace_id, outcome: "taken" }).select("id").single();
   if (error?.code === "23505") return "duplicate";
   if (error || !claim) throw new Error("The email could not be recorded.");
-  const outcome = await routeReply(d, email.text, { source: "mail", sender: address, answer: (subject, text) => answer(address, subject, text, effects.transport) }, effects.submission);
-  await db().from("inbound_emails").update({ outcome }).eq("id", claim.id);
+  const say = (subject: string, text: string) => answer(address, subject, text, effects.transport);
+  if (email.verified) {
+    const outcome = await routeReply(d, email.text, { source: "mail", sender: address, answer: say }, effects.submission);
+    await db().from("inbound_emails").update({ outcome }).eq("id", claim.id);
+    return outcome;
+  }
+  // Nobody vouched for the sender, who may be a forger holding a forwarded copy: the person is emailed only the
+  // confirmation link of a reply that would change something, never a refusal, so nothing a forger sends can fill their
+  // inbox with those; and only a held reply counts, to a limit of its own, against the Delivery's replies.
+  const outcome = await holdReply(d, email.text, address, async () => {});
+  await db().from("inbound_emails").update({ outcome: outcome === "held" ? "held" : "unverified" }).eq("id", claim.id);
   return outcome;
 }
 

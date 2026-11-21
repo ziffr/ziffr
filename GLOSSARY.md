@@ -500,6 +500,10 @@ _Avoid_: Conversation, chat, comments
 A change to an observation proposed in an action's thread, which takes effect once the metric owner accepts it.
 _Avoid_: Fix, edit, amendment
 
+**Held Reply**:
+A reply by email that no provider vouched for, which changes nothing until the person it went to confirms it with a one-time link Ziffr emails to the address the Workspace keeps for them (never the address it came from). The link works once, for 48 hours, and shows the reply and what it would do before its Confirm button takes it. Replies a provider vouched for are taken at once. Not an Approval, which is never taken by email unvouched.
+_Avoid_: Quarantined reply, pending reply
+
 **Delivery**:
 One message Ziffr sends through a Connector to one person: a new question or task, a reminder, a reply, a proposed correction or a closed task. Answers to it come back into the Thread.
 _Avoid_: Notification, outbox item, message

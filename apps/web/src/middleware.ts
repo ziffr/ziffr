@@ -6,8 +6,8 @@
 // - The API (/api/v1/, spec 0002): programs sign in with an Access Key in each request, never with a session or the
 //   demo cookie, so nothing here applies to it; the route handlers check the key. The same for the jobs a scheduler
 //   calls (/api/jobs/, spec 0004), which check ZIFFR_JOB_SECRET themselves, and the inbound mail webhook
-//   (/api/inbound/), which checks its signature, a Webhook's status back (/api/webhooks/{id}/in), signed with that Webhook's own secret, the Ziffr Cloud API (/api/cloud/, spec 0029), which checks its own, and the one-click unsubscribe link (/api/unsubscribe/), which is
-//   its own token, and the health check (/api/health), which says only "ok", and Slack's events and button
+//   (/api/inbound/), which checks its signature, a Webhook's status back (/api/webhooks/{id}/in), signed with that Webhook's own secret, the Ziffr Cloud API (/api/cloud/, spec 0029), which checks its own, the one-click unsubscribe link (/api/unsubscribe/) and the link that confirms a held reply by email (/api/confirm-reply/), which are
+//   each their own token, and the health check (/api/health), which says only "ok", and Slack's events and button
 //   presses (/api/slack/events, /api/slack/interactions), which Slack signs, and Telegram's webhook
 //   (/api/telegram/updates), which carries the secret this Ziffr registered, and Supabase Auth's Send Email Hook
 //   (/api/auth/send-email), which Auth signs. The remote MCP Server (/mcp, spec 0023) takes
@@ -63,7 +63,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || path.startsWith("/api/confirm-reply/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
   // The app layout (docs/specs/0036-app-layout.md): `?layout=sidebar` or `?layout=top` sets the browser's choice
   // and drops the parameter. A preference only: it grants and shows nothing.
   const wanted = req.nextUrl.searchParams.get("layout");

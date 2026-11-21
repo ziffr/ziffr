@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { deliverPrompt } from "./deliveries";
-import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderVerified, type InboundEmail } from "./inbound-email";
+import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderFailed, senderVerified, type InboundEmail } from "./inbound-email";
 import { connectorsView } from "./page-data";
 import { ask } from "./questions";
 import type { SubmissionEffects } from "./submissions";
@@ -17,6 +17,8 @@ const DOMAIN = "in.ziffr.example.test";
 const SETTINGS = {
   ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test",
   ZIFFR_INBOUND_DOMAIN: DOMAIN, ZIFFR_INBOUND_SECRET: "i".repeat(40),
+  // A provider vouches for senders, as it does in production; held-replies.db.test.ts covers the unvouched path.
+  ZIFFR_INBOUND_AUTHSERV_ID: "mx.provider.test",
 };
 const saved: Record<string, string | undefined> = {};
 beforeAll(() => { for (const [k, v] of Object.entries(SETTINGS)) { saved[k] = process.env[k]; process.env[k] = v; } });
@@ -29,7 +31,8 @@ const quiet = (): SubmissionEffects => ({ notifyCorrection: vi.fn(async () => {}
 const emailOf = async (person: string) => (await db().from("profiles").select("email").eq("id", person).single()).data!.email as string;
 
 /** A reply as a mail client writes it. */
-const reply = (o: { from: string; token: string; text: string; headers?: string; id?: string }) => [
+const reply = (o: { from: string; token: string; text: string; headers?: string; id?: string; unvouched?: boolean }) => [
+  ...(o.unvouched ? [] : [`Authentication-Results: mx.provider.test; dmarc=pass header.from=${o.from.split("@")[1]}`]),
   `From: Someone <${o.from}>`, `To: Ziffr <reply+${o.token}@${DOMAIN}>`, "Subject: Re: your question", `Message-ID: <${o.id ?? randomUUID()}@mail.example.test>`,
   ...(o.headers ? [o.headers] : []), "Content-Type: text/plain; charset=utf-8", "", o.text,
 ].join("\r\n");
@@ -148,26 +151,39 @@ describe("replies by email", () => {
     // Comments the provider writes itself do not stop a real pass.
     expect(senderVerified(ar("mx.provider.test; dkim=pass (2048-bit key; unprotected) header.d=example.test header.s=s1; dmarc=pass (p=reject) header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
   });
-  it("never takes an Approval by email unless the provider vouched for the sender, and takes nothing unvouched once one is named", async () => {
+  it("reads a provider's explicit DMARC failure for the sender's domain as a verdict against it", () => {
+    const ar = (v: string) => [{ key: "authentication-results", value: v }];
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
+    // Not named, not the provider's, not for this domain, passed, no header, or no sender: no verdict.
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), "ann@example.test", undefined)).toBe(false);
+    expect(senderFailed(ar("mx.evil.test; dmarc=fail header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=other.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=pass header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed([], "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), null, "mx.provider.test")).toBe(false);
+  });
+  it("never takes an Approval by email unless the provider vouched for the sender", async () => {
     const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ben = await w.person("member", { email: address("ben") });
     const m = await w.metric(sara);
     const { data: action } = await db().from("actions").insert({ metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ben, kind: "task", purpose: "approval", question: "Approve October?", workspace_id: w.id }).select("id").single();
     const token = "a".repeat(32);
     await db().from("deliveries").insert({ connector: "email", recipient_id: ben, sender_id: sara, kind: "task", action_id: action!.id, workspace_id: w.id, subject: "Approve", body: "x", mail_state: "sent", reply_token: token });
     const benMail = await emailOf(ben);
-    const approve = (headers?: string) => parseInbound(reply({ from: benMail, token, text: "approved", headers }));
-    expect(await receiveEmail(await approve())).toBe("unverified");
+    const approve = (o: { headers?: string; unvouched?: boolean } = {}) => parseInbound(reply({ from: benMail, token, text: "approved", ...o }));
+    // Refused, not held, whether the provider is named or not: an Approval is only ever given in Ziffr unvouched.
+    expect(await receiveEmail(await approve({ unvouched: true }))).toBe("unverified");
+    const domain = benMail.split("@")[1];
+    expect(await receiveEmail(await approve({ unvouched: true, headers: `Authentication-Results: mx.evil.test; dmarc=pass header.from=${domain}` }))).toBe("unverified");
     const { data: still } = await db().from("actions").select("status").eq("id", action!.id).single();
     expect(still!.status).toBe("open");
-    process.env.ZIFFR_INBOUND_AUTHSERV_ID = "mx.provider.test";
+    delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
     try {
-      const domain = benMail.split("@")[1];
-      expect(await receiveEmail(await approve(`Authentication-Results: mx.evil.test; dmarc=pass header.from=${domain}`))).toBe("unverified");
-      // Vouched for, it reaches the Approval itself (which finds no value waiting here, so says so).
-      await expect(receiveEmail(await approve(`Authentication-Results: mx.provider.test; dmarc=pass header.from=${domain}`))).rejects.toThrow(/not waiting for this approval/);
+      expect(await receiveEmail(await approve({ unvouched: true }))).toBe("unverified");
     } finally {
-      delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
+      process.env.ZIFFR_INBOUND_AUTHSERV_ID = "mx.provider.test";
     }
+    // Vouched for, it reaches the Approval itself (which finds no value waiting here, so says so).
+    await expect(receiveEmail(await approve())).rejects.toThrow(/not waiting for this approval/);
   });
 });
 

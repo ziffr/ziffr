@@ -103,6 +103,8 @@ export const AUDIT_KINDS = {
   "export.audit_log": "exported the Audit Log",
   "export.deck": "exported the deck",
   "export.retention_values": "exported the values a Retention would remove from",
+  "email_reply.held": "held an email reply that no provider vouched for, until the person it went to confirms it, of",
+  "email_reply.confirmed": "confirmed a held email reply",
   "person.signed_in": "signed in",
 } as const;
 
@@ -113,7 +115,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
   share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
-  workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
+  workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", email_reply: "Email replies", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */

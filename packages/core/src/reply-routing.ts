@@ -8,6 +8,9 @@ import { linkTo } from "./deliveries";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { postReply } from "./threads";
 
+/** How long a reply address works, in days. */
+export const REPLY_DAYS = 30;
+
 /** A Delivery a reply came back for, as stored. */
 export type RepliedDelivery = { id: number; workspace_id: string; recipient_id: string; kind: string; action_id: number | null; prompt_id: number | null };
 
