@@ -51,6 +51,43 @@ describe("createMetricWithKey", () => {
     const { data: tokens } = await db().from("tokens").select("id").eq("workspace_id", w.id).eq("metric_id", (await db().from("metrics").select("id").eq("slug", plain.slug).eq("workspace_id", w.id).single()).data!.id);
     expect(tokens).toEqual([]);
   });
+  it("makes a Derived Metric from a formula (ticket #619): only from Metrics the creator sees, naming the key, with what it chose", async () => {
+    const w = await ws(); const ben = await w.person("member"); const lena = await w.person("member");
+    const { key } = await keyFor(w, ben, "member", ["metrics:write", "metrics:read"]);
+    const odo = await w.metric(ben, { name: "Odometer", slug: "odometer", unit: "km", period: "week", aggregation: "last" });
+    await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    const m = await createMetricWithKey(key, { name: "Kilometres per day", formula: "change({odometer}) / 7", decimals: 1 }, fx());
+    expect(m).toMatchObject({ slug: "kilometres-per-day", derived: true, formula: "change({odometer}) / 7", period: "week", sources: [], workflow: null, next_asked: null });
+    expect(m.defaults).toContain("Counted by week, like the Metrics it is calculated from.");
+    const { data: row } = await db().from("metrics").select("id, owner_id").eq("slug", m.slug).eq("workspace_id", w.id).single();
+    expect(row!.owner_id).toBe(ben);
+    const { data: version } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", row!.id).order("version");
+    expect(version![0].message).toBe("Created through the API (key “Setup script”)");
+    // A Metric the creator does not see is not there: the same refusal as a slug that does not exist.
+    const hiddenTry = await createMetricWithKey(key, { name: "Pay", formula: "{salaries} * 2" }, fx()).catch((e) => e);
+    const absentTry = await createMetricWithKey(key, { name: "Pay", formula: "{nonesuch} * 2" }, fx()).catch((e) => e);
+    expect(hiddenTry).toBeInstanceOf(MetricChangeRefused);
+    expect(hiddenTry.message).toBe("{salaries} is not a Metric of this Workspace.");
+    expect(absentTry.message).toBe("{nonesuch} is not a Metric of this Workspace.");
+    // What a Derived Metric does not take is refused, not ignored.
+    for (const more of [{ submit: true }, { submitters: [ben] }, { sources: ["api" as const] }, { aggregation: "sum" }, { submission_rule: "add" }, { workflow: 1 }]) {
+      await expect(createMetricWithKey(key, { name: "Y", formula: "{odometer} * 2", ...more }, fx()), JSON.stringify(more)).rejects.toThrow(/takes no values/);
+    }
+    // Its formula shows only to someone who sees every input: lena sees the Derived Metric once it is shared, not the odometer.
+    await share(w.actor(ben), "metric", row!.id, lena, "viewer");
+    const { key: lenasKey } = await keyFor(w, lena, "member", ["metrics:read"]);
+    const { getMetric } = await import("./api");
+    expect(await getMetric(lenasKey, m.slug)).toMatchObject({ derived: true, formula: null });
+    await w.share(odo.id, lena);
+    expect(await getMetric(lenasKey, m.slug)).toMatchObject({ formula: "change({odometer}) / 7" });
+  });
+  it("needs metrics:read as well to make a Derived Metric, and makes nothing without it", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const { key } = await keyFor(w, ben, "member", ["metrics:write"]);
+    await w.metric(ben, { name: "A", slug: "a" });
+    await expect(createMetricWithKey(key, { name: "B", formula: "{a} * 2" }, fx())).rejects.toEqual(forbidden);
+    expect((await db().from("metrics").select("id").eq("workspace_id", w.id)).data).toHaveLength(1);
+  });
   it("checks every field like the form: unknown values fall back, long ones are cut", async () => {
     const w = await ws(); const ben = await w.person("member"); const { key } = await keyFor(w, ben);
     const m = await createMetricWithKey(key, { name: `  ${"N".repeat(200)}  `, format: "emoji", period: "hour", decimals: 99, unit: "u".repeat(50), target_min: Number.NaN }, fx());

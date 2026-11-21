@@ -6,6 +6,7 @@ import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } f
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
+import { formulaInputs } from "./formula";
 import { retentionForApi, type ApiRetention } from "./retention-words";
 import { openRows } from "./sealed-columns";
 import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextDue } from "./api-metric-workflow";
@@ -69,12 +70,28 @@ async function visibleMetric(actor: Actor | KeyActor, slug: string): Promise<{ m
 }
 
 /** One Metric as a program sees it on its own: its description, its Workflow and the next day a value is due (ticket #612). */
-export type ApiMetricDetail = ApiMetric & { url: string; workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null; next_asked: ApiNextAsked | null };
+export type ApiMetricDetail = ApiMetric & {
+  url: string; workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null; next_asked: ApiNextAsked | null;
+  /** A Derived Metric's formula, by its inputs' slugs, only when the key's creator sees every one of its inputs: else
+   * null, so a formula never names a Metric they may not see (ticket #619). */
+  formula: string | null;
+  /** On the answer to creating a Derived Metric: what was chosen where the caller left a field out, in plain words. */
+  defaults?: string[];
+};
+
+/** A Derived Metric's formula for someone who sees all the Metrics it is made of, else null. */
+async function formulaSeen(actor: Actor | KeyActor, metric: Metric): Promise<string | null> {
+  if (!metric.formula) return null;
+  const metrics = await getMetrics(actor.workspaceId);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
+  const bySlug = new Map(metrics.map((m) => [m.slug, m.id] as const));
+  return formulaInputs(metric.formula).every((s) => seen.has(bySlug.get(s) ?? -1)) ? metric.formula : null;
+}
 
 /** A Metric the caller has checked the actor sees, with its Workflow facts. */
 export async function describeMetric(actor: Actor | KeyActor, metric: Metric): Promise<ApiMetricDetail> {
   const [stored, facts] = await Promise.all([storedRetentions(actor.workspaceId, [metric.id]), workflowFacts(actor, metric)]);
-  return { ...toApi(metric, stored.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts };
+  return { ...toApi(metric, stored.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts, formula: await formulaSeen(actor, metric) };
 }
 
 /** One Metric's description with its Workflow and next Due Date (scope metrics:read). */

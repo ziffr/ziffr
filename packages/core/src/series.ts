@@ -1,7 +1,8 @@
 // Plotted series (GLOSSARY: Metric, Derived Metric, Submission Rule): what a chart draws for each Metric, from the
 // observations the database holds. Pure, so the series and the Derived Metrics' values are checked against the
 // references (derived.test.ts) without a database. workspace-data.ts loads the observations and calls this.
-import { evaluate, formulaInputs, inputsProblem } from "./formula";
+import { evaluate, formulaInputs, inputsProblem, usesPrevious } from "./formula";
+import { shiftPeriod } from "./periods";
 import type { Metric, Observation, Point } from "./types";
 
 /** Plotted series per metric slug. keep_both → latest value wins on the chart. Derived metrics are computed. */
@@ -28,9 +29,14 @@ function derivedSeries(m: Metric, formula: string, metrics: Metric[], raw: Recor
   const inputs = formulaInputs(formula);
   const columns = inputs.map((s) => raw[s] ?? new Map<string, number>());
   const periods = [...new Set(columns.flatMap((c) => [...c.keys()]))].sort();
+  const back = usesPrevious(formula);
   return periods.flatMap((period) => {
     // An input with no value in the period is NaN, which evaluate takes as missing: the period then has no value.
-    const value = evaluate(formula, Object.fromEntries(inputs.map((s, i) => [s, columns[i].get(period) ?? NaN])));
+    const vars = Object.fromEntries(inputs.map((s, i) => [s, columns[i].get(period) ?? NaN]));
+    // prev and change look at the period right before this one (one of the Metric's own, as the inputs share it): when
+    // that has no value, there is no change either, never a change over a gap.
+    const before = back ? Object.fromEntries(inputs.map((s, i) => [s, columns[i].get(shiftPeriod(period, m.period, -1)) ?? NaN])) : {};
+    const value = evaluate(formula, vars, before);
     return value === null ? [] : [{ period, value }];
   });
 }

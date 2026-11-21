@@ -99,14 +99,17 @@ const odometer: Scenario = {
   replies: ["Yes, record 13573 as this week's reading.", "Fewer kilometres is not better or worse, it's just for my information."],
   checks: (s) => {
     const odo = s.metrics.find((m) => /odometer|mileage|kilometre reading|kilometer reading/.test(lower(m.name)));
-    const perDay = s.metrics.find((m) => m !== odo && m.period === "day" && /km|kilomet/.test(lower(`${m.name} ${m.unit}`)));
+    // Counted by the odometer's own period (a Derived Metric has its inputs' period), worked out as the change since the
+    // reading before, over the 7 days between two weekly readings (ticket #619).
+    const perDay = s.metrics.find((m) => m !== odo && Boolean(m.formula) && /km|kilomet/.test(lower(`${m.name} ${m.unit}`)));
     return [
       ...common(s),
       check("an odometer Metric exists", Boolean(odo), s.metrics.map((m) => m.name).join(", ")),
       check("the odometer is read weekly", odo?.period === "week", odo?.period),
       check("first reading 13573 recorded", Boolean(odo?.values.includes(13573)), JSON.stringify(odo?.values)),
       check("a kilometres-per-day Metric exists", Boolean(perDay), s.metrics.map((m) => `${m.name} (${m.period})`).join(", ")),
-      check("kilometres per day is derived from the odometer", Boolean(perDay?.formula), perDay?.formula ?? "no formula"),
+      check("kilometres per day is derived from the odometer", Boolean(perDay?.formula && odo && perDay.formula.includes(`{${odo.slug}}`)), perDay?.formula ?? "no formula"),
+      check("it uses the change since the previous reading, over 7 days", /change\(/.test(perDay?.formula ?? "") && /\/\s*7\b/.test(perDay?.formula ?? ""), perDay?.formula ?? "no formula"),
     ];
   },
 };

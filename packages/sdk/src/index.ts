@@ -36,6 +36,10 @@ export type Metric = {
 
 /** A Metric on its own (`metrics.get`, `create` and `update` answer this): its description, its Workflow and when a value is due next. */
 export type MetricDetail = Metric & {
+  /** A Derived Metric's formula by its inputs' slugs, only when the key's creator sees all of them; otherwise null. */
+  formula: string | null;
+  /** Only in the answer to creating a Derived Metric: what was chosen where a field was left out, in plain words. */
+  defaults?: string[];
   /** Where the Metric is in Ziffr, to give the person a link; needs a sign-in. */
   url: string;
   /** When its Workflow asks next (day, whole hour, time zone); null without a Workflow, and for a Derived or Archived Metric. */
@@ -129,6 +133,10 @@ export type NewMetric = {
   submitters?: string[];
   /** One of your own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs scope metrics:edit too. */
   workflow?: number | string | null;
+  /** Makes a Derived Metric: computed from Metrics you can see, by slug: "{revenue} / {orders}", "change({odometer}) / 7"
+   * (this period minus the previous one) or "prev({x})". It takes no values: submit, submitters, sources, aggregation,
+   * submission_rule and workflow are refused with it. Needs scope metrics:read too. */
+  formula?: string;
 };
 
 /** What `metrics.update` may change of a Metric (scope metrics:edit): its description, Sources, Target Range and

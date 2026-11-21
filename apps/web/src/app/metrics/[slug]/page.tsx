@@ -82,6 +82,17 @@ function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[
 /** The sentence under a just-created Metric: only for its owner and Editors, and only right after creating it. */
 const createdNoteFor = (created: string | undefined, canEdit: boolean, actor: Parameters<typeof firstAsksFor>[0], id: number) => (created && canEdit ? firstAsksFor(actor, id) : Promise.resolve(null));
 
+/** The sentence over a just-created Metric: a Derived Metric needs no values, so it says so instead of "no values yet". */
+function CreatedNote({ derived, note, demo }: { derived: boolean; note: string | null; demo: boolean }) {
+  return (
+    <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
+      <span className="font-medium">Metric created.</span>{" "}
+      {derived ? "It is calculated from other Metrics, so nobody is asked for it: it has a value in each period its inputs do." : <>It has no values yet. {note}</>}
+      {demo && !derived && <>{" "}<Link href="/connectors/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
+    </div>
+  );
+}
+
 export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -167,12 +178,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      {sp.created && (
-        <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
-          <span className="font-medium">Metric created.</span> It has no values yet. {createdNote}
-          {demo && <>{" "}<Link href="/connectors/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
-        </div>
-      )}
+      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} />}
       <PageHeader
         title={
           <span className="flex items-center gap-2">

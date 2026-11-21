@@ -5,9 +5,9 @@
 // with gaps, zeros (division) and every Fiscal Year start; and the refusals, each with its reason.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { resolverFrom } from "./compare";
-import { NOT_COMBINED, seriesBy } from "./display-periods";
-import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, type FormulaInput } from "./formula";
+import { compare, resolverFrom } from "./compare";
+import { NOT_COMBINED, seriesBy, valueOver } from "./display-periods";
+import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, usesPrevious, type FormulaInput } from "./formula";
 import type { Span, YearStart } from "./periods";
 import type { Aggregation, Metric, Observation, Point } from "./types";
 import { buildSeries } from "./series";
@@ -23,11 +23,13 @@ const SLUGS = ["a", "b", "net-revenue", "c2"];
 
 /** A formula as people write it: a random tree over the given inputs, with numbers, unary minus and brackets where
  * they are needed or not, and spaces here and there. */
-const formula = (slugs: string[]) =>
+const formula = (slugs: string[], back = false) =>
   fc.letrec<{ f: string }>((tie) => ({
     f: fc.oneof(
       { depthSize: "small", withCrossShrink: true },
       { weight: 3, arbitrary: fc.constantFrom(...slugs).map((s) => `{${s}}`) },
+      // prev({x}) and change({x}), with white space inside the brackets here and there (ticket #619).
+      ...(back ? [{ weight: 2, arbitrary: fc.tuple(fc.constantFrom("prev", "change"), fc.constantFrom(...slugs), fc.constantFrom("", " "), fc.constantFrom("", " ")).map(([fn, s, a, b]) => `${fn}${a}(${a}{${s}}${b})`) }] : []),
       { weight: 1, arbitrary: fc.oneof(fc.nat({ max: 1000 }).map(String), fc.tuple(fc.nat({ max: 99 }), fc.stringMatching(/^\d{1,3}$/)).map(([w, d]) => `${w}.${d}`), fc.constant("0")) },
       { weight: 2, arbitrary: fc.tuple(tie("f"), fc.constantFrom("+", "-", "*", "/"), tie("f"), fc.constantFrom("", " ", "  "), fc.boolean()).map(([a, op, b, sp, br]) => (br ? `(${a}${sp}${op}${sp}${b})` : `${a}${sp}${op}${sp}${b}`)) },
       { weight: 1, arbitrary: tie("f").map((a) => `-${a}`) },
@@ -37,6 +39,9 @@ const formula = (slugs: string[]) =>
 
 /** Values for some of the inputs: as people send them, often zero, sometimes one missing. */
 const inputs = fc.record(Object.fromEntries(SLUGS.map((s) => [s, fc.oneof({ weight: 5, arbitrary: valueText.map(Number) }, { weight: 1, arbitrary: fc.constant(0) })])), { requiredKeys: SLUGS.slice(0, 3) }) as fc.Arbitrary<Record<string, number>>;
+
+/** The inputs' values one period earlier, for prev and change: any of them may be missing. */
+const earlier = fc.record(Object.fromEntries(SLUGS.map((s) => [s, valueText.map(Number)])), { requiredKeys: [] }) as fc.Arbitrary<Record<string, number>>;
 
 /** Series of 1 to 3 inputs of one Period that share their periods, as inputs of a Derived Metric do: the first is a
  * generated series (gaps, periods given twice, any order), each other one keeps a random share of its periods with
@@ -70,15 +75,27 @@ describe("formulas against the reference evaluator", () => {
       { numRuns: numRuns * 5, seed },
     );
   });
-  it(`refuse exactly what the reference refuses, on formulas broken on purpose (${numRuns * 5} formulas, seed ${seed})`, () => {
-    const breaks = fc.constantFrom(".", "e", "^", "(", ")", "{", "}", "{A}", ",", " ", "×", "%", "1", "+", "*", "-", "{a}", "{b c}", "..", " ", "E3");
+  it(`with prev and change, give the exact result over this period's and the previous period's values (${numRuns * 5} formulas, seed ${seed})`, () => {
     fc.assert(
-      fc.property(formula(SLUGS.slice(0, 2)), fc.nat(), fc.oneof(breaks, fc.constant("")), fc.nat({ max: 3 }), inputs, (f, at, insert, cut, vars) => {
+      fc.property(fc.integer({ min: 1, max: 4 }).chain((n) => formula(SLUGS.slice(0, n), true)), inputs, earlier, (f, vars, before) => {
+        const exact = Object.fromEntries([...Object.entries(vars).map(([k, v]) => [k, exactOf(v)]), ...Object.entries(before).map(([k, v]) => [`prev:${k}`, exactOf(v)])]);
+        sameValue(evaluate(f, vars, before), referenceEvaluate(f, exact), f);
+        expect(referenceReads(f), f).toBe(true);
+        expect(formulaInputs(f), f).toEqual(referenceInputs(f));
+        expect(usesPrevious(f), f).toBe(/prev|change/.test(f));
+      }),
+      { numRuns: numRuns * 5, seed },
+    );
+  });
+  it(`refuse exactly what the reference refuses, on formulas broken on purpose (${numRuns * 5} formulas, seed ${seed})`, () => {
+    const breaks = fc.constantFrom(".", "e", "^", "(", ")", "{", "}", "{A}", ",", " ", "×", "%", "1", "+", "*", "-", "{a}", "{b c}", "..", " ", "E3", "prev", "change", "prev(", "change({a}", "prev({a} + {b})", "change()", "p", "c");
+    fc.assert(
+      fc.property(formula(SLUGS.slice(0, 2), true), fc.nat(), fc.oneof(breaks, fc.constant("")), fc.nat({ max: 3 }), inputs, earlier, (f, at, insert, cut, vars, before) => {
         const i = at % (f.length + 1);
         const broken = f.slice(0, i) + insert + f.slice(i + Math.min(cut, f.length - i));
-        const exact = Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, exactOf(v)]));
+        const exact = Object.fromEntries([...Object.entries(vars).map(([k, v]) => [k, exactOf(v)]), ...Object.entries(before).map(([k, v]) => [`prev:${k}`, exactOf(v)])]);
         const reads = referenceReads(broken);
-        sameValue(evaluate(broken, vars), referenceEvaluate(broken, exact), JSON.stringify(broken));
+        sameValue(evaluate(broken, vars, before), referenceEvaluate(broken, exact), JSON.stringify(broken));
         // checkFormula refuses also a formula that names no Metric; every input named here is one of the Workspace's.
         const known = referenceInputs(broken).every((s) => SLUGS.includes(s));
         if (known) expect(checkFormula(broken, asInputs(SLUGS)) === null, JSON.stringify(broken)).toBe(reads && referenceInputs(broken).length > 0);
@@ -98,10 +115,16 @@ describe("formulas against the reference evaluator", () => {
     expect(e("-2 * -3 - -(1)")).toBe("7");
     expect(e("{a} / ({b} - {b})", { a: "1", b: "2" })).toBeNull();
     expect(e("{a} + {missing}", { a: "1" })).toBeNull();
-    for (const bad of ["{a} {b}", "{a} ^ 2", "1e3 * {a}", ".5 * {a}", "1. + 2", "({a}", "{a})", "()", "+{a}", "{a} *", "", "{A}", "{a b}", "2{a}", "(1)(2)"]) {
+    // prev and change: this period's value minus the previous one's, which is named prev:a here.
+    expect(e("change({a})", { a: "5", "prev:a": "3" })).toBe("2");
+    expect(e("change({a}) * 2 - prev( {a} )", { a: "5", "prev:a": "3" })).toBe("1");
+    expect(e("-change({a}) / 4", { a: "0.3", "prev:a": "0.1" })).toBe("-0.05");
+    expect(e("change({a})", { a: "5" })).toBeNull();
+    expect(e("prev({a})", { a: "5" })).toBeNull();
+    for (const bad of ["{a} {b}", "{a} ^ 2", "1e3 * {a}", ".5 * {a}", "1. + 2", "({a}", "{a})", "()", "+{a}", "{a} *", "", "{A}", "{a b}", "2{a}", "(1)(2)", "prev({a}", "prev {a}", "prev(1)", "change()", "change({a} + {b})", "change({A})", "prev({a}){b}", "previous({a})", "change({a}) change({b})"]) {
       expect(referenceReads(bad), bad).toBe(false);
     }
-    for (const good of ["{a}", "-{a}", "--{a}", "1 - -2", "( {a} )", "007", "{net-revenue} / {c2}"]) expect(referenceReads(good), good).toBe(true);
+    for (const good of ["{a}", "-{a}", "--{a}", "1 - -2", "( {a} )", "007", "{net-revenue} / {c2}", "prev({a})", "change( {a} ) / 7", "-change({a})", "prev ( {a} )"]) expect(referenceReads(good), good).toBe(true);
   });
   it("are held to bounds, so no formula grows its arithmetic without limit", () => {
     const ins = asInputs(["a"]);
@@ -176,6 +199,24 @@ describe("a Derived Metric", () => {
     // The generated inputs share periods: most series have values of the Derived Metric to compare.
     expect(compared).toBeGreaterThan(numRuns * 10);
   });
+  it(`per period, with prev and change, is the formula on each input's value and the one a period before, where both exist (${numRuns} series, seed ${seed})`, () => {
+    let compared = 0;
+    for (const period of PERIODS) {
+      fc.assert(
+        fc.property(twoOrMore.chain((n) => fc.tuple(formula(SLUGS.slice(0, n), true), related(period, n))), ([f, generated]) => {
+          const ins = generated.points.map((_, k) => metric({ id: k + 1, slug: SLUGS[k], name: SLUGS[k], period, formula: null }));
+          const derived = metric({ id: 99, slug: "derived", period, formula: f });
+          const got = buildSeries([...ins, derived], observationsOf(ins, generated.points)).derived;
+          const want = referenceDerivedPeriods(f, generated.points.map((points, k) => ({ slug: SLUGS[k], points, aggregation: "sum" })), period);
+          expect(got.map((p) => p.period), f).toEqual(want.map((w) => textOf(w.day)));
+          got.forEach((p, i) => sameValue(p.value, want[i].value, `${f} at ${p.period}`));
+          compared += got.length;
+        }),
+        { numRuns, seed },
+      );
+    }
+    expect(compared).toBeGreaterThan(numRuns * 5);
+  });
   it(`over a longer span, is the formula on its inputs' combined values, for every combination of their Aggregations, every Display Period and Fiscal Year start (${numRuns} series, seed ${seed})`, () => {
     let compared = 0;
     for (const period of PERIODS) {
@@ -212,6 +253,69 @@ describe("a Derived Metric", () => {
       );
     }
     expect(compared).toBeGreaterThan(numRuns * 2);
+  });
+  describe("with prev and change (ticket #619)", () => {
+    // A weekly odometer read every Sunday-ish: kilometres per day is the change since the week before, over 7 days.
+    const odo = metric({ id: 1, slug: "odometer", name: "Odometer", period: "week", aggregation: "last", formula: null });
+    const perDay = metric({ id: 2, slug: "km-per-day", name: "Kilometres per day", period: "week", formula: "change({odometer}) / 7" });
+    const week = (n: number) => textOf(dayOf("2026-11-02") + 7 * n);
+    const obs = (readings: [number, number][]) => observationsOf([odo], [readings.map(([w, value]) => ({ period: week(w), value }))]);
+
+    it("is the change since the previous period: none for the first, none after a gap", () => {
+      const built = buildSeries([odo, perDay], obs([[0, 13573], [1, 13650], [2, 13713], [4, 13900], [5, 13900]]));
+      // Week 0 has no week before it; week 4 has none (week 3 is missing); week 5 is 0 kilometres.
+      expect(built["km-per-day"]).toEqual([{ period: week(1), value: 11 }, { period: week(2), value: 9 }, { period: week(5), value: 0 }]);
+    });
+    it("looks back a day, a week, a month, a quarter or a year, across the end of a month and a year", () => {
+      const dated = (period: Metric["period"], a: string, b: string) => {
+        const x = metric({ id: 1, slug: "x", period, formula: null });
+        const d = metric({ id: 2, slug: "d", period, formula: `change({x}) + prev({x})` });
+        return buildSeries([x, d], observationsOf([x], [[{ period: a, value: 5 }, { period: b, value: 8 }]])).d;
+      };
+      expect(dated("day", "2026-02-28", "2026-03-01")).toEqual([{ period: "2026-03-01", value: 8 }]);
+      expect(dated("week", "2026-12-28", "2027-01-04")).toEqual([{ period: "2027-01-04", value: 8 }]);
+      expect(dated("month", "2026-12-01", "2027-01-01")).toEqual([{ period: "2027-01-01", value: 8 }]);
+      expect(dated("quarter", "2026-10-01", "2027-01-01")).toEqual([{ period: "2027-01-01", value: 8 }]);
+      expect(dated("year", "2026-01-01", "2027-01-01")).toEqual([{ period: "2027-01-01", value: 8 }]);
+      // Two months apart is not the previous month.
+      expect(dated("month", "2026-11-01", "2027-01-01")).toEqual([]);
+    });
+    it("is shown by its own period only, and says why for a longer one", () => {
+      const built = buildSeries([odo, perDay], obs([[0, 100], [1, 107], [2, 114], [3, 121], [4, 128]]));
+      const r = seriesBy(perDay, resolverFrom([odo, perDay], built), "month", { yearStart: 1, today: "2026-12-01" });
+      expect(r).toMatchObject({ ok: false, points: [] });
+      expect(!r.ok && r.reason).toBe("Shown by its own period: it reaches back to the previous period (prev or change), so it cannot be combined into longer periods.");
+      expect(inputsNotCombined(perDay, [odo])).toMatch(/reaches back/);
+      // By its own period it draws as any other.
+      expect(seriesBy(perDay, resolverFrom([odo, perDay], built), "week", { yearStart: 1, today: "2026-12-01" })).toMatchObject({ ok: true, points: [{ value: 1 }, { value: 1 }, { value: 1 }, { value: 1 }] });
+    });
+    it("is accepted over an input set to Aggregation none, which no span needs; its other refusals stay", () => {
+      const none = { slug: "odometer", name: "Odometer", period: "week" as const, aggregation: "none" as const, formula: null };
+      expect(checkFormula("change({odometer}) / 7", [none])).toBeNull();
+      expect(checkFormula("{odometer} / 7", [none])).toMatch(/Aggregation none/);
+      expect(checkFormula("change({odometer})", [none], { slug: "odometer", period: "week" })).toMatch(/this Metric itself/);
+      expect(checkFormula("change({odometer})", [{ ...none, period: "day" }], { slug: "d", period: "week" })).toMatch(/counted by day, it by week/);
+      expect(checkFormula("change({nobody})", [none])).toMatch(/not a Metric of this Workspace/);
+    });
+    it("explains what it cannot read", () => {
+      expect(checkFormula("change(1)", asInputs(["a"]))).toBe("change takes one Metric: write change({odometer}), with the Metric's slug in lower case.");
+      expect(checkFormula("prev({a} + 1)", asInputs(["a"]))).toMatch(/^prev takes one Metric/);
+      expect(checkFormula("previous({a})", asInputs(["a"]))).toMatch(/"p" cannot be read/);
+      expect(evaluate("change({a})", { a: 3 })).toBeNull();
+      expect(evaluate("prev({a}) + change({a})", { a: 3 }, { a: 1 })).toBe(3);
+    });
+    it("a Comparison with the previous period and the Metric's own period works; longer spans say why not", () => {
+      const built = buildSeries([odo, perDay], obs([[0, 100], [1, 107], [2, 121]]));
+      const resolve = resolverFrom([odo, perDay], built);
+      const [prev, mom] = compare(perDay, resolve, { keys: ["prev", "mom"], yearStart: 1 });
+      expect(prev).toMatchObject({ key: "prev", available: true, current: 2, previous: 1 });
+      expect(mom.available).toBe(false);
+      // A span of more than one period has no value, and neither has a period whose input has none or none before it.
+      expect(valueOver("km-per-day", week(0), week(1), resolve, 2)).toBeUndefined();
+      expect(valueOver("km-per-day", week(1), week(1), resolve, 1)).toBe(1);
+      expect(valueOver("km-per-day", week(0), week(0), resolve, 1)).toBeUndefined();
+      expect(valueOver("km-per-day", week(5), week(5), resolve, 1)).toBeUndefined();
+    });
   });
   it("counts a span where each input holds half of it, even without a period of both", () => {
     // January to June of one input and July to December of the other: each holds half of the year, so the year has

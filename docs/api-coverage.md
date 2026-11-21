@@ -12,6 +12,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `nextPromptWays` (prompt-preview.ts): the line under each submitter on the Metric page in the app, where their next Prompt goes and why; a program sets Sources and reads Metrics through the API
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `recordDeckExport` (audit-log.ts): Deck export is noted in the Audit Log
+- `formulaChoices` (derived-metrics.ts): the list in the new-Metric form that builds a formula in the app; a program lists the Metrics it sees through the API and writes the formula itself
 - `sameNamedMetrics` (metric-name-check.ts): a form hint in the app that warns before a Metric gets a name that is taken; the API's create answers with the Metric
 - `saveLayout` (dashboards.ts): the dashboard canvas
 - `setViewLinkNames` (view-links.ts): the View links window; a program's View Links always show no names (ticket #590)

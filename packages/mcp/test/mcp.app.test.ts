@@ -144,6 +144,26 @@ describe("@ziffr/mcp against the app", () => {
     expect(stuck.first_value).toMatchObject({ recorded: false, reason: expect.any(String) });
     expect(stuck.url).toBeTruthy();
   });
+  it("makes kilometres per day from an odometer with a formula, in plain steps (ticket #619)", async () => {
+    const { client } = await connect(["metrics:read", "values:submit", "metrics:write"]);
+    const odo = json(await client.callTool({ name: "create_metric", arguments: { name: "Odometer", unit: "km", period: "week", aggregation: "last", first_value: { value: 13573, period: "2026-11-02" } } }));
+    expect(odo.first_value).toMatchObject({ recorded: true, value: 13573 });
+    await client.callTool({ name: "submit_value", arguments: { slug: odo.metric.slug, value: 13650, period: "2026-11-09" } });
+    const made = json(await client.callTool({ name: "create_metric", arguments: { name: "Kilometres per day", unit: "km per day", formula: `change({${odo.metric.slug}}) / 7`, decimals: 1 } }));
+    expect(made.metric).toMatchObject({ derived: true, period: "week", unit: "km per day", decimals: 1, formula: `change({${odo.metric.slug}}) / 7`, sources: [] });
+    expect(made.next_ask).toBeNull();
+    expect(made.url).toMatch(/\/metrics\/kilometres-per-day$/);
+    expect(made.defaults_used.join(" ")).toMatch(/Counted by week.*Nobody is asked/);
+    // 77 km since the week before, over 7 days: the first reading has no change yet.
+    expect(json(await client.callTool({ name: "get_metric", arguments: { slug: made.metric.slug, from: "2026-11-01" } })).values).toEqual([expect.objectContaining({ period: "2026-11-09", value: 11 })]);
+    // What a calculated Metric does not take is said in words the assistant can act on; a formula over a Metric that is not there is refused.
+    const misplaced = await client.callTool({ name: "create_metric", arguments: { name: "Odd", formula: `{${odo.metric.slug}} * 2`, submit: true, schedule: { hour: 9 } } });
+    expect(misplaced.isError).toBe(true);
+    expect(JSON.stringify(misplaced.content)).toMatch(/leave out submit, schedule/);
+    const missing = await client.callTool({ name: "create_metric", arguments: { name: "Odd", formula: "{nonesuch} * 2" } });
+    expect(missing.isError).toBe(true);
+    expect(JSON.stringify(missing.content)).toMatch(/not a Metric of this Workspace/);
+  });
   it("makes a dashboard from a template and writes one up with Findings (spec 0014, spec 0013)", async () => {
     const { client, orders } = await connect(["metrics:read", "dashboards:read", "dashboards:write"]);
     const templates = json(await client.callTool({ name: "list_templates", arguments: { kind: "dashboard" } })).templates;

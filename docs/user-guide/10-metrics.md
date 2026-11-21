@@ -318,9 +318,31 @@ When you name a new Metric, or rename one, and a Metric you can see already has 
 
 **Save** keeps the change as a new **Version**.
 
-Ziffr has no screen yet for creating a Derived Metric or changing its formula. A Derived Metric's formula is shown here, but not edited.
+A Derived Metric's formula is shown here, but not edited: to change it, make a new Derived Metric (see below).
 
-A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, and other Metrics. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
+### Calculated from other Metrics
+
+A **Derived Metric** is a number worked out from other Metrics, such as a margin, or the kilometres driven per day from a weekly odometer reading. Nobody is asked for it: it has a value in each period in which the Metrics it is made of have one.
+
+To make one, choose **New metric**, then **Calculated from other Metrics**:
+
+1. Give it a **Name**, and if you like a **Description**.
+2. Build the **Formula**: click a Metric in the list to put it into the formula (it is written as its slug in curly brackets, such as `{revenue}`), and type `+ - * /`, brackets and numbers between them. For example `({revenue} - {cost}) / {revenue} * 100`.
+3. Under **How is it shown?**, set a **Unit**, **Decimals**, **Period** or **Which way is good**, or leave them empty: Ziffr takes the period of the Metrics it is calculated from, their unit where a sum or difference keeps it, and two decimals where the formula divides. The page of the new Metric says nothing of this; the Description box shows what was chosen, and **Edit details...** changes it.
+4. **Create metric**.
+
+You can only pick Metrics you see (your own, and those shared with you). A Metric you do not see is not offered, and a formula that names one is refused as if it did not exist. Ziffr refuses a formula with Metrics counted by different periods, with a Derived Metric among them, or with an input set to Aggregation none (except in the two functions below), and says why; nothing is made then.
+
+**Compared with the period before.** Two functions reach back one period:
+
+| Write | It means | Example |
+|---|---|---|
+| `change({odometer})` | this period's value minus the previous period's | `change({odometer}) / 7`: kilometres per day from a weekly odometer reading |
+| `prev({odometer})` | the previous period's value | `{sales} - prev({sales})` is the same as `change({sales})` |
+
+Press **change( )** or **prev( )** in the form, then pick the Metric to put it inside. The previous period is the one right before, counted by the Metric's own period. If the previous period has no value, there is no value for this one either: Ziffr never works out a change across a gap. The first period has no change yet. A Derived Metric that uses `change` or `prev` is shown by its own period only: by month, quarter or year it says "Shown by its own period" and why, because "the previous quarter" of a monthly Metric would be a different number than the one you asked for. It also has no Comparison to date (MoM, QoQ) but the previous period and the year before work.
+
+A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, other Metrics, and `change( )` and `prev( )` of one Metric. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
 
 ### Retention
 

@@ -43,6 +43,8 @@ const workflowRef = z.union([z.number().int().positive(), z.string().trim().min(
 
 /** A Metric on its own (GET, POST and PATCH answer this): its description, its Workflow and when a value is due next. */
 export const MetricDetail = MetricDescription.extend({
+  formula: z.string().nullable().describe("A Derived Metric's formula by its inputs' slugs, only when you see all of them; null for other Metrics, and for one made from Metrics you may not see."),
+  defaults: z.array(z.string()).optional().describe("Only in the answer to creating a Derived Metric: what was chosen where you left a field out, in plain words."),
   url: z.string().describe("Where the Metric is in Ziffr, to give the person a link; needs a sign-in."),
   next_asked: z.object({
     day: z.string().describe("The day, YYYY-MM-DD."),
@@ -140,6 +142,7 @@ export const CreateMetric = z.object({
   sources: z.array(SourceId).min(1).max(5).optional().describe("Its Sources, the ways values may arrive; left out, every one."),
   submitters: submitterIds.optional().describe("Who submits: ids from GET /people (people, Contacts) and GET /feeds (Feeds), at most 20. Each gets a first Prompt. Needs metrics:edit as well."),
   workflow: workflowRef.nullable().optional().describe("One of your own Workflows, by id or exact name (GET /workflows), so the Metric is asked for on its schedule at once. Needs metrics:edit as well. A Workflow with an Approve or Tell step only with workflows:people on a program's key."),
+  formula: z.string().min(1).max(500).optional().describe("Makes a Derived Metric: computed from other Metrics you can see, by their slugs, such as {revenue} / {orders} or ({revenue} - {cost}) / {revenue} * 100. + - * /, brackets and numbers; change({odometer}) is this period's value minus the previous period's and prev({odometer}) the previous period's (a Derived Metric with these is shown by its own period only). Its period is its inputs' own unless given, its unit their unit for sums and differences. It takes no values, so submit, submitters, sources, aggregation, submission_rule and workflow are refused with it. Needs metrics:read as well."),
 }).strict();
 
 /** A target or Projection: a number at most 10^15 either way. */
