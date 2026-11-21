@@ -1,0 +1,328 @@
+{
+  "name": "Todoist to Ziffr",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Todoist to Ziffr\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the Todoist project.\n2. Add the Todoist credential to the two List nodes.\n3. Activate the workflow. Every 5 minutes it tells Ziffr which tasks were completed in the last 7 days or reopened, and passes on a line starting \"Reply:\" in a task's description.\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/todoist.md",
+        "width": 460,
+        "height": 300
+      },
+      "id": "5378e97a-6046-5804-9893-1d62146c017a",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "79c857d6-aaa0-5ced-b477-0050525b4f0c",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0801cb36-955d-559c-b02c-2f2b842eeb54",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "ad1e3669-2587-5cfa-a011-90b362c736fb",
+              "name": "webhookId",
+              "value": "REPLACE-WITH-THE-WEBHOOK-ID",
+              "type": "string"
+            },
+            {
+              "id": "887d19dc-12f5-5c17-9017-5542ff051141",
+              "name": "secret",
+              "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
+              "type": "string"
+            },
+            {
+              "id": "cb0b7a97-19ad-5d63-84f6-633b839a4ea1",
+              "name": "projectId",
+              "value": "REPLACE-WITH-THE-PROJECT-ID",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "05464741-bca5-531d-a880-f51ddb119b19",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.todoist.com/api/v1/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "project_id",
+              "value": "={{ $('Settings').first().json.projectId }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af7c2f52-2ad9-5d4e-ad92-fd5254d716ef",
+      "name": "List active tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.todoist.com/api/v1/tasks/completed/by_completion_date",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "project_id",
+              "value": "={{ $('Settings').first().json.projectId }}"
+            },
+            {
+              "name": "since",
+              "value": "={{ new Date(Date.now() - 7 * 86400000).toISOString() }}"
+            },
+            {
+              "name": "until",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b8259176-aba4-5948-a0f9-b21f379f3005",
+      "name": "List completed tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Todoist -> Ziffr: which tasks with a Ziffr ref were ticked or un-ticked since we last told Ziffr, and which got a \"Reply:\" line.\nconst SYSTEM = 'todoist';\nconst LIMIT = 100;\nconst ID = /^[A-Za-z0-9_-]{1,40}$/;\nconst taskUrl = (id) => 'https://app.todoist.com/app/task/' + id;\nconst TASKS = (active, completed) => {\n  const seen = new Set();\n  const out = [];\n  for (const t of (active && active.results) || []) { seen.add(String(t.id)); out.push({ id: String(t.id), title: t.content, done: false, notes: t.description || '', url: taskUrl(t.id) }); }\n  for (const t of (completed && completed.items) || []) { const id = String(t.task_id || t.id); if (!seen.has(id)) { seen.add(id); out.push({ id, title: t.content, done: true, notes: t.description || '', url: taskUrl(id) }); } }\n  return out;\n};\nconst TASK = (res) => ({ id: String(res.id), url: taskUrl(res.id) });\nconst createBody = (title, notes, due, open) => { const b = { content: title, description: notes, project_id: input.projectId }; if (due) b.due_date = due; return b; };\nconst patchBody = (title, due, open) => (due ? { content: title, due_date: due } : { content: title, due_string: 'no date' });\nconst closeBody = () => ({});\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst tasks = TASKS($('List active tasks').first().json, $input.first().json);\nconst out = [];\nconst present = new Set();\nfor (const t of tasks) {\n  // Ziffr's block is the first lines up to the LAST whole line that is the marker; its first line holds the ref.\n  const lines = t.notes.split(/\\r?\\n/);\n  let end = -1;\n  lines.forEach((l, i) => { if (/^--- end of Ziffr text ---[ \\t]*$/.test(l)) end = i; });\n  const m = end < 0 ? null : /^Ziffr ref: ([A-Za-z0-9]+-\\d+)[ \\t]*$/.exec(lines[0]);\n  if (!m) continue;\n  const ref = m[1];\n  present.add(ref);\n  const was = state.reported[ref];\n  if (t.done && was !== 'done') out.push({ json: { ref, ziffr: { op: 'done', system: SYSTEM, external_id: t.id } } });\n  else if (!t.done && was === 'done') out.push({ json: { ref, ziffr: { op: 'reopen', system: SYSTEM, external_id: t.id } } });\n  const reply = lines.slice(end + 1).map((l) => /^Reply:[ \\t]*(.+)$/.exec(l)).find((x) => x);\n  const text = reply ? Array.from(reply[1].trim()).slice(0, 1000).join('') : '';\n  if (text && state.replied[ref] !== text) out.push({ json: { ref, ziffr: { op: 'reply', system: SYSTEM, external_id: t.id, text } } });\n}\n// Forget what is no longer in a list we saw whole; Ziffr allows 60 requests a minute, so a run sends at most 30.\nconst whole = tasks.length < LIMIT;\nif (whole) for (const k of Object.keys(state.reported)) if (!present.has(k)) delete state.reported[k];\nif (whole) for (const k of Object.keys(state.replied)) if (!present.has(k)) delete state.replied[k];\nreturn out.slice(0, 30);\n"
+      },
+      "id": "ce70b051-af57-5aa9-8826-1e8766ced16d",
+      "name": "Changes to tell Ziffr",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+      },
+      "id": "442bc307-c8c0-50ac-a933-254ab91c2fbb",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Ziffr-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Ziffr-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "590f66db-ee4a-56f3-a3da-4643bc105b79",
+      "name": "Call Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Writes down what Ziffr took (200: done; 409: Ziffr's rules say no, asking again would not help), so it is not sent twice.\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst sent = $('Sign request').all();\nlet handled = 0;\n$input.all().forEach((res, i) => {\n  const s = sent[i] && sent[i].json;\n  const code = res.json.statusCode;\n  if (!s || (code !== 200 && code !== 409)) return;\n  handled++;\n  if (s.op === 'done') state.reported[s.ref] = 'done';\n  if (s.op === 'reopen') state.reported[s.ref] = 'open';\n  if (s.op === 'reply') state.replied[s.ref] = s.text;\n});\nreturn [{ json: { handled } }];\n"
+      },
+      "id": "c632f254-e649-52c7-8406-5e881c137263",
+      "name": "Remember what Ziffr took",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List active tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List active tasks": {
+      "main": [
+        [
+          {
+            "node": "List completed tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List completed tasks": {
+      "main": [
+        [
+          {
+            "node": "Changes to tell Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changes to tell Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Call Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Remember what Ziffr took",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

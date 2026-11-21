@@ -1,0 +1,3 @@
+# Automation Templates
+
+The n8n workflows in this folder (`*-from-ziffr.json`, `*-to-ziffr.json`) are **generated**: `node scripts/automation-templates/generate.mjs` writes them from the shared code in `scripts/automation-templates/`, so a fix to the signature check, the reply rules or the id checks reaches every template at once. Never edit a `.json` here by hand; a test fails when a file differs from the generator's output. Each system has its guide next to its files: [Microsoft To Do](microsoft-todo.md), [Google Tasks](google-tasks.md), [Slack](slack.md), [Asana](asana.md), [Todoist](todoist.md), [Planner](planner.md). The messages are in the [Webhooks guide](../guides/webhooks.md).

@@ -4,16 +4,16 @@
     {
       "parameters": {
         "content": "Ziffr to Google Tasks\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the task list (`@default` is your main list).\n2. Add the Google Tasks credential to the three HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr (events: action.created, action.updated, action.done).\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/google-tasks.md",
-        "width": 420,
-        "height": 260
+        "width": 460,
+        "height": 300
       },
-      "id": "76e4ca1c-54aa-488f-cb7d-a85744c9fd1c",
+      "id": "eddda333-609e-5b11-8cf6-91c4ca942c92",
       "name": "Read me",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -60,
-        -40
+        -60
       ]
     },
     {
@@ -25,7 +25,7 @@
           "rawBody": true
         }
       },
-      "id": "c8975ba1-a54a-a514-ab6f-c67161456df5",
+      "id": "0db6efe6-70fe-55cd-9924-1b7d7687ce77",
       "name": "Ziffr event",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -33,32 +33,32 @@
         0,
         300
       ],
-      "webhookId": "da628a5e-517a-cfb4-2043-a34c7cd81829"
+      "webhookId": "d5c3df53-da5b-23a1-f8ee-2d27eb5d0506"
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "640d87e7-41e6-aa4c-669a-82a4cd304787",
+              "id": "c15a5ddb-d05f-55e4-b720-eba2b5adfe32",
               "name": "ziffrUrl",
               "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
               "type": "string"
             },
             {
-              "id": "4205714c-dfe1-4ed9-e3d0-30ddf7887781",
+              "id": "54b87f11-21de-5e80-8217-5a8ccf254967",
               "name": "webhookId",
               "value": "REPLACE-WITH-THE-WEBHOOK-ID",
               "type": "string"
             },
             {
-              "id": "dd33a084-ba22-3dd2-31b0-aa962f77a592",
+              "id": "551c437e-e144-539e-ba07-f8082fca3a8d",
               "name": "secret",
               "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
               "type": "string"
             },
             {
-              "id": "cf02869b-109e-6689-23aa-a85773264c6e",
+              "id": "287b0bfc-2255-52dd-8f09-2afd6ba51412",
               "name": "listId",
               "value": "REPLACE-WITH-THE-LIST-ID",
               "type": "string"
@@ -70,7 +70,7 @@
           "includeBinary": true
         }
       },
-      "id": "c7f73bb5-4d92-8922-c383-8bb789ee9fb8",
+      "id": "595a0862-5ec7-5d36-a239-ea8173130ab5",
       "name": "Settings",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -81,9 +81,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ziffr -> Google Tasks: checks the signature, drops repeats, own echoes and old news, and decides what to do.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst SYSTEM = 'google-tasks';\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst input = $input.first().json;\nconst headers = Object.fromEntries(Object.entries(input.headers || {}).map(([k, v]) => [k.toLowerCase(), String(v)]));\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst out = (httpStatus, rest = {}) => [{ json: { httpStatus, action: 'none', ...rest } }];\n\n// 1. The signature, over the raw body, within five minutes; a secret replaced in the last 24 hours may sign too (oldSecret).\nconst secrets = [input.secret, input.oldSecret].filter((s) => s && !String(s).startsWith('REPLACE'));\nconst timestamp = headers['x-ziffr-timestamp'] || '';\nconst given = (headers['x-ziffr-signature'] || '').split(',').map((h) => h.trim()).filter((h) => /^sha256=[0-9a-f]{64}$/.test(h));\nlet signed = /^\\d{1,12}$/.test(timestamp) && Math.abs(Date.now() / 1000 - Number(timestamp)) <= 300;\nlet match = false;\nfor (const secret of secrets) {\n  const expected = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex'));\n  for (const g of given) if (g.length === expected.length && crypto.timingSafeEqual(Buffer.from(g), expected)) match = true;\n}\nif (!signed || !match) return out(401);\n\nlet event;\ntry { event = JSON.parse(raw); } catch (e) { return out(400); }\nconst d = event && event.data;\nif (!event || typeof event.type !== 'string' || !event.type.startsWith('action.') || !d || typeof d.ref !== 'string') return out(200);\n\n// 2. Once per delivery: Ziffr sends at least once. Static data only lasts while the workflow is active.\nconst state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nstate.latest = state.latest || {};\nconst now = Date.now();\nfor (const [k, t] of Object.entries(state.seen)) if (now - t > 86400000) delete state.seen[k];\nfor (const [k, v] of Object.entries(state.latest)) if (now - v.t > 30 * 86400000) delete state.latest[k];\nconst delivery = headers['x-ziffr-delivery'] || event.id;\nif (state.seen[delivery]) return out(200, { why: 'repeat' });\nstate.seen[delivery] = now;\n\n// 3. Not our own echo, only Tasks, only the newest news per Action.\nif (d.source && d.source.type === 'webhook' && d.source.webhook_id === input.webhookId) return out(200, { why: 'echo' });\nif (d.kind !== 'task') return out(200, { why: 'question' });\nconst seenUpdate = state.latest[d.ref];\nif (seenUpdate && Date.parse(d.updated_at) < Date.parse(seenUpdate.u)) return out(200, { why: 'older' });\nstate.latest[d.ref] = { u: d.updated_at, t: now };\n\n// 4. What to do. A redacted message has no title: the task says what it is and links back.\nconst link = (d.external_ids || []).find((e) => e.system === SYSTEM);\nconst open = d.status === 'open';\nconst title = d.redacted ? 'A Ziffr task for you (' + d.ref + ')' : String(d.title || d.ref);\nconst clean = (s) => String(s).replace(/[\\u0000-\\u001f\\u007f\\u2028\\u2029]+/g, \" \").replace(/-{3,}/g, \"-\").replace(/^\\s*Reply:\\s*/i, \"\").trim();\nconst notes = [\"Ziffr ref: \" + clean(d.ref), clean(d.link), !d.redacted && d.metric ? \"Metric: \" + clean(d.metric.name) : null, !d.redacted && d.asker ? \"Asked by: \" + clean(d.asker.name) : null, \"--- end of Ziffr text ---\"].filter(Boolean).join(\"\\n\");\nconst base = { ref: d.ref };\nif (event.type === 'action.done') return link ? out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: closeBody() }) : out(200, { why: 'not linked' });\nif (event.type === 'action.created' || event.type === 'action.updated') {\n  if (link) return out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: patchBody(title, d.due, open) });\n  return open ? out(200, { ...base, action: 'create', createBody: createBody(title, notes, d.due, open) }) : out(200, { why: 'closed and not linked' });\n}\nreturn out(200, { why: 'nothing to do' });\n"
+        "jsCode": "// Ziffr -> Google Tasks: checks the signature, drops repeats, own echoes and old news, and decides what to do.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst SYSTEM = 'google-tasks';\nconst LIMIT = 100;\nconst ID = /^[A-Za-z0-9_=-]{1,100}$/;\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst extra = () => ({});\nconst input = $input.first().json;\nconst headers = Object.fromEntries(Object.entries(input.headers || {}).map(([k, v]) => [k.toLowerCase(), String(v)]));\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst out = (httpStatus, rest = {}) => [{ json: { httpStatus, action: 'none', ...rest } }];\n\n// 1. The signature, over the raw body, within five minutes; a secret replaced in the last 24 hours may sign too (oldSecret).\nconst secrets = [input.secret, input.oldSecret].filter((s) => s && !String(s).startsWith('REPLACE'));\nconst timestamp = headers['x-ziffr-timestamp'] || '';\nconst given = (headers['x-ziffr-signature'] || '').split(',').map((h) => h.trim()).filter((h) => /^sha256=[0-9a-f]{64}$/.test(h));\nlet signed = /^\\d{1,12}$/.test(timestamp) && Math.abs(Date.now() / 1000 - Number(timestamp)) <= 300;\nlet match = false;\nfor (const secret of secrets) {\n  const expected = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex'));\n  for (const g of given) if (g.length === expected.length && crypto.timingSafeEqual(Buffer.from(g), expected)) match = true;\n}\nif (!signed || !match) return out(401);\n\nlet event;\ntry { event = JSON.parse(raw); } catch (e) { return out(400); }\nconst d = event && event.data;\nif (!event || typeof event.type !== 'string' || !event.type.startsWith('action.') || !d || typeof d.ref !== 'string') return out(200);\n\n// 2. Once per delivery: Ziffr sends at least once. Static data only lasts while the workflow is active.\nconst state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nstate.latest = state.latest || {};\nconst now = Date.now();\nfor (const [k, t] of Object.entries(state.seen)) if (now - t > 86400000) delete state.seen[k];\nfor (const [k, v] of Object.entries(state.latest)) if (now - v.t > 30 * 86400000) delete state.latest[k];\n// The id in the signed body is the delivery id; the header is not signed, so it is not trusted.\nconst delivery = typeof event.id === 'string' ? event.id : '';\nif (!delivery) return out(200, { why: 'no id' });\nif (state.seen[delivery]) return out(200, { why: 'repeat' });\nstate.seen[delivery] = now;\n\n// 3. Not our own echo, only Tasks, only the newest news per Action.\nif (d.source && d.source.type === 'webhook' && d.source.webhook_id === input.webhookId) return out(200, { why: 'echo' });\nif (d.kind !== 'task') return out(200, { why: 'question' });\nconst seenUpdate = state.latest[d.ref];\nif (seenUpdate && Date.parse(d.updated_at) < Date.parse(seenUpdate.u)) return out(200, { why: 'older' });\nstate.latest[d.ref] = { u: d.updated_at, t: now };\n\n// 4. What to do. A redacted message has no title: the task says what it is and links back.\nconst link = (d.external_ids || []).find((e) => e.system === SYSTEM);\nif (link && !ID.test(String(link.external_id))) return out(200, { why: 'bad id' });\nconst open = d.status === 'open';\nconst clean = (s) => String(s).replace(/[\\u0000-\\u001f\\u007f\\u2028\\u2029]+/g, \" \").replace(/-{3,}/g, \"-\").replace(/^\\s*Reply:\\s*/i, \"\").trim();\nconst title = d.redacted ? 'A Ziffr task for you (' + d.ref + ')' : String(d.title || d.ref);\nconst notes = [\"Ziffr ref: \" + clean(d.ref), clean(d.link), !d.redacted && d.metric ? \"Metric: \" + clean(d.metric.name) : null, !d.redacted && d.asker ? \"Asked by: \" + clean(d.asker.name) : null, \"--- end of Ziffr text ---\"].filter(Boolean).join(\"\\n\");\nconst base = { ref: d.ref };\nif (event.type === 'action.done') return link ? out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: closeBody() }) : out(200, { why: 'not linked' });\nif (event.type === 'action.created' || event.type === 'action.updated') {\n  if (link) return out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: patchBody(title, d.due, open) });\n  return open ? out(200, { ...base, action: 'create', notes, createBody: createBody(title, notes, d.due, open), ...extra(notes) }) : out(200, { why: 'closed and not linked' });\n}\nreturn out(200, { why: 'nothing to do' });\n"
       },
-      "id": "88e54040-aa56-0b3b-0f89-be878c9898aa",
+      "id": "2e2abbe7-c123-515d-9382-ee22a359d2e9",
       "name": "Verify and filter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -99,7 +99,7 @@
           "responseCode": "={{ $json.httpStatus }}"
         }
       },
-      "id": "c3273cda-c327-66f6-4b35-8ce02b760778",
+      "id": "0e8c046f-f3d8-5f22-9598-d3529370cf3a",
       "name": "Answer Ziffr",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -162,7 +162,7 @@
         },
         "options": {}
       },
-      "id": "779b1d58-1eb9-fa11-6635-7fe338061f2d",
+      "id": "cc007c49-9ca1-5ebe-8c2c-541712848070",
       "name": "What to do",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -196,7 +196,7 @@
         },
         "options": {}
       },
-      "id": "6cc25380-9c2c-d61f-5416-3e8d70da9011",
+      "id": "68b28522-d0de-5b89-808a-78fd764f0a3a",
       "name": "List tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -212,9 +212,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// A first event: is there a task with this ref in its notes already (a retry, a lost link)? Then link that one.\nconst SYSTEM = 'google-tasks';\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst v = $('Verify and filter').first().json;\nconst found = TASKS($input.first().json).find((t) => t.notes.split(/\\r?\\n/)[0].trim() === 'Ziffr ref: ' + v.ref);\nreturn [{ json: { ...v, exists: !!found, taskId: found ? found.id : undefined, taskUrl: found ? found.url : undefined } }];\n"
+        "jsCode": "// A first event: is there a task with this ref in its notes already (a retry, a lost link)? Then link that one.\nconst SYSTEM = 'google-tasks';\nconst ID = /^[A-Za-z0-9_=-]{1,100}$/;\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst v = $('Verify and filter').first().json;\n// Only a task that holds exactly what this workflow would have written is taken as its own; a task someone else made with the ref in it is not.\nconst found = TASKS($input.first().json).find((t) => t.notes.replace(/\\r\\n/g, '\\n').trim() === String(v.notes).trim());\nreturn [{ json: { ...v, exists: !!found, taskId: found ? found.id : undefined, taskUrl: found ? found.url : undefined } }];\n"
       },
-      "id": "a7988583-b760-5a10-5c23-d8778c6e5717",
+      "id": "767e2503-aac7-5cba-abfb-e30f3091ac17",
       "name": "Find by ref",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -247,7 +247,7 @@
         },
         "options": {}
       },
-      "id": "5949a480-ed28-5dfe-b71c-4921ce984048",
+      "id": "26a3f168-eedd-5f0a-825b-c5aac3e2efaf",
       "name": "Already there?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -268,7 +268,7 @@
         "jsonBody": "={{ JSON.stringify($('Verify and filter').first().json.createBody) }}",
         "options": {}
       },
-      "id": "f1f1450f-f80a-eab9-1cb0-853329e2b454",
+      "id": "3aaeb88f-55c9-5177-8e9a-9679de65f57b",
       "name": "Create task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -284,9 +284,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Tells Ziffr which task this Action is, so every later event carries it in external_ids.\nconst SYSTEM = 'google-tasks';\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst v = $('Verify and filter').first().json;\nconst j = $input.first().json;\nconst t = j.exists ? { id: j.taskId, url: j.taskUrl } : TASK(j);\nreturn [{ json: { ziffr: { op: 'link', ref: v.ref, system: SYSTEM, external_id: t.id, url: t.url } } }];\n"
+        "jsCode": "// Tells Ziffr which task this Action is, so every later event carries it in external_ids.\nconst SYSTEM = 'google-tasks';\nconst ID = /^[A-Za-z0-9_=-]{1,100}$/;\nconst TASKS = (res) => (res.items || []).map((t) => ({ id: t.id, title: t.title, done: t.status === 'completed', notes: t.notes || '', url: t.webViewLink }));\nconst TASK = (t) => ({ id: t.id, url: t.webViewLink });\nconst DUE = (due) => (due ? due + 'T00:00:00.000Z' : null);\nconst STATE = (open) => (open ? 'needsAction' : 'completed');\nconst createBody = (title, notes, due, open) => { const b = { title, notes, status: STATE(open) }; if (due) b.due = DUE(due); return b; };\nconst patchBody = (title, due, open) => (open ? { title, due: DUE(due), status: STATE(true), completed: null } : { title, due: DUE(due), status: STATE(false) });\nconst closeBody = () => ({ status: 'completed' });\nconst v = $('Verify and filter').first().json;\nconst j = $input.first().json;\nconst t = j.exists ? { id: j.taskId, url: j.taskUrl } : TASK(j);\nreturn [{ json: { ziffr: { op: 'link', ref: v.ref, system: SYSTEM, external_id: t.id, url: t.url } } }];\n"
       },
-      "id": "6fdbbce5-5d87-fb01-7c5b-6ddaf5b6c762",
+      "id": "b1b85478-c33e-5dda-be4b-96fa51542e12",
       "name": "Prepare link",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -298,7 +298,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://tasks.googleapis.com/tasks/v1/lists/{{ $('Settings').first().json.listId }}/tasks/{{ $json.taskId }}",
+        "url": "=https://tasks.googleapis.com/tasks/v1/lists/{{ $('Settings').first().json.listId }}/tasks/{{ encodeURIComponent($json.taskId) }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleTasksOAuth2Api",
         "sendBody": true,
@@ -307,7 +307,7 @@
         "jsonBody": "={{ JSON.stringify($json.patchBody) }}",
         "options": {}
       },
-      "id": "de64ae0d-4886-ed4b-9d81-f2e6b71aef9c",
+      "id": "6d5f1b01-5f7d-5f38-98ff-8e232812cb67",
       "name": "Update task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -325,7 +325,7 @@
       "parameters": {
         "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
       },
-      "id": "119e96f9-a947-3b38-1d83-d6935f95273c",
+      "id": "dee58c2b-29d2-5a30-bb6b-7c9fda316146",
       "name": "Sign request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -364,7 +364,7 @@
           }
         }
       },
-      "id": "68ad2231-3f7a-d9fb-7d58-50de7c4a9c98",
+      "id": "ca8620d5-de55-5e2e-ad23-bf9e3c071281",
       "name": "Call Ziffr",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
