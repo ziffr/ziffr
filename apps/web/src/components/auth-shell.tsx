@@ -13,7 +13,7 @@ export function AuthShell({ children, className }: { children: React.ReactNode; 
   return (
     <Card className={cn("mx-auto mt-4 w-full max-w-5xl gap-0 p-0 sm:mt-8 md:grid md:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]", className)}>
       <div className="flex min-w-0 flex-col justify-center p-6 sm:p-10">{children}</div>
-      <aside aria-label="About Ziffr" className="flex min-w-0 flex-col justify-between gap-8 overflow-hidden border-t border-border bg-muted p-6 sm:px-10 md:border-l md:border-t-0 md:pb-0 md:pr-0 md:pt-10">
+      <aside aria-label="About Ziffr" className="flex min-w-0 flex-col justify-start gap-8 overflow-hidden border-t border-border bg-muted p-6 sm:px-10 md:border-l md:border-t-0 md:pb-0 md:pr-0 md:pt-10">
         <div className="max-w-sm md:pr-10">
           <p className="text-[length:var(--text-lg)] font-medium leading-snug">The numbers you care about, in one place.</p>
           <p className="mt-2 text-sm text-muted-foreground">Define a metric, and Ziffr asks people for its values, or systems send them in. Everyone sees, shares and discusses them over time.</p>
