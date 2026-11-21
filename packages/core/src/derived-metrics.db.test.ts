@@ -284,6 +284,25 @@ describe("createDerivedMetric", () => {
     expect(d.slug).toBe("half");
   });
 
+  it("the migration's backfill marks Derived Metrics made through the core before the mark existed, and only those", async () => {
+    const { w, sara, as } = await setup();
+    await w.metric(sara, { name: "Mine", slug: "mine" });
+    const made = await createDerivedMetric(as, { name: "Twice", formula: "{mine} * 2" });
+    const changed = await createDerivedMetric(as, { name: "Thrice", formula: "{mine} * 3" });
+    await setMetricFormula(as, changed.id, "{mine} * 4");
+    // A Pack's or the seed's: no such note in its history.
+    const old = await w.metric(sara, { name: "Old", slug: "old", formula: "{mine} * 5", sources: [] });
+    await db().from("versions").insert({ object_type: "metric", object_id: old.id, version: 1, snapshot: {}, author_id: sara, message: "Made a Derived Metric from its Pack's entry", workspace_id: w.id });
+    const flag = async (id: number) => (await db().from("metrics").select("inputs_checked").eq("id", id).single()).data!.inputs_checked;
+    expect([await flag(made.id), await flag(changed.id), await flag(old.id)]).toEqual([true, true, false]);
+    // As if they were made before the column existed.
+    await db().from("metrics").update({ inputs_checked: false }).in("id", [made.id, changed.id]);
+    expect([await flag(made.id), await flag(changed.id)]).toEqual([false, false]);
+    const { data } = await db().rpc("backfill_derived_inputs_checked");
+    expect(data).toBeGreaterThanOrEqual(2);
+    expect([await flag(made.id), await flag(changed.id), await flag(old.id)]).toEqual([true, true, false]);
+  });
+
   it("leaves Derived Metrics made before this rule (a Pack's, the demo's) as they were", async () => {
     const { w, sara } = await setup();
     const lena = await w.person("member");
