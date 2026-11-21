@@ -226,7 +226,7 @@ describe("done, reply, answer and reopen", () => {
     expect(msgs).toEqual([{ author_id: c.ann, via: "To Do" }]);
     const { data: log } = await db().from("audit_events").select("kind, actor_name").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done");
     expect(log).toEqual([{ kind: "webhook.marked_done", actor_name: "Webhook To Do" }]);
-    expect((await c.rows(id, "action.done")).filter((r) => r.source_type === "webhook")).toHaveLength(2);
+    expect((await c.rows(id, "action.done")).filter((r) => r.source_type === "webhook")).toHaveLength(1);
   });
 
   it("refuses a Question, a Task never sent to this Webhook, an Action of another Workspace, a disabled one and an Approval", async () => {
@@ -304,11 +304,11 @@ describe("done, reply, answer and reopen", () => {
     expect(await c.refused(c.call(c.todo, { op: "answer", ref: `ZIF-${t}`, text: "yes" }))).toBe("conflict");
     expect(await c.call(c.todo, { op: "answer", ref: `ZIF-${q}`, text: "Traffic fell in week 3" })).toEqual({ changed: true, status: "answered" });
     expect(await c.call(c.todo, { op: "answer", ref: `ZIF-${q}`, text: "Traffic fell in week 3" })).toEqual({ changed: false, status: "answered" });
-    expect((await c.rows(q, "action.answered")).filter((r) => r.source_webhook_id === c.todo.id)).toHaveLength(2);
+    expect((await c.rows(q, "action.answered")).filter((r) => r.source_webhook_id === c.todo.id)).toHaveLength(1);
     expect((await db().from("thread_messages").select("via").eq("action_id", q)).data).toEqual([{ via: "To Do" }]);
   });
 
-  it("reopens a Task marked done, and sends action.updated to every Webhook, the one it came from marked", async () => {
+  it("reopens a Task marked done, and sends action.updated to the other Webhooks, marked with the one it came from, and nothing back to it", async () => {
     const c = await setup();
     const id = await c.task(); await c.sent(id, c.todo);
     const ref = `ZIF-${id}`;
@@ -317,8 +317,7 @@ describe("done, reply, answer and reopen", () => {
     expect(await c.call(c.todo, { op: "reopen", ref })).toEqual({ changed: true, status: "open" });
     expect(await c.call(c.todo, { op: "reopen", ref })).toEqual({ changed: false, status: "open" });
     const updates = await c.rows(id, "action.updated");
-    expect(updates.map((r) => [r.source_type, r.source_webhook_id]).sort()).toEqual([["webhook", c.todo.id], ["webhook", c.todo.id]]);
-    expect(new Set(updates.map((r) => r.webhook_id))).toEqual(new Set([c.todo.id, c.planner.id]));
+    expect(updates.map((r) => [r.webhook_id, r.source_type, r.source_webhook_id])).toEqual([[c.planner.id, "webhook", c.todo.id]]);
   });
 
   it("does not reopen a Question, a Task closed by the asker, or a Task the system closed", async () => {
@@ -341,13 +340,13 @@ describe("done, reply, answer and reopen", () => {
 });
 
 describe("one source of truth: conflicts and echoes", () => {
-  it("tells every Webhook once, the reporting one included and marked with its id; the repeat sends nothing", async () => {
+  it("tells every other Webhook once, marked with the reporting one's id, and the reporting one nothing; the repeat sends nothing", async () => {
     const c = await setup();
     const id = await c.task(); await c.sent(id, c.todo, c.planner);
     await c.call(c.todo, { op: "done", ref: `ZIF-${id}` });
     await c.call(c.todo, { op: "done", ref: `ZIF-${id}` });
     const done = await c.rows(id, "action.done");
-    expect(done.map((r) => [r.webhook_id, r.source_type, r.source_webhook_id, r.reason]).sort()).toEqual([[c.planner.id, "webhook", c.todo.id, "done"], [c.todo.id, "webhook", c.todo.id, "done"]].sort());
+    expect(done.map((r) => [r.webhook_id, r.source_type, r.source_webhook_id, r.reason])).toEqual([[c.planner.id, "webhook", c.todo.id, "done"]]);
   });
 
   it("keeps the first of two answers: done in the list, then in Slack, is one event; the other way round too", async () => {
@@ -358,6 +357,7 @@ describe("one source of truth: conflicts and echoes", () => {
     const slack = await changeActionState(c.w.id, a, { to: "answered", from: ["open"], reason: "done", guard: { assigneeId: c.ann } }, { type: "slack" });
     expect(slack.changed).toBe(false);
     expect((await c.rows(a, "action.done")).every((r) => r.source_type === "webhook")).toBe(true);
+    expect((await c.rows(a, "action.done")).map((r) => r.webhook_id)).toEqual([c.planner.id]);
     await changeActionState(c.w.id, b, { to: "answered", from: ["open"], reason: "done", guard: { assigneeId: c.ann } }, { type: "slack" });
     expect(await c.call(c.todo, { op: "done", ref: `ZIF-${b}` })).toEqual({ changed: false, status: "answered" });
     expect((await c.rows(b, "action.done")).every((r) => r.source_type === "slack")).toBe(true);
@@ -369,7 +369,7 @@ describe("one source of truth: conflicts and echoes", () => {
     const id = await c.task(); await c.sent(id, c.todo);
     const results = await Promise.all([1, 2, 3, 4].map(() => c.call(c.todo, { op: "done", ref: `ZIF-${id}` })));
     expect(results.filter((r) => r.changed)).toHaveLength(1);
-    expect((await c.rows(id, "action.done")).filter((r) => r.webhook_id === c.todo.id)).toHaveLength(1);
+    expect(await c.rows(id, "action.done")).toHaveLength(1);
   });
 
   it("closes through closeActions without letting a Webhook undo it", async () => {
@@ -398,14 +398,16 @@ describe.skipIf(!openssl)("the next message carries only the links its own Webho
     expect(seen.find((s) => s.path === "/planner")!.body).not.toContain("TODO-1");
   });
 
-  it("sends the Webhook's own change back to it, marked, with its ids, for the recipe to ignore", async () => {
+  it("sends the Webhook's own change to the other Webhook, marked with its id, and nothing back to itself", async () => {
     const c = await setup(["action.done"]);
-    const id = await c.task(); await c.sent(id, c.todo);
+    const id = await c.task(); await c.sent(id, c.todo, c.planner);
     await c.call(c.todo, { op: "link", ref: `ZIF-${id}`, system: "microsoft-todo", external_id: "T-1" });
+    await c.call(c.planner, { op: "link", ref: `ZIF-${id}`, system: "planner", external_id: "P-1" });
     await c.call(c.todo, { op: "done", ref: `ZIF-${id}` });
     await sendWaitingWebhooks(100);
-    const msg = JSON.parse(seen.find((s) => s.path === "/todo")!.body).data;
+    expect(seen.map((s) => s.path)).toEqual(["/planner"]);
+    const msg = JSON.parse(seen[0].body).data;
     expect(msg.source).toEqual({ type: "webhook", webhook_id: c.todo.id });
-    expect(msg.external_ids).toEqual([{ system: "microsoft-todo", external_id: "T-1", url: null }]);
+    expect(msg.external_ids).toEqual([{ system: "planner", external_id: "P-1", url: null }]);
   });
 });

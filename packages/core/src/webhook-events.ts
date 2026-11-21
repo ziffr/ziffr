@@ -27,11 +27,13 @@ export async function queueWebhookEvent(workspaceId: string, type: WebhookEvent,
   try {
     const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).is("disabled_at", null).contains("events", [type]);
     if (!hooks?.length) return 0;
-    const rows = hooks.map((h) => ({
+    // No echo: a change a Webhook reported is not sent back to that Webhook (Ziffr is the single source of truth); the others hear it, marked with its origin.
+    const rows = hooks.filter((h) => source.type !== "webhook" || h.id !== source.webhookId).map((h) => ({
       workspace_id: workspaceId, webhook_id: h.id as string, type,
       action_id: subject.actionId ?? null, thread_message_id: subject.threadMessageId ?? null, metric_id: subject.metricId ?? null, period_start: subject.period ?? null,
       source_type: source.type, source_webhook_id: source.type === "webhook" ? source.webhookId : null, reason: subject.reason ?? null,
     }));
+    if (!rows.length) return 0;
     const { error } = await db().from("webhook_sends").insert(rows);
     if (error) { console.error("Webhooks: could not queue an event:", error.message); return 0; }
     return rows.length;

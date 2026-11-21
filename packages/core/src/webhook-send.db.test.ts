@@ -141,13 +141,13 @@ describe.skipIf(!openssl)("a signed message, and what the Webhook may hear when 
     expect(Object.keys(json(seen[0]).data).sort()).toEqual(["link", "metric", "period"]);
   });
 
-  it("marks a change that came in through a Webhook, and sends it to that Webhook too, as every other", async () => {
+  it("marks a change that came in through a Webhook with its id, sends it to the other Webhooks and not back to that one", async () => {
     const c = await setup();
     const other = await createWebhook(c.a, { name: "Planner", url: `https://localhost:${port}/hook/two`, events: ["action.done"] });
     const id = await c.task();
     await c.done(id, { type: "webhook", webhookId: c.hook.id });
     await run();
-    expect(seen.map((s) => s.path).sort()).toEqual(["/hook/one", "/hook/two"]);
+    expect(seen.map((s) => s.path)).toEqual(["/hook/two"]);
     for (const s of seen) expect(json(s).data.source).toEqual({ type: "webhook", webhook_id: c.hook.id });
     expect(other.id).not.toBe(c.hook.id);
   });
