@@ -2,6 +2,7 @@
 // function takes the Actor first and works only inside the actor's Workspace: owners and Editors change a dashboard,
 // saved widgets are their owner's, and every Metric a widget draws must be one the actor sees.
 import { db } from "./db";
+import { insertSealed, openOne, sealedPatch, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { visibleDashboards, readableActions } from "./access";
 import { assertSeesMetrics } from "./sharing";
@@ -69,8 +70,7 @@ export async function assertCanEditDashboard(actor: Actor, dashboardId: number) 
 
 /** The widget, if the actor may change it: on a dashboard they edit, or a saved widget of their own. */
 export async function editableWidget(actor: Actor, id: number): Promise<Widget> {
-  const { data } = await db().from("widgets").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
-  const w = data as Widget | null;
+  const w = (await openOne("widgets", actor.workspaceId, (await db().from("widgets").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle()).data)) as Widget | null;
   if (!w) throw new Forbidden();
   if (w.dashboard_id === null) {
     if (w.owner_id !== actor.personId) throw new Forbidden();
@@ -98,8 +98,7 @@ export async function specFrom(actor: Actor, source: DropSource) {
     return { template: t.id, metric_ids: [Number(source.id)], settings: t.settings, title: null as string | null, w: t.size.w, h: t.size.h };
   }
   if (source?.type === "widget") {
-    const { data } = await db().from("widgets").select("*").eq("id", Number(source.id)).eq("workspace_id", actor.workspaceId).maybeSingle();
-    const w = data as Widget | null;
+    const w = (await openOne("widgets", actor.workspaceId, (await db().from("widgets").select("*").eq("id", Number(source.id)).eq("workspace_id", actor.workspaceId).maybeSingle()).data)) as Widget | null;
     if (!w) throw new Forbidden();
     if (w.dashboard_id === null ? w.owner_id !== actor.personId : !(await dashboardRole(actor, w.dashboard_id))) throw new Forbidden();
     // A copy may only draw Metrics the actor sees, even from a dashboard shared with them.
@@ -141,7 +140,8 @@ export async function saveDashboardText(actor: Actor, dashboardId: number, text:
     if (!name) throw new Error("Give the dashboard a name.");
     update.name = name;
   }
-  if (text?.intro !== undefined) update.intro = String(text.intro ?? "").slice(0, MAX_INTRO);
+  // The introduction is sealed with the Workspace Key, bound to its dashboard (spec 0028).
+  if (text?.intro !== undefined) update.intro = (await sealRow("dashboards", actor.workspaceId, { id: dashboardId, intro: String(text.intro ?? "").slice(0, MAX_INTRO) })).intro as string;
   if (!Object.keys(update).length) return;
   await ensureBaseline("dashboard", dashboardId, actor.personId);
   const { error } = await db().from("dashboards").update(update).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);
@@ -164,10 +164,9 @@ export async function placeWidget(actor: Actor, dashboardId: number, source: Dro
     const { data: existing } = await db().from("widgets").select("x,y,w,h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
     ({ x, y } = firstFreePlace(existing ?? [], spec.w, spec.h));
   }
-  const { data, error } = await db().from("widgets").insert({ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y, workspace_id: actor.workspaceId }).select("id").single();
-  if (error || !data) throw new Error("The widget could not be placed.");
+  const placed = await insertSealed("widgets", actor.workspaceId, [{ ...spec, owner_id: actor.personId, dashboard_id: dashboardId, saved: false, x, y }]);
   await recordVersion("dashboard", dashboardId, actor.personId);
-  return data.id as number;
+  return placed[0].id as number;
 }
 
 /** Saves where the widgets of a dashboard sit and how large they are; only widgets of that dashboard move. */
@@ -206,11 +205,13 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
     update.settings = { ...TEMPLATES[patch.template].settings, ...keep, ...(newSettings ?? {}) };
     if (patch.template === "design") update.settings = { ...designSettings((newSettings?.design ?? cur.settings.design)!.body), ...(newSettings ?? {}), design: newSettings?.design ?? cur.settings.design };
     // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
-    if (patch.template === "canvas") update.settings = { canvasSeed: { template: cur.template, metric_ids: cur.metric_ids, settings: cur.settings }, canvas: null };
+    // A widget that already is a free layout stays as it is: starting again from itself would nest a seed in a seed, each
+    // level a longer place for its words to be sealed at (spec 0028).
+    if (patch.template === "canvas") update.settings = cur.template === "canvas" ? cur.settings : { canvasSeed: { template: cur.template, metric_ids: cur.metric_ids, settings: cur.settings }, canvas: null };
     // A composed story starts with one panel: this Metric's change on the previous year, as period bars.
     if (patch.template === "story") update.settings = { ...(update.settings as object), panels: [{ type: "period-bars", metricIds: cur.metric_ids ?? [], measure: "pct-yoy", periods: 6, highlight: "projection", projections: true }] };
   }
-  const { error } = await db().from("widgets").update(update).eq("id", id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, id, update)).eq("id", id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The widget could not be updated.");
   await recordVersion("widget", id, actor.personId);
   if (cur.dashboard_id) await recordVersion("dashboard", cur.dashboard_id, actor.personId);
@@ -222,7 +223,7 @@ export async function applyTemplate(actor: Actor, id: number, templateId: number
   const w = await fromTeamTemplate(actor, templateId, fills);
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
-  const { error } = await db().from("widgets").update({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) }).eq("id", id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, id, { template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) })).eq("id", id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The template could not be applied.");
   await recordVersion("widget", id, actor.personId, { message: "Made from a template" });
   if (cur.dashboard_id) await recordVersion("dashboard", cur.dashboard_id, actor.personId);
@@ -240,8 +241,7 @@ export async function removeWidget(actor: Actor, id: number) {
 export async function saveToPool(actor: Actor, source: DropSource, name: string) {
   assertCan(actor, "create");
   const spec = await specFrom(actor, source);
-  const { error } = await db().from("widgets").insert({ ...spec, title: title(name), owner_id: actor.personId, dashboard_id: null, saved: true, workspace_id: actor.workspaceId });
-  if (error) throw new Error("The widget could not be saved.");
+  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(name), owner_id: actor.personId, dashboard_id: null, saved: true }]);
 }
 
 /** Deletes one of the actor's saved widgets. */

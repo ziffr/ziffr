@@ -11,6 +11,7 @@ import { audit } from "./audit-log";
 import { createDashboardFromTemplate, listDashboardTemplates } from "./dashboard-templates";
 import { createDashboard, MAX_INTRO, placeWidget, removeWidget, saveDashboardText, updateWidget } from "./dashboards";
 import { db } from "./db";
+import { openOne, openRows } from "./sealed-columns";
 import { withVersionNote } from "./versions";
 import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
@@ -104,7 +105,7 @@ async function widgetOn(actor: Pick<Actor, "workspaceId">, dashboardId: number, 
   if (!Number.isInteger(widgetId)) throw new Forbidden();
   const { data } = await db().from("widgets").select("*").eq("id", widgetId).eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();
-  return data as Widget;
+  return (await openOne("widgets", actor.workspaceId, data)) as Widget;
 }
 
 const summary = (d: { id: number; name: string; role: string }): ApiDashboardSummary => ({
@@ -166,7 +167,7 @@ async function asSeen(actor: Pick<Actor, "workspaceId" | "personId">, id: number
     db().from("widgets").select("*").eq("dashboard_id", d.id).eq("workspace_id", actor.workspaceId).order("y").order("x").order("id"),
     seenMetrics(actor),
   ]);
-  const widgets = ((data ?? []) as Widget[]).map((w): ApiWidget => ({
+  const widgets = ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map((w): ApiWidget => ({
     id: w.id, view: w.template, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
     metrics: [...new Set(widgetMetricIds(w.metric_ids ?? [], w.settings))].map((m) => byId.get(m)?.slug).filter((s): s is string => Boolean(s)),
     ...(isFinding(w) ? { words: wordsOf(w.settings ?? {}) } : {}),

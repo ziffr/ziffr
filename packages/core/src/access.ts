@@ -1,6 +1,7 @@
 // Who sees what in a Workspace (GLOSSARY: Share, Viewer, Editor, Group, Token, Thread). These load the facts of one
 // workspace only; the decisions are made by the pure rules in visibility.ts, which ignore rows from any other one.
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
@@ -74,7 +75,8 @@ export type ExpandedShares = readonly (Share & { workspace_id: string })[];
 export async function visibleDashboards(ws: string, viewer: string, shares?: ExpandedShares): Promise<DashboardAccess[]> {
   const [{ data: dashboards }, all] = await Promise.all([db().from("dashboards").select("*").eq("workspace_id", ws).order("id"), shares ?? getShares(ws)]);
   const roles = objectRoles(ws, viewer, "dashboard", dashboards ?? [], all);
-  return (dashboards ?? []).filter((d) => roles.has(d.id)).map((d) => ({ ...d, role: roles.get(d.id)! }));
+  // Only the introductions of dashboards the viewer sees are opened (they are sealed with the Workspace Key, spec 0028).
+  return (await openRows("dashboards", ws, (dashboards ?? []).filter((d) => roles.has(d.id)))).map((d) => ({ ...d, role: roles.get(d.id)! }));
 }
 
 /** A deck with the viewer's role on it. */

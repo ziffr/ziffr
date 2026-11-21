@@ -2,7 +2,7 @@
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
-import { openNames, openRows } from "./sealed-columns";
+import { openNames, openOne, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { readableActions, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics, getObservation, getSeriesOf } from "./workspace-data";
@@ -141,7 +141,8 @@ export async function activityView(actor: Actor) {
     versions: shown,
     superseded: (superseded ?? []).filter((x) => visible.has(x.metric_id)),
     decks: decks ?? [],
-    widgets: (widgets ?? []).filter((w) => widgetIds.has(w.id)),
+    // Only the titles of widgets the person may see are opened (spec 0028).
+    widgets: await openRows("widgets", ws, (widgets ?? []).filter((w) => widgetIds.has(w.id))),
   };
 }
 
@@ -211,7 +212,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
 /** The actor's saved widgets (their Pool). */
 export async function savedWidgets(actor: Actor): Promise<Widget[]> {
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).eq("saved", true).order("id");
-  return ((data ?? []) as Widget[]).map(widgetWithoutOutside);
+  return ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside);
 }
 
 /** A deck of the workspace with the actor's role on it; for one not shared with them, only who to ask. */
@@ -239,7 +240,7 @@ export async function deckDocuments(actor: Actor) {
 export async function dashboardWidgets(actor: Actor, dashboardId: number): Promise<Widget[]> {
   if (!(await visibleDashboards(actor.workspaceId, actor.personId)).some((d) => d.id === dashboardId)) throw new Forbidden();
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("dashboard_id", dashboardId).order("y").order("x");
-  return ((data ?? []) as Widget[]).map(widgetWithoutOutside);
+  return ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside);
 }
 
 /** For a dashboard of the workspace that is not shared with the actor: whom to ask. Null when there is none here. */
@@ -317,7 +318,7 @@ export async function submissionForm(code: string) {
     const { data: theirs } = await db().from("tokens").select("metric_id, submitter_id, stand_in_id, stands_in_for, expires_at").eq("metric_id", token.metric_id);
     if (!tokenValid(token, theirs ?? [])) return null;
   }
-  const metric = normalizeMetric(token.metrics) as Metric;
+  const metric = normalizeMetric((await openOne("metrics", String(token.workspace_id), token.metrics)) as Metric) as Metric;
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(String(token.workspace_id)), numberStyleOf(String(token.workspace_id))]);
   const period = periodStart(new Date(), metric.period, yearStart);
   const { data: existing } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);

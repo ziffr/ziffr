@@ -5,6 +5,7 @@
 // Feed's Metrics and learn which periods already have one: never a value, a person, or another Metric.
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { FEED_SCOPE, Forbidden, type Actor, type FeedActor } from "./actor";
 import { insertKey } from "./internal/key-store";
 import { REFUSED } from "./api-submissions";
@@ -211,8 +212,9 @@ export type FeedMetric = {
 async function feedMetricRows(feed: FeedActor): Promise<{ metric: Metric; token: string; workflowId: number | null }[]> {
   const { data: tokens } = await db().from("tokens").select("code, metric_id").eq("workspace_id", feed.workspaceId).eq("submitter_id", feed.feedId).is("stands_in_for", null);
   if (!tokens?.length) return [];
-  const { data: rows } = await db().from("metrics").select("*").eq("workspace_id", feed.workspaceId).in("id", tokens.map((t) => t.metric_id)).order("id");
-  return (rows ?? []).map((r) => ({ metric: normalizeMetric(r) as Metric, workflowId: (r.workflow_id as number | null) ?? null, token: tokens.find((t) => t.metric_id === r.id)!.code as string }))
+  const { data: sealedRows } = await db().from("metrics").select("*").eq("workspace_id", feed.workspaceId).in("id", tokens.map((t) => t.metric_id)).order("id");
+  const rows = await openRows("metrics", feed.workspaceId, sealedRows);
+  return rows.map((r) => ({ metric: normalizeMetric(r) as Metric, workflowId: (r.workflow_id as number | null) ?? null, token: tokens.find((t) => t.metric_id === r.id)!.code as string }))
     // A Metric whose API Source is off, or a Derived one, is none of the Feed's business.
     .filter((x) => !x.metric.formula && x.metric.sources.includes("api"));
 }

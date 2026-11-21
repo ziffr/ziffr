@@ -3,6 +3,9 @@
 // revoked by the owner of the dashboard or deck.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { openOne, openRows, reserveIds } from "./sealed-columns";
+import { mapViewWords, opening, openObject, sealing, sealObject } from "./sealed-words";
+import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData } from "./access";
 import { assertSeesMetrics } from "./sharing";
@@ -48,7 +51,8 @@ const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dash
 /** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
 export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
-  const metrics = full.metrics.filter((m) => ids.has(m.id));
+  // A description is for people inside the Workspace: no view draws it, so it does not go out with one (rule 3).
+  const metrics = full.metrics.filter((m) => ids.has(m.id)).map((m) => ({ ...m, description: "" }));
   // Only the shown Metrics' own series: a derived Metric's inputs stay out (its comparisons then do not show).
   const slugs = new Set(metrics.map((m) => m.slug));
   return {
@@ -77,7 +81,9 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
 /** Everything a View Link page needs, built as its owner sees it inside their workspace and cut down to the one
  * object. For a live link, only the Metrics agreed to when it was made. */
 export async function buildView(type: "dashboard" | "deck", id: number, allowed?: number[], allowedWidgets?: number[] | null, allowedShapes?: string[] | null): Promise<ViewPayload | null> {
-  const { data: obj } = await db().from(table(type)).select("*").eq("id", id).maybeSingle();
+  const { data: stored } = await db().from(table(type)).select("*").eq("id", id).maybeSingle();
+  // A dashboard's introduction is sealed with the Workspace Key (spec 0028).
+  const obj = type === "dashboard" ? await openOne("dashboards", String(stored?.workspace_id), stored) : stored;
   if (!obj) return null;
   const ws = obj.workspace_id as string;
   let widgets: Widget[] | undefined;
@@ -85,7 +91,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   if (type === "dashboard") {
     const { data } = await db().from("widgets").select("*").eq("dashboard_id", id).eq("workspace_id", ws).order("y").order("x");
     // Nothing in a free layout may load from another site when shown through the link (spec 0009).
-    widgets = ((data ?? []) as Widget[]).map(widgetWithoutOutside);
+    widgets = ((await openRows("widgets", ws, data)) as Widget[]).map(widgetWithoutOutside);
     metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
   } else metricIds = deckMetricIds(obj.document);
   // Only the series this link can show are read; it filters them further below.
@@ -157,18 +163,21 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
   }
   if (link.frozen) {
     // A frozen link keeps its values; its quarters follow the workspace's year start as everywhere else (spec 0017).
-    const frozen = link.frozen as ViewPayload;
+    const frozen = mapViewWords(link.frozen as ViewPayload, opening(await workspaceCipher(String(link.workspace_id)), "view_links", link.id));
     // A quarter it showed as "to date" stays so: counted as of the day the link was made (spec 0018).
     // Its numbers are written in the workspace's Number Style now, and a Metric kept before units had a side shows
     // the unit its format used to add (spec 0022). Its Attainment keeps the methods it was made with (#130).
     const ws = String(link.workspace_id);
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
-    const metrics = frozen.data.metrics.map((m) => normalizeMetric(keptUnit(m)));
+    // A link made before descriptions were left out of what goes out still holds them: they are not sent (rule 3).
+    const metrics = frozen.data.metrics.map((m) => ({ ...normalizeMetric(keptUnit(m)), description: "" }));
     return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.
   if (link.snapshot_id) {
-    const s = await snapshotForLink(Number(link.snapshot_id), Number(link.object_id), link.snapshot_words as SnapshotWords | null);
+    // The words kept with the link are sealed for it; a link made before they were kept reads the Snapshot's own.
+    const kept = link.snapshot_words ? (openObject(await workspaceCipher(String(link.workspace_id)), { table: "view_links", column: "snapshot_words", row: link.id }, link.snapshot_words) as SnapshotWords) : null;
+    const s = await snapshotForLink(Number(link.snapshot_id), Number(link.object_id), kept);
     const { data: dash } = await db().from("dashboards").select("owner_id, workspace_id").eq("id", link.object_id).maybeSingle();
     if (!s || !dash) return null;
     // As any View Link: only what the dashboard's owner may see now, and only the Metrics agreed when it was made
@@ -213,7 +222,10 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   // Only what its owner may see goes out.
   await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
-  const { data: made } = await db().from("view_links").insert({ token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: input?.frozen ? view : null, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  // A frozen link keeps the words it shows, sealed for it with the Workspace Key (spec 0028), so its id is taken first.
+  const [linkId] = await reserveIds("view_links", 1);
+  const frozen = input?.frozen ? mapViewWords(view, sealing(await workspaceCipher(actor.workspaceId), "view_links", linkId)) : null;
+  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
@@ -243,9 +255,11 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
-  const { data: made } = await db().from("view_links").insert({ token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, snapshot_id: snapshotId,
-    // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later.
-    snapshot_words: s.words, metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
+  const [linkId] = await reserveIds("view_links", 1);
+  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, snapshot_id: snapshotId,
+    // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
+    // the link with the Workspace Key (spec 0028).
+    snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
   await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
 }

@@ -9,6 +9,7 @@
 import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
 import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
+import { openOne } from "./sealed-columns";
 import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { archiveMetric, restoreMetric } from "./archived-metrics";
@@ -125,8 +126,8 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined });
   // A Feed is added as on the Metric's page, which turns the API Source on, since a Feed sends nothing else.
   for (const f of feeds) await addFeedToMetric(creator, id, f);
-  const { data } = await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single();
-  return toApi(normalizeMetric(data) as Metric);
+  const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data);
+  return toApi(normalizeMetric(data as Metric) as Metric);
 }
 
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
@@ -155,7 +156,7 @@ export async function setMetricArchivedWithKey(actor: Actor | KeyActor, slug: st
   const { m, creator, origin } = await writableByKey(actor, slug);
   if (archived) await archiveMetric(creator, m.id, origin);
   else await restoreMetric(creator, m.id, origin);
-  const { data } = await db().from("metrics").select("*").eq("id", m.id).eq("workspace_id", actor.workspaceId).single();
+  const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", m.id).eq("workspace_id", actor.workspaceId).single()).data);
   return toApi(normalizeMetric(data as Metric));
 }
 
@@ -212,8 +213,8 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     await updateMetricDetails(creator, metric.id as number, details);
     if (sources) await setMetricSources(creator, metric.id as number, sources);
   });
-  const { data } = await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single();
-  return toApi(normalizeMetric(data) as Metric);
+  const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single()).data);
+  return toApi(normalizeMetric(data as Metric) as Metric);
 }
 
 /** Which series of a Metric: its Target Series or its Projections. */

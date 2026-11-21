@@ -4,6 +4,7 @@
 // through as they are until the re-encryption job (#247) seals them. Security: callers never write one of these
 // columns by hand, and a Workspace whose key cannot be unwrapped or is gone is refused, never written in clear.
 import { db } from "./db";
+import { mapSettingsWords, opening, sealing } from "./sealed-words";
 import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
 
 /** The columns sealed with the Workspace Key, by table (step 1: free text and personal data). The re-encryption job
@@ -28,6 +29,12 @@ export const SEALED_COLUMNS = {
   // The external task an Action is in another system, per Webhook (spec 0034, ticket 5): its id and address, written by
   // webhook-inbound.ts with the row's uuid made first.
   webhook_external_ids: ["external_id", "url"],
+  // The words of dashboards, Findings and Metrics (ticket #334): a dashboard's introduction, a widget's title (its
+  // Finding's other words sit in `settings`, sealed by sealed-words.ts through sealRow and openRow), a Metric's
+  // description. A Snapshot's words and the copies in Versions and View Links are sealed in their own functions.
+  dashboards: ["intro"],
+  widgets: ["title"],
+  metrics: ["description"],
 } as const;
 
 /** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
@@ -38,10 +45,13 @@ export const SEALED_COLUMNS = {
  * #250. */
 export const INDEXED_COLUMNS = { breakdown_rows: ["label"] } as const;
 
+/** The sealed columns the database never leaves null: unreadable ones read empty, not missing. */
+const NEVER_NULL: Partial<Record<OpenedTable, readonly string[]>> = { dashboards: ["intro"], metrics: ["description"] };
+
 const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id" };
+const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
 
 /** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
@@ -50,14 +60,18 @@ export type SealedTable = keyof typeof SEALED_COLUMNS;
 export type OpenedTable = keyof typeof COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts" | "dashboards" | "widgets" | "metrics";
+
+/** A table whose row ids reserveIds hands out: the ones above, and those whose words sit in a column of their own. */
+export type ReservedTable = InsertedTable | "dashboard_snapshots" | "view_links";
 
 type Row = Record<string, unknown>;
 
 /** Takes the ids the next rows of a table will have, from its own sequence. Breakdown rows take theirs here but are
  * written only by record_observation, which needs each row's blind index too (breakdown-labels.ts). */
-export async function reserveIds(table: InsertedTable | "breakdown_rows", count: number): Promise<number[]> {
-  const { data, error } = await db().rpc("reserve_row_ids", { p_table: table, p_count: count });
+export async function reserveIds(table: ReservedTable | "breakdown_rows", count: number): Promise<number[]> {
+  const words = table === "widgets" || table === "dashboards" || table === "metrics" || table === "dashboard_snapshots" || table === "view_links";
+  const { data, error } = await db().rpc(words ? "reserve_word_row_ids" : "reserve_row_ids", { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
 }
@@ -69,6 +83,8 @@ function sealed(cipher: WorkspaceCipher, table: OpenedTable, row: Row): Row {
     const v = row[column];
     if (typeof v === "string") out[column] = cipher.seal({ table, column, row: row[ROW_KEY[table]] as string | number }, v);
   }
+  // A widget's Finding words sit in its settings, each sealed for its place there.
+  if (table === "widgets" && "settings" in row) out.settings = mapSettingsWords(row.settings, sealing(cipher, "widgets", row[ROW_KEY[table]] as string | number));
   return out;
 }
 
@@ -100,6 +116,14 @@ export async function sealRow(table: OpenedTable, workspaceId: string, row: Row)
   return sealed(await workspaceCipher(workspaceId), table, row);
 }
 
+/** The changed columns of one row, its words sealed for it, to update with: the row's id is not part of the answer.
+ * Columns that hold no words pass as they are. */
+export async function sealedPatch(table: SealedTable, workspaceId: string, id: number, patch: Row): Promise<Row> {
+  const sealed = await sealRow(table, workspaceId, { ...patch, id });
+  delete sealed.id;
+  return sealed;
+}
+
 /** A row read from a table, its sealed columns opened (null for one that does not open). Rows without an id are
  * returned as they are: nothing sealed can be opened without knowing its row. */
 export function openRow<T extends Row>(cipher: WorkspaceCipher, table: OpenedTable, row: T): T {
@@ -109,11 +133,16 @@ export function openRow<T extends Row>(cipher: WorkspaceCipher, table: OpenedTab
   // Without its row nothing sealed can be opened, and it must not pass on as it is either: it reads as missing.
   if (key === undefined || key === null) {
     for (const column of COLUMNS[table]) if (isSealed(row[column] as string)) out[column] = null;
+    // A widget's words in its settings are left out too: they cannot be opened without their row either.
+    if (table === "widgets" && "settings" in row) out.settings = mapSettingsWords(row.settings, (_c, text) => (isSealed(text) ? undefined : text));
     return out as T;
   }
   for (const column of COLUMNS[table]) {
     if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: key as string | number }, row[column] as string);
   }
+  if (table === "widgets" && "settings" in row) out.settings = mapSettingsWords(row.settings, opening(cipher, "widgets", key as string | number));
+  // A column that is never null (an introduction, a description) reads empty when it does not open, as it does when empty.
+  for (const column of NEVER_NULL[table] ?? []) if (column in out && out[column] === null) out[column] = "";
   // An event's details are an object holding them sealed ({"sealed": "w1..."}): opened back into the object; ones
   // that do not open read as none, never as their ciphertext.
   const details = table === "audit_events" ? (row.details as Row | null | undefined) : undefined;
@@ -133,6 +162,12 @@ export function openRow<T extends Row>(cipher: WorkspaceCipher, table: OpenedTab
 /** An event's details sealed for its row, as audit-log.ts stores them; as they are where nothing is sealed. */
 export function sealDetails(cipher: WorkspaceCipher, row: Row): Row {
   return cipher.sealing ? { ...row, details: { sealed: cipher.seal({ table: "audit_events", column: "details", row: row.id as number }, JSON.stringify(row.details ?? {})) } } : row;
+}
+
+/** One row of a Workspace read from a table, its sealed columns opened; null stays null. */
+export async function openOne<T extends Row>(table: SealedTable, workspaceId: string, row: T | null | undefined): Promise<T | null> {
+  if (!row) return null;
+  return (await openRows(table, workspaceId, [row]))[0] ?? null;
 }
 
 /** Rows of one Workspace read from a table, their sealed columns opened, with one key lookup. */

@@ -28,7 +28,8 @@ export async function allRows<T>(page: (from: number, to: number) => PromiseLike
 /** The Metrics of a workspace. */
 export async function getMetrics(ws: string): Promise<Metric[]> {
   const { data } = await db().from("metrics").select("*").eq("workspace_id", ws).order("id");
-  return (data ?? []).map((m) => normalizeMetric(m));
+  // A description is sealed with the Workspace Key (spec 0028) and read opened.
+  return (await openRows("metrics", ws, data)).map((m) => normalizeMetric(m));
 }
 
 /** A stored value with its numbers as numbers (the database sends numeric columns as text or JSON numbers). */

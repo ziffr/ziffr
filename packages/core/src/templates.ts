@@ -3,6 +3,7 @@
 // their creator changes them. A template is seen by the whole team, so only someone who may change the widget and
 // sees every Metric it draws publishes it. Every function takes the Actor first.
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
@@ -153,8 +154,9 @@ async function templatableDashboard(actor: Actor, dashboardId: number) {
   await assertCanEditDashboard(actor, dashboardId);
   const { data: d } = await db().from("dashboards").select("kind").eq("id", dashboardId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!d || d.kind === "story") throw new Forbidden();
-  const { data } = await db().from("widgets").select("template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
-  const widgets = (data ?? []) as Pick<Widget, "template" | "metric_ids" | "settings" | "title" | "x" | "y" | "w" | "h">[];
+  const { data } = await db().from("widgets").select("id, template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
+  // A template keeps the words as plain text, as before: it is read opened (they are sealed in the widgets, spec 0028).
+  const widgets = (await openRows("widgets", actor.workspaceId, data)).map((w) => { const kept: Record<string, unknown> = { ...w }; delete kept.id; return kept; }) as unknown as Pick<Widget, "template" | "metric_ids" | "settings" | "title" | "x" | "y" | "w" | "h">[];
   await assertSeesMetrics(actor, widgets.flatMap((w) => (NOT_IN_DASHBOARD_TEMPLATES.includes(w.template) ? [] : widgetMetricIds(w.metric_ids ?? [], w.settings))));
   return widgets;
 }

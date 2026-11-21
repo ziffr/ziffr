@@ -3,6 +3,7 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { openOne, reserveIds, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
@@ -109,9 +110,11 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
   // The trigger checks the Workspace Limit against the Installation's default in effect.
   await syncDefaultLimit();
+  // The description is sealed for its row, so the row's id is taken first (spec 0028).
+  const [metricId] = await reserveIds("metrics", 1);
   const { data: metric, error } = await db().from("metrics").insert({
-    slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId,
-    description: String(input.description ?? "").slice(0, 2000),
+    id: metricId, slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId,
+    description: (await sealRow("metrics", actor.workspaceId, { id: metricId, description: String(input.description ?? "").slice(0, 2000) })).description,
     ...unit,
     format,
     decimals: Math.min(6, Math.max(0, Math.round(Number(input.decimals) || 0))),
@@ -149,7 +152,7 @@ export type MetricDraft = MetricDescription & { original: string; workflow: { id
  * formula cannot be copied into a plain Metric, so it is refused. */
 async function duplicable(actor: Actor, metricId: number) {
   assertCan(actor, "create");
-  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!m) throw new Forbidden();
   await assertSeesMetrics(actor, [m.id]);
   if (m.formula) throw new Forbidden("A Derived Metric cannot be duplicated.");
@@ -293,7 +296,7 @@ async function seriesOwnerMetric(actor: Actor, metricId: number, kind: string) {
  * shared with as Editor, directly or through a Group. Never a Guest or a key. Deleting and sharing stay the owner's. */
 export async function editableMetric(actor: Actor, metricId: number, what = "it") {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
-  const { data: m } = await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!m) throw new Forbidden();
   if (m.owner_id === actor.personId) return m;
   const editor = actor.role !== "guest" && (await getShares(actor.workspaceId)).some((s) =>
@@ -393,7 +396,7 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
     if (!name) throw new Error("Give the Metric a name.");
     update.name = name;
   }
-  if (p.description !== undefined) update.description = String(p.description ?? "").slice(0, 2000);
+  if (p.description !== undefined) update.description = (await sealRow("metrics", ws, { id: metricId, description: String(p.description ?? "").slice(0, 2000) })).description;
   if (p.unit !== undefined) update.unit = String(p.unit ?? "").slice(0, 20);
   if (p.unitPosition !== undefined) update.unit_position = pick(p.unitPosition, UNIT_POSITIONS, m.unit_position);
   if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);

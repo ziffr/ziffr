@@ -4,7 +4,7 @@
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
 import { format } from "date-fns";
 import { db } from "./db";
-import { insertSealed } from "./sealed-columns";
+import { insertSealed, openOne, openRows } from "./sealed-columns";
 import { formatValue } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { deliver, deliverPrompt } from "./deliveries";
@@ -31,7 +31,8 @@ type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numb
 
 /** The Metric and its Workflow for a period, or null when it has none. */
 async function metricCtx(metricId: number, period: string): Promise<Ctx | null> {
-  const { data: row } = await db().from("metrics").select("*").eq("id", metricId).single();
+  const { data: sealedRow } = await db().from("metrics").select("*").eq("id", metricId).single();
+  const row = await openOne("metrics", String(sealedRow?.workspace_id), sealedRow);
   if (!row?.workflow_id) return null;
   const { data: wf } = await db().from("workflows").select("*").eq("id", row.workflow_id).single();
   const m = normalizeMetric(row) as Metric;
@@ -82,11 +83,12 @@ export type RunScope = "all" | "unscheduled" | { workflowId: number };
  * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
  */
 export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all" }: { queue?: boolean; scope?: RunScope } = {}) {
-  const [{ data: rows }, { data: flows }] = await Promise.all([
+  const [{ data: sealedRows }, { data: flows }] = await Promise.all([
     db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
     // The workspace's Workflows once, not again for each Metric.
     db().from("workflows").select("*").eq("workspace_id", workspaceId),
   ]);
+  const rows = await openRows("metrics", workspaceId, sealedRows);
   const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
   const log: string[] = [];
@@ -474,7 +476,8 @@ export async function setLock(ws: string, metricId: number, period: string, lock
 export async function closePeriod(ws: string, workflowId: number, asOf: string, by: string) {
   const { data: wf } = await db().from("workflows").select("owner_id").eq("id", workflowId).eq("workspace_id", ws).maybeSingle();
   if (!wf || wf.owner_id !== by) throw new Error("Only the workflow's owner closes a period.");
-  const [{ data: rows }, yearStart] = await Promise.all([db().from("metrics").select("*").eq("workflow_id", workflowId).eq("workspace_id", ws), yearStartOf(ws)]);
+  const [{ data: sealedRows }, yearStart] = await Promise.all([db().from("metrics").select("*").eq("workflow_id", workflowId).eq("workspace_id", ws), yearStartOf(ws)]);
+  const rows = await openRows("metrics", ws, sealedRows);
   let n = 0;
   const closed = new Set<string>();
   for (const row of rows ?? []) {
