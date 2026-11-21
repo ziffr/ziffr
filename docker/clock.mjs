@@ -68,6 +68,9 @@ setInterval(() => {
   if (minute === last) return;
   last = minute;
   if (now.getUTCMinutes() % 5 === 0) void call("deliveries");
+  // Workspace Keys (spec 0028): every five minutes, two past, the rows still in clear are sealed a little at a time; a
+  // turn with nothing to do is a few counts, and without ZIFFR_SECRETS_KEY it only answers that it waits.
+  if (now.getUTCMinutes() % 5 === 2) void call("workspace-keys");
   if (now.getUTCMinutes() === 0) void call("workflows");
   if (DEMO_RESET && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset", true);
   if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup", true);
@@ -82,4 +85,4 @@ setInterval(() => {
   if (now.getUTCHours() === 7 && now.getUTCMinutes() === 0) void call("usage-digest");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);

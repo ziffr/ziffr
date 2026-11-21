@@ -41,6 +41,8 @@ export interface WorkspaceCipher {
   readonly workspaceId: string;
   /** False for the demo and on an Installation without ZIFFR_SECRETS_KEY: seal() then returns the plain value. */
   readonly sealing: boolean;
+  /** The key version new values are sealed under; null when nothing is sealed. */
+  readonly version: number | null;
   /** The value sealed under the current key version, for this place only. */
   seal(at: SealedAt, plain: string): string;
   /** A sealed value opened, a plain one as it is (while old rows wait for the re-encryption job); null when it is
@@ -55,6 +57,12 @@ export interface WorkspaceCipher {
 /** Whether a stored value is in the sealed format (the re-encryption job and its done check ask this). */
 export function isSealed(stored: string | null | undefined): boolean {
   return typeof stored === "string" && SEALED.test(stored);
+}
+
+/** The key version a sealed value was written under; null for anything not in the sealed format. */
+export function sealedVersion(stored: string | null | undefined): number | null {
+  const m = typeof stored === "string" ? SEALED.exec(stored) : null;
+  return m ? Number(m[1]) : null;
 }
 
 /** A key derived from another under a label, 32 bytes (HKDF-SHA256, no salt: the input is already a random key). */
@@ -145,7 +153,7 @@ export function normaliseForIndex(value: string): string {
 
 /** A WorkspaceCipher over keys already unwrapped: `current` (by default the newest) seals, every version opens.
  * Pure; workspaceCipher loads the keys for it. An empty list makes one that does not seal. */
-export function cipherFromKeys(workspaceId: string, keys: { version: number; key: Buffer }[], currentVersion?: number): WorkspaceCipher {
+export function cipherFromKeys(workspaceId: string, keys: { version: number; key: Buffer }[], currentVersion?: number, sealedOnly: ReadonlySet<string> = new Set()): WorkspaceCipher {
   if (!UUID.test(workspaceId)) throw new ServerFault("Not a Workspace id.");
   // Copies held in this closure only: the object handed out has no property a log or inspect() could print a key from.
   const byVersion = new Map(keys.map(({ version, key }) => [version, Buffer.from(key)]));
@@ -159,6 +167,7 @@ export function cipherFromKeys(workspaceId: string, keys: { version: number; key
   return Object.freeze({
     workspaceId,
     sealing: current !== null,
+    version: current,
     seal(at: SealedAt, plain: string) {
       const place = placeOf(workspaceId, at);
       if (current === null) return plain;
@@ -169,7 +178,9 @@ export function cipherFromKeys(workspaceId: string, keys: { version: number; key
       const place = placeOf(workspaceId, at);
       if (stored === null || stored === undefined) return null;
       const m = SEALED.exec(stored);
-      if (!m) return stored;
+      // A column the re-encryption job has finished holds nothing in clear any more: a plain value there was put in by
+      // someone with write access to the database, and is refused (spec 0028, ticket #247).
+      if (!m) return sealedOnly.has(`${at.table}.${at.column}`) ? null : stored;
       const key = byVersion.get(Number(m[1]));
       const [iv, ct, tag] = [unb64(m[2]), unb64(m[3]), unb64(m[4])];
       // Only the one spelling of each part: base64url has spare bits, so another spelling of the same bytes would
@@ -303,6 +314,15 @@ async function wasKeyed(workspaceId: string): Promise<boolean> {
   return true;
 }
 
+/** The columns of a Workspace the re-encryption job has finished ("table.column"), where the core refuses plain
+ * values. A member's profile belongs to the person across Workspaces and may hold a plain name, so profiles.name is
+ * never one of them. Read failing means none: the mixed state, as before the job. */
+async function finishedColumns(workspaceId: string): Promise<Set<string>> {
+  const { data, error } = await db().from("workspace_seal_progress").select("table_name, column_name").eq("workspace_id", workspaceId).not("done_at", "is", null);
+  if (error || !data) return new Set();
+  return new Set(data.map((r) => `${r.table_name}.${r.column_name}`).filter((c) => c !== "profiles.name" && c !== "audit_events.details"));
+}
+
 /** The cipher for one Workspace: its keys unwrapped (from the cache when it has them), its first key made when it has
  * none yet. Throws when a stored key cannot be unwrapped, as when ZIFFR_SECRETS_KEY changed without
  * ZIFFR_SECRETS_KEY_PREVIOUS: then nothing is written in clear in its place, and no new key hides the old one. */
@@ -333,7 +353,7 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   // The current version seals: the one not retired, else the newest. Another process may make a new version current
   // while this one still caches the old set for up to 10 minutes; changing a Workspace Key (ticket 6) has to allow
   // for that before it writes under the new version.
-  const cipher = cipherFromKeys(id, keys, rows.find((r) => r.retired_at === null)?.version);
+  const cipher = cipherFromKeys(id, keys, rows.find((r) => r.retired_at === null)?.version, await finishedColumns(id));
   for (const k of keys) k.key.fill(0);
   // Not kept when its key was destroyed while it loaded (see `destroyed`).
   if ((destroyed.get(id) ?? 0) === generation) cache.set(id, cipher);
