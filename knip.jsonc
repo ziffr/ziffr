@@ -26,6 +26,11 @@
       // flags copied into public/flags (NOTICE), kept so its version and licence stay on record.
       "ignoreDependencies": ["eslint-config-next", "flag-icons"]
     },
+    "apps/docs": {
+      // The docs site (#551): scripts/sync.mjs reads landing.mdx as text and copies it into the content folder.
+      "entry": ["scripts/*.mjs"],
+      "ignore": ["landing.mdx"]
+    },
     "packages/*": {}
   }
 }

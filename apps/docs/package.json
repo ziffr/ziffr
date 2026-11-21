@@ -1,0 +1,21 @@
+{
+  "name": "@ziffr/docs",
+  "version": "0.0.0-dev",
+  "private": true,
+  "description": "docs.ziffr.net: the repository's docs as one static site (ticket #551).",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "build": "node scripts/sync.mjs && astro build",
+    "dev": "node scripts/sync.mjs && astro dev"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.13",
+    "sharp": "^0.35.5",
+    "starlight-links-validator": "^0.27.0",
+    "starlight-openapi": "^0.27.1",
+    "vite": "8.3.8"
+  }
+}

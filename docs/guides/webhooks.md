@@ -50,7 +50,7 @@ An Action is a Task or a Question, so there are no separate question events: rea
 | `reply` | On a reply or an answer: `text`, cut to 1,000 characters. Never the Thread's older messages. |
 | `reason` | On `action.done` only: `done`, `answered`, `closed`, `metric_archived`, `metric_deleted`, `assignee_left` or `workspace_closing`. The last four are Ziffr closing the Action itself, so no external task lingers. |
 | `source` | Where the change came from: `app`, `api`, `mcp`, `email`, `slack`, `telegram`, `web_form`, `ticket_system`, `workflow`, `system` or `webhook`. For `webhook`, `webhook_id` is the id of the Webhook that reported it. Nothing about the person. |
-| `external_ids` | The external tasks **this** Webhook linked to the Action (see [`link`](#link)): `system`, `external_id` and `url`. Use them to find the task to update or close. Never another Webhook's. |
+| `external_ids` | The external tasks **this** Webhook linked to the Action (see `link` under [Status back into Ziffr](#status-back-into-ziffr)): `system`, `external_id` and `url`. Use them to find the task to update or close. Never another Webhook's. |
 
 Metric and value events carry `metric` (`id`, `name`), `period` and `link`; `value.recorded` adds `value` and `target` as text (`target` may be `null`).
 

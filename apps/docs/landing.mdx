@@ -1,0 +1,24 @@
+---
+title: Ziffr docs
+description: For people who use, run and build on Ziffr.
+template: splash
+hero:
+  tagline: Define the numbers you care about, collect them, and see, share and discuss them over time.
+  actions:
+    - text: Getting started
+      link: getting-started/what-ziffr-is/
+    - text: API reference
+      link: api/reference/
+      variant: minimal
+---
+
+import { LinkCard, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <LinkCard title="User guide" description="Every screen, step by step." href="user-guide/metrics/" />
+  <LinkCard title="Self-hosting" description="Run Ziffr on your own server." href="self-hosting/self-hosting/" />
+  <LinkCard title="API, SDK and MCP" description="Reach your Metrics from programs and AI assistants." href="api/guide/" />
+  <LinkCard title="Feeds and Webhooks" description="Send numbers in, get messages out." href="feeds/guide/" />
+  <LinkCard title="Packs and Themes" description="Share what you built." href="packs-and-themes/packs/" />
+  <LinkCard title="Contributing" description="Build Ziffr with us." href="contributing/contributing/" />
+</CardGrid>
