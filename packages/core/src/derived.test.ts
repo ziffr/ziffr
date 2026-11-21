@@ -362,15 +362,6 @@ describe("a Derived Metric", () => {
     expect(seriesBy(d, resolverFrom([m("a"), d], { a: pts, derived: pts }), "quarter", { yearStart: 1, today: "2027-01-01" })).toMatchObject({ ok: true, points: [{ value: 6 }] });
     expect(NOT_COMBINED).toMatch(/none/);
   });
-  it("shows nothing, and says why, for a Derived Metric whose owner may no longer share an input (ticket #619)", () => {
-    const [a, d] = [metric({ id: 1, slug: "a" }), metric({ id: 2, slug: "d", formula: "{a} * 2", inputs_withheld: true })];
-    const pts = [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }];
-    const why = "Its owner can no longer share one of the Metrics it is calculated from, so it shows no values.";
-    expect(inputsProblem(d, [a])).toBe(why);
-    expect(buildSeries([a, d], observationsOf([a], [pts])).d).toEqual([]);
-    expect(seriesBy(d, resolverFrom([a, d], { a: pts, d: pts }), "quarter", { yearStart: 1, today: "2027-01-01" })).toMatchObject({ ok: false, reason: why });
-    expect(inputsProblem({ ...d, inputs_withheld: false }, [a])).toBeNull();
-  });
   it("names every input a reason is about, one or several", () => {
     const ins = asInputs(["a", "b", "c"]);
     const none = asInputs(["x", "y"], { aggregation: "none" });

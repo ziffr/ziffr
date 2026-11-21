@@ -5,8 +5,7 @@
 // sees, so a Metric they may not see answers exactly as one that does not exist.
 import { assertCan, Refused, type Actor } from "./actor";
 import { db } from "./db";
-import { visibleMetricIds } from "./access";
-import { editedBy } from "./derived-owner";
+import { getShares, visibleMetricIds } from "./access";
 import { checkFormula, formulaInputs, FORMULA_MAX_LENGTH, type FormulaInput } from "./formula";
 import { createMetric, deleteMetric, editableMetric, metricEffects, type MetricEffects } from "./metrics";
 import { audit } from "./audit-log";
@@ -43,7 +42,7 @@ export type DerivedMetricMade = { id: number; slug: string; name: string; period
  * inputs' values, so a Metric someone only sees (a view Share, a widget on a shared dashboard, a Stand-in's Token) is
  * not one: they could republish it wider than its owner allowed, and keep receiving it after the access ended. */
 async function shareableBy(ws: string, person: string, all: Metric[]): Promise<Set<number>> {
-  const edited = (await editedBy(ws, [person])).get(person)!;
+  const edited = new Set((await getShares(ws)).filter((s) => s.object_type === "metric" && s.user_id === person && s.role === "editor").map((s) => s.object_id));
   return new Set(all.filter((m) => m.owner_id === person || edited.has(m.id)).map((m) => m.id));
 }
 
@@ -103,7 +102,7 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   const now = await getMetrics(actor.workspaceId);
   const self = now.find((m) => m.id === made.id);
   const stillWhy = self ? checkFormula(formula, now.filter((m) => mayShare.has(m.id)), self) : "it is gone";
-  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [], inputs_checked: true }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
+  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [] }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
   if (stillWhy || error) {
     if (self) await deleteMetric(actor, made.id, self.name).catch(() => undefined);
     if (stillWhy) throw new Refused(stillWhy);
@@ -144,7 +143,7 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   const ownerMay = m.owner_id === actor.personId ? mayShare : await shareableBy(actor.workspaceId, m.owner_id, all);
   const why = viewOnly(next, all, seen, mayShare) ?? checkFormula(next, all.filter((x) => mayShare.has(x.id) && ownerMay.has(x.id) && x.id !== m.id).map((x): FormulaInput => x), { slug: m.slug, period: m.period });
   if (why) throw new Refused(why);
-  const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");
   await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
   await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });
