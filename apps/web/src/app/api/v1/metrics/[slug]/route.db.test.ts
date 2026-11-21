@@ -46,7 +46,7 @@ describe("read endpoints", () => {
     const body = await read(kept.slug);
     expect(body).toMatchObject({ retention: { keep_months: 36, then: "delete" }, retention_pending: { keep_months: 24, then: "condense", into: "month", starts_on: inDays(8) } });
     expect(JSON.stringify(body)).not.toMatch(/set_by|counted|00000000-0000/);
-    const list = await (await metrics(req("/api/v1/metrics", key))).json();
+    const list = await (await metrics(req("/api/v1/metrics", key), { params: Promise.resolve({}) })).json();
     expect(list.items.map((i: { slug: string; retention: unknown }) => [i.slug, i.retention])).toEqual([[m.slug, null], [kept.slug, { keep_months: 36, then: "delete" }]]);
   });
   it("return values in a range, paged with a cursor, and refuse a bad range", async () => {
