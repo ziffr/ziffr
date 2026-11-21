@@ -171,7 +171,7 @@ If a Widget draws a Metric you may not see, it shows "No access to this metric. 
 
 ### History
 
-**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), a table of its Comparisons, its **Questions and tasks**, any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it.
+**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), a table of its Comparisons, its **Questions and tasks** (an Approval reads as a plain question, without the chat words "Reply approve"), any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it.
 
 ### Asking a question or assigning a task
 
