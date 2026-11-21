@@ -6,9 +6,10 @@ import { describe, expect, it } from "vitest";
 import { latestOfEach, resolverFrom, seriesBy } from "./display-periods";
 import { periodEnd, type YearStart } from "./periods";
 import {
-  CANNOT_CONDENSE, CANCEL_DAYS, DERIVED_HAS_NONE, MAX_KEEP_MONTHS, MIN_KEEP_MONTHS, canCondense, condense, condensesInto, firstRunDay, keptFrom, parseRetention, partOfPoint, reminderDay, retentionPlan, retentionProblem, seriesFromParts, valueOfParts,
-  type CondenseInto, type Part, type Retention, type RetentionMetric,
+  CANNOT_CONDENSE, CANCEL_DAYS, DERIVED_HAS_NONE, MAX_KEEP_MONTHS, MIN_KEEP_MONTHS, canCondense, condense, condensesInto, firstRunDay, keptFrom, parseRetention, reminderDay, retentionPlan, retentionProblem, seriesFromParts,
+  type CondenseInto, type Retention, type RetentionMetric,
 } from "./retention-rules";
+import { partOfPoint, valueOfParts, type Part } from "./condensed-parts";
 import { dayOf, textOf } from "./test/reference/calendar";
 import { AGGREGATIONS, DISPLAYS, runs, series } from "./test/reference/check";
 const AFTER = "2040-01-01"; // a day after every generated series: every span is over

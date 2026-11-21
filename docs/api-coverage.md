@@ -132,6 +132,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `askTrialGuide` (trial-guide.ts): a Trial's guide
 - `trialGuideValue` (trial-guide.ts): a Trial's guide
 - `makeGuideFeedKey` (trial-guide.ts): a Trial's guide
+- `workspaceValuesCsv` (unused-workspaces.ts): the values file of the Workspace settings (a download for Owners and Admins; opening a Workspace's sealed numbers makes its key when it has none)
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)
@@ -165,6 +166,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `sourcesView` (page-data.ts): what a page reads
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
+- `canvasSeries` (access.ts): what a page reads (opening a Workspace's sealed numbers makes its key when it has none)
 - `periodRecord` (period-record.ts): the period page
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page

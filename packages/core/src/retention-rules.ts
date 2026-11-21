@@ -215,4 +215,3 @@ export function condensedTarget(metric: RetentionMetric, into: CondenseInto, spa
   return targetPartOf(latestOfEach(targets.filter((t) => t.period >= span && t.period <= end && isPeriodStart(t.period, metric.period, yearStart))));
 }
 
-export { partOfPoint, valueOfParts, type Part } from "./condensed-parts";

@@ -2,7 +2,7 @@
 // by its Aggregation. Pure. Widgets, Comparisons and the export all combine through `seriesBy`, so a quarter's value
 // is the same in a chart, a table and a Comparison strip.
 import { exactTotal } from "./exact";
-import { partOfCondensed, partOfPoint, targetOfParts, valueOfParts, type CondensedPoint, type CondensedSpan, type Part } from "./condensed-parts";
+import { inCondensed, partOfCondensed, partOfPoint, targetOfParts, valueOfParts, type CondensedPoint, type CondensedSpan, type Part } from "./condensed-parts";
 import { format } from "date-fns";
 import { evaluate, formulaInputs, inputsNotCombined, inputsProblem } from "./formula";
 import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
@@ -322,7 +322,9 @@ function condensedNote(metric: Metric, drawn: readonly CondensedPoint[], yearSta
  * for what they were made from, with a note, never as invented days. */
 export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today" | "condensed">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
   const condensed = metric.formula ? [] : (data.condensed?.[metric.id] ?? []);
-  const own = latestOfEach(data.series[metric.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
+  // A period a Condensed Value stands for shows once, as it: originals not deleted yet are not counted beside it.
+  const kept = condensed.length ? (data.series[metric.slug] ?? []).filter((p) => !inCondensed(condensed, p.period)) : (data.series[metric.slug] ?? []);
+  const own = latestOfEach(kept).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
   // The Condensed Values a view draws as points of their own, among the Metric's own points (oldest first).
   const alongside = (by: Span, points: DisplayPoint[]) => {
     const drawn = condensed.filter((c) => isLonger(c.into, by));
@@ -334,7 +336,7 @@ export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "
     return { by: metric.period, combined: false, points, ...(drawn.length ? { note: condensedNote(metric, drawn, data.yearStart) } : {}), targets: drawn.length ? targetsBy(metric, data.targets?.[metric.id] ?? [], points.filter((p) => p.condensed), metric.period, data.yearStart, drawn) : null };
   }
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
-  const resolve = resolverFrom(data.metrics, data.series);
+  const resolve = resolverFrom(data.metrics, condensed.length ? { ...data.series, [metric.slug]: kept } : data.series);
   // A View Link or Snapshot leaves a Derived Metric's inputs out (only what is shown goes out): without them its
   // quarters cannot be computed, and adding up its own months would give a sum of margins.
   if (metric.formula && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {

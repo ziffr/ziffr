@@ -95,6 +95,12 @@ describe("shown by a period shorter than the Condensed Value", () => {
     expect(s.points.map((p) => [p.period, p.value, p.held, p.length])).toEqual([["2024-01-01", 91, 60, 91], ["2026-10-01", 5, 1, 92]]);
     expect(s.note).toBeUndefined();
   });
+  it("counts a period once, as the Condensed Value, while its originals are not deleted yet", () => {
+    const originals = Array.from({ length: 31 }, (_, i) => ({ period: day(i + 1), value: 2 }));
+    const both = canvas([m], { revenue: [...originals, ...days] }, { condensed: { 1: condensed } });
+    expect(shownSeries(m, both, undefined, { today: "2026-12-01" }).points.map((p) => p.period)).toEqual(["2024-02-01", "2024-03-01", ...days.map((d) => d.period)]);
+    expect(shownSeries(m, both, "quarter", { today: "2026-12-01" }).points.map((p) => [p.period, p.value, p.held])).toEqual([["2024-01-01", 91, 60], ["2026-10-01", 5, 1]]);
+  });
   it("names a span with gaps by what it held", () => {
     const some = condense(m, "month", "2024-03-01", Array.from({ length: 20 }, (_, i) => ({ period: day(i + 1), value: 1 })), 1)!;
     expect(pointName({ period: "2024-03-01", held: some.held, length: some.of, toDate: false, condensed: { into: "month" } }, "day", "day", 1)).toBe("March 2024, condensed from 20 of 31 days");

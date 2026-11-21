@@ -23,7 +23,7 @@ create table condensed_values (
   condensed_on date not null default current_date,
   created_at timestamptz not null default now(),
   check (period_end >= period_start),
-  -- Spans of one Metric never overlap, so no value is counted twice; a later span nests only by condensing again.
+  -- Spans of one Metric never overlap (the trigger below), so no value is counted twice.
   unique (metric_id, period_start)
 );
 create index condensed_values_cover_idx on condensed_values (metric_id, period_start, period_end);
@@ -31,16 +31,34 @@ create index condensed_values_workspace_idx on condensed_values (workspace_id);
 alter table condensed_values enable row level security;
 select attach_demo_guard('condensed_values');
 
+-- Spans of one Metric never overlap, so no value is counted twice (a month and a week of it, say): refused with ZF442.
+-- The core checks first; this holds when two are stored at once.
+create or replace function condensed_values_no_overlap() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(new.metric_id, hashtext('condensed_values'));
+  if exists (select 1 from condensed_values c where c.metric_id = new.metric_id and c.id <> new.id and c.period_start <= new.period_end and c.period_end >= new.period_start) then
+    raise exception using errcode = 'ZF442', message = 'This span overlaps one condensed already';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger condensed_values_no_overlap before insert on condensed_values
+  for each row execute function condensed_values_no_overlap();
+
 -- A period inside a condensed span takes no more values, as if locked for good: a new value, or a changed one, is
--- refused with ZF441, and so is moving a value to such a period. The core refuses it first with words of its own
--- (submissions.ts); this is the same rule for every other way a value is written. Changing anything else of a value
--- (its approval) and removing values (the job) stay possible.
+-- refused with ZF441, and so is moving a value into such a period or out of one (the originals are what the job checks
+-- the Condensed Value against). The core refuses it first with words of its own (submissions.ts); this is the same rule
+-- for every other way a value is written. Changing anything else of a value (its approval) and removing values (the
+-- job) stay possible.
 create or replace function observations_not_condensed() returns trigger
 language plpgsql set search_path = public as $$
 begin
   if tg_op = 'UPDATE' and new.value is not distinct from old.value and new.metric_id = old.metric_id
     and new.period_start = old.period_start then return new; end if;
-  if exists (select 1 from condensed_values c where c.metric_id = new.metric_id and new.period_start between c.period_start and c.period_end) then
+  if exists (select 1 from condensed_values c where c.metric_id = new.metric_id and new.period_start between c.period_start and c.period_end)
+    or (tg_op = 'UPDATE' and exists (select 1 from condensed_values c where c.metric_id = old.metric_id and old.period_start between c.period_start and c.period_end)) then
     raise exception using errcode = 'ZF441', message = 'This period was condensed';
   end if;
   return new;

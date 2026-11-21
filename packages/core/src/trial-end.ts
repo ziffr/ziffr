@@ -12,7 +12,7 @@ import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { defaultLimitFrom } from "./workspace-limits";
 import { csvNumber } from "./export-values";
-import { partOfCondensed, valueOfParts } from "./condensed-parts";
+import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import type { Aggregation } from "./types";
 import { NUMBER_STYLE_MARKS } from "./number-style";
@@ -223,7 +223,8 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
     for (let from = 0; ; from += 1000) {
       const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
-      for (const r of rows ?? []) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
+      // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
+      for (const r of (rows ?? []).filter((x) => !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
       if (!rows || rows.length < 1000) break;
     }
     for (const c of condensed[m.id as number] ?? []) {

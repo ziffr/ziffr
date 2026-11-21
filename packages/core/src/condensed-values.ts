@@ -8,17 +8,19 @@ import { randomUUID } from "node:crypto";
 import { format } from "date-fns";
 import { Forbidden, type Actor } from "./actor";
 import { type CondensedPoint, type CondensedSpan, type TargetPart } from "./condensed-parts";
+import { latestOfEach } from "./display-periods";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { yearStartFor } from "./fiscal-year";
-import { condense, condensedTarget, retentionProblem, type CondenseInto } from "./retention-rules";
+import { condense, condensedTarget, keptFrom, MIN_KEEP_MONTHS, retentionProblem, type CondenseInto } from "./retention-rules";
 import { isPeriodStart, periodEnd } from "./periods";
 import { openRows, sealRow } from "./sealed-columns";
 import { allRows, getMetrics } from "./workspace-data";
-import type { Point } from "./types";
 
 /** The database's code for a value refused because its period was condensed (trigger observations_not_condensed). */
 export const CONDENSED_CODE = "ZF441";
+/** The database's code for a span that overlaps one condensed already (trigger condensed_values_no_overlap). */
+const OVERLAP_CODE = "ZF442";
 
 /** What every Source answers for a value for a condensed period, in the same words: the day it was condensed. */
 export function condensedRefusal(on: string): string {
@@ -69,10 +71,12 @@ function targetFrom(v: unknown): TargetPart | null {
 function pointFrom(row: Record<string, unknown>): CondensedPoint | null {
   let payload: { sum?: unknown; last?: { value?: unknown; day?: unknown } | null; target?: unknown };
   try {
-    payload = JSON.parse(String(row.payload));
+    // A payload that does not open reads as null (a destroyed or changed key): such a row reads as missing.
+    payload = typeof row.payload === "string" ? JSON.parse(row.payload) : null;
   } catch {
     return null;
   }
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return null;
   const into = row.span as CondensedSpan;
   const sum = payload.sum ?? null;
   const last = payload.last ?? null;
@@ -104,17 +108,20 @@ export async function condensedFor(ws: string, metricIds: readonly number[]): Pr
   return out;
 }
 
-/** What storing a Condensed Value needs: the Metric, the span, the values (and Targets) of its periods as they stand. */
-export type CondensedInput = { metricId: number; into: CondenseInto; span: string; values: readonly Point[]; targets?: readonly Point[]; locked?: boolean };
+/** What storing a Condensed Value needs: the Metric and the span. The values, Targets and Locks are read here, never
+ * handed in, so a Condensed Value can only stand for what the Metric holds. */
+export type CondensedInput = { metricId: number; into: CondenseInto; span: string };
 
 /** Why a Condensed Value was not stored. */
 export class NotCondensed extends Error {}
 
-/** Stores the Condensed Value of one span of a Metric (the Metric's owner, Owners and Admins): made by the rule of
- * retention-rules.ts from the values given, with the Target of the span kept beside it. It writes the one row and
- * nothing else: the originals are deleted by the job after it has checked that the numbers come out the same. A span
- * that overlaps one already condensed, a period that is not a span of its kind, or a Metric that cannot be condensed
- * is refused. Returns the id. */
+/** Stores the Condensed Value of one span of a Metric, the one Retention's job (a later ticket) makes before it
+ * deletes the originals: made by the rule of retention-rules.ts from the values the Metric holds now, with the span's
+ * Targets kept beside it and locked when every period in it was. Allowed to the Metric's owner, Owners and Admins; the
+ * span must be over for at least the shortest keep time (13 months), must not overlap one condensed already (also
+ * refused by the database), and must start a span of its kind. A rate, a Derived Metric, a span without values and a
+ * Metric of another Workspace are refused. It writes the one row and nothing else: the originals are deleted by the job
+ * after it has checked that the numbers come out the same. Returns the id. */
 export async function storeCondensed(actor: Actor, input: CondensedInput): Promise<string> {
   if (actor.key) throw new Forbidden("A key cannot condense values.");
   refuseInDemo(actor);
@@ -125,13 +132,24 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
   // A Metric of another Workspace and a missing one are refused alike.
   if (!metric || !may) throw new Forbidden("That Metric was not found, or its values are not yours to condense.");
   const ys = await yearStartFor(actor.workspaceId, input.into);
-  const problem = retentionProblem({ keep_months: 13, then: "condense", into: input.into }, metric);
+  const problem = retentionProblem({ keep_months: MIN_KEEP_MONTHS, then: "condense", into: input.into }, metric);
   if (problem) throw new NotCondensed(problem);
   if (!isPeriodStart(input.span, input.into, ys)) throw new NotCondensed(`${String(input.span)} is not the first day of a ${input.into}.`);
-  const made = condense(metric, input.into, input.span, input.values, ys, input.locked === true);
-  if (!made) throw new NotCondensed("There are no values in that span to condense.");
   const end = periodEnd(input.span, input.into);
-  const target = condensedTarget(metric, input.into, input.span, input.targets ?? [], ys);
+  // No Retention keeps less than 13 months: a span not over that long ago is never condensed, whatever is asked.
+  if (end >= keptFrom(format(new Date(), "yyyy-MM-dd"), MIN_KEEP_MONTHS)) throw new NotCondensed("That span is too recent to condense: values are kept for at least 13 months.");
+  const [{ data: overlap }, { data: values }, { data: targets }, { data: locks }] = await Promise.all([
+    db().from("condensed_values").select("id").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).lte("period_start", end).gte("period_end", input.span).limit(1),
+    db().from("observations").select("period_start, value").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).gte("period_start", input.span).lte("period_start", end).order("period_start").order("created_at").order("id"),
+    db().from("series_values").select("period_start, value").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", input.span).lte("period_start", end).order("period_start"),
+    db().from("period_states").select("period_start").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("state", "locked").gte("period_start", input.span).lte("period_start", end),
+  ]);
+  if (overlap?.length) throw new NotCondensed("That span overlaps one condensed already.");
+  const held = (values ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) }));
+  const locked = new Set((locks ?? []).map((r) => String(r.period_start)));
+  const made = condense(metric, input.into, input.span, held, ys, held.length > 0 && latestOfEach(held).every((p) => locked.has(p.period)));
+  if (!made) throw new NotCondensed("There are no values in that span to condense.");
+  const target = condensedTarget(metric, input.into, input.span, (targets ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) })), ys);
   const id = randomUUID();
   const payload = JSON.stringify({ sum: made.sum, last: made.last, target });
   const sealed = await sealRow("condensed_values", actor.workspaceId, { id, payload });
@@ -140,8 +158,8 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
     held: made.held, of: made.of, locked: made.locked, payload: sealed.payload,
   });
   if (error) {
-    // The unique key on (metric, span): that span is condensed already. Anything else stays in the server log.
-    if (error.code === "23505") throw new NotCondensed("That span is condensed already.");
+    // The database refuses an overlap that slipped past the check above (two at once); anything else stays in the log.
+    if (error.code === "23505" || error.code === OVERLAP_CODE) throw new NotCondensed("That span overlaps one condensed already.");
     console.error("condensed_values insert failed:", error.message);
     throw new Error("The Condensed Value could not be saved. Try again in a moment.");
   }

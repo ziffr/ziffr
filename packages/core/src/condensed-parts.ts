@@ -68,6 +68,12 @@ export type CondensedPoint = {
   condensedOn: string;
 };
 
+/** Whether a day lies inside a condensed span: the originals of such a period are no longer shown (the job deletes
+ * them in the same step it stores the Condensed Value; until then the Condensed Value stands for them). */
+export function inCondensed(spans: readonly Pick<CondensedPoint, "period" | "periodEnd">[], day: string): boolean {
+  return spans.some((c) => day >= c.period && day <= c.periodEnd);
+}
+
 /** A Condensed Value as a part of the longer spans and series it takes the place of. */
 export function partOfCondensed(c: Pick<CondensedPoint, "period" | "held" | "sum" | "last">): Part {
   return { period: c.period, held: c.held, sum: c.sum, last: c.last };

@@ -3,7 +3,7 @@
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
-import { partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
+import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
 import { peopleIn } from "./submissions";
@@ -96,11 +96,13 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   const observations = await getLatestObservations(ws, { metricIds: withInputs(metrics, [metric.id]), ...window });
   const inRange = (p: { period: string }) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after);
   // The Condensed Values of a Metric the key's creator sees stand among its values as the span they were made for.
-  const condensed = metric.formula ? [] : ((await condensedFor(ws, [metric.id]))[metric.id] ?? []).flatMap((c) => {
+  const spans = metric.formula ? [] : ((await condensedFor(ws, [metric.id]))[metric.id] ?? []);
+  const condensed = spans.flatMap((c) => {
     const value = valueOfParts(metric.aggregation, [partOfCondensed(c)], c.of);
     return value === undefined ? [] : [{ period: c.period, value, condensed: c }];
   }).filter(inRange);
-  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations)[metric.slug] ?? []).filter(inRange), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
+  // A period a Condensed Value stands for is listed once, as it, even while its originals are not deleted yet.
+  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
   const limit = clampLimit(range.limit);
   const page = points.slice(0, limit);
   if (!page.length) return { items: [], next: null };
