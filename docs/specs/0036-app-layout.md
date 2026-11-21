@@ -39,7 +39,7 @@ You menu: Your profile · Your Deliveries · Your Alerts · Connected assistants
 ```
 
 - **Schedule** is a row of its own with the count of values due (overdue and due today), linking to `/schedule`; it moved out from under settings, and `/settings/schedule` redirects.
-- **Settings** is one page with a grouped list beside it (`settingsGroups(role)`): Workspace (General, Size and Retention, Themes, Packs), Programs (Access Keys, Feeds, Webhooks), Records (Activity, Usage, Audit log). It is drawn only on those pages, by the frame, so the page's own side list is gone in this layout; the top bar's layout keeps today's list.
+- **Settings** is one page with a grouped list beside it (`settingsGroups(role)`): Workspace (General, Size and Retention, Themes, Packs), Programs (Access Keys, Feeds, Webhooks), Records (Changes, Usage, Audit log). It is drawn only on those pages, by the frame, so the page's own side list is gone in this layout; the top bar's layout keeps today's list.
 - **Guests** get no Workspace group (#504 Q1). Every row appears only for roles that can use the page: Feeds, Webhooks, Size and Retention, Usage and the Audit log are for Owners and Admins.
 - **Phone:** the tabs stay; More no longer repeats them and shows Schedule, Decks, Analyze, **Workspace** as one expandable row, the guide, your own pages and switching.
 

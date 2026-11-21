@@ -52,7 +52,7 @@ export function settingsGroups(role: WorkspaceRoleName): { label: string; links:
   return [
     { label: "Workspace", links: [{ href: "/settings/workspace", label: "General" }, ...(admin ? [{ href: "/settings/workspace#size", label: "Size and Retention" }] : []), { href: "/themes", label: "Themes" }, { href: "/settings/packs", label: "Packs" }] },
     { label: "Programs", links: [{ href: "/settings/keys", label: "Access Keys" }, ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }, { href: "/settings/webhooks", label: "Webhooks" }] : [])] },
-    { label: "Records", links: [{ href: "/activity", label: "Activity" }, ...(admin ? [{ href: "/settings/usage", label: "Usage" }, { href: "/audit", label: "Audit log" }] : [])] },
+    { label: "Records", links: [{ href: "/changes", label: "Changes" }, ...(admin ? [{ href: "/settings/usage", label: "Usage" }, { href: "/audit", label: "Audit log" }] : [])] },
   ];
 }
 
