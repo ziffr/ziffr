@@ -88,7 +88,7 @@ export const SidebarItem = React.forwardRef<HTMLElement, { icon: React.ReactNode
       <>
         {icon}
         <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{label}</span>
-        {badge !== undefined && badge !== null && !(hintOnly && collapsed) && <span className={cn("fig rounded-full bg-sidebar-primary px-1.5 text-[11px] leading-4 text-sidebar-primary-foreground", collapsed && "absolute top-0 right-0 min-w-4 px-1 text-center")}>{badge}</span>}
+        {badge !== undefined && badge !== null && !(hintOnly && collapsed) && <span className={cn("fig rounded-full px-1.5 text-xs leading-4", hintOnly ? "text-muted-foreground" : "bg-sidebar-primary text-sidebar-primary-foreground", collapsed && "absolute top-0 right-0 min-w-4 px-1 text-center")}>{badge}</span>}
         {children}
       </>
     )

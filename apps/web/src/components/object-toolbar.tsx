@@ -53,7 +53,7 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
         />
       )}
       <DropdownMenu>
-        <DropdownMenuTrigger aria-label="More" title="More" className={buttonVariants({ variant: "outline", size: "icon" })}>
+        <DropdownMenuTrigger aria-label={`More for this ${type}`} title={`More for this ${type}`} className={buttonVariants({ variant: "outline", size: "icon" })}>
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">

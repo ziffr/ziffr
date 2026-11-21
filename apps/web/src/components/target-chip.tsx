@@ -18,7 +18,7 @@ export function TargetChip({ metric, value, className, note, numberStyle }: { me
     <span
       title={`${formatValue(metric, value, numberStyle)} against a target of ${targetText(metric, numberStyle)}${note ? `. ${note}` : ""}`}
       className={cn(
-        "inline-flex items-center rounded-full border px-1.5 py-px text-[11px] leading-4 font-medium tracking-normal whitespace-nowrap",
+        "inline-flex items-center rounded-full border px-1.5 py-px text-xs leading-4 font-medium tracking-normal whitespace-nowrap",
         s === "on" ? "border-[color-mix(in_oklab,var(--color-success)_40%,transparent)] text-[var(--color-success)]" : "border-[color-mix(in_oklab,var(--destructive)_40%,transparent)] text-destructive",
         className,
       )}

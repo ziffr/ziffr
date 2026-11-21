@@ -66,10 +66,10 @@ function Chip({ p, today, compact }: { p: Placed<Duty>; today: string; compact?:
       className="block rounded-[var(--radius-sm)] border border-border border-l-[3px] bg-[var(--color-cotton)] px-2 py-1 text-xs leading-snug hover:bg-[var(--color-paper-2)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
     >
       <span className={cn("block font-medium", compact && "line-clamp-2")}>
-        {d.overdue && <span className="mr-1 rounded-sm bg-[var(--color-error)] px-1 py-px text-[10px] font-semibold text-white">Overdue</span>}
+        {d.overdue && <span className="mr-1 rounded-sm bg-[var(--color-error)] px-1 py-px text-xs font-semibold text-white">Overdue</span>}
         {d.title}
       </span>
-      {p.originalDate && <span className="block text-[11px] text-muted-foreground">{p.originalDate !== today && `from ${dayName(p.originalDate)}, `}{plural(d.lateDays, "working day")} late</span>}
+      {p.originalDate && <span className="block text-xs text-muted-foreground">{p.originalDate !== today && `from ${dayName(p.originalDate)}, `}{plural(d.lateDays, "working day")} late</span>}
     </Link>
   );
 }

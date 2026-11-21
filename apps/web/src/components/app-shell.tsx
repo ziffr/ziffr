@@ -51,7 +51,7 @@ function isOn(path: string, href: string) {
   return path === href || path.startsWith(href + "/") || (href === "/dashboards" && path === "/");
 }
 
-const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
+const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
 export function AppShell({ workspace, settings, due, open, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; due: number; open: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
@@ -64,7 +64,7 @@ export function AppShell({ workspace, settings, due, open, account, guide, demo,
         <Sidebar aria-label="Sidebar">
           <SidebarHeader>
             <WorkspaceSwitcher account={account} />
-            <SidebarItem icon={<Search aria-hidden />} label="Search" tooltip="Search (Ctrl+K)" onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH))} aria-keyshortcuts="Control+K Meta+K" className="border border-sidebar-border bg-background hover:bg-background" hintOnly badge={<kbd className="font-sans text-[11px] text-muted-foreground">⌘K</kbd>} />
+            <SidebarItem icon={<Search aria-hidden />} label="Search" tooltip="Search (Ctrl+K)" onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH))} aria-keyshortcuts="Control+K Meta+K" className="border border-sidebar-border bg-background hover:bg-background" hintOnly badge={<kbd className="font-sans text-xs text-muted-foreground">⌘K</kbd>} />
           </SidebarHeader>
           <SidebarContent>
             <nav aria-label="Main" className="flex flex-col gap-3">
@@ -142,7 +142,7 @@ function WorkspaceSwitcher({ account }: { account: Account | null }) {
   const label = (
     <span className={cn("min-w-0 flex-1 text-left leading-tight", collapsed && "sr-only")}>
       <span className="block truncate text-[13px] font-medium">{name}</span>
-      <span className="block truncate text-[11px] text-muted-foreground">{account ? "Ziffr" : "Read-only, shared"}</span>
+      <span className="block truncate text-xs text-muted-foreground">{account ? "Ziffr" : "Read-only, shared"}</span>
     </span>
   );
   const frame = "flex h-10 w-full items-center gap-2 rounded-md px-1.5 outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring";
@@ -201,7 +201,7 @@ function DemoMenu({ people }: { people: { profiles: Profile[]; current: string }
         <span aria-hidden className="stock flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">{me?.name[0]}</span>
         <span className={cn("min-w-0 flex-1 text-left leading-tight", collapsed && "sr-only")}>
           <span className="block truncate font-medium">{me?.name}</span>
-          <span className="block truncate text-[11px] text-muted-foreground">Viewing as {me?.role.toLowerCase()}</span>
+          <span className="block truncate text-xs text-muted-foreground">Viewing as {me?.role.toLowerCase()}</span>
         </span>
         {!collapsed && <ChevronsUpDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
       </DropdownMenuTrigger>
@@ -229,7 +229,7 @@ function TabBar({ open, due, workspace, account, guide }: { open: number; due: n
   const link = (href: string, label: string, icon: React.ReactNode, active: boolean, badge?: number) => (
     <Link href={href} data-active={active} aria-current={active ? "page" : undefined} aria-label={badge ? `${label}, ${badge} waiting for you` : label} className={cn(sheetRow, "relative")}>
       {icon}<span>{label}</span>
-      {badge ? <span className="fig absolute top-1 left-1/2 ml-1.5 min-w-4 rounded-full bg-foreground px-1 text-center text-[10px] leading-4 text-background">{badge}</span> : null}
+      {badge ? <span className="fig absolute top-1 left-1/2 ml-1.5 min-w-4 rounded-full bg-foreground px-1 text-center text-xs leading-4 text-background">{badge}</span> : null}
     </Link>
   );
   return (

@@ -159,7 +159,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
               if (!list.length) return null;
               return (
                 <li key={g.kind} className="pt-1">
-                  <h4 className="px-2 pb-0.5 text-[11px] text-muted-foreground">{g.title}</h4>
+                  <h4 className="px-2 pb-0.5 text-xs text-muted-foreground">{g.title}</h4>
                   <ul className="space-y-0.5">
                     {list.map((t) => {
                       const s = builtinShown(t);
@@ -178,7 +178,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
             })}
             {(data.designs ?? []).length > 0 && (
               <li className="pt-1">
-                <h4 className="px-2 pb-0.5 text-[11px] text-muted-foreground">The Workspace&rsquo;s View Designs</h4>
+                <h4 className="px-2 pb-0.5 text-xs text-muted-foreground">The Workspace&rsquo;s View Designs</h4>
                 <ul className="space-y-0.5">
                   {(data.designs ?? []).map((d) => {
                     // Placed with the design as the Workspace keeps it; the core looks it up again by its id.
@@ -195,7 +195,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
               </li>
             )}
             <li className="pt-1">
-              <h4 className="px-2 pb-0.5 text-[11px] text-muted-foreground">The team&rsquo;s</h4>
+              <h4 className="px-2 pb-0.5 text-xs text-muted-foreground">The team&rsquo;s</h4>
               <ul className="space-y-0.5">
                 {templates.map((t) => {
                   const s = teamShown(t);
@@ -272,7 +272,7 @@ function Item({ children, onAdd, info, ...rest }: ItemProps) {
           </button>
         )}
         {onAdd && (
-          <button title="Add" aria-label="Add" onClick={onAdd} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"><Plus className="size-4" /></button>
+          <button title="Add" aria-label={info ? `Add ${info.shown.name}` : "Add"} onClick={onAdd} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"><Plus className="size-4" /></button>
         )}
       </li>
       {info?.open && (

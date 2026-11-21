@@ -150,7 +150,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyl
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
             </span>
             {marks.get(r.label)?.filter((a) => a.text && a.kind !== "ring").map((a, i) => (
-              <span key={i} className={cn("col-span-3 -mt-1 pl-[7.5rem] text-[11px]", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
+              <span key={i} className={cn("col-span-3 -mt-1 pl-[7.5rem] text-xs", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
             ))}
           </li>
         );
