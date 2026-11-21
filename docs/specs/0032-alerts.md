@@ -1,6 +1,6 @@
 # 0032 Alerts: anyone who sees a Metric can be told when it reaches a level
 
-**Status:** draft. **Ticket:** #359 (the owner's wish, 2026-11-20); the tracking issue and the sub-issues labelled `spec:0032` are made once the owner has read this spec.
+**Status:** in progress (every ticket is merged except the webhook part of the Tell step, #408, which is in spec 0034). **Ticket:** #359 (the owner's wish, 2026-11-20); the tracking issue and the sub-issues labelled `spec:0032` are made once the owner has read this spec.
 
 ## Problem Statement
 

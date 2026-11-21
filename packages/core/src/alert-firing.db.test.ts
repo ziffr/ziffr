@@ -184,6 +184,16 @@ describe("sight", () => {
     expect(await messages(w, ann)).toHaveLength(1);
   });
 
+  it("takes an Alert message from the Outbox, with any reason it was held, once the person lost sight", async () => {
+    const { w, sara, ann, m, a } = await setup();
+    await createAlert(a, { metricId: m.id, condition: above("100") });
+    await put(w, m.id, P(1), 120, sara);
+    expect((await connectorsView(a)).deliveries.filter((d) => d.kind === "alert")).toHaveLength(1);
+    await db().from("deliveries").update({ status: "failed", last_error: "Not sent." }).eq("workspace_id", w.id).eq("recipient_id", ann);
+    await db().from("shares").delete().eq("workspace_id", w.id).eq("user_id", ann);
+    expect((await connectorsView(a)).deliveries.filter((d) => d.kind === "alert")).toHaveLength(0);
+  });
+
   it("is quiet for a Metric made private for the person", async () => {
     const { w, sara, ann, m, a } = await setup();
     await createAlert(a, { metricId: m.id, condition: above("100") });

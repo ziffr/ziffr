@@ -202,7 +202,8 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   if (claim !== "send" && claim !== "note") return;
   const yearStart = await yearStartFor(ctx.ws, m.period);
   const text = claim === "note" ? ALERT_LIMIT_NOTE : alertText(m, c, view, ctx, yearStart);
-  const link = `/metrics/${encodeURIComponent(m.slug)}`;
+  // The daily note names no Metric and is not checked for sight when it is sent, so it links to the list only.
+  const link = claim === "note" ? "/settings/alerts" : `/metrics/${encodeURIComponent(m.slug)}`;
   await deliverAlert(ctx.ws, { recipientId: a.person_id, subject: claim === "note" ? "More Alerts fired today" : `Alert: ${m.name}`, text, link, via: a.delivery === "usual" ? undefined : a.delivery, metricId: claim === "note" ? null : m.id, alertId: claim === "note" ? null : a.id });
 }
 
