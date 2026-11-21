@@ -10,7 +10,7 @@ const modules = JSON.parse(readFileSync(new URL("./calculation-modules.json", im
 /** @type {import("@stryker-mutator/api/core").PartialStrykerOptions} */
 export default {
   testRunner: "vitest",
-  vitest: { configFile: "vitest.config.ts" },
+  vitest: { configFile: "vitest.mutation.config.ts" },
   plugins: ["@stryker-mutator/vitest-runner"],
   mutate: modules,
   // Only the tests that run a mutant's line run for it.
