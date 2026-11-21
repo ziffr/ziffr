@@ -32,7 +32,7 @@ create function seal_table(p_table text, out key text, out cols text[], out scop
 begin
   case p_table
     when 'thread_messages' then key := 'id'; cols := array['body']; scope := 'workspace_id = $1';
-    when 'actions' then key := 'id'; cols := array['question']; scope := 'workspace_id = $1';
+    when 'actions' then key := 'id'; cols := array['question', 'breakdown_label']; scope := 'workspace_id = $1';
     when 'contacts' then key := 'person_id'; cols := array['email', 'slack_handle', 'phone']; scope := 'workspace_id = $1';
     when 'profiles' then key := 'id'; cols := array['name'];
       scope := 'role = ''Contact'' and id in (select c.person_id from contacts c where c.workspace_id = $1 and not exists (select 1 from contacts o where o.person_id = c.person_id and o.workspace_id <> c.workspace_id))';

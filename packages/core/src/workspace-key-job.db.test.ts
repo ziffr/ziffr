@@ -7,10 +7,10 @@ import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openRows, SEALED_COLUMNS } from "./sealed-columns";
 import { installationAdmin, workspace } from "./test/db-fixtures";
 import { sealCandidate, reencryptionJob } from "./workspace-key-job";
-import { keyProgress } from "./workspace-key-progress";
+import { keyProgress, SEALED_LABELS } from "./workspace-key-progress";
 import { forgetWorkspaceKey, installationKeyWrapper, isSealed, sealedVersion, workspaceCipher } from "./workspace-keys";
 
 const saved = process.env.ZIFFR_SECRETS_KEY;
@@ -245,6 +245,22 @@ describe("the re-encryption job", () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     expect((await reencryptionJob(only(w))).waiting).toBe(true);
     expect(isSealed(await body(w.messages[0]))).toBe(false);
+  });
+});
+
+describe("the lists of sealed columns", () => {
+  it("are the same in SEALED_COLUMNS, the job's SQL and the progress page's words", async () => {
+    // Whoever seals a column adds it to all three; this fails until they do.
+    const expected = [...Object.entries(SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), "audit_events.details"].sort();
+    const w = await plainWorkspace();
+    const { data, error } = await db().rpc("seal_counts", { p_workspace: w.id, p_current: 1 });
+    expect(error).toBeNull();
+    expect((data as { table_name: string; column_name: string }[]).map((r) => `${r.table_name}.${r.column_name}`).sort()).toEqual(expected);
+    for (const table of Object.keys(SEALED_COLUMNS)) {
+      const { error: e } = await db().rpc("seal_candidates", { p_workspace: w.id, p_table: table, p_current: 1, p_skip: [], p_limit: 1 });
+      expect([table, e]).toEqual([table, null]);
+    }
+    expect(Object.keys(SEALED_LABELS).sort()).toEqual(expected);
   });
 });
 
