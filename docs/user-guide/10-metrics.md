@@ -329,7 +329,19 @@ The Metric Owner, Owners and Admins see the form. Choose **Keep values for** 2, 
 
 **Turn on…** is enabled once the numbers are shown. Turning it on, keeping values for less time, condensing into another period, or going from condensing to deleting needs this confirmation: a dialog repeats the counts, and for a delete you type the Metric's name. If the numbers changed since you looked (new open work, a Lock), Ziffr refuses with "The numbers changed; look again." and you show them again. Making the keep time longer, going from deleting to condensing, and turning it off need no confirmation and take effect at once.
 
-A confirmed Retention does not start at once. It starts on the 8th day, and the box says so, such as "Values before 1 November 2024 will be condensed into months from 28 November 2026." Until then anyone who may set it can press **Cancel**, and nothing has been changed. The Metric's owner and the person who set it get a message when it is scheduled and one the day before. Cancelling and every setting are written in the Audit Log. Ziffr does not condense or delete anything yet in this version: the daily run that does it comes next.
+A confirmed Retention does not start at once. It starts on the 8th day, and the box says so, such as "Values before 1 November 2024 will be condensed into months from 28 November 2026." Until then anyone who may set it can press **Cancel**, and nothing has been changed. The Metric's owner and the person who set it get a message when it is scheduled and one the day before. Cancelling and every setting are written in the Audit Log.
+
+#### What the daily run does
+
+Once it has started, a job does the work once a day, in small steps (at most 5,000 values a day for each Metric), so a first run over many years of values takes several days. The box says when it last looked. It holds to these rules:
+
+- **It takes no more than you confirmed.** If more old values have arrived since you looked (an import of old history, say), it does nothing and the box says so: look at the numbers again and confirm again. Values that grow old as time passes are not more than you confirmed; that is what "keep for N months" means.
+- **It checks before it deletes.** To condense a span it first makes the Condensed Value, then works out every longer period again from the original values and compares the numbers, and the Targets, exactly. Only when they are the same does it delete the originals. If they differ, the span is left as it is, nothing is lost, and the box says which span.
+- **It leaves open work alone.** A period an open question, task, Correction or approval holds is not touched, and is condensed or deleted the day after the work is closed.
+- **It stops when it keeps failing.** After three failed runs in a row it stops for that Metric and the box says so. Nothing is lost by a failed run. Confirm the Retention again once the cause is fixed.
+- **A delete offers a download first.** In the confirmation, **Download these values** gives a CSV of exactly what would be deleted: the values, the earlier values they replaced, the Breakdown rows and the Targets. The download is written in the Audit Log. Locked periods that are deleted take their Lock with them.
+
+Each run that did something is written in the Audit Log as the Retention run of the Metric, with counts and never a value; a span left alone and a Metric held back or stopped are written too. A Projection of a past period older than the keep time is deleted in both modes: it was never a value. Condensed periods take no more values.
 
 A Workspace can have a default Retention, copied into each new Metric when it is made (see [Workspace settings](16-workspace-settings.md#retention)); it waits its 7 days too, and can be cancelled here. The Retention cannot be set through the API or an assistant: they can only read it. Not available in the demo. A Derived Metric has none: it stores no values.
 

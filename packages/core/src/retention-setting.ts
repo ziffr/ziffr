@@ -10,6 +10,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
+import { csvLine } from "./audit-kinds";
 import { refuseInDemo } from "./demo";
 import { deliverNotice } from "./deliveries";
 import { visibleDashboards, visibleMetricIds } from "./access";
@@ -17,10 +18,10 @@ import { formulaInputs } from "./formula";
 import { isLonger } from "./display-periods";
 import { yearStartOf } from "./fiscal-year";
 import { periodEnd, periodStart, type YearStart } from "./periods";
-import { firstRunDay, parseRetention, reminderDay, retentionPlan, retentionProblem, keptFrom, CANCEL_DAYS, type CondenseInto, type Retention, type RetentionMetric } from "./retention-rules";
-import { DELETE_WORD, NUMBERS_CHANGED, needsConfirmation, retentionWords, storedPending, storedRetention, dayWords, pendingNote, type PendingRetention } from "./retention-words";
+import { firstRunDay, parseRetention, reminderDay, retentionPlan, retentionProblem, keptFrom, CANCEL_DAYS, type CondenseInto, type Retention, type RetentionMetric, type RetentionPlan } from "./retention-rules";
+import { DELETE_WORD, NUMBERS_CHANGED, capOf, needsConfirmation, retentionWords, storedPending, storedRetention, dayWords, pendingNote, type Counted, type PendingRetention } from "./retention-words";
 import { localTime } from "./workspace-clock";
-import { allRows, getMetrics } from "./workspace-data";
+import { allRows, getBreakdowns, getMetrics } from "./workspace-data";
 import type { Metric, Period } from "./types";
 
 export { NUMBERS_CHANGED };
@@ -50,8 +51,10 @@ export type RetentionPreview = {
   /** Projections of past periods older than the Retention: deleted in both modes. */
   projections: number;
   lockedPeriods: number;
-  /** Older periods left alone because open work holds them. */
+  /** Older periods left alone because open work holds them, and the values they hold (kept in the confirmation: freed
+   * later, they are what the person was told about). Not part of the fingerprint: the count of periods is. */
   heldBack: number;
+  heldBackValues: number;
   /** Older periods left as they are because condensing them would show a longer Display Period differently. */
   uneven: number;
   /** Derived Metrics that read this one: a count, which may include ones the person cannot see (no name is given). */
@@ -87,6 +90,9 @@ const MAX_ROWS = 100;
 /** The most Metrics one Workspace-wide preview works on, and how many in parallel. */
 const MAX_METRICS = 5000;
 const PARALLEL = 4;
+
+/** What the database counts per period (retention_periods): values, Breakdown rows and Superseded Values. */
+export type PeriodCount = { period_start: string; values_held: number; breakdown_rows: number; superseded: number };
 
 /** The states of a period that its Workflow has not finished: such a period is held back. */
 const OPEN_STATES = ["asked", "submitted", "approval"];
@@ -124,23 +130,22 @@ function parsed(raw: unknown): Retention | null {
   return r.retention;
 }
 
-/** What a Retention does to one Metric on `today`, in counts. Reads only; `m` is a Metric the actor may set. The counts
- * come from the database per period, so a Metric with years of values is one call, not one per value. */
-async function previewMetric(actor: Actor, m: Row, setting: Retention, today: string, ys: YearStart, ctx: { metrics: Metric[]; visible: Set<number>; dashboards: Map<number, string> }): Promise<RetentionPreview> {
-  const ws = actor.workspaceId;
-  const empty: Omit<RetentionPreview, "fingerprint"> = { metricId: m.id, name: m.name, setting, keptFrom: keptFrom(today, setting.keep_months), firstPeriod: null, lastPeriod: null, periods: 0, values: 0, condensedValues: 0, breakdownRows: 0, supersededValues: 0, targets: 0, projections: 0, lockedPeriods: 0, heldBack: 0, uneven: 0, derivedReaders: 0, snapshots: 0, viewLinks: 0, snapshotNames: [], problem: null };
-  const finish = (p: Omit<RetentionPreview, "fingerprint">): RetentionPreview => ({ ...p, fingerprint: fingerprintOf([p.setting, p.keptFrom, p.firstPeriod, p.lastPeriod, p.periods, p.values, p.condensedValues, p.breakdownRows, p.supersededValues, p.targets, p.projections, p.lockedPeriods, p.heldBack, p.uneven, p.derivedReaders, p.snapshots, p.viewLinks, p.problem]) });
+/** What the periods of a Metric are, for a Retention on `today`: the checks that refuse it (a Metric that cannot be
+ * condensed, Derived Metrics that read it), what the Metric holds older than the keep time, and the plan the rules
+ * make of it. The preview and the daily job both ask here, so what a person was shown is what the job works from.
+ * Reads only. */
+export async function planRetention(ws: string, m: Pick<Row, "id" | "slug" | "period" | "aggregation" | "formula">, setting: Retention, today: string, ys: YearStart, metrics: Metric[]) {
+  const none = { problem: null as string | null, derivedReaders: 0, cutoff: keptFrom(today, setting.keep_months), held: [] as PeriodCount[], plan: null as unknown as RetentionPlan, targetRows: [] as { period_start: string }[], projectionRows: [] as { period_start: string }[] };
   const metric: RetentionMetric = { period: m.period as Period, aggregation: m.aggregation, formula: m.formula };
   const problem = retentionProblem(setting, metric);
-  if (problem) return finish({ ...empty, problem });
-  const readers = ctx.metrics.filter((o) => o.formula && formulaInputs(o.formula).includes(m.slug));
-  empty.derivedReaders = readers.length;
-  if (setting.then === "delete" && readers.length) return finish({ ...empty, problem: "Another Metric is derived from this one, so its values cannot be deleted. Condense them, or change the Derived Metric first." });
-  if (setting.then === "condense" && readers.some((o) => isLonger(setting.into, o.period))) return finish({ ...empty, problem: "A Derived Metric reads this one by a shorter period than it would be condensed into. Pick a shorter period, or change the Derived Metric first." });
-
-  const cutoff = empty.keptFrom;
+  if (problem) return { ...none, problem };
+  const readers = metrics.filter((o) => o.formula && formulaInputs(o.formula).includes(m.slug));
+  none.derivedReaders = readers.length;
+  if (setting.then === "delete" && readers.length) return { ...none, problem: "Another Metric is derived from this one, so its values cannot be deleted. Condense them, or change the Derived Metric first." };
+  if (setting.then === "condense" && readers.some((o) => isLonger(setting.into, o.period))) return { ...none, problem: "A Derived Metric reads this one by a shorter period than it would be condensed into. Pick a shorter period, or change the Derived Metric first." };
+  const cutoff = none.cutoff;
   const [held, locked, openStates, openActions, targetRows, projectionRows] = await Promise.all([
-    allRows<{ period_start: string; values_held: number; breakdown_rows: number; superseded: number }>((from, to) => db().rpc("retention_periods", { p_ws: ws, p_metric: m.id, p_cutoff: cutoff }).range(from, to)),
+    allRows<PeriodCount>((from, to) => db().rpc("retention_periods", { p_ws: ws, p_metric: m.id, p_cutoff: cutoff }).range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).eq("state", "locked").lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("period_states").select("period_start").eq("metric_id", m.id).in("state", OPEN_STATES).lt("period_start", cutoff).order("period_start").range(from, to)),
     allRows<{ period_start: string }>((from, to) => db().from("actions").select("period_start").eq("workspace_id", ws).eq("metric_id", m.id).in("status", ["open", "answered"]).lt("period_start", cutoff).order("id").range(from, to)),
@@ -150,11 +155,25 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
   const lockedSet = new Set(locked.map((l) => l.period_start));
   const open = new Set([...openStates, ...openActions].map((h) => h.period_start));
   const plan = retentionPlan(setting, metric, held.map((h) => ({ period: h.period_start, locked: lockedSet.has(h.period_start), heldBack: open.has(h.period_start) })), today, ys);
+  return { ...none, held, plan, targetRows, projectionRows };
+}
+
+/** What a Retention does to one Metric on `today`, in counts. Reads only; `m` is a Metric the actor may set. The counts
+ * come from the database per period, so a Metric with years of values is one call, not one per value. */
+async function previewMetric(actor: Actor, m: Row, setting: Retention, today: string, ys: YearStart, ctx: { metrics: Metric[]; visible: Set<number>; dashboards: Map<number, string> }): Promise<RetentionPreview> {
+  const ws = actor.workspaceId;
+  const empty: Omit<RetentionPreview, "fingerprint"> = { metricId: m.id, name: m.name, setting, keptFrom: keptFrom(today, setting.keep_months), firstPeriod: null, lastPeriod: null, periods: 0, values: 0, condensedValues: 0, breakdownRows: 0, supersededValues: 0, targets: 0, projections: 0, lockedPeriods: 0, heldBack: 0, heldBackValues: 0, uneven: 0, derivedReaders: 0, snapshots: 0, viewLinks: 0, snapshotNames: [], problem: null };
+  const finish = (p: Omit<RetentionPreview, "fingerprint">): RetentionPreview => ({ ...p, fingerprint: fingerprintOf([p.setting, p.keptFrom, p.firstPeriod, p.lastPeriod, p.periods, p.values, p.condensedValues, p.breakdownRows, p.supersededValues, p.targets, p.projections, p.lockedPeriods, p.heldBack, p.uneven, p.derivedReaders, p.snapshots, p.viewLinks, p.problem]) });
+  const r = await planRetention(ws, m, setting, today, ys, ctx.metrics);
+  empty.derivedReaders = r.derivedReaders;
+  if (r.problem) return finish({ ...empty, problem: r.problem });
+  const { cutoff, held, plan, targetRows, projectionRows } = r;
   const affected = new Set(setting.then === "delete" ? plan.delete : plan.condense.flatMap((c) => c.periods));
   const spans = new Set(plan.condense.map((c) => c.period));
   const hit = held.filter((h) => affected.has(h.period_start));
   const sum = (key: "values_held" | "breakdown_rows" | "superseded") => hit.reduce((n, h) => n + h[key], 0);
   const sorted = [...affected].sort();
+  const heldBack = new Set(plan.heldBack);
 
   const into: CondenseInto | null = setting.then === "condense" ? setting.into : null;
   const targets = targetRows.filter((t) => (into ? spans.has(periodStart(t.period_start, into, ys)) : affected.has(t.period_start))).length;
@@ -167,7 +186,7 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
     ...empty, firstPeriod: sorted[0] ?? null, lastPeriod: sorted[sorted.length - 1] ?? null,
     periods: affected.size, values: sum("values_held"), condensedValues: plan.condense.length, breakdownRows: sum("breakdown_rows"), supersededValues: sum("superseded"),
     targets, projections, lockedPeriods: setting.then === "delete" ? plan.deletedLocked : plan.condense.filter((c) => c.locked).length,
-    heldBack: plan.heldBack.length, uneven: plan.uneven.length, snapshots, viewLinks, snapshotNames: names,
+    heldBack: plan.heldBack.length, heldBackValues: held.filter((h) => heldBack.has(h.period_start)).reduce((n, h) => n + h.values_held, 0), uneven: plan.uneven.length, snapshots, viewLinks, snapshotNames: names,
   });
 }
 
@@ -279,7 +298,7 @@ function scheduledText(m: Pick<Row, "name">, p: PendingRetention): string {
 }
 
 /** A confirmation, as stored: when it starts at the earliest, and what the person was shown. */
-function newPending(setting: Retention, who: string, today: string, counted: { periods: number; values: number }): PendingRetention {
+function newPending(setting: Retention, who: string, today: string, counted: Counted): PendingRetention {
   return { id: randomUUID(), retention: setting, starts_on: firstRunDay(today), starts_after: new Date(Date.now() + CANCEL_DAYS * 86_400_000).toISOString(), confirmed_on: today, set_by: who, counted, told: true, reminded: false };
 }
 
@@ -307,7 +326,7 @@ async function store(actor: Actor, m: Row, setting: Retention | null, confirm: {
   };
   if (!setting) {
     if (!active && !waiting) return { pending: null, changed: false };
-    await update({ retention: null, retention_pending: null });
+    await update({ retention: null, retention_pending: null, retention_cap: null });
     await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: "none" } });
     return { pending: null, changed: true };
   }
@@ -325,7 +344,7 @@ async function store(actor: Actor, m: Row, setting: Retention | null, confirm: {
   if (preview.problem) throw new Error(preview.problem);
   if (confirm.shown !== preview.fingerprint) throw new Error(NUMBERS_CHANGED);
   if (!how.applied) assertTyped(setting, m.name, confirm.typed);
-  const pending = newPending(setting, actor.personId, when.today, { periods: preview.periods, values: preview.values });
+  const pending = newPending(setting, actor.personId, when.today, { periods: preview.periods, values: preview.values, held_back_periods: preview.heldBack, held_back_values: preview.heldBackValues });
   if (!(await update({ retention_pending: pending }))) return { pending: null, changed: false };
   await audit(actor, { kind: "metric.retention_set", object: { type: "metric", id: m.id, name: m.name }, details: { from: summary(active), to: summary(setting), starts_on: pending.starts_on, ...(how.applied ? { applied_to_all: true } : {}) } });
   if (!how.quiet) await tell(actor.workspaceId, [m], [m.owner_id, actor.personId], `Retention of ${m.name}`, () => scheduledText(m, pending));
@@ -420,7 +439,7 @@ export async function defaultRetentionFor(ws: string, who: string, metric: Reten
   const { data } = await db().from("workspaces").select("default_retention").eq("id", ws).maybeSingle();
   const setting = storedRetention(data?.default_retention);
   if (!setting || retentionProblem(setting, metric)) return null;
-  return newPending(setting, who, today ?? (await workspaceToday(ws)), { periods: 0, values: 0 });
+  return newPending(setting, who, today ?? (await workspaceToday(ws)), { periods: 0, values: 0, held_back_periods: 0, held_back_values: 0 });
 }
 
 /** Records a default Retention copied into a new Metric, and tells its owner, like any confirmed one. */
@@ -441,9 +460,12 @@ export function assertRetentionFits(m: { retention?: unknown; retention_pending?
 /** For the daily job (#382) and nothing else: lets a confirmed Retention take effect on its first day (the 8th, and not
  * before 7 days have passed), and sends the one reminder on the 7th day to its Metric's owner and the person who set it,
  * if they still see the Metric. Works in each Workspace's own day; a Metric is handled once, so calling it twice a day
- * does no harm. The job must hold a Metric to what the person confirmed (`counted`) and ask again for more. */
-export async function settleRetentions(now = new Date()): Promise<{ started: number; reminded: number }> {
-  const rows = await allRows<Row & { workspace_id: string }>((from, to) => db().from("metrics").select(`${COLUMNS}, workspace_id`).not("retention_pending", "is", null).order("id").range(from, to));
+ * does no harm. `only` limits it to one Workspace (a test of the job). The job must hold a Metric to what the person confirmed (`counted`) and ask again for more. */
+export async function settleRetentions(now = new Date(), only?: { workspaceId: string }): Promise<{ started: number; reminded: number }> {
+  const rows = await allRows<Row & { workspace_id: string }>((from, to) => {
+    const q = db().from("metrics").select(`${COLUMNS}, workspace_id`).not("retention_pending", "is", null);
+    return (only ? q.eq("workspace_id", only.workspaceId) : q).order("id").range(from, to);
+  });
   const zones = new Map<string, string>();
   let begun = 0;
   let reminded = 0;
@@ -454,7 +476,7 @@ export async function settleRetentions(now = new Date()): Promise<{ started: num
     const today = zones.get(m.workspace_id)!;
     // Only the confirmation that was read (by its id), so a cancel or a newer confirmation at the same moment wins.
     if (started(p, today, now)) {
-      const { data } = await db().from("metrics").update({ retention: p.retention, retention_pending: null }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>id", p.id).select("id");
+      const { data } = await db().from("metrics").update({ retention: p.retention, retention_pending: null, retention_cap: capOf(p) }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>id", p.id).select("id");
       if (data?.length) begun++;
     } else if (!p.reminded && today >= reminderDay(p.confirmed_on) && today < p.starts_on) {
       const { data } = await db().from("metrics").update({ retention_pending: { ...p, reminded: true } }).eq("id", m.id).eq("workspace_id", m.workspace_id).eq("retention_pending->>id", p.id).select("id");
@@ -466,16 +488,60 @@ export async function settleRetentions(now = new Date()): Promise<{ started: num
   return { started: begun, reminded };
 }
 
-/** A Metric's Retention as its page shows it: in force, and waiting with its note, and whether the actor may set it. The
- * actor sees the Metric (the page has checked); `set_by` and the other bookkeeping of a confirmation stay here. */
-export async function retentionFor(actor: Actor, metricId: number): Promise<{ retention: Retention | null; pending: { retention: Retention; starts_on: string; note: string; cancellable: boolean } | null; canSet: boolean }> {
+/** A Metric's Retention as its page shows it: in force, and waiting with its note, what the daily job last had to say (to
+ * those who may set it only), and whether the actor may set it. The actor sees the Metric (the page has checked); `set_by`
+ * and the other bookkeeping of a confirmation stay here. */
+export async function retentionFor(actor: Actor, metricId: number): Promise<{ retention: Retention | null; pending: { retention: Retention; starts_on: string; note: string; cancellable: boolean } | null; canSet: boolean; status: { note: string; stopped: boolean; lastRunOn: string | null } | null }> {
   const { data } = await db().from("metrics").select("id, retention, retention_pending").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data || !(await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId))).has(data.id)) throw new Forbidden();
   const p = storedPending(data.retention_pending);
   const today = await workspaceToday(actor.workspaceId);
+  const canSet = await canSetRetention(actor, metricId);
+  // What the job says (a check that did not match, numbers that grew, a stop) is for those who decide about the Retention.
+  const { data: state } = canSet ? await db().from("retention_state").select("note, stopped, last_run_on").eq("metric_id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle() : { data: null };
   return {
     retention: storedRetention(data.retention),
     pending: p && { retention: p.retention, starts_on: p.starts_on, note: pendingNote(p, keptFrom(p.starts_on, p.retention.keep_months)), cancellable: !started(p, today, new Date()) },
-    canSet: await canSetRetention(actor, metricId),
+    canSet,
+    status: state && (state.note || state.stopped) ? { note: String(state.note ?? ""), stopped: state.stopped === true, lastRunOn: state.last_run_on ? String(state.last_run_on) : null } : null,
   };
+}
+
+/** The most rows one download of the values a Retention would remove holds. */
+const EXPORT_ROWS = 250_000;
+
+/** The values a Retention would remove from one Metric, as a CSV (the download offered before a delete): every value of
+ * the periods the preview counted, the earlier values they replaced, their Breakdown rows and Targets, so a person who
+ * must let go of them can keep a copy. Written in the Audit Log like any export, in counts. For those who may set the
+ * Metric's Retention. */
+export async function retentionValuesCsv(actor: Actor, metricId: number, rawSetting: unknown): Promise<string> {
+  const m = await settableMetric(actor, Number(metricId));
+  const setting = parsed(rawSetting);
+  if (!setting) throw new Error("Pick how long to keep values, and what then happens, to download what it would remove.");
+  const ws = actor.workspaceId;
+  const [ys, today, metrics] = await Promise.all([yearStartOf(ws), workspaceToday(ws), getMetrics(ws)]);
+  const r = await planRetention(ws, m, setting, today, ys, metrics);
+  if (r.problem) throw new Error(r.problem);
+  const periods = new Set(setting.then === "delete" ? r.plan.delete : r.plan.condense.flatMap((c) => c.periods));
+  if (!periods.size) throw new Error("Nothing would go today, so there is nothing to download.");
+  // Counted first, from what the database counts per period, so a Metric with too many values is refused before any is read.
+  if (r.held.filter((h) => periods.has(h.period_start)).reduce((n, h) => n + h.values_held + h.superseded + h.breakdown_rows, 0) > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
+  const sorted = [...periods].sort();
+  const [first, last] = [sorted[0], sorted[sorted.length - 1]];
+  const [values, earlier, targets, breakdowns] = await Promise.all([
+    allRows<{ period_start: string; value: unknown; source: string | null; created_at: string }>((a, b) => db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("created_at").order("id").range(a, b)),
+    allRows<{ period_start: string; value: unknown; source: string | null; recorded_at: string }>((a, b) => db().from("observation_history").select("period_start, value, source, recorded_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
+    allRows<{ period_start: string; value: unknown }>((a, b) => db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
+    getBreakdowns(ws, [m.id], { from: first, to: last }),
+  ]);
+  const inPeriods = <T extends { period_start: string }>(rows: T[]) => rows.filter((x) => periods.has(x.period_start));
+  const lines: unknown[][] = [];
+  for (const v of inPeriods(values)) lines.push([v.period_start, "value", v.value, "", String(v.created_at).slice(0, 10), v.source]);
+  for (const v of inPeriods(earlier)) lines.push([v.period_start, "earlier value", v.value, "", String(v.recorded_at).slice(0, 10), v.source]);
+  for (const [period, rows] of Object.entries(breakdowns[m.id] ?? {})) if (periods.has(period)) for (const b of rows) lines.push([period, "breakdown row", b.value, b.label, "", ""]);
+  for (const t of inPeriods(targets)) lines.push([t.period_start, "target", t.value, "", "", ""]);
+  if (lines.length > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
+  lines.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  await audit(actor, { kind: "export.retention_values", object: { type: "metric", id: m.id, name: m.name }, details: { periods: periods.size, rows: lines.length } });
+  return csvLine(["Metric", "Period", "What", "Value", "Label", "Recorded on", "Source"]) + lines.map((l) => csvLine([m.name, ...l])).join("");
 }

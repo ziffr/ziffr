@@ -16,6 +16,7 @@ import { condense, condensedTarget, keptFrom, MIN_KEEP_MONTHS, retentionProblem,
 import { isPeriodStart, periodEnd } from "./periods";
 import { openRows, sealRow } from "./sealed-columns";
 import { allRows, getMetrics } from "./workspace-data";
+import type { Metric } from "./types";
 
 /** The database's code for a value refused because its period was condensed (trigger observations_not_condensed). */
 export const CONDENSED_CODE = "ZF441";
@@ -131,7 +132,14 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
   const may = actor.role === "owner" || actor.role === "admin" || (actor.role !== "guest" && metric?.owner_id === actor.personId);
   // A Metric of another Workspace and a missing one are refused alike.
   if (!metric || !may) throw new Forbidden("That Metric was not found, or its values are not yours to condense.");
-  const ys = await yearStartFor(actor.workspaceId, input.into);
+  return storeCondensedFor(actor.workspaceId, metric, input);
+}
+
+/** The Condensed Value of one span of a Metric of this Workspace (`metric` was read from it), as storeCondensed makes it,
+ * for a caller that has checked who asks: the Actor-first `storeCondensed`, and the Retention job, which acts for no one
+ * and holds a Metric to what a person confirmed. Everything else it checks is the same, and it never touches an original. */
+export async function storeCondensedFor(ws: string, metric: Metric, input: CondensedInput): Promise<string> {
+  const ys = await yearStartFor(ws, input.into);
   const problem = retentionProblem({ keep_months: MIN_KEEP_MONTHS, then: "condense", into: input.into }, metric);
   if (problem) throw new NotCondensed(problem);
   if (!isPeriodStart(input.span, input.into, ys)) throw new NotCondensed(`${String(input.span)} is not the first day of a ${input.into}.`);
@@ -139,10 +147,10 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
   // No Retention keeps less than 13 months: a span not over that long ago is never condensed, whatever is asked.
   if (end >= keptFrom(format(new Date(), "yyyy-MM-dd"), MIN_KEEP_MONTHS)) throw new NotCondensed("That span is too recent to condense: values are kept for at least 13 months.");
   const [{ data: overlap }, { data: values }, { data: targets }, { data: locks }] = await Promise.all([
-    db().from("condensed_values").select("id").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).lte("period_start", end).gte("period_end", input.span).limit(1),
-    db().from("observations").select("period_start, value").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).gte("period_start", input.span).lte("period_start", end).order("period_start").order("created_at").order("id"),
-    db().from("series_values").select("period_start, value").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", input.span).lte("period_start", end).order("period_start"),
-    db().from("period_states").select("period_start").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("state", "locked").gte("period_start", input.span).lte("period_start", end),
+    db().from("condensed_values").select("id").eq("workspace_id", ws).eq("metric_id", metric.id).lte("period_start", end).gte("period_end", input.span).limit(1),
+    db().from("observations").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).gte("period_start", input.span).lte("period_start", end).order("period_start").order("created_at").order("id"),
+    db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", input.span).lte("period_start", end).order("period_start"),
+    db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metric.id).eq("state", "locked").gte("period_start", input.span).lte("period_start", end),
   ]);
   if (overlap?.length) throw new NotCondensed("That span overlaps one condensed already.");
   const held = (values ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) }));
@@ -152,9 +160,9 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
   const target = condensedTarget(metric, input.into, input.span, (targets ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) })), ys);
   const id = randomUUID();
   const payload = JSON.stringify({ sum: made.sum, last: made.last, target });
-  const sealed = await sealRow("condensed_values", actor.workspaceId, { id, payload });
+  const sealed = await sealRow("condensed_values", ws, { id, payload });
   const { error } = await db().from("condensed_values").insert({
-    id, workspace_id: actor.workspaceId, metric_id: metric.id, period_start: input.span, period_end: end, span: input.into,
+    id, workspace_id: ws, metric_id: metric.id, period_start: input.span, period_end: end, span: input.into,
     held: made.held, of: made.of, locked: made.locked, payload: sealed.payload,
   });
   if (error) {
@@ -164,4 +172,30 @@ export async function storeCondensed(actor: Actor, input: CondensedInput): Promi
     throw new Error("The Condensed Value could not be saved. Try again in a moment.");
   }
   return id;
+}
+
+/** One stored Condensed Value of a Workspace by its id, with its numbers opened, or null when there is none (or it does not
+ * open). For the job's check of what it just stored against the originals it still holds. */
+export async function condensedPointById(ws: string, id: string): Promise<CondensedPoint | null> {
+  const { data } = await db().from("condensed_values").select("id, metric_id, period_start, period_end, span, held, of, locked, payload, condensed_on").eq("workspace_id", ws).eq("id", id).maybeSingle();
+  if (!data) return null;
+  const [row] = await openRows("condensed_values", ws, [data as Record<string, unknown>]);
+  return pointFrom(row);
+}
+
+/** Takes back a Condensed Value the job made but did not go on with (a check that did not match, open work, values that
+ * arrived): the span goes back to being shown from its originals. The database removes it only while the span still holds
+ * the originals it stands for; one that stands alone is never removed. Returns whether it was. */
+export async function discardCondensed(ws: string, id: string): Promise<boolean> {
+  const { data, error } = await db().rpc("retention_discard_condensed", { p_ws: ws, p_id: id });
+  if (error) throw new Error("A Condensed Value could not be taken back.");
+  return data === true;
+}
+
+/** The Condensed Values of one Metric that touch the days from `from` to `to`, with their numbers opened, oldest first.
+ * For the job's check of a span against the ones already condensed beside it; the caller names the Metric. */
+export async function condensedBetween(ws: string, metricId: number, from: string, to: string): Promise<CondensedPoint[]> {
+  const rows = await allRows<Record<string, unknown>>((a, b) =>
+    db().from("condensed_values").select("id, metric_id, period_start, period_end, span, held, of, locked, payload, condensed_on").eq("workspace_id", ws).eq("metric_id", metricId).lte("period_start", to).gte("period_end", from).order("period_start").range(a, b));
+  return (await openRows("condensed_values", ws, rows)).flatMap((r) => pointFrom(r) ?? []);
 }

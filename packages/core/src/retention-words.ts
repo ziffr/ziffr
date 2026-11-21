@@ -39,7 +39,11 @@ export function storedRetention(value: unknown): Retention | null {
  * person was shown (`counted`: the periods and values it would have touched then; the daily job must not take more than
  * that without a new confirmation). `id` names this confirmation, so a cancel or a start cannot hit a newer one;
  * `starts_after` is the instant it may start at the earliest (7 days on, whatever the Workspace's clock says by then). */
-export type PendingRetention = { id: string; retention: Retention; starts_on: string; starts_after: string; confirmed_on: string; set_by: string; counted: { periods: number; values: number }; told: boolean; reminded: boolean };
+export type PendingRetention = { id: string; retention: Retention; starts_on: string; starts_after: string; confirmed_on: string; set_by: string; counted: Counted; told: boolean; reminded: boolean };
+
+/** What a person was shown when they confirmed: the periods and values the Retention would touch, and those it left alone
+ * because open work held them (they may be freed later; the confirmation said so). */
+export type Counted = { periods: number; values: number; held_back_periods: number; held_back_values: number };
 
 /** A pending Retention read back from what the database holds, or null when it holds none or something else. */
 export function storedPending(value: unknown): PendingRetention | null {
@@ -47,11 +51,13 @@ export function storedPending(value: unknown): PendingRetention | null {
   const v = value as Record<string, unknown>;
   const day = (x: unknown) => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x);
   const retention = storedRetention(v.retention);
-  const c = v.counted as { periods?: unknown; values?: unknown } | null;
+  const c = v.counted as Record<string, unknown> | null;
   const count = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 ? x : null);
   const periods = count(c?.periods), values = count(c?.values);
-  if (!retention || !day(v.starts_on) || !day(v.confirmed_on) || typeof v.set_by !== "string" || typeof v.id !== "string" || typeof v.starts_after !== "string" || Number.isNaN(Date.parse(v.starts_after)) || periods === null || values === null) return null;
-  return { id: v.id, retention, starts_on: v.starts_on as string, starts_after: v.starts_after, confirmed_on: v.confirmed_on as string, set_by: v.set_by, counted: { periods, values }, told: v.told === true, reminded: v.reminded === true };
+  // Held-back counts came with the daily job: a confirmation made before has none, which reads as none.
+  const heldPeriods = c?.held_back_periods === undefined ? 0 : count(c.held_back_periods), heldValues = c?.held_back_values === undefined ? 0 : count(c.held_back_values);
+  if (!retention || !day(v.starts_on) || !day(v.confirmed_on) || typeof v.set_by !== "string" || typeof v.id !== "string" || typeof v.starts_after !== "string" || Number.isNaN(Date.parse(v.starts_after)) || periods === null || values === null || heldPeriods === null || heldValues === null) return null;
+  return { id: v.id, retention, starts_on: v.starts_on as string, starts_after: v.starts_after, confirmed_on: v.confirmed_on as string, set_by: v.set_by, counted: { periods, values, held_back_periods: heldPeriods, held_back_values: heldValues }, told: v.told === true, reminded: v.reminded === true };
 }
 
 /** A day as people read it: "28 November 2026". */
@@ -61,4 +67,25 @@ export const dayWords = (day: string): string => format(new Date(`${day}T12:00:0
 export function pendingNote(p: PendingRetention, keptFrom: string): string {
   const what = p.retention.then === "delete" ? "deleted" : `condensed into ${p.retention.into}s`;
   return `Values before ${dayWords(keptFrom)} will be ${what} from ${dayWords(p.starts_on)}.`;
+}
+
+/** What a Retention in force may take, from the confirmation it started from: the day and id of that confirmation and
+ * what the person was shown. The daily job never takes more of the old periods and values than this without a new
+ * confirmation; it is copied when the Retention starts, so cancelling or confirming again cannot change a running one. */
+export type RetentionCap = { id: string; confirmed_on: string; periods: number; values: number; held_back_periods: number; held_back_values: number };
+
+/** The cap a confirmation sets when its Retention starts. */
+export function capOf(p: Pick<PendingRetention, "id" | "confirmed_on" | "counted">): RetentionCap {
+  return { id: p.id, confirmed_on: p.confirmed_on, periods: p.counted.periods, values: p.counted.values, held_back_periods: p.counted.held_back_periods, held_back_values: p.counted.held_back_values };
+}
+
+/** A cap read back from what the database holds, or null when there is none or it is not one: a Retention without a
+ * readable cap is never run. */
+export function storedCap(value: unknown): RetentionCap | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const count = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 ? x : null);
+  const periods = count(v.periods), values = count(v.values), hp = count(v.held_back_periods), hv = count(v.held_back_values);
+  if (typeof v.id !== "string" || typeof v.confirmed_on !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.confirmed_on) || periods === null || values === null || hp === null || hv === null) return null;
+  return { id: v.id, confirmed_on: v.confirmed_on, periods, values, held_back_periods: hp, held_back_values: hv };
 }
