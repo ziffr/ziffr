@@ -110,7 +110,7 @@ describe("@ziffr/mcp against the app", () => {
     expect((await reading.callTool({ name: "set_metric_workflow", arguments: { slug: calls.slug, workflow: null } })).isError).toBe(true);
   });
   it("does the whole job in one call for someone who knows nothing about Ziffr (ticket #614)", async () => {
-    const { client } = await connect(["metrics:read", "values:submit", "metrics:write", "metrics:edit", "workflows:write"]);
+    const { client, w } = await connect(["metrics:read", "values:submit", "metrics:write", "metrics:edit", "workflows:write"]);
     const ws = json(await client.callTool({ name: "get_workspace", arguments: {} })).workspace;
     expect(ws).toMatchObject({ time_zone: "UTC", run_hour: 8, week_start: "monday", reached_by: ["email"] });
     // "Ask me every weekday at 1 pm for the kilometres": one call makes the Metric, its schedule, the person as submitter and the first value.
@@ -128,6 +128,17 @@ describe("@ziffr/mcp against the app", () => {
     const detail = json(await client.callTool({ name: "get_workflow", arguments: { id: made.metric.workflow.id } })).workflow;
     expect(detail.used_by.map((m: { name: string }) => m.name).sort()).toEqual(["Kilometres", "Steps"]);
     expect(detail.asking).toEqual({ hour: 13, days: { kind: "weekdays" } });
+    // A colleague's Workflow of the same name is not the user's: it neither blocks the schedule nor is reused.
+    const sara = await w.person("owner");
+    await saveWorkflow(w.actor(sara, "owner"), null, "Ask me every Monday at 09:00", { dueWorkingDays: 0, steps: [{ type: "publish", lock: false }] });
+    const monday = json(await client.callTool({ name: "create_metric", arguments: { name: "Weekly look", period: "week", schedule: { hour: 9, days: [1] } } }));
+    expect(monday.metric.workflow).toMatchObject({ name: "Ask me every Monday at 09:00", yours: true });
+    // A Metric the key may not create leaves no schedule behind.
+    const before = json(await client.callTool({ name: "list_workflows", arguments: {} })).workflows.length;
+    const writer = (await connect(["metrics:read", "workflows:write"])).client;
+    expect((await writer.callTool({ name: "create_metric", arguments: { name: "No right", schedule: { hour: 7 } } })).isError).toBe(true);
+    expect((await writer.callTool({ name: "list_workflows", arguments: {} }).then(json)).workflows.filter((f: { name: string }) => f.name.includes("07:00"))).toEqual([]);
+    expect(json(await client.callTool({ name: "list_workflows", arguments: {} })).workflows.length).toBe(before);
     // A first value that cannot be recorded does not undo the Metric: the answer says why.
     const stuck = json(await client.callTool({ name: "create_metric", arguments: { name: "Odd", first_value: { value: 1, period: "2999-01-01" } } }));
     expect(stuck.first_value).toMatchObject({ recorded: false, reason: expect.any(String) });
