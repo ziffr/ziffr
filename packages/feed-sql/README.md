@@ -4,7 +4,7 @@ A ready [Ziffr](https://github.com/ziffr/ziffr) Feed for SQL databases: one Post
 
 ## Setting it up
 
-1. In Ziffr, an Owner or Admin opens Settings, Feeds, creates a Feed ("Warehouse") and a Feed Key, and copies the key. Each Metric's owner adds the Feed under the Metric's Settings, "Who submits".
+1. In Ziffr, an Owner or Admin opens Settings, Feeds, creates a Feed ("Warehouse") and a Feed Key, and copies the key. Each Metric's owner adds the Feed on the Metric's Description tab, "Who submits".
 2. Write a file with one query per Metric slug:
 
 ```yaml
