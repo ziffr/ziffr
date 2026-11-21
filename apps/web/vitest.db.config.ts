@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import "../../packages/core/src/test/serial-files";
 
 // The API's route handlers called with real requests, against the local Supabase like the core's database tests
 // (spec 0002, testing decisions). They check the HTTP layer: status, error shape, paging and headers.
