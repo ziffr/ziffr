@@ -50,17 +50,14 @@ describe("Approval guards", () => {
     expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
   });
 
-  // Pins what #444 found: the submitter (the task's asker) can close an open Approval in the app. Nothing is published
-  // by it, but the Approver can no longer decide it until the submitter reopens it. Whether that stays is an owner decision.
-  it("leaves the value unapproved when its submitter closes the Approval, and the Approver cannot decide it", async () => {
+  // #444: an open Approval is closed only by deciding it; its submitter (the task's asker) cannot close it in the app.
+  it("refuses closing an open Approval by hand, and deciding it closes it", async () => {
     const { w, ada, ann, m } = await waiting();
     const task = await openTask(m.id);
-    await setActionStatus(w.actor(ann), task!.id, "closed");
+    await expect(setActionStatus(w.actor(ann), task!.id, "closed")).rejects.toThrow(/closed by deciding it/);
+    expect((await db().from("actions").select("status").eq("id", task!.id).single()).data?.status).toBe("open");
     expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
-    await expect(approve(w.id, task!.id, ada)).rejects.toThrow(/not yours, or it is done/);
-    expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
-    await setActionStatus(w.actor(ann), task!.id, "open");
     await approve(w.id, task!.id, ada);
-    expect((await getState(m.id, thisMonth()))?.state).not.toBe("approval");
+    expect((await db().from("actions").select("status").eq("id", task!.id).single()).data?.status).toBe("closed");
   });
 });

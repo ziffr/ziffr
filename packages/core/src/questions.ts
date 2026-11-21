@@ -59,9 +59,14 @@ export async function reply(actor: Actor, actionId: number, body: string, correc
 }
 
 /** The asker closes or reopens an Action. Never a Self-check: its submitter is its asker too, and one closed by hand
- * would leave the value waiting; reopened, it would decide nothing. Confirm or Correct decide it. */
+ * would leave the value waiting; reopened, it would decide nothing. Confirm or Correct decide it. An open Approval is
+ * not closed by hand either (#444): its Approver could no longer decide it, so the value would wait for good. */
 export async function setActionStatus(actor: Actor, actionId: number, status: "open" | "closed", source: ChangeSource = FROM_APP) {
   if (status !== "open" && status !== "closed") throw new Forbidden();
+  if (status === "closed") {
+    const { data: a } = await db().from("actions").select("purpose, status").eq("id", Number(actionId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+    if (a?.purpose === "approval" && a.status === "open") throw new Error("An Approval is closed by deciding it: approve it or send it back.");
+  }
   const r = await changeActionState(actor.workspaceId, Number(actionId), { to: status, from: status === "closed" ? ["open", "answered"] : ["answered", "closed"], guard: { askerId: actor.personId, purpose: "not_self_check" } }, source);
   if (r.refused) throw new Forbidden();
   if (!r.changed) return;
