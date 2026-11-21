@@ -12,6 +12,6 @@ const DeckEditor = dynamic(() => import("./editor").then((m) => m.DeckEditor), {
   loading: () => <Bone className="h-[calc(100vh-12rem)] w-full" />,
 });
 
-export function DeckEditorLoader(props: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null; templateSeed?: { slides: SlideBody[]; fills: number[][] } | null; deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[]; addition?: DeckAddition | null }) {
+export function DeckEditorLoader(props: { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; canInvite?: boolean; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null; templateSeed?: { slides: SlideBody[]; fills: number[][] } | null; deckTemplates?: Pick<DeckTemplateSummary, "id" | "name" | "description" | "slots">[]; addition?: DeckAddition | null }) {
   return <DeckEditor {...props} />;
 }

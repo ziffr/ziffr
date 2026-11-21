@@ -42,5 +42,5 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} canCreate={can(actor, "create")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
 }

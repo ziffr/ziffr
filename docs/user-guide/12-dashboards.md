@@ -376,6 +376,8 @@ Free layouts are left out, and the window lists them. Press **Save template**. A
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
+**Invite someone…** at the bottom of the Share window is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
 - **Editor**: can also arrange Widgets, edit Findings, change the name, introduction and Theme, and take Snapshots. Sharing, View Links, automatic Snapshots and deleting a Snapshot stay with the owner.
