@@ -381,6 +381,22 @@ describe("choosing several ways", () => {
     expect((await db().from("delivery_preferences").select("id").eq("workspace_id", w.id)).data).toEqual([]);
   });
 
+  it("with no choice and no team default, a Prompt goes by every way that reaches the person, and connecting one adds it", async () => {
+    const { w, sara, ann, m } = await setup({ telegram: false });
+    await db().from("delivery_preferences").delete().eq("workspace_id", w.id);
+    expect(await waysFor(w.id, ann, "prompt")).toEqual(["slack", "telegram", "email"]);
+    expect(await waysFor(w.id, ann, "reminder")).toEqual(["email"]);
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
+    expect((await deliveries(w.id, ann)).map((d) => d.connector)).toEqual(["slack", "email"]);
+    const chat = ++next;
+    await db().from("telegram_links").insert({ workspace_id: w.id, person_id: ann, telegram_user_id: chat, chat_id: chat });
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
+    expect((await deliveries(w.id, ann)).slice(2).map((d) => d.connector)).toEqual(["slack", "telegram", "email"]);
+    // A team default, or the person's own list, is a choice and is kept.
+    await setPreference(w.actor(sara), null, "reminder", ["email"]);
+    expect(await waysFor(w.id, ann, "prompt")).toEqual(["email"]);
+  });
+
   it("an existing single choice is a list of one", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const ann = await w.person("member");

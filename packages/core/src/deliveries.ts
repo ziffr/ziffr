@@ -13,7 +13,7 @@ import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
 import { holdFor } from "./quiet-hours";
 import { planPrompt } from "./prompt-reach";
-import { NOT_SENT, notSentReason } from "./prompt-route";
+import { NOT_SENT, notSentReason, PROMPT_WAYS } from "./prompt-route";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { slackEscape } from "./connectors/slack";
 import type { Period, Profile, SourceId } from "./types";
@@ -50,7 +50,9 @@ export async function waysFor(ws: string, recipientId: string, kind: DeliveryKin
     db().from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).is("user_id", null).eq("workspace_id", ws).order("position"),
   ]);
   const list = (mine?.length ? mine : teams ?? []).map((r) => r.connector as ConnectorId);
-  return list.length ? list : ["email"];
+  // Nobody has chosen, and the team has not either: a Prompt goes by every way that reaches the person (prompt-route.ts
+  // leaves out what the Metric refuses or what does not reach them), so connecting Slack or Telegram adds it by itself.
+  return list.length ? list : kind === "prompt" ? [...PROMPT_WAYS] : ["email"];
 }
 
 /** Makes one Delivery. A Prompt, reminder or Alert that will be sent while its recipient is in quiet hours (GLOSSARY:

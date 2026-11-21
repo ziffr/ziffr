@@ -37,7 +37,7 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email, usag
               {k.label}
               <div className="mt-1">
                 <PromptWays
-                  label={k.label} list={mine.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId)} teamDefault={team.some((p) => p.kind === k.id) ? team.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId) : ["email"]} disabled={pending}
+                  label={k.label} list={mine.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId)} teamDefault={team.some((p) => p.kind === k.id) ? team.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId) : []} disabled={pending}
                   onChange={(next) => start(async () => { try { unwrap(await setPreference(viewer, k.id, next)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } })}
                 />
               </div>
