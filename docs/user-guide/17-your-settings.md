@@ -41,7 +41,7 @@ While you are in the demo, the footer of the sidebar shows two controls, **Viewi
 
 | Control | What it does |
 | --- | --- |
-| **Viewing as** | Pick one of the made-up people, shown by first name and job, such as "Anna, head of sales". Ziffr then shows exactly what that person sees and lets you act as them, including their Workspace Role. |
+| **Viewing as** | Pick one of the made-up people, shown by first name and Workspace Role, such as "Ben, Admin". The demo has an Owner (Sara), an Admin (Ben), Members and a Guest (Greta, an outside bookkeeper who sees only two Metrics and a dashboard shared with her). Ziffr then shows exactly what that person sees and lets you act as them. |
 | **Leave the demo** | Ends the visit. You go back to signing in, or to your own Workspace if you are signed in. |
 
 ### Demo controls

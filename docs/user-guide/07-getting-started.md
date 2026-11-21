@@ -7,7 +7,7 @@ This chapter takes you from nothing to a team that sees its numbers each month. 
 
 On the sign-in page, choose **Try the demo**. It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month.
 
-- Use **Viewing as** in the sidebar's footer to see Ziffr through the eyes of a different person, such as the CEO, a team lead or a Guest. Notice how each one sees different numbers.
+- Use **Viewing as** in the sidebar's footer to see Ziffr through the eyes of a different person, such as the Owner, an Admin or the Guest, whose role the list shows ("Ben, Admin"). Notice how each one sees different numbers.
 - Follow the **guided tour** (bottom right). It walks through describing a Metric, sending in a value, building a dashboard, asking a question, running an analysis and making a deck.
 
 Nothing you do in the demo is saved, and nothing is sent: a line above the page says so. Try any button or form; where it would change something, Ziffr says "The demo can't be changed." instead. Where this Ziffr offers trials, that line links to one of your own, in which email, Slack, Telegram, the API and assistants work for real. A trial starts with one Metric, Cups of coffee, which Ziffr asks you for each day, and no made-up numbers (see [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). When you are done, choose **Leave the demo**.

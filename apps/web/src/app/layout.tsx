@@ -11,6 +11,7 @@ import { AppShell } from "@/components/app-shell";
 import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
+import { demoRoles } from "@ziffr/core/team";
 import { Tour } from "@/components/tour";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
@@ -89,7 +90,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
-      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
+      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} />
       {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
       <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
     </>

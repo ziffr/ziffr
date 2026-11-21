@@ -16,6 +16,13 @@ import { sendingLimitDefault } from "./sending-limits";
 /** The demo workspace (ADR 0005): shared by every visitor, so it keeps no Contacts. */
 export const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
 
+/** The Workspace Role of each person in the demo, by id ("Viewing as" shows it). Only ever the demo's made-up people, so it
+ * takes no Actor: it reads no other Workspace. */
+export async function demoRoles(): Promise<Record<string, string>> {
+  const { data } = await db().from("memberships").select("user_id, role").eq("workspace_id", DEMO_WORKSPACE_ID);
+  return Object.fromEntries((data ?? []).map((m) => [String(m.user_id), String(m.role)]));
+}
+
 /** How many Contacts a workspace keeps at most. */
 export const MAX_CONTACTS = sendingLimitDefault("contactsPerWorkspace");
 
