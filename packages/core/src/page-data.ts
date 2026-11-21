@@ -9,6 +9,7 @@ import { getMetrics, getObservation, getSeriesOf } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { mayManageWebhooks } from "./webhooks";
 import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
@@ -156,7 +157,10 @@ export async function workflowsView(actor: Actor) {
     ? await db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", submitterIds)
     : { data: [] };
   const feeds = (feedRows ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
-  return { workflows: workflows ?? [], states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
+  // Webhook ids in a Tell step are for those who manage Webhooks; the rest of the Workspace gets the step without them (rule 3).
+  const manages = mayManageWebhooks(actor);
+  const shown = (workflows ?? []).map((w) => (manages ? w : { ...w, config: { ...w.config, steps: ((w.config as { steps?: Record<string, unknown>[] } | null)?.steps ?? []).map(({ webhooks: _hidden, ...step }) => step) } }));
+  return { workflows: shown, states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 
 /** The Metric Catalog as this Workspace has it: the entries every Workspace has, and its own part, from the Packs it

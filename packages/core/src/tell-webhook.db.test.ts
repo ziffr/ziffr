@@ -18,6 +18,7 @@ import { workspace } from "./test/db-fixtures";
 import type { WorkflowStep } from "./types";
 import { sendWaitingWebhooks } from "./webhook-send";
 import { createWebhook, updateWebhook } from "./webhooks";
+import { workflowsView } from "./page-data";
 import { onValue } from "./workflow-engine";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 
@@ -141,6 +142,19 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     expect(await sends(c.w)).toHaveLength(0);
   });
 
+  it("sends nothing for a value corrected below the level since it was queued, or a Metric moved off the Workflow", async () => {
+    const c = await setup();
+    await c.put(P(1), 120);
+    await c.w.value(c.m.id, P(1), 50, c.sara);
+    await sendWaitingWebhooks(100);
+    expect(seen).toHaveLength(0);
+    const d = await setup();
+    await d.put(P(1), 120);
+    await setMetricWorkflow(d.a, d.m.id, null);
+    await sendWaitingWebhooks(100);
+    expect(seen).toHaveLength(0);
+  });
+
   it("stops when the Workflow's owner is no longer an Owner or Admin", async () => {
     const c = await setup();
     await c.put(P(1), 120);
@@ -174,6 +188,14 @@ describe("who may name a Webhook", () => {
     // The editor lists Webhooks (names, never the address) for an Owner or Admin only.
     expect((await tellEditorFacts(c.w.actor(c.sara, "owner"), c.flow)).webhooks).toEqual([{ id: c.hook.id, name: "Chat", enabled: true, hearsAlerts: true }]);
     expect((await tellEditorFacts(c.w.actor(ann, "member"), null)).webhooks).toEqual([]);
+  });
+
+  it("keeps Webhook ids out of the Workflows page for anyone who does not manage Webhooks", async () => {
+    const c = await setup();
+    const ann = await c.w.person("member");
+    const stepsOf = (v: Awaited<ReturnType<typeof workflowsView>>) => JSON.stringify(v.workflows.map((w) => w.config));
+    expect(stepsOf(await workflowsView(c.w.actor(c.sara, "owner")))).toContain(c.hook.id);
+    expect(stepsOf(await workflowsView(c.w.actor(ann, "member")))).not.toContain(c.hook.id);
   });
 
   it("is put into the Audit Log when it changes", async () => {

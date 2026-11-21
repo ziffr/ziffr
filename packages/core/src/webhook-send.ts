@@ -15,6 +15,7 @@ import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValu
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { alertContext, viewAt } from "./alert-firing";
+import { alertHolds } from "./alert-rules";
 import { tellCondition, type TellStep } from "./tell-firing";
 import { formatValue } from "./format";
 import type { DoneReason } from "./webhook-events";
@@ -92,6 +93,10 @@ async function alertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, m
   if (!m || m.archived_at || m.formula) return null;
   const view = await viewAt(ctx, m, period);
   if (!view || view.pending || view.value === null) return null;
+  // The Metric must still be on the Workflow whose step fired, and the step's condition must still be true of that value:
+  // a value corrected, or a level edited, since it was queued is not announced as a crossing.
+  if ((await db().from("metrics").select("workflow_id").eq("id", m.id).eq("workspace_id", ws).maybeSingle()).data?.workflow_id !== send.workflow_id) return null;
+  if (!alertHolds(c, { metric: m, workspaceMethod: ctx.method, value: view.value, previous: view.previous, target: view.target })) return null;
   const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
   const level = c.kind === "at_or_above" || c.kind === "below" ? c.value : c.share;
   return { full: buildAlertFiredMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), condition: { kind: c.kind, level }, link: linkTo(`/metrics/${metric.id}`) }, env), redacted: null };

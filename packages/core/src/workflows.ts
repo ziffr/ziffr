@@ -93,7 +93,7 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   const [before, after] = [named(stored), named(row.config)];
   const added = [...after].filter((h) => !before.has(h)).length;
   const removed = [...before].filter((h) => !after.has(h)).length;
-  if (added || removed) await audit(actor, { kind: "workflow.webhooks_set", object: { type: "workflow", id, name: row.name }, details: { added, removed } });
+  if (added || removed) await audit(actor, { kind: "workflow.webhooks_set", object: { type: "workflow", id, name: row.name }, details: { added, removed, added_ids: [...after].filter((h) => !before.has(h)), removed_ids: [...before].filter((h) => !after.has(h)) } });
   return id;
 }
 
