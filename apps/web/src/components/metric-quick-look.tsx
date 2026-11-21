@@ -48,7 +48,7 @@ function Panel({ slug }: { slug: string }) {
   const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
   return frame(
     <>
-      <p className="text-sm text-muted-foreground">{PERIOD_LABEL[m.period]}, {m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}</p>
+      <p className="text-sm text-muted-foreground">{PERIOD_LABEL[m.period]}, {m.derived ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}</p>
       <div>
         <div className="fig text-3xl font-semibold tracking-tight">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -71,7 +71,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <Toaster />
-        <Suspense fallback={null}><QuickLookHost /></Suspense>
           <ServiceWorker />
         </body>
       </html>
