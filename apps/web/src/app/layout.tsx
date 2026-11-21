@@ -5,10 +5,10 @@ import { dueValueCount, getPeopleIn, getProfiles, openActionCount } from "@/lib/
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
-import { settingsGroups, workspaceLinks, workspaceTree } from "@/lib/settings-links";
-import { GuideLink, TopBar } from "@/components/top-bar";
+import { settingsGroups, workspaceTree } from "@/lib/settings-links";
+import { GuideLink } from "@/components/nav-parts";
 import { AppShell } from "@/components/app-shell";
-import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
+import { sidebarCollapsed } from "@/lib/sidebar-state";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { demoRoles } from "@ziffr/core/team";
@@ -97,11 +97,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
-  // The app layout (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
-  const sidebar = (await layoutChoice()) === "sidebar";
-  const due = sidebar ? await dueValueCount() : 0;
+  const due = await dueValueCount();
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
-  const pinned = sidebar ? await pinnedDashboards(await currentActor()) : [];
+  const pinned = await pinnedDashboards(await currentActor());
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
@@ -112,7 +110,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : undefined;
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
   const demoNote = demo ? (
-    <p className={sidebar ? "px-4 pt-3 text-xs text-muted-foreground sm:px-6" : "mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6"}>
+    <p className="px-4 pt-3 text-xs text-muted-foreground sm:px-6">
       {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
       <span className="md:hidden">The demo saves and sends nothing.</span>
       <span className="max-md:hidden">Look around as anyone: nothing you do in the demo is saved, and nothing is sent.</span>
@@ -135,18 +133,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        {sidebar ? (
-          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-            {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
-          </AppShell>
-        ) : (
-          <>
-            <TopBar workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} />
-            {demoNote}
-            {banners}
-            <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
-          </>
-        )}
+        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
+        </AppShell>
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /></Suspense>

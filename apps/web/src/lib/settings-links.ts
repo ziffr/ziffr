@@ -1,5 +1,5 @@
-// Where the workspace's own pages are (spec 0006; GLOSSARY: Workspace, Workspace Role): one list for the settings
-// side nav and the top bar's Workspace menu, so both always agree.
+// Where the workspace's own pages are (spec 0006; GLOSSARY: Workspace, Workspace Role): one list that the sidebar's trees and the
+// search draw from, so all always agree.
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 
 /** The workspace's pages a person with this role is shown. The Audit log is for Owners and Admins; its page decides

@@ -37,7 +37,7 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
 
-While you are in the demo, the footer of the sidebar shows two controls, **Viewing as** and **Leave the demo**. (In the classic top bar they sit in the bar; on a narrow screen, in a row of their own below it.)
+While you are in the demo, the footer of the sidebar shows two controls, **Viewing as** and **Leave the demo**.
 
 | Control | What it does |
 | --- | --- |
@@ -74,41 +74,11 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
 
-## The classic top bar
+Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
-For one more release you can keep the former layout: under **Your profile**, tick **Use the classic top bar**. The choice is kept in this browser only; untick it to return to the sidebar. The rest of this section describes the top bar.
-
-The top bar is on every page once you are in a Workspace, if you chose it.
-
-### On a computer
-
-| Part | What it does |
-| --- | --- |
-| **Ziffr** | Goes to your Home dashboard |
-| **Dashboards**, **Decks**, **Metrics**, **Analyze** | The main pages most people use every day |
-| **Workspace** | A menu with the Workspace's own pages. Which pages you see depends on your role; see [Workspace settings](16-workspace-settings.md#the-workspace-menu). |
-| The magnifying glass (**Search**) | Finds Metrics, dashboards, decks, Workflows, people, Groups and pages by name, and starts common tasks; see [Search](#search). Press **⌘K** (Mac) or **Ctrl+K** from any page. |
-| The inbox icon (**Actions**) | Your **Actions**: questions and tasks waiting for you. A number shows how many are open. |
-| The question mark (**User guide**) | Opens this guide. Your team may have pointed it at its own page instead, which opens in a new tab. |
-| Your name and the Workspace's name | The menu under your name |
-
-### The menu under your name
-
-| Option | What it does |
-| --- | --- |
-| **Workspace** | Shown when you belong to more than one Workspace, or where this Ziffr offers the demo. Pick another to switch to it. Below a line, **The demo** (read-only, shared) opens the shared demo, the same one for everyone; **Leave the demo** brings you back to your own Workspace. |
-| **New workspace** | Starts another Workspace, of which you become the Owner |
-| **My schedule** | What you have to do in this Workspace, overdue first; see [My schedule and your calendar](#my-schedule-and-your-calendar) |
-| **Your profile** | Your name, colour and address |
-| **Appearance** | Light, dark, system or high contrast; see [Appearance](#appearance) |
-| **Your Deliveries** | Where Ziffr reaches you, and when you are Away |
-| **Your Alerts** | The Alerts you set on Metrics, and where each stands |
-| **Installation settings** | Only for Installation Admins: what this Ziffr talks to and who runs it; see [Installation settings](18-installation-settings.md) |
-| **Sign out** | Signs you out on this device |
-
-### Search
+## Search
 
 Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
 
@@ -126,17 +96,14 @@ Move through the results with the arrow keys, open one with **Enter**, and close
 
 Your assistant can do the same: ask it for "churn march 2026" and it looks the Metric and period up before it reads the value (see [Working with an assistant](#working-with-an-assistant)).
 
-### On a phone
+## On a phone
 
 On a phone the demo's note is one line, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so.
 
-On a phone the bar keeps the Ziffr name, the Search and Actions icons and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, Your Alerts, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
-
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
-
 ## My schedule and your calendar
 
-Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due), or, in the classic top bar, from the menu under your name. Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
+Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due). Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
 
 | Part | What it lists |
 | --- | --- |
@@ -191,7 +158,7 @@ Anyone who has the address sees what it shows, like a View Link. A link ends whe
 
 ## Your profile
 
-Open it from your own menu at the bottom of the sidebar, or, in the classic top bar, from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
+Open it from your own menu at the bottom of the sidebar. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
 
 | Option | What it does |
 | --- | --- |
@@ -205,7 +172,7 @@ In the demo, the made-up people keep their names and colours, the address is mad
 
 ## Appearance
 
-Open it from your own menu at the bottom of the sidebar, or, in the classic top bar, from **Appearance** in the side list of the settings area. It decides how Ziffr's own screens look to you, including the sign-in page. Pick one of four, each shown as a small preview; the page changes at once.
+Open it from your own menu at the bottom of the sidebar. It decides how Ziffr's own screens look to you, including the sign-in page. Pick one of four, each shown as a small preview; the page changes at once.
 
 | Choice | What it does |
 | --- | --- |

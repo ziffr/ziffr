@@ -1,6 +1,6 @@
 # 0036 App layout: sidebar, inset page, slide-overs
 
-**Status:** the sidebar is the default since 2026-11-21 (#511 step 1); the top bar, its switch and the settings pages' own side list go in #511 step 2. **Ticket:** #502.
+**Status:** done. The sidebar is the only layout since 2026-11-21 (#511); the top bar, its switch, the layout cookie and the settings pages' own side list are gone. **Ticket:** #502.
 
 ## Problem Statement
 
@@ -82,11 +82,10 @@ The frame uses only the app's tokens (`--sidebar*`, `--background`, `--border`, 
 
 ## Rollout
 
-1. **Preview** (this pull request): the switch in **Your profile → Try the new layout (preview)**, or `?layout=sidebar` and `?layout=top` for a link. A cookie in this browser; nothing is stored on the server. The top bar was the default.
-2. **Default** (done, 2026-11-21): the sidebar is the default for everyone, a browser without the cookie gets it, and the switch offers **Use the classic top bar** (cookie `top`; `?layout=top` still works). Every screen is checked in both frames; screens that assume the top bar's width are fixed.
-3. **Remove** the top bar and the switch one release later.
+1. **Preview:** an opt-in switch in Your profile, with `?layout=sidebar` and `?layout=top` for links.
+2. **Default and removal** (#511, 2026-11-21): the sidebar became the layout for everyone and the top bar, the switch and the `?layout=` handling were removed at once; an old `?layout=top` link shows the sidebar. Only the sidebar's collapsed state is still a cookie.
 
-In the sidebar layout the Settings pages carry only the grouped Settings list (#529); the top bar's layout keeps its single side list (`settings-nav`) until the top bar is removed.
+The Settings pages carry only the grouped Settings list (#529); the single side list (`settings-nav`) of the top bar's layout is gone.
 
 ## Not in this spec
 
@@ -103,6 +102,6 @@ All eight recommendations were accepted:
 5. **Dark mode:** later, as its own ticket: #505. The frame already uses tokens only.
 6. **Phone tabs:** Dashboards, Metrics, Actions, Search, More.
 7. **Collapsed by default:** no; expanded, remembering the person's last choice.
-8. **Switch:** the sidebar is now the default, with "Use the classic top bar" for one release (#511 step 1, done); removing the top bar and the switch comes one release later (#511 step 2).
+8. **Switch:** none. The top bar and its switch were removed in #511.
 
-The preview was delivered first as opt-in; the default changed in #511 step 1.
+The preview was delivered first as opt-in; #511 then made the sidebar the only layout.
