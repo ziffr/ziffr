@@ -108,7 +108,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
         <form action={replyToAction.bind(null, a.id)} className="mt-4 stock rounded-[var(--radius-card)] p-4">
           {isAsker && !isAssignee && a.status === "open" && (
             <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-              Waiting for {people[a.assignee_id]?.name.split(" ")[0]}.{demo && <> To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “View as” (top right).</>}
+              Waiting for {people[a.assignee_id]?.name.split(" ")[0]}.{demo && <> To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “Viewing as” (at the bottom of the sidebar, or top right in the classic top bar).</>}
             </p>
           )}
           <Textarea name="body" rows={3} placeholder={isAssignee ? "Explain what happened…" : "Reply…"} />
@@ -134,7 +134,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
         </div>
       ) : (
         <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 text-sm text-muted-foreground">
-          You’re viewing as {people[viewer]?.name}. Switch “View as” to {people[a.assignee_id]?.name.split(" ")[0]} (top right) to answer this.
+          You’re viewing as {people[viewer]?.name}. Switch “Viewing as” to {people[a.assignee_id]?.name.split(" ")[0]} (at the bottom of the sidebar, or top right in the classic top bar) to answer this.
         </p>
       )}
     </div>
