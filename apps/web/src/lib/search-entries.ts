@@ -29,7 +29,8 @@ const PAGES: Entry[] = [
   page("/settings/feeds", "Feeds", "Workspace settings", "sql import automatic programs"),
   page("/settings/webhooks", "Webhooks", "Workspace settings", "webhook callback events http notify"),
   page("/changes", "Changes", "Workspace settings", "history versions activity log recent"),
-  page("/settings/usage", "Usage", "Workspace settings", "size retention storage limits tidy keep delete archive grace"),
+  page("/settings/workspace#size", "Size and Retention", "Workspace settings", "size retention limit limits workspace limit storage keep delete grace"),
+  page("/settings/usage", "Usage", "Workspace settings", "usage tidy unused counts"),
   page("/audit", "Audit log", "Workspace settings", "security who did history export"),
   page("/settings/schedule", "My schedule", "Your settings", "schedule calendar due away week month"),
   page("/settings/profile", "Your profile", "Your settings", "settings profile name email account language"),
@@ -40,13 +41,15 @@ const PAGES: Entry[] = [
 
 /** Pages that no menu lists under the Workspace: who may open them. */
 const NOT_FOR_GUESTS = new Set(["/themes"]);
+/** Pages only Owners and Admins have (a section of General, so no menu link lists it). */
+const ADMINS_ONLY = new Set(["/settings/workspace#size"]);
 /** Pages everyone has. */
 const EVERYONE = new Set(["/actions", "/dashboards", "/decks", "/metrics", "/analyze", "/settings/schedule", "/settings/profile", "/settings/deliveries", "/settings/alerts", "/settings/assistants"]);
 
 /** The pages this role may open: the ones everyone has, and those the Workspace menu draws for the role. */
 export function pageEntries(role: WorkspaceRoleName): Entry[] {
   const menu = new Set(workspaceLinks(role).map((l) => l.href));
-  return PAGES.filter((p) => EVERYONE.has(p.id) || menu.has(p.id) || (role !== "guest" && NOT_FOR_GUESTS.has(p.id)));
+  return PAGES.filter((p) => EVERYONE.has(p.id) || menu.has(p.id) || (role !== "guest" && NOT_FOR_GUESTS.has(p.id)) || ((role === "owner" || role === "admin") && ADMINS_ONLY.has(p.id)));
 }
 
 /** The things to do that this person may do: `create` makes Metrics, dashboards and decks; `invite` brings people in. */

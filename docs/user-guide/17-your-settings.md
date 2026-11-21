@@ -111,7 +111,7 @@ Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass
 
 Add a period and Ziffr finds that Metric's value for it: "churn march 2026", "revenue Q3", "visits last week" or, in German, "Besuche KW 46". Ziffr reads the period the way it reads replies, in the Workspace's Answer Languages and with its Fiscal Year (see [Workspace settings](16-workspace-settings.md)). The result, marked **Value**, opens the Period Record: that value, how it came to be, and the Threads about it. A period is only found when it is one of the Metric's own periods ("March 2026" for a monthly Metric, not "2026"), and has begun.
 
-**Pages.** Every page you can open is found by its name and by plain words: "invite" finds Members and Groups, "webhook" finds Webhooks, "approval" finds Actions and Workflows, "retention" finds Usage. You are only offered pages your role can open; a Guest, for example, is not offered Webhooks or the Audit log.
+**Pages.** Every page you can open is found by its name and by plain words: "invite" finds Members and Groups, "webhook" finds Webhooks, "approval" finds Actions and Workflows, "retention" and "limit" find Size and Retention. You are only offered pages your role can open; a Guest, for example, is not offered Webhooks or the Audit log.
 
 **People and Groups.** Members and Contacts are found by name and lead to Members and Groups. A Guest finds only themselves and the Groups they are in, never other members.
 

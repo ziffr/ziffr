@@ -14,8 +14,9 @@ describe("pageEntries", () => {
     expect(guest).not.toContain("Packs");
   });
   it("offers Owners and Admins the management pages, a Member not", () => {
-    expect(labels(pageEntries("admin"))).toEqual(expect.arrayContaining(["Webhooks", "Audit log", "Usage", "Themes"]));
+    expect(labels(pageEntries("admin"))).toEqual(expect.arrayContaining(["Webhooks", "Audit log", "Usage", "Themes", "Size and Retention"]));
     expect(labels(pageEntries("member"))).not.toContain("Webhooks");
+    expect(labels(pageEntries("member"))).not.toContain("Size and Retention");
     expect(labels(pageEntries("member"))).toContain("Themes");
   });
 });
@@ -33,9 +34,12 @@ describe("matchEntries", () => {
   it("finds pages by their plain words", () => {
     expect(labels(matchEntries(all, "webhook"))[0]).toBe("Webhooks");
     expect(labels(matchEntries(all, "approval"))).toEqual(expect.arrayContaining(["Actions", "Workflows"]));
-    expect(labels(matchEntries(all, "retention"))).toEqual(["Usage"]);
+    expect(labels(matchEntries(all, "retention"))).toEqual(["Size and Retention"]);
     expect(labels(matchEntries(all, "invite"))).toEqual(expect.arrayContaining(["Invite someone", "Members and Groups"]));
     expect(labels(matchEntries(all, "settings"))).toContain("General");
+  });
+  it("sends size and limit words to Size and Retention", () => {
+    for (const w of ["size", "limit", "workspace limit"]) expect(labels(matchEntries(all, w))[0]).toBe("Size and Retention");
   });
   it("ranks a label that starts with the word before one that holds it or only has it as a plain word", () => {
     expect(labels(matchEntries(all, "met"))[0]).toBe("Metrics");
