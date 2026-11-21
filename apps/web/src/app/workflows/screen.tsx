@@ -179,10 +179,10 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
             <div className="space-y-2 border-t border-border pt-4">
               {schedule && current.config.asking && (
                 <AskingPanel schedule={schedule} run={askingRun} saved={current.config.asking} canRun={canRun || current.owner_id === viewer} pending={pending}
-                  onRun={() => run(async () => { const c = unwrap(await runTodayNow(current.id)); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
+                  onRun={() => run(async () => { const c = unwrap(await runTodayNow(current.id)); toast.success(c ? `Done: ${c.prompts} requests, ${c.reminders} reminders and ${c.escalations} escalations made. The Outbox shows which have gone out.` : "Today's steps ran already"); router.refresh(); })} />
               )}
               {schedule ? (
-                <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = unwrap(await runTodayNow()); toast.success(c ? `Done: ${c.prompts} asked, ${c.reminders} reminded, ${c.escalations} escalated` : "Today's steps ran already"); router.refresh(); })} />
+                <RunPanel schedule={schedule} canRun={canRun} pending={pending} onRun={() => run(async () => { const c = unwrap(await runTodayNow()); toast.success(c ? `Done: ${c.prompts} requests, ${c.reminders} reminders and ${c.escalations} escalations made. The Outbox shows which have gone out.` : "Today's steps ran already"); router.refresh(); })} />
               ) : (
                 <DemoControls hint="In a real workspace Workflows run by themselves every morning. Pick a day to see the Workflows as they stand then.">
                   <div className="space-y-2">

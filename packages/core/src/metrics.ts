@@ -3,13 +3,15 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
+import { openNames, openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
+import { CONNECTORS } from "./connectors/index";
+import type { FirstAsk } from "./asked-message";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
 import type { Aggregation, Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
-import { deliverPrompt } from "./deliveries";
+import { deliverPrompt, type PromptOutcome } from "./deliveries";
 import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
 import { widgetMetricIds } from "./widget-metrics";
@@ -50,7 +52,7 @@ export type MetricEffects = {
   /** Records the first version of the Metric's description. */
   recordCreated: (metricId: number, by: string, message: string) => Promise<void>;
   /** Sends a submitter their first Prompt. */
-  promptSubmitter: (metricId: number, submitterId: string, by: string) => Promise<void>;
+  promptSubmitter: (metricId: number, submitterId: string, by: string) => Promise<void | false | PromptOutcome>;
 };
 
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
@@ -86,7 +88,7 @@ export class TooManyMetrics extends Error {
 /** Creates a Metric owned by the actor, with a random Token and a first Prompt for each submitter. Guests create
  * nothing; every field is checked against what Ziffr knows, never passed through. `accessKeyId` names the key a
  * program created it with (spec 0003); the database then holds the key to its daily limit. */
-export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string }> {
+export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string; submitters: number; asked: FirstAsk[] }> {
   assertCan(actor, "create");
   const name = String(input.name ?? "").trim().slice(0, 120);
   if (!name) throw new Error("Give the Metric a name.");
@@ -144,13 +146,20 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   if (retentionPending) await announceDefaultRetention(actor, { id: metric.id, slug: metric.slug, name, owner_id: actor.personId }, retentionPending);
   await effects.recordCreated(metric.id, actor.personId, original ? `Duplicated from “${original.name}”` : metric.from_catalog_id ? "Created from the Metric Catalog" : "Created");
   await audit(actor, { kind: "metric.created", object: { type: "metric", id: metric.id, name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { submitters: submitters.length, from_catalog: Boolean(metric.from_catalog_id), duplicated: Boolean(original) } });
+  const outcomes: ({ personId: string } & PromptOutcome)[] = [];
   if (submitters.length) {
     // A Token code opens the submission form without signing in: random, never derived from names.
     await db().from("tokens").insert(submitters.map((s) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: metric.id, submitter_id: s })));
     // Every submitter gets a first Prompt, so the loop can continue right away.
-    for (const s of submitters) await effects.promptSubmitter(metric.id, s, actor.personId);
+    for (const s of submitters) {
+      const r = await effects.promptSubmitter(metric.id, s, actor.personId);
+      if (r) outcomes.push({ personId: s, ...r });
+    }
   }
-  return { id: metric.id, slug: metric.slug };
+  // Who was really asked, by which way and with what result: only these people, whom the creator just named.
+  const people = outcomes.length ? await openNames(actor.workspaceId, (await db().from("profiles").select("id, name").in("id", outcomes.map((o) => o.personId))).data) : [];
+  const asked = outcomes.map((o) => ({ personId: o.personId, name: String(people.find((p) => p.id === o.personId)?.name ?? "Someone"), connector: o.connector, label: CONNECTORS[o.connector].label, state: o.state }));
+  return { id: metric.id, slug: metric.slug, submitters: submitters.length, asked };
 }
 
 /** What a duplicate of a Metric starts from (GLOSSARY: Metric Description): its description, Workflow and Submitters. */
@@ -193,7 +202,7 @@ export const metricEffects: MetricEffects = {
   /** Records the description as the first version. */
   recordCreated: async (metricId, by, message) => { await recordVersion("metric", metricId, by, { message }); },
   /** Sends the first Prompt. */
-  promptSubmitter: async (metricId, submitterId, by) => { await deliverPrompt({ metricId, submitterId, senderId: by }); },
+  promptSubmitter: (metricId, submitterId, by) => deliverPrompt({ metricId, submitterId, senderId: by }),
 };
 
 /** Reading series lines is pure and lives in series-lines, so the browser can preview with the same rules. */

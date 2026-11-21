@@ -17,6 +17,12 @@ const ROLES: { id: WorkspaceRoleName; label: string }[] = [
 ];
 const field = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
 
+/** What an invitation did, from the core's answer: emailed, or made for the person to send the link themselves. */
+export function invitationMessage(emailed: boolean, email: string, mailOn: boolean): string {
+  if (emailed) return `Invitation emailed to ${email}`;
+  return mailOn ? "Invitation made, but the email could not be sent: copy the link and send it yourself" : "Invitation made: copy the link and send it yourself, email is not set up";
+}
+
 /** Members with their roles, invitations, join requests and domain joining. */
 export function Members(props: {
   viewer: string;
@@ -36,7 +42,7 @@ export function Members(props: {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRoleName>("member");
   const [contact, setContact] = useState("");
-  const [link, setLink] = useState<string | null>(null);
+  const [link, setLink] = useState<{ url: string; emailed: boolean | null } | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [successor, setSuccessor] = useState("");
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
@@ -74,17 +80,17 @@ export function Members(props: {
       </ul>
       {canEdit && (
         <div className="space-y-3">
-          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { setLink(unwrap(await inviteMember({ email, role, contactPersonId: contact || null }))); setEmail(""); }, props.mailOn ? "Invitation made and emailed" : "Invitation made"); }}>
+          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { const made = unwrap(await inviteMember({ email, role, contactPersonId: contact || null })); setLink({ url: made.link, emailed: made.emailed }); toast.success(invitationMessage(made.emailed, email, props.mailOn)); setEmail(""); }); }}>
             <label className="text-xs text-muted-foreground">Invite by email<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1 w-64" /></label>
             <label className="text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} className={`${field} mt-1 block`}>{grantable.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
             {props.contacts.length > 0 && (
               <label className="text-xs text-muted-foreground">who is the Contact<select value={contact} onChange={(e) => setContact(e.target.value)} className={`${field} mt-1 block`}><option value="">nobody yet</option>{props.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             )}
             <Button type="submit" variant="outline" disabled={pending}>Invite</Button>
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink(unwrap(await createInviteLink("member"))), "Link made")}><Link2 aria-hidden /> Link for Members</Button>
+            <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink({ url: unwrap(await createInviteLink("member")), emailed: null }), "Link made: nobody was emailed, send it yourself")}><Link2 aria-hidden /> Link for Members</Button>
           </form>
           {link && (
-            <p className="text-sm">{props.mailOn ? "Emailed. You can also send this link yourself:" : "Send this link:"} <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
+            <p className="text-sm">{link.emailed === null ? "Send this link:" : link.emailed ? "Emailed. You can also send this link yourself:" : "Not emailed. Send this link yourself:"} <input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
           )}
           {props.invitations.length > 0 && (
             <ul className="text-sm text-muted-foreground">

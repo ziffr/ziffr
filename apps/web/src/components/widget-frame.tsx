@@ -341,7 +341,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               onDone={(id, who) => {
                 setPanel(null);
                 setPeriod(null);
-                toast.success(`${kind === "task" ? "Task" : "Question"} sent to ${who}`, { action: { label: "Open thread", onClick: () => router.push(`/actions/${id}`) } });
+                toast.success(`${kind === "task" ? "Task" : "Question"} put to ${who}`, { action: { label: "Open thread", onClick: () => router.push(`/actions/${id}`) } });
               }}
             />
           )}

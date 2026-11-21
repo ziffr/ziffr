@@ -15,6 +15,7 @@ import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
 import { canEditMetric } from "@ziffr/core/metrics";
+import { firstAsksFor } from "@ziffr/core/first-asks";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
 import { countryCode } from "@/lib/countries";
@@ -154,11 +155,14 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
 
+  // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
+  const createdNote = sp.created && canEdit ? await firstAsksFor(actor, metric.id) : null;
+
   return (
     <>
       {sp.created && (
         <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
-          <span className="font-medium">Metric created.</span> It has no values yet. Everyone who submits it got a form link and a first request for the value.
+          <span className="font-medium">Metric created.</span> It has no values yet. {createdNote}
           {demo && <>{" "}<Link href="/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
         </div>
       )}

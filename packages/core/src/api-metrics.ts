@@ -67,7 +67,7 @@ function keyPrompts(workspaceId: string, effects: MetricEffects): MetricEffects[
   return async (metricId, submitterId, by) => {
     const { data, error } = await db().rpc("claim_first_prompt", { p_workspace: workspaceId, p_submitter: submitterId, p_metric: metricId, p_limit: FIRST_PROMPTS_PER_PERSON_PER_DAY });
     if (error) throw new Error("The first Prompt could not be checked.");
-    if (data === true) await effects.promptSubmitter(metricId, submitterId, by);
+    return data === true ? effects.promptSubmitter(metricId, submitterId, by) : false;
   };
 }
 

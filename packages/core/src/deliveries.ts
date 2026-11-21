@@ -79,9 +79,14 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
 }
 
-/** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if there is no Token.
+/** What became of a Prompt: the Connector it went through, and whether it left Ziffr (sent), waits to (queued), or
+ * stays in the Outbox because that Connector does not really send here (outbox), or failed. */
+export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" | "outbox" | "failed" };
+
+/** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
+ * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
  * With `queue`, an email is only queued, for the deliveries job to send. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }) {
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }): Promise<false | PromptOutcome> {
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
@@ -135,7 +140,9 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
   const [d] = await insertSealed("deliveries", metric.workspace_id, [{ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id }]) as { id: number }[];
   if (!input.queue) await sendQueuedNow(d?.id, mail_state, via);
-  return true;
+  // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
+  const now = d?.id && mail_state === "queued" && !input.queue ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
+  return { connector: via, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
 }
 
 /** A plain notice through someone's Connector, not about a question or task (e.g. an access request). A null sender

@@ -213,7 +213,7 @@ Owners and Admins see the invitation form below the list.
 | **Invite** | Makes the Invitation. If this Ziffr sends email, it emails the link too. That follows the mail server set up for this Ziffr, also when it was set on the [Installation settings](18-installation-settings.md) page. |
 | **Link for Members** | Makes a link that anyone who has it can use to join as a Member |
 
-After either, the page shows the link so you can send it yourself, for example in a chat.
+After either, the page shows the link so you can send it yourself, for example in a chat. The message says what really happened: "Invitation emailed to …" when the email went out, "Invitation made: copy the link and send it yourself, email is not set up" when this Ziffr sends no email, and a note that the email could not be sent when mail is set up but the send failed.
 
 - An email Invitation works for 14 days, once, and only for that address.
 - A link works for 7 days, for anyone who has it, until it ends or you revoke it.
