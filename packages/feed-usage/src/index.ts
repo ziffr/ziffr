@@ -20,6 +20,19 @@ export const EVENT_FIGURES = [
   "api_calls", "feed_calls", "mcp_calls", "emails_sent", "views_dashboards", "views_decks", "views_metrics",
 ] as const;
 
+/** A Workspace's own figures counted as of now (`--workspace`); a period's value is its last day's. */
+export const WORKSPACE_STATE_FIGURES = [
+  "workspace_metrics", "workspace_metrics_without_values", "workspace_metrics_not_opened", "workspace_dashboards_not_opened",
+  "workspace_decks_not_opened", "workspace_submitters_without_values", "workspace_archive_suggestions",
+] as const;
+
+/** A Workspace's own figures counting events in the UTC day (`--workspace`); a period's value is the sum of its days. */
+export const WORKSPACE_EVENT_FIGURES = [
+  "workspace_values", "workspace_values_web", "workspace_values_email", "workspace_values_slack", "workspace_values_telegram",
+  "workspace_values_api", "workspace_values_feed", "workspace_values_mcp",
+  "workspace_views_dashboards", "workspace_views_decks", "workspace_views_metrics",
+] as const;
+
 /** The Metric slug of a figure: its name with hyphens, such as `people-active-7d`. */
 export function slugOf(figure: string): string {
   return figure.replace(/_/g, "-");
@@ -48,6 +61,27 @@ export function settingsFrom(vars: Record<string, string | undefined>): UsageSet
   return { sourceUrl, usageKey, feedUrl: given("ZIFFR_USAGE_FEED_URL") || sourceUrl, feedKey };
 }
 
+/** Where the `--workspace` mode reads and where it sends: the same Workspace, so one Installation. */
+export type WorkspaceUsageSettings = {
+  /** The Installation that holds the Workspace (ZIFFR_USAGE_FEED_URL, else ZIFFR_USAGE_SOURCE_URL, else ZIFFR_APP_URL). */
+  url: string;
+  /** An Access Key of an Owner or Admin with the scope "Read usage figures" (ZIFFR_USAGE_ACCESS_KEY): reads this Workspace only. */
+  accessKey: string;
+  /** The Feed Key of the Feed in that Workspace (ZIFFR_USAGE_FEED_KEY). */
+  feedKey: string;
+};
+
+/** The settings of `--workspace` from an environment, or null while either key is missing: then it does nothing. */
+export function workspaceSettingsFrom(vars: Record<string, string | undefined>): WorkspaceUsageSettings | null {
+  const given = (k: string) => (vars[k] ?? "").trim();
+  const accessKey = given("ZIFFR_USAGE_ACCESS_KEY");
+  const feedKey = given("ZIFFR_USAGE_FEED_KEY");
+  if (!accessKey || !feedKey) return null;
+  const url = given("ZIFFR_USAGE_FEED_URL") || given("ZIFFR_USAGE_SOURCE_URL") || given("ZIFFR_APP_URL");
+  if (!url) throw new Error("Set ZIFFR_USAGE_FEED_URL (or ZIFFR_APP_URL) to the Installation that holds the Workspace.");
+  return { url, accessKey, feedKey };
+}
+
 /** One day of the endpoint's answer: `day` and whole numbers by figure. Anything else is ignored. */
 export type UsageRow = { day: string } & Record<string, unknown>;
 
@@ -59,23 +93,46 @@ const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00
 /** The longest range the endpoint answers (400 days), so one call covers every period a run can ask for. */
 const WINDOW_DAYS = 400;
 
-/** Reads the endpoint once: yesterday and the 399 days before it. The endpoint allows 60 calls an hour, so a run makes
- * one call, not one per Metric and period. */
-export async function readUsage(settings: Pick<UsageSettings, "sourceUrl" | "usageKey">, options: { now?: Date; fetcher?: Fetcher } = {}): Promise<UsageRow[]> {
+/** Calls one usage endpoint once for yesterday and the 399 days before it, with a bearer key, and returns its body.
+ * `what` names the key in the messages. No redirect is followed: the key goes only to the address that was named. */
+async function readWindow(base: string, path: string, key: string, what: string, options: { now?: Date; fetcher?: Fetcher }): Promise<{ days?: unknown; state?: unknown }> {
   const yesterday = addDays((options.now ?? new Date()).toISOString().slice(0, 10), -1);
-  const url = new URL("/api/v1/installation/usage", settings.sourceUrl);
+  const url = new URL(path, base);
   url.searchParams.set("from", addDays(yesterday, -(WINDOW_DAYS - 1)));
   url.searchParams.set("to", yesterday);
   const call = options.fetcher ?? ((u, init) => fetch(u, init));
-  const res = await call(url.toString(), { headers: { authorization: `Bearer ${settings.usageKey}`, accept: "application/json" }, signal: AbortSignal.timeout(30_000), redirect: "error" });
-  // No redirects: the Usage Key goes only to the address that was named.
-  // The endpoint answers 404 to a key it does not know, so it is not known to be there.
-  if (res.status === 404) throw new Error("The Installation did not accept the Usage Key (404): check ZIFFR_USAGE_KEY and ZIFFR_USAGE_SOURCE_URL.");
-  if (res.status === 429) throw new Error("The Usage Key is over its limit of 60 calls an hour; the next run tries again.");
+  const res = await call(url.toString(), { headers: { authorization: `Bearer ${key}`, accept: "application/json" }, signal: AbortSignal.timeout(30_000), redirect: "error" });
+  // The Installation endpoint answers 404 to a key it does not know, so it is not known to be there.
+  if (res.status === 404 || (res.status === 401 && what !== "Usage Key")) throw new Error(`The Installation did not accept the ${what} (${res.status}): check the key and the address.`);
+  if (res.status === 403) throw new Error(`The ${what} may not read usage figures: its creator must be an Owner or Admin and the key must have the scope "Read usage figures".`);
+  if (res.status === 429) throw new Error(`The ${what} is over its limit${what === "Usage Key" ? " of 60 calls an hour" : ""}; the next run tries again.`);
   if (!res.ok) throw new Error(`The usage endpoint answered ${res.status}.`);
-  const body = (await res.json()) as { days?: unknown };
+  const body = (await res.json()) as { days?: unknown; state?: unknown };
   if (!Array.isArray(body?.days)) throw new Error("The usage endpoint's answer has no `days`.");
-  return body.days.filter((d): d is UsageRow => Boolean(d) && typeof (d as UsageRow).day === "string");
+  return body;
+}
+
+/** Reads the endpoint once: yesterday and the 399 days before it. The endpoint allows 60 calls an hour, so a run makes
+ * one call, not one per Metric and period. */
+export async function readUsage(settings: Pick<UsageSettings, "sourceUrl" | "usageKey">, options: { now?: Date; fetcher?: Fetcher } = {}): Promise<UsageRow[]> {
+  const body = await readWindow(settings.sourceUrl, "/api/v1/installation/usage", settings.usageKey, "Usage Key", options);
+  return (body.days as unknown[]).filter((d): d is UsageRow => Boolean(d) && typeof (d as UsageRow).day === "string");
+}
+
+/** Reads the Workspace's own figures once (`--workspace`): the days, with the figures as of now added to the row of
+ * the day the answer names (yesterday), so a day's Metric of a state takes it. */
+export async function readWorkspaceUsage(settings: Pick<WorkspaceUsageSettings, "url" | "accessKey">, options: { now?: Date; fetcher?: Fetcher } = {}): Promise<UsageRow[]> {
+  const body = await readWindow(settings.url, "/api/v1/usage", settings.accessKey, "Access Key", options);
+  const rows = (body.days as unknown[]).filter((d): d is UsageRow => Boolean(d) && typeof (d as UsageRow).day === "string");
+  const state = body.state as UsageRow | undefined;
+  if (state && typeof state.day === "string") {
+    // Only the listed figures are taken from the answer, never a key it makes up.
+    const figures: UsageRow = { day: state.day };
+    for (const f of WORKSPACE_STATE_FIGURES) if (f in state) figures[f] = state[f];
+    const row = rows.find((r) => r.day === state.day);
+    if (row) Object.assign(row, figures); else rows.push(figures);
+  }
+  return rows;
 }
 
 /** The value of one figure for the period [from, to): null when no day in it carries the figure (never zero). Today
@@ -91,14 +148,15 @@ export function figureForPeriod(rows: UsageRow[], figure: string, kind: "event" 
 }
 
 /** The Feed: one Metric per figure. `read` is called at most once per run, by the first fetch. */
-export function usageFeed(read: () => Promise<UsageRow[]>): FeedDefinition {
+export function usageFeed(read: () => Promise<UsageRow[]>, mode: "installation" | "workspace" = "installation"): FeedDefinition {
   let rows: Promise<UsageRow[]> | null = null;
   const once = () => (rows ??= read());
   const source = (figure: string, kind: "event" | "state"): MetricSource => ({
     fetch: async ({ period, periodEnd }) => figureForPeriod(await once(), figure, kind, period, periodEnd),
   });
   const metrics: Record<string, MetricSource> = {};
-  for (const f of STATE_FIGURES) metrics[slugOf(f)] = source(f, "state");
-  for (const f of EVENT_FIGURES) metrics[slugOf(f)] = source(f, "event");
-  return defineFeed({ name: "Ziffr usage", metrics });
+  const [states, events] = mode === "workspace" ? [WORKSPACE_STATE_FIGURES, WORKSPACE_EVENT_FIGURES] : [STATE_FIGURES, EVENT_FIGURES];
+  for (const f of states) metrics[slugOf(f)] = source(f, "state");
+  for (const f of events) metrics[slugOf(f)] = source(f, "event");
+  return defineFeed({ name: mode === "workspace" ? "Ziffr workspace usage" : "Ziffr usage", metrics });
 }

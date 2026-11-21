@@ -132,7 +132,6 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `askTrialGuide` (trial-guide.ts): a Trial's guide
 - `trialGuideValue` (trial-guide.ts): a Trial's guide
 - `makeGuideFeedKey` (trial-guide.ts): a Trial's guide
-- `workspaceUsage` (usage-report.ts): the Usage page
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)

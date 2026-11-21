@@ -899,6 +899,74 @@ For a Usage Key only (spec 0031), made by an Installation Admin on the Installat
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Read the workspace's own Usage
+
+`GET /usage` · scope `usage:read`
+
+The key's own Workspace's Usage figures as counts (spec 0031), for a program's key whose creator is an Owner or Admin; never for an assistant. Per UTC day (at most 400, the newest yesterday, default the last 30): values recorded, in total and by Source, and views of dashboards, decks and Metrics, never who looked. In `state`, as of now: Metrics in use, Metrics without values, Metrics, dashboards and decks not opened for 90 days, Submitters without values and Metrics that are safe to archive. Only what the key's creator sees (a Workspace Role grants no Metric), never a name, an id, a person or a value, and nothing about another Workspace or the Installation. While fewer than 3 people are in the Workspace the values, views and Submitters are left out (and for days before the third person joined), and until 90 days were counted so is what is not opened; `withheld` names them. A Workspace's keys may call it 30 times an hour. The Usage Feed's `--workspace` mode sends these figures into the Workspace as Metrics.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `from` | query | string | no | The first day, YYYY-MM-DD. Default: 29 days before `to`. |
+| `to` | query | string | no | The last day, YYYY-MM-DD, at most yesterday (UTC); at most 400 days after `from`. Default: yesterday. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `days` | array of object | yes | One object per UTC day in the range, oldest first. Views are counted from the day Ziffr began counting in the Workspace: before it a view figure is absent, not zero. |
+| `days[].day` | string | yes | The UTC day, YYYY-MM-DD. |
+| `days[].workspace_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_views_dashboards` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_views_decks` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_views_metrics` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_web` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_email` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_slack` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_telegram` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_api` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_feed` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_values_mcp` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_metrics` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_metrics_without_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_metrics_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_dashboards_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_decks_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_submitters_without_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `days[].workspace_archive_suggestions` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state` | object | yes | The figures that count a state, as of the call; `day` is yesterday, the newest day a range can reach. |
+| `state.day` | string | yes | The UTC day, YYYY-MM-DD. |
+| `state.workspace_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_views_dashboards` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_views_decks` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_views_metrics` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_web` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_email` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_slack` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_telegram` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_api` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_feed` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_values_mcp` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_metrics` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_metrics_without_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_metrics_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_dashboards_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_decks_not_opened` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_submitters_without_values` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `state.workspace_archive_suggestions` | integer | no | A count: events in the UTC day, or, in `state`, as of when the call was made. |
+| `withheld` | array of string | yes | The names of figures left out: the day's values and views and the Submitters while fewer than 3 people are in the Workspace (days before the third person joined have none), and what is not opened until 90 days were counted. |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match. `from` or `to` is not a day, `from` is after `to`, or the range is more than 400 days.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. The key lacks the scope usage:read, or its creator is no longer an Owner or Admin.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds. More than 30 calls in the hour by the Workspace's keys, or the key's own per-minute limit; see `Retry-After`.
+- 500: `internal`: something went wrong on the server.
+
 ## Describe the workspace
 
 `GET /workspace` · scope `metrics:read`

@@ -9,7 +9,7 @@ import type { Scope } from "@ziffr/core/actor";
 import { ASSISTANT_SCOPES, CREATING_SCOPES } from "@ziffr/core/actor";
 import { answerConsent, type ConsentState } from "./actions";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read your questions and tasks", "actions:write": "Answer questions and tasks for you", "values:approve": "Approve values", "view-links:write": "Manage View Links" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics and their values", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read your questions and tasks", "actions:write": "Answer questions and tasks for you", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures" };
 /** What a scope covers, where its label alone does not say. */
 const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit" };
 const READING: Scope[] = ["metrics:read", "dashboards:read"];

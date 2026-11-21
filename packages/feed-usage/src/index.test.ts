@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { runFeed, type FeedItem, type FeedMetric } from "@ziffr/feed-kit";
-import { EVENT_FIGURES, STATE_FIGURES, figureForPeriod, readUsage, settingsFrom, slugOf, usageFeed, type Fetcher, type UsageRow } from "./index";
+import { EVENT_FIGURES, STATE_FIGURES, WORKSPACE_EVENT_FIGURES, WORKSPACE_STATE_FIGURES, figureForPeriod, readUsage, readWorkspaceUsage, settingsFrom, slugOf, usageFeed, workspaceSettingsFrom, type Fetcher, type UsageRow } from "./index";
 
 const rows: UsageRow[] = [
   { day: "2026-10-30", signups: 1, people: 10 },
@@ -135,5 +135,66 @@ describe("the Ziffr operations Pack", () => {
     expect(entries.every((e) => e.period === "day")).toBe(true);
     for (const f of STATE_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("last");
     for (const f of EVENT_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("sum");
+  });
+});
+
+describe("the Workspace mode (--workspace)", () => {
+  const ok = (body: unknown, status = 200): Fetcher => async () => ({ ok: status < 300, status, json: async () => body });
+
+  it("is off unless both keys are set, and sends to the Installation that holds the Workspace", () => {
+    expect(workspaceSettingsFrom({})).toBeNull();
+    expect(workspaceSettingsFrom({ ZIFFR_USAGE_ACCESS_KEY: "a", ZIFFR_APP_URL: "http://app:3000" })).toBeNull();
+    expect(workspaceSettingsFrom({ ZIFFR_USAGE_FEED_KEY: "b", ZIFFR_APP_URL: "http://app:3000" })).toBeNull();
+    expect(workspaceSettingsFrom({ ZIFFR_USAGE_ACCESS_KEY: "a", ZIFFR_USAGE_FEED_KEY: "b", ZIFFR_APP_URL: "http://app:3000" })).toEqual({ url: "http://app:3000", accessKey: "a", feedKey: "b" });
+    expect(workspaceSettingsFrom({ ZIFFR_USAGE_ACCESS_KEY: "a", ZIFFR_USAGE_FEED_KEY: "b", ZIFFR_USAGE_SOURCE_URL: "https://s.example.com", ZIFFR_USAGE_FEED_URL: "https://f.example.com" })?.url).toBe("https://f.example.com");
+    expect(workspaceSettingsFrom({ ZIFFR_USAGE_ACCESS_KEY: "a", ZIFFR_USAGE_FEED_KEY: "b", ZIFFR_USAGE_SOURCE_URL: "https://s.example.com" })?.url).toBe("https://s.example.com");
+    expect(() => workspaceSettingsFrom({ ZIFFR_USAGE_ACCESS_KEY: "a", ZIFFR_USAGE_FEED_KEY: "b" })).toThrow(/ZIFFR_USAGE_FEED_URL/);
+  });
+
+  it("asks /api/v1/usage once, with the Access Key, and puts the state on the day the answer names", async () => {
+    const calls: { url: string; auth: string }[] = [];
+    const fetcher: Fetcher = async (url, init) => { calls.push({ url, auth: init.headers.authorization }); return { ok: true, status: 200, json: async () => ({ days: [{ day: "2026-11-19", workspace_values: 4 }, { day: "bad" , x: 1}, null], state: { day: "2026-11-19", workspace_metrics: 12 }, withheld: [] }) }; };
+    const got = await readWorkspaceUsage({ url: "https://ziffr.example.com", accessKey: "zk_x" }, { now: new Date("2026-11-20T05:00:00Z"), fetcher });
+    expect(calls).toHaveLength(1);
+    expect(new URL(calls[0].url).pathname).toBe("/api/v1/usage");
+    expect(calls[0].auth).toBe("Bearer zk_x");
+    expect(got.find((r) => r.day === "2026-11-19")).toEqual({ day: "2026-11-19", workspace_values: 4, workspace_metrics: 12 });
+  });
+  it("adds a row for the state's day when the days have none, and ignores a missing state", async () => {
+    const s = { url: "https://z.example.com", accessKey: "k" };
+    expect(await readWorkspaceUsage(s, { fetcher: ok({ days: [], state: { day: "2026-11-19", workspace_metrics: 3 } }) })).toEqual([{ day: "2026-11-19", workspace_metrics: 3 }]);
+    expect(await readWorkspaceUsage(s, { fetcher: ok({ days: [{ day: "2026-11-19", workspace_values: 1 }] }) })).toEqual([{ day: "2026-11-19", workspace_values: 1 }]);
+    expect(await readWorkspaceUsage(s, { fetcher: ok({ days: [], state: { workspace_metrics: 3 } }) })).toEqual([]);
+  });
+  it("takes only the listed state figures from the answer, never a key it makes up", async () => {
+    const got = await readWorkspaceUsage({ url: "https://z.example.com", accessKey: "k" }, { fetcher: ok({ days: [], state: { day: "2026-11-19", workspace_metrics: 3, workspace_secret: 9, __proto__: { x: 1 } } }) });
+    expect(got).toEqual([{ day: "2026-11-19", workspace_metrics: 3 }]);
+  });
+  it("fails in plain words for a key that is not accepted, one without the scope or the role, and a limit", async () => {
+    const s = { url: "https://z.example.com", accessKey: "k" };
+    await expect(readWorkspaceUsage(s, { fetcher: ok(null, 401) })).rejects.toThrow(/did not accept the Access Key/);
+    await expect(readWorkspaceUsage(s, { fetcher: ok(null, 403) })).rejects.toThrow(/Owner or Admin/);
+    await expect(readWorkspaceUsage(s, { fetcher: ok(null, 429) })).rejects.toThrow(/over its limit; the next run/);
+    await expect(readUsage({ sourceUrl: "https://z.example.com", usageKey: "k" }, { fetcher: ok(null, 401) })).rejects.toThrow(/answered 401/);
+  });
+
+  it("has one slug per figure, sums events and takes the last state, and leaves a withheld figure absent", async () => {
+    const slugs = Object.keys(usageFeed(async () => [], "workspace").metrics);
+    expect(slugs).toHaveLength(WORKSPACE_STATE_FIGURES.length + WORKSPACE_EVENT_FIGURES.length);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    const ziffr = fakeZiffr([metric("workspace-views-metrics"), metric("workspace-metrics"), metric("workspace-values-web")]);
+    await runFeed(usageFeed(async () => [{ day: "2026-11-01", workspace_views_metrics: 2 }, { day: "2026-11-02", workspace_views_metrics: 3, workspace_metrics: 9 }], "workspace"), { client: ziffr });
+    expect(ziffr.sent).toEqual(expect.arrayContaining([{ metric: "workspace-views-metrics", period: "2026-11-01", value: 5 }, { metric: "workspace-metrics", period: "2026-11-01", value: 9 }]));
+    expect(ziffr.sent.some((i) => i.metric === "workspace-values-web")).toBe(false);
+  });
+
+  it("is tied to the Workspace usage Pack: one entry per figure, daily, summed or last", () => {
+    const pack = JSON.parse(readFileSync(new URL("../../../packs/workspace-usage.pack.json", import.meta.url), "utf8")) as { contents: { metrics: { metric: { name: string; period: string; aggregation: string } }[] } };
+    const slugify = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const entries = pack.contents.metrics.map((m) => ({ slug: slugify(m.metric.name), ...m.metric }));
+    expect(entries.map((e) => e.slug).sort()).toEqual([...WORKSPACE_STATE_FIGURES, ...WORKSPACE_EVENT_FIGURES].map(slugOf).sort());
+    expect(entries.every((e) => e.period === "day")).toBe(true);
+    for (const f of WORKSPACE_STATE_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("last");
+    for (const f of WORKSPACE_EVENT_FIGURES) expect(entries.find((e) => e.slug === slugOf(f))!.aggregation).toBe("sum");
   });
 });

@@ -288,6 +288,7 @@ You do not need a Starter. Some examples:
 - It cannot approve a value or send it back, and the connection screen does not offer it: Approval is a person's check. Only a program's Access Key can be given that ("Approve values").
 - It sees no more than you do, and only what you let it when you connected it: if you ticked only reading, it cannot record, change or build anything, whatever it tries. As a Guest, you cannot let it create or change anything.
 - It cannot make, list or revoke a View Link, and the connection screen does not offer it ("Manage View Links"): a View Link publishes data outside the Workspace. Only a program's Access Key can be given that.
+- It cannot read the Workspace's usage figures ("Read usage figures"); that, too, is only for a program's Access Key made by an Owner or Admin.
 - It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period or Workflow, adds or removes a Workflow's steps, or changes settings.
 - Everything it does shows in the Access Log.
 - It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.
