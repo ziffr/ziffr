@@ -9,6 +9,7 @@ Permission checks (`assert…`, `can…`) are guards, not operations, and are le
 Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are built by a person at the screen. Programs build Metrics and dashboards through the API.
 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
+- `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `recordDeckExport` (audit-log.ts): Deck export is noted in the Audit Log
 - `saveLayout` (dashboards.ts): the dashboard canvas
 - `applyTemplate` (dashboards.ts): the dashboard canvas

@@ -5,7 +5,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PanelRightOpen } from "lucide-react";
-import { metricQuickLook, type QuickLook } from "@/app/quick-look-actions";
+import { metricQuickLook } from "@/app/quick-look-actions";
+import type { QuickLook } from "@ziffr/core/quick-look";
 import { isActionError } from "@/lib/action-error";
 import { lookPanel, useOpenPanel, writePanel } from "@/lib/panel-param";
 import { buttonVariants } from "@/components/ui/button";
