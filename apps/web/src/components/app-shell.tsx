@@ -60,7 +60,7 @@ export function AppShell({ workspace, settings, due, open, account, guide, demo,
     <TooltipProvider delay={300}>
       <SidebarProvider defaultCollapsed={collapsed}>
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm">Skip to the page</a>
-        <SearchDialog hideButton />
+        <ShellSearch account={account} />
         <Sidebar aria-label="Sidebar">
           <SidebarHeader>
             <WorkspaceSwitcher account={account} />
@@ -105,6 +105,12 @@ export function AppShell({ workspace, settings, due, open, account, guide, demo,
       </SidebarProvider>
     </TooltipProvider>
   );
+}
+
+/** The search inside the sidebar frame, which can toggle the sidebar. */
+function ShellSearch({ account }: { account: Account | null }) {
+  const { toggle } = useSidebar();
+  return <SearchDialog hideButton account={account} toggleSidebar={toggle} />;
 }
 
 /** The Workspace's own pages: one row that opens the list, closed unless the current page is in it (up to a dozen

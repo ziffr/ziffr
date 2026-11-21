@@ -6,10 +6,12 @@
 // the names, never in the database, so it works the same sealed or plain.
 import { format } from "date-fns";
 import { assertScope, type Actor, type KeyActor } from "./actor";
-import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
+import { getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { yearStartOf } from "./fiscal-year";
 import { periodLabel, periodStart, type Span, type YearStart } from "./periods";
-import { nameScore, parseSearchQuery, type SearchQuery } from "./search-query";
+import { nameScore, parseSearchQuery, recordTerms, type SearchQuery } from "./search-query";
+import { db } from "./db";
+import { peopleIn } from "./submissions";
 import { answerReadingOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
 import type { Metric } from "./types";
@@ -20,7 +22,12 @@ export type SearchResult =
   | { kind: "metric"; slug: string; name: string; archived: boolean }
   | { kind: "period"; slug: string; name: string; archived: boolean; period: string; label: string }
   | { kind: "dashboard"; id: number; name: string }
-  | { kind: "deck"; id: number; name: string };
+  | { kind: "deck"; id: number; name: string }
+  | { kind: "workflow"; id: number; name: string }
+  | { kind: "person"; id: string; name: string; contact: boolean; you: boolean }
+  | { kind: "group"; id: number; name: string }
+  // The person's own form for a Metric they submit: `code` is their own link's code, shown to nobody else.
+  | { kind: "record"; slug: string; name: string; code: string };
 
 /** At most this many of each kind are returned. */
 export const MAX_BY_KIND = 8;
@@ -47,19 +54,61 @@ function matching(metrics: readonly Metric[], terms: readonly string[]): Metric[
   return scored.sort((a, b) => Number(Boolean(a.m.archived_at)) - Number(Boolean(b.m.archived_at)) || a.score - b.score || a.m.name.localeCompare(b.m.name)).map((s) => s.m);
 }
 
-/** Finds Metrics, dashboards and decks the person may see by name, and "Metric + period" when the words include a
- * period; at most MAX_BY_KIND of each, the period results first. */
+/** Finds Metrics, dashboards, decks, Workflows, people and Groups the person may see by name, "Metric + period" when
+ * the words include a period, and the forms of the Metrics they submit; at most MAX_BY_KIND of each, the period
+ * results first. A Guest sees only themselves, their own Groups and the Workflows of Metrics shared with them. */
 export async function search(actor: Actor, query: unknown): Promise<SearchResult[]> {
   const ws = actor.workspaceId;
   const [metrics, yearStart, reading] = await Promise.all([getMetrics(ws), yearStartOf(ws), answerReadingOf(ws)]);
   const q = parseSearchQuery(query, format(new Date(), "yyyy-MM-dd"), yearStart, reading.languages, reading.monthFirst);
   if (!q.all.length) return [];
   const [visible, dashboards, decks] = await Promise.all([visibleMetricIds(ws, actor.personId, metrics), visibleDashboards(ws, actor.personId), visibleDecks(ws, actor.personId)]);
+  const [workflows, people, groups, records] = await Promise.all([workflowResults(actor, visible, q.all), peopleResults(actor, q.all), groupResults(actor, q.all), recordResults(actor, metrics, visible, q.all)]);
   return [
     ...resultsFor(metrics.filter((m) => visible.has(m.id)), q, yearStart, new Date()),
-    ...dashboards.filter((d) => nameScore(d.name, q.all) !== null).sort((a, b) => nameScore(a.name, q.all)! - nameScore(b.name, q.all)! || a.name.localeCompare(b.name)).slice(0, MAX_BY_KIND).map((d) => ({ kind: "dashboard" as const, id: d.id, name: d.name })),
-    ...decks.filter((d) => nameScore(d.name, q.all) !== null).sort((a, b) => nameScore(a.name, q.all)! - nameScore(b.name, q.all)! || a.name.localeCompare(b.name)).slice(0, MAX_BY_KIND).map((d) => ({ kind: "deck" as const, id: d.id, name: d.name })),
+    ...ranked(dashboards, q.all).map((d) => ({ kind: "dashboard" as const, id: d.id, name: d.name })),
+    ...ranked(decks, q.all).map((d) => ({ kind: "deck" as const, id: d.id, name: d.name })),
+    ...workflows, ...people, ...groups, ...records,
   ];
+}
+
+/** The things whose names fit the words, best first, at most MAX_BY_KIND. */
+function ranked<T extends { name: string }>(items: readonly T[], terms: readonly string[]): T[] {
+  return items.filter((d) => nameScore(d.name, terms) !== null).sort((a, b) => nameScore(a.name, terms)! - nameScore(b.name, terms)! || a.name.localeCompare(b.name)).slice(0, MAX_BY_KIND);
+}
+
+/** Workflows by name. A Guest gets only those of the Metrics shared with them (stricter than the Workflows page, which is being tightened to match). */
+async function workflowResults(actor: Actor, visible: ReadonlySet<number>, terms: readonly string[]): Promise<SearchResult[]> {
+  const [{ data: rows }, { data: assigned }] = await Promise.all([
+    db().from("workflows").select("id, name").eq("workspace_id", actor.workspaceId),
+    actor.role === "guest" ? db().from("metrics").select("id, workflow_id").eq("workspace_id", actor.workspaceId) : Promise.resolve({ data: null }),
+  ]);
+  const mine = actor.role === "guest" ? new Set((assigned ?? []).filter((m) => visible.has(m.id as number) && m.workflow_id !== null).map((m) => m.workflow_id as number)) : null;
+  return ranked((rows ?? []).map((w) => ({ id: w.id as number, name: String(w.name) })).filter((w) => !mine || mine.has(w.id)), terms).map((w) => ({ kind: "workflow" as const, id: w.id, name: w.name }));
+}
+
+/** People and Contacts by name; a Guest finds only themselves (a Guest sees only what is shared with them). Names only,
+ * never an email or other detail. */
+async function peopleResults(actor: Actor, terms: readonly string[]): Promise<SearchResult[]> {
+  const people = (await peopleIn(actor.workspaceId)).filter((p) => actor.role !== "guest" || p.id === actor.personId);
+  return ranked(people, terms).map((p) => ({ kind: "person" as const, id: p.id, name: p.name, contact: Boolean(p.contact), you: p.id === actor.personId }));
+}
+
+/** Groups by name; a Guest finds only the Groups they are in. */
+async function groupResults(actor: Actor, terms: readonly string[]): Promise<SearchResult[]> {
+  const groups = (await getGroups(actor.workspaceId)).filter((g) => actor.role !== "guest" || g.members.includes(actor.personId));
+  return ranked(groups, terms).map((g) => ({ kind: "group" as const, id: g.id, name: g.name }));
+}
+
+/** "Record a value for <Metric>": the Metrics the person submits (and sees, not archived) whose names fit the words. */
+async function recordResults(actor: Actor, metrics: readonly Metric[], visible: ReadonlySet<number>, all: readonly string[]): Promise<SearchResult[]> {
+  const { asked, terms } = recordTerms(all);
+  if (!asked && !terms.length) return [];
+  const { data } = await db().from("tokens").select("code, metric_id").eq("workspace_id", actor.workspaceId).eq("submitter_id", actor.personId).is("stands_in_for", null);
+  const mine = new Map((data ?? []).map((t) => [t.metric_id as number, String(t.code)]));
+  const own = metrics.filter((m) => mine.has(m.id) && visible.has(m.id) && !m.archived_at);
+  const chosen = terms.length ? ranked(own, terms) : [...own].sort((a, b) => a.name.localeCompare(b.name)).slice(0, MAX_BY_KIND);
+  return chosen.map((m) => ({ kind: "record" as const, slug: m.slug, name: m.name, code: mine.get(m.id)! }));
 }
 
 /** The Metric and "Metric + period" results among Metrics the person sees. Not past: a period that has not begun. */

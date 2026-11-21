@@ -1,7 +1,7 @@
 // Reading a search (ticket #412; GLOSSARY: Period, Answer Languages): the words that name something and the period words.
 import { describe, expect, it } from "vitest";
 import type { YearStart } from "./periods";
-import { fold, MAX_PERIODS, MAX_QUERY, MAX_TERMS, nameScore, parseSearchQuery } from "./search-query";
+import { fold, MAX_PERIODS, MAX_QUERY, MAX_TERMS, nameScore, parseSearchQuery, recordTerms } from "./search-query";
 
 const read = (q: unknown, languages = ["en", "de"], yearStart: YearStart = 1) => parseSearchQuery(q, "2026-11-20", yearStart, languages);
 
@@ -48,5 +48,16 @@ describe("nameScore", () => {
   it("ranks a start of the name before a start of a word before the middle", () => {
     expect(nameScore("Monthly churn", ["churn"])).toBe(1);
     expect(nameScore("Monthly Xchurn", ["churn"])).toBe(2);
+  });
+});
+
+describe("recordTerms", () => {
+  it("drops the words that only ask to record a value, and keeps the Metric's", () => {
+    expect(recordTerms(["record", "a", "value", "for", "churn"])).toEqual({ asked: true, terms: ["churn"] });
+    expect(recordTerms(["enter", "visits"])).toEqual({ asked: true, terms: ["visits"] });
+    expect(recordTerms(["record"])).toEqual({ asked: true, terms: [] });
+  });
+  it("uses every word as the Metric's name when nothing asks to record", () => {
+    expect(recordTerms(["a", "value", "churn"])).toEqual({ asked: false, terms: ["a", "value", "churn"] });
   });
 });
