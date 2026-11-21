@@ -75,10 +75,11 @@ export async function connectorsView(actor: Actor) {
     .filter((d) => !d.alert_metric_id || inDemo(actor) || alertMetrics.has(d.alert_metric_id as number))
     .map((d) => ({ ...d, alert_metric_id: undefined }))
     .filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
-  // A Token code opens someone's submission form: only their own go to the browser (in the demo, all of the demo).
-  const own = (tokens ?? []).filter((t) => inDemo(actor) || t.submitter_id === actor.personId);
-  // A form link in an older Prompt's text opens its recipient's form: only they (and the demo) see it.
-  const shown = visible.map((d) => (inDemo(actor) || d.recipient_id === actor.personId ? d : { ...d, body: String(d.body).replace(/\S*\/submit\/tk-[A-Za-z0-9_-]+/g, "[their personal form link]") }));
+  // A Token code opens someone's submission form: only their own go to the browser, also in the demo (the demo refuses
+  // the submission, but must teach the real rule for the person viewed as, ticket #609).
+  const own = (tokens ?? []).filter((t) => t.submitter_id === actor.personId);
+  // A form link in an older Prompt's text opens its recipient's form: only they see it.
+  const shown = visible.map((d) => (d.recipient_id === actor.personId ? d : { ...d, body: String(d.body).replace(/\S*\/submit\/tk-[A-Za-z0-9_-]+/g, "[their personal form link]") }));
   // A Guest sees their own Delivery Preferences and the team default, not every member's (rule 3).
   const prefsShown = (prefs ?? []).filter((p) => actor.role !== "guest" || p.user_id === null || p.user_id === actor.personId);
   return { prefs: prefsShown, deliveries: await withoutOthersNames(actor, shown), tokens: own, isAdmin: await isAdmin(actor) };
@@ -92,8 +93,8 @@ export async function sourcesView(actor: Actor) {
   const ws = actor.workspaceId;
   // The latest SOURCES_SHOWN of each, oldest first as the page shows them; named columns only.
   let tokens = db().from("tokens").select("id, code, metric_id, submitter_id").eq("workspace_id", ws);
-  // A Token code opens someone's submission form: only the person's own are read (in the demo, all of the demo).
-  if (!inDemo(actor)) tokens = tokens.eq("submitter_id", actor.personId);
+  // A Token code opens someone's submission form: only the person's own are read, also in the demo (ticket #609).
+  tokens = tokens.eq("submitter_id", actor.personId);
   const prompts = db().from("prompts").select("id, metric_id, submitter_id, source, text, period_start, sent_at, answered_at").eq("workspace_id", ws);
   const intake = db().from("intake_log").select("id, at, source, sender, sender_id, raw, metric_id, token_code, outcome, detail, marks").eq("workspace_id", ws);
   const [{ data: asked }, { data: log }, { data: own }] = await Promise.all([
@@ -108,7 +109,7 @@ export async function sourcesView(actor: Actor) {
   // On a form or API entry the sender is that code too, so it goes with it.
   const mine = new Set((own ?? []).map((t) => t.code));
   const viaCode = (source: string) => source === "web_form" || source === "api";
-  const shown = (await openRows("intake_log", ws, log)).map((l) => (inDemo(actor) || !l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
+  const shown = (await openRows("intake_log", ws, log)).map((l) => (!l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
   return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [] };
 }
 
@@ -227,8 +228,8 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
     db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metricId).eq("state", "approval"),
   ]);
   // A Token code opens someone's submission form, so a code goes to the browser only for the person's own Tokens, or
-  // to the Metric's owner and admins, who hand the links out (in the demo, all of them). Everyone else sees who submits.
-  const allCodes = inDemo(actor) || row?.owner_id === actor.personId || (await isAdmin(actor));
+  // to the Metric's owner and admins, who hand the links out (also in the demo, for the person viewed as). Everyone else sees who submits.
+  const allCodes = row?.owner_id === actor.personId || (await isAdmin(actor));
   // A Feed's Token is never handed out: a Feed presents its key, and its Token opens no form (spec 0012).
   const { data: feeds } = await db().from("feeds").select("person_id").eq("workspace_id", ws).in("person_id", (tokens ?? []).map((t) => t.submitter_id));
   const feedIds = new Set((feeds ?? []).map((f) => f.person_id as string));
