@@ -14,11 +14,20 @@ const dir = new URL("../../../docs/automations/", import.meta.url);
 const load = (file: string) => JSON.parse(readFileSync(new URL(file, dir), "utf8")) as Workflow;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`fixtures/${name}.json`, dir), "utf8"));
 /** A fixture whose linked external tasks belong to `system` (the fixtures link microsoft-todo). */
-const linkedTo = (name: string, system: string, id?: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system, ...(id ? { external_id: id } : {}) })); return f; };
+const linkedTo = (name: string, system: string, id?: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system, ...(id !== undefined ? { external_id: id } : {}) })); return f; };
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
 
 const ALLOWED = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.set", "n8n-nodes-base.code", "n8n-nodes-base.switch", "n8n-nodes-base.if", "n8n-nodes-base.httpRequest", "n8n-nodes-base.stickyNote"]);
 const TRIGGERS = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.scheduleTrigger"]);
+
+describe("every template in docs/automations: generated", () => {
+  it("is exactly what scripts/automation-templates/generate.mjs writes (run it after a change, never edit a template by hand)", async () => {
+    const { generate } = (await import(/* @vite-ignore */ new URL("../../../scripts/automation-templates/generate.mjs", import.meta.url).href)) as { generate: () => Record<string, string> };
+    const made = generate();
+    expect(Object.keys(made).sort()).toEqual([...files].sort());
+    for (const [file, text] of Object.entries(made)) expect(readFileSync(new URL(file, dir), "utf8") === text, `${file} differs from the generator's output`).toBe(true);
+  });
+});
 
 describe("every template in docs/automations: shape", () => {
   it("has two files for each system", () => {
@@ -99,8 +108,6 @@ type Spec = {
   prefix: string; system: string; createBody: Param; closeBody: Param; patchOpenBody: Param; list: Param; taskNotes: (ref: string, extra?: string) => string; task: (o: { id: string; notes: string; done: boolean }) => Param;
   /** The external id the linked fixtures carry for this system, when it must look like the system's own (default: To Do's). */
   extId?: string;
-  /** Set for the templates that carry the later hardening (signed delivery id, id shape, exact adoption, continue on fail). */
-  hardened?: boolean;
   /** Values for the Settings node beyond the Webhook's own (a project, a plan). */
   settings?: Param;
   /** What a first event's Verify node answers for a closed Task: "patch" unless the system closes with a call of its own. */
@@ -134,7 +141,7 @@ const ALL_SPECS: Spec[] = [
     task: ({ id, notes, done }) => ({ id, title: "t", status: done ? "completed" : "needsAction", notes, webViewLink: `https://tasks.google.example.test/${id}` }),
   },
   {
-    prefix: "asana", system: "asana", hardened: true, extId: "1209876543210", settings: { projectId: "P1" },
+    prefix: "asana", system: "asana", extId: "1209876543210", settings: { projectId: "P1" },
     createBody: { data: { name: "Send the October report to the board", notes: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", projects: ["P1"], completed: false, due_on: "2026-11-27" } },
     closeBody: { data: { completed: true } },
     patchOpenBody: { data: { name: "Send the October report to the board", due_on: "2026-11-27", completed: false } },
@@ -146,7 +153,7 @@ const ALL_SPECS: Spec[] = [
     notesOf: (r) => ((r.createBody as { data: { notes: string } }).data.notes),
   },
   {
-    prefix: "todoist", system: "todoist", hardened: true, extId: "8Xk2mPq4Rt", settings: { projectId: "P1" }, closeAction: "close",
+    prefix: "todoist", system: "todoist", extId: "8Xk2mPq4Rt", settings: { projectId: "P1" }, closeAction: "close",
     createBody: { content: "Send the October report to the board", description: "Ziffr ref: ZIF-12\nhttps://ziffr.example.test/actions/12\nMetric: Monthly revenue\nAsked by: Sara Jones\n--- end of Ziffr text ---", project_id: "P1", due_date: "2026-11-27" },
     closeBody: {},
     patchOpenBody: { content: "Send the October report to the board", due_date: "2026-11-27" },
@@ -159,7 +166,7 @@ const ALL_SPECS: Spec[] = [
     feed: async (tasks) => ({ items: [{ json: { items: tasks.filter((t) => t.checked).map((t) => ({ ...t, task_id: t.id })) } }], nodes: { "List active tasks": [{ json: { results: tasks.filter((t) => !t.checked) } }] } }),
   },
   {
-    prefix: "planner", system: "planner", hardened: true, extId: "xqQ63tHE3EWYwnqkFhOAMmUAH_wA", settings: { planId: "PL1", bucketId: "B1" },
+    prefix: "planner", system: "planner", extId: "xqQ63tHE3EWYwnqkFhOAMmUAH_wA", settings: { planId: "PL1", bucketId: "B1" },
     createBody: { planId: "PL1", bucketId: "B1", title: "[ZIF-12] Send the October report to the board", percentComplete: 0, dueDateTime: "2026-11-27T00:00:00Z" },
     closeBody: { percentComplete: 100 },
     patchOpenBody: { title: "[ZIF-12] Send the October report to the board", dueDateTime: "2026-11-27T00:00:00Z", percentComplete: 0 },
@@ -268,7 +275,7 @@ for (const spec of SPECS) {
       expect(await run("Notes of mine\nZiffr ref: ZIF-99\n--- end of Ziffr text ---\nReply: x")).toEqual([]);
       expect(await run("Ziffr ref: ZIF-12\n--- end of Ziffr text ---\r\nReply: ok")).toEqual([{ op: "reply", system: spec.system, external_id: "a", text: "ok" }]);
     });
-    it.runIf(spec.hardened)("takes the delivery id from the signed body, not from an unsigned header", async () => {
+    it("takes the delivery id from the signed body, not from an unsigned header", async () => {
       const state: Param = {};
       const m = delivered(fixture("action-created"));
       expect((await verify(m, state)).action).toBe("create");
@@ -276,10 +283,9 @@ for (const spec of SPECS) {
       expect(await verify(m, state)).toMatchObject({ action: "none", why: "repeat" });
     });
     it("refuses a linked id that is not shaped like the system's own ids", async () => {
-      if (spec.extId === undefined) return;
-      for (const bad of ["../../me", "12/../x", "a?b=c", "x#y", "", "9".repeat(80)]) expect(await verify(delivered(linkedTo("action-done", spec.system, bad)))).toMatchObject({ httpStatus: 200, action: "none", why: "bad id" });
+      for (const bad of ["../../me", "12/../x", "a?b=c", "x#y", "", "9".repeat(300)]) expect(await verify(delivered(linkedTo("action-done", spec.system, bad)))).toMatchObject({ httpStatus: 200, action: "none", why: "bad id" });
     });
-    it.runIf(spec.hardened)("adopts an existing task only when it holds exactly what this workflow would have written", async () => {
+    it("adopts an existing task only when it holds exactly what this workflow would have written", async () => {
       const m = delivered(fixture("action-created"));
       const v = await verify(m);
       const find = async (task: Param) => (await runNode(wf, "Find by ref", { items: [{ json: shapeOf(spec, [task]) }], nodes: { "Verify and filter": [{ json: v }] } }))[0].json;
@@ -363,7 +369,7 @@ for (const spec of SPECS) {
       const many = Array.from({ length: 40 }, (_, i) => spec.task({ id: `t${i}`, notes: spec.taskNotes(`ZIF-${i + 1}`), done: true }));
       expect(await changes(many, {})).toHaveLength(30);
     });
-    it.runIf(spec.hardened)("keeps going when a call fails outright, so one network error does not resend the whole batch", () => {
+    it("keeps going when a call fails outright, so one network error does not resend the whole batch", () => {
       expect((wf.nodes.find((n) => n.name === "Call Ziffr") as unknown as { onError: string }).onError).toBe("continueRegularOutput");
     });
     it("signs what it sends with the same scheme", async () => {
