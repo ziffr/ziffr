@@ -59,7 +59,7 @@ export async function telegramUnlink() {
 export async function emailRemindersAgain() {
   return attempt(async () => {
     await optOut.optBackIn(await currentActor());
-    revalidatePath("/connectors");
+    revalidatePath("/connectors", "layout");
   });
 }
 
@@ -73,7 +73,7 @@ export async function connectSlack() {
 export async function disconnectSlack() {
   return attempt(async () => {
     await slackConnection.disconnectSlack(await currentActor());
-    revalidatePath("/connectors");
+    revalidatePath("/connectors", "layout");
   });
 }
 
@@ -88,7 +88,7 @@ export async function slackLinkCode() {
 export async function slackRemindersAgain() {
   return attempt(async () => {
     await slackPeople.slackOptBackIn(await currentActor());
-    revalidatePath("/connectors");
+    revalidatePath("/connectors", "layout");
   });
 }
 
@@ -96,7 +96,7 @@ export async function slackRemindersAgain() {
 export async function unlinkSlack() {
   return attempt(async () => {
     await slackPeople.unlinkSlack(await currentActor());
-    revalidatePath("/connectors");
+    revalidatePath("/connectors", "layout");
   });
 }
 

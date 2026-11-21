@@ -89,7 +89,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
                 <li key={d.id}>{d.kind} to {people[d.recipient_id]?.name.split(" ")[0]} via {CONNECTORS[d.connector as ConnectorId]?.label}{d.external_ref ? ` (${d.external_ref})` : ""}, {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</li>
               ))}
             </ul>
-            <Link href="/connectors" className="mt-1 inline-block underline">Outbox</Link>
+            <Link href="/connectors/outbox" className="mt-1 inline-block underline">Outbox</Link>
           </details>
         )}
       </div>

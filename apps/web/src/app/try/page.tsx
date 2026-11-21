@@ -22,9 +22,9 @@ const STEPS: Partial<Record<Way, { how: string; link?: { href: string; label: st
   "email-replies": { how: "Reply to that email with just a number. It is recorded for the period the email asked about." },
   slack: { how: "Connect your Slack workspace with Add to Slack, choose Slack for Reminders under Who gets what, where, and press Ask me now. Answer in the message's thread.", link: { href: "/connectors", label: "Connectors" } },
   telegram: { how: "Turn Telegram on and press Connect Telegram, choose Telegram for Reminders, and press Ask me now. Answer by replying to the message.", link: { href: "/connectors", label: "Connectors" } },
-  "web-form": { how: "Every request has a personal form link that works without signing in. Open one from an email, or from the Outbox.", link: { href: "/connectors", label: "Outbox" } },
+  "web-form": { how: "Every request has a personal form link that works without signing in. Open one from an email, or from the Outbox.", link: { href: "/connectors/outbox", label: "Outbox" } },
   api: { how: "Make an Access Key with Submit values and send a value: POST /api/v1/metrics/{slug}/observations with {\"value\": 42}.", link: { href: "/settings/keys", label: "Access Keys" } },
-  mcp: { how: "Make an Access Key, add the MCP Server to Claude Code or Claude Desktop with the line on the Connectors page, and ask it to record a value.", link: { href: "/connectors", label: "Connectors" } },
+  mcp: { how: "Make an Access Key, add the MCP Server to Claude Code or Claude Desktop with the line on the Connected assistants page, and ask it to record a value.", link: { href: "/settings/assistants", label: "Connected assistants" } },
   feeds: { how: "Make a Feed and a Feed Key, choose the Feed on a Metric, and send values from a script or an n8n automation.", link: { href: "/settings/feeds", label: "Feeds" } },
 };
 

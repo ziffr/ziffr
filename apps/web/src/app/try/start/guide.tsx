@@ -205,7 +205,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
   const againAt = sent ? sent.at + askEveryMinutes * 60_000 : 0;
   const where = (s: AskNowResult) => {
     if (s.state === "failed") return <>{s.label} did not take it{s.note ? `: ${s.note}` : "."} Answer by your form instead.</>;
-    if (s.state === "outbox") return <>It stayed in Ziffr{s.note ? ` (${s.note})` : ""}: <Link href="/connectors" className="underline">open the Outbox</Link> and answer it there.</>;
+    if (s.state === "outbox") return <>It stayed in Ziffr{s.note ? ` (${s.note})` : ""}: <Link href="/connectors/outbox" className="underline">open the Outbox</Link> and answer it there.</>;
     if (s.connector === "email") return <>Look in the inbox of {guide.email || "the address you signed in with"} for &ldquo;What&rsquo;s the number for {guide.testMetric!.name} today?&rdquo;, also in spam, and answer by the form link in it{guide.replies ? ", or just reply with the number" : ""}.</>;
     if (s.connector === "slack") return <>Look in Slack for a direct message from Ziffr and answer in its thread.</>;
     if (s.connector === "telegram") return <>Look in Telegram for the bot&rsquo;s message and reply with the number.</>;
@@ -225,7 +225,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
               {s.state === "sent" || s.state === "queued" ? `Asked by ${s.label}.`
                 : s.state === "failed" ? `${s.label}: not sent${s.note ? `. ${s.note}` : "."}`
                   : `${s.label}: kept in the Outbox${s.note ? `: ${s.note}` : "."}`}
-              {s.state === "outbox" && <> <Link href="/connectors" className="underline">Open the Outbox</Link></>}
+              {s.state === "outbox" && <> <Link href="/connectors/outbox" className="underline">Open the Outbox</Link></>}
             </li>
           ))}
         </ul>

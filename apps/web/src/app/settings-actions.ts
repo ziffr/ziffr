@@ -94,7 +94,7 @@ export async function setEmailReminders(on: boolean) {
     if (on === true) await optOut.optBackIn(actor);
     else await optOut.optOutOfEmail(actor);
     revalidatePath("/settings/deliveries");
-    revalidatePath("/connectors");
+    revalidatePath("/connectors", "layout");
   });
 }
 

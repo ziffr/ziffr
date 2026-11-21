@@ -12,7 +12,7 @@ describe("the sidebar's Workspace tree and Settings list", () => {
     for (const role of ["owner", "admin"] as const) expect(hrefs(role)).toEqual(expect.arrayContaining(["/settings/feeds", "/settings/webhooks", "/settings/usage", "/audit", "/settings/workspace#size"]));
     for (const href of ["/settings/feeds", "/settings/webhooks", "/settings/usage", "/audit", "/settings/workspace#size"]) expect(hrefs("member")).not.toContain(href);
     expect(hrefs("member")).toEqual(expect.arrayContaining(["/settings/workspace", "/themes", "/settings/packs", "/settings/keys", "/changes"]));
-    expect(workspaceTree("member").map((l) => l.label)).toEqual(["Members and Groups", "Workflows", "Connectors", "Sources", "Settings"]);
+    expect(workspaceTree("member").map((l) => l.label)).toEqual(["Members and Groups", "Workflows", "Connectors", "Settings"]);
   });
   it("matches pages ignoring a hash, and finds Settings pages", () => {
     expect(onPage("/settings/workspace", "/settings/workspace#size")).toBe(true);

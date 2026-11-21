@@ -25,7 +25,6 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 | **Members and Groups** | Everyone but Guests | Below |
 | **Connectors** | Everyone | Below |
 | **Workflows** | Everyone but Guests | In [Workflows](11-workflows.md) |
-| **Sources** | Everyone | Below |
 | **Packs** | Everyone but Guests | In [Packs](19-packs.md) |
 | **Access Keys** | Everyone but Guests | Below |
 | **Feeds** | Owners and Admins | Below |
@@ -39,7 +38,7 @@ General, Packs, Access Keys, Feeds and Usage open inside the settings area. It h
 
 ### In the sidebar
 
-In the sidebar (see [Signing in and your own settings](17-your-settings.md#the-sidebar)) the **Workspace** row opens four places: **Members and Groups**, **Workflows**, **Connectors** (with **Sources** beside it) and **Settings**. Guests have no Workspace row. **Settings** is one page with its own list, shown beside whichever of its pages is open, in three groups: **Workspace** (**General**, **Size and Retention** for Owners and Admins, **Themes**, **Packs**), **Programs** (**Access Keys**, and **Feeds** and **Webhooks** for Owners and Admins) and **Records** (**Changes**, and **Usage** and **Audit log** for Owners and Admins). Your own pages are not in that list: they are in your own menu at the bottom of the sidebar, and **My schedule** is the **Schedule** row.
+In the sidebar (see [Signing in and your own settings](17-your-settings.md#the-sidebar)) the **Workspace** row opens four places: **Members and Groups**, **Workflows**, **Connectors** (with tabs for **Channels**, **Sources**, **Outbox** and **Who gets what**) and **Settings**. Guests have no Workspace row. **Settings** is one page with its own list, shown beside whichever of its pages is open, in three groups: **Workspace** (**General**, **Size and Retention** for Owners and Admins, **Themes**, **Packs**), **Programs** (**Access Keys**, and **Feeds** and **Webhooks** for Owners and Admins) and **Records** (**Changes**, and **Usage** and **Audit log** for Owners and Admins). Your own pages are not in that list: they are in your own menu at the bottom of the sidebar, and **My schedule** is the **Schedule** row.
 
 ## Starting a Workspace
 
@@ -268,7 +267,7 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ## Connectors
 
-**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture.
+**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has four tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
 
 ### Slack
 
@@ -304,12 +303,7 @@ Telegram can read what its bots send and receive, so numbers and questions sent 
 
 ### Claude and other AI assistants
 
-This box shows how to connect an AI assistant through the **MCP Server**, filled in with this Ziffr's address. There are two ways:
-
-- **Claude.ai and other assistants on the web:** add a custom connector in the assistant with the address the box shows, ending in `/mcp`, and press Connect. Ziffr opens: sign in, pick the Workspace, what the assistant may do and until when, and confirm (see [Connecting an assistant](17-your-settings.md#connecting-an-assistant)). This part is shown only when this Ziffr offers it, usually when it is reached over https.
-- **Claude Code and Claude Desktop:** make an **Access Key** first (see [Access Keys](#access-keys)) and paste it in place of `zk_...` in the command or settings shown.
-
-Either way the assistant reads the Metrics you may read, records values, starts Metrics and builds dashboards, as far as you allowed. The box is not shown in the demo, which has no Access Keys.
+How to connect an AI assistant through the **MCP Server** is on **Connected assistants** in your own menu (see [Connecting an assistant](17-your-settings.md#connecting-an-assistant)), filled in with this Ziffr's address; **Channels** has one line that links there. It is not shown in the demo, which has no Access Keys. Assistants that use an **Access Key** need one made first (see [Access Keys](#access-keys)).
 
 ### Connected systems
 
@@ -323,11 +317,11 @@ One card per **Connector**, each with what it can do (receives values, sends rem
 | **WhatsApp** | Short messages from the Ziffr business number. Not live yet: Ziffr only records what it would send. |
 | **Ticket system** | Tasks become tickets; comments come back, and closing a ticket marks the task done. Not live yet: Ziffr only records what it would send. |
 
-If you stopped Prompts and reminders by email, a note at the top offers **Get them by email again**.
+If you stopped Prompts and reminders by email, a note at the top of **Channels** offers **Get them by email again**. On a card whose Connector is only simulated, an Installation Admin gets **Set it up on Installation settings**.
 
 ### Who gets what, where
 
-A table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Reminders** (which includes Prompts) and **Replies and updates**.
+The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Reminders** (which includes Prompts) and **Replies and updates**.
 
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
@@ -335,7 +329,7 @@ A table of **Delivery Preferences**: one row per person and one column each for 
 
 ### Outbox
 
-The **Outbox** lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
+The **Outbox** tab lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
 
 A Delivery that never left Ziffr is marked **Simulated, not sent**, or with the reason it was kept back, such as "Kept in the Outbox: a trial sends only to its Owner". For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
 
@@ -348,11 +342,11 @@ You see Deliveries about Threads you may read, and Prompts and notices you sent 
 
 ### In the demo
 
-The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. **Try sending a value** on the Email and Slack cards leads to Sources.
+The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. **Try sending a value** on the Email and Slack cards leads to the **Sources** tab.
 
 ## Sources
 
-**Workspace → Sources** shows where values come from. Everyone sees it.
+**Workspace → Connectors → Sources** shows where values come from. Everyone sees it.
 
 ### From the web form
 

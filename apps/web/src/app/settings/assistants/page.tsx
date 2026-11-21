@@ -7,6 +7,8 @@ import { currentActor } from "@/lib/viewer";
 import { mcpUrl, remoteMcpEnabled } from "@/lib/remote-mcp";
 import { PageHeader } from "@/components/page-header";
 import { Connections } from "./connections";
+import { McpPanel } from "./mcp-panel";
+import { SITE_URL } from "@/lib/sign-in";
 
 export default async function AssistantsPage() {
   if (await isDemo()) {
@@ -22,6 +24,7 @@ export default async function AssistantsPage() {
     <>
       <PageHeader title="Connected assistants" />
       <Connections connections={connections} address={remoteMcpEnabled() ? mcpUrl() : null} />
+      <McpPanel siteUrl={SITE_URL} remote={remoteMcpEnabled() ? mcpUrl() : null} />
     </>
   );
 }
