@@ -13,7 +13,7 @@ const root = fileURLToPath(repoFile("."));
 /** A statement that sets `status` in the SET list of an update of actions (not one that only reads it in its WHERE). */
 const SETS_STATUS = /update\s+(?:public\.)?actions(?:\s+(?:as\s+)?\w+)?\s+set\b(?:(?!\bwhere\b)[^;])*\bstatus\s*=/i;
 /** The one migration that holds the function that writes the state (and the trigger that refuses every other writer). */
-const THE_WRITER = "20261225530000_webhook_followups.sql";
+const THE_WRITER = "20261225730000_webhook_followups.sql";
 
 /** The argument of the `.update(` or `.upsert(` that starts at `from`, up to its closing bracket. */
 function argumentAt(text: string, from: number): string {
