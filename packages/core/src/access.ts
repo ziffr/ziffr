@@ -9,6 +9,7 @@ import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMe
 import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
+import { nameHider } from "./hide-names";
 import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
@@ -164,6 +165,14 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
 export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">, loaded?: Profile[]): Promise<Profile[]> {
   const people = loaded ?? (await peopleIn(actor.workspaceId));
   return actor.role === "guest" ? people.filter((p) => p.id === actor.personId) : people;
+}
+
+/** For a Guest, a function that hides other people's names in text Ziffr itself wrote (an approval request saying who
+ * sent a late value): they read "Someone" (peopleFor, ticket #560). Anyone else gets the text as it is. */
+export async function systemTextFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<(text: string, system: boolean) => string> {
+  if (actor.role !== "guest") return (text) => text;
+  const hide = nameHider((await peopleIn(actor.workspaceId, { contactDetails: true })).filter((p) => p.id !== actor.personId));
+  return (text, system) => (system ? hide(text) : text);
 }
 
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without

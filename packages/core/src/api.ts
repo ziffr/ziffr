@@ -2,7 +2,7 @@
 // takes a KeyActor (or a person's Actor, for tests and tools), checks its scope, and returns only what the key's
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
@@ -193,6 +193,7 @@ export async function getThreads(actor: Actor | KeyActor, slug: string, period: 
   if (!actions.length) return { metric: metric.slug, period, threads: [] };
   const { data } = await db().from("thread_messages").select("*").eq("workspace_id", ws).in("action_id", actions.map((a) => a.id)).order("created_at").order("id");
   const messages = await openRows("thread_messages", ws, data as { action_id: number; author_id: string; body: string; created_at: string; correction_value: number | null; correction_status: "proposed" | "accepted" | "declined" | null }[] | null);
+  const hideSystem = await systemTextFor(actor);
   const names = await namesOf(actor, [...actions.map((a) => a.asker_id), ...messages.map((m) => m.author_id)]);
   return {
     metric: metric.slug, period,
@@ -200,7 +201,7 @@ export async function getThreads(actor: Actor | KeyActor, slug: string, period: 
       const all = messages.filter((m) => m.action_id === a.id);
       const shown = all.slice(-MAX_THREAD_MESSAGES);
       return {
-        kind: a.kind, status: a.status, asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, asked_at: a.created_at, question: a.question,
+        kind: a.kind, status: a.status, asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, asked_at: a.created_at, question: hideSystem(a.question, Boolean(a.purpose)),
         messages: shown.map((m) => ({ author: m.author_id, author_name: names.get(m.author_id) ?? null, sent_at: m.created_at, words: m.body, correction: m.correction_status && m.correction_value !== null ? { value: Number(m.correction_value), status: m.correction_status } : null })),
         truncated: shown.length < all.length,
       };

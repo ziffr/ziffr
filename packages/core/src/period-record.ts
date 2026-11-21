@@ -4,7 +4,7 @@
 // where they may read the Thread (GLOSSARY: Thread). Words are opened (sealed columns); nothing else is sent.
 import { db } from "./db";
 import type { Actor } from "./actor";
-import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { getMetrics, getSeriesOf } from "./workspace-data";
 import { openRows } from "./sealed-columns";
 import { yearStartOf } from "./fiscal-year";
@@ -178,11 +178,12 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const steps: PeriodStep[] = timed.map(({ d }) => ({ kind: d.kind, at: d.at, person: d.person, channel: d.channel, value: d.value, superseded: d.superseded, reason: d.reason }));
 
   // The Threads: the first message and how many replies follow, words as opened above.
+  const hideSystem = await systemTextFor(actor);
   const threads: PeriodThread[] = readable.map((a) => {
     const mine = messages.filter((m) => m.action_id === a.id);
     const first = mine[0];
     return {
-      id: a.id, question: a.question, kind: a.kind, status: a.status,
+      id: a.id, question: hideSystem(a.question, Boolean(a.purpose)), kind: a.kind, status: a.status,
       first: first ? { person: who(first.author_id) ?? "A former member", at: first.created_at, body: (first.body ?? "").length > FIRST_WORDS ? `${first.body.slice(0, FIRST_WORDS - 1)}…` : first.body ?? "" } : null,
       replies: Math.max(0, mine.length - 1),
     };

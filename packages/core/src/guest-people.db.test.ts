@@ -74,6 +74,8 @@ async function setUp() {
   const deck = await createDeck(owner, "Board");
   await saveDeck(owner, deck, { store: { "shape:1": { type: "ziffr-widget", props: { metricIds: [shared.id], settings: "{}" } } } });
   await share(owner, "deck", deck, gus, "viewer");
+  // Text Ziffr wrote itself: a late value proposed to the owner, naming its sender.
+  await db().from("actions").insert({ workspace_id: w.id, metric_id: shared.id, period_start: month, asker_id: ben, assignee_id: sara, kind: "question", purpose: "approval", question: "Field visits is locked. Ben sent 12 late: accept it?", read_group_id: null });
   await showSnapshot(editor, snap);
   const ownerName = `Sara Ownerly ${tag}`;
   await deliverNotice(w.id, { recipientId: gus, senderId: sara, subject: `${ownerName} shared Overview`, text: `Sara wrote to sara-${tag}@example.test about Overview.`, link: "/dashboards" });

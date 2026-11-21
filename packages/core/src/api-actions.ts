@@ -8,7 +8,7 @@
 // one of another Workspace, answers like one that does not exist (Forbidden, so the API says 404). Every change
 // is written through changeActionState with the source "api" or "mcp", so each sends one Webhook event.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { markTaskDone, reply, setActionStatus } from "./questions";
 import { openRows } from "./sealed-columns";
@@ -72,6 +72,7 @@ async function shape(actor: KeyActor, rows: Row[]): Promise<ApiAction[]> {
   const metrics = await getMetrics(ws);
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
+  const hideSystem = await systemTextFor(actor);
   const names = await namesOf(actor, [...new Set(rows.flatMap((a) => [a.asker_id, a.assignee_id]))]);
   return rows.map((a) => {
     const m = byId.get(a.metric_id);
@@ -80,7 +81,7 @@ async function shape(actor: KeyActor, rows: Row[]): Promise<ApiAction[]> {
       metric: m && seen.has(m.id) ? { slug: m.slug, name: m.name } : null, period: a.period_start,
       asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, assignee: a.assignee_id, assignee_name: names.get(a.assignee_id) ?? null,
       assigned_to_me: a.assignee_id === actor.personId, asked_by_me: a.asker_id === actor.personId,
-      question: a.question, due_date: a.due_date, created_at: a.created_at, updated_at: a.updated_at,
+      question: hideSystem(a.question, Boolean(a.purpose)), due_date: a.due_date, created_at: a.created_at, updated_at: a.updated_at,
     };
   });
 }
