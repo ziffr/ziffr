@@ -201,6 +201,7 @@ const CASES: Record<string, Case> = {
   "series-actions:setMetricSources": { args: (i) => [i.ownMetric, ["web_form", "slack"]] },
   "series-actions:updateMetricDetails": { args: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
   "series-actions:askMeNow": { args: (i) => [i.ownMetric] },
+  "series-actions:recordValue": { args: (i) => [i.ownMetric, { value: "42" }] },
   "settings-actions:updateMyProfile": { args: () => [{ name: "Not Sara" }] },
   "settings-actions:renameWorkspace": { args: () => ["Visitor's company"] },
   "settings-actions:setYearStart": { args: () => [4] },

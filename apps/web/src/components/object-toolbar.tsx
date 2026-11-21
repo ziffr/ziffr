@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareDialog } from "./share-dialog";
 import { WhoCanSeeDialog } from "./who-can-see";
 import { ViewLinksDialog } from "./view-links";
@@ -26,22 +26,29 @@ export type ObjectToolbarProps = {
   share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
-  /** This page's own entries at the top of the ⋯ menu, such as Make a deck. */
-  menu?: { label: string; icon: React.ReactNode; onSelect: () => void }[];
+  /** This page's own entries at the top of the ⋯ menu, such as Make a deck. An entry with `sub` opens a submenu of
+   * choices instead (a dashboard to add to); `danger` marks one that cannot be undone; `separated` puts a rule above it. */
+  menu?: MenuEntry[];
+  /** The page's one main action (Record a value), shown first; Share then stops being the primary button. */
+  lead?: React.ReactNode;
 };
 
+/** One entry of a page's ⋯ menu. */
+export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean };
+
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
-export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme, menu }: ObjectToolbarProps) {
+export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme, menu, lead }: ObjectToolbarProps) {
   const [open, setOpen] = useState<Open>(null);
   const close = () => setOpen(null);
   // Opened from a menu item: wait until the menu has closed and returned focus.
   const show = (o: Open) => () => setTimeout(() => setOpen(o), 0);
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {lead}
       {children}
       {share && (
         <ShareDialog
-          primary
+          primary={!lead}
           objectType={type}
           objectId={id}
           people={people}
@@ -57,7 +64,9 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          {menu?.map((m) => <DropdownMenuItem key={m.label} onClick={m.onSelect}>{m.icon} {m.label}</DropdownMenuItem>)}
+          {menu?.map((m) => (
+            <MenuRow key={m.label} m={m} />
+          ))}
           <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
           {viewLinks && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
           {theme && <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>}
@@ -77,5 +86,29 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** An entry of the ⋯ menu: a choice, or a submenu of them. */
+function MenuRow({ m }: { m: MenuEntry }) {
+  const rule = m.separated ? <DropdownMenuSeparator /> : null;
+  if (m.sub) {
+    return (
+      <>
+        {rule}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>{m.icon} {m.label}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {m.sub.map((s) => <DropdownMenuItem key={s.key} onClick={s.onSelect}>{s.label}</DropdownMenuItem>)}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      </>
+    );
+  }
+  return (
+    <>
+      {rule}
+      <DropdownMenuItem variant={m.danger ? "destructive" : undefined} onClick={m.onSelect}>{m.icon} {m.label}</DropdownMenuItem>
+    </>
   );
 }
