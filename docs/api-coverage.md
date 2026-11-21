@@ -48,6 +48,9 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `installPack` (packs.ts): Packs
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
+- `editSnapshotWords` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
+- `showSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
+- `deleteSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `saveSlideLayout` (templates.ts): saving and managing templates and slide layouts
 - `saveDeckTemplate` (templates.ts): saving and managing templates and slide layouts
 - `saveWorkflowTemplate` (templates.ts): saving and managing templates and slide layouts
@@ -189,8 +192,6 @@ To come through the API only, behind a scope of their own, never ticked by defau
 - `setGroupMember` (team.ts): Groups and contacts, #434
 - `addContact` (team.ts): Groups and contacts, #434
 - `removeContact` (team.ts): Groups and contacts, #434
-- `createViewLink` (view-links.ts): View Links publish data, #435
-- `revokeViewLink` (view-links.ts): View Links publish data, #435
 - `lockPeriod` (workflows.ts): locking a period, #427
 - `setStandIn` (workflows.ts): Stand-ins decide who approves, #427
 - `setAway` (workflows.ts): being away hands approvals to a Stand-in, #427
@@ -200,11 +201,6 @@ To come through the API only, behind a scope of their own, never ticked by defau
 Ticketed. MCP follows where the ticket says so.
 
 - `ask` (questions.ts): Questions and Tasks for programs, #427
-- `takeSnapshot` (snapshots.ts): Snapshots for programs, #435
-- `openSnapshot` (snapshots.ts): Snapshots for programs, #435
-- `editSnapshotWords` (snapshots.ts): Snapshots for programs, #435
-- `showSnapshot` (snapshots.ts): Snapshots for programs, #435
-- `deleteSnapshot` (snapshots.ts): Snapshots for programs, #435
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `saveWorkflow` (workflows.ts): Workflows for programs, #433
 - `deleteWorkflow` (workflows.ts): Workflows for programs, #433

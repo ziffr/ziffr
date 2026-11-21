@@ -51,31 +51,42 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
  * signs in may hold it, since an Alert is only ever the creator's own. "actions:read" lists the Actions waiting for the
  * creator or asked by them, "actions:write" replies, closes, reopens and marks done in their name (ticket #427; the
  * creator's own Actions only). "values:approve" approves a value or sends it back: a person's check, so only a
- * program's key may hold it, never an assistant (ASSISTANT_SCOPES leaves it out), and never ticked by default. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve";
+ * program's key may hold it, never an assistant (ASSISTANT_SCOPES leaves it out), and never ticked by default.
+ * "view-links:write" makes, lists and revokes View Links to the creator's own dashboards (ticket #435): a View Link publishes
+ * data to people outside the workspace, so the same rules, and only while the creator's role may share. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve" | "view-links:write";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve", "view-links:write"];
 
 /** The scopes only a program's key may hold: approving is a person's check (ticket #427), and text in a Thread could
  * talk an assistant into it, so no assistant is offered them and none can be granted them. */
-export const KEY_ONLY_SCOPES: Scope[] = ["values:approve"];
+export const KEY_ONLY_SCOPES: Scope[] = ["values:approve", "view-links:write"];
 
 /** The scopes an assistant may be given on the consent screen (spec 0023). */
 export const ASSISTANT_SCOPES: Scope[] = SCOPES.filter((s) => !KEY_ONLY_SCOPES.includes(s));
 
 /** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
-export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values" };
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links" };
 
 /** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;
 
 /** Scopes only a creator whose role may create can give a key. */
-export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write"];
+export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write", "view-links:write"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {
   if (actor.key && !actor.key.scopes.includes(scope)) throw new Forbidden(scopeRefusal(scope));
+}
+
+/** Thrown when a request cannot be done for a reason the person asking may be told in words (a period not over, an end
+ * date out of range): the API answers 422 with it, and only with errors of this kind (ticket #435). */
+export class Refused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "Refused";
+  }
 }
 
 /** Thrown when an actor may not do or see something; callers turn it into "not found" or "forbidden". */

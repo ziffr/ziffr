@@ -71,6 +71,8 @@ Every tool is one call to Ziffr's API, so the scope it needs is the API's. The l
 | `reply_to_action` | Answer questions and tasks | Replies in an Action's Thread as the creator, with a Correction if given; only words, it never approves or confirms |
 | `set_action_status`, `mark_task_done` | Answer questions and tasks | Closes or reopens an Action the creator asked; marks the creator's own Task done |
 | `self_check` | Submit values | Confirms or corrects the creator's own value in a Self-check |
+| `list_snapshots`, `get_snapshot` | Read dashboards | A dashboard's Snapshots, and one with the values it kept for the Metrics you see now; drafts only if you may open drafts |
+| `take_snapshot` | Build dashboards | Takes a Snapshot of a dashboard you own or edit for a week, month, quarter, half-year or year that is over; a draft until you show it in Ziffr |
 | `update_dashboard`, `add_finding`, `update_finding` | Build dashboards | A dashboard's name and introduction, and Findings with their words below everything on it, as a draft for you to finish |
 
 "Change metrics" reaches only the Metrics the key's creator owns or edits, and the Unusual Value check only of the Workflows they own; "Create metrics" deletes only Metrics they own; "Build dashboards" changes only the dashboards they may change; "Manage alerts" makes Alerts only for the creator, who is the only one ever told. None of the writing scopes is ever given to a Guest.
@@ -104,6 +106,7 @@ In Claude Code they are commands such as `/mcp__ziffr__weekly_review` (`ziffr` i
 - The server runs on your computer and talks only to your Ziffr, over its API. It stores nothing.
 - A read-only key (without "Submit values", "Create metrics", "Change metrics", "Build dashboards" or "Manage alerts") cannot record, create or change anything, whatever the assistant tries.
 - A key with "Change metrics" changes targets, Projections, Sources and Submitters only of the Metrics its creator owns or edits, and the Unusual Value check only of the Workflows they own; never a Metric's name, description, period or Workflow, and never as a Guest. Each Submitter it adds is asked at once, so it names at most 20 at a time, and through keys nobody is asked more than once a day for a Metric or five times a day in all. Keys made before "Change metrics" existed cannot do any of it.
+- There is no tool to make, list or revoke a View Link, and an assistant cannot be given that scope ("Manage View Links", `view-links:write`): a View Link publishes data outside the workspace. Programs do it through the API with their own Access Key.
 - There is no tool to approve a value or send it back, and an assistant cannot be given that scope ("Approve values", `values:approve`): Approval is a person's check, and words in a Thread could talk an assistant into it. Programs approve through the API with their own Access Key.
 - Every call shows in the key's Access Log on the Access Keys page. Revoke the key there to cut the assistant off at once.
 - Metric names and descriptions come from your workspace. Anyone who can name a Metric can put text in front of the assistant, so give it a read-only key unless it should submit values.

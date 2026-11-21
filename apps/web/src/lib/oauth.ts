@@ -3,7 +3,7 @@
 // byte ceiling (limited-body.ts); every field is checked by the core. Answers are never cached and carry no CORS
 // headers: assistants call these from their servers, not from pages.
 import { OAuthError, issuer, mcpResource } from "@ziffr/core/assistant-connections";
-import { SCOPES } from "@ziffr/core/actor";
+import { ASSISTANT_SCOPES } from "@ziffr/core/actor";
 import { readLimited } from "@/lib/limited-body";
 import { remoteMcpEnabled } from "@/lib/remote-mcp";
 
@@ -57,7 +57,7 @@ export async function urlForm(req: Request): Promise<Record<string, string>> {
 
 /** The protected resource metadata of /mcp (RFC 9728). */
 export const protectedResource = () => ({
-  resource: mcpResource(), authorization_servers: [issuer()], scopes_supported: SCOPES, bearer_methods_supported: ["header"], resource_name: "Ziffr",
+  resource: mcpResource(), authorization_servers: [issuer()], scopes_supported: ASSISTANT_SCOPES, bearer_methods_supported: ["header"], resource_name: "Ziffr",
 });
 
 /** The authorization server metadata (RFC 8414): only what Ziffr offers. */
@@ -74,7 +74,7 @@ export const authorizationServer = () => {
     code_challenge_methods_supported: ["S256"],
     token_endpoint_auth_methods_supported: ["none"],
     revocation_endpoint_auth_methods_supported: ["none"],
-    scopes_supported: SCOPES,
+    scopes_supported: ASSISTANT_SCOPES,
     authorization_response_iss_parameter_supported: true,
     service_documentation: "https://github.com/ziffr/ziffr/blob/main/docs/guides/mcp.md",
   };

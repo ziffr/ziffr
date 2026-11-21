@@ -14,6 +14,8 @@ import * as dashboards from "@/app/api/v1/dashboards/route";
 import * as dashboard from "@/app/api/v1/dashboards/[id]/route";
 import * as findings from "@/app/api/v1/dashboards/[id]/findings/route";
 import * as finding from "@/app/api/v1/dashboards/[id]/findings/[findingId]/route";
+import * as dashboardSnapshots from "@/app/api/v1/dashboards/[id]/snapshots/route";
+import * as snapshot from "@/app/api/v1/snapshots/[id]/route";
 import * as widgets from "@/app/api/v1/dashboards/[id]/widgets/route";
 import * as widget from "@/app/api/v1/dashboards/[id]/widgets/[widgetId]/route";
 import * as fromTemplate from "@/app/api/v1/dashboards/from-template/route";
@@ -56,6 +58,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["dashboards/[id]", dashboard],
   ["dashboards/[id]/findings", findings],
   ["dashboards/[id]/findings/[findingId]", finding],
+  ["dashboards/[id]/snapshots", dashboardSnapshots],
   ["dashboards/[id]/widgets", widgets],
   ["dashboards/[id]/widgets/[widgetId]", widget],
   ["feeds", feeds],
@@ -72,6 +75,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["metrics/[slug]/unusual-value-check", unusualValueCheck],
   ["find", find],
   ["people", people],
+  ["snapshots/[id]", snapshot],
   ["schedule", scheduleRoute],
   ["templates", templates],
   ["workflows", workflows],
@@ -80,8 +84,8 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
 ];
 
 /** Route folders under /api/v1 that are deliberately not reachable from inside: Approvals (a person's check, never an
- * assistant's: ticket #427), a Feed's own endpoints, the public OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
-export const NOT_IN_PROCESS = ["actions/[id]/approval", "feed", "feed/observations", "installation/usage", "openapi.json", "[...rest]"];
+ * assistant's: ticket #427), View Links (they publish data outside the workspace: ticket #435), a Feed's own endpoints, the public OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
+export const NOT_IN_PROCESS = ["actions/[id]/approval", "dashboards/[id]/view-links", "view-links/[id]", "feed", "feed/observations", "installation/usage", "openapi.json", "[...rest]"];
 
 /** The handler and path parameters for a path under /api/v1, or null. Segments are matched as given, never decoded
  * into a pattern, so a crafted path cannot reach another route. */

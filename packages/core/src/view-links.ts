@@ -3,7 +3,7 @@
 // revoked by the owner of the dashboard or deck.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
@@ -200,14 +200,14 @@ export async function listViewLinks(actor: Actor, type: "dashboard" | "deck", id
 /** Makes a View Link to the actor's dashboard or deck, live or frozen, ending on a day within MAX_DAYS; for a
  * dashboard, `snapshotId` makes it show one of its shown Snapshots (spec 0013). A View Link is sharing, so Guests
  * make none. Returns the token. */
-export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }): Promise<string> {
-  if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input);
+export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }, opts: { accessKeyId?: number } = {}): Promise<string> {
+  if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
   const today = new Date().toISOString().slice(0, 10);
   const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
   const expires = String(input?.expires ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires < today || expires > latest) throw new Error(`Pick an end date within ${MAX_DAYS} days.`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires < today || expires > latest) throw new Refused(`Pick an end date within ${MAX_DAYS} days.`);
   const view = await buildView(type, id);
   if (!view) throw new Forbidden();
   // Only what its owner may see goes out.
@@ -218,7 +218,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
   // Never the token: whoever reads the record must not be able to open the link from it.
-  await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), expires_on: expires, metrics: view.data.metrics.length } });
+  await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), expires_on: expires, metrics: view.data.metrics.length } });
   return token;
 }
 
@@ -227,36 +227,36 @@ function endDate(expires: unknown): string {
   const today = new Date().toISOString().slice(0, 10);
   const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
   const e = String(expires ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(e) || e < today || e > latest) throw new Error(`Pick an end date within ${MAX_DAYS} days.`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e) || e < today || e > latest) throw new Refused(`Pick an end date within ${MAX_DAYS} days.`);
   return e;
 }
 
 /** A View Link to one of the actor's dashboard's Snapshots, once it is shown: what it kept and its words, read when
  * the link is opened. Like any View Link, only its dashboard's owner makes one, and only of Metrics they see. */
-async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string }): Promise<string> {
+async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string }, opts: { accessKeyId?: number } = {}): Promise<string> {
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
   const expires = endDate(input?.expires);
   const s = await snapshotForLink(snapshotId, dashboardId);
   // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
-  if (!s) throw new Error("Show the Snapshot to everyone with access first, then make a link to it.");
+  if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const { data: made } = await db().from("view_links").insert({ token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later.
     snapshot_words: s.words, metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
-  await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, details: { link_id: made?.id ?? null, frozen: true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
+  await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
 }
 
 /** Revokes a View Link; its owner may, whatever their role now. */
-export async function revokeViewLink(actor: Actor, linkId: number) {
+export async function revokeViewLink(actor: Actor, linkId: number, opts: { accessKeyId?: number } = {}) {
   const { data: l } = await db().from("view_links").select("object_type, object_id").eq("id", linkId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!l) throw new Forbidden();
   await assertOwner(actor, l.object_type, l.object_id);
   const { data: revoked } = await db().from("view_links").update({ revoked_at: new Date().toISOString() }).eq("id", linkId).eq("workspace_id", actor.workspaceId).is("revoked_at", null).select("id");
   if (!revoked?.length) return;
   const { data: obj } = await db().from(table(l.object_type)).select("name").eq("id", l.object_id).eq("workspace_id", actor.workspaceId).maybeSingle();
-  await audit(actor, { kind: "view_link.revoked", object: { type: l.object_type, id: l.object_id, name: obj?.name ?? null }, details: { link_id: linkId } });
+  await audit(actor, { kind: "view_link.revoked", object: { type: l.object_type, id: l.object_id, name: obj?.name ?? null }, accessKeyId: opts.accessKeyId, details: { link_id: linkId } });
 }

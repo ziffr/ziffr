@@ -298,6 +298,36 @@ export type Widget = { id: number; view: string; title: string | null; metrics: 
 /** A dashboard with its introduction and its widgets in reading order. */
 export type Dashboard = DashboardSummary & { intro: string; widgets: Widget[] };
 
+/** The periods a Snapshot can be of. */
+export type SnapshotKind = "week" | "month" | "quarter" | "half" | "year";
+
+/** A Snapshot in a list (ticket #435): `shown` is false while it is a draft for the dashboard's owner and Editors. */
+export type SnapshotSummary = { id: number; dashboard: number; kind: SnapshotKind; start: string; end: string; label: string; takenAt: string; automatic: boolean; shown: boolean; url: string };
+
+/** One Snapshot read: only the Metrics the key's creator sees now, at most the latest 240 values of each. */
+export type Snapshot = SnapshotSummary & {
+  name: string;
+  intro: string;
+  /** Widgets left out because they draw a Metric the creator does not see. */
+  hiddenWidgets: number;
+  widgets: SnapshotWidget[];
+  metrics: SnapshotMetric[];
+  /** Kept values that differ from the ones recorded now; `now` is null when removed. */
+  corrections: { metric: string; period: string; was: number; now: number | null }[];
+};
+
+/** A widget of a Snapshot: a Finding carries its words. */
+export type SnapshotWidget = { id: number; view: string; title: string | null; metrics: string[]; words?: Record<string, string> };
+
+/** A Metric of a Snapshot with the values it kept. */
+export type SnapshotMetric = { slug: string; name: string; unit: string; values: { period: string; value: number }[] };
+
+/** A View Link as listed: never its token or address. */
+export type ViewLink = { id: number; dashboard: number; label: string; expires: string; revoked: boolean; created: string; frozen: boolean; snapshot: number | null };
+
+/** A View Link just made: `token` and `url` are shown this once. */
+export type MadeViewLink = ViewLink & { token: string; url: string };
+
 /** The built-in views a key may place. */
 export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
 
@@ -577,6 +607,30 @@ export class Ziffr {
     addFinding: async (dashboardId: number, finding: FindingWords & { metric: string }): Promise<Widget> => (await this.request<Widget>("POST", `/dashboards/${dashboardId}/findings`, undefined, finding)).body,
     /** Changes a Finding's words. */
     updateFinding: async (dashboardId: number, findingId: number, words: FindingWords): Promise<Widget> => (await this.request<Widget>("PATCH", `/dashboards/${dashboardId}/findings/${findingId}`, undefined, words)).body,
+  };
+
+  /** Snapshots (ticket #435): reading needs dashboards:read, taking one dashboards:write. A key reads only what its
+   * creator may open, and never shows, deletes or rewrites a Snapshot. */
+  readonly snapshots = {
+    /** A dashboard's Snapshots, newest period first (at most 200). */
+    list: async (dashboardId: number): Promise<SnapshotSummary[]> => (await this.get<{ items: SnapshotSummary[] }>(`/dashboards/${dashboardId}/snapshots`)).items,
+    /** One Snapshot with the values it kept. */
+    get: (id: number) => this.get<Snapshot>(`/snapshots/${id}`),
+    /** Takes a Snapshot of a period that is over (`start` is its first day, yyyy-mm-dd). A draft until a person shows it;
+     * ZiffrError 422 when the period is not over or one exists already. */
+    take: async (dashboardId: number, period: { kind: SnapshotKind; start: string }): Promise<SnapshotSummary> => (await this.request<SnapshotSummary>("POST", `/dashboards/${dashboardId}/snapshots`, undefined, period)).body,
+  };
+
+  /** View Links to dashboards (ticket #435), all behind the scope view-links:write, which a key is given on purpose and
+   * an assistant never is: a View Link publishes data to people outside the workspace. */
+  readonly viewLinks = {
+    /** A dashboard's View Links without their tokens. */
+    list: async (dashboardId: number): Promise<ViewLink[]> => (await this.get<{ items: ViewLink[] }>(`/dashboards/${dashboardId}/view-links`)).items,
+    /** Makes one, ending on `expires` (yyyy-mm-dd, within 90 days). Its `token` and `url` are in this answer only. Not
+     * idempotent: a repeated call makes another link. */
+    create: async (dashboardId: number, input: { expires: string; label?: string; frozen?: boolean; snapshot?: number }): Promise<MadeViewLink> => (await this.request<MadeViewLink>("POST", `/dashboards/${dashboardId}/view-links`, undefined, input)).body,
+    /** Revokes one at once and for good. */
+    revoke: async (id: number): Promise<{ revoked: number }> => (await this.request<{ revoked: number }>("DELETE", `/view-links/${id}`)).body,
   };
 
   /** What a key can build with (scope dashboards:read). */

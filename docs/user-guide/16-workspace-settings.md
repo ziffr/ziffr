@@ -370,12 +370,13 @@ In a **Trial Workspace**, at most two Access Keys work at a time, and none works
 | **Submit values** | It may send in values where you may |
 | **Create metrics** | It may create Metrics owned by you, and delete a Metric you own. Not offered to Guests. |
 | **Change metrics** | It may change the Target Range, Target Series, Projections, Sources and Submitters of the Metrics you own or edit, and the Unusual Value check of the Workflows you own. Not offered to Guests. |
-| **Read dashboards** | It may read the dashboards you may see |
-| **Build dashboards** | It may build dashboards as you. Not offered to Guests. |
+| **Read dashboards** | It may read the dashboards you may see, and their Snapshots |
+| **Build dashboards** | It may build dashboards as you and take Snapshots of those you own or edit. Not offered to Guests. |
 | **Manage alerts** | It may make, change and remove your own Alerts, and needs Read metrics too. Only for you, never for anyone else. |
 | **Read questions and tasks** | The program may list the Questions and Tasks waiting for you and those you asked. |
 | **Answer questions and tasks** | It may reply in their Threads, close or reopen the ones you asked and mark your Tasks done, as you. |
 | **Approve values** | It may approve a value waiting for you, or send it back, as you. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants, and never for your own values. |
+| **Manage View Links** | It may make, list and revoke View Links to the dashboards you own, which show them to people outside the Workspace. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants or Guests. The address of a new link is shown once, to the program that made it. |
 | **Until** | The last day the key works, through the end of that day in UTC. At most a year ahead. |
 | **Create key** | Makes the key |
 
