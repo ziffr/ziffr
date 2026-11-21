@@ -514,7 +514,7 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 ## Audit log
 
-**Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years. Times are shown in the Workspace's time zone.
+**Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years, or for the days the Installation Admin has set (the page says how long). Times are shown in the Workspace's time zone.
 
 ### What is recorded
 

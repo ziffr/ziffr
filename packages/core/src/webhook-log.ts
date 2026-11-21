@@ -10,7 +10,7 @@ import { refFor } from "./deliveries";
 import { audit } from "./audit-log";
 import { trialEndsAt } from "./trials";
 import { sendWebhookNow } from "./webhook-send";
-import { WEBHOOK_LOG_DAYS } from "./webhook-limits";
+import { daysNow } from "./keep-days";
 
 /** One send as the page lists it. */
 export type WebhookLogEntry = {
@@ -50,12 +50,12 @@ async function ownWebhook(actor: Actor, id: unknown): Promise<{ id: string; name
   return { id: String(data.id), name: String(data.name), disabled: !!data.disabled_at };
 }
 
-/** The last sends of one Webhook, newest first, from the last 14 days (Owners and Admins). */
+/** The last sends of one Webhook, newest first, from the days the log is kept (14 unless set; Owners and Admins). */
 export async function webhookLog(actor: Actor, webhookId: string, limit = 50): Promise<WebhookLogEntry[]> {
   assertReadsWebhookLog(actor);
   const hook = await ownWebhook(actor, webhookId);
   const n = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 200) : 50;
-  const since = new Date(Date.now() - WEBHOOK_LOG_DAYS * 86_400_000).toISOString();
+  const since = new Date(Date.now() - (await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS")) * 86_400_000).toISOString();
   const { data } = await db().from("webhook_sends").select("id, type, action_id, metric_id, created_at, state, status_code, failure, attempts").eq("webhook_id", hook.id).eq("workspace_id", actor.workspaceId).gte("created_at", since).order("created_at", { ascending: false }).limit(n);
   return (data ?? []).map((r) => ({
     id: String(r.id), type: String(r.type), at: String(r.created_at), state: r.state as WebhookLogEntry["state"], statusCode: (r.status_code as number | null) ?? null,

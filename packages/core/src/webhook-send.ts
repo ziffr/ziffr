@@ -14,7 +14,8 @@ import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./out
 import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
-import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
+import { daysStrict } from "./keep-days";
+import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
@@ -245,8 +246,9 @@ export async function sendWebhookNow(workspaceId: string, sendId: string): Promi
 /** Sends the Webhook messages that are due, for the deliveries job: at most `limit`, each claimed once by a conditional
  * update, at most a few at a time (WEBHOOK_SEND_CONCURRENCY). Answers only counts. */
 export async function sendWaitingWebhooks(limit = 50, onlyWorkspaceId?: string): Promise<{ sent: number; failed: number }> {
-  // The log is kept 14 days.
-  await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - WEBHOOK_LOG_DAYS * 86_400_000).toISOString());
+  // The log is kept for the days the Installation sets (14 unless set). Fails closed: unreadable settings remove nothing.
+  const keep = await daysStrict("ZIFFR_KEEP_WEBHOOK_LOG_DAYS").catch(() => null);
+  if (keep !== null) await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - keep * 86_400_000).toISOString());
   await db().from("webhook_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
   // `onlyWorkspaceId` is for tests that share a database with others: only that Workspace's due sends are taken.
   const { data: claimed, error } = onlyWorkspaceId ? await db().rpc("claim_webhook_sends_for", { p_workspace: onlyWorkspaceId, p_metric: null, p_limit: limit }) : await db().rpc("claim_webhook_sends", { p_limit: limit });

@@ -9,7 +9,7 @@ export const WEBHOOKS_PER_WORKSPACE = sendingLimitDefault("webhooksPerWorkspace"
 export const WEBHOOK_MESSAGE_MAX_BYTES = 16 * 1024;
 /** Sends a Workspace gets per day; past it sends wait for tomorrow (used by sending, ticket 3). */
 export const WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY = sendingLimitDefault("webhookSendsPerWorkspace");
-/** Days the log of sends is kept (used by sending, ticket 3). */
+/** Days the log of sends is kept unless the Installation sets otherwise (ZIFFR_KEEP_WEBHOOK_LOG_DAYS). */
 export const WEBHOOK_LOG_DAYS = 14;
 /** The longest address, in characters. */
 export const WEBHOOK_URL_MAX = 2_000;

@@ -73,6 +73,50 @@ describe("the rule over the limit", () => {
   });
 });
 
+describe("the rule with days of its own (ticket #517)", () => {
+  // count, limit, days since over, expected, days since last grace, days over the limit, days between periods.
+  const cases: [number, number, number | null, "allow" | "over" | "refuse", number | null, number, number][] = [
+    // No days over the limit: the limit holds at once.
+    [10, 10, null, "refuse", null, 0, 90], [10, 10, 1, "refuse", null, 0, 90], [9, 10, null, "allow", null, 0, 90],
+    // 30 days over the limit.
+    [10, 10, 29.9, "over", null, 30, 90], [10, 10, 30, "refuse", null, 30, 90], [10, 10, null, "over", 29, 30, 90], [10, 10, null, "refuse", 31, 30, 90], [10, 10, null, "over", 91, 30, 90],
+    // Every 7 days, and no wait at all between two periods.
+    [10, 10, null, "refuse", 10, 7, 30], [10, 10, null, "over", 31, 7, 30], [10, 10, null, "over", 20, 7, 0], [10, 10, null, "over", 2, 7, 0],
+    // The edges: 90 days over the limit, a 730-day wait.
+    [10, 10, 89, "over", null, 90, 730], [10, 10, null, "refuse", 729, 14, 730], [10, 10, null, "over", 731, 14, 730],
+  ];
+  it("gives the same answer in the core and in the database for every case", async () => {
+    const now = new Date();
+    for (const [count, limit, ago, want, lastAgo, grace, every] of cases) {
+      const at = ago === null ? null : new Date(now.getTime() - ago * 86_400_000);
+      const last = lastAgo === null ? null : new Date(now.getTime() - lastAgo * 86_400_000);
+      expect(limitRule(count, limit, at, now, last, { days: grace, every }), `core ${count}/${limit}/${ago}/${lastAgo}/${grace}/${every}`).toBe(want);
+      const { data, error } = await db().rpc("workspace_limit_rule", { p_count: count, p_limit: limit, p_since: at?.toISOString() ?? null, p_now: now.toISOString(), p_last_grace: last?.toISOString() ?? null, p_grace: grace, p_every: every });
+      expect(error).toBeNull();
+      expect(data, `database ${count}/${limit}/${ago}/${lastAgo}/${grace}/${every}`).toBe(want);
+    }
+  });
+  it("makes the trigger hold the limit at once with no days over it, and go back to 14 when the setting goes", async () => {
+    try {
+      process.env.ZIFFR_LIMIT_GRACE_DAYS = "0";
+      forgetStoredSettings(); await syncDefaultLimit(true);
+      const { w, make } = await withMetrics(10, 10, "Free");
+      await expect(make("Eleventh")).rejects.toBeInstanceOf(LimitReached);
+      expect(await since(w.id)).toBeNull();
+      expect((await db().from("installation_limit_default").select("grace_days, grace_every_days").eq("only_row", true).single()).data).toEqual({ grace_days: 0, grace_every_days: 90 });
+      delete process.env.ZIFFR_LIMIT_GRACE_DAYS;
+      forgetStoredSettings(); await syncDefaultLimit(true);
+      await make("Eleventh");
+      expect(await since(w.id)).not.toBeNull();
+    } finally {
+      delete process.env.ZIFFR_LIMIT_GRACE_DAYS;
+    }
+  });
+  it("shows the days in effect in the words of the refusal and the usage", async () => {
+    expect(new LimitReached(11, { metrics: 10, label: null }, new Date("2027-01-01T00:00:00Z"), 30).message).toContain("had its 30 days over the limit");
+  });
+});
+
 describe("making Metrics under a limit", () => {
   it("allows 10 % more for 14 days, then waits; the refusal says why", async () => {
     const { w, make } = await withMetrics(9, 10, "Free");

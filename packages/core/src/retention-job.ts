@@ -25,8 +25,10 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import type { CondensedPoint } from "./condensed-parts";
 import type { Metric, Point } from "./types";
 import { allRows, getMetrics } from "./workspace-data";
+import { daysNow } from "./keep-days";
 
-/** The most original values one Metric's run takes in a day; the next day carries on. Years of daily values take days. */
+/** The most original values one Metric's run takes in a day unless the Installation sets otherwise (ZIFFR_RETENTION_VALUES_PER_RUN);
+ * the next day carries on. Years of daily values take days. */
 export const MAX_VALUES_PER_RUN = 5000;
 /** The longest one Metric's run works, in milliseconds, and the longest one call works for all Metrics together. */
 export const MAX_RUN_MS = 60_000;
@@ -154,7 +156,7 @@ async function removeValues(ws: string, metricId: number, from: string, to: stri
   return data as { values: number; breakdown_rows: number; superseded: number; targets: number };
 }
 
-type Run = { claim: number; ws: string; metric: Metric; setting: Retention; ys: YearStart; today: string; started: number; tally: Tally; metrics: Metric[] };
+type Run = { claim: number; ws: string; metric: Metric; setting: Retention; ys: YearStart; today: string; started: number; tally: Tally; metrics: Metric[]; maxValues: number };
 
 /** Condenses one span: the Condensed Value, the check, then the removal of the originals. */
 async function condenseSpan(r: Run, span: string, into: Extract<Retention, { then: "condense" }>["into"], expected: number): Promise<void> {
@@ -220,7 +222,7 @@ async function deletePeriods(r: Run, periods: string[], held: readonly PeriodCou
   for (const p of periods) {
     const n = counts.get(p) ?? 0;
     const spent = r.tally.values + values;
-    if ((spent > 0 && spent + n > MAX_VALUES_PER_RUN) || Date.now() - r.started > MAX_RUN_MS) { r.tally.more = true; break; }
+    if ((spent > 0 && spent + n > r.maxValues) || Date.now() - r.started > MAX_RUN_MS) { r.tally.more = true; break; }
     if (batch.length && values + n > BATCH) { if (!(await flush())) return; }
     batch.push(p); values += n;
   }
@@ -254,7 +256,7 @@ async function work(r: Run, cap: RetentionCap): Promise<void> {
   else {
     for (const c of plan.plan.condense) {
       const n = c.periods.reduce((sum, p) => sum + (valuesOf.get(p) ?? 0), 0);
-      if (r.tally.values + n > MAX_VALUES_PER_RUN && r.tally.condensed > 0) { r.tally.more = true; break; }
+      if (r.tally.values + n > r.maxValues && r.tally.condensed > 0) { r.tally.more = true; break; }
       if (Date.now() - r.started > MAX_RUN_MS) { r.tally.more = true; break; }
       await condenseSpan(r, c.period, setting.into, c.periods.length);
     }
@@ -266,7 +268,7 @@ async function work(r: Run, cap: RetentionCap): Promise<void> {
 const detailsOf = (t: Tally) => ({ condensed: t.condensed, periods: t.periods, values: t.values, breakdown_rows: t.breakdownRows, superseded: t.superseded, targets: t.targets, projections: t.projections, held_back: t.heldBack, mismatches: t.mismatches, more_to_do: t.more });
 
 /** One Metric with a Retention in force, for one day. */
-async function runMetric(ws: string, metric: Metric, ctx: { today: string; ys: YearStart; metrics: Metric[] }, out: RetentionJobResult): Promise<void> {
+async function runMetric(ws: string, metric: Metric, ctx: { today: string; ys: YearStart; metrics: Metric[]; maxValues: number }, out: RetentionJobResult): Promise<void> {
   const { data: raw } = await db().from("metrics").select("retention, retention_cap").eq("id", metric.id).eq("workspace_id", ws).maybeSingle();
   const setting = storedRetention(raw?.retention);
   if (!setting) return;
@@ -285,7 +287,7 @@ async function runMetric(ws: string, metric: Metric, ctx: { today: string; ys: Y
   const { data: claimed } = await db().rpc("claim_retention_run", { p_ws: ws, p_metric: metric.id, p_day: ctx.today });
   if (claimed === null || claimed === undefined) { out.claimedElsewhere++; return; }
   await db().from("retention_runs").update({ confirmation: cap.id }).eq("id", claimed);
-  const run: Run = { claim: Number(claimed), ws, metric, setting, ys: ctx.ys, today: ctx.today, started: Date.now(), tally: noTally(), metrics: ctx.metrics };
+  const run: Run = { claim: Number(claimed), ws, metric, setting, ys: ctx.ys, today: ctx.today, started: Date.now(), tally: noTally(), metrics: ctx.metrics, maxValues: ctx.maxValues };
   try {
     await work(run, cap);
   } catch (e) {
@@ -328,6 +330,7 @@ export async function retentionJob(now = new Date(), only?: { workspaceId: strin
   rows.sort((a, b) => (lastRun.get(a.id) ?? "").localeCompare(lastRun.get(b.id) ?? "") || a.id - b.id);
   const byWorkspace = new Map<string, number[]>();
   for (const r of rows) byWorkspace.set(r.workspace_id, [...(byWorkspace.get(r.workspace_id) ?? []), r.id]);
+  const maxValues = await daysNow("ZIFFR_RETENTION_VALUES_PER_RUN");
   const began = Date.now();
   for (const [ws, ids] of byWorkspace) {
     try {
@@ -338,7 +341,7 @@ export async function retentionJob(now = new Date(), only?: { workspaceId: strin
         const metric = metrics.find((m) => m.id === id);
         if (!metric || metric.formula) continue;
         try {
-          await runMetric(ws, metric, { today, ys, metrics }, out);
+          await runMetric(ws, metric, { today, ys, metrics, maxValues }, out);
         } catch (e) {
           out.failed++;
           console.error(`Retention: a Metric could not be run (${codeOf(e) ?? "error"})`);

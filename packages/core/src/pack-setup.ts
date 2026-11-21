@@ -22,7 +22,7 @@ import { fromWorkflowTemplate } from "./team-templates";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
-import { GRACE_DAYS, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
+import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
 import { TRIAL_METRICS_MAX } from "./metrics";
 import type { Slot, WorkflowTemplateBody } from "./types";
 
@@ -118,11 +118,12 @@ async function roomFor(actor: Actor, n: number): Promise<string | null> {
   let since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;
   const last = space?.last_grace_started_at ? new Date(space.last_grace_started_at as string) : null;
   const now = new Date();
+  const grace = await graceNow();
   for (let i = 0; i < n; i++) {
-    const rule = limitRule(count + i, limit.metrics, since, now, last);
-    const refusal = () => limitRefusal(count + i, limit, since ? null : nextGraceOn(last, now));
+    const rule = limitRule(count + i, limit.metrics, since, now, last, grace);
+    const refusal = () => limitRefusal(count + i, limit, since ? null : nextGraceOn(last, now, grace.every), grace.days);
     if (rule === "refuse") return n === 1 || i === 0 ? refusal() : `${refusal()} This makes ${n} Metrics, room is left for ${i}.`;
-    if (rule === "over" && !since) since = last && now.getTime() < last.getTime() + GRACE_DAYS * 86_400_000 ? last : now;
+    if (rule === "over" && !since) since = last && now.getTime() < last.getTime() + grace.days * 86_400_000 ? last : now;
   }
   return null;
 }

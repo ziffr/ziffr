@@ -10,13 +10,15 @@ import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { canSee } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { auditKeepDays } from "./audit-retention";
 import { workspaceClock } from "./workspace-clock";
 import {
   AUDIT_KINDS, cleanAuditFilter, cleanDetails, csvLine, kindsOf, NAMED_IF_SEEN,
   type AuditDetails, type AuditFilter, type AuditKind, type AuditObjectType,
 } from "./audit-kinds";
 
-/** How long the Audit Log keeps an event, in days (two years). The database refuses to remove younger ones. */
+/** How long the Audit Log keeps an event unless the Installation sets otherwise, in days (two years; audit-retention.ts
+ * has the days in effect). The database refuses to remove an event younger than a year, whatever is set. */
 export const AUDIT_RETENTION_DAYS = 730;
 /** The most events one CSV export holds; narrow the dates for more. */
 export const AUDIT_EXPORT_CAP = 50_000;
@@ -63,12 +65,20 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
       object_name: event.object?.name ? String(event.object.name).slice(0, 120) : null,
       details,
     }], "id", sealDetails);
-    // Older events go once they pass the retention; the database allows nothing younger to be removed. A day's margin
-    // keeps a server clock ahead of the database's from asking for a removal the database refuses.
-    await db().from("audit_events").delete().eq("workspace_id", workspaceId).lt("at", new Date(Date.now() - (AUDIT_RETENTION_DAYS + 1) * 86_400_000).toISOString());
   } catch (e) {
     // Only the kind and the error's code: the details may name people.
     console.error(`Audit Log: could not record ${event.kind} (${(e as { code?: string }).code ?? "error"})`);
+    return;
+  }
+  // Older events go once they pass the days the Installation keeps them (never fewer than a Retention or an Approval
+  // still refers to); the database allows nothing younger than a year to be removed. A day's margin keeps a server
+  // clock ahead of the database's from asking for a removal the database refuses. Fails closed: when the setting
+  // cannot be read, nothing is removed this time.
+  try {
+    const keep = await auditKeepDays();
+    await db().from("audit_events").delete().eq("workspace_id", workspaceId).lt("at", new Date(Date.now() - (keep + 1) * 86_400_000).toISOString());
+  } catch {
+    console.error("Audit Log: old events were not removed this time (the setting could not be read).");
   }
 }
 

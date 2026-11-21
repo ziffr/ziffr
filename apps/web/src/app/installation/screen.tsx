@@ -166,7 +166,7 @@ function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: {
         ? <SectionForm section={section} canSeal={canSeal} />
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
       {slack && <SlackChecked slack={slack} section={section} />}
-      {limits && <WorkspaceLimits rows={limits} />}
+      {limits && <WorkspaceLimits rows={limits} pinned={section.settings.some((x) => x.source === "cloud")} />}
       {replies && <RepliesSetup replies={replies} section={section} siteUrl={siteUrl} canSeal={canSeal} />}
     </section>
   );
@@ -253,15 +253,17 @@ function SectionForm({ section, canSeal }: { section: SectionView; canSeal: bool
 /** One setting: its label, where its value comes from, and a field unless the server sets it. */
 function Field({ setting: s, value, disabled, onChange, onRemove }: { setting: SettingView; value: string; disabled: boolean; onChange: (v: string) => void; onRemove: () => void }) {
   const id = `setting-${s.name}`;
-  const from = s.source === "server" ? "Set on the server; it wins over this page. Change it there."
+  const fixed = s.source === "server" || s.source === "cloud";
+  const from = s.source === "cloud" ? "Set by Ziffr Cloud. It cannot be changed here."
+    : s.source === "server" ? "Set on the server; it wins over this page. Change it there."
     : s.source === "page" ? (s.secret ? `Saved here${s.hint ? `, ends in …${s.hint}` : ""}. Type a new one to replace it.` : "Saved here.")
       : s.source === "default" ? "Not set: the Installation's default is used." : "Not set.";
   return (
     <div className="max-w-xl space-y-1">
       <label htmlFor={id} className="block text-sm font-medium">{s.label} <span className="font-mono text-xs font-normal text-muted-foreground">{s.name}</span></label>
       <p className="text-xs text-muted-foreground">{s.help}</p>
-      {s.source === "server" ? (
-        <p id={id} className="rounded-[var(--radius-input)] border border-dashed border-border px-2 py-1.5 text-sm">{s.secret ? "Set on the server" : s.choices?.find((c) => c.value === s.value)?.label ?? s.value}</p>
+      {fixed ? (
+        <p id={id} className="rounded-[var(--radius-input)] border border-dashed border-border px-2 py-1.5 text-sm">{s.secret ? "Set on the server" : s.choices?.find((c) => c.value === s.value)?.label ?? s.value ?? (s.source === "cloud" ? "The usual value" : "")}{s.source === "cloud" && <span className="ml-2 text-xs text-muted-foreground">set by Ziffr Cloud</span>}</p>
       ) : (
         <div className="flex gap-2">
           {s.choices ? (

@@ -4,6 +4,7 @@
 // the list holds each Workspace's name, numbers and who set its limit, nothing else. A Workspace Owner never sets
 // their own limit; Ziffr Cloud sets one through its own API (ticket 4), writing the same row.
 import { Forbidden } from "./actor";
+import { hostedByCloud } from "./installation-days";
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { db } from "./db";
 import { recordAudit } from "./audit-log";
@@ -43,6 +44,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Installation's audit record it. The last write wins, whether it was an Installation Admin's or Ziffr Cloud's. */
 export async function setWorkspaceLimit(actor: InstallationActor, workspaceId: string, input: { metrics: unknown; label: unknown } | null): Promise<void> {
   await assertInstallationAdmin(actor);
+  // On a Ziffr Cloud deployment the Workspace Limits are Ziffr Cloud's alone (ticket #517), set through its API.
+  if (hostedByCloud(process.env)) throw new Error("Workspace Limits are set by Ziffr Cloud on this Installation.");
   // From a browser: an id of a real Workspace, never the demo; the values checked before anything is written.
   if (typeof workspaceId !== "string" || !UUID.test(workspaceId) || workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden();
   const { data: ws } = await db().from("workspaces").select("id, name").eq("id", workspaceId).maybeSingle();

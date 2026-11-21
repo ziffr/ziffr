@@ -4,13 +4,25 @@
 // The open code knows a Size only as a limit with a name (`label`); prices and payments are Ziffr Cloud's (ADR 0013).
 import { can, type Actor } from "./actor";
 import { db } from "./db";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { daysSetting } from "./installation-days";
+import { settingsInEffect, settingsInEffectStrict, type Settings } from "./settings-in-effect";
 
-/** Days a Workspace may stay over its limit, within its room, before new Metrics wait. */
+/** Days a Workspace may stay over its limit, within its room, before new Metrics wait, unless the Installation sets
+ * otherwise (ZIFFR_LIMIT_GRACE_DAYS; 0 to 90). */
 export const GRACE_DAYS = 14;
 
-/** Days that must pass after a grace started before the Workspace may have another (ticket #457). */
+/** Days that must pass after a grace started before the Workspace may have another (ticket #457), unless the
+ * Installation sets otherwise (ZIFFR_LIMIT_GRACE_EVERY_DAYS; 0 to 730). */
 export const GRACE_EVERY_DAYS = 90;
+
+/** The days over the limit and the days between two such periods. */
+export type Grace = { days: number; every: number };
+
+/** The grace in effect for these settings. */
+export const graceFrom = (settings: Settings): Grace => ({ days: daysSetting("ZIFFR_LIMIT_GRACE_DAYS", settings), every: daysSetting("ZIFFR_LIMIT_GRACE_EVERY_DAYS", settings) });
+
+/** The grace in effect now. */
+export const graceNow = async (): Promise<Grace> => graceFrom(await settingsInEffect());
 
 /** The database's code for a Metric refused by the limit (trigger metrics_within_limit). */
 export const LIMIT_CODE = "ZF441";
@@ -28,21 +40,22 @@ export const roomOf = (limit: number): number => limit + Math.max(1, Math.floor(
  * ("over"), or it waits ("refuse"). `count` is how many Metrics the Workspace holds now, Archived Metrics not
  * counted; `since` when it went over its limit, or null; `lastGrace` when its last grace started, or null: going over
  * again within GRACE_EVERY_DAYS of it gets no new grace. Pure; the trigger answers the same. */
-export function limitRule(count: number, limit: number | null, since: Date | null, now: Date, lastGrace: Date | null = null): "allow" | "over" | "refuse" {
+export function limitRule(count: number, limit: number | null, since: Date | null, now: Date, lastGrace: Date | null = null, grace: Grace = { days: GRACE_DAYS, every: GRACE_EVERY_DAYS }): "allow" | "over" | "refuse" {
   if (limit === null || count + 1 <= limit) return "allow";
   if (count + 1 > roomOf(limit)) return "refuse";
-  if (since && now.getTime() >= since.getTime() + GRACE_DAYS * 86_400_000) return "refuse";
+  if (grace.days <= 0) return "refuse";
+  if (since && now.getTime() >= since.getTime() + grace.days * 86_400_000) return "refuse";
   // Archived down during the grace and over again before its 14 days ran out: what is left of that grace, not a new one.
-  if (!since && lastGrace && now.getTime() < lastGrace.getTime() + GRACE_DAYS * 86_400_000) return "over";
-  if (!since && lastGrace && now.getTime() < lastGrace.getTime() + GRACE_EVERY_DAYS * 86_400_000) return "refuse";
+  if (!since && lastGrace && now.getTime() < lastGrace.getTime() + grace.days * 86_400_000) return "over";
+  if (!since && lastGrace && now.getTime() < lastGrace.getTime() + grace.every * 86_400_000) return "refuse";
   return "over";
 }
 
 /** When the Workspace may next have a grace: GRACE_EVERY_DAYS after its last one started, or null when it may have one
  * now (never had one, or the 90 days have passed). */
-export function nextGraceOn(lastGrace: Date | null, now: Date): Date | null {
+export function nextGraceOn(lastGrace: Date | null, now: Date, every = GRACE_EVERY_DAYS): Date | null {
   if (!lastGrace) return null;
-  const on = new Date(lastGrace.getTime() + GRACE_EVERY_DAYS * 86_400_000);
+  const on = new Date(lastGrace.getTime() + every * 86_400_000);
   return on.getTime() > now.getTime() ? on : null;
 }
 
@@ -51,20 +64,20 @@ export type WorkspaceLimit = { metrics: number; label: string | null };
 
 /** The words for a Metric refused by the limit, the same in the app, the API and the MCP Server. The date of the next
  * grace is in them for everyone who is refused: it says only when a rule lets go, nothing about the Workspace's data. */
-export function limitRefusal(count: number, limit: WorkspaceLimit, graceOn: Date | null = null): string {
+export function limitRefusal(count: number, limit: WorkspaceLimit, graceOn: Date | null = null, graceDays = GRACE_DAYS): string {
   const holds = `This Workspace holds ${count.toLocaleString("en-US")} Metric${count === 1 ? "" : "s"}`;
   const what = limit.label ? `its Size ${limit.label}` : "its limit";
   const allows = count > limit.metrics ? `, more than the ${limit.metrics.toLocaleString("en-US")} ${what} allows` : `, as many as ${what} allows`;
   const change = limit.label ? "ask an Owner to change the Size" : "ask whoever runs this Ziffr to raise the limit";
-  const grace = graceOn ? ` The Workspace had its 14 days over the limit recently; the next ones are possible from ${graceOn.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}.` : "";
+  const grace = graceOn ? ` The Workspace had its ${graceDays} days over the limit recently; the next ones are possible from ${graceOn.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}.` : "";
   return `${holds}${allows}.${grace} Archive a Metric, or ${change}.`;
 }
 
 /** Thrown when the limit refuses a new Metric, or bringing an Archived Metric back. Its message is for people; the
  * API also gives the count and the limit. */
 export class LimitReached extends Error {
-  constructor(readonly count: number, readonly limit: WorkspaceLimit, readonly graceOn: Date | null = null) {
-    super(limitRefusal(count, limit, graceOn));
+  constructor(readonly count: number, readonly limit: WorkspaceLimit, readonly graceOn: Date | null = null, graceDays = GRACE_DAYS) {
+    super(limitRefusal(count, limit, graceOn, graceDays));
     this.name = "LimitReached";
   }
 }
@@ -118,13 +131,18 @@ const SYNC_EVERY_MS = 5_000;
  * (the setting may live in the server's environment, which the database cannot read). Called before a Metric is
  * made or brought back, and when the setting is saved. */
 export async function syncDefaultLimit(force = false): Promise<void> {
-  const d = defaultLimitFrom(await settingsInEffect());
+  // Strict: what the database enforces is never written from a guess. When the stored settings cannot be read, what the
+  // database has stays as it is until the next good read.
+  let settings: Settings;
+  try { settings = await settingsInEffectStrict(); } catch { return; }
+  const d = defaultLimitFrom(settings);
   if (d.problem && !synced) console.error(`Workspace Limits: ${d.problem}`);
-  const key = JSON.stringify([d.metrics, d.label]);
+  const grace = graceFrom(settings);
+  const key = JSON.stringify([d.metrics, d.label, grace.days, grace.every]);
   if (!force && synced && synced.key === key && Date.now() - synced.at < SYNC_EVERY_MS) return;
-  const { data } = await db().from("installation_limit_default").select("metrics, label").eq("only_row", true).maybeSingle();
-  if (!data || data.metrics !== d.metrics || data.label !== d.label) {
-    const { error } = await db().from("installation_limit_default").upsert({ only_row: true, metrics: d.metrics, label: d.label, updated_at: new Date().toISOString() });
+  const { data } = await db().from("installation_limit_default").select("metrics, label, grace_days, grace_every_days").eq("only_row", true).maybeSingle();
+  if (!data || data.metrics !== d.metrics || data.label !== d.label || data.grace_days !== grace.days || data.grace_every_days !== grace.every) {
+    const { error } = await db().from("installation_limit_default").upsert({ only_row: true, metrics: d.metrics, label: d.label, grace_days: grace.days, grace_every_days: grace.every, updated_at: new Date().toISOString() });
     if (error) throw new Error("The Installation's default limit could not be saved.");
   }
   synced = { key, at: Date.now() };
@@ -156,7 +174,8 @@ export async function limitReachedFrom(error: { code?: string } | null | undefin
   ]);
   // Only a Workspace with no grace running is told when the next one is possible.
   const last = !data?.over_limit_since && data?.last_grace_started_at ? new Date(data.last_grace_started_at as string) : null;
-  return new LimitReached(count, limit ?? { metrics: count, label: null }, nextGraceOn(last, new Date()));
+  const grace = await graceNow();
+  return new LimitReached(count, limit ?? { metrics: count, label: null }, nextGraceOn(last, new Date(), grace.every), grace.days);
 }
 
 /** The refusal a new Metric would meet now in the actor's Workspace, in the limit's words, or null when one may be
