@@ -216,6 +216,8 @@ For each, pick **Email**, **Slack**, **Telegram**, **WhatsApp** or **Ticket syst
 
 **Prompts and reminders** can go by up to three ways at once, for example Slack, Telegram and email. Pick the first way, then **Also by** a second and a third. The order matters: a Prompt goes by every way in your list at the same time, and the first answer on any of them counts. The other messages are updated where the app allows it ("Answered on Telegram: 3" on Slack and Telegram; an email's form link says **Already answered**), and an answer that comes later on another way follows the Metric's Submission Rule and is never dropped without a word. Reminders of a missing value go by your first way only, so you are not pinged three times. A way the Metric does not accept answers by, or that cannot reach you, is left out of that Prompt, and the rest still go. Quiet Hours hold every way: a message that waits is not sent afterwards if you answered meanwhile.
 
+If you pick nothing and the team has no default for Prompts, the default is **every way you have connected**: Slack, Telegram and email, in that order, each only where the Metric takes values by it. Connecting Slack or Telegram adds it by itself; once you pick a list of your own, only that list counts.
+
 Whoever asks you a question can still pick another way for that one message. WhatsApp and ticket systems are not live yet: Ziffr only records what it would send there, in the Outbox. See [Connecting Ziffr](04-connecting.md) for what each Connector does.
 
 ### Requests for numbers by email

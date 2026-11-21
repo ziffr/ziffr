@@ -15,7 +15,7 @@ export function PromptWays({ list, teamDefault, team, disabled, label, onChange 
   return (
     <div className="space-y-1">
       <select aria-label={`${label}: first way`} disabled={disabled} value={shown[0] ?? ""} onChange={(e) => onChange(e.target.value ? [e.target.value as ConnectorId, ...shown.slice(1).filter((c) => c !== e.target.value)] : null)} className={SELECT}>
-        {!team && <option value="">Team default ({teamDefault.map((c) => CONNECTORS[c].label).join(", ")})</option>}
+        {!team && <option value="">{teamDefault.length ? `Team default (${teamDefault.map((c) => CONNECTORS[c].label).join(", ")})` : "Default: every way you’ve connected"}</option>}
         {CONNECTOR_IDS.map((c) => <option key={c} value={c}>{CONNECTORS[c].label}</option>)}
       </select>
       {shown.length > 0 && Array.from({ length: Math.min(shown.length + 1, MAX_PROMPT_WAYS) - 1 }, (_, i) => i + 1).map((slot) => (

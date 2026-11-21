@@ -44,7 +44,7 @@ export function Preferences({ viewer, isOwner, people, prefs }: { viewer: string
               {KINDS.map((k) => (
                 <td key={k.id} className="py-2 pr-3">
                   {k.id === "reminder" ? (
-                    <PromptWays list={list(row.id, k.id)} teamDefault={list(null, k.id).length ? list(null, k.id) : ["email"]} team={row.id === null} disabled={!row.can || pending} label={`${k.label} for ${row.label}`} onChange={(next) => save(row.id, k.id, next)} />
+                    <PromptWays list={list(row.id, k.id)} teamDefault={list(null, k.id)} team={row.id === null} disabled={!row.can || pending} label={`${k.label} for ${row.label}`} onChange={(next) => save(row.id, k.id, next)} />
                   ) : (
                   <select
                     aria-label={`${k.label} for ${row.label}`}

@@ -135,6 +135,7 @@ describe("Ask me now and the Metric page say where it goes", () => {
   it("Ask me now says where it was sent and whether that was the person's own way", async () => {
     const { w, sara, m } = await setup({ sources: ["slack"], chosen: "email" });
     await db().from("tokens").insert({ code: `tk-own-${Math.random()}`, metric_id: m.id, submitter_id: sara });
+    await db().from("delivery_preferences").insert({ workspace_id: w.id, user_id: sara, kind: "reminder", connector: "email" });
     slack.user((await db().from("profiles").select("email").eq("id", sara).single()).data!.email);
     const r = await askMeNow(w.actor(sara), m.id);
     expect(r).toMatchObject({ connector: "slack", label: "Slack", chosen: false });

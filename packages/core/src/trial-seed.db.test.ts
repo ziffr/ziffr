@@ -4,6 +4,7 @@ import { opened } from "./test/db-fixtures";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
+import { waysFor } from "./deliveries";
 import { createWorkspace } from "./page-data";
 
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
@@ -56,9 +57,11 @@ describe("a new Trial Workspace", () => {
     expect(tokens!.map((x) => x.submitter_id)).toEqual([t.owner]);
     const { count } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", t.id);
     expect(count).toBe(0);
-    // Requests go by email, the team default, until the Owner picks another Connector.
+    // Questions, tasks and updates go by email, the team default; Prompts have no team default, so they go by every way
+    // that reaches the person (#614).
     const { data: prefs } = await db().from("delivery_preferences").select("kind, connector").eq("workspace_id", t.id).is("user_id", null);
-    expect(prefs!.map((p) => p.connector)).toEqual(["email", "email", "email", "email"]);
+    expect(prefs!.map((p) => p.connector)).toEqual(["email", "email", "email"]);
+    expect(await waysFor(t.id, t.owner, "prompt")).toEqual(["slack", "telegram", "email"]);
   });
 
   it("shows it on one small dashboard", async () => {

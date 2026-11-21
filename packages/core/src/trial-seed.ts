@@ -33,9 +33,9 @@ export async function seedTrialWorkspace(actor: Actor): Promise<{ metricId: numb
     steps: [{ type: "remind", daysBefore: 1 }, { type: "check", changePct: 40, outsideTarget: true }, { type: "publish", lock: false }],
   }, { message: "Made with the trial" });
 
-  // Email is the team default, stored so the Connectors page shows it: the Owner gets requests where they signed in,
-  // and picks Slack or Telegram once they connect one.
-  for (const kind of ["question", "task", "reminder", "update"] as PreferenceKind[]) await setPreference(actor, null, kind, "email");
+  // Email is the team default for everything but Prompts, stored so the Connectors page shows it. Prompts have none: they
+  // go by every way that reaches the person, so connecting Slack or Telegram adds it by itself (#614).
+  for (const kind of ["question", "task", "update"] as PreferenceKind[]) await setPreference(actor, null, kind, "email");
 
   // By hand only (no API), kept with the workspace by id so the guide finds it even after the Owner renames it.
   const { id: metricId } = await createMetric(actor, {
