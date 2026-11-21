@@ -153,7 +153,7 @@ function problemOf(check: () => unknown): string | null {
 }
 
 /** The warning while replies by email work without a provider that vouches for senders (ticket #513). */
-export const AUTHSERV_WARNING = "Replies by email are accepted by address alone: a forged sender could answer as someone else. Set the provider that vouches for senders, so only vouched-for senders are taken. Approvals are never taken by email either way.";
+export const AUTHSERV_WARNING = "Replies by email need confirmation until a provider vouches for senders: Ziffr holds each reply and emails the person a one-time link to confirm it, so a forged sender changes nothing. Set the provider that vouches for senders to take vouched-for replies at once. Approvals are never taken by email without it.";
 
 /** Whether a section works with these settings, for the dot next to its title. */
 async function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): Promise<{ working: boolean; detail: string | null }> {

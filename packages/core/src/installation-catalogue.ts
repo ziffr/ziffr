@@ -39,7 +39,7 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
   { name: "ZIFFR_INBOUND_SECRET", section: "replies", label: "Signing secret", secret: true,
     help: "Signs what the provider forwards to Ziffr; 32 characters or more." },
   { name: "ZIFFR_INBOUND_AUTHSERV_ID", section: "replies", label: "Provider that vouches for senders", secret: false, placeholder: "mx.example.com",
-    help: "The name your provider writes in Authentication-Results; with it, only vouched-for senders are taken." },
+    help: "The name your provider writes in Authentication-Results; with it, replies from vouched-for senders are taken at once; any other reply waits for the person to confirm it by a link." },
   { name: "ZIFFR_TELEGRAM_BOT_TOKEN", section: "telegram", label: "Bot token", secret: true, placeholder: "1234567890:AA…",
     help: "Make a bot with @BotFather in Telegram (/newbot) and paste the token it gives you. Ziffr checks it with Telegram and tells Telegram where to send answers." },
   { name: "ZIFFR_SLACK_CLIENT_ID", section: "slack", label: "Client ID", secret: false, placeholder: "1234567890.1234567890",

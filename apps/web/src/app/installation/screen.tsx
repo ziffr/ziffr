@@ -391,7 +391,7 @@ function replyTestWords(s: ReplyTestStatus): string | null {
   if (s.state === "expired") return "The last test ran out after thirty minutes without a reply. Start a new one.";
   if (s.state !== "received") return null;
   const from = s.fromAdmin ? "from your address" : "but not from the address it went to, so a real reply like it would be refused";
-  const vouched = s.vouched ? "Your provider vouched for the sender." : s.vouchingAsked ? "Your provider did not vouch for the sender, so a real reply like it would be refused: check the provider's name (ZIFFR_INBOUND_AUTHSERV_ID)." : "Nobody vouched for the sender: no provider is named to.";
+  const vouched = s.vouched ? "Your provider vouched for the sender." : s.vouchingAsked ? "Your provider did not vouch for the sender, so a real reply like it would wait for the person to confirm it by email: check the provider's name (ZIFFR_INBOUND_AUTHSERV_ID)." : "Nobody vouched for the sender: no provider is named to, so real replies wait for the person to confirm them by email.";
   return `Your reply arrived, signed, ${from}. ${vouched}`;
 }
 

@@ -142,6 +142,8 @@ Each new Action, reply, proposed Correction and closed Task reaches the person a
 
 People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check. On a Task that asks you to check your own value, reply "confirm", or "Correction:" and the right number. On Slack and Telegram, the message also has an **Approve** button, which only the Approver it went to can use.
 
+When the Installation has no email provider that vouches for senders, a reply by email is **held** first: Ziffr emails you a link, a page shows your reply and what it would do, and pressing **Confirm** records it. The link works once and for 48 hours. If you did not send the reply, ignore the email and nothing happens.
+
 In the demo, to answer as someone else, switch **Viewing as** in the sidebar's footer to that person, as the Action page reminds you. Outside the demo there is no Viewing as: the page only says whom the Action waits for.
 
 ## The Changes page
