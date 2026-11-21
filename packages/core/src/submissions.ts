@@ -46,6 +46,10 @@ export type SubmissionInput = {
    * Metric Owner or an Owner or Admin chose to record it as history: for a past period with no value yet it is an
    * Import. Honoured on the web form only, the Source a signed-in person's own values arrive on. */
   paste?: { import?: boolean };
+  /** Set only by recordOwnValue (record-own-value.ts), never from what a browser sends: the value and period were typed
+   * on the Metric's own page by a signed-in Submitter and are already read into `value` and `period`. Honoured on the
+   * web form only. Unlike `paste`, it marks nothing and gives no right to record history. */
+  typed?: boolean;
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
@@ -192,8 +196,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A day, week or month is the same whatever the year start; quarters and years follow the workspace's.
   const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
   const current = periodStart(new Date(), metric.period, ys);
-  // A program names its value and period; so does a paste, whose cells the paste reader has read already.
-  const given = input.source === "api" || pasted !== null;
+  // A program names its value and period; so does a paste, whose cells the paste reader has read already, and a value typed on the Metric's page.
+  const given = valueIsGiven(input, pasted !== null);
   const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
@@ -294,6 +298,11 @@ async function refusedByDatabase(error: { code?: string } | null, ws: string, me
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;
+}
+
+/** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
+function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
+  return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
 }
 
 /** How a value with the sender's only Token arrived, in words for the reply. */

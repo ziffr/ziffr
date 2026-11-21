@@ -15,6 +15,7 @@ import { inUse, isArchived } from "@ziffr/core/metric-row";
 import { cn } from "@/lib/utils";
 import { layoutChoice } from "@/lib/layout-choice";
 import { MetricPeek } from "./metric-peek";
+import { recordingOffers } from "@ziffr/core/record-own-value";
 
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
@@ -28,6 +29,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   const archivedCount = seen.filter(isArchived).length;
   const metrics = showArchived ? seen.filter(isArchived) : inUse(seen);
   const slideOver = (await layoutChoice()) === "sidebar";
+  // Record a value in the slide-over, only for the Metrics this person submits (ticket #521).
+  const records = slideOver ? await recordingOffers(await currentActor(), metrics.map((m) => m.id)) : {};
   const filter = (archived: boolean) => cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
@@ -89,7 +92,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                         {m.name}
                       </Link>
                       {slideOver && (
-                        <MetricPeek name={m.name} sub={`${PERIOD_LABEL[m.period]}, ${m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}`} href={`/metrics/${m.slug}`}>
+                        <MetricPeek name={m.name} sub={`${PERIOD_LABEL[m.period]}, ${m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}`} href={`/metrics/${m.slug}`} record={records[m.id]}>
                           <div>
                             <div className="fig text-3xl font-semibold tracking-tight">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
                             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

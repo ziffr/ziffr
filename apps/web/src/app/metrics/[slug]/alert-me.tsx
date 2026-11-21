@@ -1,14 +1,14 @@
 // "Alert me…" on a Metric's page (GLOSSARY: Alert; spec 0032, ticket #375): loads the person's own Alerts on this
-// Metric and what it can give, so the page itself stays short. Nothing in the demo, which is read-only.
+// Metric and what it can give, so the page itself stays short. Nothing in the demo, which is read-only. The entry sits
+// in the page's ⋯ menu (metric-toolbar.tsx); its dialog or slide-over opens from there.
 import { currentActor } from "@/lib/viewer";
-import { alertChoices, listMyAlerts } from "@ziffr/core/alerts";
-import { AlertMe } from "@/components/alerts";
+import { alertChoices, listMyAlerts, type AlertChoices, type MyAlert } from "@ziffr/core/alerts";
 import { layoutChoice } from "@/lib/layout-choice";
 
-/** The Alert me… button with its dialog, or nothing in the demo. */
-export async function AlertMeButton({ metric, demo }: { metric: { id: number; name: string }; demo: boolean }) {
+/** What the Alert me… dialog needs, or null in the demo. */
+export async function alertMeData(metric: { id: number; name: string }, demo: boolean): Promise<{ metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; slideOver: boolean } | null> {
   if (demo) return null;
   const actor = await currentActor();
   const [mine, choices] = await Promise.all([listMyAlerts(actor, metric.id), alertChoices(actor, metric.id)]);
-  return <AlertMe metric={metric} mine={mine} choices={choices} slideOver={(await layoutChoice()) === "sidebar"} />;
+  return { metric, mine, choices, slideOver: (await layoutChoice()) === "sidebar" };
 }
