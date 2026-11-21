@@ -16,7 +16,7 @@ export default defineConfig({
     testTimeout: 300_000,
     coverage: {
       provider: "v8",
-      include: CALCULATION_MODULES,
+      include: [...CALCULATION_MODULES, "src/schedule-calendar.ts"],
       reporter: ["text-summary", "text"],
       thresholds: { perFile: true, lines: 100, branches: 100, functions: 100, statements: 100 },
     },
