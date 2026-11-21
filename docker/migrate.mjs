@@ -2,9 +2,11 @@
 // Auth made its schema and before the app starts. Migrations are applied by the Supabase CLI (`supabase db push`),
 // the same command and the same history table as with a Supabase project of one's own, so an Installation can move
 // between the two. Migrations only add (AGENTS.md), so the app of the version before keeps working meanwhile.
-// The first time, it also fills in the demo's made-up company, unless ZIFFR_DEMO=0.
+// The first time, and after an upgrade that changes the demo's seed, it also fills in the demo's made-up company,
+// unless ZIFFR_DEMO=0.
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { currentSeed, demoNeedsFilling, markerText } from "./demo-seed.mjs";
 
 const env = process.env;
 const DIR = env.ZIFFR_KEYS_DIR || "/keys";
@@ -23,7 +25,9 @@ if (push.status !== 0) {
 }
 
 const demoDone = `${DIR}/state/demo-filled`;
-if (env.ZIFFR_DEMO !== "0" && !existsSync(demoDone)) {
+const seed = currentSeed("/app/supabase/migrations");
+const marker = existsSync(demoDone) ? readFileSync(demoDone, "utf8") : null;
+if (env.ZIFFR_DEMO !== "0" && demoNeedsFilling(marker, seed)) {
   // Through PostgREST with the service role, as the nightly job does: demo_reset is granted to nothing else.
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/demo_reset`, {
     method: "POST",
@@ -38,7 +42,7 @@ if (env.ZIFFR_DEMO !== "0" && !existsSync(demoDone)) {
     // The demo is not worth stopping the Installation for; the next start tries again, as does the nightly job.
     console.error(`Ziffr: the demo could not be filled in (${res.status}): ${(await res.text()).slice(0, 300)}`);
   } else {
-    writeFileSync(demoDone, new Date().toISOString() + "\n");
+    writeFileSync(demoDone, markerText(seed));
     console.log("Ziffr: the demo is filled in.");
   }
 }
