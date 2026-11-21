@@ -73,7 +73,7 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
               {/* The page's own buttons stacked one under the other, then the same entries as the menu on a bigger screen. */}
               <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
               <ul className="px-2 pb-3">
-                {[...(menu ?? []).map((m) => ({ label: m.label, icon: m.icon, go: () => { setSheet(false); m.onSelect(); } })),
+                {[...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, go: () => { setSheet(false); m.onSelect?.(); } }]),
                   { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
                   ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
                   ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
