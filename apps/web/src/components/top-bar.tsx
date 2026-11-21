@@ -82,7 +82,7 @@ export function TopBar({ workspace, open, account, guide, demo }: { workspace: N
         </nav>
         <div className="ml-auto flex items-center gap-1">
           {demo && <div className="hidden items-center gap-2 lg:flex">{demo}</div>}
-          <SearchDialog />
+          <SearchDialog account={account} />
           <Link href="/actions" className={cn(iconButton, "relative w-auto gap-1 px-2", path.startsWith("/actions") && "bg-muted text-foreground")} aria-label={open ? `Actions, ${open} waiting for you` : "Actions"} title="Actions">
             <Inbox aria-hidden className="size-4" />
             {open > 0 && <span className="fig text-xs">{open}</span>}

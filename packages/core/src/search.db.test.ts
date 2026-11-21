@@ -8,6 +8,8 @@ import { createDashboard } from "./dashboards";
 import { createDeck } from "./decks";
 import { archiveMetric } from "./archived-metrics";
 import { findMetrics, search } from "./search";
+import { createGroup, setGroupMember } from "./team";
+import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -119,5 +121,71 @@ describe("search", () => {
     for (let i = 0; i < 12; i++) await w.metric(sara, { name: `Churn ${i}` });
     expect((await search(w.actor(sara), "churn")).length).toBe(8);
     expect(await search(w.actor(sara), "x".repeat(5000))).toEqual([]);
+  });
+});
+
+describe("search for Workflows, people, Groups and forms (ticket #530)", () => {
+  const publish = { type: "publish", lock: false } as const;
+  const mk = (a: Actor, name: string) => saveWorkflow(a, null, name, { dueWorkingDays: 1, steps: [publish] });
+
+  /** An owner, a member, a Guest with one Metric shared; a Workflow on that Metric and one on a hidden Metric. */
+  async function crew() {
+    const { w, sara } = await setup();
+    const ben = await w.person("member");
+    const gus = await w.person("guest");
+    await db().from("profiles").update({ name: "Ben Rivers" }).eq("id", ben);
+    await db().from("profiles").update({ name: "Gus Outsider" }).eq("id", gus);
+    const owner = w.actor(sara);
+    const seen = await mk(owner, "Field close");
+    const hidden = await mk(owner, "Field board pack");
+    const shared = await w.metric(sara, { name: "Field visits" });
+    const secret = await w.metric(sara, { name: "Field payroll" });
+    await setMetricWorkflow(owner, shared.id, seen);
+    await setMetricWorkflow(owner, secret.id, hidden);
+    await w.share(shared.id, gus);
+    const mine = await createGroup(owner, "Field crew");
+    const other = await createGroup(owner, "Field board");
+    await setGroupMember(owner, mine, gus, true);
+    await setGroupMember(owner, other, ben, true);
+    return { w, sara, ben, gus, seen, hidden, shared, secret };
+  }
+
+  it("shows a member Workflows, people and Groups by name", async () => {
+    const { w, ben, seen, hidden } = await crew();
+    const r = await search(w.actor(ben, "member"), "field");
+    expect(r.filter((x) => x.kind === "workflow").map((x) => x.name).sort()).toEqual(["Field board pack", "Field close"]);
+    expect(r.filter((x) => x.kind === "group").map((x) => x.name).sort()).toEqual(["Field board", "Field crew"]);
+    expect(names(await search(w.actor(ben, "member"), "rivers"))).toEqual(["person:Ben Rivers"]);
+    expect((await search(w.actor(ben, "member"), "outsider")).map((x) => x.kind)).toEqual(["person"]);
+    expect((await search(w.actor(ben, "member"), "rivers"))[0]).toMatchObject({ you: true, contact: false });
+    void seen; void hidden;
+  });
+
+  it("shows a Guest no outsiders: only themselves, their own Groups and the Workflows of what is shared with them", async () => {
+    const { w, gus, seen } = await crew();
+    const guest = w.actor(gus, "guest");
+    const r = await search(guest, "field");
+    expect(r.filter((x) => x.kind === "workflow")).toEqual([{ kind: "workflow", id: seen, name: "Field close" }]);
+    expect(r.filter((x) => x.kind === "group").map((x) => x.name)).toEqual(["Field crew"]);
+    expect(r.filter((x) => x.kind === "metric").map((x) => x.name)).toEqual(["Field visits"]);
+    // No other member or the owner, by name or by a part of it.
+    for (const q of ["rivers", "ben", "board", "payroll"]) expect(await search(guest, q)).toEqual([]);
+    expect(names(await search(guest, "outsider"))).toEqual(["person:Gus Outsider"]);
+  });
+
+  it("offers a submitter the form of their Metric, only their own and never another's", async () => {
+    const { w, sara, ben, shared } = await crew();
+    const mineToken = await w.token(shared.id, ben);
+    const asBen = await search(w.actor(ben, "member"), "record field");
+    const rec = asBen.filter((x) => x.kind === "record");
+    expect(rec).toHaveLength(1);
+    expect(rec[0]).toMatchObject({ slug: shared.slug, name: "Field visits" });
+    expect(JSON.stringify(rec[0])).toContain(String((mineToken as { code?: string }).code ?? ""));
+    expect((await search(w.actor(ben, "member"), "record")).filter((x) => x.kind === "record")).toHaveLength(1);
+    // The owner submits nothing, so is offered no form; and a plain name offers the form beside the Metric.
+    expect((await search(w.actor(sara), "record field")).some((x) => x.kind === "record")).toBe(false);
+    expect((await search(w.actor(ben, "member"), "field")).some((x) => x.kind === "record")).toBe(true);
+    // A Metric the person does not see offers no form, even if they hold a token for it.
+    expect((await search(w.actor(ben, "member"), "record payroll")).some((x) => x.kind === "record")).toBe(false);
   });
 });

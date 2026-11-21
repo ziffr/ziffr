@@ -1,26 +1,58 @@
 "use server";
-// Search (ticket #412; GLOSSARY: Metric, Period Record, Dashboard, Deck): the top bar's ⌘K search as one thin call into
-// the core, which chooses only among what the signed-in person may see in their Workspace. The browser sends words
-// and gets back names and addresses, nothing else.
+// Search (tickets #412, #530; GLOSSARY: Search, Metric, Period Record, Dashboard, Deck, Workflow, Group): the ⌘K search
+// as thin calls. The core chooses among what the signed-in person may see (Metrics, dashboards, decks, Workflows,
+// people, Groups, their own forms); the pages and commands offered come from their Workspace Role. The browser sends
+// words and gets back names and addresses, nothing else.
 import { attempt } from "@/lib/action-result";
 import { periodRecordUrl } from "@/lib/period-record-url";
+import { commandEntries, matchEntries, pageEntries, type Entry } from "@/lib/search-entries";
 import { currentActor } from "@/lib/viewer";
+import { can } from "@ziffr/core/actor";
+import { MAX_QUERY } from "@ziffr/core/search-query";
 import { search, type SearchResult } from "@ziffr/core/search";
 
-/** A result with the page it leads to. */
-export type SearchRow = SearchResult & { href: string };
+/** A result with the page it leads to; pages and commands are rows too. */
+export type SearchRow = (SearchResult | (Entry & { kind: "page" | "command" })) & { href: string };
 
-/** The address a result leads to. */
+/** The address a result leads to. The form of a Metric the person submits is their own link, `/submit/<code>`. */
 function hrefOf(r: SearchResult): string {
-  if (r.kind === "period") return periodRecordUrl(r.slug, r.period);
-  if (r.kind === "metric") return `/metrics/${encodeURIComponent(r.slug)}`;
-  return `/${r.kind === "deck" ? "decks" : "dashboards"}/${r.id}`;
+  switch (r.kind) {
+    case "period": return periodRecordUrl(r.slug, r.period);
+    case "metric": return `/metrics/${encodeURIComponent(r.slug)}`;
+    case "dashboard": return `/dashboards/${r.id}`;
+    case "deck": return `/decks/${r.id}`;
+    case "workflow": return `/workflows?id=${r.id}`;
+    // There is no page of one person or Group; the list they are on is the place.
+    case "person": case "group": return "/team";
+    case "record": return `/submit/${encodeURIComponent(r.code)}`;
+  }
 }
 
-/** Metrics, dashboards and decks matching the words, and "Metric + period" for period words such as "march 2026". */
+/** The commands this person may use, for the empty search. */
+async function commandsFor() {
+  const actor = await currentActor();
+  return commandEntries({ create: can(actor, "create"), invite: can(actor, "manage-members") });
+}
+
+/** What the search shows before anything is typed: the commands the person may use, and a key for the browser to keep
+ * their recent items under (a person's own, so another person on the same browser never sees them). */
+export async function searchStart() {
+  return attempt(async () => {
+    const actor = await currentActor();
+    return { key: `${actor.workspaceId}:${actor.personId}`, commands: await commandsFor() };
+  });
+}
+
+/** Commands, pages, then what the core finds, for the words: Metrics, a Metric's value for a period, dashboards, decks,
+ * Workflows, people, Groups and the forms of Metrics the person submits. */
 export async function searchEverything(words: string) {
   return attempt(async () => {
-    const found = typeof words === "string" ? await search(await currentActor(), words) : [];
-    return found.map((r): SearchRow => ({ ...r, href: hrefOf(r) }));
+    if (typeof words !== "string") return [];
+    // Cut before anything reads it: the browser's text is untrusted and may be huge.
+    const text = words.slice(0, MAX_QUERY);
+    const actor = await currentActor();
+    const entries = [...matchEntries(await commandsFor(), text, 4), ...matchEntries(pageEntries(actor.role), text, 6)];
+    const found = await search(actor, text);
+    return [...entries.map((e): SearchRow => ({ ...e })), ...found.map((r): SearchRow => ({ ...r, href: hrefOf(r) }))];
   });
 }

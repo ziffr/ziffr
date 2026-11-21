@@ -44,3 +44,13 @@ export function nameScore(name: string, terms: readonly string[]): number | null
   if (n.startsWith(terms[0])) return 0;
   return n.split(/[\s\-_/.]+/).some((w) => w.startsWith(terms[0])) ? 1 : 2;
 }
+
+/** Words that only say "I want to record a value": "record a value for churn" asks for Metrics named churn. */
+const RECORD_FILLER = new Set(["record", "a", "value", "values", "for", "enter", "add", "submit", "my"]);
+
+/** Reads whether the words ask to record a value ("record", "enter value for ...") and which words then name the
+ * Metric; without such a word, every word names it. Nothing left to name means every Metric the person submits. */
+export function recordTerms(all: readonly string[]): { asked: boolean; terms: string[] } {
+  const asked = all.some((w) => w === "record" || w === "enter");
+  return { asked, terms: asked ? all.filter((w) => !RECORD_FILLER.has(w)) : [...all] };
+}

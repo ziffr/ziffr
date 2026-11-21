@@ -191,6 +191,7 @@ const CASES: Record<string, Case> = {
   "retention-actions:previewRetentionForAll": { args: () => [{ keep_months: 25, then: "delete" }] },
   "retention-actions:applyRetentionToAll": { args: () => [{ keep_months: 25, then: "delete" }, "shown", "delete"] },
   "search-actions:searchEverything": { reads: () => ["churn march 2026"] },
+  "search-actions:searchStart": { reads: () => [] },
   "series-actions:saveSeriesRows": { args: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
   "series-actions:removeSeriesRows": { args: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },

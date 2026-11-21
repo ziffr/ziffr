@@ -87,7 +87,7 @@ The top bar is on every page once you are in a Workspace, if you chose it.
 | **Ziffr** | Goes to your Home dashboard |
 | **Dashboards**, **Decks**, **Metrics**, **Analyze** | The main pages most people use every day |
 | **Workspace** | A menu with the Workspace's own pages. Which pages you see depends on your role; see [Workspace settings](16-workspace-settings.md#the-workspace-menu). |
-| The magnifying glass (**Search**) | Finds Metrics, dashboards and decks by name; see [Search](#search). Press **⌘K** (Mac) or **Ctrl+K** from any page. |
+| The magnifying glass (**Search**) | Finds Metrics, dashboards, decks, Workflows, people, Groups and pages by name, and starts common tasks; see [Search](#search). Press **⌘K** (Mac) or **Ctrl+K** from any page. |
 | The inbox icon (**Actions**) | Your **Actions**: questions and tasks waiting for you. A number shows how many are open. |
 | The question mark (**User guide**) | Opens this guide. Your team may have pointed it at its own page instead, which opens in a new tab. |
 | Your name and the Workspace's name | The menu under your name |
@@ -107,9 +107,17 @@ The top bar is on every page once you are in a Workspace, if you chose it.
 
 ### Search
 
-Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards and decks whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use.
+Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
 
 Add a period and Ziffr finds that Metric's value for it: "churn march 2026", "revenue Q3", "visits last week" or, in German, "Besuche KW 46". Ziffr reads the period the way it reads replies, in the Workspace's Answer Languages and with its Fiscal Year (see [Workspace settings](16-workspace-settings.md)). The result, marked **Value**, opens the Period Record: that value, how it came to be, and the Threads about it. A period is only found when it is one of the Metric's own periods ("March 2026" for a monthly Metric, not "2026"), and has begun.
+
+**Pages.** Every page you can open is found by its name and by plain words: "invite" finds Members and Groups, "webhook" finds Webhooks, "approval" finds Actions and Workflows, "retention" and "limit" find Size and Retention. You are only offered pages your role can open; a Guest, for example, is not offered Webhooks or the Audit log.
+
+**People and Groups.** Members and Contacts are found by name and lead to Members and Groups. A Guest finds only themselves and the Groups they are in, never other members.
+
+**Commands.** **New metric**, **New dashboard**, **New deck**, **Paste values** (for those who may create), **Invite someone** (for Owners and Admins), **Record a value for** a Metric you submit (it opens your own form; type "record" and part of the Metric's name), **Switch Workspace to** another of your Workspaces, **Open the demo** where your Ziffr offers it, and **Toggle sidebar** in the new layout.
+
+Opened without typing, Search lists your recent items, the last five things you opened from it, and the commands you may use. The recent items are kept in this browser only, for you alone; your own form links are never kept.
 
 Move through the results with the arrow keys, open one with **Enter**, and close the search with **Esc**. Nothing you type is kept.
 
