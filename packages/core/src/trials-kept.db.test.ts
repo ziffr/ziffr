@@ -11,7 +11,7 @@ import { createWorkspace } from "./page-data";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { closeEndedTrials, keptWords, remindEndingTrials, trialStatus } from "./trial-end";
 import { assertNotTrial, trialHoldsBack } from "./trials";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { DefaultWorkspaceTaken, syncDefaultLimit } from "./workspace-limits";
 
 const HOUR = 3_600_000;
@@ -50,8 +50,8 @@ describe("a trial kept as an ordinary Workspace", () => {
     expect(status?.keptAs).toEqual({ label: "Free", metrics: 2 });
     expect(keptWords("2026-12-03T10:00:00Z", status!.keptAs!)).toBe("Your trial ends on 3 December. Your Workspace then stays, on Free: up to 2 Metrics.");
     expect(await remindEndingTrials()).toBe(1);
-    const { data } = await db().from("deliveries").select("body").eq("workspace_id", w.id).eq("kind", "notice");
-    expect(data?.[0].body).toContain("Your Workspace then stays, on Free: up to 2 Metrics.");
+    const data = await opened("deliveries", w.id, (await db().from("deliveries").select("id, body").eq("workspace_id", w.id).eq("kind", "notice")).data);
+    expect(data[0].body).toContain("Your Workspace then stays, on Free: up to 2 Metrics.");
   });
 
   it("becomes ordinary at its end: invitations open, everyone is reached, keys keep their dates, the grace starts", async () => {

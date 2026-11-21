@@ -133,18 +133,27 @@ describe("workspaceUsageFigures", () => {
     expect(got.state).toMatchObject({ workspace_metrics: 1 });
   });
 
-  it(`grants exactly ${WORKSPACE_USAGE_CALLS_PER_HOUR} calls an hour to calls made at once, across all the Workspace's keys`, async () => {
-    const { w, sara, keyFor } = await setup();
-    const keys = [await keyFor(sara, "owner"), await keyFor(sara, "owner")];
-    const results = await Promise.allSettled(Array.from({ length: WORKSPACE_USAGE_CALLS_PER_HOUR + 5 }, (_, i) => workspaceUsageFigures(keys[i % 2], { from: dayAgo(1), to: dayAgo(1) })));
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(WORKSPACE_USAGE_CALLS_PER_HOUR);
-    const refused = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
-    expect(refused).toHaveLength(5);
-    expect(refused.every((r) => r.reason instanceof UsageLimit)).toBe(true);
-    // Another Workspace is not held back by this one's calls.
+  it("grants exactly the limit to calls made at once, and no more across the Workspace's keys", async () => {
+    const { w } = await setup();
+    // The claim itself, with a small limit so the test's own requests stay few: 12 at once, 5 allowed.
+    const claim = (ws: string) => db().rpc("claim_workspace_usage_call", { p_ws: ws, p_max: 5 });
+    const results = await Promise.all(Array.from({ length: 12 }, () => claim(w.id)));
+    expect(results.map((r) => r.error)).toEqual(results.map(() => null));
+    expect(results.filter((r) => r.data === true)).toHaveLength(5);
+    // Another Workspace has its own count.
     const other = await setup();
-    await expect(workspaceUsageFigures(await other.keyFor(other.sara, "owner"))).resolves.toBeTruthy();
-    expect(w.id).toBeTruthy();
+    expect((await claim(other.w.id)).data).toBe(true);
+  });
+
+  it(`refuses the call after ${WORKSPACE_USAGE_CALLS_PER_HOUR} in the hour, whichever of the Workspace's keys makes them`, async () => {
+    const { sara, keyFor } = await setup();
+    const keys = [await keyFor(sara, "owner"), await keyFor(sara, "owner")];
+    // The limit is per clock hour: not across a change of hour, where the calls would be in two buckets.
+    const toNextHour = 3_600_000 - (Date.now() % 3_600_000);
+    if (toNextHour < 30_000) await new Promise((r) => setTimeout(r, toNextHour + 500));
+    for (let i = 0; i < WORKSPACE_USAGE_CALLS_PER_HOUR; i++) await workspaceUsageFigures(keys[i % 2], { from: dayAgo(1), to: dayAgo(1) });
+    await expect(workspaceUsageFigures(keys[0])).rejects.toThrow(UsageLimit);
+    await expect(workspaceUsageFigures(keys[1])).rejects.toThrow(UsageLimit);
   });
 
   it("calls nothing unused before 90 days were counted, and has no view figures for a day before counting began", async () => {

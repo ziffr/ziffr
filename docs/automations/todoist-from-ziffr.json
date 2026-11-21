@@ -1,0 +1,570 @@
+{
+  "name": "Ziffr to Todoist",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Ziffr to Todoist\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the Todoist project.\n2. Add the Todoist credential to the HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr (events: action.created, action.updated, action.done).\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/todoist.md",
+        "width": 460,
+        "height": 300
+      },
+      "id": "b90e535d-de58-5a03-87e7-a4416c7f3643",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ziffr-REPLACE-WITH-A-LONG-RANDOM-STRING",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "9f85563c-d447-5102-bf78-794ef20a9a7c",
+      "name": "Ziffr event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "d5c3df53-da5b-23a1-f8ee-2d27eb5d0506"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cdaedc15-a8dd-593d-9279-aa00882e4360",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "f4ec2bb4-4bc2-5c48-86ad-f2bc5047f383",
+              "name": "webhookId",
+              "value": "REPLACE-WITH-THE-WEBHOOK-ID",
+              "type": "string"
+            },
+            {
+              "id": "722107b6-a18e-547c-ae93-0bb7146cf1e4",
+              "name": "secret",
+              "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
+              "type": "string"
+            },
+            {
+              "id": "d88b1c21-931b-54a8-9282-fbb3d32566ad",
+              "name": "projectId",
+              "value": "REPLACE-WITH-THE-PROJECT-ID",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "a2140c56-6107-5b59-ac07-1287cc7d3eaa",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ziffr -> Todoist: checks the signature, drops repeats, own echoes and old news, and decides what to do.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst SYSTEM = 'todoist';\nconst LIMIT = 100;\nconst ID = /^[A-Za-z0-9_-]{1,40}$/;\nconst taskUrl = (id) => 'https://app.todoist.com/app/task/' + id;\nconst TASKS = (active, completed) => {\n  const seen = new Set();\n  const out = [];\n  for (const t of (active && active.results) || []) { seen.add(String(t.id)); out.push({ id: String(t.id), title: t.content, done: false, notes: t.description || '', url: taskUrl(t.id) }); }\n  for (const t of (completed && completed.items) || []) { const id = String(t.task_id || t.id); if (!seen.has(id)) { seen.add(id); out.push({ id, title: t.content, done: true, notes: t.description || '', url: taskUrl(id) }); } }\n  return out;\n};\nconst TASK = (res) => ({ id: String(res.id), url: taskUrl(res.id) });\nconst createBody = (title, notes, due, open) => { const b = { content: title, description: notes, project_id: input.projectId }; if (due) b.due_date = due; return b; };\nconst patchBody = (title, due, open) => (due ? { content: title, due_date: due } : { content: title, due_string: 'no date' });\nconst closeBody = () => ({});\nconst extra = () => ({});\nconst input = $input.first().json;\nconst headers = Object.fromEntries(Object.entries(input.headers || {}).map(([k, v]) => [k.toLowerCase(), String(v)]));\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst out = (httpStatus, rest = {}) => [{ json: { httpStatus, action: 'none', ...rest } }];\n\n// 1. The signature, over the raw body, within five minutes; a secret replaced in the last 24 hours may sign too (oldSecret).\nconst secrets = [input.secret, input.oldSecret].filter((s) => s && !String(s).startsWith('REPLACE'));\nconst timestamp = headers['x-ziffr-timestamp'] || '';\nconst given = (headers['x-ziffr-signature'] || '').split(',').map((h) => h.trim()).filter((h) => /^sha256=[0-9a-f]{64}$/.test(h));\nlet signed = /^\\d{1,12}$/.test(timestamp) && Math.abs(Date.now() / 1000 - Number(timestamp)) <= 300;\nlet match = false;\nfor (const secret of secrets) {\n  const expected = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex'));\n  for (const g of given) if (g.length === expected.length && crypto.timingSafeEqual(Buffer.from(g), expected)) match = true;\n}\nif (!signed || !match) return out(401);\n\nlet event;\ntry { event = JSON.parse(raw); } catch (e) { return out(400); }\nconst d = event && event.data;\nif (!event || typeof event.type !== 'string' || !event.type.startsWith('action.') || !d || typeof d.ref !== 'string') return out(200);\n\n// 2. Once per delivery: Ziffr sends at least once. Static data only lasts while the workflow is active.\nconst state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nstate.latest = state.latest || {};\nconst now = Date.now();\nfor (const [k, t] of Object.entries(state.seen)) if (now - t > 86400000) delete state.seen[k];\nfor (const [k, v] of Object.entries(state.latest)) if (now - v.t > 30 * 86400000) delete state.latest[k];\n// The id in the signed body is the delivery id; the header is not signed, so it is not trusted.\nconst delivery = typeof event.id === 'string' ? event.id : '';\nif (!delivery) return out(200, { why: 'no id' });\nif (state.seen[delivery]) return out(200, { why: 'repeat' });\nstate.seen[delivery] = now;\n\n// 3. Not our own echo, only Tasks, only the newest news per Action.\nif (d.source && d.source.type === 'webhook' && d.source.webhook_id === input.webhookId) return out(200, { why: 'echo' });\nif (d.kind !== 'task') return out(200, { why: 'question' });\nconst seenUpdate = state.latest[d.ref];\nif (seenUpdate && Date.parse(d.updated_at) < Date.parse(seenUpdate.u)) return out(200, { why: 'older' });\nstate.latest[d.ref] = { u: d.updated_at, t: now };\n\n// 4. What to do. A redacted message has no title: the task says what it is and links back.\nconst link = (d.external_ids || []).find((e) => e.system === SYSTEM);\nif (link && !ID.test(String(link.external_id))) return out(200, { why: 'bad id' });\nconst open = d.status === 'open';\nconst clean = (s) => String(s).replace(/[\\u0000-\\u001f\\u007f\\u2028\\u2029]+/g, \" \").replace(/-{3,}/g, \"-\").replace(/^\\s*Reply:\\s*/i, \"\").trim();\nconst title = d.redacted ? 'A Ziffr task for you (' + d.ref + ')' : String(d.title || d.ref);\nconst notes = [\"Ziffr ref: \" + clean(d.ref), clean(d.link), !d.redacted && d.metric ? \"Metric: \" + clean(d.metric.name) : null, !d.redacted && d.asker ? \"Asked by: \" + clean(d.asker.name) : null, \"--- end of Ziffr text ---\"].filter(Boolean).join(\"\\n\");\nconst base = { ref: d.ref };\nif (event.type === 'action.done') return link ? out(200, { ...base, action: 'close', taskId: link.external_id, patchBody: closeBody() }) : out(200, { why: 'not linked' });\nif (event.type === 'action.created' || event.type === 'action.updated') {\n  if (link) return out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: patchBody(title, d.due, open) });\n  return open ? out(200, { ...base, action: 'create', notes, createBody: createBody(title, notes, d.due, open), ...extra(notes) }) : out(200, { why: 'closed and not linked' });\n}\nreturn out(200, { why: 'nothing to do' });\n"
+      },
+      "id": "5dfab992-b235-5cc8-ae6e-a7df8c9aec50",
+      "name": "Verify and filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": "={{ $json.httpStatus }}"
+        }
+      },
+      "id": "caae33a8-76f1-5b6f-a63b-38f0b9e7042f",
+      "name": "Answer Ziffr",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "8c3c557e-0161-1cb8-d83f-6d65c4e6fa0c",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "614228f7-d29a-bd61-1942-1e89ee65a096",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "patch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "patch"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "047bec42-ba02-5c50-8f01-05994db7efd1",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "close",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "close"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c3232479-246a-505f-9489-2102197da07b",
+      "name": "What to do",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.todoist.com/api/v1/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "project_id",
+              "value": "={{ $('Settings').first().json.projectId }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c0e70675-dcd5-5784-a6d4-5da758ea13bf",
+      "name": "List tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A first event: is there a task with this ref in its notes already (a retry, a lost link)? Then link that one.\nconst SYSTEM = 'todoist';\nconst ID = /^[A-Za-z0-9_-]{1,40}$/;\nconst taskUrl = (id) => 'https://app.todoist.com/app/task/' + id;\nconst TASKS = (active, completed) => {\n  const seen = new Set();\n  const out = [];\n  for (const t of (active && active.results) || []) { seen.add(String(t.id)); out.push({ id: String(t.id), title: t.content, done: false, notes: t.description || '', url: taskUrl(t.id) }); }\n  for (const t of (completed && completed.items) || []) { const id = String(t.task_id || t.id); if (!seen.has(id)) { seen.add(id); out.push({ id, title: t.content, done: true, notes: t.description || '', url: taskUrl(id) }); } }\n  return out;\n};\nconst TASK = (res) => ({ id: String(res.id), url: taskUrl(res.id) });\nconst createBody = (title, notes, due, open) => { const b = { content: title, description: notes, project_id: input.projectId }; if (due) b.due_date = due; return b; };\nconst patchBody = (title, due, open) => (due ? { content: title, due_date: due } : { content: title, due_string: 'no date' });\nconst closeBody = () => ({});\nconst v = $('Verify and filter').first().json;\n// Only a task that holds exactly what this workflow would have written is taken as its own; a task someone else made with the ref in it is not.\nconst found = TASKS($input.first().json).find((t) => t.notes.replace(/\\r\\n/g, '\\n').trim() === String(v.notes).trim());\nreturn [{ json: { ...v, exists: !!found, taskId: found ? found.id : undefined, taskUrl: found ? found.url : undefined } }];\n"
+      },
+      "id": "dfaf06b3-d0a9-55c0-80a9-6f49996ee164",
+      "name": "Find by ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "4d68c8f1-3459-c0ed-b405-04de5003ec2a",
+              "leftValue": "={{ $json.exists }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "15bd5e7e-cb8d-54fc-ad96-74c40383c108",
+      "name": "Already there?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.todoist.com/api/v1/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Verify and filter').first().json.createBody) }}",
+        "options": {}
+      },
+      "id": "331931ed-8ec5-5ff5-b69c-07cce762411c",
+      "name": "Create task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tells Ziffr which task this Action is, so every later event carries it in external_ids.\nconst SYSTEM = 'todoist';\nconst ID = /^[A-Za-z0-9_-]{1,40}$/;\nconst taskUrl = (id) => 'https://app.todoist.com/app/task/' + id;\nconst TASKS = (active, completed) => {\n  const seen = new Set();\n  const out = [];\n  for (const t of (active && active.results) || []) { seen.add(String(t.id)); out.push({ id: String(t.id), title: t.content, done: false, notes: t.description || '', url: taskUrl(t.id) }); }\n  for (const t of (completed && completed.items) || []) { const id = String(t.task_id || t.id); if (!seen.has(id)) { seen.add(id); out.push({ id, title: t.content, done: true, notes: t.description || '', url: taskUrl(id) }); } }\n  return out;\n};\nconst TASK = (res) => ({ id: String(res.id), url: taskUrl(res.id) });\nconst createBody = (title, notes, due, open) => { const b = { content: title, description: notes, project_id: input.projectId }; if (due) b.due_date = due; return b; };\nconst patchBody = (title, due, open) => (due ? { content: title, due_date: due } : { content: title, due_string: 'no date' });\nconst closeBody = () => ({});\nconst v = $('Verify and filter').first().json;\nconst j = $input.first().json;\nconst t = j.exists ? { id: j.taskId, url: j.taskUrl } : TASK(j);\nreturn [{ json: { ziffr: { op: 'link', ref: v.ref, system: SYSTEM, external_id: t.id, url: t.url } } }];\n"
+      },
+      "id": "9d3967af-153b-50ea-82ef-f54e03b125bf",
+      "name": "Prepare link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.todoist.com/api/v1/tasks/{{ encodeURIComponent($json.taskId) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.patchBody) }}",
+        "options": {}
+      },
+      "id": "80feef1e-7abc-5af5-815d-cdead25257b9",
+      "name": "Update task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        420
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.todoist.com/api/v1/tasks/{{ encodeURIComponent($json.taskId) }}/close",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "todoistApi",
+        "options": {}
+      },
+      "id": "4b22786a-cd32-5691-8d00-b0645a41f4b3",
+      "name": "Close task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        560
+      ],
+      "credentials": {
+        "todoistApi": {
+          "name": "Todoist account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+      },
+      "id": "cb255f86-021f-5d8e-a4ef-a65fdd3f1779",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Ziffr-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Ziffr-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b1ae10b1-acbc-557f-914f-c71d753065c1",
+      "name": "Call Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2
+    }
+  ],
+  "connections": {
+    "Ziffr event": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Verify and filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify and filter": {
+      "main": [
+        [
+          {
+            "node": "Answer Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Ziffr": {
+      "main": [
+        [
+          {
+            "node": "What to do",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What to do": {
+      "main": [
+        [
+          {
+            "node": "List tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Close task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List tasks": {
+      "main": [
+        [
+          {
+            "node": "Find by ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find by ref": {
+      "main": [
+        [
+          {
+            "node": "Already there?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already there?": {
+      "main": [
+        [
+          {
+            "node": "Prepare link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create task": {
+      "main": [
+        [
+          {
+            "node": "Prepare link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare link": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Call Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

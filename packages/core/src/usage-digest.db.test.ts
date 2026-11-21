@@ -6,7 +6,7 @@ import { db } from "./db";
 import { sendDelivery, type OutgoingMail } from "./mail";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { digestOptedOut, workspace } from "./test/db-fixtures";
+import { digestOptedOut, opened, workspace } from "./test/db-fixtures";
 import { DemoReadOnly } from "./demo";
 import { DIGEST_NAMES, optOutOfUsageDigestByToken, setUsageDigest, usageDigestJob, usageDigestTokenValid } from "./usage-digest";
 import { signDigestToken, verifyDigestToken } from "./usage-digest-token";
@@ -25,7 +25,7 @@ afterEach(async () => {
   forgetStoredSettings();
   for (const c of cleanups.splice(0)) await c().catch(() => {});
 });
-const digests = async (ws: string) => (await db().from("deliveries").select("id, recipient_id, kind, connector, mail_state, subject, body").eq("workspace_id", ws).eq("kind", "digest")).data ?? [];
+const digests = async (ws: string) => opened("deliveries", ws, (await db().from("deliveries").select("id, recipient_id, kind, connector, mail_state, subject, body").eq("workspace_id", ws).eq("kind", "digest")).data);
 const mail = (n: string) => `${n}-${Math.random().toString(36).slice(2, 8)}@example.test`;
 
 /** A Workspace counted for 120 days with Owner Sara (an address of her own), an Admin, a Member and a Metric of Sara's
@@ -115,11 +115,17 @@ describe("when nothing is sent", () => {
 
   it("does nothing without working email or without a key to sign the link", async () => {
     const { w } = await setup();
-    delete process.env.ZIFFR_SMTP_URL; forgetStoredSettings();
-    expect((await usageDigestJob(early())).sent).toBe(0);
-    process.env.ZIFFR_SMTP_URL = ENV.ZIFFR_SMTP_URL; delete process.env.ZIFFR_JOB_SECRET; forgetStoredSettings();
-    expect((await usageDigestJob(early())).sent).toBe(0);
-    expect(await digests(w.id)).toEqual([]);
+    // The link is signed with the secrets key too where there is one, so this run has none either.
+    const secretsKey = process.env.ZIFFR_SECRETS_KEY;
+    try {
+      delete process.env.ZIFFR_SMTP_URL; forgetStoredSettings();
+      expect((await usageDigestJob(early())).sent).toBe(0);
+      process.env.ZIFFR_SMTP_URL = ENV.ZIFFR_SMTP_URL; delete process.env.ZIFFR_JOB_SECRET; delete process.env.ZIFFR_SECRETS_KEY; forgetStoredSettings();
+      expect((await usageDigestJob(early())).sent).toBe(0);
+      expect(await digests(w.id)).toEqual([]);
+    } finally {
+      if (secretsKey === undefined) delete process.env.ZIFFR_SECRETS_KEY; else process.env.ZIFFR_SECRETS_KEY = secretsKey;
+    }
   });
 
   it("skips an Owner with no usable address, without using up their month", async () => {
