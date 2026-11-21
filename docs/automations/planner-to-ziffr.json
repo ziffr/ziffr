@@ -1,0 +1,318 @@
+{
+  "name": "Planner to Ziffr",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Planner to Ziffr\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the plan.\n2. Add the Microsoft Graph \"OAuth2 API\" credential to the List tasks and Read notes nodes.\n3. Activate the workflow. Every 5 minutes it tells Ziffr which tasks were completed or reopened, and passes on a line starting \"Reply:\" in a task's notes (its description).\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/planner.md",
+        "width": 460,
+        "height": 300
+      },
+      "id": "bdd4d217-56f4-5991-b5bf-bb79167671a1",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "8320748d-16ee-55c0-917f-c605a4d85562",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d81fc100-9e0a-579b-ba57-f1604535c21f",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "ad4773b3-26c3-598b-b4c2-985516294f13",
+              "name": "webhookId",
+              "value": "REPLACE-WITH-THE-WEBHOOK-ID",
+              "type": "string"
+            },
+            {
+              "id": "41326512-1c4d-5a05-80f7-2389baed97c3",
+              "name": "secret",
+              "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
+              "type": "string"
+            },
+            {
+              "id": "7964d388-f316-5649-82c5-745c189c1164",
+              "name": "planId",
+              "value": "REPLACE-WITH-THE-PLAN-ID",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "55777e9c-3be1-5e68-9e0c-1ea751253df5",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.microsoft.com/v1.0/planner/plans/{{ $('Settings').first().json.planId }}/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "id": "84ffb8f1-9c26-5d66-89c9-22d3b72c6175",
+      "name": "List tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "oAuth2Api": {
+          "name": "Microsoft Graph (Planner)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Planner tasks whose title leads with a Ziffr ref (\"[ZIF-12] ...\"); their notes are read next, and must name the same ref.\nconst res = $input.first().json;\nconst all = res.value || [];\nconst mine = all.map((t) => ({ t, m: /^\\[([A-Za-z0-9]+-\\d+)\\] /.exec(String(t.title || '')) })).filter((x) => x.m);\nconst whole = all.length < 100 && !res['@odata.nextLink'] && mine.length <= 40;\nreturn mine.slice(0, 40).map((x) => ({ json: { id: x.t.id, ref: x.m[1], done: x.t.percentComplete === 100, whole } }));\n"
+      },
+      "id": "c1395b14-1d63-5417-94bb-7781b1322849",
+      "name": "Tasks with a Ziffr ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.microsoft.com/v1.0/planner/tasks/{{ encodeURIComponent($json.id) }}/details",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "id": "865d8625-4a65-5277-a22a-2ae4180cb470",
+      "name": "Read notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "oAuth2Api": {
+          "name": "Microsoft Graph (Planner)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Planner -> Ziffr: which tasks with a Ziffr ref were ticked or un-ticked since we last told Ziffr, and which got a \"Reply:\" line.\nconst SYSTEM = 'planner';\nconst LIMIT = 100;\nconst refOf = (title) => { const m = /^\\[([A-Za-z0-9]+-\\d+)\\] /.exec(String(title || '')); return m ? m[1] : null; };\nconst taskUrl = (id) => 'https://tasks.office.com/Home/Task/' + encodeURIComponent(id);\n// A Planner task keeps its text in a separate \"details\" object, so the ref also leads the title: \"[ZIF-12] Send the report\".\n// For the lookup the title stands in for the first line of the notes.\nconst TASKS = (res) => (res.value || []).map((t) => ({ id: t.id, title: t.title, done: t.percentComplete === 100, notes: refOf(t.title) ? 'Ziffr ref: ' + refOf(t.title) : '', url: taskUrl(t.id) }));\nconst TASK = (res) => ({ id: res.id, url: taskUrl(res.id) });\nconst ID = /^[A-Za-z0-9_-]{1,64}$/;\nconst DUE = (due) => (due ? due + 'T00:00:00Z' : null);\nconst createBody = (title, notes, due, open) => { const b = { planId: input.planId, bucketId: input.bucketId, title: '[' + d.ref + '] ' + title, percentComplete: open ? 0 : 100 }; if (due) b.dueDateTime = DUE(due); return b; };\nconst patchBody = (title, due, open) => ({ title: '[' + d.ref + '] ' + title, dueDateTime: DUE(due), percentComplete: open ? 0 : 100 });\nconst closeBody = () => ({ percentComplete: 100 });\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst roots = $('Tasks with a Ziffr ref').all();\nconst details = $input.all();\nconst tasks = roots.map((x, i) => ({ id: x.json.id, done: x.json.done, notes: (details[i] && details[i].json && details[i].json.description) || '', titleRef: x.json.ref }));\nconst out = [];\nconst present = new Set();\nfor (const t of tasks) {\n  // Ziffr's block is the first lines up to the LAST whole line that is the marker; its first line holds the ref.\n  const lines = t.notes.split(/\\r?\\n/);\n  let end = -1;\n  lines.forEach((l, i) => { if (/^--- end of Ziffr text ---[ \\t]*$/.test(l)) end = i; });\n  const m = end < 0 ? null : /^Ziffr ref: ([A-Za-z0-9]+-\\d+)[ \\t]*$/.exec(lines[0]);\n  if (!m) continue;\n  if (m[1] !== t.titleRef) continue;\n  const ref = m[1];\n  present.add(ref);\n  const was = state.reported[ref];\n  if (t.done && was !== 'done') out.push({ json: { ref, ziffr: { op: 'done', system: SYSTEM, external_id: t.id } } });\n  else if (!t.done && was === 'done') out.push({ json: { ref, ziffr: { op: 'reopen', system: SYSTEM, external_id: t.id } } });\n  const reply = lines.slice(end + 1).map((l) => /^Reply:[ \\t]*(.+)$/.exec(l)).find((x) => x);\n  const text = reply ? Array.from(reply[1].trim()).slice(0, 1000).join('') : '';\n  if (text && state.replied[ref] !== text) out.push({ json: { ref, ziffr: { op: 'reply', system: SYSTEM, external_id: t.id, text } } });\n}\n// Forget what is no longer in a list we saw whole; Ziffr allows 60 requests a minute, so a run sends at most 30.\nconst whole = (roots.length ? roots[0].json.whole : true);\nif (whole) for (const k of Object.keys(state.reported)) if (!present.has(k)) delete state.reported[k];\nif (whole) for (const k of Object.keys(state.replied)) if (!present.has(k)) delete state.replied[k];\nreturn out.slice(0, 30);\n"
+      },
+      "id": "e4bf0487-6b57-5f5a-ae9c-4d93c6b79e7a",
+      "name": "Changes to tell Ziffr",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+      },
+      "id": "50e1b9fa-c29f-5413-8dde-edf2d9e186d8",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Ziffr-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Ziffr-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "2c2d6d5e-bf18-57c1-94bf-bf5b52bcbd3f",
+      "name": "Call Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Writes down what Ziffr took (200: done; 409: Ziffr's rules say no, asking again would not help), so it is not sent twice.\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst sent = $('Sign request').all();\nlet handled = 0;\n$input.all().forEach((res, i) => {\n  const s = sent[i] && sent[i].json;\n  const code = res.json.statusCode;\n  if (!s || (code !== 200 && code !== 409)) return;\n  handled++;\n  if (s.op === 'done') state.reported[s.ref] = 'done';\n  if (s.op === 'reopen') state.reported[s.ref] = 'open';\n  if (s.op === 'reply') state.replied[s.ref] = s.text;\n});\nreturn [{ json: { handled } }];\n"
+      },
+      "id": "aa722972-3519-5ad6-8074-a63a08b6f36e",
+      "name": "Remember what Ziffr took",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List tasks": {
+      "main": [
+        [
+          {
+            "node": "Tasks with a Ziffr ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tasks with a Ziffr ref": {
+      "main": [
+        [
+          {
+            "node": "Read notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read notes": {
+      "main": [
+        [
+          {
+            "node": "Changes to tell Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changes to tell Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Call Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Remember what Ziffr took",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

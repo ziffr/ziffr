@@ -1,0 +1,360 @@
+{
+  "name": "Slack to Ziffr",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Slack to Ziffr\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, the Slack channel id, the bot user id and who may answer (Slack user ids, comma separated, or ANYONE).\n2. Add the Slack credential (the bot token; scopes channels:history, groups:history for a private channel, reactions:read) to the Read channel and Read thread nodes.\n3. Activate the workflow. Every 5 minutes it looks at the newest tasks the bot posted: a :white_check_mark: reaction marks the Task done, and replies in a message's thread become messages in the Thread.\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/slack.md",
+        "width": 460,
+        "height": 340
+      },
+      "id": "db0c41ba-d6d6-5dea-8961-20792dcedd0d",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "dd697efe-423c-5850-8847-72d7dd603657",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3fe0fd93-bbab-52c4-8d73-fa14427b6b22",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "ccdc28a8-c68e-5f0f-b6a5-7efd7611ab8b",
+              "name": "webhookId",
+              "value": "REPLACE-WITH-THE-WEBHOOK-ID",
+              "type": "string"
+            },
+            {
+              "id": "ed824b15-dc92-50e8-a48c-352996885fad",
+              "name": "secret",
+              "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
+              "type": "string"
+            },
+            {
+              "id": "61663399-0dbb-5316-9c83-2df1cb22d454",
+              "name": "channel",
+              "value": "REPLACE-WITH-THE-CHANNEL-ID",
+              "type": "string"
+            },
+            {
+              "id": "f6670b2c-c663-5a03-af22-e98f447b3949",
+              "name": "botUserId",
+              "value": "REPLACE-WITH-THE-BOT-USER-ID",
+              "type": "string"
+            },
+            {
+              "id": "f1acd627-53f8-5732-b157-58b0446ecb9f",
+              "name": "allowedUsers",
+              "value": "REPLACE-WITH-THE-SLACK-USER-IDS-WHO-MAY-ANSWER",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "12b1433f-3aeb-5aac-99c3-a04aea23bb8e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://slack.com/api/conversations.history",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $('Settings').first().json.channel }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "12e50d49-b834-510b-8e83-a2853e600abb",
+      "name": "Read channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The newest messages of our own bot that start with a Ziffr ref, as plain top-level messages. Nobody else's message counts.\nconst cfg = $('Settings').first().json;\nconst res = $input.first().json;\nif (!res.ok) throw new Error('Slack said: ' + res.error);\nconst mine = (res.messages || []).filter((m) => m.type === 'message' && !m.subtype && m.bot_id && m.user === cfg.botUserId && typeof m.text === 'string' && (!m.thread_ts || m.thread_ts === m.ts) && /^Ziffr ref: [A-Za-z0-9]+-\\d+[ \\t]*$/.test(m.text.split(/\\r?\\n/)[0]));\nconst whole = !res.has_more && mine.length <= 40;\nreturn mine.slice(0, 40).map((m) => ({ json: { ref: /^Ziffr ref: (\\S+)/.exec(m.text)[1], ts: m.ts, channel: cfg.channel, whole } }));\n"
+      },
+      "id": "a46def7e-06ba-524d-844d-e04e5c87484f",
+      "name": "Our messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://slack.com/api/conversations.replies",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel }}"
+            },
+            {
+              "name": "ts",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "39d352f9-6fe6-509d-b9e7-5694a84d611f",
+      "name": "Read thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Slack -> Ziffr: for each of our messages, a reaction marks the Task done (removing it reopens), and each person's reply in ITS thread becomes a message in the Thread.\n// Replies come only from the thread of a message our bot wrote; the channel at large is never read as a reply.\nconst SYSTEM = 'slack';\nconst cfg = $('Settings').first().json;\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst ids = String(cfg.allowedUsers || '').split(',').map((s) => s.trim()).filter(Boolean);\nconst allowed = (u) => typeof u === 'string' && /^[A-Z0-9]{2,40}$/.test(u) && (ids.includes(u) || ids.includes('ANYONE'));\nconst DONE = ['white_check_mark', 'heavy_check_mark'];\nconst clean = (s) => Array.from(String(s).replace(/[\\u0000-\\u001f\\u007f\\u2028\\u2029]+/g, ' ').trim()).slice(0, 1000).join('');\nconst roots = $('Our messages').all();\nconst threads = $input.all();\nconst out = [];\nconst present = new Set();\nroots.forEach((r, i) => {\n  const root = r.json;\n  const thread = threads[i] && threads[i].json;\n  if (!thread || !thread.ok || !Array.isArray(thread.messages) || !thread.messages[0] || thread.messages[0].ts !== root.ts) return;\n  const ref = root.ref;\n  const external = root.channel + ':' + root.ts;\n  present.add(ref);\n  const ticked = (thread.messages[0].reactions || []).some((x) => DONE.includes(x.name) && (x.users || []).some((u) => u !== cfg.botUserId && allowed(u)));\n  const was = state.reported[ref];\n  if (ticked && was !== 'done') out.push({ json: { ref, ziffr: { op: 'done', system: SYSTEM, external_id: external } } });\n  else if (!ticked && was === 'done') out.push({ json: { ref, ziffr: { op: 'reopen', system: SYSTEM, external_id: external } } });\n  const last = Number(state.replied[ref] || 0);\n  for (const m of thread.messages.slice(1)) {\n    if (m.thread_ts !== root.ts || m.bot_id || (m.subtype && m.subtype !== 'thread_broadcast') || m.user === cfg.botUserId || !allowed(m.user) || typeof m.text !== 'string') continue;\n    if (!(Number(m.ts) > last)) continue;\n    const text = clean(m.text);\n    if (text) out.push({ json: { ref, ts: m.ts, ziffr: { op: 'reply', system: SYSTEM, external_id: external, text } } });\n  }\n});\n// Forget what is no longer in a channel we saw whole; Ziffr allows 60 requests a minute, so a run sends at most 30.\nif (roots.length && roots[0].json.whole) {\n  for (const k of Object.keys(state.reported)) if (!present.has(k)) delete state.reported[k];\n  for (const k of Object.keys(state.replied)) if (!present.has(k)) delete state.replied[k];\n}\nreturn out.slice(0, 30);\n"
+      },
+      "id": "a84287a0-0d93-5fa3-a10f-8366a609e8c6",
+      "name": "Changes to tell Ziffr",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text, ts: item.json.ts } };\n});\n"
+      },
+      "id": "ca5bdcb1-189f-551d-a9b4-e159caf7b250",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Ziffr-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Ziffr-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "8d2e74ed-e0b6-5c14-8aeb-0c703777963c",
+      "name": "Call Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Writes down what Ziffr took (200: done; 409: Ziffr's rules say no, asking again would not help), so it is not sent twice.\n// A reply is remembered by its Slack time, and only if every earlier reply of that Action went through.\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst sent = $('Sign request').all();\nconst blocked = new Set();\nlet handled = 0;\n$input.all().forEach((res, i) => {\n  const s = sent[i] && sent[i].json;\n  const code = res.json.statusCode;\n  if (!s) return;\n  if (code !== 200 && code !== 409) { if (s.op === 'reply') blocked.add(s.ref); return; }\n  if (blocked.has(s.ref)) return;\n  handled++;\n  if (s.op === 'done') state.reported[s.ref] = 'done';\n  if (s.op === 'reopen') state.reported[s.ref] = 'open';\n  if (s.op === 'reply') state.replied[s.ref] = s.ts;\n});\nreturn [{ json: { handled } }];\n"
+      },
+      "id": "8f757439-7cf1-590a-be46-5402cc0a4c00",
+      "name": "Remember what Ziffr took",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read channel": {
+      "main": [
+        [
+          {
+            "node": "Our messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Our messages": {
+      "main": [
+        [
+          {
+            "node": "Read thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read thread": {
+      "main": [
+        [
+          {
+            "node": "Changes to tell Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changes to tell Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Call Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Remember what Ziffr took",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

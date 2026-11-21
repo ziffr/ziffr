@@ -1,0 +1,254 @@
+{
+  "hook": {
+    "parameters": {
+      "httpMethod": "POST",
+      "path": "ziffr-REPLACE-WITH-A-LONG-RANDOM-STRING",
+      "responseMode": "responseNode",
+      "options": {
+        "rawBody": true
+      }
+    },
+    "id": "c8975ba1-a54a-a514-ab6f-c67161456df5",
+    "name": "Ziffr event",
+    "type": "n8n-nodes-base.webhook",
+    "typeVersion": 2,
+    "position": [
+      0,
+      300
+    ],
+    "webhookId": "d5c3df53-da5b-23a1-f8ee-2d27eb5d0506"
+  },
+  "answer": {
+    "parameters": {
+      "respondWith": "noData",
+      "options": {
+        "responseCode": "={{ $json.httpStatus }}"
+      }
+    },
+    "id": "c3273cda-c327-66f6-4b35-8ce02b760778",
+    "name": "Answer Ziffr",
+    "type": "n8n-nodes-base.respondToWebhook",
+    "typeVersion": 1.1,
+    "position": [
+      660,
+      300
+    ]
+  },
+  "switch": {
+    "parameters": {
+      "rules": {
+        "values": [
+          {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "8c3c557e-0161-1cb8-d83f-6d65c4e6fa0c",
+                  "leftValue": "={{ $json.action }}",
+                  "rightValue": "create",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "renameOutput": true,
+            "outputKey": "create"
+          },
+          {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "614228f7-d29a-bd61-1942-1e89ee65a096",
+                  "leftValue": "={{ $json.action }}",
+                  "rightValue": "patch",
+                  "operator": {
+                    "type": "string",
+                    "operation": "equals"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "renameOutput": true,
+            "outputKey": "patch"
+          }
+        ]
+      },
+      "options": {}
+    },
+    "id": "779b1d58-1eb9-fa11-6635-7fe338061f2d",
+    "name": "What to do",
+    "type": "n8n-nodes-base.switch",
+    "typeVersion": 3,
+    "position": [
+      880,
+      300
+    ]
+  },
+  "if": {
+    "parameters": {
+      "conditions": {
+        "options": {
+          "caseSensitive": true,
+          "leftValue": "",
+          "typeValidation": "strict"
+        },
+        "conditions": [
+          {
+            "id": "4d68c8f1-3459-c0ed-b405-04de5003ec2a",
+            "leftValue": "={{ $json.exists }}",
+            "rightValue": "",
+            "operator": {
+              "type": "boolean",
+              "operation": "true",
+              "singleValue": true
+            }
+          }
+        ],
+        "combinator": "and"
+      },
+      "options": {}
+    },
+    "id": "5949a480-ed28-5dfe-b71c-4921ce984048",
+    "name": "Already there?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+      1540,
+      200
+    ]
+  },
+  "signFrom": {
+    "parameters": {
+      "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+    },
+    "id": "119e96f9-a947-3b38-1d83-d6935f95273c",
+    "name": "Sign request",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+      2200,
+      200
+    ]
+  },
+  "callFrom": {
+    "parameters": {
+      "method": "POST",
+      "url": "={{ $json.url }}",
+      "sendHeaders": true,
+      "headerParameters": {
+        "parameters": [
+          {
+            "name": "X-Ziffr-Timestamp",
+            "value": "={{ $json.timestamp }}"
+          },
+          {
+            "name": "X-Ziffr-Signature",
+            "value": "={{ $json.signature }}"
+          }
+        ]
+      },
+      "sendBody": true,
+      "contentType": "raw",
+      "rawContentType": "application/json",
+      "body": "={{ $json.body }}",
+      "options": {
+        "response": {
+          "response": {
+            "fullResponse": true,
+            "neverError": true
+          }
+        }
+      }
+    },
+    "id": "68ad2231-3f7a-d9fb-7d58-50de7c4a9c98",
+    "name": "Call Ziffr",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+      2420,
+      200
+    ],
+    "retryOnFail": true,
+    "maxTries": 2
+  },
+  "signTo": {
+    "parameters": {
+      "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+    },
+    "id": "119e96f9-a947-3b38-1d83-d6935f95273c",
+    "name": "Sign request",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+      880,
+      300
+    ]
+  },
+  "callTo": {
+    "parameters": {
+      "method": "POST",
+      "url": "={{ $json.url }}",
+      "sendHeaders": true,
+      "headerParameters": {
+        "parameters": [
+          {
+            "name": "X-Ziffr-Timestamp",
+            "value": "={{ $json.timestamp }}"
+          },
+          {
+            "name": "X-Ziffr-Signature",
+            "value": "={{ $json.signature }}"
+          }
+        ]
+      },
+      "sendBody": true,
+      "contentType": "raw",
+      "rawContentType": "application/json",
+      "body": "={{ $json.body }}",
+      "options": {
+        "response": {
+          "response": {
+            "fullResponse": true,
+            "neverError": true
+          }
+        }
+      }
+    },
+    "id": "68ad2231-3f7a-d9fb-7d58-50de7c4a9c98",
+    "name": "Call Ziffr",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+      1100,
+      300
+    ],
+    "retryOnFail": true,
+    "maxTries": 2
+  },
+  "remember": {
+    "parameters": {
+      "jsCode": "// Writes down what Ziffr took (200: done; 409: Ziffr's rules say no, asking again would not help), so it is not sent twice.\nconst state = $getWorkflowStaticData('global');\nstate.reported = state.reported || {};\nstate.replied = state.replied || {};\nconst sent = $('Sign request').all();\nlet handled = 0;\n$input.all().forEach((res, i) => {\n  const s = sent[i] && sent[i].json;\n  const code = res.json.statusCode;\n  if (!s || (code !== 200 && code !== 409)) return;\n  handled++;\n  if (s.op === 'done') state.reported[s.ref] = 'done';\n  if (s.op === 'reopen') state.reported[s.ref] = 'open';\n  if (s.op === 'reply') state.replied[s.ref] = s.text;\n});\nreturn [{ json: { handled } }];\n"
+    },
+    "id": "9e5f1725-f8e3-c7c6-1df9-94e06958dcca",
+    "name": "Remember what Ziffr took",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+      1320,
+      300
+    ]
+  }
+}

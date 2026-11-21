@@ -12,7 +12,7 @@ import { createMetric } from "./metrics";
 import { metricCatalog } from "./page-data";
 import { createDashboard } from "./dashboards";
 import { PACK } from "./pack.test";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import type { Pack } from "./pack";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -70,7 +70,7 @@ describe("updating a Pack", () => {
     // The updated copies are unchanged as far as the next update can tell.
     const again = await readPackUpdate(actor, id, file({ ...NEXT, version: "1.3.1" }));
     expect(again.ok && again.plan.items.every((i) => !i.changedHere)).toBe(true);
-    const { data: events } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "pack.updated");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "pack.updated")).data, { dropId: true });
     expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", from: "1.2.0", version: "1.3.0", source: "upload" } }]);
   });
 
@@ -171,7 +171,7 @@ describe("uninstalling a Pack", () => {
     expect((await db().from("themes").select("pack_install_id").eq("id", theme!.id).single()).data).toEqual({ pack_install_id: null });
     expect(await db().from("catalog_metrics").select("id").eq("workspace_id", w.id).then((r) => r.data)).toEqual([]);
     expect((await db().from("metrics").select("name, from_catalog_id").eq("id", metric.id).single()).data).toEqual({ name: "MRR", from_catalog_id: null });
-    const { data: events } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "pack.uninstalled");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "pack.uninstalled")).data, { dropId: true });
     expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", version: "1.2.0", removed: 7, kept: 2 } }]);
   });
 

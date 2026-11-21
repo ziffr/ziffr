@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { db } from "./db";
 import { entryTitle, ownFormCode, schedule, type Schedule } from "./schedule";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -262,7 +262,7 @@ describe("whose Schedule", () => {
 
   it("records each read of a teammate's Schedule in the Audit Log, naming whose, and never one's own", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("admin"); const ben = await w.person("member");
-    const events = async () => (await db().from("audit_events").select("kind, actor_id, object_type, object_id, object_name, access_key_id, details").eq("workspace_id", w.id).eq("kind", "schedule.read").order("id")).data ?? [];
+    const events = async () => opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, actor_id, object_type, object_id, object_name, access_key_id, details").eq("workspace_id", w.id).eq("kind", "schedule.read").order("id")).data, { dropId: true });
     await schedule(w.actor(sara), {}, NOW);
     await schedule(w.actor(ben, "member"), {}, NOW);
     await schedule(w.actor(sara), { personId: sara }, NOW);
