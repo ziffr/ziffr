@@ -24,6 +24,13 @@ describe("values that arrive", () => {
     expect(fx.afterValue).toHaveBeenCalledWith(m.id, periodStart(new Date(), "month", JANUARY), sara, { imported: false });
   });
 
+  it("words a refused form-link value for the field, and a refused chat reply for the message", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const m = await w.metric(sara); const code = await w.token(m.id, sara);
+    expect(await submitValue({ source: "web_form", sender: code, text: "hello" }, effects())).toMatchObject({ ok: false, outcome: "rejected_no_value", detail: "Type a number, such as 88 or 1,250." });
+    expect(await submitValue({ source: "web_form", sender: code, text: "" }, effects())).toMatchObject({ outcome: "rejected_no_value", detail: "Type a number, such as 88 or 1,250." });
+    expect(await submitValue({ source: "web_form", sender: code, text: "1,23,4" }, effects())).toMatchObject({ outcome: "rejected_no_value", detail: expect.stringContaining("is not a number. Type one, such as 88 or 1,250.") });
+  });
+
   it("recognises a Contact by Slack handle and by email, and records under them", async () => {
     const w = await ws(); const owner = await w.person("owner"); const cleo = await w.contact({ email: "cleo@field.test", slack_handle: "@cleo" });
     const m = await w.metric(owner, { submission_rule: "keep_both" }); await w.token(m.id, cleo);
