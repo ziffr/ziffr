@@ -12,7 +12,7 @@ import { DAYS_SETTINGS } from "./installation-days";
 import { installationSettingsView, saveInstallationSettings } from "./installation-settings";
 import { settingNamed } from "./installation-catalogue";
 import { forgetStoredSettings, settingsInEffect } from "./settings-in-effect";
-import { closeEndedTrials, deleteExpiredTrials } from "./trial-end";
+import { closeEndedTrials, deleteExpiredTrials, remindEndingTrials } from "./trial-end";
 import { pruneViewCounts } from "./usage";
 import { setWorkspaceLimit } from "./workspace-limits-admin";
 import { changeRows, workspace } from "./test/db-fixtures";
@@ -241,6 +241,21 @@ describe("what the jobs remove, by the days in effect", () => {
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
     // A trial closed before the days were kept has the usual 7.
     await db().from("workspaces").update({ trial_grace_days: null, trial_ends_at: ago(8).toISOString() }).eq("id", t.id);
+    await deleteExpiredTrials();
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).toBeNull();
+  });
+
+  it("keep the days its reminder promised for a trial that ended and is not closed yet", async () => {
+    process.env.ZIFFR_TRIAL_THEN = "delete";
+    const t = await ws();
+    await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() + 3_600_000).toISOString() }).eq("id", t.id);
+    await remindEndingTrials();
+    expect((await db().from("workspaces").select("trial_grace_days").eq("id", t.id).single()).data!.trial_grace_days).toBe(7);
+    await db().from("workspaces").update({ trial_ends_at: ago(3).toISOString() }).eq("id", t.id);
+    process.env.ZIFFR_TRIAL_GRACE_DAYS = "1";
+    await deleteExpiredTrials();
+    expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
+    await db().from("workspaces").update({ trial_ends_at: ago(8).toISOString() }).eq("id", t.id);
     await deleteExpiredTrials();
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).toBeNull();
   });

@@ -69,7 +69,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
   // Read strictly before anything is claimed: a reminder with the wrong words is never sent again.
   const settings = await settingsInEffectStrict();
   // Claimed first: only the run that sets the mark sends the reminder.
-  const { data } = await db().from("workspaces").update({ trial_reminded_at: now.toISOString() })
+  const { data } = await db().from("workspaces").update({ trial_reminded_at: now.toISOString(), trial_grace_days: daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings) })
     .gt("trial_ends_at", now.toISOString()).lte("trial_ends_at", soon).is("trial_reminded_at", null).select("id, trial_ends_at");
   let n = 0;
   for (const w of data ?? []) {
@@ -104,7 +104,8 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
   }
   // The grace days in effect now are kept with the closing: what the Owner was told is what holds, whatever is set later.
   const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
-  const { data } = await db().from("workspaces").update({ trial_closed_at: at, trial_grace_days: grace }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
+  await db().from("workspaces").update({ trial_grace_days: grace }).lte("trial_ends_at", at).is("trial_closed_at", null).is("trial_grace_days", null);
+  const { data } = await db().from("workspaces").update({ trial_closed_at: at }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
   for (const w of data ?? []) {
     // The Workspace is closing: its open Actions close with their events, so external tasks do not linger.
     await closeForSystem(w.id as string, { statuses: ["open", "answered"] }, "workspace_closing");
@@ -151,6 +152,10 @@ async function deleteTrial(workspaceId: string): Promise<void> {
   }
 }
 
+/** The days a trial's data stays: the later of the days promised (kept at its reminder or closing; the usual 7 for one
+ * closed before they were kept) and the days in effect now, so a lower setting never deletes it sooner than promised. */
+const graceOf = (promised: number | null, closed: boolean, current: number): number => (promised === null ? (closed ? TRIAL_GRACE_DAYS : current) : Math.max(promised, current));
+
 /** Deletes trials that ended more than the grace days ago. Returns how many. */
 export async function deleteExpiredTrials(now = new Date()): Promise<number> {
   // Fail closed: deleting needs a setting that was read and says "delete". An unreadable one throws, so a database
@@ -161,7 +166,7 @@ export async function deleteExpiredTrials(now = new Date()): Promise<number> {
   // else (not closed yet) the days in effect now. Never fewer than the lowest allowed, a day, from the first query.
   const current = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings);
   const { data: ended } = await db().from("workspaces").select("id, trial_ends_at, trial_closed_at, trial_grace_days").lte("trial_ends_at", new Date(now.getTime() - DAY).toISOString()).is("trial_kept_at", null);
-  const data = (ended ?? []).filter((w) => new Date(w.trial_ends_at as string).getTime() + Number(w.trial_grace_days ?? (w.trial_closed_at ? TRIAL_GRACE_DAYS : current)) * DAY <= now.getTime());
+  const data = (ended ?? []).filter((w) => new Date(w.trial_ends_at as string).getTime() + graceOf(w.trial_grace_days as number | null, !!w.trial_closed_at, current) * DAY <= now.getTime());
   let n = 0;
   // Each on its own: one that fails waits for the next run and never holds back the others.
   for (const w of data ?? []) {
