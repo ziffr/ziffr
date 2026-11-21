@@ -125,3 +125,7 @@ The open questions of the draft, answered as recommended and folded into the dec
 3. **Metric names** are sealed in step 2, with the values.
 4. **No schedule** for Workspace Keys: they change when an Owner asks or after an incident. The Installation key is changed yearly.
 5. **Who sees it:** Owners see one line in Workspace settings; Installation Admins see progress and key versions, never a key.
+
+## Status of ticket 7, Installation key epochs (2026-11-21)
+
+Checked against the condition in "Key epochs, only when needed": no hosted offering exists yet and no customer has asked for backups from before a deletion to become unreadable by cryptography. The owner's decision stands (ADR 0012): the promise is the backup retention period. **Ticket 7 (#251) is therefore not built.** Step 6 already gives what it needs to build on (changing the Installation key and re-wrapping every Workspace Key). Open the ticket again, with the customer or the hosted offering named, when the stronger promise is asked for.
