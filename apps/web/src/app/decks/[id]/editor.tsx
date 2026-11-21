@@ -46,7 +46,7 @@ const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
 const DECK_TEMPLATE: TemplateId = "line";
 
-type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null;
+type Props = { deck: { id: number; name: string; document: unknown; theme_id: number | null; footer: string | null }; data: CanvasData; saved: Widget[]; sharing: { shares: Share[]; groups: Group[]; ownerId: string; canInvite?: boolean; reveals: Record<string, string[]> } | null; seed?: DeckSeed | null;
   /** Made from a Deck Template (spec 0030): its slides with Slot numbers, and the Metrics that fill each Slot. */
   templateSeed?: { slides: SlideBody[]; fills: number[][] } | null;
   /** The viewer's own Deck Templates, which saving the deck as one may replace. */
@@ -312,7 +312,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
         <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); return setDeckTheme(deck.id, id); }} />
         <WhoCanSee type="deck" id={deck.id} people={data.people} />
         {sharing && <ViewLinks type="deck" id={deck.id} />}
-        {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} />}
+        {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
         <VersionsSheet type="deck" id={deck.id} people={data.people} reload="page" />
         {sharing && <DeleteDeck deckId={deck.id} name={name} />}
         {sharing && <Button variant="outline" disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>}

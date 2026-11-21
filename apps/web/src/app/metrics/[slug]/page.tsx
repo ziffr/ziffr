@@ -182,7 +182,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
           id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug }} record={record} slideOver={(await layoutChoice()) === "sidebar"} askable={askable}
-          share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices } : null}
+          share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices } : null}
           canDuplicate={can(actor, "create") && !metric.formula} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
