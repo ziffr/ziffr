@@ -298,6 +298,7 @@ You do not need a Starter. Some examples:
 - **Read your questions and tasks** and **Answer questions and tasks for you:** list the Questions and Tasks that wait for you, reply in their Threads, close the ones you asked, mark your Tasks done, and confirm or correct your own value in a Self-check when **Submit values** is ticked too.
 - **Build workflows:** make, change and delete **your own Workflows** and their steps. The assistant leaves who approves, and who a Tell step tells, as it is.
 - **Manage alerts:** set, change and remove **your own Alerts**, on Metrics you may see, such as "tell me when churn goes above 3 %". An Alert tells only you, through your Delivery Preference, and the assistant cannot make one for anyone else. The same limits apply as in the app.
+- **Propose sharing:** the assistant can propose a share of one of your dashboards for you to confirm; it never shares by itself. Nothing is shared or sent until you confirm it in Ziffr, on the Actions page. It needs **Read dashboards** too.
 
 #### What the assistant cannot do
 
