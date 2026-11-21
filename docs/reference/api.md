@@ -331,7 +331,7 @@ Brings an Archived Metric back as the key's creator, when they are an Owner or A
 
 `GET /metrics/{slug}/observations` · scope `metrics:read`
 
-The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, who submitted it (id and name), when and through which Source, whether a Thread the key's creator may read exists (`has_thread`), and the Breakdown. A Derived Metric's values are computed.
+The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, who submitted it (id and name), when and through which Source, whether a Thread the key's creator may read exists (`has_thread`), and the Breakdown. A Derived Metric's values are computed. Periods a Retention condensed are listed as one item for the span, marked with `condensed_from` (how many periods it was made from) and `period_end`.
 
 **Parameters**
 
@@ -359,6 +359,8 @@ The Metric's values for the periods from `from` to `to` (first days, both includ
 | `items[].breakdown` | array of object or null | yes | The value's parts (GLOSSARY: Breakdown), or null. |
 | `items[].breakdown[].label` | string | yes | What the part is, such as a shop or a channel. |
 | `items[].breakdown[].value` | number | yes |  |
+| `items[].condensed_from` | integer | no | Only on a Condensed Value (GLOSSARY: Condensed Value): how many of the Metric's periods it was made from. It is not one period: `period` is the span's first day and `period_end` its last. |
+| `items[].period_end` | string | no | Only on a Condensed Value: the span's last day, YYYY-MM-DD. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
 
 **Errors**
@@ -408,7 +410,7 @@ Records a value for the current period, or the one named, through the Metric's S
 - 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
 - 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys. Or the key's creator does not submit values for this Metric.
 - 404: `not_found`: nothing here the key's creator may see.
-- 409: The Idempotency-Key was used with another body, or its first submission is still running.
+- 409: `period_condensed`: the period was condensed by a Retention and takes no more values. Or the Idempotency-Key was used with another body, or its first submission is still running.
 - 422: `locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric, an Archived Metric or the period refused it.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.

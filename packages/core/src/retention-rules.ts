@@ -5,8 +5,9 @@
 // code (`periodCount`, `latestOfEach`, the combining rule) so the numbers stay spec 0022's one truth.
 import { format, subMonths } from "date-fns";
 import { displayPeriodsFor, isLonger, latestOfEach, periodCount, type DisplayPeriod } from "./display-periods";
-import { fractionOf, fractionOfText, nearestDouble, plus, type Fraction } from "./exact";
-import { periodEnd, periodStart, shiftPeriod, type YearStart } from "./periods";
+import { fractionOf } from "./exact";
+import { decimalText, sumOf, targetPartOf, valueOfParts, type Part, type TargetPart } from "./condensed-parts";
+import { isPeriodStart, periodEnd, periodStart, shiftPeriod, type YearStart } from "./periods";
 import type { Aggregation, Period, Point } from "./types";
 
 /** The shortest keep time, in months: a year-over-year Comparison and last year's span stay whole. */
@@ -170,22 +171,6 @@ export type Condensed = {
   locked: boolean;
 };
 
-const ZERO = BigInt(0);
-const NONE: Fraction = { num: ZERO, den: BigInt(1) };
-
-/** The sum of fractions, exactly. */
-const sumOf = (parts: readonly Fraction[]): Fraction => parts.reduce(plus, NONE);
-
-/** A sum of values as text, without trailing zeros: 1.25 is "1.25", 3.00 is "3". Every value is a decimal, so the
- * denominator is a power of ten whose zeros are the places. */
-function decimalText({ num, den }: Fraction): string {
-  const places = den.toString().length - 1;
-  // Stryker disable next-line EqualityOperator: for a BigInt, -0 and 0 are the same number, so `<=` changes nothing
-  const all = (num < ZERO ? -num : num).toString().padStart(places + 1, "0");
-  const decimals = all.slice(all.length - places).replace(/0+$/, "");
-  return `${num < ZERO ? "-" : ""}${all.slice(0, all.length - places)}${decimals ? `.${decimals}` : ""}`;
-}
-
 /** The values of a span (any order, a period given twice counts once with the value given last) condensed into one
  * Condensed Value by the Metric's Aggregation, or null when there is nothing to condense or the Metric cannot be.
  * `span` is the first day of the span, `locked` whether every period in it was. */
@@ -198,29 +183,6 @@ export function condense(metric: RetentionMetric, into: CondenseInto, span: stri
   const sum = metric.aggregation === "last" ? null : decimalText(sumOf(held.map((p) => fractionOf(p.value))));
   const last = metric.aggregation === "last" ? { value: String(newest.value), day: newest.period } : null;
   return { period: span, into, held: held.length, of, sum, last, locked };
-}
-
-/** What a period contributes to a longer one: a Condensed Value, or one value as a part of its own. */
-export type Part = { period: string; held: number; sum: string | null; last: { value: string; day: string } | null };
-
-/** One stored value as a part, so values and Condensed Values combine the same way. */
-export function partOfPoint(p: Point): Part {
-  return { period: p.period, held: 1, sum: decimalText(fractionOf(p.value)), last: { value: String(p.value), day: p.period } };
-}
-
-/** The value of parts (oldest first) over a span that has `expected` Metric periods, by the Aggregation: the same
- * rule as a series by a Display Period. It counts once at least half of the periods have a value; a sum adds the
- * sums, an average divides them by the count of values held, the last value is that of the latest part. Undefined
- * when it does not count, and for Aggregation none over more than one value. */
-export function valueOfParts(aggregation: Aggregation, parts: readonly Part[], expected: number): number | undefined {
-  const held = parts.reduce((n, p) => n + p.held, 0);
-  if (!held || held < Math.ceil(expected / 2)) return undefined;
-  if (aggregation === "last") return Number(parts[parts.length - 1].last!.value);
-  // A part that is a single value has no sum for Aggregation last value only; sum and average always carry one.
-  const sum = sumOf(parts.map((p) => fractionOfText(p.sum!)));
-  if (held === 1) return nearestDouble(sum.num, sum.den);
-  if (aggregation === "none") return undefined;
-  return nearestDouble(sum.num, sum.den * BigInt(aggregation === "sum" ? 1 : held));
 }
 
 /** One span of a series built from parts. */
@@ -243,3 +205,13 @@ export function seriesFromParts(aggregation: Aggregation, own: Period, display: 
   }
   return out;
 }
+
+/** The Target of a condensed span (spec 0033): the Targets of the Metric's periods that start in the span (each period's
+ * latest, as the Target Series are read), kept as a count, an exact sum and the last one, so a longer Display Period
+ * still has the Target it had before. Null for a Metric that cannot be condensed or a span without a Target. */
+export function condensedTarget(metric: RetentionMetric, into: CondenseInto, span: string, targets: readonly Point[], yearStart: YearStart): TargetPart | null {
+  if (!canCondense(metric)) return null;
+  const end = periodEnd(span, into);
+  return targetPartOf(latestOfEach(targets.filter((t) => t.period >= span && t.period <= end && isPeriodStart(t.period, metric.period, yearStart))));
+}
+

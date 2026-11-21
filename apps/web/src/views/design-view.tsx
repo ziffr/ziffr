@@ -49,7 +49,8 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // The target a value is judged against: the span's own when combined, else the Metric's range as always.
   const goal = (p: DisplayPoint | undefined) => (combined ? { target_min: targets?.at[p?.period ?? ""]?.min ?? null, target_max: targets?.at[p?.period ?? ""]?.max ?? null } : { target_min: m.target_min, target_max: m.target_max });
   const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
-  const note = shown.reason ?? (combined ? targets?.note ?? null : null);
+  // The words under the widget: why a setting was not followed, else the target's and the Condensed Values' (spec 0033).
+  const note = shown.reason ?? ([combined ? targets?.note : null, shown.note].filter(Boolean).join(" ") || null);
   const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   // A span still running would read as a drop: the forecast starts from the last complete one.
   const fc = uses.forecast(flags) ? forecast(last?.toDate ? pts.slice(0, -1) : pts, by)?.points ?? null : null;

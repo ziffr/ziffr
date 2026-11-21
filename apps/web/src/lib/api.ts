@@ -12,9 +12,9 @@ import { callKind, countCall } from "@ziffr/core/usage-calls";
 import { Forbidden, scopeRefusal, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
 
 /** The stable error codes a program can handle. */
-export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "rate_limited" | "workspace_limit" | "internal";
+export type ApiErrorCode = "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unprocessable" | "locked" | "period_condensed" | "rate_limited" | "workspace_limit" | "internal";
 
-const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, locked: 422, rate_limited: 429, workspace_limit: 403, internal: 500 };
+const STATUS: Record<ApiErrorCode, number> = { invalid_request: 400, unauthorized: 401, forbidden: 403, not_found: 404, conflict: 409, unprocessable: 422, locked: 422, period_condensed: 409, rate_limited: 429, workspace_limit: 403, internal: 500 };
 
 /** An error answer's body, for answers that are stored before they are sent (idempotency). */
 export const errorBody = (code: ApiErrorCode, message: string) => ({ status: STATUS[code], body: { error: { code, message } } });

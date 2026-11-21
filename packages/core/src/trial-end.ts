@@ -12,6 +12,9 @@ import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { defaultLimitFrom } from "./workspace-limits";
 import { csvNumber } from "./export-values";
+import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
+import { condensedFor } from "./condensed-values";
+import type { Aggregation } from "./types";
 import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 import { destroyWorkspaceKeys } from "./workspace-keys";
@@ -201,7 +204,7 @@ export async function trialValuesCsv(actor: Actor): Promise<string> {
  * checked who may read them. */
 export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> | null): Promise<string> {
   const [{ data: all }, style] = await Promise.all([
-    db().from("metrics").select("id, slug, name, period, unit").eq("workspace_id", workspaceId).order("name"),
+    db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId).order("name"),
     numberStyleOf(workspaceId),
   ]);
   const metrics = (all ?? []).filter((m) => !only || only.has(m.id as number));
@@ -212,13 +215,21 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
   };
   // A value is ours, never text someone typed: a minus is a negative number, not a formula.
   const number = (v: unknown) => `"${csvNumber(Number(v), style)}"`;
-  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at"].map(cell).join(sep)];
+  // A Condensed Value (spec 0033) is one line for its span: `period` is the span's kind, `period_start` its first day,
+  // `period_end` its last, `condensed_from` how many of the Metric's periods it was made from; both are empty on a value.
+  const lines = [["metric", "name", "period", "period_start", "value", "unit", "source", "recorded_at", "period_end", "condensed_from"].map(cell).join(sep)];
+  const condensed = await condensedFor(workspaceId, metrics.map((m) => m.id as number));
   for (const m of metrics) {
     for (let from = 0; ; from += 1000) {
       const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
-      for (const r of rows ?? []) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at)].join(sep));
+      // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
+      for (const r of (rows ?? []).filter((x) => !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
       if (!rows || rows.length < 1000) break;
+    }
+    for (const c of condensed[m.id as number] ?? []) {
+      const value = valueOfParts(m.aggregation as Aggregation, [partOfCondensed(c)], c.of);
+      if (value !== undefined) lines.push([cell(m.slug), cell(m.name), cell(c.into), cell(c.period), number(value), cell(m.unit), cell("condensed"), cell(c.condensedOn), cell(c.periodEnd), cell(c.held)].join(sep));
     }
   }
   return `${lines.join("\r\n")}\r\n`;

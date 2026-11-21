@@ -43,6 +43,16 @@ describe("DesignView", () => {
     expect([...found].sort((a, b) => a - b)).toEqual(found);
   });
 
+  it("names a Condensed Value in the table by what it was made from", () => {
+    const m = data.metrics[0];
+    const condensed = [{ period: "2019-01-01", periodEnd: "2019-03-31", into: "quarter" as const, held: 3, of: 3, sum: "60", last: null, target: null, locked: false, condensedOn: "2026-06-01" }];
+    const d = { ...data, condensed: { [m.id]: condensed } };
+    const text = draw(BUILT_IN_DESIGNS.table, { rows: 50 }, d).replace(/<[^>]+>/g, " ");
+    expect(text).toContain("condensed from 3 months");
+    // Without any, nothing of the kind.
+    expect(draw(BUILT_IN_DESIGNS.table, { rows: 50 })).not.toContain("condensed");
+  });
+
   it("ignores Show by in a design that does not offer it", () => {
     const m = data.metrics[0];
     const own = shownSeries(m, data, undefined, {}).points.at(-1)!;

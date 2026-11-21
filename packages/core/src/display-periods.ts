@@ -2,6 +2,7 @@
 // by its Aggregation. Pure. Widgets, Comparisons and the export all combine through `seriesBy`, so a quarter's value
 // is the same in a chart, a table and a Comparison strip.
 import { exactTotal } from "./exact";
+import { inCondensed, partOfCondensed, partOfPoint, targetOfParts, valueOfParts, type CondensedPoint, type CondensedSpan, type Part } from "./condensed-parts";
 import { format } from "date-fns";
 import { evaluate, formulaInputs, inputsNotCombined, inputsProblem } from "./formula";
 import { isPeriodStart, periodEnd, periodLabel, periodsBetween, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
@@ -23,6 +24,9 @@ export type DisplayPoint = Point & {
   toDate: boolean;
   /** The last day counted: the Metric periods starting from `period` through this day make up `value`. */
   through: string;
+  /** Set for a Condensed Value drawn as a point of its own (GLOSSARY: Condensed Value): `period` is its span's first day
+   * and `held` and `length` are the Metric periods it was made from. */
+  condensed?: { into: CondensedSpan };
 };
 
 /** A Metric's series by a Display Period, or why it cannot be combined into one. */
@@ -127,7 +131,7 @@ const total = (values: readonly Point[], count: number) => exactTotal(values.map
  * `alignTo` (a Metric period start) cuts every span at the point `alignTo` sits in its own, for Comparisons to date.
  * Each period counts once, with its latest value, whatever order the points come in (spec 0022). By the Metric's
  * own period the points come back as they are, oldest first; a shorter one, or Aggregation "none", is refused. */
-export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts: { yearStart: YearStart; today?: string; alignTo?: string }): SeriesBy {
+export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts: { yearStart: YearStart; today?: string; alignTo?: string; condensed?: readonly CondensedPoint[] }): SeriesBy {
   const own = metric.period;
   const points = latestOfEach(resolve(metric.slug)?.points ?? []);
   if (display === own) return { ok: true, points: points.map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period })) };
@@ -149,7 +153,10 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
   // The spans that hold a value, oldest first (sorted as text, which is time order for days written yyyy-mm-dd). A
   // Derived Metric's spans are also those its inputs have values in: each input counts once it holds half of a span,
   // so two inputs may both count in a half-year without a month of both (spec 0022, #126).
-  const starts = new Set([...points, ...inputPoints.flat()].map((p) => periodStart(p.period, display, ys)));
+  // Condensed Values of a span no longer than the Display Period count in its spans (spec 0033); longer ones are drawn
+  // as points of their own by shownSeries. A Derived Metric has none.
+  const condensed = metric.formula ? [] : (opts.condensed ?? []).filter((c) => !isLonger(c.into, display));
+  const starts = new Set([...points, ...inputPoints.flat(), ...condensed].map((p) => periodStart(p.period, display, ys)));
   const out: DisplayPoint[] = [];
   for (const start of [...starts].sort()) {
     const last = periodEnd(start, display);
@@ -164,11 +171,16 @@ export function seriesBy(metric: Metric, resolve: Resolver, display: Span, opts:
     else if (atLatest) end = latest;
     const inSpan = points.filter((p) => p.period >= start && p.period <= end);
     const expected = periodCount(own, start, end, ys);
-    const value = metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
+    // A span with a Condensed Value in it combines parts, values and Condensed Values alike, so the number is the one
+    // shown before they were condensed (spec 0033); a Condensed Value the cut falls inside has no part to give.
+    const inside = condensed.filter((c) => periodStart(c.period, display, ys) === start);
+    if (inside.some((c) => c.periodEnd > end)) continue;
+    const parts: Part[] = inside.length ? [...inSpan.map(partOfPoint), ...inside.map(partOfCondensed)].sort((a, b) => a.period.localeCompare(b.period)) : [];
+    const value = inside.length ? valueOfParts(metric.aggregation, parts, expected) : metric.formula ? valueOver(metric.slug, start, end, resolve, expected) : combined(metric.aggregation, inSpan, expected);
     if (value === undefined) continue;
     // Every value in the span lies on or before its cut (a span to date is cut at the latest value), so `inSpan`
     // is what it holds; a Derived Metric holds what the input with the fewest values holds.
-    const held = metric.formula ? Math.min(...inputPoints.map((ps) => ps.filter((p) => p.period >= start && p.period <= end).length)) : inSpan.length;
+    const held = metric.formula ? Math.min(...inputPoints.map((ps) => ps.filter((p) => p.period >= start && p.period <= end).length)) : inSpan.length + inside.reduce((n, c) => n + c.held, 0);
     out.push({ period: start, value, held, length, toDate, through: end });
   }
   return { ok: true, points: out };
@@ -206,7 +218,12 @@ export function isPartial(p: Pick<DisplayPoint, "held" | "length" | "toDate">): 
 /** A point's name, the same in every view and the export: "Q4 2026 to date, 2 of 3 months" for a span not over yet,
  * "Q2 2026, only 2 of 3 months" for one over with gaps, else the period's name. Short: "Q4 26 to date",
  * "Q2 26, 2 of 3 months". */
-export function pointName(p: Pick<DisplayPoint, "period" | "held" | "length" | "toDate">, by: Span, own: Span, yearStart: YearStart, short = false): string {
+export function pointName(p: Pick<DisplayPoint, "period" | "held" | "length" | "toDate" | "condensed">, by: Span, own: Span, yearStart: YearStart, short = false): string {
+  // A Condensed Value is named by its own span, and says what it was made from: "October 2023, condensed from 31 days".
+  if (p.condensed) {
+    const label = periodLabel(p.period, p.condensed.into, yearStart, short);
+    return `${label}, condensed from ${p.held === p.length ? spanCount(p.length, own) : heldText(p, own)}`;
+  }
   const label = periodLabel(p.period, by, yearStart, short);
   if (p.toDate) return short ? `${label} to date` : `${label} to date, ${heldText(p, own)}`;
   if (isPartial(p)) return `${label}, ${short ? "" : "only "}${heldText(p, own)}`;
@@ -236,6 +253,9 @@ export type Shown = {
   points: DisplayPoint[];
   /** Why the setting could not be followed (Aggregation "none"); the Metric's own periods are shown instead. */
   reason?: string;
+  /** Set when points are Condensed Values drawn beside the rest: "Before November 2023 shown by month, condensed from
+   * daily values." (GLOSSARY: Condensed Value). */
+  note?: string;
   /** Only when combined: by its own periods a Metric keeps its target range, as always. */
   targets: ShownTargets | null;
 };
@@ -245,7 +265,7 @@ const VERB = { sum: "added up", average: "averaged", last: "at its last value" }
 /** Each span's target: the Target Series combined by the Aggregation where every Metric period it counts has one;
  * else the target range for an average, a last value or a Derived Metric's rate; none for a sum, since a monthly
  * range of 100 to 120 says nothing exact about a quarter of uneven months. */
-export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[], by: Span, yearStart: YearStart): ShownTargets {
+export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[], by: Span, yearStart: YearStart, condensed: readonly CondensedPoint[] = []): ShownTargets {
   // Each Metric period's target once (the latest given), oldest first; a day that starts no Metric period is none.
   const targets = latestOfEach(series).filter((t) => isPeriodStart(t.period, metric.period, yearStart));
   const hasRange = metric.target_min !== null || metric.target_max !== null;
@@ -254,11 +274,15 @@ export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[
   const at: Record<string, SpanTarget> = {};
   const line: Point[] = [];
   for (const p of points) {
-    // The span's Metric periods through its cut all have a target when there are as many targets as periods.
+    // The span's Metric periods through its cut all have a target when there are as many targets as periods. Condensed
+    // Values inside it bring the targets of the periods they stand for, kept with them (spec 0033).
     const v = targets.filter((t) => t.period >= p.period && t.period <= p.through);
-    if (v.length && agg !== "none" && v.length === periodCount(metric.period, p.period, p.through, yearStart)) {
+    const inside = condensed.filter((c) => c.target && (p.condensed ? c.period === p.period : c.period >= p.period && c.period <= p.through && !isLonger(c.into, by)));
+    const expected = p.condensed ? p.length : periodCount(metric.period, p.period, p.through, yearStart);
+    const combinedTarget = inside.length ? targetOfParts(agg, p.condensed ? [] : v, inside.map((c) => c.target!), expected) : v.length && agg !== "none" && v.length === expected ? (agg === "last" ? v[v.length - 1].value : total(v, agg === "sum" ? 1 : v.length)) : undefined;
+    if (combinedTarget !== undefined) {
       // Exact, as the values are: a quarter's target of 0.1, 0.1 and 0.1 is 0.3.
-      const value = agg === "last" ? v[v.length - 1].value : total(v, agg === "sum" ? 1 : v.length);
+      const value = combinedTarget;
       // As for one period (targetFor): a Metric where lower is better must stay under its target, others reach it.
       at[p.period] = metric.polarity === "lower" ? { min: null, max: value } : { min: value, max: null };
       line.push({ period: p.period, value });
@@ -274,20 +298,52 @@ export function targetsBy(metric: Metric, series: Point[], points: DisplayPoint[
   return { at, line, range, note };
 }
 
+const ADJECTIVE: Record<Span, string> = { day: "daily", week: "weekly", month: "monthly", quarter: "quarterly", half: "half-yearly", year: "yearly" };
+
+/** A Condensed Value drawn as a point of its own, or nothing when it has too few values to count (as a span with
+ * fewer than half of its periods has no value by a Display Period either). */
+function condensedPoint(metric: Metric, c: CondensedPoint): DisplayPoint | null {
+  const value = valueOfParts(metric.aggregation, [partOfCondensed(c)], c.of);
+  return value === undefined ? null : { period: c.period, value, held: c.held, length: c.of, toDate: false, through: c.periodEnd, condensed: { into: c.into } };
+}
+
+/** The note under a widget that draws Condensed Values: "Before November 2023 shown by month, condensed from daily
+ * values." It names the span after the newest one condensed, so it says where the detail starts again. */
+function condensedNote(metric: Metric, drawn: readonly CondensedPoint[], yearStart: YearStart): string {
+  const newest = drawn.reduce((a, b) => (b.periodEnd > a.periodEnd ? b : a));
+  return `Before ${periodLabel(dayAfter(newest.periodEnd), newest.into, yearStart)} shown by ${newest.into}, condensed from ${ADJECTIVE[metric.period]} values.`;
+}
+
 /** What a widget of one Metric draws: by `display` when that is longer than the Metric's own period and the Metric
- * combines, else its own periods. `today` (yyyy-mm-dd) marks the span not over yet: a Snapshot's day when drawing one. */
-export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
-  const own = latestOfEach(data.series[metric.slug] ?? []).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
-  if (!display || !isLonger(display, metric.period)) return { by: metric.period, combined: false, points: own, targets: null };
+ * combines, else its own periods. `today` (yyyy-mm-dd) marks the span not over yet: a Snapshot's day when drawing one.
+ * Condensed Values (spec 0033, `data.condensed`) count in the spans of a Display Period at or above theirs, so those
+ * numbers are the ones shown before condensing; shown by anything shorter they are drawn as points of their own, named
+ * for what they were made from, with a note, never as invented days. */
+export function shownSeries(metric: Metric, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today" | "condensed">, display: DisplayPeriod | null | undefined, opts: { today?: string } = {}): Shown {
+  const condensed = metric.formula ? [] : (data.condensed?.[metric.id] ?? []);
+  // A period a Condensed Value stands for shows once, as it: originals not deleted yet are not counted beside it.
+  const kept = condensed.length ? (data.series[metric.slug] ?? []).filter((p) => !inCondensed(condensed, p.period)) : (data.series[metric.slug] ?? []);
+  const own = latestOfEach(kept).map((p) => ({ ...p, held: 1, length: 1, toDate: false, through: p.period }));
+  // The Condensed Values a view draws as points of their own, among the Metric's own points (oldest first).
+  const alongside = (by: Span, points: DisplayPoint[]) => {
+    const drawn = condensed.filter((c) => isLonger(c.into, by));
+    const extra = drawn.flatMap((c) => condensedPoint(metric, c) ?? []);
+    return { points: extra.length ? [...extra, ...points].sort((a, b) => a.period.localeCompare(b.period)) : points, drawn };
+  };
+  if (!display || !isLonger(display, metric.period)) {
+    const { points, drawn } = alongside(metric.period, own);
+    return { by: metric.period, combined: false, points, ...(drawn.length ? { note: condensedNote(metric, drawn, data.yearStart) } : {}), targets: drawn.length ? targetsBy(metric, data.targets?.[metric.id] ?? [], points.filter((p) => p.condensed), metric.period, data.yearStart, drawn) : null };
+  }
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
-  const resolve = resolverFrom(data.metrics, data.series);
+  const resolve = resolverFrom(data.metrics, condensed.length ? { ...data.series, [metric.slug]: kept } : data.series);
   // A View Link or Snapshot leaves a Derived Metric's inputs out (only what is shown goes out): without them its
   // quarters cannot be computed, and adding up its own months would give a sum of margins.
   if (metric.formula && formulaInputs(metric.formula).some((s) => !bySlug.has(s))) {
     return { by: metric.period, combined: false, points: own, reason: INPUTS_MISSING, targets: null };
   }
-  const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today ?? data.today });
+  const r = seriesBy(metric, resolve, display, { yearStart: data.yearStart, today: opts.today ?? data.today, condensed });
   if (!r.ok) return { by: metric.period, combined: false, points: own, reason: r.reason, targets: null };
+  const { points, drawn } = alongside(display, r.points);
   // Stryker disable next-line ArrayDeclaration: targetsBy keeps only targets on a Metric period's first day, so a list with anything else in it is the empty one.
-  return { by: display, combined: true, points: r.points, targets: targetsBy(metric, data.targets?.[metric.id] ?? [], r.points, display, data.yearStart) };
+  return { by: display, combined: true, points, ...(drawn.length ? { note: condensedNote(metric, drawn, data.yearStart) } : {}), targets: targetsBy(metric, data.targets?.[metric.id] ?? [], points, display, data.yearStart, condensed) };
 }

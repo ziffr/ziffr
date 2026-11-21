@@ -64,6 +64,8 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     submitters: {},
     targets: pick(full.targets, ids),
     projections: pick(full.projections, ids),
+    // Only the shown Metrics' Condensed Values, like their series.
+    condensed: pick(full.condensed ?? {}, ids),
     breakdowns: pick(full.breakdowns, ids),
     templates: [],
     themes: full.themes.filter((t) => t.id === themeId || t.is_default),

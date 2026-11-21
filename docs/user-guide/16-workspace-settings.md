@@ -88,7 +88,7 @@ Over its limit, the section says since when and until when new Metrics can still
 
 Near the limit, from 90 % on, everyone who opens **New metric** sees how many Metrics the Workspace holds of how many, such as "48 of 50 Metrics". When new Metrics wait, the page says so before the form is filled in.
 
-**Download the values** saves the values of every Metric you see as a CSV file, written as the trial's download is; the warning before an unused Workspace is deleted links to it.
+**Download the values** saves the values of every Metric you see as a CSV file, written as the trial's download is (with the columns `period_end` and `condensed_from`, empty except on a Condensed Value, which is one line for its span); the warning before an unused Workspace is deleted links to it.
 On hosted Ziffr, Owners also see **Change Size** and **Billing and invoices**. Both take you to Ziffr Cloud, where you book, change or cancel the Size and see invoices; Ziffr hands you over with a token that works for five minutes and knows only the Workspace, its name and your address. Admins see the section without these buttons, and Ziffr never holds payment details.
 **Make room** opens when a smaller Size needs fewer Metrics than the Workspace holds, such as when an Owner moves to a smaller Size on hosted Ziffr. It says how many Metrics the smaller Size allows, how many the Workspace holds and how many to archive, and lists the Metrics you see with the month of their latest value. The ones whose latest value is oldest, or that have none, are ticked first, as many as needed; change the ticks as you like, and the line below says how many more are needed. **Archive** archives the ticked ones and takes you back here. Metrics not shared with you are only counted: their owners archive them. Owners and Admins only.
 
@@ -347,7 +347,7 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 
 - Pick who sends the message, including an unknown sender, type a message such as "closed 2 deals", and send it.
 - Under a Prompt from Ziffr, choose **Reply** to answer it as its recipient.
-- Each message shows what happened, or for one you sent, what would happen ("Would be: Recorded"), such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, a Derived Metric, or an Archived Metric. When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
+- Each message shows what happened, or for one you sent, what would happen ("Would be: Recorded"), such as **Recorded**, **Overwritten**, **Added up**, **Kept both**, or why it was rejected: a duplicate, a sender who may not submit this Metric, an unknown sender, no number, an unclear Metric, the wrong Source, a Derived Metric, an Archived Metric, or a period that was condensed ("Rejected: period condensed": "This period was condensed on 3 December 2026."). When the message holds several numbers, or names a period that is not the Prompt's or not one the Metric counts in, it says **Asked back** and what it asked.
 
 ## Packs
 

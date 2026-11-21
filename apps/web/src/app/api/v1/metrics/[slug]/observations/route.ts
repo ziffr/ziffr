@@ -30,6 +30,7 @@ export const POST = metricRoute("values:submit", async (actor, req, slug) => {
     const r = await submitObservation(actor, slug, input);
     if (r.ok) return { status: 201, body: SubmissionAnswer.parse({ status: r.status, period: r.period, value: r.value, detail: r.detail }) };
     if (r.reason === "locked") return errorBody("locked", r.detail);
+    if (r.reason === "period_condensed") return errorBody("period_condensed", r.detail);
     if (r.reason === "not_submitter") return errorBody("forbidden", r.detail);
     return errorBody("unprocessable", r.detail);
   };

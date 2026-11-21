@@ -18,6 +18,7 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { audit } from "./audit-log";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
+import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
 import type { Metric, Profile, SourceId, Token } from "./types";
 import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
@@ -216,6 +217,11 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const fv = (v: number) => formatValue(metric, v, style);
   const when = midSentence(periodLabel(period, metric.period, ys));
 
+  // A condensed period takes no more values, as if locked for good, and no proposal either: the originals are gone
+  // (spec 0033). It is refused with the day it was condensed, whatever the Source.
+  const condensedDay = await condensedOn(workspaceId, metric.id, period);
+  if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
+
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
   if (await isLocked(metric.id, period)) {
     if (preview) return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
@@ -248,7 +254,9 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const rows = await breakdownRowsToWrite(workspaceId, metric.id, period, breakdown?.rows ?? [], preview);
   const { data, error } = await record(metric, period, value, row, mayImport, rows);
   // Archived between the check above and the write: the database refuses it the same way.
-  if (error?.code === ARCHIVED_CODE) return log({ ...base, ok: false, outcome: "rejected_archived", detail: ARCHIVED_REFUSAL });
+  // Condensed in between (spec 0033): the database refuses it the same way.
+  const raced = await refusedByDatabase(error, workspaceId, metric.id, period);
+  if (raced) return log({ ...base, ok: false, ...raced });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
   if (error || !data) {
     console.error("record_observation failed:", error?.message ?? "no row");
@@ -277,6 +285,14 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
   return log({ ...base, ...result, observationId: result.ok ? data.observation_id : null });
+}
+
+/** The outcome and words for a value the database refused because the Metric was archived or the period condensed after
+ * the checks before the write, or null when it refused for no such reason. */
+async function refusedByDatabase(error: { code?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
+  if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
+  if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
+  return null;
 }
 
 /** How a value with the sender's only Token arrived, in words for the reply. */
@@ -454,6 +470,10 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     // The value was not written (archived in the meantime, or the database refused it): the Correction stays proposed.
     if (written.error) {
       // The database's own words stay in the server log; the person gets Ziffr's.
+      if (written.error.code === CONDENSED_CODE) {
+        await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
+        throw new Error(await condensedWords(actor.workspaceId, act.metric_id, act.period_start));
+      }
       if (written.error.code !== ARCHIVED_CODE) console.error("Accepting a Correction failed:", (written.error as { message?: string }).message ?? written.error.code);
       await db().from("thread_messages").update({ correction_status: "proposed" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "accepted");
       throw new Error(written.error.code === ARCHIVED_CODE ? ARCHIVED_REFUSAL : "The Correction could not be saved. Try again in a moment.");

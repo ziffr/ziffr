@@ -162,7 +162,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
 - `metricHistory` (dashboards.ts): the history page
-- `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads Breakdown labels, which opening makes a read that may create a Workspace Key
+- `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads sealed Breakdown labels and Condensed Values, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
 - `sourcesView` (page-data.ts): what a page reads
 - `teamView` (page-data.ts): what a page reads
@@ -229,6 +229,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
+- `storeCondensed` (condensed-values.ts): the Retention job makes Condensed Values (spec 0033); a program never does
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now

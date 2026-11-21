@@ -5,6 +5,7 @@
 // for its Metric Owner or an Owner or Admin who submits for it, and only for past periods without a value.
 import { format } from "date-fns";
 import { Forbidden, type Actor } from "./actor";
+import { condensedRefusal, condensedSpans } from "./condensed-values";
 import { visibleMetricIds } from "./access";
 import { targetFor } from "./compare";
 import { db } from "./db";
@@ -246,12 +247,14 @@ async function judge(s: Setting, c: Checked, values: PasteValue[]): Promise<Past
   }
   const ids = [...new Set(go.map((v) => v.metricId!))];
   if (ids.length) {
-    const [latest, { data: states }, { data: targets }, outlooks] = await Promise.all([
+    const [latest, { data: states }, { data: targets }, outlooks, spans] = await Promise.all([
       getLatestObservations(s.ws, { metricIds: ids }),
       db().from("period_states").select("metric_id, period_start, state").eq("workspace_id", s.ws).in("metric_id", ids).eq("state", "locked"),
       db().from("series_values").select("metric_id, period_start, value").eq("workspace_id", s.ws).in("metric_id", ids).eq("kind", "target"),
       // Values are recorded under the person pasting, also through a Token they hold as a Stand-in.
       Promise.all(ids.map(async (id) => [id, await valueOutlook(id, s.actorId)] as const)),
+      // Periods condensed (spec 0033) take no more values: a row for one is refused, row by row, with the day.
+      condensedSpans(s.ws, ids),
     ]);
     // The values as they will stand while the paste is recorded, period by period.
     const now = new Map(latest.map((o) => [`${o.metric_id} ${o.period_start}`, Number(o.value)]));
@@ -265,6 +268,11 @@ async function judge(s: Setting, c: Checked, values: PasteValue[]): Promise<Past
       const row: PasteRow = { ...refusedRow(v, s, "", false, "recorded") };
       const there = now.get(key);
       const fv = (x: number) => formatValue(m, x, s.style);
+      const condensed = spans.find((c) => c.metric_id === m.id && v.period! >= c.period_start && v.period! <= c.period_end);
+      if (condensed) {
+        byPlace.set(v.place, { ...row, outcome: "refused", detail: condensedRefusal(condensed.condensed_on) });
+        continue;
+      }
       if (locked.has(key)) {
         byPlace.set(v.place, { ...row, outcome: "locked", detail: `${row.periodLabel} is locked: the value would go to the Metric Owner as a proposed Correction.` });
         continue;

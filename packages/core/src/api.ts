@@ -3,6 +3,8 @@
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
+import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
+import { condensedFor } from "./condensed-values";
 import { db } from "./db";
 import { peopleIn } from "./submissions";
 import { openRows } from "./sealed-columns";
@@ -71,6 +73,9 @@ export type ValueState = "recorded" | "awaiting_approval" | "locked";
 export type ApiObservation = {
   period: string; value: number; state: ValueState; submitter: string | null; submitter_name: string | null;
   submitted_at: string | null; source: string | null; has_thread: boolean; breakdown: BreakdownRow[] | null;
+  /** Only on a Condensed Value (spec 0033): how many of the Metric's periods it was made from, so a program never
+   * mistakes it for one period; `period` is the span's first day and `period_end` its last. */
+  condensed_from?: number; period_end?: string;
 };
 
 /** A Metric's values for periods from `from` to `to` (period starts, both included), oldest first, one page after the
@@ -89,8 +94,15 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   const lower = [range.from, range.after].filter(isDay).sort().at(-1) ?? null;
   const window = { from: lower, to: isDay(range.to) ? range.to : null };
   const observations = await getLatestObservations(ws, { metricIds: withInputs(metrics, [metric.id]), ...window });
-  const points = (buildSeries(metrics, observations)[metric.slug] ?? [])
-    .filter((p) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after));
+  const inRange = (p: { period: string }) => (!range.from || p.period >= range.from) && (!range.to || p.period <= range.to) && (!range.after || p.period > range.after);
+  // The Condensed Values of a Metric the key's creator sees stand among its values as the span they were made for.
+  const spans = metric.formula ? [] : ((await condensedFor(ws, [metric.id]))[metric.id] ?? []);
+  const condensed = spans.flatMap((c) => {
+    const value = valueOfParts(metric.aggregation, [partOfCondensed(c)], c.of);
+    return value === undefined ? [] : [{ period: c.period, value, condensed: c }];
+  }).filter(inRange);
+  // A period a Condensed Value stands for is listed once, as it, even while its originals are not deleted yet.
+  const points: { period: string; value: number; condensed?: CondensedPoint }[] = [...(buildSeries(metrics, observations)[metric.slug] ?? []).filter((p) => inRange(p) && !inCondensed(spans, p.period)), ...condensed].sort((a, b) => a.period.localeCompare(b.period));
   const limit = clampLimit(range.limit);
   const page = points.slice(0, limit);
   if (!page.length) return { items: [], next: null };
@@ -108,7 +120,9 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   ]);
   const withThread = new Set(threads.map((t) => t.period_start));
   return {
-    items: page.map((p) => ({ period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: latest.get(p.period)?.submitter_id ?? null, submitter_name: names.get(latest.get(p.period)?.submitter_id ?? "") ?? null, submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null })),
+    items: page.map((p) => p.condensed
+      ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null }
+      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: latest.get(p.period)?.submitter_id ?? null, submitter_name: names.get(latest.get(p.period)?.submitter_id ?? "") ?? null, submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null }),
     next: points.length > limit ? page[page.length - 1].period : null,
   };
 }

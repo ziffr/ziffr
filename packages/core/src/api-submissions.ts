@@ -15,6 +15,7 @@ export const REFUSED: Record<string, string> = {
   rejected_duplicate: "This period already has a value, and the Metric's rule rejects a second one.",
   rejected_derived: "This is a Derived Metric: it is computed, never submitted.",
   rejected_archived: "This Metric is archived.",
+  rejected_period_condensed: "This period was condensed; it takes no more values.",
   rejected_source: "This Metric does not take values from the API.",
   rejected_period: "That is not the first day of one of this Metric's periods, or it is in the future.",
   rejected_no_value: "The value is not a number.",
@@ -35,7 +36,7 @@ export type ApiSubmissionInput = { value: number; period?: string | null; breakd
  * Derived Metric, a bad period). */
 export type ApiSubmissionResult =
   | { ok: true; status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string }
-  | { ok: false; reason: "locked" | "not_submitter" | "refused"; detail: string };
+  | { ok: false; reason: "locked" | "not_submitter" | "period_condensed" | "refused"; detail: string };
 
 /** Submits a value for the Metric with this slug (scope values:submit). A Metric the key's creator does not see is
  * Forbidden, like one that does not exist. */
@@ -61,6 +62,8 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
     value: { value, breakdown }, period: input.period ?? undefined, accessKeyId: actor.key ? Number(actor.key.id) : undefined, workspaceId: actor.workspaceId,
   }, effects);
   if (result.outcome === "proposed_locked") return { ok: false, reason: "locked", detail: reads ? result.detail : "The period is locked; the value went to the Metric's owner as a proposed correction." };
+  // Before the other refusals, so a program can tell a condensed period (409) from a rule that refused its value (422).
+  if (result.outcome === "rejected_period_condensed") return { ok: false, reason: "period_condensed", detail: reads ? result.detail : REFUSED.rejected_period_condensed };
   if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
   const { data: state } = await db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
   const { data: latest } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);

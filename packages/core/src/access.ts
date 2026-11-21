@@ -11,6 +11,7 @@ import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
 import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
+import { condensedFor } from "./condensed-values";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
 
 /** The Groups of a workspace with their members, Everyone filled in. */
@@ -118,7 +119,7 @@ export async function visibleMetricIds(ws: string, viewer: string, metrics: Metr
 }
 
 /** The parts of CanvasData that are per Metric and can be large: values, Breakdowns, Target Series, Projections. */
-export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections">;
+export type CanvasSeries = Pick<CanvasData, "series" | "breakdowns" | "targets" | "projections" | "condensed">;
 
 /** Which Metrics' series a page sends: some ids, or chosen from the visible Metrics (in the order they are listed). */
 export type SeriesOf = number[] | ((visible: Metric[]) => number[]);
@@ -131,15 +132,17 @@ export const MAX_SERIES_REQUEST = 200;
  * key always means "not sent". Only what is asked for is read from the database. */
 async function seriesFor(ws: string, metrics: Metric[], visible: Set<number>, ids: Iterable<number>): Promise<CanvasSeries> {
   const wanted = withInputs(metrics, [...ids].filter((id) => visible.has(id))).filter((id) => visible.has(id));
-  if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {} };
+  if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {}, condensed: {} };
   // Derived values are computed from all their inputs, also ones the person does not see; only visible series go out.
-  const [series, breakdowns, { targets, projections }] = await Promise.all([getSeriesOf(ws, metrics, wanted), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted)]);
+  const [series, breakdowns, { targets, projections }, condensed] = await Promise.all([getSeriesOf(ws, metrics, wanted), getBreakdowns(ws, wanted), getSeriesValues(ws, wanted), condensedFor(ws, wanted)]);
   const byId = new Map(metrics.map((m) => [m.id, m]));
   return {
     series: Object.fromEntries(wanted.map((id) => byId.get(id)!).map((m) => [m.slug, series[m.slug] ?? []])),
     breakdowns,
     targets,
     projections,
+    // Only the visible Metrics' Condensed Values go out, like their series (`wanted` holds visible ids only).
+    condensed,
   };
 }
 
@@ -178,7 +181,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
-  const { series, breakdowns, targets, projections } = await seriesFor(ws, metrics, ids, wanted);
+  const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
   const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws, ids);
   const openActions: Record<number, number> = {};
@@ -192,6 +195,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     breakdowns,
     targets,
     projections,
+    condensed,
     templates: (templates ?? []) as TeamTemplate[],
     // Guests place nothing; a row that no longer passes the checks is never sent.
     designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],

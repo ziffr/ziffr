@@ -36,6 +36,8 @@ export const SEALED_COLUMNS = {
   dashboards: ["intro"],
   widgets: ["title"],
   metrics: ["description"],
+  // A Condensed Value's numbers (the sum or last value, and the Target), as JSON (spec 0033); its id (a uuid) is made first.
+  condensed_values: ["payload"],
 } as const;
 
 /** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
@@ -52,7 +54,7 @@ const NEVER_NULL: Partial<Record<OpenedTable, readonly string[]>> = { dashboards
 const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
+const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", dashboards: "id", widgets: "id", metrics: "id" };
 
 /** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
