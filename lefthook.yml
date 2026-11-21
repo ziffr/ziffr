@@ -1,0 +1,17 @@
+# The optional pre-push hook (#578): the fast checks, so a pull request is red on your machine before it is red in CI.
+# Opt in with `pnpm hooks:install`, opt out with `pnpm hooks:uninstall`; nothing installs it for you. Skip it once with
+# `git push --no-verify` or LEFTHOOK=0. `pnpm ci:local` is the full version and CI runs everything either way.
+# Each command compares your branch with origin/main (`git fetch` first when that is old).
+pre-push:
+  parallel: false
+  commands:
+    typecheck:
+      run: node scripts/pre-push.mjs typecheck
+    lint:
+      run: node scripts/pre-push.mjs lint
+    guards:
+      run: pnpm -s guards
+    guide:
+      run: node .github/scripts/guide-touched.mjs
+    release-note:
+      run: .github/scripts/release-note-present.sh
