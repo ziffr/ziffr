@@ -38,5 +38,5 @@ export const WEBHOOK_SEND_CONCURRENCY = 3;
 export const WEBHOOK_SEND_NOW_BUDGET_MS = 15_000;
 /** Requests per minute to one Webhook's inbound address from one network address, signed or not, counted before its secret is opened. */
 export const WEBHOOK_INBOUND_GATE_PER_ADDRESS = 120;
-/** Requests per minute to one Webhook's inbound address from anywhere, counted before its secret is opened: a ceiling on the cost of a flood, well above the 60 signed requests a Webhook may make. */
+/** Requests per minute to one Webhook's inbound address from anywhere, used only when the network address is unknown (ZIFFR_PROXY_HOPS unset): well above the 60 signed requests a Webhook may make. */
 export const WEBHOOK_INBOUND_GATE_PER_ID = 600;

@@ -13,6 +13,7 @@ vi.mock("@ziffr/core/webhook-inbound", () => ({
 import { POST } from "./route";
 
 const ID = "6f1c2d3e-0000-4000-8000-000000000001";
+const ID2 = "6f1c2d3e-0000-4000-8000-000000000002";
 const call = (id: string, ip: string) =>
   POST(new Request(`http://ziffr.test/api/webhooks/${id}/in`, { method: "POST", body: "{}", headers: { "x-forwarded-for": ip } }), { params: Promise.resolve({ id }) });
 
@@ -23,9 +24,7 @@ describe("POST /api/webhooks/{id}/in gate", () => {
   it("answers 429 past the limit without ever reaching the core, for a known or made-up id alike; another address still passes", async () => {
     for (let i = 0; i < WEBHOOK_INBOUND_GATE_PER_ADDRESS; i++) expect((await call(ID, "9.9.9.9")).status).toBe(404);
     expect(authenticate).toHaveBeenCalledTimes(WEBHOOK_INBOUND_GATE_PER_ADDRESS);
-    for (const id of [ID, "6f1c2d3e-0000-4000-8000-000000000002"]) {
-      if (id !== ID) for (let i = 0; i <= WEBHOOK_INBOUND_GATE_PER_ADDRESS; i++) await call(id, "9.9.9.9");
-    }
+    for (let i = 0; i <= WEBHOOK_INBOUND_GATE_PER_ADDRESS; i++) await call(ID2, "9.9.9.9");
     authenticate.mockClear();
     const res = await call(ID, "9.9.9.9");
     expect(res.status).toBe(429);
