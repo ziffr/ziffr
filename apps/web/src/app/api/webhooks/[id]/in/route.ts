@@ -24,9 +24,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const body = await readLimited(req, WEBHOOK_INBOUND_MAX_BYTES);
   if (body === null) return answer(413, { error: "too_large" });
   const who = await authenticateWebhookRequest(id, { timestamp: req.headers.get("x-ziffr-timestamp"), signature: req.headers.get("x-ziffr-signature"), body });
-  // Failures count against the address and the Webhook; a valid signature (even past the 60 a minute) makes the address a known sender, which the gate never refuses.
-  if (!who.ok && who.why === "not_found") recordWebhookInboundFailure(id, network);
-  else recordWebhookInboundSender(id, network);
+  // Failures count against the address and, when the Webhook exists, the Webhook; only a taken request (a valid signature that is no replay) makes the address a known sender.
+  if (!who.ok && who.why !== "limit") recordWebhookInboundFailure(id, network, who.why === "not_found");
+  else if (who.ok) recordWebhookInboundSender(id, network);
   if (!who.ok) return who.why === "limit" ? answer(429, { error: "too_many_requests" }, { "retry-after": "60" }) : answer(404);
   let input: unknown;
   try {

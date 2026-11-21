@@ -7,7 +7,7 @@
 //  - a Webhook with 600 failures in a minute from anywhere refuses everyone except known senders and, at most 60 a minute,
 //    addresses with no failures of their own (a real new sender); a known sender is still refused if its own address fails;
 //  - a known sender is a network address that sent a valid signed request to that Webhook in the last day (16 per
-//    Webhook, held on this process only): it is never refused, so a real sender keeps working through any flood from other addresses.
+//    Webhook, held on this process only): it skips the Webhook's ceiling (not its own address's failures), so a real sender keeps working through any flood from other addresses.
 // Remaining trade-off: past the ceiling, a sender that is neither known (on this process, in the last day) nor lucky in the
 // 60-a-minute budget is refused until the flood eases. Without a network address (ZIFFR_PROXY_HOPS unset) nobody can be
 // known or admitted by the budget, so a flood past the ceiling locks the real sender out until it stops. Tables are bounded and expire from the front in O(1) per request; when full
@@ -32,7 +32,9 @@ class Table<V extends { at: number }> {
       if (now - v.at < this.ttl) break;
       this.m.delete(k);
     }
-    return this.m.get(key);
+    const v = this.m.get(key);
+    // A clock set back can leave a newer entry in front of an older one; an entry past its time is never returned.
+    return v && now - v.at < this.ttl ? v : undefined;
   }
   /** Puts an entry last (it is the newest), dropping the oldest when the table is full. */
   put(key: string, v: V): void {
@@ -90,8 +92,8 @@ export function admitWebhookInbound(webhookId: string, network: string | null, n
   return ++budget.n <= WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE;
 }
 
-/** Counts a request that was not taken (unknown, unsigned, wrong, old or replayed) against its address and its Webhook. */
-export function recordWebhookInboundFailure(webhookId: string, network: string | null, now: number = Date.now()): void {
+/** Counts a request that was not taken against its address and, when the Webhook exists, against the Webhook. */
+export function recordWebhookInboundFailure(webhookId: string, network: string | null, exists: boolean, now: number = Date.now()): void {
   const id = idOf(webhookId);
   if (!id) return;
   // A live counter is changed in place, so the table stays ordered by when each window began.
@@ -100,7 +102,8 @@ export function recordWebhookInboundFailure(webhookId: string, network: string |
     if (c) c.n++;
     else t.put(key, { at: now, n: 1 });
   };
-  bump(idFailures, id);
+  // Made-up ids count against their address only: they must not wear out (or evict) the counter of a real Webhook.
+  if (exists) bump(idFailures, id);
   const unit = unitOf(network);
   if (unit) {
     bump(addressFailures, `${id}:${unit}`);
@@ -108,7 +111,7 @@ export function recordWebhookInboundFailure(webhookId: string, network: string |
   }
 }
 
-/** Remembers that this address sent a valid signed request to this Webhook, so the gate never refuses it for an hour. */
+/** Remembers that this address sent a valid signed request to this Webhook, so the gate lets it past the Webhook's ceiling for a day (not past its own address's failures). Only for a request whose signature was valid and taken. */
 export function recordWebhookInboundSender(webhookId: string, network: string | null, now: number = Date.now()): void {
   const id = idOf(webhookId);
   const unit = unitOf(network);

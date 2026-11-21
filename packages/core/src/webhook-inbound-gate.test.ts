@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { admitWebhookInbound as admit, recordWebhookInboundFailure as fail, recordWebhookInboundSender as sender, resetWebhookInboundGate } from "./webhook-inbound-gate";
+import { admitWebhookInbound as admit, recordWebhookInboundFailure as failOn, recordWebhookInboundSender as sender, resetWebhookInboundGate } from "./webhook-inbound-gate";
 import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE as NEW } from "./webhook-limits";
 
 const A = "6f1c2d3e-0000-4000-8000-000000000001";
 const B = "6f1c2d3e-0000-4000-8000-000000000002";
+const fail = (id: string, network: string | null, now: number) => failOn(id, network, true, now);
 const ip = (i: number) => `10.${(i >> 16) & 255}.${(i >> 8) & 255}.${i & 255}`;
 beforeEach(resetWebhookInboundGate);
 
@@ -100,6 +101,15 @@ describe("past the Webhook's failure ceiling", () => {
 });
 
 describe("trying made-up ids", () => {
+  it("made-up ids do not count against a Webhook, only against their address; a clock set back never keeps a stale counter", () => {
+    for (let i = 0; i < PER_ID; i++) failOn(A, ip(i), false, 0);
+    expect(admit(A, "3.3.3.3", 1)).toBe(true);
+    // The clock set back: a newer counter sits in front of an older one, and the older one is still not served past its minute.
+    fail("6f1c2d3e-0000-4000-8000-0000000000c3", null, 100_000);
+    for (let i = 0; i < PER_ID; i++) fail(B, null, 0);
+    expect(admit(B, null, 50)).toBe(false);
+    expect(admit(B, null, 70_000)).toBe(true);
+  });
   it("one address failing across many ids is refused for all of them, another address is not", () => {
     for (let i = 0; i < ANY; i++) fail(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, "4.4.4.4", 0);
     expect(admit(A, "4.4.4.4", 1)).toBe(false);

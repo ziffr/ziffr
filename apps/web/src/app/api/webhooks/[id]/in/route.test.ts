@@ -32,15 +32,22 @@ describe("POST /api/webhooks/{id}/in gate", () => {
     expect(authenticate).toHaveBeenCalledTimes(1);
   });
 
-  it("never counts signed requests, and a signed sender stays served after its address failed once, even past the 60 a minute", async () => {
+  it("never counts signed requests; a replay at the limit does not make an address a known sender, a taken request does, and a known sender that keeps failing is refused", async () => {
     authenticate.mockResolvedValue({ ok: true, actor: {} });
     for (let i = 0; i < 100; i++) expect((await call(ID, "7.7.7.7")).status).toBe(200);
     authenticate.mockResolvedValue({ ok: false, why: "limit" });
     expect((await call(ID, "7.7.7.7")).status).toBe(429);
     authenticate.mockResolvedValue({ ok: false, why: "not_found" });
-    for (let i = 0; i < WEBHOOK_INBOUND_FAILURES_PER_ADDRESS * 2; i++) await call(ID, "7.7.7.7");
+    for (let i = 0; i < WEBHOOK_INBOUND_FAILURES_PER_ADDRESS; i++) await call(ID, "7.7.7.7");
     authenticate.mockClear();
-    await call(ID, "7.7.7.7");
-    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect((await call(ID, "7.7.7.7")).status).toBe(429);
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+
+  it("answers an unknown Webhook 404 like any other failure", async () => {
+    authenticate.mockResolvedValue({ ok: false, why: "no_such" });
+    const res = await call(ID, "6.6.6.6");
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not_found" });
   });
 });
