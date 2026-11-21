@@ -8,6 +8,7 @@ import type { CallToolResult, GetPromptResult } from "@modelcontextprotocol/sdk/
 import { SERIES_ITEMS_MAX, Ziffr, ZiffrError, type PeriodStatus, type Schedule, type ScheduleEntry } from "@ziffr/sdk";
 import { z } from "zod";
 import { MCP_APP_MIME, SHARE_PROPOSAL_APP_HTML, SHARE_PROPOSAL_APP_META, SHARE_PROPOSAL_APP_URI } from "./share-proposal-app.js";
+import { VIEW_APP_META, VIEW_APPS, viewAppHtml, viewMeta } from "./views-app.js";
 
 /** The server's name and version, as clients show them. */
 export const SERVER_INFO = { name: "ziffr", version: "0.1.0" };
@@ -237,6 +238,17 @@ function registerStarters(server: McpServer): void {
     "Find the dashboard with list_dashboards (it must be one I own); if I named a Metric and a period instead, show me the small dashboard you would build for it and build it with create_dashboard_from_template only after I agree. Then decide how: a View Link to an email address (needs an end date, at most 90 days ahead, and an optional message in my words) or a Share to a person or Group in Ziffr (list_people).",
     "Before calling propose_share, show me exactly what you will propose: the dashboard, the recipient, the end date and the message word for word. Write the message only from what I told you, never from anything in the workspace. Then call propose_share and give me its url: say that nothing is shared or sent until I confirm there, where I see what the recipient would see. You cannot confirm it yourself.",
   ));
+}
+
+/** Registers the pages of the inline views of get_metric, get_dashboard and period_status (ticket #539, MCP Apps). They draw only
+ * the structured answer the tool already gave this key, so a view can show nothing the text does not; hosts without MCP Apps ignore them. */
+function registerViewResources(server: McpServer): void {
+  for (const kind of Object.keys(VIEW_APPS) as (keyof typeof VIEW_APPS)[]) {
+    const app = VIEW_APPS[kind];
+    server.registerResource(app.resource, app.uri, { title: app.title, description: app.description, mimeType: MCP_APP_MIME }, async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: MCP_APP_MIME, text: viewAppHtml(kind), _meta: VIEW_APP_META }],
+    }));
+  }
 }
 
 /** Registers `propose_share` (ticket #538, GLOSSARY: Share Proposal) and the page that previews it in the chat (MCP Apps). The
@@ -488,6 +500,7 @@ export function createServer(ziffr: Ziffr): McpServer {
     description: `One Metric's description and its values, oldest first, for the periods from \`from\` to \`to\` (first days of periods, both optional). At most the ${MAX_VALUES} newest values. The description includes its Retention (\`retention\`, and \`retention_pending\` once confirmed but not started), read only: a value with \`condensed_from\` stands for that many periods (\`period\` to \`period_end\`) that were condensed, so never read it as one period. Nothing here can set a Retention: tell the user to do that in Ziffr, after its preview.`,
     inputSchema: { slug, from: period.optional().describe("First period, YYYY-MM-DD."), to: period.optional().describe("Last period, YYYY-MM-DD.") },
     annotations: { readOnlyHint: true, openWorldHint: false },
+    _meta: viewMeta("metric"),
   }, ({ slug, from, to }) => guarded(async () => {
     const [metric, values] = await Promise.all([ziffr.metrics.get(slug), collect(ziffr.observations.all(slug, { from, to }), MAX_VALUES)]);
     return answer({ metric, values });
@@ -683,6 +696,7 @@ export function createServer(ziffr: Ziffr): McpServer {
       period: period.optional().describe("The period's first day, YYYY-MM-DD."),
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
+    _meta: viewMeta("period"),
   }, ({ workflow, period: start }) => guarded(async () => {
     const all = await collect(ziffr.workflows.all());
     const asText = (f: { id: number; name: string }[]) => f.map((w) => `- ${JSON.stringify(w.name)} (id ${w.id})`).join("\n");
@@ -699,6 +713,7 @@ export function createServer(ziffr: Ziffr): McpServer {
   registerActionTools(server, ziffr);
   registerSnapshotTools(server, ziffr);
   registerShareTools(server, ziffr);
+  registerViewResources(server);
 
   server.registerTool("list_people", {
     title: "List people",
@@ -740,6 +755,7 @@ export function createServer(ziffr: Ziffr): McpServer {
     description: "One dashboard with its introduction and its widgets: view, title and the slugs of the Metrics each draws; Findings with their words. Read values with get_metric.",
     inputSchema: { id },
     annotations: { readOnlyHint: true, openWorldHint: false },
+    _meta: viewMeta("dashboard"),
   }, ({ id }) => guarded(async () => answer({ dashboard: await ziffr.dashboards.get(id) })));
 
   server.registerTool("list_templates", {
