@@ -8,38 +8,66 @@ import { WEBHOOK_INBOUND_GATE_PER_ADDRESS, WEBHOOK_INBOUND_GATE_PER_ID } from ".
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const WINDOW_MS = 60_000;
-/** Most keys held at once, so a flood of made-up ids or addresses cannot grow memory without bound. */
+/** Most address buckets and most id buckets held at once, so made-up keys cannot grow memory without bound. */
 const MAX_KEYS = 10_000;
+/** Requests a minute from one address (or IPv6 /56) that are normal for a sender; only what passes this counts towards the id's ceiling. */
+const QUIET_PER_ADDRESS = 20;
 
 type Counter = { start: number; n: number };
-const counters = new Map<string, Counter>();
+const byAddress = new Map<string, Counter>();
+const byId = new Map<string, Counter>();
 
-function hit(key: string, max: number, now: number): boolean {
-  let c = counters.get(key);
-  if (!c || now - c.start >= WINDOW_MS) {
-    // Full: drop the oldest key (insertion order) rather than refuse, so a flood of made-up keys can never lock out
-    // everyone else; it only forgets the count of whoever was counted first.
-    if (!c && counters.size >= MAX_KEYS) counters.delete(counters.keys().next().value as string);
-    c = { start: now, n: 0 };
-    counters.delete(key);
-    counters.set(key, c);
+/** The bucket for a key in its window, or null when it is new and the table is full of live ones. `evict`: drop the oldest instead of refusing. */
+function bucket(map: Map<string, Counter>, key: string, now: number, evict: boolean): Counter | null {
+  const c = map.get(key);
+  if (c && now - c.start < WINDOW_MS) return c;
+  if (!c && map.size >= MAX_KEYS) {
+    for (const [k, v] of map) if (now - v.start >= WINDOW_MS) map.delete(k);
+    if (map.size >= MAX_KEYS) {
+      if (!evict) return null;
+      map.delete(map.keys().next().value as string);
+    }
   }
-  c.n++;
-  return c.n <= max;
+  const fresh = { start: now, n: 0 };
+  map.delete(key);
+  map.set(key, fresh);
+  return fresh;
 }
 
-/** Whether one more request to this Webhook id from this network address (null when unknown) may go on to be judged. With
- * an address, only that address is counted: a sender that does not prove the secret can then only use up its own share,
- * never lock out the real sender of the Webhook. Without one (ZIFFR_PROXY_HOPS unset) there is nobody to tell apart, so
- * the id as a whole has a ceiling well above what a real sender makes, and a flood can lock the sender out until it stops. */
+/** The unit an address is counted by: an IPv4 address as it is, an IPv6 /64 (as networkAddress gives it) widened to its /56,
+ * which is what one allocation usually is, so rotating addresses inside it does not help. */
+function unitOf(network: string): string {
+  const m = /^([0-9a-f]{1,4}):([0-9a-f]{1,4}):([0-9a-f]{1,4}):([0-9a-f]{1,4})::\/64$/.exec(network);
+  return m ? `${m[1]}:${m[2]}:${m[3]}:${m[4].padStart(4, "0").slice(0, 2)}::/56` : network;
+}
+
+/** Whether one more request to this Webhook id from this network address (null when unknown) may go on to be judged.
+ * Each address (IPv6: /56) has its own bucket, so one that does not prove the secret only uses up its own share. Only an
+ * address past a normal sender's volume adds to the id's ceiling, so a flood from many addresses still cannot cost more
+ * than that ceiling, while a quiet real sender is never counted towards it. A full table of addresses refuses new ones
+ * rather than forgetting those already counted. Without an address (ZIFFR_PROXY_HOPS unset) every request counts towards
+ * the id's ceiling, and a flood can lock the real sender out until it stops. */
 export function admitWebhookInbound(webhookId: string, network: string | null, now: number = Date.now()): boolean {
-  // Only well-formed ids are counted, so made-up strings cannot fill the table; the route answers the rest 404 itself.
+  // Only well-formed ids are counted, so made-up strings cannot fill the tables; the core answers the rest 404 itself.
   const id = String(webhookId).toLowerCase();
   if (!UUID.test(id)) return true;
-  return network ? hit(`ip:${id}:${network}`, WEBHOOK_INBOUND_GATE_PER_ADDRESS, now) : hit(`id:${id}`, WEBHOOK_INBOUND_GATE_PER_ID, now);
+  let noisy = true;
+  if (network) {
+    const a = bucket(byAddress, `${id}:${unitOf(String(network).slice(0, 64).toLowerCase())}`, now, false);
+    if (!a) return false;
+    a.n++;
+    if (a.n > WEBHOOK_INBOUND_GATE_PER_ADDRESS) return false;
+    noisy = a.n > QUIET_PER_ADDRESS;
+  }
+  if (!noisy) return true;
+  // Only noisy traffic creates these, so evicting the oldest costs a flooder far more than it costs a sender.
+  const i = bucket(byId, id, now, true)!;
+  i.n++;
+  return i.n <= WEBHOOK_INBOUND_GATE_PER_ID;
 }
 
 /** Forgets every count (tests only). */
 export function resetWebhookInboundGate(): void {
-  counters.clear();
+  byAddress.clear();
+  byId.clear();
 }

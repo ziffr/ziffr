@@ -218,11 +218,11 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Log | 14 days |
 | Answer within | 10 seconds |
 | Requests back | 60 a minute per Webhook, 16 KB each |
-| Unsigned requests, before the secret is opened | 120 a minute per Webhook and network address (a gate in memory, per Ziffr process) |
+| Requests before the secret is opened | 120 a minute per Webhook and network address (an IPv6 sender counts by its /56); past 20 a minute an address also counts towards 600 a minute for the Webhook as a whole. A gate in memory, per Ziffr process |
 | Links per Action | 10 |
 | Secret overlap after a replacement | 24 hours |
 
-Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it, unsigned floods share one ceiling of 600 requests a minute per Webhook and can lock out the real sender until they stop.
+Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it, every request counts towards one ceiling of 600 a minute per Webhook and can lock out the real sender until they stop.
 
 Webhooks are available on Free and every paid Size. The demo and a trial have none, since they would send a Workspace's data to an address outside Ziffr.
 
