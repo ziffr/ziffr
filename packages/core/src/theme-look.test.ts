@@ -45,6 +45,11 @@ describe("the look", () => {
     expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "data:image/png;base64,AAAA" } }, "A").logo).toBe("data:image/png;base64,AAAA");
     expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "data:text/html;base64,AAAA" } }, "A").logo).toBeNull();
   });
+  it("also refuses an SVG logo that is not plain, whatever stored it", () => {
+    const svg = (x: string) => "data:image/svg+xml;base64," + Buffer.from(x).toString("base64");
+    expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: svg("<svg><script>1</script></svg>") } }, "A").logo).toBeNull();
+    expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: svg("<svg><rect/></svg>") } }, "A").logo).not.toBeNull();
+  });
   it("draws a look as a Theme that names no stored Theme", () => {
     const look = themeLook(STARTER_THEME, "Acme");
     expect(lookTheme(look)).toMatchObject({ id: 0, tokens: { accent: look.accent, surface: look.surface } });
@@ -54,6 +59,6 @@ describe("the look", () => {
 describe("svgIsPlain", () => {
   it("takes a plain drawing and refuses anything that can run or reach out", () => {
     expect(svgIsPlain('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>')).toBe(true);
-    for (const bad of ["<div></div>", "<svg><script>1</script></svg>", '<svg onclick="1"/>', "<svg><use href='#a'/></svg>", '<svg><image href="http://x/y.png"/></svg>', "<!DOCTYPE svg><svg/>", "<svg><style>*{}</style></svg>"]) expect(svgIsPlain(bad)).toBe(false);
+    for (const bad of ["<div></div>", "<svg><script>1</script></svg>", '<svg onclick="1"/>', "<svg><use href='#a'/></svg>", '<svg><image href="http://x/y.png"/></svg>', "<!DOCTYPE svg><svg/>", "<svg><style>*{}</style></svg>", '<svg xmlns:s="http://www.w3.org/2000/svg"><s:script>1</s:script></svg>', '<svg><rect fill="url(https://e.example/t)"/></svg>']) expect(svgIsPlain(bad)).toBe(false);
   });
 });

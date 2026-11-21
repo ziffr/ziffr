@@ -63,7 +63,7 @@ export function themeLook(theme: Pick<Theme, "tokens" | "slides"> | undefined, w
   const logo = theme?.slides?.logo ?? null;
   return {
     name: String(workspaceName ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Ziffr",
-    logo: typeof logo === "string" && /^data:image\/(png|jpeg|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(logo) ? logo : null,
+    logo: typeof logo === "string" && /^data:image\/(png|jpeg|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(logo) && (!logo.startsWith("data:image/svg+xml") || svgIsPlain(atob(logo.slice(logo.indexOf(",") + 1)))) ? logo : null,
     logoRatio: Number(theme?.slides?.logo_ratio) > 0 ? Math.min(20, Number(theme?.slides?.logo_ratio)) : 3,
     logoWidth: Math.min(400, Math.max(40, Math.round(Number(theme?.slides?.logo_width) || 140))),
     footer: String(theme?.slides?.footer ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").trim().slice(0, 120),
@@ -79,7 +79,7 @@ export function themeLook(theme: Pick<Theme, "tokens" | "slides"> | undefined, w
  * else. A picture in an img tag runs no script anyway; this keeps a file that would be dangerous anywhere else out. */
 export function svgIsPlain(svg: string): boolean {
   if (!/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(svg)) return false;
-  return !/<\s*(script|foreignObject|iframe|object|embed|animate|set|use|image|a|style)\b|\son[a-z]+\s*=|javascript:|data:text|(?:href|src)\s*=\s*["'](?!#)|<!ENTITY|<!DOCTYPE/i.test(svg);
+  return !/<\s*(?:[\w.-]+:)?(script|foreignObject|iframe|object|embed|animate\w*|set|use|image|a|style|handler|listener|feImage)\b|\son[a-z]+\s*=|javascript:|data:text|(?:href|src)\s*=\s*["'](?!#)|url\s*\(\s*['"]?\s*(?!#)|<!ENTITY|<!DOCTYPE/i.test(svg);
 }
 
 /** A look as a Theme, so a page that has only the look (the form link) can be painted by the same ThemeScope: its
