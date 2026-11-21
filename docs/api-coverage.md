@@ -168,6 +168,40 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `periodRecord` (period-record.ts): the period page
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
+- `submittingKeyNames` (access-keys.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `canvasSeries` (access.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `alertChoices` (alerts.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `archivableMetric` (archived-metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `deckSeed` (conversions.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `dashboardTemplateChoices` (dashboard-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `dashboardRole` (dashboards.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `editableWidget` (dashboards.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `specFrom` (dashboards.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `deckAddition` (deck-additions.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `deckTemplateChoices` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `deckTemplateSeed` (deck-templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `switchableDashboards` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `homeDashboard` (home.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `makeRoomPlan` (make-room.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `metricDraftFrom` (metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exportOptions` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `exportPack` (pack-export.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `activityView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `workflowsView` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `metricExtras` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `savedWidgets` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `dashboardWidgets` (page-data.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `pastedValueIds` (paste-values.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `pasteMetrics` (paste-values.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `snapshotAccess` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `snapshotDeckSeed` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `restorableWords` (snapshots.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `tellEditorFacts` (tell.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `listTellSubscriptions` (tell.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `dashboardTemplateDraft` (templates.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 
 ## keys-only: needs a person's check
 

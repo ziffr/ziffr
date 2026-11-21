@@ -8,7 +8,7 @@ import { setHomeDashboard, switchableDashboards } from "./home";
 import { share } from "./sharing";
 import { buildView } from "./view-links";
 import { listVersions, restoreVersion } from "./version-history";
-import { workspace } from "./test/db-fixtures";
+import { opened, openedVersions, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -28,7 +28,7 @@ describe("a dashboard's introduction", () => {
     const other = await ws("Other"); const zoe = await other.person("owner");
     await expect(saveDashboardText(other.actor(zoe), dash, { intro: "x" })).rejects.toEqual(forbidden);
     await saveDashboardText(w.actor(sara), dash, { intro: "x".repeat(5000) });
-    expect((await db().from("dashboards").select("intro").eq("id", dash).single()).data?.intro).toHaveLength(4000);
+    expect((await opened("dashboards", w.id, [(await db().from("dashboards").select("id, intro").eq("id", dash).single()).data!]))[0].intro).toHaveLength(4000);
     await saveDashboardText(w.actor(sara), dash, { intro: "What happened." });
     expect((await buildView("dashboard", dash))?.intro).toBe("What happened.");
   });
@@ -39,12 +39,13 @@ describe("a dashboard's introduction", () => {
     const dash = await createDashboard(w.actor(sara), "Month");
     await placeWidget(w.actor(sara), dash, { type: "metric", id: a.id });
     await saveDashboardText(w.actor(sara), dash, { intro: "First words." });
-    const { data: rows } = await db().from("versions").select("id, snapshot").eq("object_type", "dashboard").eq("object_id", dash).order("version");
-    expect(rows!.map((r) => (r.snapshot as { intro?: string }).intro)).toContain("First words.");
+    const { data: stored } = await db().from("versions").select("id, version, snapshot").eq("object_type", "dashboard").eq("object_id", dash).order("version");
+    const rows = await openedVersions(w.id, "dashboard", dash, stored);
+    expect(rows.map((r) => (r.snapshot as { intro?: string }).intro)).toContain("First words.");
     // The oldest Version is the dashboard before any words: restoring it takes them away again.
     const { versions } = await listVersions(w.actor(sara), "dashboard", dash);
     await restoreVersion(w.actor(sara), versions.at(-1)!.id);
-    expect((await db().from("dashboards").select("intro").eq("id", dash).single()).data?.intro).toBe("");
+    expect((await opened("dashboards", w.id, [(await db().from("dashboards").select("id, intro").eq("id", dash).single()).data!]))[0].intro).toBe("");
   });
 });
 

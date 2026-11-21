@@ -13,6 +13,9 @@ import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
 import { db } from "./db";
+import { openObject, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
+import { openRows, reserveIds } from "./sealed-columns";
+import { workspaceCipher } from "./workspace-keys";
 import { widgetWithoutOutside } from "./deck-content";
 import { assertSeesMetrics } from "./sharing";
 import { dataAsOf, snapshotPeriod, type SnapshotPeriodKind } from "./snapshot-periods";
@@ -30,7 +33,7 @@ import { dayAfter } from "./display-periods";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
  * and source. Everything else about it is frozen. */
-export const WORD_KEYS = ["title", "kicker", "headline", "subline", "footnote", "source"] as const;
+export { WORD_KEYS };
 /** One of the words a Snapshot keeps editable. */
 export type WordKey = (typeof WORD_KEYS)[number];
 /** The words of one widget in a Snapshot. */
@@ -75,7 +78,7 @@ export type Correction = { metricId: number; slug: string; period: string; was: 
 
 const SUMMARY = "id, dashboard_id, period_kind, period_start, period_end, label, taken_by, taken_at, automatic, shown_at, words_changed_at";
 
-type Row = { id: number; dashboard_id: number; period_kind: SnapshotPeriodKind; period_start: string; period_end: string; label: string; taken_by: string; taken_at: string; automatic: boolean; shown_at: string | null; words_changed_at: string | null; frozen?: Frozen | null; words?: SnapshotWords };
+type Row = { id: number; dashboard_id: number; period_kind: SnapshotPeriodKind; period_start: string; period_end: string; label: string; taken_by: string; taken_at: string; automatic: boolean; shown_at: string | null; words_changed_at: string | null; workspace_id?: string; frozen?: Frozen | null; words?: SnapshotWords };
 
 const summary = (r: Row): SnapshotSummary => ({
   id: r.id, dashboardId: r.dashboard_id, kind: r.period_kind, start: r.period_start, end: r.period_end, label: r.label,
@@ -116,7 +119,7 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   if ((count ?? 0) >= MAX_SNAPSHOTS) throw new Refused(`A dashboard keeps ${MAX_SNAPSHOTS} Snapshots at most. Delete old ones first.`);
   const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
   // Nothing in a free layout may load from another site when shown (spec 0009).
-  const widgets = ((rows ?? []) as Widget[]).map(widgetWithoutOutside);
+  const widgets = ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside);
   const metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
   // Whoever takes it vouches for what it shows: every Metric on it must be one they see.
   await assertSeesMetrics(actor, metricIds);
@@ -125,12 +128,16 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   const data = dataAsOf(shownData(full, new Set(metricIds), dash.theme_id ?? null), p.end);
   // Each widget keeps what drawing needs, nothing else.
   const kept = widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
-  const frozen: Frozen = { name: dash.name, themeId: dash.theme_id ?? null, widgets: kept, data };
-  if (JSON.stringify(frozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
+  // The words are kept apart (and sealed, spec 0028) and every reader puts them back on the widgets: the frozen part
+  // never holds them, so it is not a second, readable copy.
   const words: SnapshotWords = { intro: String(dash.intro ?? ""), widgets: Object.fromEntries(kept.map((w) => [String(w.id), wordsOf(w)])) };
+  const frozen: Frozen = { name: dash.name, themeId: dash.theme_id ?? null, widgets: kept.map((w) => ({ ...w, title: null, settings: mapSettingsWords(w.settings, () => undefined) as WidgetSettings })), data };
+  if (JSON.stringify(frozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
+  // The words are bound to their Snapshot, so its id is taken first.
+  const [snapshotId] = await reserveIds("dashboard_snapshots", 1);
   const { data: made, error } = await db().from("dashboard_snapshots").insert({
-    workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
-    taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen, words,
+    id: snapshotId, workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
+    taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen, words: await sealedWords(ws, snapshotId, words),
   }).select("id").single();
   if (error?.code === "23505") throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
   if (error || !made) throw new Error("The Snapshot could not be taken.");
@@ -207,6 +214,17 @@ function keptDay(data: CanvasData, row: Pick<Row, "period_end">): CanvasData {
   return { ...data, today: dayAfter(row.period_end) };
 }
 
+/** A Snapshot's words sealed for it, as they are stored (spec 0028): bound to the Workspace and the Snapshot. */
+export async function sealedWords(ws: string, snapshotId: number, words: SnapshotWords): Promise<Record<string, unknown>> {
+  return sealObject(await workspaceCipher(ws), { table: "dashboard_snapshots", column: "words", row: snapshotId }, words);
+}
+
+/** The words of a Snapshot row, opened; plain ones from before sealing pass as they are, ones that do not open read as
+ * none. */
+async function readWords(ws: string, row: { id: number; words?: unknown }): Promise<SnapshotWords> {
+  return openObject(await workspaceCipher(ws), { table: "dashboard_snapshots", column: "words", row: row.id }, row.words) as SnapshotWords;
+}
+
 /** A Snapshot's widgets carrying the words written about them; `extra` settings are added to each (such as asOf). */
 function withWords(widgets: Widget[], words: SnapshotWords, extra: WidgetSettings = {}): Widget[] {
   return widgets.map((w) => {
@@ -221,7 +239,7 @@ function withWords(widgets: Widget[], words: SnapshotWords, extra: WidgetSetting
 export async function openSnapshot(actor: Actor, snapshotId: number): Promise<OpenSnapshot> {
   const { row, role, writer } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
   const frozen = row.frozen as Frozen;
-  const words = row.words ?? {};
+  const words = await readWords(actor.workspaceId, row);
   const seen = await forReader(actor, withWords(frozen.widgets, words), keptDay(frozen.data, row), frozen.themeId);
   const corrections = await correctionsFor(actor, seen.data);
   return { ...summary(row), name: frozen.name, themeId: frozen.themeId, intro: String(words.intro ?? ""), widgets: seen.widgets, data: seen.data, hiddenParts: seen.hidden, canWrite: writer, canDelete: role === "owner", corrections };
@@ -249,11 +267,11 @@ export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, 
  * words written about it, nothing else. Null when it is a draft, deleted or of another dashboard. No Actor: the
  * link's owner chose to show it, as with any View Link (view-links.ts checks the link first). */
 export async function snapshotForLink(snapshotId: number, dashboardId: number, keptWords?: SnapshotWords | null): Promise<{ name: string; themeId: number | null; intro: string; widgets: Widget[]; data: CanvasData; label: string; takenAt: string; words: SnapshotWords } | null> {
-  const { data } = await db().from("dashboard_snapshots").select(`${SUMMARY}, frozen, words`).eq("id", snapshotId).eq("dashboard_id", dashboardId).is("deleted_at", null).not("shown_at", "is", null).maybeSingle();
+  const { data } = await db().from("dashboard_snapshots").select(`${SUMMARY}, workspace_id, frozen, words`).eq("id", snapshotId).eq("dashboard_id", dashboardId).is("deleted_at", null).not("shown_at", "is", null).maybeSingle();
   const row = data as unknown as Row | null;
   if (!row?.frozen) return null;
   // A link shows the words as they were when its owner made it, if it kept them; changed since, they stay in Ziffr.
-  const words = keptWords ?? row.words ?? {};
+  const words = keptWords ?? await readWords(String(row.workspace_id), row);
   const widgets = withWords(row.frozen.widgets, words);
   return { name: row.frozen.name, themeId: row.frozen.themeId, intro: String(words.intro ?? ""), widgets, data: keptDay(row.frozen.data, row), label: row.label, takenAt: row.taken_at, words };
 }
@@ -265,7 +283,7 @@ export async function snapshotForLink(snapshotId: number, dashboardId: number, k
 export async function snapshotDeckSeed(actor: Actor, snapshotId: number): Promise<{ name: string; intro: string; widgets: Pick<Widget, "template" | "metric_ids" | "settings" | "title">[] }> {
   const { row } = await readable(actor, snapshotId, `${SUMMARY}, frozen, words`);
   const frozen = row.frozen as Frozen;
-  const words = row.words ?? {};
+  const words = await readWords(actor.workspaceId, row);
   const ordered = [...frozen.widgets].sort((a, b) => a.y - b.y || a.x - b.x || a.id - b.id);
   const seen = await forReader(actor, withWords(ordered, words, { asOf: row.period_end }), frozen.data, frozen.themeId);
   return {
@@ -325,10 +343,11 @@ export async function editSnapshotWords(actor: Actor, snapshotId: number, words:
   const frozen = row.frozen as Frozen;
   // Only the widgets this writer gets in the Snapshot (#193): a widget drawing a Metric they do not see keeps its words.
   const seen = await forReader(actor, frozen.widgets, frozen.data, frozen.themeId);
-  const next = cleanWords(words, new Set(seen.widgets.map((w) => String(w.id))), row.words ?? {});
-  if (JSON.stringify(next) === JSON.stringify(row.words ?? {})) return;
+  const current = await readWords(actor.workspaceId, row);
+  const next = cleanWords(words, new Set(seen.widgets.map((w) => String(w.id))), current);
+  if (JSON.stringify(next) === JSON.stringify(current)) return;
   await ensureBaseline("snapshot", snapshotId, actor.personId);
-  const { error } = await db().from("dashboard_snapshots").update({ words: next, ...(row.shown_at ? { words_changed_at: new Date().toISOString() } : {}) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("dashboard_snapshots").update({ words: await sealedWords(actor.workspaceId, snapshotId, next), ...(row.shown_at ? { words_changed_at: new Date().toISOString() } : {}) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The words could not be saved.");
   await recordVersion("snapshot", snapshotId, actor.personId);
 }
@@ -336,12 +355,12 @@ export async function editSnapshotWords(actor: Actor, snapshotId: number, words:
 /** The words a restored Version brings back for this actor: the old introduction and the old words of the widgets
  * they get in the Snapshot; a widget drawing a Metric they do not see keeps its words as they are now (#193). */
 export async function restorableWords(actor: Actor, snapshotId: number, old: unknown): Promise<SnapshotWords> {
-  const { data } = await db().from("dashboard_snapshots").select("frozen, words").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
-  const row = data as { frozen: Frozen | null; words: SnapshotWords | null } | null;
+  const { data } = await db().from("dashboard_snapshots").select("id, frozen, words").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
+  const row = data as { id: number; frozen: Frozen | null; words: SnapshotWords | null } | null;
   if (!row?.frozen) throw new Forbidden();
   const seen = new Set((await forReader(actor, row.frozen.widgets, row.frozen.data, row.frozen.themeId)).widgets.map((w) => String(w.id)));
   const before = (old && typeof old === "object" && !Array.isArray(old) ? old : {}) as SnapshotWords;
-  const now = row.words ?? {};
+  const now = await readWords(actor.workspaceId, row);
   const widgets: Record<string, WidgetWords> = {};
   for (const w of row.frozen.widgets) {
     const id = String(w.id);

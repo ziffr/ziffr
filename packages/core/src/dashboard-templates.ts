@@ -4,6 +4,7 @@
 import { inUse } from "./metric-row";
 import { assertSettingsDesigns } from "./widget-designs";
 import { db } from "./db";
+import { insertSealed } from "./sealed-columns";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { BUILT_IN_DASHBOARD_TEMPLATES } from "./built-in-dashboard-templates";
@@ -70,10 +71,8 @@ export async function createDashboardFromTemplate(actor: Actor, input: { templat
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));
   const id = await createDashboard(actor, String(input.name ?? "").trim() || t.name);
   if (widgets.length) {
-    const { error } = await db().from("widgets").insert(widgets.map((w) => ({
-      ...w, owner_id: actor.personId, dashboard_id: id, saved: false, workspace_id: actor.workspaceId,
-    })));
-    if (error) throw new Error("The dashboard could not be made from the template.");
+    const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false }))).catch(() => []);
+    if (placed.length !== widgets.length) throw new Error("The dashboard could not be made from the template.");
   }
   await recordVersion("dashboard", id, actor.personId, { message: `Made from the template “${t.name}”` });
   return id;

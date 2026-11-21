@@ -10,11 +10,12 @@ import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
-import { diffSummary, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
+import { diffSummary, openVersionSnapshot, recordVersion, VERSION_TYPES, type VersionType } from "./versions";
+import { insertSealed, sealedPatch } from "./sealed-columns";
 import type { Format, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { keptUnit } from "./units";
 import { saveWorkflow } from "./workflows";
-import { restorableWords, snapshotAccess } from "./snapshots";
+import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -75,11 +76,13 @@ export async function listVersions(actor: Actor, type: VersionType, id: number) 
   }
   const { data } = await q.order("version", { ascending: false }).limit(60);
   const rows = data ?? [];
+  // Compared as the words were written: sealed ones (spec 0028) are opened first.
+  const kept = await Promise.all(rows.map((v) => openVersionSnapshot(actor.workspaceId, type, id, v.version, v.snapshot)));
   return {
     canRestore: a.edit,
     versions: rows.map((v, i) => ({
       id: v.id, version: v.version, author: v.author_id, message: v.message, name: v.name, at: v.updated_at,
-      changes: diffSummary(type, (rows[i + 1]?.snapshot as Record<string, unknown>) ?? null, v.snapshot as Record<string, unknown>),
+      changes: diffSummary(type, kept[i + 1] ?? null, kept[i]),
     })),
   };
 }
@@ -110,7 +113,7 @@ const HIDDEN = "This version shows metrics that are not shared with you, so it c
  * old version cannot bring back a Metric that was taken off a shared dashboard. */
 export async function restoreVersion(actor: Actor, versionId: number, effects: RestoreEffects = restoreEffectsFor(actor)) {
   const v = await restorable(actor, versionId);
-  const s = { ...(v.snapshot as Record<string, unknown>) };
+  const s = { ...(await openVersionSnapshot(actor.workspaceId, v.object_type, v.object_id, v.version, v.snapshot)) };
   const id = v.object_id as number;
   const ws = actor.workspaceId;
   const visible = async () => visibleMetricIds(ws, actor.personId, await getMetrics(ws));
@@ -153,19 +156,19 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     case "widget":
       // A Version keeps what was stored; its View Designs are checked again before they are stored once more.
       assertSettingsDesigns(s.settings);
-      await db().from("widgets").update({ template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title }).eq("id", id).eq("workspace_id", ws);
+      await db().from("widgets").update(await sealedPatch("widgets", ws, id, { template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title })).eq("id", id).eq("workspace_id", ws);
       break;
     case "dashboard": {
       const { data: d } = await db().from("dashboards").select("owner_id").eq("id", id).eq("workspace_id", ws).single();
       // Versions from before introductions were kept have none: the introduction then stays as it is.
-      await db().from("dashboards").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) }).eq("id", id).eq("workspace_id", ws);
+      await db().from("dashboards").update(await sealedPatch("dashboards", ws, id, { name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) })).eq("id", id).eq("workspace_id", ws);
       await db().from("widgets").delete().eq("dashboard_id", id).eq("workspace_id", ws);
       const widgets = (s.widgets as Record<string, unknown>[]) ?? [];
       for (const w of widgets) assertSettingsDesigns(w.settings);
       if (widgets.length) {
-        await db().from("widgets").insert(widgets.map((w) => ({
+        await insertSealed("widgets", ws, widgets.map((w) => ({
           template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h,
-          owner_id: d?.owner_id ?? actor.personId, dashboard_id: id, saved: false, workspace_id: ws,
+          owner_id: d?.owner_id ?? actor.personId, dashboard_id: id, saved: false,
         })));
       }
       break;
@@ -179,14 +182,14 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       const { data: cur } = await db().from("dashboard_snapshots").select("shown_at").eq("id", id).eq("workspace_id", ws).is("deleted_at", null).single();
       // A widget drawing a Metric the restorer does not see keeps its words as they are now (#193).
       const words = await restorableWords(actor, id, s.words);
-      await db().from("dashboard_snapshots").update({ words, ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null);
+      await db().from("dashboard_snapshots").update({ words: await sealedWords(ws, id, words), ...(cur?.shown_at ? { words_changed_at: at } : {}) }).eq("id", id).eq("workspace_id", ws).is("deleted_at", null);
       break;
     }
     case "metric": {
       const fields = ["name", "description", "unit", "unit_position", "format", "decimals", "period", "submission_rule", "polarity", "target_min", "target_max", "attainment_method", "sources", "aggregation", "formula"];
       // A version from before units had a side gets the unit its format used to add, so it shows as it did then.
       const kept: Record<string, unknown> = "format" in s && "unit" in s && !("unit_position" in s) ? keptUnit({ ...s, unit: String(s.unit ?? ""), format: s.format as Format }) : s;
-      await db().from("metrics").update(Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]]))).eq("id", id).eq("workspace_id", ws);
+      await db().from("metrics").update(await sealedPatch("metrics", ws, id, Object.fromEntries(fields.filter((f) => f in kept).map((f) => [f, kept[f]])))).eq("id", id).eq("workspace_id", ws);
       break;
     }
   }

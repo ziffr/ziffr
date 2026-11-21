@@ -2,6 +2,9 @@
 // acts before recording; these only read and write the history.
 import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
+import { mapVersionWords, opening, openObject, sealing, sealObject } from "./sealed-words";
+import { workspaceCipher } from "./workspace-keys";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -21,65 +24,97 @@ export type VersionType = "widget" | "dashboard" | "deck" | "metric" | "template
 export const VERSION_TYPES: VersionType[] = ["widget", "dashboard", "deck", "metric", "template", "theme", "workflow", "snapshot"];
 const COALESCE_MS = 10 * 60 * 1000;
 
-/** What a version stores for each kind of object: everything needed to restore it, nothing it does not own. */
-export async function snapshotOf(type: VersionType, id: number): Promise<Record<string, unknown> | null> {
+/** What a version stores for each kind of object: everything needed to restore it, nothing it does not own, with its
+ * words as plain text (they are sealed in the object, and sealed again for the Version when it is stored), and the
+ * Workspace it belongs to. */
+async function loadSnapshot(type: VersionType, id: number): Promise<{ snapshot: Record<string, unknown>; ws: string } | null> {
+  const loaded = async (data: Record<string, unknown> | null, drop: string[] = []) => {
+    if (!data) return null;
+    const ws = String(data.workspace_id);
+    const keep = Object.fromEntries(Object.entries(data).filter(([k]) => k !== "workspace_id" && !drop.includes(k)));
+    return { snapshot: keep, ws };
+  };
   if (type === "widget") {
-    const { data } = await db().from("widgets").select("template, metric_ids, settings, title").eq("id", id).single();
-    return data;
+    const { data } = await db().from("widgets").select("id, workspace_id, template, metric_ids, settings, title").eq("id", id).single();
+    const ws = data ? String(data.workspace_id) : "";
+    return loaded(data ? (await openRows("widgets", ws, [data]))[0] : null, ["id"]);
   }
   if (type === "dashboard") {
-    const [{ data: d }, { data: ws }] = await Promise.all([
-      db().from("dashboards").select("name, theme_id, intro").eq("id", id).single(),
-      db().from("widgets").select("template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", id).order("y").order("x"),
+    const [{ data: d }, { data: rows }] = await Promise.all([
+      db().from("dashboards").select("id, workspace_id, name, theme_id, intro").eq("id", id).single(),
+      db().from("widgets").select("id, workspace_id, template, metric_ids, settings, title, x, y, w, h").eq("dashboard_id", id).order("y").order("x"),
     ]);
-    return d ? { name: d.name, theme_id: d.theme_id, intro: d.intro ?? "", widgets: ws ?? [] } : null;
+    if (!d) return null;
+    const ws = String(d.workspace_id);
+    const [dash] = await openRows("dashboards", ws, [d]);
+    // Their ids and Workspace are not part of what a Version keeps (the words are sealed for the Version, not the row).
+    const widgets = (await openRows("widgets", ws, rows)).map((w) => { const kept: Record<string, unknown> = { ...w }; delete kept.id; delete kept.workspace_id; return kept; });
+    return { snapshot: { name: dash.name, theme_id: dash.theme_id, intro: dash.intro ?? "", widgets }, ws };
   }
-  if (type === "deck") {
-    const { data } = await db().from("decks").select("name, theme_id, footer, document").eq("id", id).single();
-    return data;
-  }
-  if (type === "workflow") {
-    const { data } = await db().from("workflows").select("name, config").eq("id", id).single();
-    return data;
-  }
+  if (type === "deck") return loaded((await db().from("decks").select("workspace_id, name, theme_id, footer, document").eq("id", id).single()).data);
+  if (type === "workflow") return loaded((await db().from("workflows").select("workspace_id, name, config").eq("id", id).single()).data);
   if (type === "snapshot") {
     // Only a Snapshot's words keep Versions: its numbers never change (spec 0013).
-    const { data } = await db().from("dashboard_snapshots").select("words").eq("id", id).is("deleted_at", null).maybeSingle();
-    return data ? { words: data.words } : null;
+    const { data } = await db().from("dashboard_snapshots").select("workspace_id, words").eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!data) return null;
+    const ws = String(data.workspace_id);
+    return { snapshot: { words: openObject(await workspaceCipher(ws), { table: "dashboard_snapshots", column: "words", row: id }, data.words) }, ws };
   }
-  if (type === "theme") {
-    const { data } = await db().from("themes").select("name, tokens, slides").eq("id", id).single();
-    return data;
-  }
-  if (type === "template") {
-    const { data } = await db().from("team_templates").select("kind, name, description, view, slots, body, w, h").eq("id", id).single();
-    return data;
-  }
+  if (type === "theme") return loaded((await db().from("themes").select("workspace_id, name, tokens, slides").eq("id", id).single()).data);
+  if (type === "template") return loaded((await db().from("team_templates").select("workspace_id, kind, name, description, view, slots, body, w, h").eq("id", id).single()).data);
   if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
-  const { data } = await db().from("metrics").select("name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, attainment_method, sources, aggregation, formula").eq("id", id).single();
-  return data;
+  const { data } = await db().from("metrics").select("id, workspace_id, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, attainment_method, sources, aggregation, formula").eq("id", id).single();
+  return loaded(data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null, ["id"]);
+}
+
+/** What a version stores for each kind of object: everything needed to restore it, nothing it does not own, words as
+ * plain text. */
+export async function snapshotOf(type: VersionType, id: number): Promise<Record<string, unknown> | null> {
+  return (await loadSnapshot(type, id))?.snapshot ?? null;
+}
+
+/** A Version's snapshot with its words sealed for it: bound to the Workspace, the object and the version number, so a
+ * copy in another Version, object or Workspace does not open (spec 0028). As it is where nothing is sealed. */
+async function sealedSnapshot(ws: string, type: VersionType, id: number, version: number, snapshot: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const cipher = await workspaceCipher(ws);
+  const row = `${type}-${id}-${version}`;
+  if (type === "snapshot") return { ...snapshot, words: sealObject(cipher, { table: "versions", column: "snapshot.words", row }, snapshot.words) };
+  return mapVersionWords(type, snapshot, sealing(cipher, "versions", row));
+}
+
+/** A stored Version's snapshot opened for reading: plain words as they are, sealed ones opened (left out when they do
+ * not open). */
+export async function openVersionSnapshot(ws: string, type: VersionType, id: number, version: number, stored: unknown): Promise<Record<string, unknown>> {
+  const snapshot = (stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {}) as Record<string, unknown>;
+  const cipher = await workspaceCipher(ws);
+  const row = `${type}-${id}-${version}`;
+  if (type === "snapshot") return { ...snapshot, words: openObject(cipher, { table: "versions", column: "snapshot.words", row }, snapshot.words) };
+  return mapVersionWords(type, snapshot, opening(cipher, "versions", row));
 }
 
 /** Records the object's current state. Edits by the same person within ten minutes merge into one version. */
 export async function recordVersion(type: VersionType, id: number, author: string, given: { message?: string; name?: string; always?: boolean } = {}) {
   const noted = note.getStore();
   const opts = noted ? { ...given, message: given.message ? `${given.message}; ${noted.charAt(0).toLowerCase()}${noted.slice(1)}` : noted } : given;
-  const snapshot = await snapshotOf(type, id);
-  if (!snapshot) return;
+  const loaded = await loadSnapshot(type, id);
+  if (!loaded) return;
+  const { snapshot, ws } = loaded;
   const { data: latest } = await db().from("versions").select("*").eq("object_type", type).eq("object_id", id).order("version", { ascending: false }).limit(1);
   const last = latest?.[0];
-  // Nothing changed: no new version, unless it records an event of its own (a name, or a handover with `always`).
-  if (last && JSON.stringify(last.snapshot) === JSON.stringify(snapshot) && !opts.name && !opts.always) return;
+  // Nothing changed: no new version, unless it records an event of its own (a name, or a handover with `always`). Compared
+  // as plain words: a sealed word differs each time it is written, whether or not it changed.
+  if (last && JSON.stringify(await openVersionSnapshot(ws, type, id, last.version, last.snapshot)) === JSON.stringify(snapshot) && !opts.name && !opts.always) return;
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
   // A key's note merges into a version with the same note, so a program's burst of changes is one version too.
   const sameNote = Boolean(noted && !given.message && last?.message === noted);
   const fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
   if (fresh) {
-    await db().from("versions").update({ snapshot, updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
+    await db().from("versions").update({ snapshot: await sealedSnapshot(ws, type, id, last.version, snapshot), updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;
   }
+  const version = (last?.version ?? 0) + 1;
   await db().from("versions").insert({
-    object_type: type, object_id: id, version: (last?.version ?? 0) + 1, snapshot, author_id: author,
+    object_type: type, object_id: id, version, snapshot: await sealedSnapshot(ws, type, id, version, snapshot), author_id: author,
     message: opts.message ?? null, name: opts.name ?? null,
   });
 }
@@ -88,8 +123,8 @@ export async function recordVersion(type: VersionType, id: number, author: strin
 export async function ensureBaseline(type: VersionType, id: number, author: string) {
   const { count } = await db().from("versions").select("*", { count: "exact", head: true }).eq("object_type", type).eq("object_id", id);
   if (count) return;
-  const snapshot = await snapshotOf(type, id);
-  if (snapshot) await db().from("versions").insert({ object_type: type, object_id: id, version: 1, snapshot, author_id: author, message: "Before version history" });
+  const loaded = await loadSnapshot(type, id);
+  if (loaded) await db().from("versions").insert({ object_type: type, object_id: id, version: 1, snapshot: await sealedSnapshot(loaded.ws, type, id, 1, loaded.snapshot), author_id: author, message: "Before version history" });
 }
 
 /** Top-level fields that differ between two snapshots, in words a person can scan. */

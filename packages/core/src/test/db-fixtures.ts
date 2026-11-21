@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { openRows, type OpenedTable } from "../sealed-columns";
 import type { Actor } from "../actor";
+import { openVersionSnapshot, type VersionType } from "../versions";
 
 /** A workspace with an owner, made for one test; `cleanup` deletes everything in it and its people. */
 export async function workspace(name = "Test") {
@@ -118,6 +119,11 @@ export async function opened<T extends Record<string, unknown>>(table: OpenedTab
     delete copy.id;
     return copy as T;
   });
+}
+
+/** Versions read straight from the table, their words opened as the core reads them (spec 0028). */
+export async function openedVersions<T extends { version: number; snapshot: unknown }>(workspaceId: string, type: VersionType, id: number, rows: T[] | null | undefined): Promise<T[]> {
+  return Promise.all((rows ?? []).map(async (r) => ({ ...r, snapshot: await openVersionSnapshot(workspaceId, type, id, r.version, r.snapshot) })));
 }
 
 /** An Installation Admin added on the page for one test (spec 0025): the person and a `cleanup` that removes them again

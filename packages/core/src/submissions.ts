@@ -122,7 +122,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     db().from("tokens").select("*").eq("workspace_id", workspaceId),
     db().from("metrics").select("*").eq("workspace_id", workspaceId),
   ]);
-  const metrics = (metricRows ?? []).map(normalizeMetric) as Metric[];
+  const metrics = (await openRows("metrics", workspaceId, metricRows)).map(normalizeMetric) as Metric[];
   const live = (tokens ?? []).filter((t) => tokenValid(t, tokens ?? []));
   const metricById = Object.fromEntries(metrics.map((m) => [m.id, m]));
   let sender: Profile | undefined;

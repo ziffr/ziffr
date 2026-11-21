@@ -15,6 +15,9 @@ const LABEL = { wrap: "ziffr/workspace-key-wrap/v1", fingerprint: "ziffr/install
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NAME = /^[a-z_][a-z0-9_]{0,62}$/;
 const ROW = /^[A-Za-z0-9_-]{1,128}$/;
+// A column, or the place of one word inside a JSON column (`settings.canvas_seed.settings.kicker`, ticket #334): lower
+// case letters, digits, underscores and dots, never the colon that separates the parts of the additional data.
+const COLUMN = /^[a-z_][a-z0-9_.]{0,126}$/;
 const PURPOSE = /^[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62}$/;
 // "w1.<version>.<iv>.<ciphertext>.<tag>": 12 bytes of IV are 16 base64url characters, 16 bytes of tag 22. A plain
 // value is only taken for a sealed one when it has exactly this shape, so ordinary text passes through untouched.
@@ -129,7 +132,7 @@ function placeOf(workspaceId: string, at: SealedAt): string {
   // 2^53 would name another row). Otherwise a value sealed under one spelling would not open under another.
   if (typeof at.row === "number" && !(Number.isSafeInteger(at.row) && at.row >= 0)) throw new Error(`Not a row a value can be sealed at: ${at.table}.${at.column}.`);
   const row = UUID.test(String(at.row)) ? String(at.row).toLowerCase() : String(at.row);
-  if (!NAME.test(at.table) || !NAME.test(at.column) || !ROW.test(row)) throw new Error(`Not a place a value can be sealed at: ${at.table}.${at.column}.`);
+  if (!NAME.test(at.table) || !COLUMN.test(at.column) || !ROW.test(row)) throw new Error(`Not a place a value can be sealed at: ${at.table}.${at.column}.`);
   return `${workspaceId.toLowerCase()}:${at.table}:${at.column}:${row}`;
 }
 
