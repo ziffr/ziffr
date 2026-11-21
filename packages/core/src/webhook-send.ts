@@ -37,10 +37,12 @@ export function signWebhookBody(secrets: readonly string[], timestamp: number, b
 
 /** Whether a request is signed by one of the secrets (a receiver's check, and the inbound route's later): the timestamp
  * within `windowSeconds` of now, and some signature in the header equal to the expected one, compared in constant time.
- * A missing, malformed or short signature is refused. */
+ * A missing, malformed or short signature, or a header with anything but one or two `sha256=<64 hex>` entries, is refused. */
 export function verifyWebhookSignature(secrets: readonly string[], timestamp: string | null, body: string, header: string | null, nowSeconds = Math.floor(Date.now() / 1000), windowSeconds = 300): boolean {
   if (!timestamp || !header || !/^\d{1,12}$/.test(timestamp) || Math.abs(nowSeconds - Number(timestamp)) > windowSeconds) return false;
-  const given = header.split(",").map((h) => h.trim()).filter((h) => /^sha256=[0-9a-f]{64}$/.test(h));
+  // Only well-formed entries, at most two (the secret and its predecessor): padding or junk in the header is refused, never skipped.
+  const given = header.split(",");
+  if (given.length > 2 || !given.every((h) => /^sha256=[0-9a-f]{64}$/.test(h))) return false;
   let ok = false;
   for (const secret of secrets) {
     const expected = Buffer.from(`sha256=${createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex")}`);

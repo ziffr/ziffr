@@ -1,6 +1,6 @@
 // POST /api/webhooks/{id}/in (GLOSSARY: Webhook; spec 0034, ticket #402): a Webhook's recipe reports status back, signed
 // with the Webhook's own secret (the scheme the messages it gets are signed with: `X-Ziffr-Timestamp`,
-// `X-Ziffr-Signature: sha256=<hex>`; a request is taken once, by its signature, so a retry is signed again with a new timestamp). Anything unknown,
+// `X-Ziffr-Signature: sha256=<hex>`; a request is taken once, by its timestamp and body, so a retry is signed again with a new timestamp). Anything unknown,
 // unsigned, old, replayed or off answers 404 alike, with no hint whether the id exists; the body is read to 16 KB
 // and no further, and the core decides the rest. Answers only `{ changed, status }`.
 import { applyWebhookAction, authenticateWebhookRequest, WebhookRequestError } from "@ziffr/core/webhook-inbound";

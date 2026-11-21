@@ -170,7 +170,7 @@ A recipe reports to one address:
 POST https://<your Ziffr>/api/webhooks/<webhook id>/in
 ```
 
-The id is in the Webhook's page. The body is JSON of at most 16 KB, signed **exactly as the messages you get**: `X-Ziffr-Timestamp` and `X-Ziffr-Signature: sha256=<hex>` over `<timestamp>.<raw body>` with the Webhook's secret. A request is taken once, by its signature: to try again, sign again with a new timestamp. Anything unknown, unsigned, old, replayed or switched off answers `404` alike, so the answer says nothing about whether the id exists.
+The id is in the Webhook's page. The body is JSON of at most 16 KB, signed **exactly as the messages you get**: `X-Ziffr-Timestamp` and `X-Ziffr-Signature: sha256=<hex>` over `<timestamp>.<raw body>` with the Webhook's secret. A request is taken once, by its timestamp and body, and the signature header must be exactly one `sha256=<64 lowercase hex>` entry (two, comma-separated without spaces, during a secret overlap): to try again, sign again with a new timestamp. Anything unknown, unsigned, old, replayed or switched off answers `404` alike, so the answer says nothing about whether the id exists.
 
 In Node, signing is one line:
 

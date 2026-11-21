@@ -5,8 +5,8 @@
 // every Webhook, the origin's included and marked, and the answer says `changed: false` for what was already so.
 // SECURITY: all of it comes from outside. The request is judged in this order and refused alike (404) without a hint
 // whether the Webhook exists: a well-formed id, the Webhook is on, the timestamp is fresh, the signature matches one of
-// its secrets in constant time, then the request is claimed once by its timestamp and signature (the only parts the
-// signature covers, so a replay with another header still changes nothing) within 60 requests a minute. Only then is the body read as JSON, field by field. A leaked secret reaches only Actions that were sent to that
+// its secrets in constant time, then the request is claimed once by its timestamp and body (what the signature covers,
+// so a replay with a padded or reordered header still changes nothing) within 60 requests a minute. Only then is the body read as JSON, field by field. A leaked secret reaches only Actions that were sent to that
 // Webhook, whose Metric the assignee can still see; it reads nothing back but `changed` and `status`, creates, reassigns
 // and records no value. Words it sends are plain text: never a command (an Approval or Self-check is refused), never a
 // value or a Correction. Nothing in a refusal repeats what was sent.
@@ -63,7 +63,7 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   if (typeof hook.secret === "string" && hook.secret.startsWith("whsec_")) secrets.push(hook.secret);
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   if (!secrets.length || !verifyWebhookSignature(secrets, req.timestamp, req.body, req.signature)) return no;
-  const { data: claim, error } = await db().rpc("claim_webhook_inbound", { p_ws: ws, p_webhook: data.id, p_delivery: createHash("sha256").update(`${req.timestamp}.${req.signature}`).digest("hex"), p_max: WEBHOOK_INBOUND_PER_MINUTE });
+  const { data: claim, error } = await db().rpc("claim_webhook_inbound", { p_ws: ws, p_webhook: data.id, p_delivery: createHash("sha256").update(`${req.timestamp}.${req.body}`).digest("hex"), p_max: WEBHOOK_INBOUND_PER_MINUTE });
   if (error || typeof claim !== "string") throw new Error("The request could not be taken. Try again in a moment.");
   if (claim === "limit") return { ok: false, why: "limit" };
   if (claim !== "ok") return no;
