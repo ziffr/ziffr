@@ -28,8 +28,9 @@ const channel = (n: number) => { const c = n / 255; return c <= 0.03928 ? c / 12
 const rgb = (hex: string): [number, number, number] => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const hex = ([r, g, b]: number[]) => `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
-/** The most a logo may weigh (bytes) and measure (pixels, each side; a vector has no pixel size). */
+/** The most a logo may weigh, in bytes. */
 export const LOGO_MAX_BYTES = 256_000;
+/** The most a raster logo may measure on each side, in pixels. */
 export const LOGO_MAX_PIXELS = 512;
 
 /** The pixel size of a PNG or JPEG from its header, or null. */
