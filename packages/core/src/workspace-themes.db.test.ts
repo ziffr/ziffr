@@ -8,7 +8,7 @@ import { STANDARD_THEMES } from "./standard-themes";
 import { themeFileText, themeToFile } from "./theme-file";
 import { cleanTokens } from "./theme-tokens";
 import { workspace } from "./test/db-fixtures";
-import { addStandardTheme, importTheme, MAX_WORKSPACE_THEMES } from "./workspace-themes";
+import { addStandardTheme, duplicateTheme, importTheme, MAX_WORKSPACE_THEMES } from "./workspace-themes";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -70,5 +70,6 @@ describe("standard Themes and Theme files", () => {
     await db().from("themes").insert(Array.from({ length: MAX_WORKSPACE_THEMES - have }, (_, i) => ({ owner_id: sara, name: `T${i}`, tokens: tokyo.tokens, slides: tokyo.slides, workspace_id: w.id })));
     await expect(addStandardTheme(w.actor(sara), "oslo")).rejects.toThrow("at most");
     await expect(importTheme(w.actor(sara), file)).rejects.toThrow("at most");
+    await expect(duplicateTheme(w.actor(sara), (await themesOf(w.id))[0].id)).rejects.toThrow("at most");
   });
 });

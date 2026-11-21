@@ -33,6 +33,7 @@ export async function saveTheme(actor: Actor, id: number, name: string, tokens: 
 export async function duplicateTheme(actor: Actor, fromId: number): Promise<number> {
   assertCan(actor, "manage-themes");
   const from = await themeOf(actor, fromId);
+  await assertRoom(actor);
   const { data, error } = await db().from("themes").insert({ owner_id: actor.personId, name: `${from.name} copy`.slice(0, 60), tokens: from.tokens, slides: from.slides, workspace_id: actor.workspaceId }).select("id").single();
   if (error || !data) throw new Error("The theme could not be created.");
   await recordVersion("theme", data.id, actor.personId, { message: `Copied from ${from.name}` });
