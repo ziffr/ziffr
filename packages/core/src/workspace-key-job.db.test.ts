@@ -61,7 +61,7 @@ describe("the re-encryption job", () => {
     const w = await plainWorkspace();
     const first = await reencryptionJob({ ...only(w), batch: 2 });
     expect(first.keysMade).toBe(1);
-    expect(first.rowsSealed).toBeGreaterThanOrEqual(5 + 5 + 1 + 1 + 1);
+    expect(first.rowsSealed).toBeGreaterThanOrEqual(5 + 5 + 1 + 1 + 1 + 1);
     expect(first.errors).toBe(0);
     for (const id of w.messages) expect(isSealed(await body(id))).toBe(true);
     const { data: c } = await db().from("contacts").select("email, slack_handle, phone, email_index, slack_index").eq("person_id", w.contactId).single();
@@ -97,8 +97,8 @@ describe("the re-encryption job", () => {
     const [a, b] = await Promise.all([reencryptionJob({ ...only(w), batch: 1 }), reencryptionJob({ ...only(w), batch: 1 })]);
     expect(a.errors + b.errors).toBe(0);
     // Between them every row was sealed, none twice and none lost.
-    expect(a.rowsSealed + b.rowsSealed).toBeGreaterThanOrEqual(5 + 5 + 1 + 1 + 1);
-    expect(a.rowsSealed + b.rowsSealed).toBeLessThanOrEqual(5 + 5 + 1 + 1 + 1);
+    expect(a.rowsSealed + b.rowsSealed).toBeGreaterThanOrEqual(5 + 5 + 1 + 1 + 1 + 1);
+    expect(a.rowsSealed + b.rowsSealed).toBeLessThanOrEqual(5 + 5 + 1 + 1 + 1 + 1);
     const rows = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, body").eq("workspace_id", w.id)).data);
     expect(rows).toHaveLength(5);
     expect(rows.every((r) => String(r.body).includes("about Hamburg"))).toBe(true);

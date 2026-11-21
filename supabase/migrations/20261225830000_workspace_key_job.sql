@@ -42,6 +42,9 @@ begin
     when 'alerts' then key := 'id'; cols := array['level']; scope := 'workspace_id = $1';
     when 'webhooks' then key := 'id'; cols := array['url', 'secret', 'secret_previous']; scope := 'workspace_id = $1';
     when 'webhook_external_ids' then key := 'id'; cols := array['external_id', 'url']; scope := 'workspace_id = $1';
+    when 'dashboards' then key := 'id'; cols := array['intro']; scope := 'workspace_id = $1';
+    when 'widgets' then key := 'id'; cols := array['title']; scope := 'workspace_id = $1';
+    when 'metrics' then key := 'id'; cols := array['description']; scope := 'workspace_id = $1';
     else raise exception 'Not a table with sealed columns: %', p_table;
   end case;
 end;
@@ -95,7 +98,7 @@ declare
   t record;
   c text;
 begin
-  foreach tbl in array array['thread_messages', 'actions', 'contacts', 'profiles', 'deliveries', 'intake_log', 'audit_events', 'alerts', 'webhooks', 'webhook_external_ids'] loop
+  foreach tbl in array array['thread_messages', 'actions', 'contacts', 'profiles', 'deliveries', 'intake_log', 'audit_events', 'alerts', 'webhooks', 'webhook_external_ids', 'dashboards', 'widgets', 'metrics'] loop
     select * into t from seal_table(tbl);
     foreach c in array t.cols loop
       table_name := tbl; column_name := c;
