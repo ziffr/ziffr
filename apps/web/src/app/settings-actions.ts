@@ -13,7 +13,6 @@ import * as usageDigest from "@ziffr/core/usage-digest";
 import * as workspace from "@ziffr/core/workspace-settings";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 import * as quiet from "@ziffr/core/quiet-hours";
-
 import * as limits from "@ziffr/core/limits";
 
 /** Changes your own name and colour. */
@@ -122,6 +121,8 @@ export async function setWorkspaceQuietHours(rule: { fromHour: number; toHour: n
     await quiet.setWorkspaceQuietHours(await currentActor(), rule === null ? null : { fromHour: Number(rule?.fromHour), toHour: Number(rule?.toHour), days: Array.isArray(rule?.days) ? rule.days.map(Number) : [], timeZone: null });
     revalidatePath("/settings/workspace");
     revalidatePath("/settings/deliveries");
+  });
+}
 
 /** Sets or clears one limit of the workspace (Owners and Admins); the core checks the key and the range again. */
 export async function setWorkspaceSettableLimit(key: string, value: number | null) {
