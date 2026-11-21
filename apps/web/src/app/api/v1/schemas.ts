@@ -43,6 +43,12 @@ const workflowRef = z.union([z.number().int().positive(), z.string().trim().min(
 
 /** A Metric on its own (GET, POST and PATCH answer this): its description, its Workflow and when a value is due next. */
 export const MetricDetail = MetricDescription.extend({
+  url: z.string().describe("Where the Metric is in Ziffr, to give the person a link; needs a sign-in."),
+  next_asked: z.object({
+    day: z.string().describe("The day, YYYY-MM-DD."),
+    hour: z.number().int().describe("The whole hour of that day, 0 to 23."),
+    time_zone: z.string().describe("The workspace's time zone, which day and hour are in."),
+  }).nullable().describe("When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric."),
   workflow: z.object({
     id: z.number().int(),
     name: z.string(),
@@ -319,6 +325,10 @@ export const FeedOverview = z.object({
 export const ApiWorkspace = z.object({
   year_start_month: z.number().int().min(1).max(12).describe("The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it."),
   number_style: z.enum(["1,234.5", "1.234,5", "1 234,5", "1'234.5"]).describe("How the workspace writes numbers, each style named by 1234.5 written in it: the mark between groups of three digits and the decimal mark. A program that shows values writes them the same way."),
+  time_zone: z.string().describe("The workspace's time zone (IANA name), which days, hours and Due Dates are in."),
+  run_hour: z.number().int().min(0).max(23).describe("The whole hour its Workflows ask at unless they have an Asking Schedule of their own: the default time of asking."),
+  week_start: z.enum(["monday", "sunday"]).describe("The first day of its week."),
+  reached_by: z.array(z.enum(["email", "slack", "telegram"])).describe("The ways Ziffr can reach the key's creator to ask for a value now. Nothing about their accounts."),
 });
 
 /** A batch item: one value for one Metric and period. */
@@ -727,6 +737,7 @@ export const ApiWorkflowDetail = z.object({
   steps: z.array(WorkflowStepSchema),
   asking: AskingScheduleSchema.nullable().describe("When it runs on its own; null: with the Workspace's daily run."),
   metrics: z.number().int().describe("How many Metrics use it."),
+  used_by: z.array(z.object({ slug: z.string(), name: z.string() })).describe("The Metrics of those that use it which the key's creator sees, at most 50: a change to the Workflow applies to all of them, to the ones they do not see too."),
   updated_at: z.string(),
 });
 

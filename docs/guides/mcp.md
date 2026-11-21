@@ -30,7 +30,7 @@ npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transp
 Both servers list the same tools and Starters and one resource template (`ziffr://metrics/{slug}`), generated from the code (`pnpm test` fails when this list is out of date):
 
 <!-- generated:mcp-tools -->
-**53 tools:** `update_metric`, `set_metric_workflow`, `propose_share`, `list_workflows`, `get_workflow`, `create_workflow`, `update_workflow`, `delete_workflow`, `list_alerts`, `create_alert`, `update_alert`, `delete_alert`, `list_snapshots`, `get_snapshot`, `take_snapshot`, `list_actions`, `reply_to_action`, `set_action_status`, `mark_task_done`, `self_check`, `list_metrics`, `find`, `get_metric`, `get_thread`, `submit_value`, `create_metric`, `delete_metric`, `archive_metric`, `restore_metric`, `list_submitters`, `set_submitters`, `list_feeds`, `list_target_series`, `set_target_series`, `list_projections`, `set_projections`, `get_unusual_value_check`, `set_unusual_value_check`, `get_workspace`, `my_schedule`, `period_status`, `list_people`, `list_dashboards`, `get_dashboard`, `list_templates`, `create_dashboard_from_template`, `create_dashboard`, `add_widget`, `update_widget`, `remove_widget`, `update_dashboard`, `add_finding`, `update_finding`.
+**53 tools:** `create_metric`, `update_metric`, `set_metric_workflow`, `propose_share`, `list_workflows`, `get_workflow`, `create_workflow`, `update_workflow`, `delete_workflow`, `list_alerts`, `create_alert`, `update_alert`, `delete_alert`, `list_snapshots`, `get_snapshot`, `take_snapshot`, `list_actions`, `reply_to_action`, `set_action_status`, `mark_task_done`, `self_check`, `list_metrics`, `find`, `get_metric`, `get_thread`, `submit_value`, `delete_metric`, `archive_metric`, `restore_metric`, `list_submitters`, `set_submitters`, `list_feeds`, `list_target_series`, `set_target_series`, `list_projections`, `set_projections`, `get_unusual_value_check`, `set_unusual_value_check`, `get_workspace`, `my_schedule`, `period_status`, `list_people`, `list_dashboards`, `get_dashboard`, `list_templates`, `create_dashboard_from_template`, `create_dashboard`, `add_widget`, `update_widget`, `remove_widget`, `update_dashboard`, `add_finding`, `update_finding`.
 
 **10 Starters:** `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking`, `set_targets`, `alert_me`, `share_numbers`.
 <!-- /generated:mcp-tools -->
@@ -50,6 +50,17 @@ An assistant can create a Metric and change everything about it that the Metric'
 - `set_metric_workflow` (the same `PATCH`, with `workflow`) gives a Metric one of the key's creator's own Workflows, by id or exact name, or none (`null`); `create_metric` takes `workflow` too. Only the Metric's owner may, as with the Workflow dropdown, and not for a Derived Metric. A Workflow with an Approve or Tell step decides who sees values, so a key joins or leaves one only with `workflows:people` on a program's key (never an assistant): the assistant tells the person to do that in Ziffr.
 - `get_metric` shows the Metric's `workflow` (id, name, whether it is the creator's own) and `next_due`: the Due Date of the period the Workflow asks for now while it is today or later, else of the next one.
 - A Metric made through MCP takes values through MCP: `create_metric` keeps `api` among the Sources unless `exclude_api` is true. A refused `submit_value` for a Source names the Sources the Metric accepts and says `update_metric` can change them (only to a key that may read, so a submit-only key learns nothing it could not send).
+
+## For people who are new to Ziffr (ticket #614)
+
+Someone who knows nothing about Ziffr says what they want, in their own words ("ask me every weekday at 1 pm how far I drove"), and the assistant does the whole job:
+
+1. `get_workspace` for the time zone, the default time of asking and how the person is reached; `list_metrics` for what exists.
+2. One short proposal with defaults (name, one-sentence description, unit, how often, higher or lower is better, when they are asked), confirmed once.
+3. One `create_metric` call: the Metric, its schedule (`schedule`: `hour` in the workspace's time zone and `days` every day, weekdays or chosen weekdays; it makes or reuses a Workflow named like "Ask me every weekday at 13:00"), the person as the one asked (default), every channel including the API, and a `first_value`. The answer lists the defaults it used, the Metric's `url` and when the person is asked next.
+4. Changing it later: `update_metric` (every field, including channels), `set_metric_workflow`. A Workflow shared by several Metrics lists them in `used_by`; `update_workflow` changes them all, so the assistant asks first or makes a separate schedule.
+
+Derived Metrics (a formula over other Metrics) are not made through MCP yet: the app makes them only from a Pack.
 
 ## Starters
 

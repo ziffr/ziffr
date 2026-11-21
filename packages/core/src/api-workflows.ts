@@ -30,7 +30,7 @@ export type ApiWorkflowStep =
   | { type: "tell"; id?: string; condition: TellCondition; people: string[]; groups: number[] };
 
 /** A Workflow of the key's creator as a program sees it: its Due Date, its steps in order and how many Metrics use it. */
-export type ApiWorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: ApiWorkflowStep[]; asking: AskingSchedule | null; metrics: number; updated_at: string };
+export type ApiWorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: ApiWorkflowStep[]; asking: AskingSchedule | null; metrics: number; used_by: { slug: string; name: string }[]; updated_at: string };
 
 /** What to say to make a Workflow. `steps` left out: just the publish step. */
 export type NewApiWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: ApiWorkflowStep[]; asking?: AskingSchedule | null };
@@ -95,8 +95,10 @@ async function detail(actor: KeyActor, id: number): Promise<ApiWorkflowDetail> {
   const w = await load(actor, id);
   // Only the Metrics the creator sees are counted, so a program learns nothing of hidden ones.
   const { data: users } = await db().from("metrics").select("id").eq("workspace_id", actor.workspaceId).eq("workflow_id", id);
-  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
-  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), asking: w.config.asking ?? null, metrics: (users ?? []).filter((u) => seen.has(u.id as number)).length, updated_at: w.updated_at };
+  const all = await getMetrics(actor.workspaceId);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
+  const mine = (users ?? []).filter((u) => seen.has(u.id as number)).map((u) => all.find((m) => m.id === u.id)).filter((m) => m !== undefined);
+  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), asking: w.config.asking ?? null, metrics: mine.length, used_by: mine.slice(0, 50).map((m) => ({ slug: m.slug, name: m.name })), updated_at: w.updated_at };
 }
 
 /** Approvers are members of this Workspace; the editor would drop others without a word, a program is told (scope workflows:write). */

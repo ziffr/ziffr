@@ -6,6 +6,7 @@ import { actorForKey, createAccessKey } from "./access-keys";
 import { createMetricWithKey, MetricChangeRefused, updateMetricWithKey } from "./api-metrics";
 import { WorkflowChoiceRefused } from "./api-metric-workflow";
 import { getMetric } from "./api";
+import { getWorkflowWithKey } from "./api-workflows";
 import { submitObservation } from "./api-submissions";
 import { db } from "./db";
 import { metricEffects, type MetricEffects } from "./metrics";
@@ -50,6 +51,12 @@ describe("changing a Metric's description with a key", () => {
     await share(w.actor(sara, "owner"), "metric", saras.id, ben, "viewer");
     await expect(updateMetricWithKey(key, saras.slug, { name: "x" })).rejects.toThrow(/owner and its Editors/);
     await expect(updateMetricWithKey({ ...key, role: "guest" }, mine.slug, { name: "x" })).rejects.toThrow(/may not change Metrics/);
+    // The Audit Log records it, naming the key and the fields but not the words.
+    const { data: keyed } = await db().from("audit_events").select("access_key_id").eq("workspace_id", w.id).eq("kind", "metric.details_changed");
+    expect(keyed?.[0]).toMatchObject({ access_key_id: expect.any(Number) });
+    const changed = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "metric.details_changed")).data, { dropId: true });
+    expect(JSON.stringify(changed)).toContain("submission_rule");
+    expect(JSON.stringify(changed)).not.toContain("After refunds");
     // The history names the key.
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", mine.id);
     expect(versions?.map((v) => v.message).join(" ")).toContain("key “Assistant”");
@@ -84,6 +91,11 @@ describe("a Metric's Workflow with a key", () => {
     expect(made.next_due!.date >= new Date().toISOString().slice(0, 10)).toBe(true);
     expect(made.next_due).toMatchObject({ date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), period: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
     expect((await getMetric(key, made.slug)).workflow?.name).toBe("Ask me each day");
+    // The link to give the person, and when the Workflow asks next: today's run hour passed or not, a day from now at most.
+    expect(made.url).toBe(`/metrics/${made.slug}`);
+    expect(made.next_asked).toMatchObject({ day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), hour: 8, time_zone: "UTC" });
+    // The Workflow says which Metrics it asks for, so a change to it is not made blind.
+    expect(await getWorkflowWithKey(key, daily)).toMatchObject({ metrics: 1, used_by: [{ slug: made.slug, name: "Signups" }] });
 
     const none = await updateMetricWithKey(key, made.slug, { workflow: null });
     expect(none).toMatchObject({ workflow: null, next_due: null });

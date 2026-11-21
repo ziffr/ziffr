@@ -52,6 +52,7 @@ function detailText(e: AuditEvent): string {
     case "access_key.created": return `${(d.scopes as string[] | undefined)?.join(", ") ?? ""}, until ${formatDate(String(d.expires_on))}`;
     case "metric.created": return d.key_name ? `with the key ${d.key_name}` : "";
     case "metric.deleted": return `${d.values ?? 0} values went with it`;
+    case "metric.details_changed": return `changed: ${((d.fields as string[] | undefined) ?? []).join(", ")}`;
     case "metric.workflow_set": return d.workflow_name ? `now ${d.workflow_name}` : "no Workflow now";
     case "period.locked": case "period.unlocked": case "approval.given": case "approval.sent_back": case "approval.skipped": case "self_check.confirmed": case "self_check.corrected": case "correction.accepted": case "correction.declined": return String(d.period ?? "");
     case "schedule.read": return `${d.from && d.to ? `${d.from} to ${d.to}` : ""}${d.key_name ? `, with the key ${d.key_name}` : ""}`;
