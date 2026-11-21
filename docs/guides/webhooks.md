@@ -223,6 +223,10 @@ Every call that is understood answers `200` with the result, so any call may be 
 
 Webhooks are available on Free and every paid Size. The demo and a trial have none, since they would send a Workspace's data to an address outside Ziffr.
 
+## Templates
+
+Ready-made n8n workflows, both directions, are in [`docs/automations/`](../automations/): [Microsoft To Do](../automations/microsoft-todo.md) and [Google Tasks](../automations/google-tasks.md). Import them, fill in the Settings node and they do what this guide describes: verify, dedupe, link and report back. Ziffr does not support the other system.
+
 ## Trying it
 
 Add a Webhook on **Workspace → Webhooks** with your address, choose events and use **Send test event**: it sends a `ping`, signed like the rest, and the log shows the answer. To test a receiver without Ziffr, post a fixture with the headers from `signing-example.json`.
