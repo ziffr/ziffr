@@ -5,11 +5,12 @@
 import { db } from "./db";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
+import { daysStrict } from "./keep-days";
 import { Forbidden, type Actor, type FeedActor, type KeyActor } from "./actor";
 
 /** Calls one key may make in any 60 seconds. */
 export const REQUESTS_PER_MINUTE = sendingLimitDefault("callsPerKey");
-/** How long the log keeps a call. */
+/** How long the log keeps a call unless the Installation sets otherwise (ZIFFR_KEEP_ACCESS_LOG_DAYS). */
 export const LOG_DAYS = 90;
 
 /** One call as its key's creator and the workspace's Owners and Admins see it. */
@@ -39,7 +40,7 @@ export function routeOf(path: string): string {
   return ((path.split("?")[0] || "/").replace(/(\/metrics\/)[^/]+/, "$1{slug}")).slice(0, 200);
 }
 
-/** Records a call with the key, and forgets calls older than LOG_DAYS. */
+/** Records a call with the key, and forgets calls older than the days the Installation keeps them. */
 export async function recordCall(actor: KeyActor | FeedActor, call: { method: string; path: string; status: number; submitted?: number }): Promise<void> {
   await db().from("access_log").insert({
     key_id: Number(actor.key.id),
@@ -48,7 +49,9 @@ export async function recordCall(actor: KeyActor | FeedActor, call: { method: st
     status: call.status,
     submitted: Math.max(0, Math.trunc(call.submitted ?? 0)),
   });
-  await db().from("access_log").delete().lt("at", new Date(Date.now() - LOG_DAYS * 86_400_000).toISOString());
+  // Fails closed: when the setting cannot be read, nothing is forgotten this time.
+  const days = await daysStrict("ZIFFR_KEEP_ACCESS_LOG_DAYS").catch(() => null);
+  if (days !== null) await db().from("access_log").delete().lt("at", new Date(Date.now() - days * 86_400_000).toISOString());
 }
 
 /** A key's most recent calls, newest first (at most 100): for its creator, and for the workspace's Owners and Admins,

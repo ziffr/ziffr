@@ -5,7 +5,7 @@
 import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
-import { GRACE_DAYS, limitOf, limitRule, metricCount, nextGraceOn, roomOf } from "./workspace-limits";
+import { graceNow, limitOf, limitRule, metricCount, nextGraceOn, roomOf } from "./workspace-limits";
 
 /** A Workspace's Size and usage: how many Metrics it holds, its limit and the name to show, its room over the limit,
  * when it went over and when new Metrics start to wait, whether they wait now, and a coming change if one is set. */
@@ -19,6 +19,8 @@ export type Usage = {
   waiting: boolean;
   /** When the Workspace may next have a grace (90 days after its last started), or null when it may have one now. */
   nextGraceOn: string | null;
+  /** The days over the limit a Workspace gets (the Installation's setting; 14 unless set). */
+  graceDays: number;
   next: { label: string; on: string } | null;
 };
 
@@ -26,8 +28,8 @@ const DAY = 86_400_000;
 
 /** A Workspace's usage, for the core's own callers only: the checked functions below and the Owners' emails. */
 async function usageOf(ws: string): Promise<Usage> {
-  const [metrics, limit, { data: w }, { data: own }] = await Promise.all([
-    metricCount(ws), limitOf(ws),
+  const [metrics, limit, grace, { data: w }, { data: own }] = await Promise.all([
+    metricCount(ws), limitOf(ws), graceNow(),
     db().from("workspaces").select("id, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(),
     db().from("workspace_limits").select("next_label, next_on").eq("workspace_id", ws).maybeSingle(),
   ]);
@@ -37,9 +39,9 @@ async function usageOf(ws: string): Promise<Usage> {
   const now = new Date();
   return {
     metrics, limit: limit?.metrics ?? null, label: limit?.label ?? null, room: limit ? roomOf(limit.metrics) : null,
-    overSince, graceEnds: since ? new Date(since.getTime() + GRACE_DAYS * DAY).toISOString() : null,
-    waiting: limit ? limitRule(metrics, limit.metrics, since, now, last) === "refuse" : false,
-    nextGraceOn: nextGraceOn(last, now)?.toISOString() ?? null,
+    overSince, graceEnds: since ? new Date(since.getTime() + grace.days * DAY).toISOString() : null,
+    waiting: limit ? limitRule(metrics, limit.metrics, since, now, last, grace) === "refuse" : false,
+    nextGraceOn: nextGraceOn(last, now, grace.every)?.toISOString() ?? null, graceDays: grace.days,
     next: own?.next_label && own.next_on ? { label: own.next_label as string, on: own.next_on as string } : null,
   };
 }
@@ -73,7 +75,7 @@ export function overLimitBanner(u: Usage): string | null {
   const size = u.label ? `its Size ${u.label}` : "its limit";
   const holds = `This Workspace holds ${u.metrics.toLocaleString("en-US")} Metrics, more than the ${u.limit.toLocaleString("en-US")} ${size} allows.`;
   return u.waiting
-    ? `${holds} New Metrics wait now${u.nextGraceOn ? `; the next 14 days over the limit are possible from ${dayWords(u.nextGraceOn)}` : ""}. Everything else keeps working.`
+    ? `${holds} New Metrics wait now${u.nextGraceOn ? `; the next ${u.graceDays} days over the limit are possible from ${dayWords(u.nextGraceOn)}` : ""}. Everything else keeps working.`
     : `${holds} New Metrics can be made until ${dayWords(u.graceEnds!)}. Everything else keeps working.`;
 }
 
@@ -84,7 +86,7 @@ export function overLimitBanner(u: Usage): string | null {
  * was told they started (the first run after an upgrade) gets only the second email. Run by the hourly Workflows job;
  * returns how many notices went out. */
 export async function sendLimitNotices(now: Date = new Date()): Promise<number> {
-  const { data, error } = await db().rpc("limit_notices_due", { p_now: now.toISOString(), p_grace_days: GRACE_DAYS, p_limit: 500 });
+  const { data, error } = await db().rpc("limit_notices_due", { p_now: now.toISOString(), p_grace_days: (await graceNow()).days, p_limit: 500 });
   if (error) throw new Error("The Workspace Limit's notices could not be read.");
   let sent = 0;
   for (const due of (data ?? []) as { workspace_id: string; kind: "started" | "ended"; since: string }[]) {
@@ -107,5 +109,5 @@ function noticeWords(kind: "started" | "ended", u: Usage): { subject: string; te
   const size = u.label ? `its Size ${u.label}` : "its limit";
   return kind === "started"
     ? { subject: "Your Workspace is over its limit", text: `Your Workspace holds ${u.metrics} Metrics, more than the ${u.limit} ${size} allows. Until ${dayWords(u.graceEnds!)} new Metrics can still be made, up to ${u.room}. After that they wait until it holds fewer than ${u.limit}. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.` }
-    : { subject: "New Metrics now wait in your Workspace", text: `The 14 days over the limit have ended. Your Workspace holds ${u.metrics} Metrics and ${size} allows ${u.limit}, so new Metrics wait until it holds fewer. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.` };
+    : { subject: "New Metrics now wait in your Workspace", text: `The ${u.graceDays} days over the limit have ended. Your Workspace holds ${u.metrics} Metrics and ${size} allows ${u.limit}, so new Metrics wait until it holds fewer. Everything else keeps working, and values keep arriving. Archive Metrics you no longer track, or change the Size.` };
 }

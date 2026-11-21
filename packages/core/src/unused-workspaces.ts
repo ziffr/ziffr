@@ -10,7 +10,8 @@ import { db } from "./db";
 import { valuesCsv } from "./trial-end";
 import { getMetrics } from "./workspace-data";
 import { deliverNotice } from "./deliveries";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { settingsInEffectStrict, type Settings } from "./settings-in-effect";
+import { daysSetting } from "./installation-days";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { mailEnabled } from "./mail";
 import { forgetWorkspaceKey } from "./workspace-keys";
@@ -19,7 +20,8 @@ import { defaultLimitFrom } from "./workspace-limits";
 /** The warning's subject; the database looks for a sent email with it before it deletes (deletable_as_unused). */
 export const UNUSED_WARNING_SUBJECT = "Your Ziffr Workspace will be deleted";
 
-/** Days between the warning and the deletion. */
+/** Days between the warning and the deletion unless the Installation sets otherwise (ZIFFR_UNUSED_WAIT_DAYS; 7 to 90). The
+ * database keeps the wait a warning promised, so a later setting never deletes sooner. */
 export const UNUSED_WAIT_DAYS = 14;
 const DAY = 86_400_000;
 /** Most Workspaces one run warns or deletes; the next run takes the rest. */
@@ -62,11 +64,11 @@ const dayWords = (at: Date) => at.toLocaleDateString("en-GB", { day: "numeric", 
 
 /** Warns the Owners of one Workspace unused for `days`, by email, once per time unused. A warning that reaches no
  * Owner is taken back, so a Workspace is never deleted without one. True when it was warned. */
-async function warn(workspaceId: string, days: number, now: Date): Promise<boolean> {
+async function warn(workspaceId: string, days: number, wait: number, now: Date): Promise<boolean> {
   // Claimed in the database, which checks again that it is unused and on the default limit, so it warns once.
-  const { data: claimed, error } = await db().rpc("claim_unused_warning", { p_workspace: workspaceId, p_days: days });
+  const { data: claimed, error } = await db().rpc("claim_unused_warning", { p_workspace: workspaceId, p_days: days, p_wait: wait });
   if (error || claimed !== true) return false;
-  const on = dayWords(new Date(now.getTime() + UNUSED_WAIT_DAYS * DAY));
+  const on = dayWords(new Date(now.getTime() + wait * DAY));
   let sent = 0;
   try {
     const { data: owners } = await db().from("memberships").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner");
@@ -89,14 +91,14 @@ async function warn(workspaceId: string, days: number, now: Date): Promise<boole
 
 /** The day's warnings and deletions: what the database picks (unused on the default limit, oldest first; warned 14
  * to 21 days ago and still unused), at most PER_RUN of each. Returns how many were warned and deleted. */
-export async function runUnusedWorkspaces(days: number, now = new Date()): Promise<{ warned: number; deleted: number }> {
+export async function runUnusedWorkspaces(days: number, now = new Date(), wait = UNUSED_WAIT_DAYS): Promise<{ warned: number; deleted: number }> {
   const { data, error } = await db().rpc("unused_workspace_candidates", { p_days: days, p_limit: PER_RUN });
   if (error) throw new Error("The unused Workspaces could not be read.");
   let warned = 0;
   let deleted = 0;
   for (const c of (data ?? []) as { workspace_id: string; step: "warn" | "delete" }[]) {
     try {
-      if (c.step === "warn" && (await warn(c.workspace_id, days, now))) warned++;
+      if (c.step === "warn" && (await warn(c.workspace_id, days, wait, now))) warned++;
       if (c.step === "delete" && (await deleteUnused(c.workspace_id, days))) deleted++;
     } catch (e) {
       // One that fails waits for the next run; the others still go.
@@ -136,9 +138,11 @@ async function deleteUnused(workspaceId: string, days: number): Promise<boolean>
 
 /** The daily job: warn, then delete, only where the Installation turned the rule on. */
 export async function unusedWorkspacesJob(now = new Date()): Promise<{ warned: number; deleted: number }> {
-  const days = unusedAfterDays(await settingsInEffect());
+  // Strict: a warning promises its days, so the setting must have been read, not guessed.
+  const settings = await settingsInEffectStrict();
+  const days = unusedAfterDays(settings);
   if (days === null) return { warned: 0, deleted: 0 };
-  return runUnusedWorkspaces(days, now);
+  return runUnusedWorkspaces(days, now, daysSetting("ZIFFR_UNUSED_WAIT_DAYS", settings));
 }
 
 /** The values of every Metric the person sees, as CSV, for Owners and Admins: what the warning offers to keep before a

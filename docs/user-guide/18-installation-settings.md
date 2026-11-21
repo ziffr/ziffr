@@ -46,7 +46,7 @@ People can answer a request for a value, a question or a task by replying to its
 
 - **Domain for replies**: the domain replies go to.
 - **Signing secret**: signs what the provider forwards. Choose **Make a signing secret**: the page shows a new one once, with **Copy**, for your provider's forwarder. It never shows it again; **Make a new signing secret** replaces it, and the old one stops working at once.
-- **Provider that vouches for senders**: the name your provider writes in its Authentication-Results header. With it, only replies the provider vouched for are taken. Without it, the section says that replies are checked by their address alone and Approvals are never taken by email.
+- **Provider that vouches for senders**: the name your provider writes in its Authentication-Results header. With it, only replies the provider vouched for are taken. Without it, the section warns: "Replies by email are accepted by address alone: a forged sender could answer as someone else." Approvals are never taken by email either way.
 
 Under **Setting it up**, the page names the MX record the domain needs, and the MX records it has now, or that it has none yet. It also names the address the provider forwards to, which ends in `/api/inbound/email`. The [email guide](../guides/email.md#taking-replies) has a forwarder for Cloudflare.
 
@@ -92,6 +92,10 @@ A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics
 
 Over its limit a Workspace keeps everything working: its Metrics, values, Prompts, Workflows, dashboards and the API, and values keep arriving. The first Metric that takes it over starts 14 days in which it may hold 10 % more (at least one Metric more). After that, no new Metric can be made, and no Archived Metric brought back, while it holds as many Metrics as its limit or more. People who try are told how many Metrics the Workspace holds and to archive one or ask an Owner. A limit set below what a Workspace already holds starts the 14 days the same way. Each change is in the Workspace's **Audit Log** and in **Changes** below.
 
+**Days over the limit** (0 to 90, default 14) and **Days between two such periods** (0 to 730, default 90) set how long a Workspace may stay over its limit and how long it must wait for the next time. With 0 days over the limit, the limit holds at once and a Metric over it waits right away. With 0 days between periods, a Workspace gets its days again whenever it comes back under its limit. The change takes effect at once, for the database's check too.
+
+**Days from warning to deletion** (7 to 90, default 14) is the wait between the warning an unused Workspace gets and its deletion. A warning keeps the days it promised: lowering the setting never deletes a Workspace sooner than its warning said.
+
 **Delete unused Workspaces after** (empty: never) deletes Workspaces nobody uses, only those on the default limit, only while a default limit is set and only where this Ziffr sends email, by which the warning must reach the Owners. A Workspace counts as used when anyone of it signs in or opens a page while signed in, or a value arrives for one of its Metrics by any Source. After the days you set (30 to 3650; hosted Ziffr uses 90) without use, every Owner gets one email (always by email, whatever Connector they prefer): what will be deleted and on which day, 14 days later, that one sign-in or one value keeps it, and a link to download its values. Still unused on that day, the Workspace is deleted: its key is destroyed first, so nothing of it can be read again, and a person whose only Workspace it was goes with their sign-in, unless they are an Installation Admin. A warning older than three weeks no longer counts, and one whose email was not sent never deletes: the Workspace is warned again first. Reading a Workspace only through View Links, the API or an assistant does not count as use. **Changes** keeps one line by the Workspace's id that it was deleted as unused. Trials, the demo and Workspaces with a limit of their own (such as a paid Size) are never deleted this way.
 
 ## Sending limits
@@ -106,6 +110,16 @@ Every Workspace, person and API key has a daily or hourly ceiling on what it can
 
 None of them can be switched off: a number outside the range is refused with its range, and a wrong value on the server is ignored in favour of the normal one. They are the same for every Workspace, whatever its Metrics limit, and Ziffr Cloud never changes them. Lowering one never deletes or stops what already exists: a Workspace with more Webhooks than you now allow keeps them and only cannot add new ones; messages already waiting are sent as the new limit allows. A change takes effect within seconds, without a restart. Limits the database itself enforces, such as how many values a Metric takes in a day, are not set here.
 
+## How long logs are kept
+
+What is older than the days set here goes by itself; what is younger is never removed. A value outside its range is not used, and the usual one applies instead, so a typo can never shorten what is kept below the lowest allowed. The section says so when the server holds such a value.
+
+- **Days the Audit Log is kept**: 365 to 3,650, default 730 (two years). Below 730 the page warns in plain words: who did what back then can no longer be told. The Audit Log is never kept for fewer days than a **Retention** or an **Approval** still refers to: a Metric with a Retention, and a Metric with an open Approval, keep the events their runs and their period's record are told from. The page refuses a lower number and says how many days at least; cancel the Retention or decide the Approval first. The database itself refuses to remove an event younger than a year.
+- **Days the log of calls by key is kept**: 7 to 730, default 90.
+- **Days the Webhook send log is kept**: 1 to 90, default 14. Owners and Admins read it on their Webhooks page.
+- **Days View Counts are kept**: 90 to 800, default 400.
+- **Values one Retention takes a night**: 500 to 100,000, default 5,000. The most original values one Metric's Retention condenses in a night; with years of values it takes days to catch up.
+
 ## Marketplace
 
 The **Marketplace** lists Packs others made: ready-made Metric Catalog entries, templates, designs and Themes. The connection is off unless you turn it on; without it, Owners and Admins install Packs from a file.
@@ -118,6 +132,8 @@ With it on, this server, never a browser, asks the Marketplace for lists of Pack
 ## Set on the server
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
+
+On a Ziffr Cloud deployment (hosted Ziffr), the Workspace Limits, the days over the limit, the days a trial lasts and its data stays, and the wait before an unused Workspace goes are fixed by Ziffr Cloud. The page shows them as **Set by Ziffr Cloud** and changes none of them, nor the limit of a single Workspace; only Ziffr Cloud sets those. Every log and capacity setting stays yours.
 
 ## Check against bots
 
@@ -134,6 +150,7 @@ With trials on, anyone who signs in may start a **Trial Workspace** of their own
 
 - **Days a trial lasts**: 1 to 30. Setting it turns trials on; **Remove** turns them off, and trials that run go on until they end.
 - **Trials at once**: the most trials that may run at the same time; empty means 200.
+- **Days a trial's data stays after it ends**: 1 to 60, default 7. After its end a trial can add nothing and its Owner can still download everything; then it is deleted. It applies to every trial that has ended and waits, so a smaller number deletes them sooner.
 - **When a trial ends**: close it and delete it a week later (the default), or keep it as an ordinary Workspace on the default Workspace Limit (see Workspace Limits): invitations open, every Connector reaches everyone, and its keys keep the end date they were made with.
 
 The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.

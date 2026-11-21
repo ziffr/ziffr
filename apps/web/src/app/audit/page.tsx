@@ -8,7 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { auditLog, AUDIT_EXPORT_CAP, AUDIT_RETENTION_DAYS, type AuditEvent } from "@ziffr/core/audit-log";
+import { auditLog, AUDIT_EXPORT_CAP, type AuditEvent } from "@ziffr/core/audit-log";
+import { auditKeptWords } from "@ziffr/core/audit-retention";
 import { formatDate } from "@ziffr/core/format";
 import { monthName, toYearStart } from "@ziffr/core/periods";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
@@ -87,7 +88,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Audit Log" sub={`Who changed who may see or do what, and when. Nothing here can be changed or removed; events are kept for ${AUDIT_RETENTION_DAYS / 365} years. Times are in ${timeZone}.`}>
+      <PageHeader title="Audit Log" sub={`Who changed who may see or do what, and when. Nothing here can be changed or removed; events are kept for ${await auditKeptWords()}. Times are in ${timeZone}.`}>
         <a href={`/audit/export${query(filter)}`} className={buttonVariants({ variant: "outline" })} download>Download CSV</a>
       </PageHeader>
       {demo && <p className="mb-4 text-sm text-muted-foreground">The demo keeps no Audit Log: its people are made up and anyone may act as them.</p>}

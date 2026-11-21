@@ -30,7 +30,7 @@ export function SizeAndUsage({ usage: u, cloud = false }: { usage: Usage; cloud?
           {/* Ticket #457: one 14-day grace per 90 days; say when the next is possible. */}
           {u.nextGraceOn && !(u.overSince && !u.waiting) && (
             <p className="text-sm text-[var(--color-ink-2)]">
-              The 14 days over the limit were used recently{u.waiting ? ", so new Metrics wait now" : ""}. The next ones are possible from {dayWords(u.nextGraceOn)}.
+              The {u.graceDays} days over the limit were used recently{u.waiting ? ", so new Metrics wait now" : ""}. The next ones are possible from {dayWords(u.nextGraceOn)}.
             </p>
           )}
           {u.next && <p className="text-sm">Changes to {u.next.label} on {dayWords(u.next.on)}.</p>}

@@ -11,6 +11,7 @@ import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
+import { daysSetting } from "./installation-days";
 import { defaultLimitFrom } from "./workspace-limits";
 import { csvNumber } from "./export-values";
 import { inCondensed, partOfCondensed, valueOfParts } from "./condensed-parts";
@@ -20,7 +21,8 @@ import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 import { destroyWorkspaceKeys } from "./workspace-keys";
 
-/** Days between a trial's end and its deletion: time to download its values. */
+/** Days between a trial's end and its deletion unless the Installation sets otherwise (ZIFFR_TRIAL_GRACE_DAYS): time to
+ * download its values. A trial keeps the days it had when it closed. */
 export const TRIAL_GRACE_DAYS = 7;
 const DAY = 86_400_000;
 
@@ -32,10 +34,11 @@ export type KeptAs = { label: string | null; metrics: number | null };
 export async function trialStatus(workspaceId: string): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; keptAs: KeptAs | null } | null> {
   const ends = await trialEndsAt(workspaceId);
   if (!ends) return null;
+  const settings = await settingsInEffect();
   const left = ends.getTime() - Date.now();
   return {
-    endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + TRIAL_GRACE_DAYS * DAY).toISOString(),
-    keptAs: await keptAs(),
+    endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings) * DAY).toISOString(),
+    keptAs: await keptAs(settings),
   };
 }
 
@@ -78,7 +81,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
       recipientId: owner, senderId: null, subject: "Your Ziffr trial ends tomorrow",
       text: kept
         ? `${keptWords(String(w.trial_ends_at), kept)} From then on you can invite people, and every Connector reaches everyone.`
-        : `Your trial ends on ${day}. Then it closes, and ${TRIAL_GRACE_DAYS} days later it is deleted with everything in it. Download your Metrics and values before then from the bar at the top of any page.`,
+        : `Your trial ends on ${day}. Then it closes, and ${daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings)} days later it is deleted with everything in it. Download your Metrics and values before then from the bar at the top of any page.`,
       link: "/try",
     });
     n++;
@@ -99,7 +102,9 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
     for (const w of ended ?? []) if (await keepTrial(w.id as string)) kept++;
     return kept;
   }
-  const { data } = await db().from("workspaces").update({ trial_closed_at: at }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
+  // The grace days in effect now are kept with the closing: what the Owner was told is what holds, whatever is set later.
+  const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
+  const { data } = await db().from("workspaces").update({ trial_closed_at: at, trial_grace_days: grace }).lte("trial_ends_at", at).is("trial_closed_at", null).select("id");
   for (const w of data ?? []) {
     // The Workspace is closing: its open Actions close with their events, so external tasks do not linger.
     await closeForSystem(w.id as string, { statuses: ["open", "answered"] }, "workspace_closing");
@@ -150,9 +155,13 @@ async function deleteTrial(workspaceId: string): Promise<void> {
 export async function deleteExpiredTrials(now = new Date()): Promise<number> {
   // Fail closed: deleting needs a setting that was read and says "delete". An unreadable one throws, so a database
   // hiccup never deletes trials the Installation set to be kept; where they are kept, nothing is deleted here.
-  if (trialThen(await settingsInEffectStrict()) !== "delete") return 0;
-  const before = new Date(now.getTime() - TRIAL_GRACE_DAYS * DAY).toISOString();
-  const { data } = await db().from("workspaces").select("id").lte("trial_ends_at", before).is("trial_kept_at", null);
+  const settings = await settingsInEffectStrict();
+  if (trialThen(settings) !== "delete") return 0;
+  // Each trial's own grace days: those kept when it was closed, else the usual 7 for one closed before they were kept,
+  // else (not closed yet) the days in effect now. Never fewer than the lowest allowed, a day, from the first query.
+  const current = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings);
+  const { data: ended } = await db().from("workspaces").select("id, trial_ends_at, trial_closed_at, trial_grace_days").lte("trial_ends_at", new Date(now.getTime() - DAY).toISOString()).is("trial_kept_at", null);
+  const data = (ended ?? []).filter((w) => new Date(w.trial_ends_at as string).getTime() + Number(w.trial_grace_days ?? (w.trial_closed_at ? TRIAL_GRACE_DAYS : current)) * DAY <= now.getTime());
   let n = 0;
   // Each on its own: one that fails waits for the next run and never holds back the others.
   for (const w of data ?? []) {

@@ -145,6 +145,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `replaceWebhookSecret` (webhooks.ts): Webhooks settings (#401)
 - `setWebhookEnabled` (webhooks.ts): Webhooks settings (#401)
 - `deleteWebhook` (webhooks.ts): Webhooks settings (#401)
+- `webhookLog` (webhook-log.ts): Webhooks settings (#401); a read that only seems to write, since reading the settings may seal one again
 - `sendTestWebhook` (webhook-log.ts): Webhooks settings (#401)
 - `resendWebhookSend` (webhook-log.ts): Webhooks settings (#401)
 - `setWorkspaceClock` (workspace-clock.ts): Workspace settings
