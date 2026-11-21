@@ -133,6 +133,10 @@ describe("when nothing is sent", () => {
   });
 });
 
+// Changes the signature's first character: the last of 43 base64url characters carries only 4 bits of the 32 bytes, so
+// changing it can decode to the same signature and the token would still be valid (the flake of #437 and #452).
+const tampered = (token: string) => { const i = token.indexOf(".") + 1; return `${token.slice(0, i)}${token[i] === "A" ? "B" : "A"}${token.slice(i + 1)}`; };
+
 describe("opting out and unsubscribing", () => {
   it("an Owner who switched it off gets none, and one who switches it on again gets it", async () => {
     const { w, sara } = await setup();
@@ -166,7 +170,7 @@ describe("opting out and unsubscribing", () => {
     // Checking it changes nothing; using it stops the digest, twice without harm, and not for a changed token.
     expect(usageDigestTokenValid(token)).toBe(true);
     expect(await digestOptedOut(sara)).toBe(false);
-    expect(await optOutOfUsageDigestByToken(`${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`)).toBe(false);
+    expect(await optOutOfUsageDigestByToken(tampered(token))).toBe(false);
     expect(await optOutOfUsageDigestByToken(token)).toBe(true);
     expect(await optOutOfUsageDigestByToken(token)).toBe(true);
     expect(await digestOptedOut(sara)).toBe(true);
