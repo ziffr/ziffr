@@ -29,7 +29,7 @@ function ChangeKey({ workspaceId, name, disabled }: { workspaceId: string; name:
   if (!asking) return <Button variant="ghost" size="sm" disabled={disabled} onClick={() => setAsking(true)}>Change key</Button>;
   return (
     <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label={`Change the key of ${name}`}>
-      <span className="max-w-[40ch]">A new key seals everything from now on, and the job moves what is sealed over. Do this after an incident or when an Owner asks.</span>
+      <span className="max-w-[40ch]">A new key takes over in about ten minutes, so that every running server has it first; then the job moves what is sealed over. Do this after an incident or when an Owner asks.</span>
       <Button size="sm" disabled={pending} onClick={change}>Change the key</Button>
       <Button variant="ghost" size="sm" disabled={pending} onClick={() => setAsking(false)}>Cancel</Button>
     </span>
@@ -65,7 +65,7 @@ export function EncryptionSection({ progress }: { progress: KeyProgress }) {
             : `${n(progress.keysUnderPreviousKey)} Workspace ${progress.keysUnderPreviousKey === 1 ? "Key is" : "Keys are"} still wrapped under the previous Installation key. Keep ZIFFR_SECRETS_KEY_PREVIOUS until none is.`}
         </p>
       ) : null}
-      {progress.listed.some((w) => w.versions.some((v) => !v.current)) && (
+      {progress.listed.some((w) => w.versions.some((v) => !v.current && !v.pending)) && (
         <p role="status" className="max-w-[62ch] text-sm">A retired key version stays until the job has moved everything sealed under it over to the current one and a quarter of an hour has passed, so that no running server still seals with it. Then it is destroyed.</p>
       )}
       {progress.columns.length > 0 && (
@@ -96,14 +96,14 @@ export function EncryptionSection({ progress }: { progress: KeyProgress }) {
               <li key={w.workspaceId} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                 <span className="font-medium">{w.name}</span>
                 <span className="text-muted-foreground">
-                  {w.versions.length ? `Key version ${w.versions.map((v) => `${v.version}${v.current ? "" : " (retired)"}`).join(", ")}` : "No key yet"}
+                  {w.versions.length ? `Key version ${w.versions.map((v) => `${v.version}${v.current ? "" : v.pending ? " (takes over soon)" : " (retired)"}`).join(", ")}` : "No key yet"}
                   {w.versions.some((v) => v.wrappedUnderPrevious) ? ", wrapped under the previous Installation key" : ""}
                 </span>
                 <span className="ml-auto text-xs text-muted-foreground">
                   {w.columns === 0 ? "Not looked at yet" : w.columnsDone === w.columns ? "Encrypted" : `${n(w.plain)} values in clear`}
                   {w.checkedAt ? <> · <RelativeTime at={w.checkedAt} /></> : null}
                 </span>
-                <ChangeKey workspaceId={w.workspaceId} name={w.name} disabled={!progress.encrypting || w.versions.length === 0} />
+                <ChangeKey workspaceId={w.workspaceId} name={w.name} disabled={!progress.encrypting || w.versions.length === 0 || w.versions.some((v) => v.pending)} />
               </li>
             ))}
           </ul>

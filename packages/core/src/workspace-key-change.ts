@@ -1,7 +1,7 @@
 // Changing a Workspace Key (spec 0028, ticket #250; GLOSSARY: Workspace Key, Installation Admin): an Installation Admin
-// makes a new key version current for one Workspace, after an Owner asked or after an incident, never on a schedule.
-// New values are sealed under the new version at once; the re-encryption job (workspace-key-job.ts) moves what was
-// sealed before and destroys the old version once nothing refers to it. Security: nothing here returns or logs a key;
+// adds a new key version for one Workspace, after an Owner asked or after an incident, never on a schedule. It
+// takes over after about eleven minutes, when every process has loaded it; the re-encryption job
+// (workspace-key-job.ts) then moves what was sealed before and destroys the old version once nothing refers to it. Security: nothing here returns or logs a key;
 // the answer is the new version number.
 import { Forbidden, Refused } from "./actor";
 import { recordAudit } from "./audit-log";
@@ -13,7 +13,7 @@ import { addWorkspaceKeyVersion } from "./workspace-keys";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Makes a new key version current for a Workspace and has the re-encryption job look at it next. Installation Admins
+/** Adds a new key version for a Workspace, to take over in a few minutes (KEY_PENDING_SECONDS), and has the job look at it. Installation Admins
  * only, never for the demo (it has no key). Both the Workspace's Audit Log and the Installation's audit record it,
  * by the Workspace's id. Refused with a plain sentence when the Installation has no ZIFFR_SECRETS_KEY or the
  * Workspace has no key yet. */

@@ -277,7 +277,7 @@ describe("the progress for Installation Admins", () => {
     const view = await keyProgress(a.actor);
     const mine = view.listed.find((l) => l.workspaceId === w.id);
     expect(view.encrypting).toBe(true);
-    expect(mine?.versions).toEqual([{ version: 1, current: true, wrappedUnderPrevious: false }]);
+    expect(mine?.versions).toEqual([{ version: 1, current: true, pending: false, wrappedUnderPrevious: false }]);
     expect(mine?.columnsDone).toBe(mine?.columns);
     const { data: key } = await db().from("workspace_keys").select("wrapped").eq("workspace_id", w.id).single();
     expect(JSON.stringify(view)).not.toContain(key!.wrapped as string);

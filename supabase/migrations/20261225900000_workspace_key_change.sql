@@ -1,12 +1,42 @@
 -- Changing a Workspace Key and re-sealing everything the job did not reach yet (spec 0028, ticket #250; GLOSSARY:
 -- Workspace Key, Installation Admin). Three parts: Breakdown labels with their index and history, a Webhook's
 -- external task id with its hash, and the words sealed inside JSON columns join the re-encryption job; a new key
--- version is made current under the Workspace row's lock; an old version is destroyed only once nothing refers to it.
--- Every function answers the service role only and never returns a key.
+-- version is added as pending and takes over only after every process could have loaded it (processes keep a
+-- Workspace's keys 10 minutes); an old version is destroyed only once nothing refers to it. Every function answers
+-- the service role only and never returns a key.
 
 -- Where a scan of a JSON column began and under which key version it ended: an old key version is destroyed only
 -- after a scan that began once no process could still write under it.
 alter table workspace_seal_progress add column done_version integer, add column scan_started_at timestamptz;
+
+-- The Workspace that made a Contact: their name is sealed with that Workspace's key and stays in its values and
+-- history when the Contact is removed, so the job must still reach it. Filled in for Contacts that exist; for one
+-- already removed, from the one Workspace their values, messages, Actions or Tokens name, where there is exactly one.
+alter table profiles add column contact_workspace uuid;
+update profiles p set contact_workspace = c.workspace_id from contacts c
+  where c.person_id = p.id and p.role = 'Contact' and p.contact_workspace is null
+    and not exists (select 1 from contacts o where o.person_id = p.id and o.workspace_id <> c.workspace_id);
+update profiles p set contact_workspace = r.ws from (
+  select id, (array_agg(ws))[1] as ws from (
+    select submitter_id as id, workspace_id as ws from observations where submitter_id is not null
+    union select author_id, workspace_id from thread_messages where author_id is not null
+    union select asker_id, workspace_id from actions
+    union select assignee_id, workspace_id from actions
+    union select submitter_id, workspace_id from tokens where submitter_id is not null
+  ) x group by id having count(distinct ws) = 1
+) r where r.id = p.id and p.role = 'Contact' and p.contact_workspace is null
+  and not exists (select 1 from contacts o where o.person_id = p.id);
+
+-- A key version added by a change takes over only after pending_until: every process keeps a Workspace's keys for 10
+-- minutes, so by then each holds it (and can open and find what is sealed under it) before anything is sealed with it.
+alter table workspace_keys add column pending_until timestamptz;
+drop index workspace_keys_one_current;
+create unique index workspace_keys_one_current on workspace_keys (workspace_id) where retired_at is null and pending_until is null;
+create unique index workspace_keys_one_pending on workspace_keys (workspace_id) where pending_until is not null;
+
+-- The database's own clock, for the settle rules: the app's may differ.
+create function seal_now() returns timestamptz language sql stable as $$ select now() $$;
+revoke all on function seal_now() from public, anon, authenticated;
 
 -- Breakdown labels and their history join the tables the job seals. A history entry holds the label of a row that is
 -- gone (its sealed form keeps the id of the row it was copied from, older entries none).
@@ -16,8 +46,11 @@ begin
     when 'thread_messages' then key := 'id'; cols := array['body']; scope := 'workspace_id = $1';
     when 'actions' then key := 'id'; cols := array['question', 'breakdown_label']; scope := 'workspace_id = $1';
     when 'contacts' then key := 'person_id'; cols := array['email', 'slack_handle', 'phone']; scope := 'workspace_id = $1';
+    -- A Contact's name belongs to the Workspace that made the Contact (`contact_workspace`), also after the Contact was
+    -- removed (their name stays in values and history); one that predates the column, by the Workspace they are a
+    -- Contact of. Never one that is a Contact of two Workspaces: its name is sealed for neither.
     when 'profiles' then key := 'id'; cols := array['name'];
-      scope := 'role = ''Contact'' and id in (select c.person_id from contacts c where c.workspace_id = $1 and not exists (select 1 from contacts o where o.person_id = c.person_id and o.workspace_id <> c.workspace_id))';
+      scope := 'role = ''Contact'' and (contact_workspace = $1 or (contact_workspace is null and id in (select c.person_id from contacts c where c.workspace_id = $1))) and not exists (select 1 from contacts o where o.person_id = profiles.id and o.workspace_id <> $1)';
     when 'deliveries' then key := 'id'; cols := array['subject', 'body']; scope := 'workspace_id = $1';
     when 'intake_log' then key := 'id'; cols := array['sender', 'raw', 'detail']; scope := 'workspace_id = $1';
     when 'audit_events' then key := 'id'; cols := array['object_name']; scope := 'workspace_id = $1';
@@ -145,6 +178,28 @@ create function frozen_without_labels(f jsonb) returns jsonb language sql immuta
 $$;
 revoke all on function frozen_without_labels(jsonb) from public, anon, authenticated;
 
+-- Each Breakdown label of a frozen part with its place (metric, period, position): what a re-sealing may change.
+create function frozen_labels(f jsonb) returns table(metric text, period text, pos bigint, label jsonb) language sql immutable as $$
+  select m.key, p.key, r.n, r.e -> 'label'
+  from jsonb_each(case when jsonb_typeof(f #> '{data,breakdowns}') = 'object' then f #> '{data,breakdowns}' else '{}'::jsonb end) m,
+       jsonb_each(case when jsonb_typeof(m.value) = 'object' then m.value else '{}'::jsonb end) p,
+       jsonb_array_elements(case when jsonb_typeof(p.value) = 'array' then p.value else '[]'::jsonb end) with ordinality as r(e, n)
+  where jsonb_typeof(r.e) = 'object'
+$$;
+revoke all on function frozen_labels(jsonb) from public, anon, authenticated;
+
+-- Whether new is old with some labels sealed: every label that differs is a text in the sealed format, of a newer key
+-- version than the one it replaces (or it replaces plain text). Nothing else about the labels may change.
+create function frozen_labels_resealed(old jsonb, new jsonb) returns boolean language sql immutable as $$
+  select not exists (
+    select 1 from frozen_labels(new) n left join frozen_labels(old) o using (metric, period, pos)
+    where n.label is distinct from o.label
+      and not (jsonb_typeof(n.label) = 'string' and sealed_format(n.label #>> '{}')
+               and (o.label is null or jsonb_typeof(o.label) <> 'string' or not sealed_format(o.label #>> '{}') or sealed_version(n.label #>> '{}') > sealed_version(o.label #>> '{}')))
+  )
+$$;
+revoke all on function frozen_labels_resealed(jsonb, jsonb) from public, anon, authenticated;
+
 create or replace function dashboard_snapshots_keep_frozen() returns trigger language plpgsql as $$
 begin
   if new.workspace_id is distinct from old.workspace_id or new.dashboard_id is distinct from old.dashboard_id
@@ -162,6 +217,7 @@ begin
        and current_user = (select pg_get_userbyid(proowner) from pg_proc where oid = 'seal_json(uuid,text,text,bigint,jsonb,jsonb)'::regprocedure)
        and old.frozen is not null and new.frozen is not null
        and frozen_without_labels(new.frozen) = frozen_without_labels(old.frozen)
+       and frozen_labels_resealed(old.frozen, new.frozen)
      ) then
     raise exception 'A Snapshot''s numbers never change.' using errcode = 'ZF403';
   end if;
@@ -189,10 +245,11 @@ end;
 $$;
 revoke all on function seal_json(uuid, text, text, bigint, jsonb, jsonb) from public, anon, authenticated;
 
--- A new key version for a Workspace becomes current, the one before it retired, in one step under the Workspace row's
--- lock. p_version must be the next number after the newest, so two changes at once cannot both win. False when the
--- Workspace has no key or the version is not the next.
-create function add_workspace_key_version(p_workspace uuid, p_version integer, p_wrapped text, p_wrapper text, p_under text)
+-- A new key version for a Workspace is added as pending, to take over at now() + p_pending_seconds (see
+-- workspace_keys.pending_until), under the Workspace row's lock. p_version must be the next number after the newest,
+-- so two changes at once cannot both win, and no change is added while one is still pending. False when the
+-- Workspace has no key, the version is not the next, or a change is pending.
+create function add_workspace_key_version(p_workspace uuid, p_version integer, p_wrapped text, p_wrapper text, p_under text, p_pending_seconds integer)
 returns boolean language plpgsql security definer set search_path = public as $$
 declare
   newest integer;
@@ -201,12 +258,30 @@ begin
   if not found then return false; end if;
   select max(version) into newest from workspace_keys where workspace_id = p_workspace;
   if newest is null or p_version <> newest + 1 then return false; end if;
-  update workspace_keys set retired_at = now() where workspace_id = p_workspace and retired_at is null;
-  insert into workspace_keys (workspace_id, version, wrapped, wrapper, wrapped_under) values (p_workspace, p_version, p_wrapped, p_wrapper, p_under);
+  if exists (select 1 from workspace_keys where workspace_id = p_workspace and pending_until is not null) then return false; end if;
+  insert into workspace_keys (workspace_id, version, wrapped, wrapper, wrapped_under, pending_until)
+    values (p_workspace, p_version, p_wrapped, p_wrapper, p_under, now() + make_interval(secs => greatest(p_pending_seconds, 0)));
   return true;
 end;
 $$;
-revoke all on function add_workspace_key_version(uuid, integer, text, text, text) from public, anon, authenticated;
+revoke all on function add_workspace_key_version(uuid, integer, text, text, text, integer) from public, anon, authenticated;
+
+-- Lets a pending key version take over once its time has come: it becomes the current one, the one before it retired.
+-- True when it did.
+create function activate_workspace_keys(p_workspace uuid) returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  perform 1 from workspaces where id = p_workspace for update;
+  if not found then return false; end if;
+  if not exists (select 1 from workspace_keys where workspace_id = p_workspace and pending_until is not null and pending_until <= now()) then return false; end if;
+  update workspace_keys set retired_at = now() where workspace_id = p_workspace and retired_at is null and pending_until is null;
+  update workspace_keys set pending_until = null where workspace_id = p_workspace and pending_until is not null and pending_until <= now();
+  get diagnostics n = row_count;
+  return n = 1;
+end;
+$$;
+revoke all on function activate_workspace_keys(uuid) from public, anon, authenticated;
 
 -- Destroys one retired key version, only when it is older than the current one and has been retired for at least
 -- p_settle_seconds: by then no process still holds the key set from before the change (they keep it 10 minutes) and
@@ -221,9 +296,30 @@ begin
   delete from workspace_keys
     where workspace_id = p_workspace and version = p_version and retired_at is not null
       and retired_at < now() - make_interval(secs => greatest(p_settle_seconds, 0))
-      and version < (select max(version) from workspace_keys where workspace_id = p_workspace and retired_at is null);
+      and pending_until is null
+      and version < (select max(version) from workspace_keys where workspace_id = p_workspace and retired_at is null and pending_until is null)
+      -- A removed Contact's name that no Workspace is known for may be sealed under any version: nothing goes while one exists.
+      and not exists (select 1 from profiles where role = 'Contact' and contact_workspace is null and sealed_format(name)
+        and not exists (select 1 from contacts c where c.person_id = profiles.id));
   get diagnostics n = row_count;
   return n = 1;
 end;
 $$;
 revoke all on function destroy_key_version(uuid, integer, integer) from public, anon, authenticated;
+
+-- Seals a Contact's name, only if the person is still of this Workspace alone (a name is bound to one Workspace) and the
+-- name is still what the job read: the scope of seal_table is applied again at the moment of writing.
+create or replace function seal_contact_name(p_workspace uuid, p_person text, p_name_was text, p_name text)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  update profiles set name = p_name
+    where id = p_person and name = p_name_was and role = 'Contact'
+      and (contact_workspace = p_workspace or (contact_workspace is null and id in (select c.person_id from contacts c where c.workspace_id = p_workspace)))
+      and not exists (select 1 from contacts o where o.person_id = profiles.id and o.workspace_id <> p_workspace);
+  get diagnostics n = row_count;
+  return n = 1;
+end;
+$$;
+revoke all on function seal_contact_name(uuid, text, text, text) from public, anon, authenticated;

@@ -12,7 +12,7 @@ import { ALL_SEALED_COLUMNS, ROW_KEY, sealDetails, type OpenedTable } from "./se
 import { resealThing, SEALED_THINGS, type SealedThing } from "./sealed-things";
 import { secretsKey } from "./secrets";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { ensureWorkspaceKey, forgetWorkspaceKey, isSealed, KEY_SETTLE_SECONDS, keyVersions, rewrapInstallationKeys, sealedVersion, takeRewrapFailures, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
+import { activateWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, isSealed, KEY_SETTLE_SECONDS, keyVersions, rewrapInstallationKeys, sealedVersion, takeRewrapFailures, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
 
 /** Rows sealed per batch (spec 0028). */
 export const SEAL_BATCH = 500;
@@ -210,7 +210,8 @@ async function passWorkspace(id: string, globalDeadline: number, batch: number, 
   const deadline = Math.min(globalDeadline, Date.now() + WORKSPACE_SECONDS * 1000);
   let full = false;
   try {
-    // Read fresh: a key version made current by another process counts from this pass on.
+    // A key version whose time has come takes over now; then read fresh, so this pass seals with it.
+    await activateWorkspaceKeys(id);
     forgetWorkspaceKey(id);
     const hadKey = await db().from("workspace_keys").select("version", { count: "exact", head: true }).eq("workspace_id", id);
     if (!(await ensureWorkspaceKey(id))) return;
@@ -279,19 +280,45 @@ async function passWorkspace(id: string, globalDeadline: number, batch: number, 
     // The words sealed inside JSON columns: scanned row by row, since the database cannot count words inside JSON.
     const progress = await db().from("workspace_seal_progress").select("table_name, column_name, total, unopenable, held_back, verified_through, done_at, done_version, scan_started_at").eq("workspace_id", id);
     const versions = await keyVersions(id);
+    const now = await databaseNow();
     for (const thing of SEALED_THINGS) {
       const was = (progress.data ?? []).find((r) => r.table_name === thing.table && r.column_name === thing.column) as ProgressRow | undefined;
-      if (!scanDue(was, cipher.version, versions, Date.now())) continue;
-      if (!(await scanThing(cipher, id, thing, deadline, was, out))) unfinished = true;
+      if (!scanDue(was, cipher.version, versions, now)) continue;
+      if (!(await scanThing(cipher, id, thing, deadline, was, now, out))) unfinished = true;
     }
     full = !unfinished;
-    if (full) out.keysDestroyed += await destroySettledKeys(id, cipher.version, versions);
+    if (full) out.keysDestroyed += await destroySettledKeys(id, cipher.version, versions, now);
   } catch {
     // Nothing logged: the message could only name a Workspace's key trouble; the page shows which Workspaces wait.
     out.errors += 1;
   } finally {
     await db().rpc("end_seal_pass", { p_workspace: id, p_full: full });
   }
+}
+
+/** The database's clock in milliseconds, for the settle rules (key versions are retired by its clock, not this
+ * server's); this server's when it cannot be asked. */
+async function databaseNow(): Promise<number> {
+  const { data, error } = await db().rpc("seal_now");
+  const t = error || typeof data !== "string" ? NaN : Date.parse(data);
+  return Number.isNaN(t) ? Date.now() : t;
+}
+
+/** One row of a sealed JSON column as the scan reads it. */
+async function readThing(workspaceId: string, thing: SealedThing, id: number): Promise<{ id: number; value: unknown; object_type?: string; object_id?: number; version?: number } | null> {
+  const select = thing.table === "versions" ? "id, object_type, object_id, version, snapshot" : `id, ${thing.column}`;
+  const { data } = await db().from(thing.table).select(select).eq("workspace_id", workspaceId).eq("id", id).maybeSingle();
+  const r = data as unknown as Row | null;
+  return r ? { id: r.id as number, value: r[thing.column], object_type: r.object_type as string | undefined, object_id: r.object_id as number | undefined, version: r.version as number | undefined } : null;
+}
+
+/** Writes a re-sealed value of a JSON column if the column still holds what was read: "sealed" when it did, "changed"
+ * when not. A value that does not survive the trip through JavaScript (a number of more than 15 digits) never matches
+ * what the database holds: the scan reads such a row once more and, if it fails again, counts it as held back. */
+async function writeThing(workspaceId: string, thing: SealedThing, id: number, was: unknown, next: unknown): Promise<"sealed" | "changed" | "error"> {
+  const { data, error } = await db().rpc("seal_json", { p_workspace: workspaceId, p_table: thing.table, p_column: thing.column, p_id: id, p_was: was, p_new: next });
+  if (error) return "error";
+  return data === true ? "sealed" : "changed";
 }
 
 /** What the job keeps of one scanned JSON column in workspace_seal_progress. */
@@ -320,14 +347,15 @@ const SCAN_PAGE = 100;
 /** Moves the words of one JSON column of one Workspace to the current key version, row by row, each written only if it
  * is as it was read. Goes on from where an earlier run stopped when that run was under the same key version. Records
  * how far it is; true when the whole column was gone through and no row was left behind. */
-async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: SealedThing, deadline: number, was: ProgressRow | undefined, out: KeyJobResult): Promise<boolean> {
+async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: SealedThing, deadline: number, was: ProgressRow | undefined, now: number, out: KeyJobResult): Promise<boolean> {
   const current = cipher.version as number;
   const resuming = Boolean(was && !was.done_at && was.done_version === current && was.verified_through !== null);
   let through: string | null = resuming ? was!.verified_through : null;
   let total = resuming ? Number(was!.total) : 0;
   let bad = resuming ? Number(was!.unopenable) : 0;
-  let left = resuming ? Number(was!.held_back) : 0;
-  const startedAt = resuming && was!.scan_started_at ? was!.scan_started_at : new Date().toISOString();
+  let left = 0;
+  let stuck = resuming ? Number(was!.held_back) : 0;
+  const startedAt = resuming && was!.scan_started_at ? was!.scan_started_at : new Date(now).toISOString();
   let complete = false;
   let failed = false;
   const select = thing.table === "versions" ? "id, object_type, object_id, version, snapshot" : `id, ${thing.column}`;
@@ -343,8 +371,19 @@ async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: Se
       const done = resealThing(cipher, thing, { id: r.id as number, value: r[thing.column], object_type: r.object_type as string | undefined, object_id: r.object_id as number | undefined, version: r.version as number | undefined });
       if (done.unopenable) { bad += 1; out.unopenable += 1; continue; }
       if (!done.changed) continue;
-      const { data: ok, error: e } = await db().rpc("seal_json", { p_workspace: workspaceId, p_table: thing.table, p_column: thing.column, p_id: r.id, p_was: r[thing.column], p_new: done.value });
-      if (e) { out.errors += 1; left += 1; } else if (ok === true) out.rowsSealed += 1; else left += 1;
+      const written = await writeThing(workspaceId, thing, r.id as number, r[thing.column], done.value);
+      if (written === "error") { out.errors += 1; left += 1; } else if (written === "sealed") out.rowsSealed += 1;
+      else {
+        // Changed since it was read, by a person's own save (which seals) or another job: read it again once.
+        const again = await readThing(workspaceId, thing, r.id as number);
+        if (again === null) continue;
+        const redone = resealThing(cipher, thing, again);
+        if (redone.unopenable) { bad += 1; out.unopenable += 1; continue; }
+        if (!redone.changed) continue;
+        const second = await writeThing(workspaceId, thing, r.id as number, again.value, redone.value);
+        if (second === "sealed") out.rowsSealed += 1;
+        else if (second === "error") { out.errors += 1; left += 1; } else { stuck += 1; out.heldBack += 1; }
+      }
     }
     if (rows.length) through = String(rows[rows.length - 1].id);
     if (rows.length < SCAN_PAGE) { complete = true; break; }
@@ -353,8 +392,8 @@ async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: Se
   const finished = complete && !failed && left === 0;
   if (finished) out.columnsDone += 1;
   await db().from("workspace_seal_progress").upsert({
-    workspace_id: workspaceId, table_name: thing.table, column_name: thing.column, total, plain: left, old_version: 0, unopenable: bad, held_back: 0,
-    verified_through: finished || complete ? null : through, checked_at: new Date().toISOString(), done_at: finished ? new Date().toISOString() : null, done_version: current, scan_started_at: startedAt,
+    workspace_id: workspaceId, table_name: thing.table, column_name: thing.column, total, plain: left, old_version: 0, unopenable: bad, held_back: stuck,
+    verified_through: finished || complete ? null : through, checked_at: new Date(now).toISOString(), done_at: finished ? new Date(now).toISOString() : null, done_version: current, scan_started_at: startedAt,
   });
   return finished;
 }
@@ -363,18 +402,18 @@ async function scanThing(cipher: WorkspaceCipher, workspaceId: string, thing: Se
  * value or blind index under an older version (counted now, in the database), and every JSON column scanned under the
  * current version by a scan that began after the version had settled. Strict on purpose: a value that does not open
  * keeps its old key alive, and the page says so. Returns how many were destroyed. */
-async function destroySettledKeys(workspaceId: string, current: number, versions: { version: number; retiredAt: string | null }[]): Promise<number> {
-  const old = versions.filter((v) => v.version < current && v.retiredAt && Date.parse(v.retiredAt) + KEY_SETTLE_SECONDS * 1000 <= Date.now());
+async function destroySettledKeys(workspaceId: string, current: number, versions: { version: number; retiredAt: string | null }[], now: number): Promise<number> {
+  const old = versions.filter((v) => v.version < current && v.retiredAt && Date.parse(v.retiredAt) + KEY_SETTLE_SECONDS * 1000 <= now);
   if (!old.length) return 0;
   const { data: counts, error } = await db().rpc("seal_counts", { p_workspace: workspaceId, p_current: current });
   if (error || !counts || (counts as Count[]).some((c) => Number(c.plain) > 0 || Number(c.old_version) > 0)) return 0;
-  const { data: scans } = await db().from("workspace_seal_progress").select("table_name, column_name, unopenable, done_at, done_version, scan_started_at").eq("workspace_id", workspaceId);
+  const { data: scans } = await db().from("workspace_seal_progress").select("table_name, column_name, unopenable, held_back, done_at, done_version, scan_started_at").eq("workspace_id", workspaceId);
   let destroyed = 0;
   for (const v of old) {
     const settled = Date.parse(v.retiredAt as string) + KEY_SETTLE_SECONDS * 1000;
     const scanned = SEALED_THINGS.every((t) => {
       const r = (scans ?? []).find((s) => s.table_name === t.table && s.column_name === t.column);
-      return r && r.done_at && r.done_version === current && Number(r.unopenable) === 0 && Date.parse(String(r.scan_started_at)) >= settled;
+      return r && r.done_at && r.done_version === current && Number(r.unopenable) === 0 && Number(r.held_back) === 0 && Date.parse(String(r.scan_started_at)) >= settled;
     });
     if (!scanned) continue;
     const { data } = await db().rpc("destroy_key_version", { p_workspace: workspaceId, p_version: v.version, p_settle_seconds: KEY_SETTLE_SECONDS });
@@ -392,7 +431,7 @@ async function dueWorkspaces(limit: number): Promise<string[]> {
   add((await db().from("workspaces").select("id").is("sealed_checked_at", null).neq("id", DEMO_WORKSPACE_ID).order("created_at").limit(limit)).data);
   add((await db().from("workspace_seal_progress").select("workspace_id").is("done_at", null).order("checked_at").limit(limit)).data);
   // A Workspace with a retired key version is looked at every run: the version goes once it has settled.
-  add((await db().from("workspace_keys").select("workspace_id").not("retired_at", "is", null).limit(limit)).data);
+  add((await db().from("workspace_keys").select("workspace_id").or("retired_at.not.is.null,pending_until.not.is.null").limit(limit)).data);
   const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
   add((await db().from("workspaces").select("id").lt("sealed_checked_at", dayAgo).neq("id", DEMO_WORKSPACE_ID).order("sealed_checked_at").limit(limit)).data);
   return ids.slice(0, limit);

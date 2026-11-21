@@ -92,7 +92,7 @@ export async function addContact(actor: Actor, input: { name: string; email?: st
   // handle unique here without the database reading it. In clear only in the demo or without ZIFFR_SECRETS_KEY.
   const cipher = await workspaceCipher(actor.workspaceId);
   const person = await sealRow("profiles", actor.workspaceId, { id, name: c.name });
-  const { error: pe } = await db().from("profiles").insert({ ...person, role: "Contact", color: "#6B7280" });
+  const { error: pe } = await db().from("profiles").insert({ ...person, role: "Contact", color: "#6B7280", contact_workspace: actor.workspaceId });
   if (pe) throw new Error("The contact could not be added.");
   const details = await sealRow("contacts", actor.workspaceId, { person_id: id, email: c.email, slack_handle: c.slack_handle, phone: c.phone });
   const { error } = await db().from("contacts").insert({

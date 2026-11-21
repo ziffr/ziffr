@@ -12,6 +12,8 @@ import { openHistoryLabel } from "./breakdown-labels";
 import { ALL_SEALED_COLUMNS } from "./sealed-columns";
 import { SEALED_LABELS } from "./sealed-labels";
 import { SEALED_THINGS } from "./sealed-things";
+import { addContact, removeContact } from "./team";
+import { openNames } from "./sealed-columns";
 import { editSnapshotWords, openSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { installationAdmin, workspace } from "./test/db-fixtures";
@@ -157,7 +159,10 @@ describe("the re-encryption job beyond the sealed columns", () => {
     // Directly, not even a label changes; through seal_json a label does, a number does not.
     expect((await db().from("dashboard_snapshots").update({ frozen: changed((r) => ({ ...r, label: "x" })) }).eq("id", world.snapshot)).error).not.toBeNull();
     expect((await call(changed((r) => ({ ...r, value: r.value + 1 })))).error).not.toBeNull();
-    expect((await call(changed((r) => ({ ...r, label: "Relabelled" })))).data).toBe(true);
+    // A label may only become sealed text of a newer key version, never other plain text.
+    expect((await call(changed((r) => ({ ...r, label: "Relabelled" })))).error).not.toBeNull();
+    const cipher = await workspaceCipher(world.w.id);
+    expect((await call(changed((r) => ({ ...r, label: cipher.seal({ table: "dashboard_snapshots", column: "frozen.data.x", row: world.snapshot }, "Relabelled") })))).data).toBe(true);
     expect((await db().rpc("seal_json", { p_workspace: world.w.id, p_table: "profiles", p_column: "name", p_id: 1, p_was: {}, p_new: {} })).error).not.toBeNull();
   });
 
@@ -192,14 +197,21 @@ describe("changing a Workspace Key", () => {
     const a = await admin();
     const stale = await workspaceCipher(w.id);
     expect((await changeWorkspaceKey(a.actor, w.id)).version).toBe(2);
-    // Values sealed by another process under version 2 read in this one holding only version 1, which then loads again.
+    // The new version is held but does not seal yet, and is found by blind indexes: no process seals with a version
+    // that another may not have loaded.
+    const waiting = await workspaceCipher(w.id);
+    expect(waiting.version).toBe(1);
+    expect(waiting.blindIndexes("contacts.email", "x@y.test")).toHaveLength(2);
+    expect((await reencryptionJob(only(w))).rowsMoved).toBe(0);
+    await expect(changeWorkspaceKey(a.actor, w.id)).rejects.toThrow(Refused);
+    // Its time comes: it takes over, and a process holding only version 1 meets values of version 2.
+    await db().from("workspace_keys").update({ pending_until: new Date(Date.now() - 1000).toISOString() }).eq("workspace_id", w.id).eq("version", 2);
+    const run = await reencryptionJob(only(w));
     const fresh = await workspaceCipher(w.id);
     expect(fresh.version).toBe(2);
     const sealedTwo = fresh.seal({ table: "thread_messages", column: "body", row: 1 }, "Hello");
     expect(stale.open({ table: "thread_messages", column: "body", row: 1 }, sealedTwo)).toBeNull();
     expect((await workspaceCipher(w.id)).version).toBe(2);
-
-    const run = await reencryptionJob(only(w));
     expect(run.errors).toBe(0);
     expect(run.rowsMoved + run.rowsSealed).toBeGreaterThan(5);
     // Everything under version 2: columns, JSON words, indexes.
@@ -238,6 +250,7 @@ describe("changing a Workspace Key", () => {
     await reencryptionJob(only(w));
     const old = await workspaceCipher(w.id);
     await changeWorkspaceKey((await admin()).actor, w.id);
+    await db().from("workspace_keys").update({ pending_until: new Date(Date.now() - 1000).toISOString() }).eq("workspace_id", w.id).eq("version", 2);
     await reencryptionJob(only(w));
     await db().from("workspace_keys").update({ retired_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("workspace_id", w.id).eq("version", 1);
     // A process that still held version 1 wrote a message under it.
@@ -250,6 +263,34 @@ describe("changing a Workspace Key", () => {
     expect(run.rowsMoved).toBeGreaterThanOrEqual(1);
     expect(sealedVersion((await db().from("thread_messages").select("body").eq("id", msg!.id).single()).data!.body as string)).toBe(2);
     expect(run.keysDestroyed).toBe(1);
+  });
+
+  it("keeps a removed Contact's name reachable: it is moved to the new version before the old one goes, and one nobody can place keeps it alive", async () => {
+    const w = await workspace("Ghosts");
+    cleanups.push(async () => { forgetWorkspaceKey(w.id); await w.cleanup(); });
+    const owner = await w.person("owner");
+    const actor = w.actor(owner);
+    const id = await addContact(actor, { name: "Gone Person", email: "gone@example.test" });
+    await removeContact(actor, id);
+    expect((await db().from("profiles").select("contact_workspace").eq("id", id).single()).data!.contact_workspace).toBe(w.id);
+    await reencryptionJob(only(w));
+    const a = await admin();
+    await changeWorkspaceKey(a.actor, w.id);
+    await db().from("workspace_keys").update({ pending_until: new Date(Date.now() - 1000).toISOString() }).eq("workspace_id", w.id).eq("version", 2);
+    await reencryptionJob(only(w));
+    const { data: name } = await db().from("profiles").select("name").eq("id", id).single();
+    expect(sealedVersion(name!.name as string)).toBe(2);
+    // A name whose Workspace nobody knows (no Contact row, none recorded) may be under any version: nothing is destroyed.
+    const ghost = randomUUID();
+    const cipher = await workspaceCipher(w.id);
+    await db().from("profiles").insert({ id: ghost, name: cipher.seal({ table: "profiles", column: "name", row: ghost }, "Unplaced"), role: "Contact", color: "#000" });
+    cleanups.push(async () => { await db().from("profiles").delete().eq("id", ghost); });
+    await db().from("workspace_keys").update({ retired_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("workspace_id", w.id).eq("version", 1);
+    expect((await reencryptionJob(only(w))).keysDestroyed).toBe(0);
+    await db().from("profiles").delete().eq("id", ghost);
+    expect((await reencryptionJob(only(w))).keysDestroyed).toBe(1);
+    forgetWorkspaceKey(w.id);
+    expect((await openNames(w.id, [{ id, name: name!.name }]))[0].name).toBe("Gone Person");
   });
 
   it("is for Installation Admins, never the demo, and refused without a key; two at once make one version", async () => {

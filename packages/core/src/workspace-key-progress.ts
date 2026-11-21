@@ -17,7 +17,7 @@ export type ColumnProgress = { table: string; column: string; total: number; pla
 /** One Workspace: its key versions and how many sealed columns are checked off. */
 export type WorkspaceKeyProgress = {
   workspaceId: string; name: string;
-  versions: { version: number; current: boolean; wrappedUnderPrevious: boolean }[];
+  versions: { version: number; current: boolean; pending: boolean; wrappedUnderPrevious: boolean }[];
   columnsDone: number; columns: number; plain: number; checkedAt: string | null;
 };
 
@@ -33,7 +33,7 @@ export type KeyProgress = {
 };
 
 type Progress = { workspace_id: string; table_name: string; column_name: string; total: number; plain: number; old_version: number; unopenable: number; held_back: number; checked_at: string; done_at: string | null };
-type KeyInfo = { workspace_id: string; version: number; retired_at: string | null; wrapped_under: string | null };
+type KeyInfo = { workspace_id: string; version: number; retired_at: string | null; pending_until: string | null; wrapped_under: string | null };
 
 /** Every row of a query, a thousand at a time (the API answers no more than that at once). */
 async function all<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
@@ -54,7 +54,7 @@ export async function keyProgress(actor: InstallationActor): Promise<KeyProgress
   const ws = await all((a, b) => db().from("workspaces").select("id, name").neq("id", DEMO_WORKSPACE_ID).order("created_at").order("id").range(a, b));
   const workspaces = ws.map((w) => ({ id: String(w.id), name: String(w.name) }));
   // Only the columns the page needs: never `wrapped`, which holds a key in wrapped form.
-  const keyRows = (await all((a, b) => db().from("workspace_keys").select("workspace_id, version, retired_at, wrapped_under").order("workspace_id").order("version").range(a, b))) as KeyInfo[];
+  const keyRows = (await all((a, b) => db().from("workspace_keys").select("workspace_id, version, retired_at, pending_until, wrapped_under").order("workspace_id").order("version").range(a, b))) as KeyInfo[];
   const progress = (await all((a, b) => db().from("workspace_seal_progress").select("workspace_id, table_name, column_name, total, plain, old_version, unopenable, held_back, checked_at, done_at").order("workspace_id").order("table_name").order("column_name").range(a, b))) as Progress[];
   const underPrevious = (k: KeyInfo) => fingerprint !== null && k.wrapped_under !== fingerprint;
 
@@ -73,7 +73,7 @@ export async function keyProgress(actor: InstallationActor): Promise<KeyProgress
     const mine = perWorkspace.get(w.id) ?? [];
     return {
       workspaceId: w.id, name: w.name,
-      versions: keyRows.filter((k) => k.workspace_id === w.id).sort((a, b) => a.version - b.version).map((k) => ({ version: k.version, current: k.retired_at === null, wrappedUnderPrevious: underPrevious(k) })),
+      versions: keyRows.filter((k) => k.workspace_id === w.id).sort((a, b) => a.version - b.version).map((k) => ({ version: k.version, current: k.retired_at === null && k.pending_until === null, pending: k.pending_until !== null, wrappedUnderPrevious: underPrevious(k) })),
       columnsDone: mine.filter((p) => p.done_at).length, columns: mine.length, plain: mine.reduce((s, p) => s + Number(p.plain), 0),
       checkedAt: mine.length ? mine.map((p) => p.checked_at).sort().at(-1) ?? null : null,
     };

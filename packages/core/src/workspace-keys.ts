@@ -278,7 +278,7 @@ export async function destroyWorkspaceKeys(workspaceId: string): Promise<boolean
   return data === true;
 }
 
-type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: string | null };
+type KeyRow = { version: number; wrapped: string; wrapper: string; retired_at: string | null; pending_until: string | null };
 
 /** How many times wrapping a key again failed in this process since the job last asked (it reports them). */
 let rewrapFailures = 0;
@@ -307,7 +307,7 @@ async function rewrap(workspaceId: string, row: KeyRow, wrapper: KeyWrapper, key
 }
 
 async function keyRows(workspaceId: string): Promise<KeyRow[]> {
-  const { data, error } = await db().from("workspace_keys").select("version, wrapped, wrapper, retired_at").eq("workspace_id", workspaceId).order("version");
+  const { data, error } = await db().from("workspace_keys").select("version, wrapped, wrapper, retired_at, pending_until").eq("workspace_id", workspaceId).order("version");
   if (error) throw new ServerFault("The Workspace Key could not be read.");
   return (data ?? []) as KeyRow[];
 }
@@ -320,27 +320,40 @@ export async function rewrapInstallationKeys(limit = 500): Promise<{ rewrapped: 
   const current = secretsKey();
   if (!current) return { rewrapped: 0, failed: 0, left: 0 };
   const fingerprint = installationKeyFingerprint(current);
-  const { data, error } = await db().from("workspace_keys").select("workspace_id, version, wrapped, wrapper").or(`wrapped_under.is.null,wrapped_under.neq.${fingerprint}`).order("workspace_id").order("version").limit(limit);
-  if (error) throw new ServerFault("The Workspace Keys could not be read.");
   const out = { rewrapped: 0, failed: 0, left: 0 };
-  for (const r of (data ?? []) as { workspace_id: string; version: number; wrapped: string; wrapper: string }[]) {
-    const wrapper = wrappers[r.wrapper];
-    const opened = wrapper ? await wrapper.unwrap(r.workspace_id, r.version, r.wrapped) : null;
-    if (!opened) { out.failed += 1; continue; }
-    const done = await rewrap(r.workspace_id, { version: r.version, wrapped: r.wrapped, wrapper: r.wrapper, retired_at: null }, wrapper, opened.key);
-    opened.key.fill(0);
-    if (done) out.rewrapped += 1;
-    else out.failed += 1;
+  // Only keys this wrapper owns: a later wrapper's (a customer's KMS) are not under the Installation key at all. Pages
+  // go past the ones that failed, so keys that cannot be opened never hold up the ones behind them; the ones done drop
+  // out of the filter, so the next page starts after the failures only.
+  while (out.rewrapped + out.failed < limit * 10) {
+    const { data, error } = await db().from("workspace_keys").select("workspace_id, version, wrapped, wrapper").eq("wrapper", "installation").or(`wrapped_under.is.null,wrapped_under.neq.${fingerprint}`).order("workspace_id").order("version").range(out.failed, out.failed + limit - 1);
+    if (error) throw new ServerFault("The Workspace Keys could not be read.");
+    const rows = (data ?? []) as { workspace_id: string; version: number; wrapped: string; wrapper: string }[];
+    for (const r of rows) {
+      const wrapper = wrappers[r.wrapper];
+      const opened = wrapper ? await wrapper.unwrap(r.workspace_id, r.version, r.wrapped) : null;
+      if (!opened) { out.failed += 1; continue; }
+      const done = await rewrap(r.workspace_id, { version: r.version, wrapped: r.wrapped, wrapper: r.wrapper, retired_at: null, pending_until: null }, wrapper, opened.key);
+      opened.key.fill(0);
+      if (done) out.rewrapped += 1;
+      else out.failed += 1;
+    }
+    if (rows.length < limit) break;
   }
-  const { count } = await db().from("workspace_keys").select("workspace_id", { count: "exact", head: true }).or(`wrapped_under.is.null,wrapped_under.neq.${fingerprint}`);
+  const { count } = await db().from("workspace_keys").select("workspace_id", { count: "exact", head: true }).eq("wrapper", "installation").or(`wrapped_under.is.null,wrapped_under.neq.${fingerprint}`);
   out.left = count ?? 0;
   return out;
 }
 
-/** Makes a new key version current for a Workspace (spec 0028, ticket #250): 32 new random bytes, wrapped as the next
- * version number, the one before it retired. Data sealed under older versions keeps opening; the re-encryption job
- * moves it over and destroys the old version once nothing refers to it. Returns the new version; null when the
- * Workspace has no key or another change was made at the same moment. */
+/** How long a new key version waits before it takes over: a little over what processes keep a Workspace's keys (10
+ * minutes), so that every process holds it, and can open and find what is sealed under it, before anything is sealed
+ * with it. */
+export const KEY_PENDING_SECONDS = 11 * 60;
+
+/** Adds a new key version for a Workspace (spec 0028, ticket #250): 32 new random bytes, wrapped as the next version
+ * number, pending until KEY_PENDING_SECONDS have passed; then the job lets it take over (activateWorkspaceKeys), the
+ * one before it retired. Data sealed under older versions keeps opening; the job moves it over and destroys the old
+ * version once nothing refers to it. Returns the new version; null when the Workspace has no key, a change is
+ * pending, or another was made at the same moment. */
 export async function addWorkspaceKeyVersion(workspaceId: string): Promise<number | null> {
   const id = workspaceId.toLowerCase();
   if (!UUID.test(id)) throw new ServerFault("Not a Workspace id.");
@@ -352,7 +365,7 @@ export async function addWorkspaceKeyVersion(workspaceId: string): Promise<numbe
   const wrapper = wrappers.installation;
   try {
     const { wrapped, under } = await wrapper.wrap(id, version, key);
-    const { data, error } = await db().rpc("add_workspace_key_version", { p_workspace: id, p_version: version, p_wrapped: wrapped, p_wrapper: wrapper.name, p_under: under });
+    const { data, error } = await db().rpc("add_workspace_key_version", { p_workspace: id, p_version: version, p_wrapped: wrapped, p_wrapper: wrapper.name, p_under: under, p_pending_seconds: KEY_PENDING_SECONDS });
     if (error) throw new ServerFault("The Workspace Key could not be changed.");
     forgetWorkspaceKey(id);
     return data === true ? version : null;
@@ -361,9 +374,21 @@ export async function addWorkspaceKeyVersion(workspaceId: string): Promise<numbe
   }
 }
 
-/** The key versions a Workspace holds, newest last, as the job reads them: the number and when it was retired. */
-export async function keyVersions(workspaceId: string): Promise<{ version: number; retiredAt: string | null }[]> {
-  return (await keyRows(workspaceId)).map((r) => ({ version: r.version, retiredAt: r.retired_at }));
+/** The key versions a Workspace holds, newest last, as the job reads them: the number, when it was retired and, for
+ * one waiting to take over, when it will. */
+export async function keyVersions(workspaceId: string): Promise<{ version: number; retiredAt: string | null; pendingUntil: string | null }[]> {
+  return (await keyRows(workspaceId)).map((r) => ({ version: r.version, retiredAt: r.retired_at, pendingUntil: r.pending_until }));
+}
+
+/** Lets a pending key version take over once its time has come (the job calls it at the start of each pass). True when
+ * one did; this process then forgets its keys, so the next use seals with the new version. */
+export async function activateWorkspaceKeys(workspaceId: string): Promise<boolean> {
+  const id = workspaceId.toLowerCase();
+  if (!UUID.test(id)) throw new ServerFault("Not a Workspace id.");
+  const { data, error } = await db().rpc("activate_workspace_keys", { p_workspace: id });
+  if (error) throw new ServerFault("The Workspace Key could not be changed.");
+  if (data === true) forgetWorkspaceKey(id);
+  return data === true;
 }
 
 /** How long a retired key version is kept after the change before the job may destroy it: processes keep a Workspace's
@@ -442,7 +467,9 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   // The current version seals: the one not retired, else the newest. Another process may make a new version current
   // while this one still caches the old set for up to 10 minutes; changing a Workspace Key (ticket 6) has to allow
   // for that before it writes under the new version.
-  const cipher = cipherFromKeys(id, keys, rows.find((r) => r.retired_at === null)?.version, await finishedColumns(id), () => reloadKeys(id));
+  // A version still pending is held (it opens values and is found by blind indexes) but does not seal yet.
+  const active = rows.filter((r) => !r.pending_until);
+  const cipher = cipherFromKeys(id, keys, (active.find((r) => r.retired_at === null) ?? active[active.length - 1])?.version, await finishedColumns(id), () => reloadKeys(id));
   for (const k of keys) k.key.fill(0);
   // Not kept when its key was destroyed while it loaded (see `destroyed`).
   if ((destroyed.get(id) ?? 0) === generation) cache.set(id, cipher);

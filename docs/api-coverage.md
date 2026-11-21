@@ -147,6 +147,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `setWorkspaceClock` (workspace-clock.ts): Workspace settings
 - `workspaceLimitRows` (workspace-limits-admin.ts): Installation limits
 - `setWorkspaceLimit` (workspace-limits-admin.ts): Installation limits
+- `changeWorkspaceKey` (workspace-key-change.ts): Installation encryption (#250)
 - `renameWorkspace` (workspace-settings.ts): Workspace settings
 - `setWorkspaceProfile` (workspace-settings.ts): Workspace settings
 - `setNumberStyle` (workspace-settings.ts): Workspace settings
