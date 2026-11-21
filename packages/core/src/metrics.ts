@@ -33,6 +33,7 @@ const RULES: SubmissionRule[] = ["reject", "overwrite", "add", "keep_both"];
 const POLARITIES: Polarity[] = ["higher", "lower", "target"];
 const AGGREGATIONS = ["sum", "average", "last", "none"];
 const SOURCES: SourceId[] = ["slack", "mail", "web_form", "api", "telegram"];
+const ALL_SOURCES: string[] = SOURCES;
 
 /** A new Metric as described in the form, before it is checked. */
 export type MetricInput = {
@@ -133,7 +134,8 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     aggregation,
     target_min: words.target_min, target_max: words.target_max, target_min_sealed: words.target_min_sealed, target_max_sealed: words.target_max_sealed,
     attainment_method: methodOrNull(input.attainmentMethod),
-    sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
+    // Left out, every Source, as the new-Metric form offers: a Metric no way is open for would never be asked or answered.
+    sources: [...new Set((input.sources ?? ALL_SOURCES).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
     from_catalog_id: fromCatalogId,
     workflow_id: workflowId,
     access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,

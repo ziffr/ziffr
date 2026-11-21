@@ -4,6 +4,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { askMeNow } from "./ask-now";
+import { createMetric } from "./metrics";
 import { deliverPrompt } from "./deliveries";
 import { FORM_LINK } from "./mail";
 import { nextPromptWays } from "./prompt-preview";
@@ -177,3 +178,11 @@ describe("Slack is asked about a person only when it can decide the way", () => 
   });
 });
 
+describe("a Metric made without Sources", () => {
+  it("gets every Source, as the new-Metric form does, so it is asked and can answer", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner", { email: mail("sara") });
+    const made = await createMetric(w.actor(sara), { name: "Cups" });
+    expect((await db().from("metrics").select("sources").eq("id", made.id).single()).data!.sources.sort()).toEqual(["api", "mail", "slack", "telegram", "web_form"]);
+  });
+});
