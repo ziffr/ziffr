@@ -56,7 +56,7 @@ export function EncryptionSection({ progress }: { progress: KeyProgress }) {
           {moving > 0 && ` ${n(moving)} are moving to a newer key.`}
         </p>
       )}
-      {held > 0 && <p className="max-w-[62ch] text-sm">{n(held)} {held === 1 ? "row was" : "rows were"} held back, such as two Contacts of one Workspace with the same address. Nothing is deleted; the Workspace&apos;s Owners can sort it out on their Team page.</p>}
+      {held > 0 && <p className="max-w-[62ch] text-sm">{n(held)} {held === 1 ? "row was" : "rows were"} held back, such as two Contacts of one Workspace with the same address. Nothing is deleted; the Workspace&apos;s Owners can sort it out on their Members and Groups page.</p>}
       {bad > 0 && <p className="max-w-[62ch] text-sm">{n(bad)} sealed {bad === 1 ? "value does" : "values do"} not open (changed in the database, or moved from another place). The job leaves {bad === 1 ? "it" : "them"} alone.</p>}
       {progress.hasPreviousKey || progress.keysUnderPreviousKey > 0 ? (
         <p role="status" className="max-w-[62ch] text-sm">

@@ -71,6 +71,6 @@ This chapter lists the kinds of things you meet in Ziffr, what each one is for, 
 | **Version** | A saved state of something people build, with its author and time, which you can restore | Whoever may see the thing |
 | **Superseded Value** | An earlier value, kept when it was replaced or corrected | Whoever may see the Metric |
 | **Outbox** | Every message Ziffr sent, with where it went and whether it arrived | On the Connectors page |
-| **Activity** | What happened recently in the Workspace | Everyone in the Workspace |
+| **Changes** | What happened recently in the Workspace | Everyone in the Workspace |
 | **Audit Log** | Who changed who may see or do what, and the decisions taken on numbers. Nobody can change it; it is kept for two years | Owners and Admins |
 | **Access Log** | Every call a program made with an Access Key | Owners and Admins, and each person for their own keys |

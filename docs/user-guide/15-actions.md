@@ -1,10 +1,10 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/actions/**, apps/web/src/app/activity/** -->
-# Actions and Activity
+<!-- screens: apps/web/src/app/actions/**, apps/web/src/app/changes/** -->
+# Actions and Changes
 
 When a number looks odd, ask the person who knows. An **Action** is a question or a job about one value of a Metric, which one person gives to another. It is either a **Question**, done once it is answered, or a **Task**, done once someone has carried it out. The person it is given to is the **Assignee**. The replies about it form its **Thread**, and the answer stays with the value for anyone who looks later.
 
-Everyone in the Workspace works with Actions, Guests included. This chapter also covers the **Activity** page, which shows what changed and when.
+Everyone in the Workspace works with Actions, Guests included. This chapter also covers the **Changes** page, which shows what changed and when.
 
 ## The inbox in the top bar
 
@@ -128,9 +128,9 @@ People answer by replying to that email, Slack or Telegram message. In Telegram,
 
 In the demo, to answer as someone else, switch **View as** in the top bar to that person, as the Action page reminds you. Outside the demo there is no View as: the page only says whom the Action waits for.
 
-## The Activity page
+## The Changes page
 
-Open **Workspace → Activity**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see.
+Open **Workspace → Changes**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see.
 
 ### What it lists
 
@@ -145,6 +145,6 @@ The page shows the latest 150 entries.
 
 The row of names at the top filters the list. **Everyone** shows all entries; a first name shows only that person's changes. Replaced values are not tied to a person, so they show only under **Everyone**.
 
-### Activity, Versions and the Audit Log
+### Changes, Versions and the Audit Log
 
-Activity shows what changed. To see or restore an earlier state, open **Versions** on the thing itself. Who changed who may see or do what (roles, Shares, Locks, Approvals and the like) is kept in the Audit Log, which only Owners and Admins read (see [Workspace settings](16-workspace-settings.md)).
+Changes shows what changed. To see or restore an earlier state, open **Versions** on the thing itself. Who changed who may see or do what (roles, Shares, Locks, Approvals and the like) is kept in the Audit Log, which only Owners and Admins read (see [Workspace settings](16-workspace-settings.md)).

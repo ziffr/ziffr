@@ -28,7 +28,7 @@ import { PERIOD_LABEL } from "@ziffr/core/periods";
 
 const RULE_HINT: Record<SubmissionRule, string> = {
   reject: "The first value for a period is final.",
-  overwrite: "Good for snapshots: the latest report wins.",
+  overwrite: "Good for figures reported again in full: the latest report wins.",
   add: "Good for counts reported in pieces (“3 deals”, then “2 more”).",
   keep_both: "Good for repeated measurements, e.g. weight twice a day.",
 };

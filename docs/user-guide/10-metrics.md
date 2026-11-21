@@ -154,7 +154,7 @@ The four Submission Rules:
 | Rule | What happens to a second value | Good for |
 | --- | --- | --- |
 | **Reject a second value** | It is refused; the first value is final. | Numbers that must not change once given. |
-| **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Snapshots, where the latest report wins. |
+| **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Figures reported again in full, where the latest report wins. |
 | **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
 
@@ -177,7 +177,7 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 - **Change vs. previous period**: an arrow and a percentage.
 - **Target**: which way is good, and the target that counts for the latest period. If that period has its own value in the **Target Series**, the box shows it and says so; other periods use the Target Range.
 
-Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Settings**.
+Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**.
 
 If a Metric is not shared with you, its page says "… isn't shared with you", names its owner, and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
@@ -288,9 +288,9 @@ Click a period on the History tab, or **Open this period** after clicking a poin
 
 You see the page only for a Metric you see. A Thread you may not read, and the Corrections proposed in it, are left out, as if there were none.
 
-## The Settings tab
+## The Description tab
 
-The Settings tab has four boxes: the description, the Retention, the Workflow, and who submits. A Derived Metric shows only its description.
+The Description tab has four boxes: the Metric Description, the Retention, the Workflow, and who submits. A Derived Metric shows only its description.
 
 ### Description
 
@@ -427,14 +427,14 @@ Anyone answering a question or task about a value can also propose a Correction 
 
 ## The personal form link
 
-Every Submitter who is a person or a Contact has a personal form link for each Metric they submit. It arrives with the first request and with every **Prompt**, and it opens without signing in: the link itself says who is sending. Keep it to yourself.
+Every Submitter who is a person or a Contact has a personal form link for each Metric they submit. It arrives with the first request and with every **Prompt**, and it opens without signing in: the link itself says who is sending. Keep it to yourself: anyone with it can submit.
 
 The form shows:
 
 - "Hi …, please report", then the Metric's name and description.
 - **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
-- **Total**: the value. Type it as you would write it.
-- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the total empty, it becomes the sum of the rows. If you fill in both and they differ, the total counts.
+- The value, labelled with the Metric's name. Type it as you would write it.
+- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
 
 At the bottom, **Open metric** leads to the Metric's page, for those who may sign in and see it.

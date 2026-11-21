@@ -29,7 +29,7 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 | **Packs** | Everyone but Guests | In [Packs](19-packs.md) |
 | **Access Keys** | Everyone | Below |
 | **Feeds** | Owners and Admins | Below |
-| **Activity** | Everyone | [Actions and Activity](15-actions.md#the-activity-page) |
+| **Changes** | Everyone | [Actions and Changes](15-actions.md#the-changes-page) |
 | **Usage** | Owners and Admins | Below |
 | **Audit log** | Owners and Admins | Below |
 
@@ -170,7 +170,7 @@ In the demo nobody changes these settings: the page shows them without the contr
 
 ## Members and Groups
 
-**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. The page's title is **Team**. Everyone sees it; only Owners and Admins see the buttons that change people and Groups.
+**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Everyone sees it; only Owners and Admins see the buttons that change people and Groups.
 
 ### Members and their roles
 
@@ -425,7 +425,7 @@ A **Feed** brings in values from another system, such as a CRM or a data warehou
 
 ### Making a Feed
 
-Under **New Feed**, type a name, ideally the system it brings values from, such as "HubSpot", and choose **Create Feed**. Then choose the Feed as a Submitter on each Metric's **Settings** tab.
+Under **New Feed**, type a name, ideally the system it brings values from, such as "HubSpot", and choose **Create Feed**. Then choose the Feed as a Submitter on each Metric's **Description** tab.
 
 ### Each Feed
 

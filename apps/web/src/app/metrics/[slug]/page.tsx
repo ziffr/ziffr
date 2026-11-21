@@ -62,7 +62,7 @@ const TABS = [
   { id: "analysis", label: "Analysis" },
   { id: "targets", label: "Targets" },
   { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
+  { id: "settings", label: "Description" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 

@@ -137,7 +137,7 @@ Only the Workflow's owner sees this button, and only while Metrics use the Workf
 
 ## A Metric's Workflow box
 
-Each Metric's page has a **Workflow** box on its **Settings** tab (see [The Metrics screens](10-metrics.md#workflow)). A Derived Metric has none: it is calculated, never sent in.
+Each Metric's page has a **Workflow** box on its **Description** tab (see [The Metrics screens](10-metrics.md#workflow)). A Derived Metric has none: it is calculated, never sent in.
 
 | Option | What it does | Who may change it |
 | --- | --- | --- |
