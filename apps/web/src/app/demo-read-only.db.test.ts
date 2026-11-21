@@ -7,6 +7,8 @@ import { join, relative } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
+import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
+import { themeToFile } from "@ziffr/core/theme-file";
 import { demoFingerprint, demoWalkIds } from "@ziffr/core/test/demo-walk";
 
 vi.mock("server-only", () => ({}));
@@ -234,6 +236,8 @@ const CASES: Record<string, Case> = {
   "template-actions:deleteTemplate": { args: (i) => [i.template] },
   "theme-actions:saveTheme": { args: (i) => [i.theme, "Renamed theme", i.themeTokens, i.themeSlides] },
   "theme-actions:duplicateTheme": { args: (i) => [i.theme] },
+  "theme-actions:addStandardTheme": { args: () => ["tokyo"] },
+  "theme-actions:importTheme": { args: () => [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))] },
   "theme-actions:deleteTheme": { args: (i) => [i.otherTheme] },
   "theme-actions:setDefaultTheme": { args: (i) => [i.theme] },
   "theme-actions:setDashboardTheme": { args: (i) => [i.dashboard, i.theme] },

@@ -15,7 +15,7 @@ import { checkMetricFileValue, type MetricFile } from "./metric-file";
 import { checkDashboardTemplateFileValue, type DashboardTemplateFile, type WidgetSettingsFile } from "./dashboard-template-file";
 import { checkDeckTemplateFileValue, type DeckTemplateFile } from "./deck-template-file";
 import { checkWorkflowTemplateFileValue, type WorkflowTemplateFile } from "./workflow-template-file";
-import { checkThemeFileValue, COLOR_NAMES, type ThemeFile } from "./theme-file";
+import { checkThemeFileValue, themeToFile } from "./theme-file";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { canonical } from "./api-submissions";
 import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
@@ -195,15 +195,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   for (const d of designs) if (keep(d.r.body, checkViewDesignValue(d.r.body).ok ? { ok: true, value: d.r.body } : { ok: false, problems: [] }, String(d.r.name), leftOut)) views.push({ key: d.key, design: d.r.body as ViewDesign });
   const themeFiles: Pack["contents"]["themes"] = [];
   for (const { r, key } of themes) {
-    const t = r.tokens as ThemeTokens; const s = (r.slides ?? {}) as Partial<ThemeSlides>;
-    const footer = plain(s.footer, 120);
-    const file: ThemeFile = {
-      format: "ziffr.theme/1", name: plain(r.name, 60) || "Theme",
-      colors: { ...Object.fromEntries(COLOR_NAMES.map((c) => [c, t[c]])), data: t.data } as ThemeFile["colors"],
-      fonts: { heading: t.fontHeading, body: t.fontBody, figures: t.fontFigures }, radius: t.radius, cards: t.cards,
-      // A logo and a background image never go into a Pack (spec 0030); whoever installs it sets their own.
-      slides: { ...(s.logo_position ? { logoPosition: s.logo_position } : {}), ...(s.logo_width ? { logoWidth: s.logo_width } : {}), ...(footer ? { footer } : {}), showSlideNumber: Boolean(s.show_slide_number), ...(s.title_size ? { titleSize: s.title_size } : {}), ...(s.body_size ? { bodySize: s.body_size } : {}) },
-    };
+    const file = themeToFile(r.name, r.tokens as ThemeTokens, r.slides as Partial<ThemeSlides> | null);
     if (keep(file, checkThemeFileValue(file), file.name, leftOut)) themeFiles.push({ key, theme: file });
   }
 

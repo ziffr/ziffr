@@ -65,6 +65,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `removeViewDesign` (view-designs.ts): View Designs
 - `saveTheme` (workspace-themes.ts): Themes
 - `duplicateTheme` (workspace-themes.ts): Themes
+- `addStandardTheme` (workspace-themes.ts): Themes
+- `importTheme` (workspace-themes.ts): Themes
 - `deleteTheme` (workspace-themes.ts): Themes
 - `setDefaultTheme` (workspace-themes.ts): Themes
 
