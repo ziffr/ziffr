@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { eventForChange } from "./action-state";
 import { repoFile } from "./test/repo-file";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
-import { buildActionMessage, buildPingMessage, buildValueRecordedMessage, buildValueUnusualMessage, REPLY_MAX, TITLE_MAX, WEBHOOK_EVENTS_SCHEMA, type ActionFacts, type MessageEnvelope } from "./webhook-messages";
+import { buildActionMessage, buildPingMessage, buildValueRecordedMessage, buildAlertFiredMessage, buildValueUnusualMessage, REPLY_MAX, TITLE_MAX, WEBHOOK_EVENTS_SCHEMA, type ActionFacts, type MessageEnvelope } from "./webhook-messages";
 import { retryWaitMs, signWebhookBody, verifyWebhookSignature } from "./webhook-send";
 
 const WS = "ws-a";
@@ -68,6 +68,11 @@ describe("the messages", () => {
     expect(((m.data.reply as { text: string }).text).length).toBeLessThanOrEqual(REPLY_MAX);
     expect(Object.keys(m.data).sort()).toEqual(["asker", "assignee", "due", "external_ids", "kind", "link", "metric", "period", "ref", "reply", "source", "status", "title", "updated_at"]);
   });
+  it("alert.fired holds what an Alert's message says: the Metric, period, value, target, condition and a link", () => {
+    const m = buildAlertFiredMessage({ metric: { id: 1, name: "Churn" }, period: "2026-10-01", value: "12", target: null, condition: { kind: "share_of_target", level: "80" }, link: "l" }, env());
+    expect(Object.keys(m.data).sort()).toEqual(["condition", "link", "metric", "period", "target", "value"]);
+    expect(m.type).toBe("alert.fired");
+  });
   it("value.unusual carries no value, a ping nothing of the Workspace", () => {
     const u = buildValueUnusualMessage({ metric: { id: 1, name: "Churn" }, period: "2026-10-01", link: "l" }, env());
     expect(Object.keys(u.data).sort()).toEqual(["link", "metric", "period"]);
@@ -89,6 +94,7 @@ describe("the published schema", () => {
       ...(["action.created", "action.updated", "action.answered", "action.done"] as const).flatMap((t) => (["full", "redacted"] as const).map((h) => buildActionMessage(t, h, action(), env({ reason: t === "action.done" ? "closed" : null, replyText: "hi", source: { type: "webhook", webhookId: "w" }, externalIds: [{ system: "microsoft-todo", external_id: "AB", url: null }] })))),
       buildValueUnusualMessage({ metric: { id: 1, name: "Churn" }, period: "2026-10-01", link: "l" }, env()),
       buildValueRecordedMessage({ metric: { id: 1, name: "Churn" }, period: "2026-10-01", value: "12", target: null, link: "l" }, env()),
+      buildAlertFiredMessage({ metric: { id: 1, name: "Churn" }, period: "2026-10-01", value: "12", target: "10", condition: { kind: "below", level: "15" }, link: "l" }, env()),
       buildPingMessage("x", { eventId: env().eventId, createdAt: env().createdAt }),
     ];
     for (const m of good) expect(validate(m), JSON.stringify(validate.errors)).toBe(true);

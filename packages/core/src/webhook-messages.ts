@@ -60,6 +60,16 @@ export function buildValueUnusualMessage(f: { metric: { id: number; name: string
   return { id: env.eventId, type: "value.unusual", created_at: env.createdAt, workspace: { id: env.workspaceId }, data: { metric: f.metric, period: f.period, link: f.link } };
 }
 
+/** The condition of a Tell step as a message says it: the kind and its level (a number as plain decimal text; for the
+ * shares, a percentage). */
+export type AlertFiredCondition = { kind: "share_of_target" | "at_or_above" | "below" | "changed_more"; level: string };
+
+/** `alert.fired`: what an Alert's message says and nothing more: the Metric, the period, the value and the target as
+ * text, the condition that became true and a link. Only for a Metric Everyone sees, and only through a Tell step. */
+export function buildAlertFiredMessage(f: { metric: { id: number; name: string }; period: string; value: string; target: string | null; condition: AlertFiredCondition; link: string }, env: Pick<MessageEnvelope, "eventId" | "createdAt" | "workspaceId">): WebhookMessage {
+  return { id: env.eventId, type: "alert.fired", created_at: env.createdAt, workspace: { id: env.workspaceId }, data: { metric: f.metric, period: f.period, value: f.value, target: f.target, condition: { kind: f.condition.kind, level: f.condition.level }, link: f.link } };
+}
+
 /** `ping`, for the test button: the Webhook's name and nothing of the Workspace. */
 export function buildPingMessage(webhookName: string, env: Pick<MessageEnvelope, "eventId" | "createdAt">): WebhookMessage {
   return { id: env.eventId, type: "ping", created_at: env.createdAt, data: { webhook: { name: webhookName } } };
@@ -98,6 +108,7 @@ export const WEBHOOK_EVENTS_SCHEMA = {
     ...(["action.created", "action.updated", "action.answered", "action.done"] as const).map((t) => ({ ...envelope(t, { oneOf: [actionData(true), actionData(false)] }) })),
     envelope("value.recorded", { type: "object", required: ["metric", "period", "value", "target", "link"], properties: { metric: metric_, period: str, value: str, target: nullable(str), link: str }, additionalProperties: false }),
     envelope("value.unusual", { type: "object", required: ["metric", "period", "link"], properties: { metric: metric_, period: str, link: str }, additionalProperties: false }),
+    envelope("alert.fired", { type: "object", required: ["metric", "period", "value", "target", "condition", "link"], properties: { metric: metric_, period: str, value: str, target: nullable(str), condition: { type: "object", required: ["kind", "level"], properties: { kind: { enum: ["share_of_target", "at_or_above", "below", "changed_more"] }, level: str }, additionalProperties: false }, link: str }, additionalProperties: false }),
     envelope("ping", { type: "object", required: ["webhook"], properties: { webhook: { type: "object", required: ["name"], properties: { name: str }, additionalProperties: false } }, additionalProperties: false }, false),
   ],
 } as const;

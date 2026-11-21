@@ -17,7 +17,8 @@ import type { WorkflowConfig, WorkflowStep } from "./types";
 import { audit } from "./audit-log";
 import { getGroups } from "./access";
 import { validCondition } from "./alert-rules";
-import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW } from "./alert-limits";
+import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "./alert-limits";
+import { mayManageWebhooks } from "./webhooks";
 import { randomUUID } from "node:crypto";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,10 +30,15 @@ const day = (v: unknown) => {
 
 /** Steps as they may be stored: known types, sane numbers, approvers who are members, at most one check, approval and
  * publish, and publishing last. */
-async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowConfig> {
+async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConfig | null = null): Promise<WorkflowConfig> {
   const { data: people } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId);
   const ids = new Set((people ?? []).map((p) => p.user_id as string));
   const groupIds = new Set((await getGroups(actor.workspaceId)).map((g) => g.id));
+  // Webhooks send the Workspace's data outside Ziffr, so only an Owner or Admin names them (spec 0034): they pick among the
+  // Workspace's own Webhooks. Anyone else saving the Workflow leaves a step's Webhooks exactly as they were stored.
+  const manages = mayManageWebhooks(actor);
+  const hooks = new Set<string>();
+  if (manages) for (const h of (await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId)).data ?? []) hooks.add(String(h.id));
   const steps: WorkflowStep[] = [];
   for (const s of (Array.isArray(c?.steps) ? c.steps : []).slice(0, 12)) {
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
@@ -45,7 +51,9 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
       if (!validCondition(c) || c.kind === "missing_after_due") throw new Error("A Tell step needs a level or a share it can wait for.");
       const id = typeof s.id === "string" && /^[A-Za-z0-9-]{8,40}$/.test(s.id) && !steps.some((x) => x.type === "tell" && x.id === s.id) ? s.id : randomUUID();
       const list = <T,>(v: unknown, ok: (x: unknown) => x is T, max: number) => [...new Set((Array.isArray(v) ? v : []).filter(ok))].slice(0, max);
-      steps.push({ type: "tell", id, condition: c.kind === "at_or_above" || c.kind === "below" ? { kind: c.kind, value: c.value } : { kind: c.kind, share: c.share }, people: list(s.people, (x): x is string => typeof x === "string" && ids.has(x), TELL_PEOPLE_PER_STEP), groups: list(s.groups, (x): x is number => typeof x === "number" && groupIds.has(x), TELL_GROUPS_PER_STEP) });
+      const kept = (stored?.steps ?? []).find((x): x is Extract<WorkflowStep, { type: "tell" }> => x.type === "tell" && x.id === id)?.webhooks ?? [];
+      const webhooks = manages ? list(s.webhooks, (x): x is string => typeof x === "string" && hooks.has(x), TELL_WEBHOOKS_PER_STEP) : kept;
+      steps.push({ type: "tell", id, ...(webhooks.length ? { webhooks } : {}), condition: c.kind === "at_or_above" || c.kind === "below" ? { kind: c.kind, value: c.value } : { kind: c.kind, share: c.share }, people: list(s.people, (x): x is string => typeof x === "string" && ids.has(x), TELL_PEOPLE_PER_STEP), groups: list(s.groups, (x): x is number => typeof x === "number" && groupIds.has(x), TELL_GROUPS_PER_STEP) });
     }
     else if (s.type === "publish" && !steps.some((x) => x.type === "publish")) steps.push({ type: "publish", lock: Boolean(s.lock) });
   }
@@ -54,19 +62,21 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig): Promise<WorkflowCon
   return { dueWorkingDays: int(c?.dueWorkingDays, 0, 30), steps: [...steps.filter((s) => s.type !== "publish"), ...(pub.length ? pub : [{ type: "publish", lock: false } as WorkflowStep])], ...(c?.lockSummary === true ? { lockSummary: true } : {}), ...(asking ? { asking } : {}) };
 }
 
-/** A Workflow of the actor's workspace that the actor owns, or Forbidden. */
-async function ownWorkflow(actor: Actor, id: number) {
-  const { data } = await db().from("workflows").select("owner_id").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+/** A Workflow of the actor's workspace that the actor owns, or Forbidden; returns its stored steps. */
+async function ownWorkflow(actor: Actor, id: number): Promise<WorkflowConfig | null> {
+  const { data } = await db().from("workflows").select("owner_id, config").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data || data.owner_id !== actor.personId) throw new Forbidden();
+  return (data.config as WorkflowConfig | null) ?? null;
 }
 
 /** Saves a Workflow: a new one (Guests create nothing) or one the actor owns. Returns its id. */
 export async function saveWorkflow(actor: Actor, id: number | null, name: string, config: WorkflowConfig, opts: { message?: string } = {}): Promise<number> {
-  const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config), updated_at: new Date().toISOString() };
+  let stored: WorkflowConfig | null = null;
+  if (id) stored = await ownWorkflow(actor, id);
+  const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config, stored), updated_at: new Date().toISOString() };
   let before: string | undefined;
   if (id) {
-    await ownWorkflow(actor, id);
-    before = JSON.stringify(((await db().from("workflows").select("config").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data?.config as WorkflowConfig | undefined)?.asking);
+    before = JSON.stringify(stored?.asking);
     await ensureBaseline("workflow", id, actor.personId);
     await db().from("workflows").update(row).eq("id", id).eq("workspace_id", actor.workspaceId);
   } else {
@@ -78,6 +88,12 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   // A new or changed Asking Schedule never runs for a day that has begun (spec 0035).
   if (row.config.asking && JSON.stringify(row.config.asking) !== before) await skipPassedAskingDay(actor.workspaceId, id, row.config.asking);
   await recordVersion("workflow", id, actor.personId, opts);
+  // Where a Workflow sends the Workspace's data is Audit Log business, as the Webhooks themselves are.
+  const named = (cfg: WorkflowConfig | null) => new Set((cfg?.steps ?? []).flatMap((x) => (x.type === "tell" ? x.webhooks ?? [] : [])));
+  const [hooksBefore, hooksAfter] = [named(stored), named(row.config)];
+  const added = [...hooksAfter].filter((h) => !hooksBefore.has(h)).length;
+  const removed = [...hooksBefore].filter((h) => !hooksAfter.has(h)).length;
+  if (added || removed) await audit(actor, { kind: "workflow.webhooks_set", object: { type: "workflow", id, name: row.name }, details: { added, removed, added_ids: [...hooksAfter].filter((h) => !hooksBefore.has(h)), removed_ids: [...hooksBefore].filter((h) => !hooksAfter.has(h)) } });
   return id;
 }
 

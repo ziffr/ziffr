@@ -454,6 +454,10 @@ The **secret** appears once, in a box above the list. Copy it before you choose 
 | **Switch off** / **Switch on** | A switched-off Webhook gets nothing. Switching on again resends nothing. |
 | The bin icon | Deletes the Webhook after asking |
 
+### Alerts to a Webhook
+
+The event **A Tell step fires** (`alert.fired`) is sent only when a Workflow's **Tell** step names the Webhook (see [Workflows](11-workflows.md)), once per crossing. The message holds the Metric, its period, the value and target as the Alert message writes them, the condition that became true and a link, and nothing else. It goes out only for a Metric shared with Everyone, and Ziffr checks that again at the moment of sending, so a Metric made private meanwhile, a value sent back for Approval or a Workflow whose owner is no longer an Owner or Admin sends nothing. Your own Alerts never reach a Webhook. Changing which Webhooks a Tell step names is written into the Audit Log.
+
 A Webhook that fails 20 sends in a row, or has had no success for three days, is switched off by Ziffr, and every Owner gets an email. One whose address answers "gone" (410) is switched off at once.
 
 ### The log

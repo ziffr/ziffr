@@ -2,7 +2,8 @@
 // each Tell step of the Metric's Workflow is checked, and one that has become true tells each person it names, once
 // per crossing. The conditions are the Alert rules (alert-rules.ts) and the state rule is the same (alertStep); what
 // differs is who is told and why: people and Groups chosen by the Workflow's owner, each checked for sight of the Metric
-// at that moment.
+// at that moment, and the Webhooks an Owner or Admin named, which get `alert.fired` (webhook-send.ts decides at sending
+// whether the Metric is one Everyone sees).
 // Security: a message holds only its own Metric's name, period, value, target and change and a link to its page; a
 // person who cannot see the Metric, is not a member with a sign-in, or said "stop telling me" is skipped silently (and
 // the Delivery is checked again when it is sent, as for an Alert). Only published or approved values are looked at, no
@@ -15,6 +16,7 @@ import { alertHolds, alertStep, isPerPeriod, validCondition, type AlertCondition
 import { alertContext, alertText, latestView, ALERT_LIMIT_NOTE, type Ctx } from "./alert-firing";
 import { db } from "./db";
 import { deliverAlert } from "./deliveries";
+import { queueAlertFired } from "./webhook-events";
 import { yearStartFor } from "./fiscal-year";
 import { DEMO_WORKSPACE_ID } from "./team";
 import type { Metric, WorkflowStep } from "./types";
@@ -93,6 +95,9 @@ async function handle(ctx: Ctx, m: Metric, workflowId: number, step: TellStep, v
 
 /** Tells each person of a fired step who may see the Metric and has room in their day. */
 async function tell(ctx: Ctx, m: Metric, workflowId: number, step: TellStep, c: AlertCondition, view: Parameters<typeof alertText>[2]): Promise<void> {
+  // The Webhooks the step names get `alert.fired` (spec 0034): only ids go into the row, and the message is built, and
+  // who may hear it judged (a Metric Everyone sees), when it is sent.
+  if (step.webhooks?.length) await queueAlertFired(ctx.ws, step.webhooks, { workflowId, stepId: step.id, metricId: m.id, period: view.period });
   const yearStart = await yearStartFor(ctx.ws, m.period);
   const text = `${alertText(m, c, view, ctx, yearStart)} You are told by a Workflow; stop these in Your settings.`;
   for (const person of await tellRecipients(ctx.ws, workflowId, step)) {

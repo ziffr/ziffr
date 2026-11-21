@@ -42,3 +42,23 @@ export async function queueWebhookEvent(workspaceId: string, type: WebhookEvent,
     return 0;
   }
 }
+
+/** Writes an `alert.fired` send row for each of the Webhooks a Tell step names that is switched on and chose the event
+ * (naming is not enough: an Owner's choice of events still guards what a Webhook gets). Only a Tell step calls this,
+ * once per crossing, after it claimed the fire; a personal Alert never does (spec 0034: they go to the person only).
+ * The row holds ids only: the Workflow and step, the Metric and the period; the message is built when it is sent.
+ * Never throws. */
+export async function queueAlertFired(workspaceId: string, webhookIds: readonly string[], tell: { workflowId: number; stepId: string; metricId: number; period: string }): Promise<number> {
+  try {
+    if (!webhookIds.length) return 0;
+    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).in("id", [...webhookIds]).is("disabled_at", null).contains("events", ["alert.fired"]);
+    if (!hooks?.length) return 0;
+    const rows = hooks.map((h) => ({ workspace_id: workspaceId, webhook_id: h.id as string, type: "alert.fired", metric_id: tell.metricId, period_start: tell.period, workflow_id: tell.workflowId, tell_step_id: tell.stepId, source_type: "workflow" }));
+    const { error } = await db().from("webhook_sends").insert(rows);
+    if (error) { console.error("Webhooks: could not queue an event:", error.message); return 0; }
+    return rows.length;
+  } catch (e) {
+    console.error("Webhooks: could not queue an event:", (e as Error).message);
+    return 0;
+  }
+}

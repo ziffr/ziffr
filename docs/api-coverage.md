@@ -136,6 +136,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)
+- `tellEditorFacts` (tell.ts): what the Workflow editor shows about its Tell steps
 - `updateWebhook` (webhooks.ts): Webhooks settings (#401)
 - `replaceWebhookSecret` (webhooks.ts): Webhooks settings (#401)
 - `setWebhookEnabled` (webhooks.ts): Webhooks settings (#401)

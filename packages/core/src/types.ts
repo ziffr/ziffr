@@ -428,8 +428,9 @@ export type WorkflowStep =
   | { type: "approve"; approvers: string[]; values?: ApprovalScope; nobodyElse?: NobodyElse }
   | { type: "publish"; lock: boolean }
   // Tells named people and Groups when a Metric of the Workflow reaches a level (GLOSSARY: Tell). `id` names the step for
-  // its memory (once per crossing); a level or a share is plain decimal text.
-  | { type: "tell"; id: string; condition: TellCondition; people: string[]; groups: number[] };
+  // its memory (once per crossing); a level or a share is plain decimal text. `webhooks` are Webhook ids (spec 0034, ticket
+  // #408): named by an Owner or Admin only, and each gets `alert.fired` for a Metric Everyone sees.
+  | { type: "tell"; id: string; condition: TellCondition; people: string[]; groups: number[]; webhooks?: string[] };
 /** What a Tell step waits for: an Alert's conditions without "not in by its Due Date", which is Escalate's. */
 export type TellCondition = { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string };
 /** Which values an Approve step holds back for Approval: only Unusual Values, or every value. */

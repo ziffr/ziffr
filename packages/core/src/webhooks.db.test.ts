@@ -67,7 +67,7 @@ describe("making, listing and changing", () => {
     expect(await refusal(createWebhook(a, { name: "  ", url: URL1 }))).toBeInstanceOf(Error);
     expect(await refusal(createWebhook(a, { name: "x".repeat(81), url: URL1 }))).toBeInstanceOf(Error);
     const { id } = await createWebhook(a, { name: "X", url: URL1 });
-    expect(await refusal(updateWebhook(a, id, { events: ["alert.fired"] }))).toBeInstanceOf(Error);
+    expect(await refusal(updateWebhook(a, id, { events: ["alert.nope"] }))).toBeInstanceOf(Error);
     expect(await listWebhooks(a)).toHaveLength(1);
   });
 });

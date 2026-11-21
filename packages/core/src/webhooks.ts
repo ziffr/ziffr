@@ -19,8 +19,8 @@ import { trialEndsAt } from "./trials";
 import { WEBHOOKS_PER_WORKSPACE, WEBHOOK_NAME_MAX, WEBHOOK_SECRET_OVERLAP_HOURS, WEBHOOK_URL_MAX } from "./webhook-limits";
 import { isIP } from "node:net";
 
-/** The events a Webhook may choose (spec 0034, "Events"). `alert.fired` joins once a Workflow's Tell step exists. */
-export const WEBHOOK_EVENTS = ["action.created", "action.updated", "action.answered", "action.done", "value.recorded", "value.unusual"] as const;
+/** The events a Webhook may choose (spec 0034, "Events").  `alert.fired` is sent only for a Workflow's Tell step that names the Webhook, never for a personal Alert. */
+export const WEBHOOK_EVENTS = ["action.created", "action.updated", "action.answered", "action.done", "value.recorded", "value.unusual", "alert.fired"] as const;
 /** One event a Webhook may choose. */
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
@@ -49,6 +49,12 @@ function assertManagesWebhooks(actor: Actor): void {
   if (actor.key) throw new Forbidden("A key cannot manage Webhooks.");
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins manage Webhooks.");
   refuseInDemo(actor);
+}
+
+/** Whether the actor may manage Webhooks, and so name one in a Workflow's Tell step: a signed-in Owner or Admin, not an
+ * Access Key, not in the demo. A trial has none to name (they cannot be made there). */
+export function mayManageWebhooks(actor: Actor): boolean {
+  try { assertManagesWebhooks(actor); return true; } catch { return false; }
 }
 
 /** The host and the first characters of an address's path: enough to recognise it, not to use it. */
