@@ -1,9 +1,10 @@
 // The Installation Settings there are (spec 0025; GLOSSARY: Installation Settings): one section per thing the
 // Installation talks to, and the settings in each, named as their environment variables. Pure, so the page can list
 // them; the values and their checks live on the server (settings-in-effect.ts, installation-settings.ts).
+import { SENDING_LIMITS } from "./sending-limits";
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "marketplace" | "bots" | "trials" | "demo" | "usage";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "marketplace" | "bots" | "trials" | "demo" | "usage";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
@@ -18,6 +19,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "telegram", title: "Telegram", purpose: "A bot that asks for values and takes the answers in Telegram. Each Workspace turns it on for itself.", ready: true },
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: true },
   { id: "limits", title: "Workspace Limits", purpose: "The most Metrics a Workspace may hold, Archived Metrics not counted. Without a default or a limit of its own, a Workspace has no limit.", ready: true },
+  { id: "sending", title: "Sending limits", purpose: "How much one Workspace, person or key may send and store in a day: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links. They keep one Workspace or one program from using up the mail provider, the chat apps or the server. Each has a range, and none can be switched off. Lowering one never deletes or stops what exists: only what is new waits. The same for every Workspace, whatever its Metrics limit.", ready: true },
   { id: "marketplace", title: "Marketplace", purpose: "Owners and Admins find, install and update Packs from the Marketplace. Off unless turned on: then this server, never a browser, asks the Marketplace for lists of Packs, their files and which installed Packs have newer versions. It sends a search, a Pack's id and version, the list of Packs installed on this Installation and Ziffr's version; never a Workspace's name, id or data, nor anyone's. Every Pack is checked in full, and its signature too, before it is shown.", ready: true },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page: a bot cannot make Ziffr send sign-in links to any address it likes. Worth it on any Ziffr strangers can reach, and more so with trials.", ready: true },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace of their own, for how long and how many at once. With trials on, every Workspace made here is a trial.", ready: true },
@@ -61,6 +63,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more." },
   { name: "ZIFFR_DEFAULT_LIMIT_LABEL", section: "limits", label: "Name of the default", secret: false, placeholder: "Free",
     help: "What Owners and Admins see the default called, such as Free. At most 30 characters." },
+  ...SENDING_LIMITS.map((l): SettingDefinition => ({ name: l.name, section: "sending", label: l.label, secret: false, placeholder: String(l.default),
+    help: `${l.help} ${l.min.toLocaleString("en-US")} to ${l.max.toLocaleString("en-US")}; empty: ${l.default.toLocaleString("en-US")}.` })),
   { name: "ZIFFR_MARKETPLACE", section: "marketplace", label: "Connection", secret: false, placeholder: "off",
     help: "on lets this server talk to the Marketplace; off, or empty, makes no connection. Packs can always be installed from a file." },
   { name: "ZIFFR_MARKETPLACE_URL", section: "marketplace", label: "Marketplace address", secret: false, placeholder: "https://marketplace.ziffr.net",

@@ -8,12 +8,13 @@
 import { openWorkflowRow } from "./workflow-rows";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
 import { deliverNotice, linkTo, refFor } from "./deliveries";
 import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./outbound-request";
 import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
-import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
+import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
@@ -195,7 +196,7 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   const timestamp = Math.floor(Date.now() / 1000);
   // The daily cap is one atomic claim of a slot in the database, so runs at the same moment cannot pass it together.
-  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY });
+  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: await sendingLimit("webhookSendsPerWorkspace") });
   if (slot !== true) return { state: "deferred" };
   try {
     const res = await outboundRequest(new URL(url), {

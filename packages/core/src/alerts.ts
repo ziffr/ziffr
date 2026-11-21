@@ -9,7 +9,8 @@ import type { Actor } from "./actor";
 import { Forbidden } from "./actor";
 import { visibleMetricIds } from "./access";
 import { validCondition, type AlertCondition, type AlertKind, targetAllowsShare } from "./alert-rules";
-import { ALERTS_PER_METRIC, ALERTS_PER_PERSON, ALERTS_PER_WORKSPACE } from "./alert-limits";
+import { ALERTS_PER_METRIC, ALERTS_PER_PERSON } from "./alert-limits";
+import { sendingLimit } from "./sending-limit";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { openRows, reserveIds, sealRow } from "./sealed-columns";
@@ -111,7 +112,6 @@ function checkOptions(delivery: unknown, include: unknown): { delivery: AlertDel
 const LIMIT_WORDS: Record<string, string> = {
   person_limit: `You already hold ${ALERTS_PER_PERSON} Alerts in this Workspace, counting any on Metrics you can no longer see. Delete one to make another.`,
   metric_limit: `You already hold ${ALERTS_PER_METRIC} Alerts on this Metric. Change or delete one to make another.`,
-  workspace_limit: `This Workspace already holds ${ALERTS_PER_WORKSPACE} Alerts, the most it may.`,
 };
 
 /** Makes an Alert for the acting person on a Metric they may see; returns its id. The limits are checked in the
@@ -126,15 +126,17 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
   const { kind, level } = split(input.condition);
   const [id] = await reserveIds("alerts", 1);
   const row = await sealRow("alerts", actor.workspaceId, { id, level });
+  const perWorkspace = await sendingLimit("alertsPerWorkspace");
   const { data, error } = await db().rpc("create_alert", {
     p_id: id, p_ws: actor.workspaceId, p_person: actor.personId, p_metric: metric.id, p_kind: kind, p_level: row.level ?? null, p_delivery: delivery, p_include: include,
-    p_per_person: ALERTS_PER_PERSON, p_per_metric: ALERTS_PER_METRIC, p_per_workspace: ALERTS_PER_WORKSPACE,
+    p_per_person: ALERTS_PER_PERSON, p_per_metric: ALERTS_PER_METRIC, p_per_workspace: perWorkspace,
   });
   if (error || typeof data !== "string") {
     console.error("create_alert failed:", error?.message ?? "no answer");
     throw new AlertRefused("The Alert could not be saved. Try again in a moment.");
   }
   if (data === "ok") return id;
+  if (data === "workspace_limit") throw new AlertRefused(`This Workspace already holds ${perWorkspace} Alerts, the most it may.`);
   if (data in LIMIT_WORDS) throw new AlertRefused(LIMIT_WORDS[data]);
   throw new Forbidden(NOT_FOUND);
 }

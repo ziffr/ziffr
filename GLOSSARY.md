@@ -332,6 +332,10 @@ _Avoid_: Superadmin, root, system administrator
 What an Installation talks to, such as its mail server, set by an Installation Admin on a page of its own instead of in the server's environment. A value set in the environment wins and is shown as set on the server; secret values are sealed and never shown again. Settings of a Workspace are not Installation Settings.
 _Avoid_: Admin settings, system settings, global config
 
+**Sending Limit**:
+One of the abuse safeguards of an Installation that an Installation Admin may move within a range, as an Installation Setting named `ZIFFR_LIMIT_*`: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute. None can be switched off; they are the same for every Workspace whatever its Size, and Ziffr Cloud never sets them. Lowering one never deletes or stops what exists: only what is new waits. Not a Workspace Limit, which counts Metrics.
+_Avoid_: Rate limit setting, quota
+
 **Workspace Limit**:
 The most Metrics a Workspace may hold, Archived Metrics not counted, set for it by an Installation Admin or by Ziffr Cloud, or else the Installation's default; without any there is no limit, as on most self-hosted Installations. A Workspace over it keeps everything working and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more; those 14 days come at most once in 90 days.
 _Avoid_: Quota, cap, allowance, plan

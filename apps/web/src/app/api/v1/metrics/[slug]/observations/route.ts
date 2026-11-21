@@ -2,7 +2,7 @@
 // page at a time (scope metrics:read). POST: submits a value (scope values:submit) through the same core path as a
 // form or Slack, with an optional Idempotency-Key and at most 1,000 values a day per key.
 import { metricRoute } from "@/lib/api-metric-route";
-import { admitValues, once, submitObservation, VALUES_PER_DAY, type StoredAnswer } from "@ziffr/core/api-submissions";
+import { admitValues, once, submitObservation, type StoredAnswer } from "@ziffr/core/api-submissions";
 import { listObservations } from "@ziffr/core/api";
 import { errorBody, json, jsonBody, query, toCursor } from "@/lib/api";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
@@ -25,7 +25,7 @@ export const POST = metricRoute("values:submit", async (actor, req, slug) => {
     const admitted = await admitValues(actor);
     if (!admitted.ok) {
       retryAfter = admitted.retryAfter;
-      return { ...errorBody("rate_limited", `This key submitted ${VALUES_PER_DAY} values in the last 24 hours; try again in ${admitted.retryAfter} seconds.`), keep: false };
+      return { ...errorBody("rate_limited", `This key submitted ${admitted.limit} values in the last 24 hours; try again in ${admitted.retryAfter} seconds.`), keep: false };
     }
     const r = await submitObservation(actor, slug, input);
     if (r.ok) return { status: 201, body: SubmissionAnswer.parse({ status: r.status, period: r.period, value: r.value, detail: r.detail }) };

@@ -10,12 +10,14 @@ import { peopleIn } from "./submissions";
 import { assertMembersIn } from "./sharing";
 import { audit } from "./audit-log";
 import { refuseInDemo } from "./demo";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 
 /** The demo workspace (ADR 0005): shared by every visitor, so it keeps no Contacts. */
 export const DEMO_WORKSPACE_ID = "d3e00000-0000-4000-8000-000000000001";
 
 /** How many Contacts a workspace keeps at most. */
-export const MAX_CONTACTS = 1000;
+export const MAX_CONTACTS = sendingLimitDefault("contactsPerWorkspace");
 
 const groupName = (name: string) => String(name ?? "").trim().slice(0, 40);
 
@@ -83,7 +85,8 @@ export async function addContact(actor: Actor, input: { name: string; email?: st
   const c = cleanContact(input);
   if (!c.ok) throw new Error(c.reason);
   const { count } = await db().from("contacts").select("person_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId);
-  if ((count ?? 0) >= MAX_CONTACTS) throw new Error(`A workspace keeps at most ${MAX_CONTACTS} contacts.`);
+  const most = await sendingLimit("contactsPerWorkspace");
+  if ((count ?? 0) >= most) throw new Error(`A workspace keeps at most ${most} contacts.`);
   // The handle or address must not already point to someone else here, or intake could not tell them apart.
   const taken = (await peopleIn(actor.workspaceId, { contactDetails: true })).find((p) => (c.email && p.email?.toLowerCase() === c.email) || (c.slack_handle && p.slack_handle?.toLowerCase() === c.slack_handle));
   if (taken) throw new Error(`${taken.name} already uses that ${c.email && taken.email?.toLowerCase() === c.email ? "email address" : "Slack handle"} here.`);

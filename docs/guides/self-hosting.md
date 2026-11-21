@@ -152,6 +152,10 @@ Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Li
 - **Hosted Ziffr only:** `ZIFFR_CLOUD_KEY` and `ZIFFR_CLOUD_URL` let a billing service set limits through a signed API and hand Owners over to it. Leave both unset and neither exists: the endpoints answer 404 and no screen mentions a Size or a price. The API is in the [reference](../reference/cloud-api.md); set `ZIFFR_SITE_URL` too, since the Owners' handover names it.
 - Trials that stay, and Workspaces deleted for being unused, are in their own sections below.
 
+## Sending limits
+
+The abuse safeguards (emails and chat messages per Workspace and person per day, Alerts, values and calls per API key, Webhooks, sign-in links per network address, Contacts, Snapshots) have normal values that suit most Installations. Move one within its range with a `ZIFFR_LIMIT_*` variable (all are listed in `.env.example`) or in the **Sending limits** section of the Installation Settings page; a variable wins. A small mail provider may need the emails per day lowered, a busy Feed the values per day raised. None can be switched off: a value outside its range is refused on the page and ignored in the environment. Lowering one never deletes or stops what exists, and a change takes effect within seconds. They are the same for every Workspace. The user guide, chapter 18, has every range.
+
 ## Deleting unused Workspaces
 
 With a default Workspace Limit (spec 0029) and working email, `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.

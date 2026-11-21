@@ -1,12 +1,14 @@
 // Webhook limits (GLOSSARY: Webhook; spec 0034, "Limits"): abuse safeguards, the same at every Size and never a price.
-// One file so the numbers can be tuned in one place.
+// One file so the numbers can be tuned in one place. The two limits an operator may move (ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE,
+// ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, sending-limits.ts) are the defaults here; the code reads the value in effect.
+import { sendingLimitDefault } from "./sending-limits";
 
 /** Webhooks a Workspace may hold. */
-export const WEBHOOKS_PER_WORKSPACE = 5;
+export const WEBHOOKS_PER_WORKSPACE = sendingLimitDefault("webhooksPerWorkspace");
 /** The longest message a Webhook is sent, in bytes (used by sending, ticket 3). */
 export const WEBHOOK_MESSAGE_MAX_BYTES = 16 * 1024;
 /** Sends a Workspace gets per day; past it sends wait for tomorrow (used by sending, ticket 3). */
-export const WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY = 10_000;
+export const WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY = sendingLimitDefault("webhookSendsPerWorkspace");
 /** Days the log of sends is kept (used by sending, ticket 3). */
 export const WEBHOOK_LOG_DAYS = 14;
 /** The longest address, in characters. */

@@ -69,6 +69,15 @@ describe("sending email", () => {
     expect(await sendDelivery(d.id, broken)).toBe("failed");
     expect(await deliveryOf(w.id, ann)).toMatchObject({ mail_state: "failed", attempts: MAX_ATTEMPTS, last_error: "The mail server refused it (EENVELOPE)." });
     expect(await sendDelivery(d.id)).toBe("skipped");
+    // Lowering the tries below what a queued message used marks it failed, so nothing waits silently.
+    try {
+      process.env.ZIFFR_LIMIT_SEND_ATTEMPTS = "2";
+      await db().from("deliveries").update({ mail_state: "queued", attempts: 3, last_error: null }).eq("id", d.id);
+      await sendWaiting();
+      expect(await deliveryOf(w.id, ann)).toMatchObject({ mail_state: "failed", attempts: 3, last_error: "Gave up after 2 tries." });
+    } finally {
+      delete process.env.ZIFFR_LIMIT_SEND_ATTEMPTS;
+    }
   });
   it("sends a message once, also when the immediate send and the retry job race", async () => {
     const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ann = await w.person("member", { email: address("ann") });

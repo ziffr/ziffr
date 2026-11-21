@@ -6,6 +6,8 @@
 import { openWorkflowRows } from "./workflow-rows";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { openRows } from "./sealed-columns";
 import { FEED_SCOPE, Forbidden, type Actor, type FeedActor } from "./actor";
 import { insertKey } from "./internal/key-store";
@@ -22,7 +24,7 @@ import { yearStartFor, yearStartOf } from "./fiscal-year";
 import { refuseInDemo } from "./demo";
 
 /** Values one Feed may record in any 24 hours, across all its keys. */
-export const FEED_VALUES_PER_DAY = 10_000;
+export const FEED_VALUES_PER_DAY = sendingLimitDefault("valuesPerFeed");
 /** Items one batch may hold. */
 export const FEED_BATCH_MAX = 500;
 /** Periods with a value a Feed is told about per Metric: the latest ones, enough for years of daily history. */
@@ -114,7 +116,7 @@ export async function listFeeds(actor: Actor): Promise<FeedInfo[]> {
   const [{ data: keys }, { data: tokens }, { data: intake }] = await Promise.all([
     db().from("access_keys").select("id, name, prefix, expires_on, revoked_at, last_used_at, feed_id").eq("workspace_id", ws).in("feed_id", ids).order("id", { ascending: false }),
     db().from("tokens").select("submitter_id, metric_id").eq("workspace_id", ws).in("submitter_id", ids).is("stands_in_for", null),
-    db().from("intake_log").select("sender_id, outcome").eq("workspace_id", ws).eq("source", "api").in("sender_id", ids).gt("at", since).limit(FEED_VALUES_PER_DAY * 2),
+    db().from("intake_log").select("sender_id, outcome").eq("workspace_id", ws).eq("source", "api").in("sender_id", ids).gt("at", since).limit((await sendingLimit("valuesPerFeed")) * 2),
   ]);
   // The Metrics' names are sealed: read on their own and opened, never embedded in the Tokens.
   const metricIds = [...new Set((tokens ?? []).map((t) => t.metric_id as number))];
@@ -264,17 +266,18 @@ const DONE: Record<string, string> = {
 };
 
 /** A claimed batch, or why it may not run now and the seconds until it may. */
-export type BatchClaim = { ok: true; batchId: number } | { ok: false; reason: "busy" | "limit"; retryAfter: number };
+export type BatchClaim = { ok: true; batchId: number } | { ok: false; reason: "busy" | "limit"; retryAfter: number; limit: number };
 
 /** Claims a batch of `count` values for the Feed, in one locked database step (claim_feed_batch): refused while
  * another batch of the Feed runs, or when it would cross FEED_VALUES_PER_DAY in 24 hours. Counted per Feed, over all
  * its keys, and before anything runs, so parallel requests cannot pass the limit together. */
 export async function claimFeedBatch(feed: FeedActor, count: number): Promise<BatchClaim> {
-  const { data, error } = await db().rpc("claim_feed_batch", { p_feed: feed.feedId, p_items: Math.trunc(count), p_limit: FEED_VALUES_PER_DAY });
+  const perDay = await sendingLimit("valuesPerFeed");
+  const { data, error } = await db().rpc("claim_feed_batch", { p_feed: feed.feedId, p_items: Math.trunc(count), p_limit: perDay });
   if (error) throw new Error("The batch could not be claimed.");
   const id = Number(data);
   if (id > 0) return { ok: true, batchId: id };
-  if (id === -1) return { ok: false, reason: "busy", retryAfter: 10 };
+  if (id === -1) return { ok: false, reason: "busy", retryAfter: 10, limit: perDay };
   // The limit frees up as the oldest batches pass 24 hours.
   const { data: rows } = await db().from("feed_batches").select("started_at, items, taken").eq("feed_id", feed.feedId).gt("started_at", new Date(Date.now() - DAY).toISOString()).order("started_at");
   let total = (rows ?? []).reduce((a, r) => a + Number(r.taken ?? r.items), 0);
@@ -282,9 +285,9 @@ export async function claimFeedBatch(feed: FeedActor, count: number): Promise<Ba
   for (const r of rows ?? []) {
     total -= Number(r.taken ?? r.items);
     at = new Date(r.started_at).getTime();
-    if (total + count <= FEED_VALUES_PER_DAY) break;
+    if (total + count <= perDay) break;
   }
-  return { ok: false, reason: "limit", retryAfter: Math.max(1, Math.ceil((at + DAY - Date.now()) / 1000)) };
+  return { ok: false, reason: "limit", retryAfter: Math.max(1, Math.ceil((at + DAY - Date.now()) / 1000)), limit: perDay };
 }
 
 /** Ends a claimed batch with the number of items that count towards the day's limit: the route passes every item

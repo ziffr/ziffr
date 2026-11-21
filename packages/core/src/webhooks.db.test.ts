@@ -132,6 +132,25 @@ describe("the address", () => {
 });
 
 describe("limits, trials and the demo", () => {
+  it("follows ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE: a lowered limit keeps what exists, a value out of range is ignored", async () => {
+    const w = await ws(); const a = w.actor(await w.person("owner"));
+    try {
+      for (let i = 0; i < 3; i++) await createWebhook(a, { name: `W${i}`, url: URL1 });
+      process.env.ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE = "2";
+      const e = await refusal(createWebhook(a, { name: "Over", url: URL1 }));
+      expect(e!.message).toContain("already has 2 Webhooks");
+      // Nothing is deleted or switched off by lowering it.
+      expect((await listWebhooks(a)).filter((x) => x.enabled)).toHaveLength(3);
+      // 0 would mean no safeguard: it is ignored, and the default of 5 holds.
+      process.env.ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE = "0";
+      await createWebhook(a, { name: "Fourth", url: URL1 });
+      await createWebhook(a, { name: "Fifth", url: URL1 });
+      expect((await refusal(createWebhook(a, { name: "Sixth", url: URL1 })))!.message).toContain("already has 5 Webhooks");
+    } finally {
+      delete process.env.ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE;
+    }
+  });
+
   it("allows the limit and refuses one more, also when several are made at once", async () => {
     const w = await ws(); const a = w.actor(await w.person("owner"));
     const results = await Promise.allSettled(Array.from({ length: WEBHOOKS_PER_WORKSPACE + 3 }, (_, i) => createWebhook(a, { name: `W${i}`, url: URL1 })));
