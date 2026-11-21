@@ -14,13 +14,14 @@ import { db } from "./db";
 import { peopleIn } from "./submissions";
 import { answerReadingOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
+import { tellApart } from "./metric-names";
 import type { Metric } from "./types";
 
 /** One thing found. A `period` result is one Metric's value for one period: `period` is its first day, `label` its
  * name ("March 2026"); it leads to the Period Record. */
 export type SearchResult =
-  | { kind: "metric"; slug: string; name: string; archived: boolean }
-  | { kind: "period"; slug: string; name: string; archived: boolean; period: string; label: string }
+  | { kind: "metric"; slug: string; name: string; archived: boolean; hint?: string }
+  | { kind: "period"; slug: string; name: string; archived: boolean; period: string; label: string; hint?: string }
   | { kind: "dashboard"; id: number; name: string }
   | { kind: "deck"; id: number; name: string }
   | { kind: "workflow"; id: number; name: string }
@@ -64,8 +65,15 @@ export async function search(actor: Actor, query: unknown): Promise<SearchResult
   if (!q.all.length) return [];
   const [visible, dashboards, decks] = await Promise.all([visibleMetricIds(ws, actor.personId, metrics), visibleDashboards(ws, actor.personId), visibleDecks(ws, actor.personId)]);
   const [workflows, people, groups, records] = await Promise.all([workflowResults(actor, visible, q.all), peopleResults(actor, q.all), groupResults(actor, q.all), recordResults(actor, metrics, visible, q.all)]);
+  const seen = metrics.filter((m) => visible.has(m.id));
+  // Same-named Metrics among those the person sees (never one they may not) get a note that tells them apart. A Guest
+  // sees no other people, so their notes name the period and unit only.
+  const owners = actor.role === "guest" ? [] : await peopleIn(ws);
+  const notes = tellApart(seen, (id) => owners.find((p) => p.id === id)?.name.split(" ")[0] ?? "");
+  const noteFor = new Map(seen.flatMap((m) => (notes.has(m.id) ? [[m.slug, notes.get(m.id)!] as const] : [])));
+  const withNote = (r: SearchResult): SearchResult => ((r.kind === "metric" || r.kind === "period") && noteFor.has(r.slug) ? { ...r, hint: noteFor.get(r.slug) } : r);
   return [
-    ...resultsFor(metrics.filter((m) => visible.has(m.id)), q, yearStart, new Date()),
+    ...resultsFor(seen, q, yearStart, new Date()).map(withNote),
     ...ranked(dashboards, q.all).map((d) => ({ kind: "dashboard" as const, id: d.id, name: d.name })),
     ...ranked(decks, q.all).map((d) => ({ kind: "deck" as const, id: d.id, name: d.name })),
     ...workflows, ...people, ...groups, ...records,

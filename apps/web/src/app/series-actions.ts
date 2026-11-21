@@ -8,6 +8,7 @@ import { attempt } from "@/lib/action-result";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
 import { recordOwnValue } from "@ziffr/core/record-own-value";
 import { archiveMetric as coreArchiveMetric, restoreMetric as coreRestoreMetric } from "@ziffr/core/archived-metrics";
+import { sameNamedMetrics as coreSameNamedMetrics } from "@ziffr/core/metric-name-check";
 import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSources, updateMetricDetails as coreUpdateMetricDetails, type MetricDetails, removeSeriesRows as coreRemoveSeriesRows, saveSeriesRows as coreSaveSeriesRows } from "@ziffr/core/metrics";
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
@@ -94,4 +95,9 @@ export async function recordValue(metricId: number, input: { value: string; brea
     revalidatePath("/", "layout");
     return { ok: r.ok, detail: r.detail };
   });
+}
+
+/** Metrics the person sees that already have this name, to warn before a Metric gets it (a warning, not a refusal). */
+export async function sameNamedMetrics(name: string, exceptMetricId?: number) {
+  return attempt(async () => coreSameNamedMetrics(await currentActor(), String(name ?? ""), exceptMetricId === undefined ? undefined : Number(exceptMetricId)));
 }

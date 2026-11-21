@@ -127,6 +127,8 @@ On a narrow screen, such as a phone, the dashboard becomes one column in reading
 
 ### The Pool
 
+Metrics that share a name show their owner (or, for one owner, the period and unit) next to the name in the Pool, so you can tell them apart.
+
 A widget that shows an **Archived Metric** keeps drawing its history and is marked **Archived** next to its title; the Pool, a template's Slots and a panel's list of Metrics no longer offer it (a panel keeps one it already shows, so you can take it out).
 
 The **Pool** holds everything you can put on the dashboard. **Filter** at the top narrows all of it by name. It has three parts:
