@@ -1,6 +1,10 @@
 // Workflows (GLOSSARY: Workflow, Stand-in, Away, Approval, Self-check, Lock): defining them, giving a Metric one,
 // running them, approving or sending back values, checking one's own, locking periods, stand-ins and away dates. Every function takes the Actor first
 // and works only inside the actor's Workspace.
+import { openOne } from "./sealed-columns";
+import { openWorkflowRow, sealedWorkflowConfig } from "./workflow-rows";
+import { mapConfigNumbers } from "./sealed-workflow";
+import { workspaceCipher } from "./workspace-keys";
 import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { assertMembersIn } from "./sharing";
@@ -73,9 +77,9 @@ const peopleSteps = (c: WorkflowConfig) => JSON.stringify(c.steps.filter((s) => 
 
 /** A Workflow of the actor's workspace that the actor owns, or Forbidden; returns its stored steps. */
 async function ownWorkflow(actor: Actor, id: number): Promise<WorkflowConfig | null> {
-  const { data } = await db().from("workflows").select("owner_id, config").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data } = await db().from("workflows").select("id, owner_id, config").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data || data.owner_id !== actor.personId) throw new Forbidden();
-  return (data.config as WorkflowConfig | null) ?? null;
+  return ((await openWorkflowRow(actor.workspaceId, data))?.config as WorkflowConfig | null) ?? null;
 }
 
 /** Saves a Workflow: a new one (Guests create nothing) or one the actor owns. Returns its id. */
@@ -83,6 +87,8 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   let stored: WorkflowConfig | null = null;
   if (id) stored = await ownWorkflow(actor, id);
   const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config, stored, opts.keepWebhooks), updated_at: new Date().toISOString() };
+  // What is stored carries its numbers sealed for the Workflow (spec 0028); everything above works on the opened config.
+  const store = async (workflowId: number) => ({ ...row, config: await sealedWorkflowConfig(actor.workspaceId, workflowId, row.config) });
   let before: string | undefined;
   let seen: string | null = null;
   if (opts.keepPeople) {
@@ -99,15 +105,26 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
     before = JSON.stringify(stored?.asking);
     await ensureBaseline("workflow", id, actor.personId);
     // For a key: only if nobody changed it (the editor, say, giving it other Approvers) since the Approve and Tell steps were compared.
-    let q = db().from("workflows").update(row).eq("id", id).eq("workspace_id", actor.workspaceId);
+    let q = db().from("workflows").update(await store(id)).eq("id", id).eq("workspace_id", actor.workspaceId);
     if (seen) q = q.eq("updated_at", seen);
     const { data: done } = await q.select("id");
     if (!done?.length) throw new WorkflowRefused("The Workflow changed meanwhile. Read it again and retry.");
   } else {
     assertCan(actor, "create");
-    const { data, error } = await db().from("workflows").insert({ ...row, owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
+    // Its numbers are bound to its id, which the database hands out: where they are sealed, the row is made without them
+    // (nothing in clear is stored) and filled with the sealed config at once.
+    const sealing = (await workspaceCipher(actor.workspaceId)).sealing;
+    const bare = sealing ? { ...row, config: mapConfigNumbers(row.config, () => "0", "") } : row;
+    const { data, error } = await db().from("workflows").insert({ ...bare, owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
     if (error || !data) throw new Error("The workflow could not be saved.");
     id = data.id as number;
+    if (sealing) {
+      const { error: sealError } = await db().from("workflows").update({ config: (await store(id)).config }).eq("id", id).eq("workspace_id", actor.workspaceId);
+      if (sealError) {
+        await db().from("workflows").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+        throw new Error("The workflow could not be saved.");
+      }
+    }
   }
   // A new or changed Asking Schedule never runs for a day that has begun (spec 0035).
   if (row.config.asking && JSON.stringify(row.config.asking) !== before) await skipPassedAskingDay(actor.workspaceId, id, row.config.asking);
@@ -126,13 +143,14 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
  * updated_at as read), so an edit in the Workflow editor meanwhile is never overwritten. Returns false when refused. */
 export async function setWorkflowCheck(actor: Actor, id: number, check: { changePct?: number; outsideTarget?: boolean }, seen: string): Promise<boolean> {
   await ownWorkflow(actor, id);
-  const { data: wf } = await db().from("workflows").select("config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+  const { data: sealedWf } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+  const wf = await openWorkflowRow(actor.workspaceId, sealedWf);
   if (!wf || wf.updated_at !== seen) return false;
   const config = wf.config as WorkflowConfig;
   if (!config.steps.some((s) => s.type === "check")) return false;
   const steps = config.steps.map((s) => (s.type === "check" ? { ...s, changePct: check.changePct === undefined ? s.changePct : int(check.changePct, 1, 1000), outsideTarget: check.outsideTarget ?? s.outsideTarget } : s));
   await ensureBaseline("workflow", id, actor.personId);
-  const { data: done } = await db().from("workflows").update({ config: { ...config, steps }, updated_at: new Date().toISOString() })
+  const { data: done } = await db().from("workflows").update({ config: await sealedWorkflowConfig(actor.workspaceId, id, { ...config, steps }), updated_at: new Date().toISOString() })
     .eq("id", id).eq("workspace_id", actor.workspaceId).eq("updated_at", seen).select("id");
   if (!done?.length) return false;
   await recordVersion("workflow", id, actor.personId, { message: "Changed its Unusual Value check" });
@@ -145,8 +163,8 @@ export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeopl
   await ownWorkflow(actor, id);
   let seen: string | null = null;
   if (opts.keepPeople) {
-    const { data } = await db().from("workflows").select("config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
-    if (((data?.config as WorkflowConfig | undefined)?.steps ?? []).some((s) => s.type === "approve" || s.type === "tell")) throw new WorkflowRefused("This key cannot delete a Workflow that has an Approve or Tell step: that decides who approves.");
+    const { data } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+    if ((((await openWorkflowRow(actor.workspaceId, data))?.config as WorkflowConfig | undefined)?.steps ?? []).some((s) => s.type === "approve" || s.type === "tell")) throw new WorkflowRefused("This key cannot delete a Workflow that has an Approve or Tell step: that decides who approves.");
     seen = data!.updated_at as string;
   }
   let q = db().from("workflows").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
@@ -158,7 +176,7 @@ export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeopl
 
 /** A Metric's owner decides which Workflow its values take (none for Derived Metrics). */
 export async function setMetricWorkflow(actor: Actor, metricId: number, workflowId: number | null) {
-  const { data: m } = await db().from("metrics").select("name, owner_id, formula, workflow_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("id, name, owner_id, formula, workflow_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!m || m.owner_id !== actor.personId || m.formula) throw new Forbidden();
   const wf = workflowId === null ? null : (await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data;
   if (workflowId !== null && !wf) throw new Forbidden();
@@ -204,7 +222,7 @@ export async function runTodayNow(actor: Actor, workflowId?: number): Promise<Ru
     // Guests run nothing, and the demo is never scheduled.
     assertCan(actor, "create");
     if (actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden(DEMO_READ_ONLY);
-    const { data: wf } = await db().from("workflows").select("id, owner_id, config").eq("id", Number(workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+    const wf = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, owner_id, config").eq("id", Number(workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
     // Not in this workspace, or not the actor's to run: the same answer, so ids of other workspaces are not told apart.
     if (!wf || (wf.owner_id !== actor.personId && actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden("Only the Workflow's owner, Owners and Admins run it.");
     if (!(wf.config as WorkflowConfig).asking) throw new Error("This Workflow runs with the workspace's daily run: run today's steps from the workspace.");
@@ -252,7 +270,7 @@ export async function sendValueBack(actor: Actor, actionId: number, comment: str
 export async function lockPeriod(actor: Actor, metricId: number, period: string, lock: boolean, reason?: string) {
   await setLock(actor.workspaceId, Number(metricId), day(period), Boolean(lock), actor.personId, reason ? String(reason).slice(0, 300) : undefined);
   // The period only: the reason is free text and stays with the period itself.
-  const { data: m } = await db().from("metrics").select("name").eq("id", Number(metricId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("id, name").eq("id", Number(metricId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   await audit(actor, { kind: lock ? "period.locked" : "period.unlocked", object: { type: "metric", id: Number(metricId), name: m?.name ?? null }, details: { period } });
 }
 

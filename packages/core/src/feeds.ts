@@ -3,6 +3,7 @@
 // its own (a person row, like a Contact) and uses Feed Keys. Owners and Admins make and remove Feeds and their keys;
 // a Metric's owner and Editors choose an existing Feed as a Submitter. A Feed Key can only record values for its
 // Feed's Metrics and learn which periods already have one: never a value, a person, or another Metric.
+import { openWorkflowRows } from "./workflow-rows";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
@@ -112,9 +113,12 @@ export async function listFeeds(actor: Actor): Promise<FeedInfo[]> {
   const since = new Date(Date.now() - DAY).toISOString();
   const [{ data: keys }, { data: tokens }, { data: intake }] = await Promise.all([
     db().from("access_keys").select("id, name, prefix, expires_on, revoked_at, last_used_at, feed_id").eq("workspace_id", ws).in("feed_id", ids).order("id", { ascending: false }),
-    db().from("tokens").select("submitter_id, metric_id, metrics(name)").eq("workspace_id", ws).in("submitter_id", ids).is("stands_in_for", null),
+    db().from("tokens").select("submitter_id, metric_id").eq("workspace_id", ws).in("submitter_id", ids).is("stands_in_for", null),
     db().from("intake_log").select("sender_id, outcome").eq("workspace_id", ws).eq("source", "api").in("sender_id", ids).gt("at", since).limit(FEED_VALUES_PER_DAY * 2),
   ]);
+  // The Metrics' names are sealed: read on their own and opened, never embedded in the Tokens.
+  const metricIds = [...new Set((tokens ?? []).map((t) => t.metric_id as number))];
+  const named = new Map((await openRows("metrics", ws, metricIds.length ? (await db().from("metrics").select("id, name").eq("workspace_id", ws).in("id", metricIds)).data : [])).map((m) => [m.id as number, m.name as string]));
   return feeds.map((f) => {
     const own = (keys ?? []).filter((k) => k.feed_id === f.person_id);
     const outcomes = (intake ?? []).filter((r) => r.sender_id === f.person_id).map((r) => String(r.outcome));
@@ -122,7 +126,7 @@ export async function listFeeds(actor: Actor): Promise<FeedInfo[]> {
     return {
       id: f.person_id, name: f.name, created_at: f.created_at,
       keys: own.map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, expires_on: k.expires_on, revoked: Boolean(k.revoked_at), last_used_at: k.last_used_at })),
-      metrics: (tokens ?? []).filter((t) => t.submitter_id === f.person_id).map((t) => ({ id: t.metric_id as number, name: (t.metrics as unknown as { name: string } | null)?.name ?? "" })),
+      metrics: (tokens ?? []).filter((t) => t.submitter_id === f.person_id).map((t) => ({ id: t.metric_id as number, name: named.get(t.metric_id as number) ?? "" })),
       last_call: own.map((k) => k.last_used_at as string | null).filter(Boolean).sort().at(-1) ?? null,
       recorded_today: recorded,
       refused_today: outcomes.length - recorded,
@@ -228,7 +232,8 @@ export async function feedOverview(feed: FeedActor, page: { after?: number | nul
   const rest = (await feedMetricRows(feed)).filter((x) => x.metric.id > after);
   const items = rest.slice(0, limit);
   const workflowIds = [...new Set(items.map((x) => x.workflowId).filter((w): w is number => w !== null))];
-  const { data: flows } = workflowIds.length ? await db().from("workflows").select("id, config").in("id", workflowIds).eq("workspace_id", feed.workspaceId) : { data: [] };
+  const { data: sealedFlows } = workflowIds.length ? await db().from("workflows").select("id, config").in("id", workflowIds).eq("workspace_id", feed.workspaceId) : { data: [] as { id: number; config: unknown }[] };
+  const flows = await openWorkflowRows(feed.workspaceId, sealedFlows);
   const due = new Map((flows ?? []).map((w) => [w.id as number, Number((w.config as { dueWorkingDays?: number })?.dueWorkingDays ?? NaN)]));
   const out: FeedMetric[] = [];
   for (const { metric: m, workflowId } of items) {

@@ -1,6 +1,7 @@
 // Workflows on a clock (spec 0005, ticket #85; GLOSSARY: Workflow, Due Date, Escalation). A job a scheduler calls
 // every hour runs each workspace's Workflows once a day, at its run hour in its own time zone, and reminds people of
 // tasks due within two days. Each day is claimed in workflow_runs before anything is sent, so it runs once.
+import { openWorkflowRows } from "./workflow-rows";
 import { addDays, format, parseISO } from "date-fns";
 import { db } from "./db";
 import { deliver } from "./deliveries";
@@ -104,7 +105,7 @@ export async function skipPassedAskingDay(workspaceId: string, workflowId: numbe
  * run day and whose hour has come runs once for the day. A failing Workflow does not stop the others. */
 export async function runAskingWorkflowsIfDue(workspace: { id: string; time_zone: string; run_hour: number }, now: Date): Promise<{ ran: number; failed: number }> {
   if (workspace.id === DEMO_WORKSPACE_ID) return { ran: 0, failed: 0 };
-  const { data: flows } = await db().from("workflows").select("id, config").eq("workspace_id", workspace.id).order("id");
+  const flows = await openWorkflowRows(workspace.id, (await db().from("workflows").select("id, config").eq("workspace_id", workspace.id).order("id")).data);
   const local = localTime(now, workspace.time_zone);
   let ran = 0;
   let failed = 0;

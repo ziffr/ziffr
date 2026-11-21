@@ -131,16 +131,21 @@ export async function storeCondensedFor(ws: string, metric: Metric, input: Conde
   if (end >= keptFrom(format(new Date(), "yyyy-MM-dd"), MIN_KEEP_MONTHS)) throw new NotCondensed("That span is too recent to condense: values are kept for at least 13 months.");
   const [{ data: overlap }, { data: values }, { data: targets }, { data: locks }] = await Promise.all([
     db().from("condensed_values").select("id").eq("workspace_id", ws).eq("metric_id", metric.id).lte("period_start", end).gte("period_end", input.span).limit(1),
-    db().from("observations").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).gte("period_start", input.span).lte("period_start", end).order("period_start").order("created_at").order("id"),
-    db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", input.span).lte("period_start", end).order("period_start"),
+    db().from("observations").select("id, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metric.id).gte("period_start", input.span).lte("period_start", end).order("period_start").order("created_at").order("id"),
+    db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", input.span).lte("period_start", end).order("period_start"),
     db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metric.id).eq("state", "locked").gte("period_start", input.span).lte("period_start", end),
   ]);
   if (overlap?.length) throw new NotCondensed("That span overlaps one condensed already.");
-  const held = (values ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) }));
+  // Values are sealed with the Workspace Key. Condensing keeps only sums, so a value or Target that does not open
+  // refuses it: it must never be left out of a sum.
+  const valueRows = await openRows("observations", ws, (values ?? []) as Record<string, unknown>[]);
+  const targetRows = await openRows("series_values", ws, (targets ?? []) as Record<string, unknown>[]);
+  if ([...valueRows, ...targetRows].some((r) => typeof r.value !== "number")) throw new NotCondensed("Some values in that span could not be read, so they cannot be condensed.");
+  const held = valueRows.map((r) => ({ period: String(r.period_start), value: r.value as number }));
   const locked = new Set((locks ?? []).map((r) => String(r.period_start)));
   const made = condense(metric, input.into, input.span, held, ys, held.length > 0 && latestOfEach(held).every((p) => locked.has(p.period)));
   if (!made) throw new NotCondensed("There are no values in that span to condense.");
-  const target = condensedTarget(metric, input.into, input.span, (targets ?? []).map((r) => ({ period: String(r.period_start), value: Number(r.value) })), ys);
+  const target = condensedTarget(metric, input.into, input.span, targetRows.map((r) => ({ period: String(r.period_start), value: r.value as number })), ys);
   const id = randomUUID();
   const payload = JSON.stringify({ sum: made.sum, last: made.last, target });
   const sealed = await sealRow("condensed_values", ws, { id, payload });

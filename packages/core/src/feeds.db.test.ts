@@ -19,7 +19,7 @@ import { dueDate } from "./workflow-rules";
 import { runWorkspaceIfDue } from "./scheduled-runs";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { feedBatch, logCalls, valuesOf, workspace } from "./test/db-fixtures";
+import { feedBatch, logCalls, opened, valuesOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 
@@ -191,7 +191,8 @@ describe("a Feed's batch", () => {
     expect(r.map((x) => [x.status, "code" in x ? x.code : null])).toEqual([["recorded", null], ["refused", "duplicate"], ["refused", "period"], ["refused", "period"]]);
     // Its words hold no earlier value: a Feed may not read values.
     expect(JSON.stringify(r)).not.toMatch(/\b7\b/);
-    const { data: obs } = await db().from("observations").select("value, submitter_id, access_key_id, imported").eq("metric_id", m.id);
+    const { data: stored } = await db().from("observations").select("id, workspace_id, value, value_sealed, submitter_id, access_key_id, imported").eq("metric_id", m.id);
+    const obs = (await opened("observations", String(stored?.[0]?.workspace_id), stored)).map((r) => ({ value: r.value, submitter_id: r.submitter_id, access_key_id: r.access_key_id, imported: r.imported }));
     expect(obs).toEqual([{ value: 7, submitter_id: feedId, access_key_id: keyId, imported: false }]);
   });
   it("imports empty past periods without the Unusual Value check, and checks the rest", async () => {

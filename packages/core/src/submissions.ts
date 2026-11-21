@@ -4,12 +4,13 @@
 // accepts or declines Corrections. Every lookup stays inside one Workspace.
 import { announceNewAction } from "./action-state";
 import { db } from "./db";
-import { insertSealed, openNames, openRows } from "./sealed-columns";
+import { insertSealed, openNames, openOne, openRows, reserveIds, sealRow } from "./sealed-columns";
 import { formatValue, SOURCE_LABEL } from "./format";
 import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
-import { breakdownRowsToWrite, type BreakdownInput } from "./breakdown-labels";
+import { recordObservation, type Recording } from "./record-value";
+import { addUp } from "./adding-up";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
 import { tokenValid } from "./tokens";
@@ -250,16 +251,15 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // Admin of the Workspace (spec 0026).
   const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
   const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
-  // Labels are sealed here and matched in the database by blind index (breakdown-labels.ts, spec 0028).
-  const rows = await breakdownRowsToWrite(workspaceId, metric.id, period, breakdown?.rows ?? [], preview);
-  const { data, error } = await record(metric, period, value, row, mayImport, rows);
+  // The core applies the rule and seals what it writes; the database only checks and stores (record-value.ts, spec 0028).
+  const { data, error } = await record(workspaceId, metric, period, value, row, mayImport, breakdown?.rows ?? []);
   // Archived between the check above and the write: the database refuses it the same way.
   // Condensed in between (spec 0033): the database refuses it the same way.
   const raced = await refusedByDatabase(error, workspaceId, metric.id, period);
   if (raced) return log({ ...base, ok: false, ...raced });
   // The database's own words stay in the server log: they name tables and constraints, not anything a person can act on.
   if (error || !data) {
-    console.error("record_observation failed:", error?.message ?? "no row");
+    console.error("recording a value failed:", error?.message ?? "no row");
     throw new Error("The value could not be recorded. Try again in a moment.");
   }
   const imported = mayImport && data.outcome === "recorded";
@@ -326,21 +326,11 @@ function closedTo(metric: Metric, source: SourceId): { outcome: string; detail: 
   return null;
 }
 
-type Recorded = { observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number };
-type Recording = (metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null }, imported: boolean, rows: BreakdownInput[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
-
-/** Records a value under its Metric's Submission Rule, in one call to the database. */
-const recordObservation: Recording = async (metric, period, value, row, imported, rows) =>
-  db().rpc("record_observation", {
-    p_metric: metric.id, p_period: period, p_rule: metric.submission_rule, p_value: value, p_submitter: row.submitter_id, p_source: row.source,
-    p_access_key: row.access_key_id, p_imported: imported, p_rows: rows,
-  }).single<Recorded>();
-
-/** What record_observation would answer for a value under its Metric's Submission Rule, read without writing (see the
- * migration 20261212090000_breakdown_rows_atomic.sql, whose rules this follows). For the demo, which saves nothing. */
-const previewObservation: Recording = async (metric, period, value) => {
-  const { data } = await db().from("observations").select("id, value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false });
-  const found = data ?? [];
+/** What recording would answer for a value under its Metric's Submission Rule, read without writing (the rules of
+ * record-value.ts). For the demo, which saves nothing. */
+const previewObservation: Recording = async (workspaceId, metric, period, value) => {
+  const { data } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false });
+  const found = await openRows("observations", workspaceId, (data ?? []) as Record<string, unknown>[]);
   if (!found.length) return { data: { observation_id: 0, outcome: "recorded", before: null, after: value, earlier: 0 }, error: null };
   const before = Number(found[0].value);
   const at = (outcome: string, after: number) => ({ data: { observation_id: Number(found[0].id), outcome, before, after, earlier: found.length }, error: null });
@@ -348,7 +338,7 @@ const previewObservation: Recording = async (metric, period, value) => {
   if (rule === "keep_both") return { data: { observation_id: 0, outcome: "kept_both", before, after: value, earlier: found.length }, error: null };
   if (rule === "reject") return at("rejected_duplicate", before);
   if (rule === "overwrite") return at("overwritten", value);
-  return at("added", Math.round((before + value) * 1e6) / 1e6);
+  return at("added", addUp(before, value));
 };
 
 /** A period's name inside a sentence: "week of 9 Nov 2026". */
@@ -459,13 +449,25 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   const act = msg.actions as { metric_id: number; period_start: string; observation_id: number | null };
   if (accept) {
     let written: { error: { code?: string } | null };
+    // The proposed value is sealed in the message; it is opened here and sealed again for the value's row.
+    const [opened] = await openRows("thread_messages", actor.workspaceId, [msg as Record<string, unknown>]);
+    const proposed = opened.correction_value;
+    if (typeof proposed !== "number") throw new Error("The Correction could not be read.");
     if (act.observation_id) {
       // Only the value of this Metric in this workspace is changed.
-      const { data: obs } = await db().from("observations").select("value, original_value").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
+      const { data: obs } = await db().from("observations").select("id, value, value_sealed, original_value, original_value_sealed").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
       if (!obs) throw new Forbidden();
-      written = await db().from("observations").update({ value: msg.correction_value, original_value: obs.original_value ?? obs.value }).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
+      const [was] = await openRows("observations", actor.workspaceId, [obs as Record<string, unknown>]);
+      const original = was.original_value ?? was.value;
+      if (typeof original !== "number") throw new Error("The Correction could not be saved. Try again in a moment.");
+      const sealedNow = await sealRow("observations", actor.workspaceId, { id: act.observation_id, value: proposed, original_value: original });
+      delete sealedNow.id;
+      written = await db().from("observations").update(sealedNow).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
     } else {
-      written = await db().from("observations").insert({ metric_id: act.metric_id, period_start: act.period_start, value: msg.correction_value, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
+      // The new value's id is taken first: its number is sealed for that row.
+      const [id] = await reserveIds("observations", 1);
+      const sealedNew = await sealRow("observations", actor.workspaceId, { id, value: proposed });
+      written = await db().from("observations").insert({ ...sealedNew, metric_id: act.metric_id, period_start: act.period_start, submitter_id: msg.author_id, source: "web_form", workspace_id: actor.workspaceId });
     }
     // The value was not written (archived in the meantime, or the database refused it): the Correction stays proposed.
     if (written.error) {
@@ -484,7 +486,7 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     await effects.afterValue(act.metric_id, act.period_start, msg.author_id);
   }
   // Who decided, about which period, once it took effect: never the proposed or the old value.
-  const { data: m } = await db().from("metrics").select("name").eq("id", act.metric_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("id, name").eq("id", act.metric_id).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   await audit(actor, { kind: accept ? "correction.accepted" : "correction.declined", object: { type: "metric", id: act.metric_id, name: m?.name ?? null }, details: { period: act.period_start, proposed_by: msg.author_id, action_id: msg.action_id } });
   await effects.notifyDecision({ actionId: msg.action_id, ownerId: actor.personId, authorId: msg.author_id, accepted: accept });
 }

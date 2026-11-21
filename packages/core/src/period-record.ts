@@ -80,7 +80,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   if (periodStart(period, metric.period, yearStart) !== period) return null;
 
   const [{ data: obsRows }, { data: stateRow }, { data: actionRows }, { data: auditRows }] = await Promise.all([
-    db().from("observations").select("id, value, submitter_id, source, original_value, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
+    db().from("observations").select("id, value, value_sealed, submitter_id, source, original_value, original_value_sealed, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
     db().from("period_states").select("state, note, updated_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle(),
     db().from("actions").select("*").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("id"),
     // The few events of this Metric that belong to a period's story; their details are opened below.
@@ -94,7 +94,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const opened = (await openRows("actions", ws, (actionRows ?? []) as Record<string, unknown>[])) as unknown as Action[];
   const readable = opened.filter((a) => can(a as Action & { workspace_id: string }));
   const ids = readable.map((a) => a.id);
-  const messages = (ids.length ? await openRows("thread_messages", ws, (await db().from("thread_messages").select("id, action_id, author_id, body, correction_value, correction_status, created_at").eq("workspace_id", ws).in("action_id", ids).order("created_at").order("id")).data) : []) as unknown as Message[];
+  const messages = (ids.length ? await openRows("thread_messages", ws, (await db().from("thread_messages").select("id, action_id, author_id, body, correction_value, correction_value_sealed, correction_status, created_at").eq("workspace_id", ws).in("action_id", ids).order("created_at").order("id")).data) : []) as unknown as Message[];
   const events = ((await openRows("audit_events", ws, (auditRows ?? []) as Record<string, unknown>[])) as unknown as Event[]).filter((e) => e.details?.period === period).reverse();
 
   // Names of the people on these steps only, and only of people in the Workspace now (members and Contacts, a Contact's
@@ -116,7 +116,8 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
 
   const drafts: Draft[] = [];
   const push = (d: Partial<PeriodStep> & Pick<PeriodStep, "kind" | "at" | "person">) => drafts.push({ channel: null, value: null, superseded: false, reason: null, ...d, sort: drafts.length });
-  const obs = obsRows ?? [];
+  // Values are sealed with the Workspace Key; one that does not open is left out of the record, never shown as ciphertext.
+  const obs = (await openRows("observations", ws, (obsRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
   obs.forEach((o, i) => {
     // A value a Correction changed in place was submitted as its original; the Correction's own steps carry the new one.
     const corrected = o.original_value !== null && o.original_value !== undefined;

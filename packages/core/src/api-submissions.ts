@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { assertScope, Forbidden, type Actor, type KeyActor, type FeedActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
 import { periodStart } from "./periods";
@@ -66,10 +67,11 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
   if (result.outcome === "rejected_period_condensed") return { ok: false, reason: "period_condensed", detail: reads ? result.detail : REFUSED.rejected_period_condensed };
   if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
   const { data: state } = await db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
-  const { data: latest } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const { data: latestRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const [latest] = await openRows("observations", actor.workspaceId, (latestRows ?? []) as Record<string, unknown>[]);
   const status = state?.state === "approval" ? "awaiting_approval" : "recorded";
   if (!reads) return { ok: true, status, period, value, detail: status === "recorded" ? "Recorded." : "Recorded; it waits for Approval." };
-  return { ok: true, status, period, value: Number(latest?.[0]?.value ?? value), detail: result.detail };
+  return { ok: true, status, period, value: typeof latest?.value === "number" ? latest.value : value, detail: result.detail };
 }
 
 /** Whether the key may submit another value now; if not, the seconds until it may (scope values:submit). Counted from

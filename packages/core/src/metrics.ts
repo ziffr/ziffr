@@ -3,7 +3,7 @@
 import { closeForSystem } from "./system-closes";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { openOne, reserveIds, sealRow } from "./sealed-columns";
+import { openOne, openRows, reserveIds, sealRow, sealedPatch } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
@@ -117,9 +117,11 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const retentionPending = await defaultRetentionFor(actor.workspaceId, actor.personId, { period, aggregation });
   // The description is sealed for its row, so the row's id is taken first (spec 0028).
   const [metricId] = await reserveIds("metrics", 1);
+  // The name and the Target Range are sealed with it, for the same row (ticket #248).
+  const words = await sealRow("metrics", actor.workspaceId, { id: metricId, name, description: String(input.description ?? "").slice(0, 2000), target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax) });
   const { data: metric, error } = await db().from("metrics").insert({
-    id: metricId, slug, name, workspace_id: actor.workspaceId, owner_id: actor.personId, retention_pending: retentionPending,
-    description: (await sealRow("metrics", actor.workspaceId, { id: metricId, description: String(input.description ?? "").slice(0, 2000) })).description,
+    id: metricId, slug, name: words.name, workspace_id: actor.workspaceId, owner_id: actor.personId, retention_pending: retentionPending,
+    description: words.description,
     ...unit,
     format,
     decimals: Math.min(6, Math.max(0, Math.round(Number(input.decimals) || 0))),
@@ -127,7 +129,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     submission_rule: pick(input.submissionRule, RULES, "overwrite"),
     polarity: pick(input.polarity, POLARITIES, "higher"),
     aggregation,
-    target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax),
+    target_min: words.target_min, target_max: words.target_max, target_min_sealed: words.target_min_sealed, target_max_sealed: words.target_max_sealed,
     attainment_method: methodOrNull(input.attainmentMethod),
     sources: [...new Set((input.sources ?? []).filter((s): s is SourceId => SOURCES.includes(s as SourceId)))],
     from_catalog_id: fromCatalogId,
@@ -212,18 +214,18 @@ export class MetricKept extends Error {
 export async function deleteMetric(actor: Actor, metricId: number, confirmName: string, origin: { accessKeyId?: number } = {}): Promise<{ values: number }> {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
   const ws = actor.workspaceId;
-  const { data: m } = await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only the Metric's owner deletes it.");
   if (String(confirmName ?? "").trim() !== m.name) throw new MetricKept("Type the Metric's name to delete it.");
   const today = new Date().toISOString().slice(0, 10);
   const [{ data: derived }, { data: widgets }, { data: decks }, { data: links }] = await Promise.all([
-    db().from("metrics").select("name, formula").eq("workspace_id", ws).not("formula", "is", null),
+    db().from("metrics").select("id, name, formula").eq("workspace_id", ws).not("formula", "is", null),
     db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
     db().from("decks").select("document").eq("workspace_id", ws),
     db().from("view_links").select("metric_ids").eq("workspace_id", ws).is("revoked_at", null).gte("expires_at", today),
   ]);
   // Names of what blocks it only where the owner may see them: Derived Metrics are named, other things only counted.
-  const usedBy = (derived ?? []).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
+  const usedBy = (await openRows("metrics", ws, derived)).filter((d) => formulaInputs(String(d.formula)).includes(m.slug)).map((d) => d.name as string);
   if (usedBy.length) throw new MetricKept(`Other Metrics are computed from it (${usedBy.length}). Change their formulas first.`);
   const inWidgets = (widgets ?? []).filter((w) => widgetMetricIds(w.metric_ids ?? [], w.settings).includes(metricId)).length;
   const inDecks = (decks ?? []).filter((d) => deckMetricIds(d.document).includes(metricId)).length;
@@ -275,7 +277,7 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
     // A day inside the period counts as that period, as in pasted lines.
     return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period, ys), value };
   });
-  return { saved: await upsertSeries(metricId, kind, read, note) };
+  return { saved: await upsertSeries(actor.workspaceId, metricId, kind, read, note) };
 }
 
 /** The Metric owner removes Target Series or Projection values for some periods (period starts). Returns how many
@@ -312,16 +314,22 @@ export async function editableMetric(actor: Actor, metricId: number, what = "it"
 }
 
 /** Writes rows, one value per period: a later row for the same period wins. Returns how many periods were saved. */
-async function upsertSeries(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
+async function upsertSeries(ws: string, metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
   const ok = [...new Map(rows.map((r) => [r.period, r])).values()];
   if (ok.length) {
-    const { error } = await db().from("series_values").upsert(
-      ok.map((r) => ({ metric_id: metricId, kind, period_start: r.period, value: r.value, note: String(note ?? "").slice(0, 120) || null })),
-      { onConflict: "metric_id,kind,period_start" },
-    );
+    const { error } = await db().rpc("set_series_values", { p_metric: metricId, p_kind: kind, p_saves: await sealedSeriesSaves(ws, metricId, kind, ok), p_removes: [], p_note: String(note ?? "").slice(0, 120) });
     if (error) throw new Error("The series could not be saved.");
   }
   return ok.length;
+}
+
+/** Series points as set_series_values takes them: each value sealed with the Workspace Key for its place (Metric, kind
+ * and period), or plain where the Workspace does not seal. */
+export async function sealedSeriesSaves(ws: string, metricId: number, kind: "target" | "projection", points: { period: string; value: number }[]): Promise<{ period: string; value: number | null; sealed: string | null }[]> {
+  return Promise.all(points.map(async (p) => {
+    const row = await sealRow("series_values", ws, { metric_id: metricId, kind, period_start: p.period, value: p.value });
+    return { period: p.period, value: (row.value as number | null) ?? null, sealed: (row.value_sealed as string | null) ?? null };
+  }));
 }
 
 /** Most Submitters one change adds or removes: each one added gets a first Prompt, so a change never floods people. */
@@ -402,7 +410,7 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
     if (!name) throw new Error("Give the Metric a name.");
     update.name = name;
   }
-  if (p.description !== undefined) update.description = (await sealRow("metrics", ws, { id: metricId, description: String(p.description ?? "").slice(0, 2000) })).description;
+  if (p.description !== undefined) update.description = String(p.description ?? "").slice(0, 2000);
   if (p.unit !== undefined) update.unit = String(p.unit ?? "").slice(0, 20);
   if (p.unitPosition !== undefined) update.unit_position = pick(p.unitPosition, UNIT_POSITIONS, m.unit_position);
   if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);
@@ -431,7 +439,8 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   // A change of period or Aggregation that its Retention could not do is refused (a rate cannot be condensed), checked
   // against the final values, after the period above is settled.
   assertRetentionFits(m, { period: (update.period ?? m.period) as Period, aggregation: (update.aggregation ?? m.aggregation) as Aggregation });
-  const { error } = await db().from("metrics").update(update).eq("id", metricId).eq("workspace_id", ws);
+  // Name, description and Target Range are sealed for the row; a Target set to null clears both its columns.
+  const { error } = await db().from("metrics").update(await sealedPatch("metrics", ws, metricId, update)).eq("id", metricId).eq("workspace_id", ws);
   if (error) throw new Error("The change could not be saved.");
   await recordVersion("metric", metricId, actor.personId, { message: "Changed its description" });
 }

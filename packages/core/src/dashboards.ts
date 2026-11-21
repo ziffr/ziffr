@@ -2,7 +2,7 @@
 // function takes the Actor first and works only inside the actor's Workspace: owners and Editors change a dashboard,
 // saved widgets are their owner's, and every Metric a widget draws must be one the actor sees.
 import { db } from "./db";
-import { insertSealed, openOne, sealedPatch, sealRow } from "./sealed-columns";
+import { insertSealed, openOne, openRows, sealedPatch, sealRow } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { visibleDashboards, readableActions } from "./access";
 import { assertSeesMetrics } from "./sharing";
@@ -290,7 +290,9 @@ export async function metricHistory(actor: Actor, metricId: number) {
     readableActions(ws, actor.personId, { metricId }).then((a) => [...a].sort((x, y) => y.created_at.localeCompare(x.created_at))),
     db().from("observation_history").select("*").eq("metric_id", metricId).eq("workspace_id", ws).order("superseded_at", { ascending: false }).limit(100),
   ]);
-  return { observations: obs ?? [], actions, superseded: superseded ?? [] };
+  // Values are sealed with the Workspace Key; one that does not open is left out, never shown as ciphertext.
+  const opened = (rows: Record<string, unknown>[] | null, table: "observations" | "observation_history") => openRows(table, ws, rows).then((r) => r.filter((x) => typeof x.value === "number"));
+  return { observations: await opened(obs, "observations"), actions, superseded: await opened(superseded, "observation_history") };
 }
 
 /** The Metrics on the actor's Analysis Canvas in this workspace, in order. */

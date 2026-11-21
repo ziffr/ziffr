@@ -10,6 +10,7 @@
 // option: a team message about a value its Approver may send back is how rumours start. Groups are expanded to people,
 // never to a channel; a step tells at most TELL_PEOPLE_PER_STEP people. The state change is claimed in the database
 // first, so two values at once tell once, and the daily message limits are the Alerts' own.
+import { openWorkflowRow } from "./workflow-rows";
 import { getGroups, visibleMetricIds } from "./access";
 import { ALERT_MESSAGES_PER_PERSON_PER_DAY, ALERT_MESSAGES_PER_WORKSPACE_PER_DAY, TELL_PEOPLE_PER_STEP } from "./alert-limits";
 import { alertHolds, alertStep, isPerPeriod, validCondition, type AlertCondition } from "./alert-rules";
@@ -55,7 +56,7 @@ export async function checkTells(metricId: number, opts: { imported?: boolean } 
     // Nothing is sent from the demo, for a Derived or Archived Metric, or one without a Workflow.
     if (!row?.workflow_id || row.archived_at || row.formula || row.workspace_id === DEMO_WORKSPACE_ID) return;
     const ws = String(row.workspace_id);
-    const { data: wf } = await db().from("workflows").select("id, config").eq("id", row.workflow_id).eq("workspace_id", ws).maybeSingle();
+    const wf = await openWorkflowRow(ws, (await db().from("workflows").select("id, config").eq("id", row.workflow_id).eq("workspace_id", ws).maybeSingle()).data);
     const steps = ((wf?.config as { steps?: WorkflowStep[] } | null)?.steps ?? []).filter((s): s is TellStep => s.type === "tell");
     if (!wf || !steps.length) return;
     const ctx = await alertContext(ws);

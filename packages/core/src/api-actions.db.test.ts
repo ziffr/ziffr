@@ -10,7 +10,7 @@ import { requestedScopes } from "./assistant-connections";
 import { db } from "./db";
 import { mailHostResolver } from "./mail-hosts";
 import { JANUARY, periodStart } from "./periods";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { onValue } from "./workflow-engine";
 import { createWebhook } from "./webhooks";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
@@ -108,7 +108,8 @@ describe("replying, closing and marking done", () => {
     const annKey = await keyOf(w, ann, "member", ["actions:write"]);
     const after = await replyWithKey(annKey, question, { body: "Rent went up", correction: 90 }, API);
     expect(after.status).toBe("answered");
-    const { data } = await db().from("thread_messages").select("author_id, correction_value, correction_status").eq("action_id", question);
+    const { data: stored } = await db().from("thread_messages").select("id, workspace_id, author_id, correction_value, correction_value_sealed, correction_status").eq("action_id", question);
+    const data = (await opened("thread_messages", String(stored?.[0]?.workspace_id), stored)).map((r) => ({ author_id: r.author_id, correction_value: r.correction_value, correction_status: r.correction_status }));
     expect(data).toEqual([{ author_id: ann, correction_value: 90, correction_status: "proposed" }]);
     // Carla may not read it: it is not there for her. Without the scope, nothing happens either.
     await expect(replyWithKey(await keyOf(w, carla, "member", ["actions:write"]), question, { body: "Hi" }, API)).rejects.toBeInstanceOf(Forbidden);
@@ -233,9 +234,10 @@ describe("Self-checks", () => {
   it("corrects it, and the corrected value is the one that counts", async () => {
     const { w, sara, m, check } = await alone();
     await selfCheckWithKey(await keyOf(w, sara, "owner", ["values:submit"]), check, { decision: "correct", value: 120 }, API);
-    const { data } = await db().from("observations").select("value, original_value").eq("metric_id", m.id).eq("period_start", month()).order("id", { ascending: false }).limit(1).single();
-    expect(Number(data?.value)).toBe(120);
-    expect(Number(data?.original_value)).toBe(100);
+    const { data } = await db().from("observations").select("id, workspace_id, value, value_sealed, original_value, original_value_sealed").eq("metric_id", m.id).eq("period_start", month()).order("id", { ascending: false }).limit(1).single();
+    const [row] = await opened("observations", w.id, [data!]);
+    expect(Number(row.value)).toBe(120);
+    expect(Number(row.original_value)).toBe(100);
   });
 
   it("refuses without the scope, for someone else's check, and when a reply only says confirm", async () => {

@@ -2,6 +2,7 @@
 // setting on the Workflow (`lockSummary`). It is sent once, by the Lock that makes every value the Workflow asks for
 // locked, through the owner's Delivery Preference, and says only what the owner may see: it is their own
 // period timeline, as a short notice. Nothing is recorded for it: a period unlocked and locked again sends it again.
+import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
 import { periodTimeline } from "./period-timeline";
@@ -23,7 +24,7 @@ export async function sendLockSummary(ws: string, workflowId: number, period: st
 }
 
 async function summarise(ws: string, workflowId: number, period: string): Promise<boolean> {
-  const { data: wf } = await db().from("workflows").select("id, name, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle();
+  const wf = await openWorkflowRow(ws, (await db().from("workflows").select("id, name, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle()).data);
   if (!wf || !(wf.config as WorkflowConfig | null)?.lockSummary) return false;
   const { data: owner } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", wf.owner_id).maybeSingle();
   if (!owner) return false;

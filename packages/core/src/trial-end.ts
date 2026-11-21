@@ -6,6 +6,7 @@
 import { closeForSystem } from "./system-closes";
 import { sendWebhooksNow } from "./webhook-send";
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { keepTrial, trialEndsAt, trialThen } from "./trials";
@@ -203,11 +204,13 @@ export async function trialValuesCsv(actor: Actor): Promise<string> {
 /** A Workspace's values as CSV (see trialValuesCsv), of every Metric or only of the ones given. For callers that
  * checked who may read them. */
 export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> | null): Promise<string> {
-  const [{ data: all }, style] = await Promise.all([
-    db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId).order("name"),
+  const [{ data: sealedRows }, style] = await Promise.all([
+    db().from("metrics").select("id, slug, name, period, unit, aggregation").eq("workspace_id", workspaceId),
     numberStyleOf(workspaceId),
   ]);
-  const metrics = (all ?? []).filter((m) => !only || only.has(m.id as number));
+  // Names are sealed, so the order by name is made here, on the opened rows.
+  const all = (await openRows("metrics", workspaceId, sealedRows)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const metrics = all.filter((m) => !only || only.has(m.id as number));
   const sep = NUMBER_STYLE_MARKS[style].decimal === "," ? ";" : ",";
   const cell = (v: unknown) => {
     const s = String(v ?? "");
@@ -221,10 +224,10 @@ export async function valuesCsv(workspaceId: string, only: ReadonlySet<number> |
   const condensed = await condensedFor(workspaceId, metrics.map((m) => m.id as number));
   for (const m of metrics) {
     for (let from = 0; ; from += 1000) {
-      const { data: rows } = await db().from("observations").select("period_start, value, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
+      const { data: rows } = await db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", workspaceId).eq("metric_id", m.id)
         .order("period_start").order("id").range(from, from + 999);
       // A period a Condensed Value stands for is written once, as it, even while its originals are not deleted yet.
-      for (const r of (rows ?? []).filter((x) => !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
+      for (const r of (await openRows("observations", workspaceId, (rows ?? []) as Record<string, unknown>[])).filter((x) => typeof x.value === "number" && !inCondensed(condensed[m.id as number] ?? [], String(x.period_start)))) lines.push([cell(m.slug), cell(m.name), cell(m.period), cell(r.period_start), number(r.value), cell(m.unit), cell(r.source), cell(r.created_at), cell(""), cell("")].join(sep));
       if (!rows || rows.length < 1000) break;
     }
     for (const c of condensed[m.id as number] ?? []) {

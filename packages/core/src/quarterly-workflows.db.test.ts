@@ -8,13 +8,17 @@ import { deliverPrompt } from "./deliveries";
 import { setYearStart } from "./fiscal-year";
 import { approve, closePeriod, getState, onValue, runWorkflows, setLock } from "./workflow-engine";
 import { saveWorkflow } from "./workflows";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import type { WorkflowConfig } from "./types";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 async function ws() { const w = await workspace(); cleanups.push(w.cleanup); return w; }
-const prompts = async (metricId: number) => (await db().from("prompts").select("period_start, text").eq("metric_id", metricId).order("id")).data ?? [];
+// A Prompt's text names the Metric and is sealed with the Workspace Key (spec 0028): read as the core reads it.
+const prompts = async (metricId: number) => {
+  const { data } = await db().from("prompts").select("id, workspace_id, period_start, text").eq("metric_id", metricId).order("id");
+  return (await opened("prompts", String(data?.[0]?.workspace_id ?? ""), data, { dropId: true })).map((p) => ({ period_start: p.period_start, text: p.text }));
+};
 
 /** A workspace whose year starts in April, with a quarterly Metric that has a Workflow and a Submitter. */
 async function setup(period: "quarter" | "year", config: WorkflowConfig) {

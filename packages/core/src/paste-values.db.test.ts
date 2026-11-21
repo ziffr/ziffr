@@ -306,8 +306,8 @@ describe("Record as history", () => {
     expect(preview.counts).toMatchObject({ history: 1, replaces: 1, recorded: 1 });
     const done = ok(await recordPastedValues(w.actor(sara), { text, asHistory: [m.id] }, quiet()));
     expect(brief(done.rows)).toEqual(brief(preview.rows));
-    const { data: obs } = await db().from("observations").select("period_start, value, imported").eq("metric_id", m.id).order("period_start");
-    expect(obs!.map((o) => [o.period_start, Number(o.value), o.imported])).toEqual([[ago(4), 100, false], [ago(3), 900, true], [ago(2), 2000, false], [thisMonth(), 1100, false]]);
+    const { data: obs } = await db().from("observations").select("id, period_start, value, value_sealed, imported").eq("metric_id", m.id).order("period_start");
+    expect((await opened("observations", w.id, obs)).map((o) => [o.period_start, Number(o.value), o.imported])).toEqual([[ago(4), 100, false], [ago(3), 900, true], [ago(2), 2000, false], [thisMonth(), 1100, false]]);
     const log = await opened("intake_log", w.id, (await db().from("intake_log").select("id, marks").eq("workspace_id", w.id).order("id")).data, { dropId: true });
     expect(log!.map((l) => l.marks)).toEqual([["paste", "import"], ["paste"], ["paste"]]);
   });

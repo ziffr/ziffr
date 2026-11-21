@@ -8,6 +8,8 @@
 // itself is not part of the Metric rows that reach browsers, View Links and Snapshots (`retentionFor` reads it).
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "./db";
+import { keptIds } from "./snapshots";
+import { openOne, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { csvLine } from "./audit-kinds";
@@ -114,7 +116,8 @@ const COLUMNS = "id, slug, name, owner_id, period, aggregation, formula, retenti
 async function settableMetric(actor: Actor, metricId: number): Promise<Row> {
   refuseInDemo(actor);
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
-  const { data: m } = await db().from("metrics").select(COLUMNS).eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  // The name is sealed with the Workspace Key (spec 0028): opened here, before anyone is asked to type or is told it.
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select(COLUMNS).eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data as Record<string, unknown> | null) as Row | null;
   if (!m || !(await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId))).has(m.id)) throw new Forbidden();
   if (!(actor.role === "owner" || actor.role === "admin" || (actor.role !== "guest" && m.owner_id === actor.personId))) throw new Forbidden("Only Owners, Admins and the Metric's owner set its Retention.");
   return m as Row;
@@ -199,12 +202,20 @@ async function previewMetric(actor: Actor, m: Row, setting: Retention, today: st
 /** Snapshots that kept this Metric and reach into the affected periods, counted for the Workspace and named only where
  * the actor may open them: its dashboard and every Metric it kept. */
 async function snapshotsHolding(actor: Actor, metricId: number, from: string, ctx: { visible: Set<number>; dashboards: Map<number, string> }): Promise<{ snapshots: number; names: string[] }> {
-  const { data, count } = await db().from("dashboard_snapshots").select("id, dashboard_id, label, kept:frozen->data->metrics", { count: "exact" })
-    .eq("workspace_id", actor.workspaceId).is("deleted_at", null).not("frozen", "is", null).gte("period_end", from)
-    .contains("frozen->data->metrics", JSON.stringify([{ id: metricId }])).order("id").limit(MAX_SNAPSHOTS_READ);
-  const rows = (data ?? []) as unknown as { id: number; dashboard_id: number; label: string; kept: { id: number }[] | null }[];
-  const names = rows.filter((r) => ctx.dashboards.has(r.dashboard_id) && (r.kept ?? []).every((k) => ctx.visible.has(Number(k.id)))).slice(0, MAX_NAMES).map((r) => `${ctx.dashboards.get(r.dashboard_id)}, ${r.label}`);
-  return { snapshots: count ?? rows.length, names };
+  // A Snapshot lists the Metrics it kept in its frozen part (`metricIds`, ids only); one frozen before sealing in
+  // `data.metrics`. Both are asked, and a Snapshot found by either counts once.
+  const base = () => db().from("dashboard_snapshots").select("id, dashboard_id, label, ids:frozen->metricIds, legacy:frozen->data->metrics", { count: "exact" })
+    .eq("workspace_id", actor.workspaceId).is("deleted_at", null).not("frozen", "is", null).gte("period_end", from);
+  const [byIds, byLegacy] = await Promise.all([
+    base().contains("frozen->metricIds", JSON.stringify([metricId])).order("id").limit(MAX_SNAPSHOTS_READ),
+    base().contains("frozen->data->metrics", JSON.stringify([{ id: metricId }])).order("id").limit(MAX_SNAPSHOTS_READ),
+  ]);
+  const found = new Map<number, { id: number; dashboard_id: number; label: string; ids?: unknown; legacy?: unknown }>();
+  for (const r of [...(byIds.data ?? []), ...(byLegacy.data ?? [])] as unknown as { id: number; dashboard_id: number; label: string }[]) found.set(r.id, r);
+  const rows = [...found.values()].sort((a, b) => a.id - b.id);
+  const count = Math.max(byIds.count ?? 0, 0) + Math.max(byLegacy.count ?? 0, 0);
+  const names = rows.filter((r) => ctx.dashboards.has(r.dashboard_id) && (keptIds(r) ?? [-1]).every((k) => ctx.visible.has(k))).slice(0, MAX_NAMES).map((r) => `${ctx.dashboards.get(r.dashboard_id)}, ${r.label}`);
+  return { snapshots: count || rows.length, names };
 }
 
 /** Frozen View Links, still working, that show this Metric: what they showed stays. */
@@ -245,7 +256,9 @@ async function previewEverything(actor: Actor, rawSetting: unknown) {
   const setting = parsed(rawSetting);
   if (!setting) throw new Error("Pick how long to keep values, and what then happens, to see what it would do.");
   const [ys, today, ctx] = await Promise.all([yearStartOf(actor.workspaceId), workspaceToday(actor.workspaceId), context(actor)]);
-  const { data } = await db().from("metrics").select(COLUMNS).eq("workspace_id", actor.workspaceId).order("name").order("id").limit(MAX_METRICS);
+  // Names are sealed: the Metrics come in their order of making and are sorted by their opened names here.
+  const { data: sealed } = await db().from("metrics").select(COLUMNS).eq("workspace_id", actor.workspaceId).order("id").limit(MAX_METRICS);
+  const data = (await openRows("metrics", actor.workspaceId, sealed as Record<string, unknown>[] | null)).sort((a, b) => String(a.name).localeCompare(String(b.name)) || Number(a.id) - Number(b.id));
   const reasons = new Map<string, number>();
   const candidates: Row[] = [];
   for (const m of (data ?? []) as Row[]) {
@@ -470,10 +483,13 @@ export function assertRetentionFits(m: { retention?: unknown; retention_pending?
  * if they still see the Metric. Works in each Workspace's own day; a Metric is handled once, so calling it twice a day
  * does no harm. `only` limits it to one Workspace (a test of the job). The job must hold a Metric to what the person confirmed (`counted`) and ask again for more. */
 export async function settleRetentions(now = new Date(), only?: { workspaceId: string }): Promise<{ started: number; reminded: number }> {
-  const rows = await allRows<Row & { workspace_id: string }>((from, to) => {
+  const read = await allRows<Row & { workspace_id: string }>((from, to) => {
     const q = db().from("metrics").select(`${COLUMNS}, workspace_id`).not("retention_pending", "is", null);
     return (only ? q.eq("workspace_id", only.workspaceId) : q).order("id").range(from, to);
   });
+  // Names are sealed (spec 0028): opened in the Workspace each Metric belongs to, since this reads across Workspaces.
+  const rows: (Row & { workspace_id: string })[] = [];
+  for (const m of read) rows.push((await openOne("metrics", m.workspace_id, m as Record<string, unknown>)) as Row & { workspace_id: string });
   const zones = new Map<string, string>();
   let begun = 0;
   let reminded = 0;
@@ -536,12 +552,15 @@ export async function retentionValuesCsv(actor: Actor, metricId: number, rawSett
   if (r.held.filter((h) => periods.has(h.period_start)).reduce((n, h) => n + h.values_held + h.superseded + h.breakdown_rows, 0) > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
   const sorted = [...periods].sort();
   const [first, last] = [sorted[0], sorted[sorted.length - 1]];
-  const [values, earlier, targets] = await Promise.all([
-    allRows<{ id: number; period_start: string; value: unknown; source: string | null; created_at: string }>((a, b) => db().from("observations").select("id, period_start, value, source, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("created_at").order("id").range(a, b)),
-    allRows<{ observation_id: number; period_start: string; value: unknown; source: string | null; recorded_at: string }>((a, b) => db().from("observation_history").select("observation_id, period_start, value, source, recorded_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
-    allRows<{ period_start: string; value: unknown }>((a, b) => db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
+  const [valuesRead, earlierRead, targetsRead] = await Promise.all([
+    allRows<{ id: number; period_start: string; value: unknown; source: string | null; created_at: string }>((a, b) => db().from("observations").select("id, period_start, value, value_sealed, source, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("created_at").order("id").range(a, b)),
+    allRows<{ observation_id: number; period_start: string; value: unknown; source: string | null; recorded_at: string }>((a, b) => db().from("observation_history").select("id, observation_id, period_start, value, value_sealed, source, recorded_at").eq("workspace_id", ws).eq("metric_id", m.id).gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
+    allRows<{ period_start: string; value: unknown }>((a, b) => db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", m.id).eq("kind", "target").gte("period_start", first).lte("period_start", last).order("period_start").order("id").range(a, b)),
   ]);
-  const inPeriods = <T extends { period_start: string }>(rows: T[]) => rows.filter((x) => periods.has(x.period_start));
+  // Values are sealed with the Workspace Key (spec 0028): opened here; one that does not open is left out of the copy.
+  const [values, earlier, targets] = await Promise.all([openRows("observations", ws, valuesRead), openRows("observation_history", ws, earlierRead), openRows("series_values", ws, targetsRead)]) as unknown as [
+    { id: number; period_start: string; value: unknown; source: string | null; created_at: string }[], { observation_id: number; period_start: string; value: unknown; source: string | null; recorded_at: string }[], { period_start: string; value: unknown }[]];
+  const inPeriods = <T extends { period_start: string; value: unknown }>(rows: T[]) => rows.filter((x) => periods.has(x.period_start) && typeof x.value === "number");
   const lines: unknown[][] = [];
   for (const v of inPeriods(values)) lines.push([v.period_start, "value", v.value, "", String(v.created_at).slice(0, 10), v.source]);
   for (const v of inPeriods(earlier)) lines.push([v.period_start, "earlier value", v.value, "", String(v.recorded_at).slice(0, 10), v.source]);
@@ -552,12 +571,19 @@ export async function retentionValuesCsv(actor: Actor, metricId: number, rawSett
   for (let i = 0; i < ids.length; i += 200) {
     const chunk = ids.slice(i, i + 200);
     const [rows, history] = await Promise.all([
-      allRows<{ id: number; observation_id: number; label: string; value: unknown }>((a, b) => db().from("breakdown_rows").select("id, observation_id, label, value").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
-      allRows<{ id: number; row_id: number | null; observation_id: number; label: string; value: unknown }>((a, b) => db().from("breakdown_history").select("id, row_id, observation_id, label, value").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+      allRows<{ id: number; observation_id: number; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_rows").select("id, observation_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+      allRows<{ id: number; row_id: number | null; observation_id: number; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_history").select("id, row_id, observation_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
     ]);
     // Labels are sealed with the Workspace Key; one that does not open reads as a dash, never as ciphertext. A replaced row's label is sealed for its row's id.
-    for (const b of rows) lines.push([periodOf.get(b.observation_id), "breakdown row", b.value, openRow(cipher, "breakdown_rows", b).label || "–", "", ""]);
-    for (const b of history) lines.push([periodOf.get(b.observation_id), "earlier breakdown row", b.value, openRow(cipher, "breakdown_rows", { ...b, id: b.row_id ?? b.id }).label || "–", "", ""]);
+    // Values are sealed too (spec 0028 step 2): a row whose value does not open is left out of the copy.
+    for (const b of rows) {
+      const o = openRow(cipher, "breakdown_rows", b);
+      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "breakdown row", o.value, o.label || "–", "", ""]);
+    }
+    for (const b of history) {
+      const o = openRow(cipher, "breakdown_history", b);
+      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "earlier breakdown row", o.value, openRow(cipher, "breakdown_rows", { ...b, id: b.row_id ?? b.id }).label || "–", "", ""]);
+    }
   }
   for (const t of inPeriods(targets)) lines.push([t.period_start, "target", t.value, "", "", ""]);
   if (lines.length > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");

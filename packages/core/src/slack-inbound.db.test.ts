@@ -135,7 +135,7 @@ describe("answers by Slack", () => {
     const d = await sent(w.id, ann);
     expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "Two visits were cancelled."))).toEqual({ outcome: "replied" });
     expect(await receiveSlackEvent(message(bot, annSlack, d.slack_channel, d.slack_ts, "Sorry, wrong.\nCorrection: 1,234"))).toEqual({ outcome: "corrected" });
-    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value").eq("action_id", actionId).order("id")).data);
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value, correction_value_sealed").eq("action_id", actionId).order("id")).data);
     expect(thread).toMatchObject([{ author_id: ann, body: "Two visits were cancelled." }, { author_id: ann, correction_value: 1234 }]);
   });
 

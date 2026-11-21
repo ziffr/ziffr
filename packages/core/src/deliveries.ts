@@ -5,7 +5,7 @@
 import { feedIdsAmong } from "./feed-people";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { insertSealed, openNames, openRows } from "./sealed-columns";
+import { insertSealed, openNames, openOne, openRows } from "./sealed-columns";
 import { CONNECTORS, CONNECTOR_IDS, PREFERENCE_KIND, type ConnectorId, type DeliveryKind } from "./connectors/index";
 import { FORM_LINK, inboundEnabled, initialMailState } from "./mail";
 import { initialDeliveryState, sendQueuedNow } from "./outbound";
@@ -49,7 +49,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   // A Task or Question given to someone is also told to the Webhooks, even to oneself: it is in the Workspace either way.
   if (input.kind === "question" || input.kind === "task") await announceNewAction(input.actionId, input.source ?? FROM_APP);
   if (input.senderId === input.recipientId) return;
-  const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metrics(name, period)").eq("id", input.actionId).single();
+  const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metric_id").eq("id", input.actionId).single();
   if (!found) return;
   const [a] = await openRows("actions", found.workspace_id, [found]);
   // A question that does not open (changed in the database, or under a destroyed key) is not sent at all.
@@ -60,7 +60,9 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   if (!sender || !recipient) return;
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(a.workspace_id, recipient.id, input.kind, a.id);
   const c = CONNECTORS[via];
-  const metric = a.metrics as unknown as { name: string; period: Period };
+  // The Metric's name is sealed, so it is read on its own and opened rather than embedded in the Action.
+  const metric = await openOne("metrics", a.workspace_id, (await db().from("metrics").select("id, name, period").eq("id", a.metric_id).eq("workspace_id", a.workspace_id).maybeSingle()).data) as { name: string; period: Period } | null;
+  if (!metric) return;
   const ref = refFor(a.id);
   const { subject, body } = c.render({
     kind: input.kind,
@@ -82,7 +84,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
 export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }) {
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
-  const [{ data: metric }, { data: person }, { data: tokens }] = await Promise.all([
+  const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
     db().from("metrics").select("id, name, period, sources, formula, workspace_id, archived_at").eq("id", input.metricId).single(),
     // A Contact is reached by the details this workspace keeps for them; a member by their own.
     db().from("profiles").select("*").eq("id", input.submitterId).single().then(async (r) => {
@@ -113,6 +115,8 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
     }
   }
   if (!token) return false;
+  // The Metric's name is sealed (ticket #248).
+  const metric = await openOne("metrics", metricRow?.workspace_id ?? "", metricRow);
   // A Derived Metric is computed and an Archived Metric asks for nothing: neither is ever prompted for.
   if (!metric || !person || !token || metric.formula || metric.archived_at) return false;
   let via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(metric.workspace_id, person.id, "prompt", null);
@@ -125,7 +129,8 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const period = input.period ?? current;
   const label = period !== current ? `for ${periodLabel(period, metric.period as Period, ys)}` : CURRENT_PERIOD[metric.period as Period];
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
-  const { data: prompt } = await db().from("prompts").insert({ workspace_id: metric.workspace_id, metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }).select("id").single();
+  // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
+  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }]) as { id: number }[];
   const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: FORM_LINK });
   const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
   const [d] = await insertSealed("deliveries", metric.workspace_id, [{ connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id }]) as { id: number }[];

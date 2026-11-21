@@ -137,7 +137,7 @@ describe("an Archived Metric takes no values", () => {
     const update = await db().from("observations").update({ value: 5 }).eq("id", id);
     expect(update.error?.code).toBe("ZF440");
     expect((await db().from("observations").update({ period_start: "2026-08-01" }).eq("id", id)).error?.code).toBe("ZF440");
-    const rpc = await db().rpc("record_observation", { p_metric: m.id, p_period: "2026-09-01", p_rule: "overwrite", p_value: 6, p_submitter: null, p_source: "api", p_access_key: null, p_imported: false, p_rows: [] });
+    const rpc = await db().rpc("record_value", { p_metric: m.id, p_period: "2026-09-01", p_op: "overwrite", p_new_id: 0, p_value: 6, p_value_sealed: null, p_submitter: null, p_source: "api", p_access_key: null, p_imported: false, p_expect_id: id, p_expect_count: 1, p_expect_value: "4", p_expect_rows: 0, p_rows: [] });
     expect(rpc.error?.code).toBe("ZF440");
     expect((await valuesOf(m.id)).map((v) => v.value)).toEqual([4]);
     expect((await db().from("observations").delete().eq("id", id)).error).toBeNull();

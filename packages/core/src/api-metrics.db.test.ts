@@ -2,6 +2,7 @@
 // demo, the creator as Submitter, fields checked like the form, the first Version naming the key, the daily limit.
 // Changing a Target Range, Target Series and Projections (ticket #211): only the creator's Metrics to change, never a
 // Guest's, and a refused item writes nothing.
+import { openWorkflowRow } from "./workflow-rows";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { actorForKey, checkKeyRequest, createAccessKey } from "./access-keys";
@@ -13,7 +14,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { saveWorkflow, setMetricWorkflow, setWorkflowCheck } from "./workflows";
 import { createFeed, deleteFeed } from "./feeds";
 import { share } from "./sharing";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -108,7 +109,7 @@ describe("targets with a key", () => {
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", mine.id);
     expect(versions?.map((v) => v.message).join(" ")).toContain("key “Setup script”");
     await updateMetricWithKey(key, mine.slug, { target_min: 2, name: "Renamed" } as never);
-    const { data: kept } = await db().from("metrics").select("name, target_min").eq("id", mine.id).single();
+    const [kept] = await opened("metrics", w.id, (await db().from("metrics").select("id, name, target_min, target_min_sealed").eq("id", mine.id)).data, { dropId: true });
     expect(kept).toEqual({ name: "Revenue", target_min: 2 });
     await expect(updateMetricWithKey(key, mine.slug, { target_min: 10 })).rejects.toBeInstanceOf(MetricChangeRefused);
 
@@ -149,7 +150,7 @@ describe("the Unusual Value check with a key", () => {
 
     expect((await setUnusualValueCheckWithKey(key, revenue.slug, { change_pct: 50, outside_target: true })).check).toEqual({ change_pct: 50, outside_target: true });
     // The other steps stay, and Orders, which shares the Workflow, has the new check too.
-    const { data: wf } = await db().from("workflows").select("config").eq("id", bens).single();
+    const wf = await openWorkflowRow(w.id, (await db().from("workflows").select("id, config").eq("id", bens).single()).data);
     expect(wf?.config).toEqual({ dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 2 }, { type: "check", changePct: 50, outsideTarget: true }, { type: "publish", lock: true }] });
     expect((await unusualValueCheckWithKey(key, orders.slug)).check).toEqual({ change_pct: 50, outside_target: true });
     // Written only when the Workflow is as it was read: an edit in the editor meanwhile is never overwritten.

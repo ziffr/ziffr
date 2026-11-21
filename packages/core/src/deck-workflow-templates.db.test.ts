@@ -1,5 +1,6 @@
 // Deck Templates and Workflow Templates against the real database (spec 0030, #274): saving a deck or a Workflow as
 // one, and starting from one. Who may, which Metrics may fill a Slot, and that a Workflow Template names nobody.
+import { openWorkflowRow } from "./workflow-rows";
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
@@ -127,7 +128,7 @@ describe("Workflow Templates", () => {
     expect(JSON.stringify(await listWorkflowTemplates(w.actor(ben, "member")))).not.toContain(sara);
 
     const id = await createWorkflowFromTemplate(w.actor(ben, "member"), { template: t, name: "Ben's close", approvers: [ann] });
-    const { data: made } = await db().from("workflows").select("name, owner_id, config").eq("id", id).single();
+    const made = await openWorkflowRow(w.id, (await db().from("workflows").select("id, name, owner_id, config").eq("id", id).single()).data).then((r) => r && { name: r.name, owner_id: r.owner_id, config: r.config });
     // Saved Workflows always say what happens when nobody else can approve; the template keeps that choice too.
     expect(made).toEqual({ name: "Ben's close", owner_id: ben, config: { ...config([ann]), steps: config([ann]).steps.map((s) => (s.type === "approve" ? { ...s, nobodyElse: "self-check" } : s)) } });
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "workflow").eq("object_id", id);

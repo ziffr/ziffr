@@ -13,6 +13,7 @@ import { yearStartOf } from "./fiscal-year";
 import { formatValue } from "./format";
 import { periodLabel, periodStart, shiftPeriod, type YearStart } from "./periods";
 import { PASTE_LIMITS, pasteProblemText, pasteReadingText, readPaste, type PasteLayout, type PasteMetric, type PasteValue } from "./paste-reader";
+import { openRows } from "./sealed-columns";
 import { peopleIn, submissionEffects, submitValue, type SubmissionEffects, type SubmissionResult } from "./submissions";
 import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -247,15 +248,17 @@ async function judge(s: Setting, c: Checked, values: PasteValue[]): Promise<Past
   }
   const ids = [...new Set(go.map((v) => v.metricId!))];
   if (ids.length) {
-    const [latest, { data: states }, { data: targets }, outlooks, spans] = await Promise.all([
+    const [latest, { data: states }, { data: targetRows }, outlooks, spans] = await Promise.all([
       getLatestObservations(s.ws, { metricIds: ids }),
       db().from("period_states").select("metric_id, period_start, state").eq("workspace_id", s.ws).in("metric_id", ids).eq("state", "locked"),
-      db().from("series_values").select("metric_id, period_start, value").eq("workspace_id", s.ws).in("metric_id", ids).eq("kind", "target"),
+      db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", s.ws).in("metric_id", ids).eq("kind", "target"),
       // Values are recorded under the person pasting, also through a Token they hold as a Stand-in.
       Promise.all(ids.map(async (id) => [id, await valueOutlook(id, s.actorId)] as const)),
       // Periods condensed (spec 0033) take no more values: a row for one is refused, row by row, with the day.
       condensedSpans(s.ws, ids),
     ]);
+    // Target Series points are sealed with the Workspace Key; one that does not open is left out.
+    const targets = (await openRows("series_values", s.ws, (targetRows ?? []) as Record<string, unknown>[])).filter((t) => typeof t.value === "number") as { metric_id: number; period_start: string; value: number }[];
     // The values as they will stand while the paste is recorded, period by period.
     const now = new Map(latest.map((o) => [`${o.metric_id} ${o.period_start}`, Number(o.value)]));
     const locked = new Set((states ?? []).map((x) => `${x.metric_id} ${x.period_start}`));
@@ -293,7 +296,7 @@ async function judge(s: Setting, c: Checked, values: PasteValue[]): Promise<Past
           default: Object.assign(row, { outcome: "kept_beside", detail: `Kept beside ${fv(there)}.` });
         }
       }
-      row.approval = approvalFor(m, v.period!, after, now, outlook.get(m.id) ?? null, row.outcome === "history", s, (targets ?? []).filter((t) => t.metric_id === m.id));
+      row.approval = approvalFor(m, v.period!, after, now, outlook.get(m.id) ?? null, row.outcome === "history", s, targets.filter((t) => t.metric_id === m.id));
       now.set(key, after);
       byPlace.set(v.place, row);
     }

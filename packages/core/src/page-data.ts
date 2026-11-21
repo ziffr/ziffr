@@ -1,5 +1,6 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
+import { openWorkflowRows } from "./workflow-rows";
 import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
 import { openNames, openOne, openRows } from "./sealed-columns";
@@ -93,7 +94,7 @@ export async function sourcesView(actor: Actor) {
   const mine = new Set((own ?? []).map((t) => t.code));
   const viaCode = (source: string) => source === "web_form" || source === "api";
   const shown = (await openRows("intake_log", ws, log)).map((l) => (inDemo(actor) || !l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
-  return { prompts: (asked ?? []).reverse(), log: shown.reverse(), tokens: own ?? [] };
+  return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [] };
 }
 
 /** The Activity page's raw material: versions and replaced values the person may see, and what labels them. */
@@ -139,7 +140,8 @@ export async function activityView(actor: Actor) {
     metrics: metrics.filter((m) => visible.has(m.id)),
     dashboards,
     versions: shown,
-    superseded: (superseded ?? []).filter((x) => visible.has(x.metric_id)),
+    // Replaced values are sealed with the Workspace Key; one that does not open is left out, never shown as ciphertext.
+    superseded: (await openRows("observation_history", ws, superseded)).filter((x) => visible.has(x.metric_id) && typeof x.value === "number"),
     decks: decks ?? [],
     // Only the titles of widgets the person may see are opened (spec 0028).
     widgets: await openRows("widgets", ws, (widgets ?? []).filter((w) => widgetIds.has(w.id))),
@@ -150,7 +152,8 @@ export async function activityView(actor: Actor) {
  * (with the names of the Feeds among them). */
 export async function workflowsView(actor: Actor) {
   const ws = actor.workspaceId;
-  const [all, { data: workflows }] = await Promise.all([getMetrics(ws), db().from("workflows").select("*").eq("workspace_id", ws).order("id")]);
+  const [all, { data: sealedWorkflows }] = await Promise.all([getMetrics(ws), db().from("workflows").select("*").eq("workspace_id", ws).order("id")]);
+  const workflows = await openWorkflowRows(ws, sealedWorkflows);
   const ids = [...(await visibleMetricIds(ws, actor.personId, all))];
   const [{ data: states }, { data: tokens }] = await Promise.all([
     db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids),
@@ -191,7 +194,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   const current = workingPeriod(today, period, await yearStartFor(ws, period));
   const [{ data: tokens }, { data: workflows }, { data: row }, { data: state }, { data: waiting }] = await Promise.all([
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for").eq("workspace_id", ws).eq("metric_id", metricId),
-    db().from("workflows").select("*").eq("workspace_id", ws).order("id"),
+    db().from("workflows").select("*").eq("workspace_id", ws).order("id").then(async (r) => ({ data: await openWorkflowRows(ws, r.data) })),
     db().from("metrics").select("workflow_id, owner_id").eq("id", metricId).eq("workspace_id", ws).single(),
     db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle(),
     // Every period whose value waits for Approval, not only the Workflow's: the page marks those values as not
@@ -321,9 +324,10 @@ export async function submissionForm(code: string) {
   const metric = normalizeMetric((await openOne("metrics", String(token.workspace_id), token.metrics)) as Metric) as Metric;
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(String(token.workspace_id)), numberStyleOf(String(token.workspace_id))]);
   const period = periodStart(new Date(), metric.period, yearStart);
-  const { data: existing } = await db().from("observations").select("value").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const { data: existingRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const [existing] = await openRows("observations", String(token.workspace_id), (existingRows ?? []) as Record<string, unknown>[]);
   const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
-  return { metric, person, period, yearStart, numberStyle, current: existing?.[0] ? Number(existing[0].value) : null };
+  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */

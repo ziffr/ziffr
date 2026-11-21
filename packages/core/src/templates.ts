@@ -2,6 +2,7 @@
 // Template, Deck Template, Workflow Template): everyone in the Workspace uses them, only
 // their creator changes them. A template is seen by the whole team, so only someone who may change the widget and
 // sees every Metric it draws publishes it. Every function takes the Actor first.
+import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
@@ -128,7 +129,8 @@ export async function saveDeckTemplate(actor: Actor, input: { deckId: number; na
 /** Saves a Workflow of the actor's Workspace as a team Workflow Template, new or replacing one of the actor's own. Its
  * Approvers are left out, only how many there are kept: a template names no person (GLOSSARY: Workflow Template). */
 export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: number; name: string; description: string; replaceId?: number | null }): Promise<number> {
-  const { data } = await db().from("workflows").select("name, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  // Its id comes along: the config's sealed numbers are bound to it. A template holds them plain (it names no person and no row).
+  const data = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!data) throw new Forbidden();
   const body = toWorkflowTemplate(data.config as WorkflowConfig);
   return store(actor, "workflow", input.replaceId, { ...names(input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });

@@ -2,6 +2,8 @@
 // default is Ratio for every Workspace, only Owners and Admins change it and never in the demo, each change is
 // audited; a Metric's own method is stored with a check, set in the form and through the API, copied by a duplicate
 // and kept in Versions; Snapshots and frozen View Links keep the methods they were made with.
+import { openFrozenData } from "./sealed-words";
+import { workspaceCipher } from "./workspace-keys";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Forbidden, type KeyActor } from "./actor";
 import { actorForKey, createAccessKey } from "./access-keys";
@@ -141,7 +143,8 @@ describe("Snapshots and View Links", () => {
     const snap = await takeSnapshot(owner, dash, { kind: "month", start: "2026-10-01" });
     // As a Snapshot from 0.9.0 kept it: no method in its data or its Metrics.
     const { data: row } = await db().from("dashboard_snapshots").select("frozen").eq("id", snap).single();
-    const frozen = row!.frozen as { data: Record<string, unknown> & { metrics: Record<string, unknown>[] } };
+    // The data is sealed with the Workspace Key (spec 0028): opened here, and written back plain, as it was before.
+    const frozen = openFrozenData(await workspaceCipher(w.id), "dashboard_snapshots", snap, row!.frozen as { data: unknown })! as { data: Record<string, unknown> & { metrics: Record<string, unknown>[] } };
     delete frozen.data.attainmentMethod;
     for (const x of frozen.data.metrics) delete x.attainment_method;
     // The database keeps a Snapshot's frozen part as it was taken; only this test rewrites it, through a fresh copy.

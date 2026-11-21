@@ -9,7 +9,7 @@ import { db } from "./db";
 import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { dashboardWidgets } from "./page-data";
 import { openHistoryLabel } from "./breakdown-labels";
-import { ALL_SEALED_COLUMNS } from "./sealed-columns";
+import { ALL_SEALED_COLUMNS, SEALED_NUMBERS } from "./sealed-columns";
 import { SEALED_LABELS } from "./sealed-labels";
 import { SEALED_THINGS } from "./sealed-things";
 import { addContact, removeContact } from "./team";
@@ -195,7 +195,7 @@ describe("the re-encryption job beyond the sealed columns", () => {
   });
 
   it("lists every sealed thing in the progress page's words", () => {
-    const expected = [...Object.entries(ALL_SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), ...SEALED_THINGS.map((t) => `${t.table}.${t.column}`), "audit_events.details"].sort();
+    const expected = [...Object.entries(ALL_SEALED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), ...Object.entries(SEALED_NUMBERS).flatMap(([t, cols]) => cols.map((c) => `${t}.${c}`)), ...SEALED_THINGS.map((t) => `${t.table}.${t.column}`), "audit_events.details"].sort();
     expect(Object.keys(SEALED_LABELS).sort()).toEqual(expected);
   });
 

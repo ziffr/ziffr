@@ -1,5 +1,6 @@
 // What a new Trial Workspace starts with, against the real database (spec 0021, ticket 263): the Test Metric only,
 // without made-up history, a Workflow that asks its Owner each day and a small dashboard, and not a single message sent.
+import { opened } from "./test/db-fixtures";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -30,9 +31,10 @@ describe("a new Trial Workspace", () => {
     const t = await newTrial();
     const { data: metrics } = await db().from("metrics").select("id, name, unit, period, sources, owner_id, workflow_id").eq("workspace_id", t.id);
     expect(metrics).toHaveLength(1);
+    const read = await opened("metrics", t.id, metrics);
     const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_guide_step").eq("id", t.id).single();
     expect(ws!.trial_guide_step).toBe("welcome");
-    const m = metrics![0];
+    const m = read[0];
     expect(m.id).toBe(ws!.trial_test_metric_id);
     expect(m).toMatchObject({ name: "Cups of coffee", unit: "cups", period: "day", owner_id: t.owner });
     expect(m.workflow_id).not.toBeNull();

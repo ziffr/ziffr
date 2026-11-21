@@ -8,7 +8,7 @@
 // row is written only if it has not changed since it was read, so two jobs at once, or a person saving a row while it
 // runs, never lose a write. Security: nothing here logs or returns a key, a value or a row; its answers are counts.
 import { db } from "./db";
-import { ALL_SEALED_COLUMNS, ROW_KEY, sealDetails, type OpenedTable } from "./sealed-columns";
+import { ALL_SEALED_COLUMNS, numberPlace, ROW_KEY, SEALED_NUMBERS, sealDetails, sealedNumberColumn, type NumberTable, type OpenedTable } from "./sealed-columns";
 import { resealThing, SEALED_THINGS, type SealedThing } from "./sealed-things";
 import { secretsKey } from "./secrets";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -17,8 +17,12 @@ import { activateWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, isSealed
 /** Rows sealed per batch (spec 0028). */
 export const SEAL_BATCH = 500;
 
-/** The tables in the order they are sealed: the sealed columns, then Breakdown rows and their history. */
-const TABLES = Object.keys(ALL_SEALED_COLUMNS) as OpenedTable[];
+/** The tables in the order they are sealed: the sealed columns, then Breakdown rows and their history, then the tables
+ * that hold only numbers (step 2, ticket #248). */
+const TABLES = [...new Set([...Object.keys(ALL_SEALED_COLUMNS), ...Object.keys(SEALED_NUMBERS)])] as OpenedTable[];
+
+const textColumns = (table: OpenedTable): readonly string[] => (ALL_SEALED_COLUMNS as Record<string, readonly string[]>)[table] ?? [];
+const numberColumns = (table: OpenedTable): readonly string[] => (SEALED_NUMBERS as Record<string, readonly string[]>)[table] ?? [];
 
 /** The tables whose rows carry a blind index beside a sealed column: [sealed column, index column]. The index is
  * recomputed with the value, under the current key version, so a row is found again whichever version wrote it. */
@@ -63,6 +67,45 @@ type Outcome = "sealed" | "moved" | "changed" | "held" | "unopenable" | "error";
 
 /** One candidate row of seal_candidates: seals (or moves to the current key version) its columns, writing only if it is as it was read. */
 export async function sealCandidate(cipher: WorkspaceCipher, workspaceId: string, table: OpenedTable, row: Row, unopenableColumns: string[] = []): Promise<Outcome> {
+  const outcomes: Outcome[] = [];
+  if (textColumns(table).length) outcomes.push(await sealTexts(cipher, workspaceId, table, row, unopenableColumns));
+  if (numberColumns(table).length) outcomes.push(await sealNumbers(cipher, workspaceId, table as NumberTable, row, unopenableColumns));
+  // The worst outcome of the parts counts, then the one that wrote.
+  for (const o of ["error", "held"] as const) if (outcomes.includes(o)) return o;
+  for (const o of ["sealed", "moved", "unopenable"] as const) if (outcomes.includes(o)) return o;
+  return "changed";
+}
+
+/** The numbers of one row sealed, or moved to the current key version (spec 0028 step 2): each number is sealed as its
+ * exact text for its place, and seal_number writes it only if the row still holds what the job read. */
+async function sealNumbers(cipher: WorkspaceCipher, workspaceId: string, table: NumberTable, row: Row, unopenableColumns: string[]): Promise<Outcome> {
+  const current = cipher.version as number;
+  const key = String(row.key);
+  const outcomes: Outcome[] = [];
+  for (const column of SEALED_NUMBERS[table]) {
+    const stored = row[sealedNumberColumn(column)];
+    const plain = row[column];
+    const place = numberPlace(table, column, { ...row, id: key });
+    let was: string;
+    let next: string;
+    let done: Outcome;
+    if (typeof stored === "string") {
+      const text = place ? cipher.open(place, stored) : null;
+      if (text === null) { unopenableColumns.push(column); outcomes.push("unopenable"); continue; }
+      if ((sealedVersion(stored) ?? current) >= current) continue;
+      [was, next, done] = [stored, cipher.seal(place!, text), "moved"];
+    } else if (typeof plain === "string" && place) {
+      [was, next, done] = [plain, cipher.seal(place, plain), "sealed"];
+    } else continue;
+    const { data, error } = await db().rpc("seal_number", { p_workspace: workspaceId, p_table: table, p_key: key, p_column: column, p_was: was, p_sealed: next });
+    outcomes.push(error ? "error" : data === true ? done : "changed");
+  }
+  for (const o of ["error", "sealed", "moved", "unopenable"] as const) if (outcomes.includes(o)) return o;
+  return "changed";
+}
+
+/** The sealed text columns of one row sealed, or moved to the current key version. */
+async function sealTexts(cipher: WorkspaceCipher, workspaceId: string, table: OpenedTable, row: Row, unopenableColumns: string[]): Promise<Outcome> {
   const key = String(row.key);
   const current = cipher.version as number;
   const at = (column: string) => placeOf(table, column, row, key);
@@ -72,7 +115,7 @@ export async function sealCandidate(cipher: WorkspaceCipher, workspaceId: string
   let plainRow = false;
   let unopenable = false;
   const opened: Record<string, string> = {};
-  for (const column of ALL_SEALED_COLUMNS[table]) {
+  for (const column of textColumns(table)) {
     const v = row[column];
     if (typeof v !== "string") continue;
     if (!isSealed(v)) {
@@ -161,9 +204,16 @@ type Verified = { bad: number; through: string | null; complete: boolean };
  * read failed. */
 async function verifyColumn(cipher: WorkspaceCipher, workspaceId: string, table: OpenedTable, column: string, deadline: number, resume: { through: string | null; bad: number }): Promise<Verified | null> {
   const keyColumn = ROW_KEY[table];
+  const isNumber = numberColumns(table).includes(column);
   let bad = resume.bad;
   let through = resume.through;
   const check = (r: Row): void => {
+    if (isNumber) {
+      const stored = r[sealedNumberColumn(column)];
+      const at = numberPlace(table as NumberTable, column, { ...r, id: r[keyColumn] });
+      if (typeof stored === "string" && (at === null || cipher.open(at, stored) === null)) bad += 1;
+      return;
+    }
     const place = placeOf(table, column, r, String(r[keyColumn]));
     if (column === "details") {
       const d = r.details as Row | null;
@@ -187,7 +237,8 @@ async function verifyColumn(cipher: WorkspaceCipher, workspaceId: string, table:
       if (ids.length < 100) return { bad, through: null, complete: true };
       continue;
     }
-    let q = db().from(table).select(table === "breakdown_history" ? `${keyColumn}, ${column}, row_id` : `${keyColumn}, ${column}`).eq("workspace_id", workspaceId).order(keyColumn).limit(1000);
+    const wanted = isNumber ? [keyColumn, sealedNumberColumn(column), ...(EXTRA_PLACE_COLUMNS[table] ?? [])].join(", ") : table === "breakdown_history" ? `${keyColumn}, ${column}, row_id` : `${keyColumn}, ${column}`;
+    let q = db().from(table).select(wanted).eq("workspace_id", workspaceId).order(keyColumn).limit(1000);
     if (through !== null) q = q.gt(keyColumn, through);
     const { data, error } = await q;
     if (error) return null;
@@ -197,6 +248,9 @@ async function verifyColumn(cipher: WorkspaceCipher, workspaceId: string, table:
     through = String(rows[rows.length - 1][keyColumn]);
   }
 }
+
+/** The columns besides its id that a history or series number's place needs (see numberPlace). */
+const EXTRA_PLACE_COLUMNS: Partial<Record<OpenedTable, string[]>> = { observation_history: ["observation_id"], breakdown_history: ["row_id"], series_values: ["metric_id", "kind", "period_start"] };
 
 type Count = { table_name: string; column_name: string; total: number; plain: number; old_version: number };
 
@@ -240,7 +294,7 @@ async function passWorkspace(id: string, globalDeadline: number, batch: number, 
             // Changed since it was read, held, unopenable or failed: left out for the rest of this run and looked at
             // again by the next one (a person's own change to a row is always sealed, so it is not seen again).
             skip.push(String(row.key));
-            if (outcome === "held") { out.heldBack += 1; held[`${table}.${ALL_SEALED_COLUMNS[table][0]}`] = (held[`${table}.${ALL_SEALED_COLUMNS[table][0]}`] ?? 0) + 1; }
+            if (outcome === "held") { out.heldBack += 1; const first = `${table}.${textColumns(table)[0] ?? numberColumns(table)[0]}`; held[first] = (held[first] ?? 0) + 1; }
             if (outcome === "unopenable") out.unopenable += 1;
             if (outcome === "error") out.errors += 1;
           }

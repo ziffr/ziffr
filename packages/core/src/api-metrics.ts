@@ -6,11 +6,12 @@
 // of a Metric is writable by a key: not its name or description (which other people's assistants read), not sharing,
 // not Submitters beyond its creator, not a formula or a Catalog entry. Each change names the key: in the Metric's
 // history, and in the note of each Target Series or Projection value.
+import { openWorkflowRow } from "./workflow-rows";
 import { assertScope, can, Forbidden, type Actor, type KeyActor } from "./actor";
 import { toApi, type ApiMetric } from "./api";
 import { db } from "./db";
 import { openOne } from "./sealed-columns";
-import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
+import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, sealedSeriesSaves, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { archiveMetric, restoreMetric } from "./archived-metrics";
 import { peopleIn } from "./submissions";
@@ -266,7 +267,7 @@ export async function setSeriesWithKey(actor: Actor | KeyActor, slug: string, ki
   }
   const keyName = actor.key ? await nameOf(actor) : null;
   const note = keyName ? `Through the API (key “${keyName}”)` : "Through the API";
-  const saves = [...last].filter(([, v]) => v !== null).map(([period, value]) => ({ period, value: value as number }));
+  const saves = await sealedSeriesSaves(actor.workspaceId, metric.id as number, kind, [...last].filter(([, v]) => v !== null).map(([period, value]) => ({ period, value: value as number })));
   const removes = [...last].filter(([, v]) => v === null).map(([period]) => period);
   // The same right as on the Metric's page; then saves and removals are one database call, so a failure in either
   // leaves nothing written (ticket #215).
@@ -298,7 +299,7 @@ async function checkOf(actor: Actor | KeyActor, slug: string) {
   const { data: row } = await db().from("metrics").select("workflow_id").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single();
   const workflowId = (row?.workflow_id as number | null) ?? null;
   if (workflowId === null) return { metric, wf: null, answer: { workflow: null, check: null } as ApiUnusualValueCheck };
-  const { data: wf } = await db().from("workflows").select("id, name, owner_id, config, updated_at").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const wf = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, owner_id, config, updated_at").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!wf) return { metric, wf: null, answer: { workflow: null, check: null } as ApiUnusualValueCheck };
   const { data: users } = await db().from("metrics").select("id").eq("workspace_id", actor.workspaceId).eq("workflow_id", workflowId);
   const config = wf.config as WorkflowConfig;

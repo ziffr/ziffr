@@ -2,6 +2,7 @@
 // on, from where Ziffr should ask its Owner to the first value they answer. Only the Owner of a running Trial
 // Workspace has one. Which ways can be picked comes from whatWorksHere, so the guide never offers a way the queue
 // keeps back; asking is Ask me now on the Test Metric, through the same queue and checks as anywhere else.
+import { openOne, openRows } from "./sealed-columns";
 import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { askMeNowBy, type AskNowResult } from "./ask-now";
@@ -70,9 +71,10 @@ export async function trialGuide(actor: Actor): Promise<TrialGuide | null> {
     whatWorksHere(actor),
     myTelegramLink(actor),
   ]);
-  const { data: m } = ws?.trial_test_metric_id
+  const { data: mRow } = ws?.trial_test_metric_id
     ? await db().from("metrics").select("id, name, unit, slug").eq("id", ws.trial_test_metric_id).eq("workspace_id", actor.workspaceId).maybeSingle()
     : { data: null };
+  const m = await openOne("metrics", actor.workspaceId, mRow);
   const state = (w: string) => here.find((x) => x.way === w)?.state;
   const choices = here.filter((w) => isWay(w.way) || w.way === "whatsapp");
   return {
@@ -150,9 +152,11 @@ export async function trialGuideValue(actor: Actor): Promise<GuideValue | null> 
   await assertGuideOwner(actor);
   const { data: ws } = await db().from("workspaces").select("trial_test_metric_id").eq("id", actor.workspaceId).single();
   if (!ws?.trial_test_metric_id) return null;
-  const { data: o } = await db().from("observations").select("value, period_start, source, created_at")
+  const { data: o } = await db().from("observations").select("id, value, value_sealed, period_start, source, created_at")
     .eq("workspace_id", actor.workspaceId).eq("metric_id", ws.trial_test_metric_id).order("id", { ascending: false }).limit(1).maybeSingle();
-  return o ? { value: Number(o.value), period: o.period_start as string, source: o.source as string, at: o.created_at as string } : null;
+  const [opened] = await openRows("observations", actor.workspaceId, o ? [o as Record<string, unknown>] : []);
+  // A value that does not open reads as none yet, never as 0.
+  return o && typeof opened?.value === "number" ? { value: opened.value, period: o.period_start as string, source: o.source as string, at: o.created_at as string } : null;
 }
 
 /** The name the guide gives the Feed it makes, so the Feeds page says where it came from. */

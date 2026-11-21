@@ -4,6 +4,7 @@
 // Security: a recipient may stop a Workflow they are told by, and only see its name while they are one of its recipients
 // and see one of its Metrics; the editor's list of who is skipped names only Metrics the owner sees and people the owner
 // chose themselves. A person unknown to the Workflow is answered like a Workflow that is not there.
+import { openWorkflowRow, openWorkflowRows } from "./workflow-rows";
 import { Forbidden, type Actor } from "./actor";
 import { getGroups, visibleMetricIds } from "./access";
 import { db } from "./db";
@@ -36,7 +37,7 @@ export async function tellEditorFacts(actor: Actor, workflowId: number | null): 
   const groups = (await getGroups(actor.workspaceId)).map((g) => ({ id: g.id, name: g.name, members: g.members.length }));
   const webhooks = mayManageWebhooks(actor) ? (await listWebhooks(actor)).map((w) => ({ id: w.id, name: w.name, enabled: w.enabled, hearsAlerts: w.events.includes("alert.fired") })) : [];
   if (workflowId === null || !Number.isInteger(workflowId)) return { groups, webhooks, steps: [] };
-  const { data: wf } = await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const wf = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!wf || wf.owner_id !== actor.personId) return { groups, webhooks, steps: [] };
   const steps = tellSteps(wf.config);
   if (!steps.length) return { groups, webhooks, steps: [] };
@@ -62,11 +63,12 @@ export type TellSubscription = { workflowId: number; name: string; stopped: bool
 /** The Workflows whose Tell steps tell the actor (named or through a Group) and that have a Metric the actor sees, with
  * whether they said "stop telling me". Only the actor's own. */
 export async function listTellSubscriptions(actor: Actor): Promise<TellSubscription[]> {
-  const [{ data: flows }, { data: stops }, groups] = await Promise.all([
+  const [{ data: sealedFlows }, { data: stops }, groups] = await Promise.all([
     db().from("workflows").select("id, name, config").eq("workspace_id", actor.workspaceId),
     db().from("tell_stops").select("workflow_id").eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId),
     getGroups(actor.workspaceId),
   ]);
+  const flows = await openWorkflowRows(actor.workspaceId, sealedFlows);
   const stopped = new Set((stops ?? []).map((s) => Number(s.workflow_id)));
   const mineGroups = new Set(groups.filter((g) => g.members.includes(actor.personId)).map((g) => g.id));
   const told = (flows ?? []).filter((w) => tellSteps(w.config).some((s) => s.people.includes(actor.personId) || s.groups.some((g) => mineGroups.has(g))));
