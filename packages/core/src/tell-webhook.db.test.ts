@@ -87,7 +87,10 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     await c.put(P(2), 120);
     expect(await sends(c.w)).toHaveLength(1);
     // The row holds ids only: no value, no name.
-    expect(JSON.stringify((await sends(c.w))[0])).not.toMatch(/120|Sales/);
+    // Ids and timestamps are random or move, so the columns themselves are checked: none can hold a value or a name.
+    const row = (await sends(c.w))[0];
+    expect(Object.keys(row).sort()).toEqual(["action_id", "attempts", "claimed_at", "created_at", "delivered_at", "failure", "id", "last_attempt_at", "metric_id", "next_attempt_at", "period_start", "reason", "source_type", "source_webhook_id", "state", "status_code", "tell_step_id", "thread_message_id", "type", "webhook_id", "workflow_id", "workspace_id"]);
+    expect(row.tell_step_id).toBe("step-one-aaaa");
     expect(await sendWaitingWebhooks(100, scope)).toEqual({ sent: 1, failed: 0 });
     const msg = JSON.parse(seen[0].body) as { type: string; workspace: { id: string }; data: Record<string, unknown> };
     expect(seen[0].headers["x-ziffr-event"]).toBe("alert.fired");
