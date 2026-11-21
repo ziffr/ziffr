@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, Refused } from "./actor";
 import { createDerivedMetric, formulaChoices, setMetricFormula } from "./derived-metrics";
 import { db } from "./db";
+import { deleteMetric } from "./metrics";
 import { buildSeries } from "./series";
 import { opened, workspace } from "./test/db-fixtures";
+import { restoreVersion } from "./version-history";
 import { getMetrics, getObservations } from "./workspace-data";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -206,5 +208,52 @@ describe("createDerivedMetric", () => {
     const other = await createDerivedMetric(as, { name: "Other", formula: "{mine}" });
     expect((await setMetricFormula(as, d.id, "{other} + 1").catch((e) => e)).message).toMatch(/Derived Metric itself/);
     expect(other.slug).toBe("other");
+  });
+
+  const versionWith = async (w: Awaited<ReturnType<typeof workspace>>, metricId: number, formula: string | null) =>
+    (await db().from("versions").select("id, snapshot, version").eq("object_type", "metric").eq("object_id", metricId).eq("workspace_id", w.id).order("version")).data!
+      .find((v) => (v.snapshot as { formula?: string | null }).formula === formula)?.id as number;
+
+  it("restoring a version sends its formula through the checks of changing one, and keeps a Derived Metric derived (ticket #619)", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    const theirs = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await w.metric(sara, { name: "Mine", slug: "mine" });
+    await editShare(w, theirs.id, sara);
+    const dMade = await createDerivedMetric(as, { name: "Twice", formula: "{hours} * 2" });
+    await setMetricFormula(as, dMade.id, "{mine} * 2");
+    // The restored versions are of this Metric: the one with the old formula, and the first one, before it had any.
+    const old = await versionWith(w, dMade.id, "{hours} * 2");
+    const plain = await versionWith(w, dMade.id, null);
+    expect(old).toBeTruthy();
+    expect(plain).toBeTruthy();
+    // Only the owner restores a Metric's version; an Editor is refused, so an old formula is never theirs to bring back.
+    const eve = await w.person("member");
+    await editShare(w, dMade.id, eve);
+    await expect(restoreVersion(w.actor(eve, "member"), old)).rejects.toBeInstanceOf(Forbidden);
+    // Sara lost the right to edit Hours (she still sees it): its old formula would now show values she may not share.
+    await db().from("shares").update({ role: "viewer" }).eq("workspace_id", w.id).eq("object_id", theirs.id).eq("user_id", sara);
+    await expect(restoreVersion(as, old)).rejects.toThrow(/This version cannot be restored: \{hours\} is not yours to share/);
+    expect((await row(w.id, dMade.id)).formula).toBe("{mine} * 2");
+    // With the right back it restores; restoring the first version (no formula) keeps it derived, with no Sources.
+    await editShare(w, theirs.id, sara);
+    await restoreVersion(as, old);
+    expect((await row(w.id, dMade.id)).formula).toBe("{hours} * 2");
+    await restoreVersion(as, plain);
+    expect(await row(w.id, dMade.id)).toMatchObject({ formula: "{hours} * 2", sources: [], period: "month" });
+  });
+
+  it("a restore cannot make two Derived Metrics read each other", async () => {
+    const { w, sara, as } = await setup();
+    const y = await w.metric(sara, { name: "Y", slug: "y" });
+    await w.metric(sara, { name: "Mine", slug: "mine" });
+    const d1 = await createDerivedMetric(as, { name: "D one", formula: "{y} * 2" });
+    const old = await versionWith(w, d1.id, "{y} * 2");
+    await setMetricFormula(as, d1.id, "{mine} * 2");
+    // Y goes, and a Derived Metric takes its slug: the old formula would now read a Derived Metric.
+    await deleteMetric(as, y.id, "Y");
+    await createDerivedMetric(as, { name: "Y", formula: "{mine} + 1" });
+    await expect(restoreVersion(as, old)).rejects.toThrow(/This version cannot be restored: Y is a Derived Metric itself/);
+    expect((await row(w.id, d1.id)).formula).toBe("{mine} * 2");
   });
 });

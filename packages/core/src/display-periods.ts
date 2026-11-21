@@ -76,6 +76,9 @@ export function valueOver(slug: string, start: string, end: string, resolve: Res
   const r = resolve(slug);
   if (!r) return undefined;
   const { metric, points } = r;
+  // A Derived Metric whose inputs cannot be combined (one is Derived itself, or another period) has no value, and no
+  // formula is ever followed from one Derived Metric to another: nothing can recurse, whatever is stored.
+  if (metric.formula && inputsProblem(metric, formulaInputs(metric.formula).flatMap((s) => resolve(s)?.metric ?? []))) return undefined;
   if (metric.formula && usesPrevious(metric.formula)) {
     // It reaches back one of its own periods, so it has a value for one period only, never for a longer span.
     if (start !== end) return undefined;

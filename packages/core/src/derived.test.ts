@@ -362,6 +362,16 @@ describe("a Derived Metric", () => {
     expect(seriesBy(d, resolverFrom([m("a"), d], { a: pts, derived: pts }), "quarter", { yearStart: 1, today: "2027-01-01" })).toMatchObject({ ok: true, points: [{ value: 6 }] });
     expect(NOT_COMBINED).toMatch(/none/);
   });
+  it("has no value for a Derived Metric that reads another, however they came to be stored, and never recurses (ticket #619)", () => {
+    const [d1, d2] = [metric({ id: 1, slug: "d1", formula: "{d2}" }), metric({ id: 2, slug: "d2", formula: "{d1}" })];
+    const resolve = resolverFrom([d1, d2], { d1: [{ period: "2026-01-01", value: 1 }], d2: [{ period: "2026-01-01", value: 2 }] });
+    expect(valueOver("d1", "2026-01-01", "2026-01-01", resolve, 1)).toBeUndefined();
+    expect(valueOver("d2", "2026-01-01", "2026-03-01", resolve, 3)).toBeUndefined();
+    // Inputs of another period, and a name that is no Metric, are no recursion either.
+    const [a, w] = [metric({ id: 3, slug: "a", period: "month" }), metric({ id: 4, slug: "w", period: "week", formula: null })];
+    const d = metric({ id: 5, slug: "d", formula: "{a} + {w} + {nobody}" });
+    expect(valueOver("d", "2026-01-01", "2026-01-01", resolverFrom([a, w, d], { a: [{ period: "2026-01-01", value: 1 }], w: [{ period: "2026-01-01", value: 1 }] }), 1)).toBeUndefined();
+  });
   it("names every input a reason is about, one or several", () => {
     const ins = asInputs(["a", "b", "c"]);
     const none = asInputs(["x", "y"], { aggregation: "none" });

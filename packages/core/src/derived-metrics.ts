@@ -132,6 +132,18 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   assertCan(actor, "create");
   const m = await editableMetric(actor, metricId, "its formula");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
+  const next = await checkedFormula(actor, m, formula);
+  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  if (error) throw new Error("The formula could not be saved.");
+  await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
+  await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });
+}
+
+/** A formula as it may be written into the Derived Metric `m` by the actor, trimmed, or `Refused` with the reason: read
+ * whole, the Metric's own period, never the Metric itself or a Derived Metric (so no cycle), and every input one the
+ * actor sees and may share and one the Metric's owner may share too. Used when changing a formula and when restoring an
+ * old version of the Metric, so an old formula cannot bring back what a change would be refused. */
+export async function checkedFormula(actor: Actor, m: Pick<Metric, "id" | "slug" | "period" | "owner_id">, formula: unknown): Promise<string> {
   const next = typeof formula === "string" ? formula.trim() : "";
   if (!next) throw new Refused("Write the formula, such as {revenue} / {orders}.");
   const all = await getMetrics(actor.workspaceId);
@@ -143,8 +155,5 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   const ownerMay = m.owner_id === actor.personId ? mayShare : await shareableBy(actor.workspaceId, m.owner_id, all);
   const why = viewOnly(next, all, seen, mayShare) ?? checkFormula(next, all.filter((x) => mayShare.has(x.id) && ownerMay.has(x.id) && x.id !== m.id).map((x): FormulaInput => x), { slug: m.slug, period: m.period });
   if (why) throw new Refused(why);
-  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
-  if (error) throw new Error("The formula could not be saved.");
-  await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
-  await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });
+  return next;
 }
