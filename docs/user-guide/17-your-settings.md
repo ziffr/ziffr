@@ -281,11 +281,12 @@ You do not need a Starter. Some examples:
 - **Read dashboards** also lets it read a dashboard's Snapshots; **Build dashboards** lets it take one (a draft until you show it).
 - **Build dashboards:** make dashboards, and change the dashboards you may change yourself, not only the ones it made. Every change is in the dashboard's history under its name, so you can restore what came before.
 - **Read your questions and tasks** and **Answer questions and tasks for you:** list the Questions and Tasks that wait for you, reply in their Threads, close the ones you asked, mark your Tasks done, and confirm or correct your own value in a Self-check when **Submit values** is ticked too.
+- **Build workflows:** make, change and delete **your own Workflows** and their steps. The assistant leaves who approves, and who a Tell step tells, as it is.
 - **Manage alerts:** set, change and remove **your own Alerts**, on Metrics you may see, such as "tell me when churn goes above 3 %". An Alert tells only you, through your Delivery Preference, and the assistant cannot make one for anyone else. The same limits apply as in the app.
 
 #### What the assistant cannot do
 
-- It cannot approve a value or send it back, and the connection screen does not offer it: Approval is a person's check. Only a program's Access Key can be given that ("Approve values").
+- It cannot approve a value or send it back, and the connection screen does not offer it: Approval is a person's check. Only a program's Access Key can be given that ("Approve values"). The same goes for choosing who approves or who a Tell step tells in a Workflow ("Name who approves and who is told"): an assistant with "Build workflows" can make and change your own Workflows, but leaves their Approvers as they are.
 - It sees no more than you do, and only what you let it when you connected it: if you ticked only reading, it cannot record, change or build anything, whatever it tries. As a Guest, you cannot let it create or change anything.
 - It cannot make, list or revoke a View Link, and the connection screen does not offer it ("Manage View Links"): a View Link publishes data outside the Workspace. Only a program's Access Key can be given that.
 - It cannot read the Workspace's usage figures ("Read usage figures"); that, too, is only for a program's Access Key made by an Owner or Admin.

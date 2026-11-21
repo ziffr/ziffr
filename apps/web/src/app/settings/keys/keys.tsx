@@ -13,9 +13,9 @@ import { RecentCalls } from "@/components/recent-calls";
 import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures", "workflows:write": "Build workflows", "workflows:people": "Name who approves and who is told" };
 /** What a scope covers, where its label alone does not say. */
-const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit", "values:approve": "approve a value or send it back, as you: only for programs, never for an assistant, and never for your own values", "usage:read": "read counts of how your Workspace is used (views, values by Source, what goes unused), never a name or a value: only for Owners and Admins, only for programs, never for an assistant", "view-links:write": "make, list and revoke View Links to your dashboards, which publish data outside the workspace: only for programs, never for an assistant" };
+const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit", "values:approve": "approve a value or send it back, as you: only for programs, never for an assistant, and never for your own values", "usage:read": "read counts of how your Workspace is used (views, values by Source, what goes unused), never a name or a value: only for Owners and Admins, only for programs, never for an assistant", "view-links:write": "make, list and revoke View Links to your dashboards, which publish data outside the workspace: only for programs, never for an assistant", "workflows:people": "choose the Approvers of a Workflow and who a Tell step tells: only for programs, never for an assistant; needs Build workflows" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 
@@ -69,6 +69,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate, can
       <p className="text-xs text-muted-foreground">{SCOPE_LABEL["values:approve"]}: {SCOPE_HINT["values:approve"]}.</p>
       {canCreate && <p className="text-xs text-muted-foreground">{SCOPE_LABEL["view-links:write"]}: {SCOPE_HINT["view-links:write"]}.</p>}
       {canReadUsage && <p className="text-xs text-muted-foreground">{SCOPE_LABEL["usage:read"]}: {SCOPE_HINT["usage:read"]}.</p>}
+      {canCreate && <p className="text-xs text-muted-foreground">{SCOPE_LABEL["workflows:people"]}: {SCOPE_HINT["workflows:people"]}.</p>}
       {secret && (
         <p className="text-sm">Copy it now; it is not shown again: <input readOnly value={secret} onFocus={(e) => e.target.select()} aria-label="New access key" className="h-9 w-full max-w-xl rounded-[var(--radius-input)] border border-input bg-card px-2 font-mono text-sm" /></p>
       )}

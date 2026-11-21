@@ -1137,6 +1137,152 @@ The workspace's Workflows by id and name, to name the one to ask about with GET 
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Make a Workflow
+
+`POST /workflows` · scope `workflows:write`
+
+Makes a Workflow owned by the key's creator, through the same function as the Workflow editor: a Due Date in working days and steps in order (remind, escalate, check, approve, publish, tell), cleaned the same way (a publish step is always last). Needs the scope Build workflows, while the creator's role may create. Who approves and who a Tell step tells are a person's decision: an Approve or Tell step needs the scope Name who approves and who is told as well, which only a program's Access Key can hold, never an assistant connected through OAuth. `asking` sets when it runs on its own (the Asking Schedule: an hour and the days); it names nobody, so it needs no scope of its own.
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 80 characters | yes |  |
+| `due_working_days` | integer, 0 to 30 | no | Default 0: due the day the period ends. |
+| `lock_summary` | boolean | no |  |
+| `steps` | array of any (at most 12) | no | Default: only the publish step. A publish step is added last if missing. |
+| `asking` | object or null | no | When it runs on its own. Default: with the Workspace's daily run. |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
+| `lock_summary` | boolean | yes | Tell the owner when a period locks. |
+| `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
+| `metrics` | integer | yes | How many Metrics use it. |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A step that cannot be (a Tell step without a level, a person who is not a member), or an Approve or Tell step without the scope workflows:people.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Read a Workflow's steps
+
+`GET /workflows/{id}` · scope `metrics:read`
+
+A Workflow the key's creator owns, with its Due Date and steps, to change it with PATCH. Someone else's Workflow is not found; see GET /workflows for names.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Workflow's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
+| `lock_summary` | boolean | yes | Tell the owner when a period locks. |
+| `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
+| `metrics` | integer | yes | How many Metrics use it. |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Change a Workflow
+
+`PATCH /workflows/{id}` · scope `workflows:write`
+
+Changes the name, Due Date or steps of a Workflow the creator owns; parts left out stay, `steps` replaces all of them, and the Workflow's history names the key. Without the scope workflows:people the Approve and Tell steps must be sent back exactly as read (GET /workflows/{id}).
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Workflow's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string, at most 80 characters | no |  |
+| `due_working_days` | integer, 0 to 30 | no |  |
+| `lock_summary` | boolean | no |  |
+| `steps` | array of any (at most 12) | no |  |
+| `asking` | object or null | no | When it runs on its own; null goes back to the Workspace's daily run. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `due_working_days` | integer | yes | Working days after a period ends by which its values are due. |
+| `lock_summary` | boolean | yes | Tell the owner when a period locks. |
+| `steps` | array of any | yes |  |
+| `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
+| `metrics` | integer | yes | How many Metrics use it. |
+| `updated_at` | string | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: A step that cannot be, or an Approve or Tell step changed without the scope workflows:people.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
+## Delete a Workflow
+
+`DELETE /workflows/{id}` · scope `workflows:write`
+
+Deletes a Workflow the creator owns; the Metrics that used it have none then. A Workflow with an Approve or Tell step is deleted only with the scope workflows:people, since that drops its Approvals.
+
+**Parameters**
+
+| Name | In | Type | Required | What it is |
+| --- | --- | --- | --- | --- |
+| `id` | path | integer | yes | The Workflow's id. |
+
+**Answer** (200)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `removed` | integer | yes |  |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see.
+- 422: It has an Approve or Tell step and the key lacks the scope workflows:people.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## How a Workflow's period is going
 
 `GET /workflows/{id}/period-status` · scope `metrics:read`
@@ -1147,7 +1293,7 @@ A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline):
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `id` | path | integer | yes | The dashboard's id. |
+| `id` | path | integer | yes | The Workflow's id. |
 | `period` | query | string | no | The period's first day, YYYY-MM-DD. Default: the newest period of the Workflow that has anything to show. |
 
 **Answer** (200)

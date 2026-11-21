@@ -191,6 +191,25 @@ export type Schedule = { today: string; /** Whose Schedule it is. */ person_id: 
 /** A Workflow: id and name. */
 export type WorkflowName = { id: number; name: string };
 
+/** A step of a Workflow, in the order they run. A Tell step's `id` is left out for a new step and sent back as read for an existing one. */
+export type WorkflowStep =
+  | { type: "remind"; days_before: number }
+  | { type: "escalate"; to: "stand-in" | "owner"; days_after: number }
+  | { type: "check"; change_pct: number; outside_target: boolean }
+  | { type: "approve"; approvers: string[]; values: "unusual" | "every"; nobody_else: "self-check" | "count" }
+  | { type: "publish"; lock: boolean }
+  | { type: "tell"; id?: string; condition: { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string }; people: string[]; groups: number[] };
+
+/** When a Workflow runs on its own (the Asking Schedule): a whole hour in the Workspace's time zone (null: the Workspace's run hour) and the days. */
+export type AskingSchedule = { hour: number | null; days: { kind: "every_day" } | { kind: "weekdays" } | { kind: "chosen_weekdays"; days: number[] } | { kind: "every_n_days"; n: number; from: string } | { kind: "month_day"; day: number | "last" } };
+
+/** A Workflow of the key's creator with its steps. */
+export type WorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: WorkflowStep[]; asking: AskingSchedule | null; metrics: number; updated_at: string };
+/** What to say to make a Workflow. */
+export type NewWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: WorkflowStep[]; asking?: AskingSchedule | null };
+/** What to change in one; each part left out stays, `steps` replaces all of them. */
+export type WorkflowPatch = Partial<NewWorkflow>;
+
 /** One line of a period's timeline: one event, or several of one kind close together. */
 export type TimelineEvent = {
   /** When it happened (the first of a group), as an instant. */
@@ -497,6 +516,14 @@ export class Ziffr {
     list: (options: PageOptions = {}) => this.get<Page<WorkflowName>>("/workflows", options),
     /** Every Workflow, page by page. */
     all: () => this.every<WorkflowName>((cursor) => this.workflows.list({ cursor, limit: 100 })),
+    /** A Workflow the key's creator owns, with its steps (scope metrics:read). */
+    get: (id: number): Promise<WorkflowDetail> => this.get<WorkflowDetail>(`/workflows/${id}`),
+    /** Makes a Workflow (scope workflows:write). An Approve or Tell step also needs workflows:people, which only a program's key can hold. */
+    create: async (input: NewWorkflow): Promise<WorkflowDetail> => (await this.request<WorkflowDetail>("POST", "/workflows", undefined, input)).body,
+    /** Changes a Workflow the key's creator owns (scope workflows:write). Without workflows:people, send Approve and Tell steps back as read. */
+    update: async (id: number, patch: WorkflowPatch): Promise<WorkflowDetail> => (await this.request<WorkflowDetail>("PATCH", `/workflows/${id}`, undefined, patch)).body,
+    /** Deletes a Workflow the key's creator owns (scope workflows:write). */
+    remove: async (id: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/workflows/${id}`)).body,
     /** How a Workflow's period is going, as the key's creator may see it (scope metrics:read): `period` is a period's
      * first day, the newest one that has anything when left out. */
     periodStatus: (id: number, period?: string): Promise<PeriodStatus> => this.get<PeriodStatus>(`/workflows/${id}/period-status`, period ? { period } : {}),

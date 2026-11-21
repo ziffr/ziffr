@@ -90,6 +90,26 @@ describe("/mcp", () => {
     expect(log.map((l) => `${l.method} ${l.status}`)).toEqual(expect.arrayContaining(["GET 200", "POST 201", "GET 404"]));
   });
 
+  it("builds the creator's own Workflows, and never lets an assistant choose who approves (ticket #433)", async () => {
+    const { w, sara, key, ben } = await setup(["metrics:read", "workflows:write"]);
+    const client = await remote(key.secret);
+    const made = json(await client.callTool({ name: "create_workflow", arguments: { name: "Close", due_working_days: 2, steps: [{ type: "check", change_pct: 20, outside_target: true }, { type: "publish", lock: false }] } })).workflow;
+    expect(made).toMatchObject({ name: "Close", due_working_days: 2, steps: [{ type: "check", change_pct: 20 }, { type: "publish" }] });
+    expect(json(await client.callTool({ name: "get_workflow", arguments: { id: made.id } })).workflow).toEqual(made);
+    expect(json(await client.callTool({ name: "update_workflow", arguments: { id: made.id, due_working_days: 4 } })).workflow.due_working_days).toBe(4);
+    // Who approves is not an assistant's to choose: refused in words (the API's 422), and nothing is made.
+    const approve = await client.callTool({ name: "create_workflow", arguments: { name: "Gate", steps: [{ type: "approve", approvers: [ben], values: "every", nobody_else: "count" }] } });
+    expect(approve.isError).toBe(true);
+    expect(text(approve)).toContain("cannot choose who approves");
+    // Another person's key, even an Owner's, reaches none of it; a key without the scope changes none.
+    const other = await remote((await createAccessKey(w.actor(sara, "owner"), { name: "Other", scopes: ["metrics:read", "workflows:write"], expiresOn: inDays(30) })).secret);
+    expect((await other.callTool({ name: "get_workflow", arguments: { id: made.id } })).isError).toBe(true);
+    expect((await other.callTool({ name: "delete_workflow", arguments: { id: made.id } })).isError).toBe(true);
+    const reader = await remote((await createAccessKey(w.actor(ben, "member"), { name: "Reader", scopes: ["metrics:read"], expiresOn: inDays(30) })).secret);
+    expect((await reader.callTool({ name: "delete_workflow", arguments: { id: made.id } })).isError).toBe(true);
+    expect(json(await client.callTool({ name: "delete_workflow", arguments: { id: made.id } }))).toEqual({ removed: made.id });
+  });
+
   it("makes, lists, changes and removes only the creator's own Alerts, with the scope Manage alerts (spec 0032)", async () => {
     const { w, ben, sara, orders, hidden, key } = await setup(["metrics:read", "alerts:write"]);
     const client = await remote(key.secret);
