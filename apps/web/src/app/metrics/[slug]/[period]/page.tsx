@@ -1,5 +1,6 @@
 // A Period Record (GLOSSARY: Period Record): one Metric's value for one period, every step it went through, and its
 // Threads. The core decides what this person may see; this page only shows it.
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, MessageSquare } from "lucide-react";
@@ -78,7 +79,7 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
               <li key={t.id} className="stock rounded-[var(--radius-card)] p-4">
                 <Link href={`/actions/${t.id}`} className="flex flex-wrap items-center gap-2 no-underline hover:underline">
                   <StatusBadge status={t.status} kind={t.kind} size="sm" />
-                  <span className="font-medium">{t.question}</span>
+                  <span className="font-medium">{approvalQuestionForWeb(t.question)}</span>
                 </Link>
                 {t.first && <p className="mt-2 whitespace-pre-wrap text-sm"><span className="font-medium">{t.first.person}:</span> {t.first.body}</p>}
                 <p className="mt-1 text-xs text-muted-foreground">{t.replies === 0 ? "No replies yet" : `${t.replies} ${t.replies === 1 ? "reply" : "replies"}`}</p>
