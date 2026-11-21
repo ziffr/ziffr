@@ -20,13 +20,14 @@ import { checkThemeFile, THEME_FILE_LIMITS } from "@ziffr/core/theme-file";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import type { Problem } from "@ziffr/core/json-check";
 import { FONTS, slideDesign } from "@ziffr/core/themes";
+import { darkOf, tokensForViewer } from "@ziffr/core/theme-dark";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
 import { EmailPreview } from "./email-preview";
 import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 
-const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards">; label: string }[] = [
+const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontBody" | "fontFigures" | "radius" | "cards" | "dark" | "appearance">; label: string }[] = [
   { key: "canvas", label: "Behind the cards" },
   { key: "surface", label: "Cards and slides" },
   { key: "ink", label: "Text and values" },
@@ -51,6 +52,9 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
   // A standard Theme is only looked at: it becomes editable once it is added to the Workspace.
   const can = manages && !standardKey;
   const [importing, setImporting] = useState(false);
+  // The preview as designed, or in the dark variant (#583): what a viewer in a dark Appearance sees.
+  const [previewDark, setPreviewDark] = useState(false);
+  const darkVariant = darkOf(t);
   const dirty = name !== current.name || JSON.stringify(t) !== JSON.stringify(current.tokens) || JSON.stringify(slides) !== JSON.stringify(current.slides);
   const set = <K extends keyof ThemeTokens>(k: K, v: ThemeTokens[K]) => setT((x) => ({ ...x, [k]: v }));
   const draft: Theme = { ...current, name, tokens: t, slides };
@@ -143,6 +147,22 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
               </label>
             </div>
             <div className="border-t border-border pt-4">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium">In a dark Appearance</span>
+                <select value={t.appearance === "fixed" ? "fixed" : "follow"} onChange={(e) => setT((x) => { const rest = { ...x }; delete rest.appearance; return e.target.value === "fixed" ? { ...rest, appearance: "fixed" } : rest; })} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-1.5">
+                  <option value="follow">Follows the viewer&rsquo;s Appearance</option>
+                  <option value="fixed">Always as designed</option>
+                </select>
+              </label>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {!darkVariant ? "This Theme is dark already, so it looks the same in every Appearance."
+                  : t.appearance === "fixed" ? "Dashboards and decks in this Theme look the same for everyone. Present mode, Snapshots and View Links always do."
+                  : darkVariant.source === "designed" ? "The dark variant was designed with this Theme."
+                  : darkVariant.source === "derived" ? "The dark variant is worked out from the colours above and checked for contrast."
+                  : "The colours above could not be made readable on a dark ground, so Ziffr Dark's colours are used."}
+              </p>
+            </div>
+            <div className="border-t border-border pt-4">
               <div className="mb-2 text-xs font-medium">Slides</div>
               <SlidesEditor s={slides} onChange={setSlides} />
             </div>
@@ -169,8 +189,15 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
           </div>
         </form>
 
-        <ThemeScope theme={draft} className="desk min-w-0 space-y-4 rounded-[var(--radius-card)] p-4" aria-label="Preview">
-          <SlidePreview design={slideDesign(draft)!} />
+        <div className="min-w-0 space-y-2">
+        {darkVariant && (
+          <div role="group" aria-label="Preview as" className="flex w-fit gap-0.5 rounded-[var(--radius-input)] border border-border p-0.5 text-xs">
+            <button type="button" aria-pressed={!previewDark} onClick={() => setPreviewDark(false)} className={cn("rounded px-2.5 py-1", !previewDark && "bg-muted font-medium")}>As designed</button>
+            <button type="button" aria-pressed={previewDark} onClick={() => setPreviewDark(true)} className={cn("rounded px-2.5 py-1", previewDark && "bg-muted font-medium")}>In a dark Appearance</button>
+          </div>
+        )}
+        <ThemeScope theme={draft} scheme={previewDark ? "dark" : "designed"} className="desk min-w-0 space-y-4 rounded-[var(--radius-card)] p-4" aria-label="Preview">
+          <SlidePreview design={slideDesign(previewDark ? { ...draft, tokens: tokensForViewer(draft.tokens, true) } : draft)!} />
           <div className="grid gap-4 sm:grid-cols-2">
             {samples.map((w, i) => (
               <div key={i} className={cn(i >= 2 ? "h-80 sm:col-span-2" : "h-52")}>
@@ -179,6 +206,7 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
             ))}
           </div>
         </ThemeScope>
+        </div>
       </div>
       <EmailPreview theme={draft} workspaceName={workspaceName} />
 

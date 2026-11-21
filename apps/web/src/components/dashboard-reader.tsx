@@ -25,7 +25,8 @@ export function DashboardReader({ dashboard, widgets, data, readOnly = false, he
           {dashboard.intro && <p className="mt-3 text-lg whitespace-pre-line text-muted-foreground">{dashboard.intro}</p>}
         </header>
       )}
-      <ThemeScope theme={themeFor(data.themes, dashboard.theme_id)} className="space-y-8">
+      {/* Read-only means a Snapshot or a View Link: they keep the look they were made or shared with, not the viewer's Appearance (#583). */}
+      <ThemeScope theme={themeFor(data.themes, dashboard.theme_id)} scheme={readOnly ? "designed" : "follow"} className="space-y-8">
         {ordered.length === 0 && (
           <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm text-muted-foreground">This dashboard has no widgets yet.</p>
         )}

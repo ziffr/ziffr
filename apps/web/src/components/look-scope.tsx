@@ -8,6 +8,7 @@ export function LookScope({ look, className, children }: { look: ThemeLook; clas
   return (
     <ThemeScope
       theme={lookTheme(look)}
+      scheme="designed" // a shared page keeps the look it was shared with, whatever the viewer's Appearance (#583)
       className={className}
       style={{ background: look.canvas, ["--primary" as string]: look.accent, ["--primary-foreground" as string]: onFill(look.accent), ["--ring" as string]: look.accent, ["--color-accent" as string]: look.accent, ["--color-focus" as string]: look.accent, ["--color-board" as string]: look.accent, ["--color-board-type" as string]: onFill(look.accent) }}
     >

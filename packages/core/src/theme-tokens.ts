@@ -2,6 +2,7 @@
 // fonts are known, sizes are sane, images are inline pictures of a limited size.
 import { FONTS, HEX } from "./themes";
 import { logoOk, svgIsPlain } from "./theme-look";
+import { cleanDark } from "./theme-dark";
 import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
@@ -16,10 +17,15 @@ export function cleanTokens(t: ThemeTokens): ThemeTokens | null {
   if (!fontHeading || !fontBody || !fontFigures) return null;
   if (!["paper", "flat", "plain"].includes(t.cards)) return null;
   const radius = Math.max(0, Math.min(24, Math.round(Number(t.radius) || 0)));
+  // The dark variant (#583) is optional and only kept when it is valid: an invalid one is dropped, and the Theme's dark
+  // colours are derived instead. The Appearance setting is "fixed" or absent (absent means follow).
+  const dark = cleanDark(t.dark);
   return {
     ...Object.fromEntries(COLORS.map((k) => [k, t[k].toUpperCase()])),
     data: t.data.map((c) => c.toUpperCase()),
     fontHeading, fontBody, fontFigures, radius, cards: t.cards,
+    ...(dark ? { dark } : {}),
+    ...(t.appearance === "fixed" ? { appearance: "fixed" as const } : {}),
   } as ThemeTokens;
 }
 

@@ -26,8 +26,10 @@ const apart = (a: string, b: string, kind: keyof typeof SIM) => {
   return Math.hypot(...p.map((v, i) => v - q[i]));
 };
 
-describe.each(STANDARD_THEMES.map((t) => [t.name, t] as const))("%s", (_n, t) => {
-  const k = t.tokens;
+// Both variants of every Standard Theme (#583): as designed, and the dark variant laid over it where there is one.
+const VARIANTS = STANDARD_THEMES.flatMap((t) => [[t.name, t, t.tokens] as const, ...(t.tokens.dark ? [[`${t.name} (dark variant)`, t, { ...t.tokens, ...t.tokens.dark }] as const] : [])]);
+
+describe.each(VARIANTS)("%s", (_n, t, k) => {
   it("keeps text and values readable on cards and behind them (WCAG AA, 4.5:1)", () => {
     for (const c of ["ink", "muted", "accent", "good", "bad"] as const) expect(contrast(k[c], k.surface), `${c} on cards`).toBeGreaterThanOrEqual(4.5);
     for (const c of ["ink", "muted"] as const) expect(contrast(k[c], k.canvas), `${c} behind cards`).toBeGreaterThanOrEqual(4.5);
@@ -41,9 +43,9 @@ describe.each(STANDARD_THEMES.map((t) => [t.name, t] as const))("%s", (_n, t) =>
     expect(apart(k.good, k.bad, "protanopia")).toBeGreaterThanOrEqual(10);
   });
   it("is a Theme Ziffr itself accepts, and a valid Theme file", () => {
-    expect(cleanTokens(k)).toEqual(k);
+    expect(cleanTokens(t.tokens)).toEqual(t.tokens);
     expect(cleanSlides(t.slides)).toEqual(t.slides);
-    expect(checkThemeFileValue(themeToFile(t.name, k, t.slides)).ok).toBe(true);
+    expect(checkThemeFileValue(themeToFile(t.name, t.tokens, t.slides)).ok).toBe(true);
   });
 });
 

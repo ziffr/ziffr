@@ -8,7 +8,7 @@ import { STANDARD_THEMES } from "./standard-themes";
 import { themeFileText, themeToFile } from "./theme-file";
 import { cleanTokens } from "./theme-tokens";
 import { workspace } from "./test/db-fixtures";
-import { addStandardTheme, duplicateTheme, importTheme, MAX_WORKSPACE_THEMES } from "./workspace-themes";
+import { addStandardTheme, duplicateTheme, importTheme, MAX_WORKSPACE_THEMES, saveTheme } from "./workspace-themes";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -62,6 +62,21 @@ describe("standard Themes and Theme files", () => {
     expect((await themesOf(w.id)).length).toBe(before);
     const res = await importTheme(w.actor(sara), "{\n  \"format\": \"ziffr.theme/1\", \"name\": \"x\", \"colors\": { \"ink\": \"nope\" }\n}");
     expect(res.ok ? [] : res.problems.map((p) => p.line).filter(Boolean).length).toBeGreaterThan(0);
+  });
+
+  it("keeps a standard Theme's designed dark variant and the Appearance setting, and drops a dark variant that is not valid (#583)", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const paris = STANDARD_THEMES.find((t) => t.key === "paris")!;
+    const id = await addStandardTheme(w.actor(sara), "paris");
+    expect((await themesOf(w.id)).find((t) => t.id === id)!.tokens.dark).toEqual(paris.tokens.dark);
+    await saveTheme(w.actor(sara), id, "Paris", { ...paris.tokens, appearance: "fixed" }, paris.slides);
+    const fixed = (await themesOf(w.id)).find((t) => t.id === id)!.tokens;
+    expect(fixed.appearance).toBe("fixed");
+    expect(fixed.dark).toEqual(paris.tokens.dark);
+    await saveTheme(w.actor(sara), id, "Paris", { ...paris.tokens, dark: { ...paris.tokens.dark!, ink: "nope" } }, paris.slides);
+    const after = (await themesOf(w.id)).find((t) => t.id === id)!.tokens;
+    expect(after).not.toHaveProperty("dark");
+    expect(after).not.toHaveProperty("appearance");
   });
 
   it("keeps a Workspace to a sensible number of Themes", async () => {

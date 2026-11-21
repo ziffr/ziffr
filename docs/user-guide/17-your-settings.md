@@ -216,7 +216,7 @@ Open it from your own menu at the bottom of the sidebar, or, in the classic top 
 
 The choice is saved to you, so every device and every Workspace you use looks the same. A browser that is not signed in, such as the sign-in page, uses the choice last made in it, and System before any. In the demo nothing is saved, so the choice stays in this browser.
 
-Dashboards, Decks and exports keep the look of their [Theme](14-decks-and-themes.md); Appearance changes only what is around them. A dashboard or deck can therefore show a light page inside a dark screen.
+Dashboards and Decks follow your Appearance too: when it is dark, a [Theme](14-decks-and-themes.md) shows its dark variant, unless the Theme is set to **Always as designed**. Snapshots, View Links and exported files keep the look they were made or shared with, so they can show a light page inside a dark screen.
 
 ## Your Deliveries
 
