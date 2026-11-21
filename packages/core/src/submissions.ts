@@ -393,8 +393,9 @@ function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearSt
   }
 }
 
-/** The people of a Workspace: members, then Contacts (flagged `contact`). A Contact's email, Slack handle and phone
- * are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages every member sees. */
+/** The people of a Workspace: members, then Contacts (flagged `contact`). Anyone's email, Slack handle and phone,
+ * member or Contact, are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages
+ * every member sees. What a person may be shown of these is peopleFor's (access.ts). */
 export async function peopleIn(ws: string, { contactDetails = false } = {}): Promise<Profile[]> {
   // The details are not even loaded unless asked for, so they cannot slip into a page.
   const columns: string = contactDetails ? "workspace_id, person_id, email, slack_handle, phone" : "workspace_id, person_id";

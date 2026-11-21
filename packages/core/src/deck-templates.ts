@@ -25,7 +25,9 @@ async function deckTemplate(actor: Pick<Actor, "workspaceId">, id: number): Prom
 }
 
 /** The team's Deck Templates. A Slot's suggested Metrics are cut to the ones this person sees (rule 3). */
-export async function listDeckTemplates(actor: Pick<Actor, "workspaceId" | "personId">): Promise<DeckTemplateSummary[]> {
+export async function listDeckTemplates(actor: Pick<Actor, "workspaceId" | "personId"> & { role?: Actor["role"] }): Promise<DeckTemplateSummary[]> {
+  // A Guest creates nothing, so the team's templates are not theirs to read (rule 3).
+  if (actor.role === "guest") return [];
   const { data } = await db().from("team_templates").select("id, owner_id, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "deck").order("name");
   const rows = (data ?? []) as Pick<DeckTemplate, "id" | "owner_id" | "name" | "description" | "slots" | "body">[];
   if (!rows.length) return [];

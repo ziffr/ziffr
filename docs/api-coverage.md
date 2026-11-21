@@ -169,6 +169,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads sealed Breakdown labels and Condensed Values, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
 - `sourcesView` (page-data.ts): what a page reads
+- `workflowAskingRun` (workflows.ts): what a page reads; a program reads period status instead
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page

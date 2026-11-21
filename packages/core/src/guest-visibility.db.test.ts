@@ -9,8 +9,12 @@ import { listWorkflowNames, periodTimeline, workflowPeriods } from "./period-tim
 import { tellEditorFacts } from "./tell";
 import { saveWorkflow, setMetricWorkflow, workflowAskingRun } from "./workflows";
 import { createGroup, setGroupMember } from "./team";
-import { getCanvasData } from "./access";
-import { listGroups } from "./api";
+import { getCanvasData, peopleFor } from "./access";
+import { listGroups, listPeople } from "./api";
+import { versionAccess } from "./version-history";
+import { listWorkflowTemplates } from "./workflow-templates";
+import { listDashboardTemplates } from "./dashboard-templates";
+import { listDeckTemplates } from "./deck-templates";
 import { peopleIn } from "./submissions";
 import { setPreference } from "./questions";
 import { workspace } from "./test/db-fixtures";
@@ -67,10 +71,11 @@ describe("a Guest", () => {
     const board = await createGroup(owner, "Board");
     await setGroupMember(owner, theirs, gus, true);
     await setGroupMember(owner, board, ben, true);
-    await db().from("team_templates").insert({ workspace_id: w.id, owner_id: sara, kind: "widget", name: "Sara's", view: "number", slots: [], body: {}, w: 2, h: 2 });
+    expect((await db().from("team_templates").insert({ workspace_id: w.id, owner_id: sara, kind: "widget", name: "Sara's", view: "number", slots: [], body: {}, w: 2, h: 2 })).error).toBeNull();
+    expect((await getCanvasData(w.id, sara)).templates.length).toBe(1);
     expect((await tellEditorFacts(guest, null)).groups).toEqual([]);
     const canvas = await getCanvasData(w.id, gus);
-    expect(canvas.groups.map((g) => g.name)).toEqual(["Field"]);
+    expect(canvas.groups.map((g) => [g.name, g.members])).toEqual([["Field", [gus]]]);
     expect(canvas.templates).toEqual([]);
     expect(Object.keys(canvas.submitters).map(Number)).not.toContain(secret.id);
     expect(canvas.metrics.map((m) => m.id)).toEqual([shared.id]);
@@ -90,6 +95,31 @@ describe("a Guest", () => {
     await setPreference(w.actor(ben, "member"), ben, "question", "email");
     expect((await connectorsView(guest)).prefs.some((p) => p.user_id === ben)).toBe(false);
     expect((await connectorsView(member)).prefs.some((p) => p.user_id === ben)).toBe(true);
+  });
+});
+
+describe("a Guest, by name and template", () => {
+  it("is shown only the people on what is shared with them, in pages and through the API", async () => {
+    const { w, sara, ben, gus, guest, member } = await setUp();
+    const stranger = await w.person("member");
+    // Sara owns the shared Metric; Ben submits only the hidden one; the stranger is on nothing the Guest sees.
+    expect((await peopleFor(guest)).map((p) => p.id).sort()).toEqual([gus, sara].sort());
+    expect((await listPeople(guest, { limit: 50 })).items.map((p) => p.id).sort()).toEqual([gus, sara].sort());
+    expect((await getCanvasData(w.id, gus)).people.map((p) => p.id)).not.toContain(ben);
+    expect((await peopleFor(member)).map((p) => p.id)).toEqual(expect.arrayContaining([sara, ben, gus, stranger]));
+  });
+
+  it("reads no Versions of a hidden Workflow or a team template, and lists no team templates", async () => {
+    const { w, sara, guest, member, hidden, seen } = await setUp();
+    const { data: t } = await db().from("team_templates").insert({ workspace_id: w.id, owner_id: sara, kind: "workflow", name: "Close", view: "workflow", body: { dueWorkingDays: 1, steps: [] } }).select("id").single();
+    expect((await versionAccess(guest, "workflow", hidden)).view).toBe(false);
+    expect((await versionAccess(guest, "workflow", seen)).view).toBe(true);
+    expect((await versionAccess(guest, "template", t!.id as number)).view).toBe(false);
+    expect((await versionAccess(member, "template", t!.id as number)).view).toBe(true);
+    expect(await listWorkflowTemplates(guest)).toEqual([]);
+    expect((await listWorkflowTemplates(member)).length).toBe(1);
+    expect(await listDeckTemplates(guest)).toEqual([]);
+    expect((await listDashboardTemplates(guest)).every((x) => typeof x.id === "string")).toBe(true);
   });
 });
 

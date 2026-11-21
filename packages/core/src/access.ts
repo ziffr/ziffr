@@ -9,7 +9,7 @@ import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMe
 import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
-import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
@@ -156,6 +156,31 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
   return seriesFor(ws, metrics, visible, ids as number[]);
 }
 
+/** The people a person may be shown by name. A Member, Admin or Owner: everyone in the Workspace. A Guest, who sees
+ * only what is shared with them (GLOSSARY: Workspace Role): themselves and the people on what they see, that is the
+ * owners of their Metrics, dashboards and decks, those Metrics' Submitters and Stand-ins, and the people on the
+ * Threads they may read. Never anyone's email or Slack handle (peopleIn). */
+export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<Profile[]> {
+  const ws = actor.workspaceId;
+  const people = await peopleIn(ws);
+  if (actor.role !== "guest") return people;
+  const me = actor.personId;
+  const metrics = await getMetrics(ws);
+  const [seen, dashboards, decks, actions, { data: tokens }] = await Promise.all([
+    visibleMetricIds(ws, me, metrics), visibleDashboards(ws, me), visibleDecks(ws, me), readableActions(ws, me),
+    db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws),
+  ]);
+  const ids = (actions as { id: number }[]).map((a) => a.id);
+  const { data: authors } = ids.length ? await db().from("thread_messages").select("author_id").eq("workspace_id", ws).in("action_id", ids) : { data: [] };
+  const known = new Set<string>([me]);
+  for (const m of metrics) if (seen.has(m.id)) known.add(m.owner_id);
+  for (const d of [...dashboards, ...decks]) known.add(d.owner_id as string);
+  for (const t of tokens ?? []) if (seen.has(t.metric_id as number)) for (const id of [t.submitter_id, t.stand_in_id]) if (id) known.add(id as string);
+  for (const a of actions as { asker_id: string; assignee_id: string }[]) { known.add(a.asker_id); known.add(a.assignee_id); }
+  for (const a of authors ?? []) if (a.author_id) known.add(a.author_id as string);
+  return people.filter((p) => known.has(p.id));
+}
+
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
  * `seriesOf` every visible Metric's series is sent; pages pass the ones they show, and fetch more with canvasSeries. */
 export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf?: SeriesOf } = {}): Promise<CanvasData> {
@@ -181,6 +206,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
   const guest = !me || me.role === "guest";
+  // A Guest's canvas names only the people on what they see (peopleFor), not the whole Workspace.
+  const named = guest ? await peopleFor({ workspaceId: ws, personId: viewer, role: "guest" }) : people;
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
@@ -191,7 +218,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     viewer,
     metrics: visible,
     series,
-    people,
+    people: named,
     openActions,
     breakdowns,
     targets,
@@ -203,9 +230,9 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     themes: (themes ?? []) as Theme[],
     // Owners and admins manage themes (GLOSSARY: Workspace Role).
     canEditThemes: me?.role === "owner" || me?.role === "admin",
-    // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, never
-    // who else is in which (AGENTS.md rule 3).
-    groups: guest ? groups.filter((g) => g.members.includes(viewer)) : groups,
+    // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, and of
+    // their members only themselves: never who else is in which (AGENTS.md rule 3).
+    groups: guest ? groups.filter((g) => g.members.includes(viewer)).map((g) => ({ ...g, members: [viewer] })) : groups,
     pending: byMetric(states, "approval", ids),
     locked: byMetric(states, "locked", ids),
     yearStart,

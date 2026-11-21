@@ -31,8 +31,9 @@ export async function dashboardTemplate(actor: Pick<Actor, "workspaceId">, id: n
 
 /** The built-in Dashboard Templates and the team's own. A Slot's suggested Metrics are cut to the ones this person
  * sees: a template is seen by the whole team, its original Metrics are not (rule 3). */
-export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | "personId">, visible?: ReadonlySet<number>): Promise<DashboardTemplateSummary[]> {
-  const { data } = await db().from("team_templates").select("id, owner_id, kind, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "dashboard").order("name");
+export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | "personId"> & { role?: Actor["role"] }, visible?: ReadonlySet<number>): Promise<DashboardTemplateSummary[]> {
+  // A Guest creates nothing: the built-in templates only, never the team's (rule 3).
+  const { data } = actor.role === "guest" ? { data: [] } : await db().from("team_templates").select("id, owner_id, kind, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "dashboard").order("name");
   // A page that already decided what the person sees passes it, so visibility is not worked out twice.
   const seen = visible ?? await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
   return [...BUILT_IN_DASHBOARD_TEMPLATES, ...((data ?? []) as DashboardTemplate[])].map((t) => ({
