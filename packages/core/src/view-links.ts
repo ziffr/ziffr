@@ -13,7 +13,7 @@ import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
 import { mentionsPerson, nameHider } from "./hide-names";
-import { peopleIn } from "./submissions";
+import { peopleToHide } from "./submissions";
 import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
@@ -178,7 +178,7 @@ export async function viewForLink(view: ViewPayload, workspaceId: string, showNa
   // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
   const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
   if (showNames) return { ...view, data: { ...view.data, themes } };
-  const people = [...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people];
+  const people = [...(await peopleToHide(workspaceId)), ...view.data.people];
   const hide = nameHider(people);
   const mentions = mentionsPerson(people);
   const words = mapStrings({ ...view, data: { ...view.data, people: [], series: {}, themes } }, hide) as ViewPayload;

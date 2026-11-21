@@ -8,7 +8,7 @@ import { openNames, openOne, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { readableActions, systemTextFor, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics, getObservation, getSeriesOf } from "./workspace-data";
-import { peopleIn } from "./submissions";
+import { peopleIn, peopleToHide } from "./submissions";
 import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { mayManageWebhooks } from "./webhooks";
@@ -48,7 +48,7 @@ async function recentDeliveries(actor: Actor) {
  * sender's, and a Guest does not see who else is in the Workspace (peopleFor, ticket #560). */
 async function withoutOthersNames<T extends { subject?: unknown; body?: unknown }>(actor: Actor, rows: T[]): Promise<T[]> {
   if (actor.role !== "guest" || !rows.length) return rows;
-  const hide = nameHider((await peopleIn(actor.workspaceId, { contactDetails: true })).filter((p) => p.id !== actor.personId));
+  const hide = nameHider((await peopleToHide(actor.workspaceId)).filter((p) => p.id !== actor.personId));
   const hidden = (v: unknown) => (typeof v === "string" ? hide(v) : v);
   return rows.map((r) => ({ ...r, subject: hidden(r.subject), body: hidden(r.body) }));
 }
