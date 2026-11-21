@@ -122,6 +122,8 @@ An exported deck is a **Snapshot**: it holds the values its Widgets show at the 
 
 Slides are exported in their order on the canvas. Each export is noted in the workspace's Audit Log.
 
+Widgets in a deck that show condensed periods (see Dashboards, Show by) draw them as the app does, with points such as "October 2023, condensed from 31 days"; a Snapshot or deck keeps what it showed.
+
 ### Export PowerPoint
 
 Choose **Export PowerPoint**. Your browser downloads a file named after the deck.
