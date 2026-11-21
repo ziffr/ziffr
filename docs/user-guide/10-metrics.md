@@ -167,7 +167,7 @@ The four Submission Rules:
 | **Target to** | The upper end. Leave it empty for no upper end. |
 | **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
 
-After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Everyone who submits it has already been sent a form link and a first request for the value.
+After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Under it, one sentence says what really happened: who got a form link and a first request and by which way ("Ana got a form link and a first request by email."); that nobody submits it yet, with where to add Submitters; or, when this Ziffr sends no email, that nothing was sent and the request waits in the Outbox. Only the Metric's owner, who made it, sees who was asked.
 
 ## A Metric's page
 

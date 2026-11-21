@@ -38,7 +38,7 @@ describe("sending by Telegram", () => {
   it("sends a Prompt to the connected chat as plain text, and keeps which message it is", async () => {
     const { w, sara, ann, chat, m } = await setup();
     const before = sends().length;
-    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" })).toBeTruthy();
     const d = await latest(w.id, ann);
     expect(d).toMatchObject({ connector: "telegram", mail_state: "sent", attempts: 1, telegram_chat_id: chat });
     expect(String(d.telegram_message_id)).toBe(d.provider_id);

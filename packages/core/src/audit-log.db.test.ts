@@ -38,7 +38,7 @@ describe("recording", () => {
     const owner = w.actor(sara);
     await setRole(owner, ben, "admin");
     await setRole(owner, ben, "admin");
-    const inviteToken = await inviteByEmail(owner, { email: "new@audit.test", role: "member" });
+    const inviteToken = (await inviteByEmail(owner, { email: "new@audit.test", role: "member" })).token;
     await createInviteLink(owner, "guest");
     const { data: open } = await db().from("invitations").select("id, token").eq("workspace_id", w.id).order("id");
     await revokeInvitation(owner, open![1].id);

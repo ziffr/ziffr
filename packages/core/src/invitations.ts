@@ -101,8 +101,8 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
 }
 
 /** Invites someone by email with a role, for 14 days, and emails them the link once mail is set up. Inviting a
- * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows. */
-export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<string> {
+ * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows, and whether the email really went out (false when mail is not set up, the daily limit held it back, or the mail server refused it). */
+export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<{ token: string; emailed: boolean }> {
   notDemo(actor);
   await assertNotTrial(actor.workspaceId, "Inviting people");
   assertMayGrant(actor, input.role);
@@ -122,8 +122,8 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
   // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
   const name = input.contactPersonId ? await personName(input.contactPersonId, actor.workspaceId) : email;
   await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: made.id, name }, details: { role: input.role, by: "email", contact: Boolean(input.contactPersonId) } });
-  if (await mailOn()) await emailInvitation(made.id, actor.personId, transport);
-  return t;
+  const emailed = (await mailOn()) ? await emailInvitation(made.id, actor.personId, transport) : false;
+  return { token: t, emailed };
 }
 
 /** Emails an open invitation again, for Owners and Admins: at most three sends in all, a minute apart. */

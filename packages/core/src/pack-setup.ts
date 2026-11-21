@@ -247,7 +247,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
         sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,
       });
       if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
-      made.set(e.pack_key, { ...m, name: e.name });
+      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name });
     }
     if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
     if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);

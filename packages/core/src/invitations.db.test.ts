@@ -24,7 +24,7 @@ async function newcomer(w: Awaited<ReturnType<typeof ws>>) {
 describe("invitations", () => {
   it("bring the invited address in with its role, once", async () => {
     const w = await ws(); const sara = await w.person("owner"); const nia = await newcomer(w);
-    const t = await inviteByEmail(w.actor(sara), { email: "Nia@Example.test", role: "admin" });
+    const t = (await inviteByEmail(w.actor(sara), { email: "Nia@Example.test", role: "admin" })).token;
     expect(await invitationFor(t)).toMatchObject({ role: "admin", forEmail: "nia@example.test", usable: true });
     await expect(acceptInvitation({ personId: nia, verifiedEmail: "someone@else.test" }, t)).rejects.toThrow(/for nia@example.test/);
     await expect(acceptInvitation({ personId: nia, verifiedEmail: null }, t)).rejects.toThrow();
@@ -57,7 +57,7 @@ describe("invitations", () => {
     const m = await w.metric(sara); const code = await w.token(m.id, cleo);
     await submitValue({ source: "web_form", sender: code, text: "5" });
     const account = await newcomer(w);
-    const t = await inviteByEmail(w.actor(sara), { email: "cleo@field.test", role: "member", contactPersonId: cleo });
+    const t = (await inviteByEmail(w.actor(sara), { email: "cleo@field.test", role: "member", contactPersonId: cleo })).token;
     await acceptInvitation({ personId: account, verifiedEmail: "cleo@field.test" }, t);
     const { data: values } = await db().from("observations").select("submitter_id").eq("metric_id", m.id);
     expect(values!.map((v) => v.submitter_id)).toEqual([account]);

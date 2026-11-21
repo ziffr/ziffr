@@ -28,7 +28,7 @@ describe("email invitations", () => {
   it("emails the invitee a link that opens the invitation, and notes it on the invitation", async () => {
     const w = await ws("Acme Shop"); const sara = await w.person("owner");
     const to = address("new");
-    const t = await inviteByEmail(w.actor(sara), { email: to, role: "member" });
+    const t = (await inviteByEmail(w.actor(sara), { email: to, role: "member" })).token;
     const [mail] = await inbox(to);
     expect(mail.Subject).toBe("You are invited to a workspace on Ziffr");
     expect(mail.Text).toMatch(/the workspace “Acme Shop” on Ziffr as a Member, by “owner \w+”/);
@@ -41,7 +41,7 @@ describe("email invitations", () => {
   it("resends at most three times, a minute apart, only open invitations, and only for Owners and Admins", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const to = address("late");
-    const t = await inviteByEmail(w.actor(sara), { email: to, role: "guest" });
+    const t = (await inviteByEmail(w.actor(sara), { email: to, role: "guest" })).token;
     const { id } = await row(t);
     await expect(resendInvitation(w.actor(sara), id)).rejects.toThrow(/a moment ago/);
     const earlier = () => db().from("invitations").update({ email_sent_at: new Date(Date.now() - 120_000).toISOString() }).eq("id", id);
@@ -52,7 +52,7 @@ describe("email invitations", () => {
     await expect(resendInvitation(w.actor(ben, "member"), id)).rejects.toEqual(expect.any(Forbidden));
     const other = await ws("Other"); const zoe = await other.person("owner");
     await expect(resendInvitation(other.actor(zoe), id)).rejects.toEqual(expect.any(Forbidden));
-    const t2 = await inviteByEmail(w.actor(sara), { email: address("gone"), role: "member" });
+    const t2 = (await inviteByEmail(w.actor(sara), { email: address("gone"), role: "member" })).token;
     await revokeInvitation(w.actor(sara), (await row(t2)).id);
     await earlier();
     await expect(resendInvitation(w.actor(sara), (await row(t2)).id)).rejects.toEqual(expect.any(Forbidden));
@@ -60,16 +60,16 @@ describe("email invitations", () => {
   it("keeps the invitation when the email fails, says why, and sends nothing without settings", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const broken: MailTransport = async () => { throw Object.assign(new Error("550 no such user"), { code: "EENVELOPE" }); };
-    const t = await inviteByEmail(w.actor(sara), { email: address("bounce"), role: "member" }, broken);
+    const t = (await inviteByEmail(w.actor(sara), { email: address("bounce"), role: "member" }, broken)).token;
     expect(await invitationFor(t)).toBeTruthy();
     expect(await row(t)).toMatchObject({ email_sends: 1, email_error: "The mail server refused it (EENVELOPE)." });
     // A failure without a code still says nothing of the server's reply.
     const silent: MailTransport = async () => { throw new Error("535 auth failed for user ziffr@smtp.internal"); };
-    const t3 = await inviteByEmail(w.actor(sara), { email: address("other"), role: "member" }, silent);
+    const t3 = (await inviteByEmail(w.actor(sara), { email: address("other"), role: "member" }, silent)).token;
     expect((await row(t3)).email_error).toBe("The mail server refused it (error).");
     delete process.env.ZIFFR_SMTP_URL;
     const to = address("quiet");
-    const t2 = await inviteByEmail(w.actor(sara), { email: to, role: "member" });
+    const t2 = (await inviteByEmail(w.actor(sara), { email: to, role: "member" })).token;
     expect(await row(t2)).toMatchObject({ email_sent_at: null, email_sends: 0, email_error: null });
     await expect(resendInvitation(w.actor(sara), (await row(t2)).id)).rejects.toThrow(/not set up/);
     process.env.ZIFFR_SMTP_URL = SETTINGS.ZIFFR_SMTP_URL;
@@ -90,7 +90,7 @@ describe("email invitations", () => {
     expect(refused).toEqual([{ email_error: "Too many invitation emails today; send the link yourself." }]);
     // Three resends at once of an invitation that may be sent once more: exactly one goes out.
     const w = await ws(); const sara = await w.person("owner"); const to2 = address("race");
-    const t = await inviteByEmail(w.actor(sara), { email: to2, role: "member" });
+    const t = (await inviteByEmail(w.actor(sara), { email: to2, role: "member" })).token;
     const { id } = await row(t);
     await db().from("invitations").update({ email_sends: 2, email_sent_at: new Date(Date.now() - 120_000).toISOString() }).eq("id", id);
     const results = await Promise.allSettled([1, 2, 3].map(() => resendInvitation(w.actor(sara), id)));
@@ -114,15 +114,15 @@ describe("email invitations", () => {
   it("emails at most 50 invitations a day caused by one person, across all their workspaces, resends too", async () => {
     const a = await ws("A"); const b = await ws("B"); const sara = await a.person("owner");
     await db().from("memberships").insert({ workspace_id: b.id, user_id: sara, role: "owner" });
-    const first = await inviteByEmail(a.actor(sara), { email: address("one"), role: "member" });
+    const first = (await inviteByEmail(a.actor(sara), { email: address("one"), role: "member" })).token;
     // As if 49 more went out today from Sara's other workspace.
     const { data: inv } = await db().from("invitations").select("id").eq("token", first).single();
     await db().from("invitation_emails").insert(Array.from({ length: 49 }, (_, i) => ({ invitation_id: inv!.id, workspace_id: b.id, sent_by: sara, address_key: `x${i}@example.test` })));
-    const late = await inviteByEmail(b.actor(sara), { email: address("two"), role: "member" });
+    const late = (await inviteByEmail(b.actor(sara), { email: address("two"), role: "member" })).token;
     expect(await row(late)).toMatchObject({ email_sends: 0, email_error: expect.stringMatching(/Too many/) });
     // A resend counts against whoever resends, here Sara again, not against the one who first invited.
     const ann = await a.person("admin");
-    const annInvite = await inviteByEmail(a.actor(ann, "admin"), { email: address("three"), role: "member" });
+    const annInvite = (await inviteByEmail(a.actor(ann, "admin"), { email: address("three"), role: "member" })).token;
     const { id: annId } = await row(annInvite);
     await db().from("invitations").update({ email_sent_at: new Date(Date.now() - 120_000).toISOString() }).eq("id", annId);
     await expect(resendInvitation(a.actor(sara), annId)).rejects.toThrow(/could not be sent/);

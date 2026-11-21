@@ -65,7 +65,7 @@ export async function askMeNowBy(actor: Actor, metricId: number, via: ConnectorI
     const since = new Date().toISOString();
     let asked = false;
     try {
-      asked = await deliverPrompt({ metricId, submitterId: actor.personId, senderId: null, via: c });
+      asked = Boolean(await deliverPrompt({ metricId, submitterId: actor.personId, senderId: null, via: c }));
     } catch (e) {
       console.error("Ask me now could not make a Prompt:", (e as Error).message);
     }

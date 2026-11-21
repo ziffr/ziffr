@@ -179,7 +179,7 @@ export async function listInvitationsWithKey(actor: KeyActor): Promise<ApiInvita
  * token: the link goes only to that address. */
 export async function inviteWithKey(actor: KeyActor, input: { email: string; role: WorkspaceRoleName; contact?: string | null }): Promise<ApiInvitation> {
   return acting(actor, "people:write", async (creator) => {
-    const token = await inviteByEmail(creator, { email: input.email, role: input.role, contactPersonId: input.contact ?? null });
+    const { token } = await inviteByEmail(creator, { email: input.email, role: input.role, contactPersonId: input.contact ?? null });
     const { data } = await db().from("invitations").select("id, email, role, expires_at, created_at, email_sent_at, email_error").eq("workspace_id", creator.workspaceId).eq("token", token).single();
     return asInvitation(data as InvitationRow);
   });
