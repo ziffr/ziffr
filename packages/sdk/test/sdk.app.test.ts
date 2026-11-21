@@ -40,7 +40,7 @@ describe("@ziffr/sdk against the app", () => {
     expect((await ziffr.find("visits february 2026"))[0]).toEqual({ slug: extra.slug, name: "Visits", archived: false, period: "2026-02-01", period_label: "February 2026" });
     expect(await ziffr.find("nothing like this")).toEqual([]);
     // Where the workspace's quarters and years start: January unless an Owner set another month.
-    expect(await ziffr.workspace()).toEqual({ year_start_month: 1, number_style: "1,234.5" });
+    expect(await ziffr.workspace()).toEqual({ year_start_month: 1, number_style: "1,234.5", time_zone: "UTC", run_hour: 8, week_start: "monday", reached_by: ["email"] });
     // What the key's creator has to do: nothing yet in a workspace made a moment ago.
     expect(await ziffr.schedule()).toMatchObject({ today: expect.any(String), overdue: [], days: [], undated: [] });
   });
