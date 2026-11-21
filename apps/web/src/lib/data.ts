@@ -3,7 +3,8 @@ import "server-only";
 // (@ziffr/core/workspace-data) and take the workspace; these pass in the one the person is working in. The ones a
 // page and its layout often both call read once per request (React cache; it does not cache outside a render).
 import { cache } from "react";
-import { currentWorkspaceId } from "./viewer";
+import { currentActor, currentWorkspaceId } from "./viewer";
+import { schedule } from "@ziffr/core/schedule";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
 import { yearStartOf } from "@ziffr/core/fiscal-year";
@@ -46,3 +47,15 @@ export const openActionCount = cache(async (viewer: string) => data.openActionCo
 export const getSeriesValues = async (metricIds: number[]) => data.getSeriesValues(await currentWorkspaceId(), metricIds);
 /** Breakdowns of the current workspace. */
 export const getBreakdowns = async (metricIds: number[]) => data.getBreakdowns(await currentWorkspaceId(), metricIds);
+
+/** How many values are due from the viewer: their overdue ones and those due today (GLOSSARY: Schedule, Due Date), for
+ * the sidebar's Schedule row. A number only; where the Schedule cannot be read it is 0, never an error on every page. */
+export const dueValueCount = cache(async (): Promise<number> => {
+  try {
+    const s = await schedule(await currentActor());
+    const today = s.days.find((d) => d.date === s.today)?.entries ?? [];
+    return [...s.overdue, ...today].filter((e) => e.kind === "value_due").length;
+  } catch {
+    return 0;
+  }
+});

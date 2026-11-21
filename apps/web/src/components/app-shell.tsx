@@ -5,8 +5,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, ChevronRight, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
-import { GuideLink, INSTALLATION, MAIN, PhoneMenu, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/top-bar";
+import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/top-bar";
+import { SettingsNav } from "@/components/settings-nav";
+import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -24,6 +26,7 @@ const ICONS: Record<string, React.ReactNode> = {
   "/metrics": <Hash aria-hidden />,
   "/analyze": <FlaskConical aria-hidden />,
   "/settings/workspace": <Settings2 aria-hidden />,
+  "/schedule": <CalendarClock aria-hidden />,
   "/team": <Users aria-hidden />,
   "/connectors": <Plug aria-hidden />,
   "/workflows": <Workflow aria-hidden />,
@@ -37,6 +40,12 @@ const ICONS: Record<string, React.ReactNode> = {
   "/audit": <ScrollText aria-hidden />,
 };
 
+/** The user menu's pages (#529): the top bar's list without My schedule, which has a row of its own, plus Connected assistants. */
+const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }];
+
+/** The top rows after Actions and Schedule, in the sidebar's order (the top bar keeps its own). */
+const TOP_ORDER = ["/dashboards", "/metrics", "/decks", "/analyze"];
+
 /** Whether `path` is on the page `href` or below it; Home is a dashboard, so Dashboards covers it. */
 function isOn(path: string, href: string) {
   return path === href || path.startsWith(href + "/") || (href === "/dashboards" && path === "/");
@@ -45,7 +54,7 @@ function isOn(path: string, href: string) {
 const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
-export function AppShell({ workspace, open, account, guide, demo, people, banners, collapsed, children }: { workspace: NavItem[]; open: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
+export function AppShell({ workspace, settings, due, open, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; due: number; open: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
   const path = usePathname();
   return (
     <TooltipProvider delay={300}>
@@ -61,9 +70,11 @@ export function AppShell({ workspace, open, account, guide, demo, people, banner
             <nav aria-label="Main" className="flex flex-col gap-3">
               <SidebarGroup>
                 <SidebarItem render={<Link href="/actions" />} icon={<Inbox aria-hidden />} label="Actions" active={path.startsWith("/actions")} badge={open > 0 ? open : undefined} tooltip={open ? `Actions, ${open} waiting for you` : "Actions"} aria-label={open ? `Actions, ${open} waiting for you` : "Actions"} />
-                {MAIN.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href]} label={l.label} active={isOn(path, l.href)} />)}
+                <SidebarItem render={<Link href="/schedule" />} icon={ICONS["/schedule"]} label="Schedule" active={isOn(path, "/schedule")} badge={due > 0 ? due : undefined} tooltip={due ? `Schedule, ${due} due` : "Schedule"} aria-label={due ? `Schedule, ${due} due` : "Schedule"} />
+                {/* Pinned dashboards (#509) go under Dashboards. */}
+                {TOP_ORDER.map((href) => MAIN.find((l) => l.href === href)!).map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href]} label={l.label} active={isOn(path, l.href)} />)}
               </SidebarGroup>
-              <WorkspaceGroup workspace={workspace} path={path} />
+              <WorkspaceGroup workspace={workspace} settings={settings} path={path} />
             </nav>
           </SidebarContent>
           <SidebarFooter>
@@ -80,9 +91,17 @@ export function AppShell({ workspace, open, account, guide, demo, people, banner
             {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
           </header>
           {banners}
-          <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">{children}</main>
+          <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">
+            {/* The Settings page's own grouped list; the pages of the Workspace group carry no second list. */}
+            {inSettings(path, settings) ? (
+              <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
+                <SettingsNav groups={settings} />
+                <div className="min-w-0">{children}</div>
+              </div>
+            ) : children}
+          </main>
         </SidebarInset>
-        <TabBar open={open} workspace={workspace} account={account} guide={guide} />
+        <TabBar open={open} due={due} workspace={workspace} account={account} guide={guide} />
       </SidebarProvider>
     </TooltipProvider>
   );
@@ -90,21 +109,23 @@ export function AppShell({ workspace, open, account, guide, demo, people, banner
 
 /** The Workspace's own pages: one row that opens the list, closed unless the current page is in it (up to a dozen
  * rows would read like an admin panel). With the sidebar shrunk to icons it is one icon to the first page. */
-function WorkspaceGroup({ workspace, path }: { workspace: NavItem[]; path: string }) {
+function WorkspaceGroup({ workspace, settings, path }: { workspace: TreeLink[]; settings: { links: TreeLink[] }[]; path: string }) {
   const { collapsed } = useSidebar();
-  const inside = workspace.some((l) => isOn(path, l.href));
+  const inSettingsPage = inSettings(path, settings);
+  const rowOn = (l: TreeLink) => (l.label === "Settings" ? inSettingsPage : onPage(path, l.href));
+  const inside = workspace.some(rowOn);
   const [chosen, setChosen] = useState<boolean | null>(null);
   const open = chosen ?? inside;
   if (!workspace.length) return null;
-  if (collapsed) return <SidebarGroup><SidebarItem render={<Link href={workspace[0].href} />} icon={<Settings2 aria-hidden />} label="Workspace" active={inside} /></SidebarGroup>;
+  if (collapsed) return <SidebarGroup><SidebarItem render={<Link href={workspace[0].href} />} icon={<Building2 aria-hidden />} label="Workspace" active={inside} /></SidebarGroup>;
   return (
     <SidebarGroup>
-      <SidebarItem icon={<Settings2 aria-hidden />} label="Workspace" aria-expanded={open} aria-controls="workspace-pages" onClick={() => setChosen(!open)} active={inside && !open}>
-        <ChevronRight aria-hidden className={cn("ml-auto !size-3.5 transition-transform motion-reduce:transition-none", open && "rotate-90", collapsed && "hidden")} />
+      <SidebarItem icon={<Building2 aria-hidden />} label="Workspace" aria-expanded={open} aria-controls="workspace-pages" onClick={() => setChosen(!open)} active={inside && !open}>
+        <ChevronRight aria-hidden className={cn("ml-auto !size-3.5 transition-transform motion-reduce:transition-none", open && "rotate-90")} />
       </SidebarItem>
       {open && (
         <div id="workspace-pages" className="ml-3.5 flex flex-col gap-0.5 border-l border-sidebar-border pl-1.5">
-          {workspace.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href] ?? <Blocks aria-hidden />} label={l.label} active={isOn(path, l.href)} />)}
+          {workspace.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href] ?? <Blocks aria-hidden />} label={l.label} active={rowOn(l)} />)}
         </div>
       )}
     </SidebarGroup>
@@ -156,7 +177,7 @@ function UserMenu({ account }: { account: Account }) {
       <DropdownMenuContent align="start" side={collapsed ? "right" : "top"} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Your settings</DropdownMenuLabel>
-          {YOU.map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
+          {YOUR_PAGES.map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
           {account.installationAdmin && <DropdownMenuItem render={<Link href={INSTALLATION.href} />}><ShieldCheck aria-hidden /> {INSTALLATION.label}</DropdownMenuItem>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -200,7 +221,7 @@ function DemoMenu({ people }: { people: { profiles: Profile[]; current: string }
 }
 
 /** The phone's way around: four places and More, which opens everything else from the bottom. */
-function TabBar({ open, workspace, account, guide }: { open: number; workspace: NavItem[]; account: Account | null; guide: string }) {
+function TabBar({ open, due, workspace, account, guide }: { open: number; due: number; workspace: TreeLink[]; account: Account | null; guide: string }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   // A page change closes More.
@@ -223,9 +244,46 @@ function TabBar({ open, workspace, account, guide }: { open: number; workspace: 
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
           <SheetHeader><SheetTitle>More</SheetTitle></SheetHeader>
-          <div className="px-2 pb-3"><PhoneMenu workspace={workspace} account={account} guide={guide} /></div>
+          <div className="px-2 pb-3"><MoreRows due={due} workspace={workspace} account={account} guide={guide} /></div>
         </SheetContent>
       </Sheet>
+    </>
+  );
+}
+
+/** What More lists (#529): only what the tabs do not (no Dashboards, Metrics, Actions or Search): Schedule, Decks,
+ * Analyze, the Workspace as one row that opens its pages, the guide, your own pages, switching, signing out. */
+function MoreRows({ due, workspace, account, guide }: { due: number; workspace: TreeLink[]; account: Account | null; guide: string }) {
+  const path = usePathname();
+  const [pages, setPages] = useState(false);
+  const row = "flex h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground";
+  const link = (l: NavItem, icon?: React.ReactNode, note?: React.ReactNode) => (
+    <li key={l.href}><Link href={l.href} aria-current={isOn(path, l.href) ? "page" : undefined} className={cn(row, isOn(path, l.href) && "bg-muted font-medium")}>{icon}{l.label}{note}</Link></li>
+  );
+  const yours = [...YOUR_PAGES, ...(account?.installationAdmin ? [INSTALLATION] : [])];
+  return (
+    <>
+      <ul>
+        {link({ href: "/schedule", label: "Schedule" }, ICONS["/schedule"], due > 0 ? <span className="fig ml-auto text-xs text-muted-foreground">{due}</span> : null)}
+        {link({ href: "/decks", label: "Decks" }, ICONS["/decks"])}
+        {link({ href: "/analyze", label: "Analyze" }, ICONS["/analyze"])}
+        {workspace.length > 0 && (
+          <li>
+            <button type="button" className={cn(row, "w-full text-left")} aria-expanded={pages} aria-controls="more-workspace" onClick={() => setPages(!pages)}>
+              <Building2 aria-hidden />Workspace<ChevronRight aria-hidden className={cn("ml-auto transition-transform motion-reduce:transition-none", pages && "rotate-90")} />
+            </button>
+            {pages && <ul id="more-workspace" className="ml-5 border-l border-border pl-2">{workspace.map((l) => link(l))}</ul>}
+          </li>
+        )}
+        <li><GuideLink href={guide} className={row}><CircleHelp aria-hidden />User guide</GuideLink></li>
+      </ul>
+      {account && (
+        <>
+          <h2 className="mt-3 px-2 pb-1 text-xs font-medium text-muted-foreground">{account.name}</h2>
+          <ul>{yours.map((l) => link(l))}</ul>
+          <PhoneAccount account={account} />
+        </>
+      )}
     </>
   );
 }
