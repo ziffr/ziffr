@@ -9,7 +9,7 @@ import { updatePackFile } from "./pack-updates";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { PACK } from "./pack.test";
 import { testKeys } from "./test/marketplace-keys";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -77,7 +77,7 @@ describe("the Marketplace connection", () => {
     await installFromMarketplace(w.actor(ann), "ziffr/saas-metrics", "1.2.0", { assistantTexts: true });
     const [p] = await listInstalledPacks(w.actor(ann));
     expect(p).toMatchObject({ packId: "ziffr/saas-metrics", version: "1.2.0", source: "marketplace", signed: true });
-    const { data: events } = await db().from("audit_events").select("details").eq("workspace_id", w.id).eq("kind", "pack.installed");
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "pack.installed")).data, { dropId: true });
     expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", version: "1.2.0", source: "marketplace", signed: true } }]);
   });
 

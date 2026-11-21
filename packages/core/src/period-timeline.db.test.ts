@@ -7,7 +7,7 @@ import { Forbidden } from "./actor";
 import { closePeriod } from "./workflow-engine";
 import { periodTimeline, workflowPeriods } from "./period-timeline";
 import { saveWorkflow } from "./workflows";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const PERIOD = "2026-11-16";
 const at = (hhmm: string, day = "16") => `2026-11-${day}T${hhmm}:00Z`;
@@ -123,7 +123,7 @@ describe("periodTimeline", () => {
 });
 
 describe("the summary when a period locks", () => {
-  const notices = async (who: string) => (await db().from("deliveries").select("id, kind, subject").eq("workspace_id", w.id).eq("recipient_id", who).eq("kind", "notice")).data ?? [];
+  const notices = async (who: string) => opened("deliveries", w.id, (await db().from("deliveries").select("id, kind, subject").eq("workspace_id", w.id).eq("recipient_id", who).eq("kind", "notice")).data);
 
   it("goes to the Workflow's owner when it is on, once everything is locked, and is off by default", async () => {
     const x = await workspace();
@@ -134,7 +134,7 @@ describe("the summary when a period locks", () => {
       const a = await x.metric(o, { name: "A", period: "week", workflow_id: plain }); await x.token(a.id, sub); await x.value(a.id, "2026-11-09", 1, sub);
       const b = await x.metric(o, { name: "B", period: "week", workflow_id: loud }); await x.token(b.id, sub); await x.value(b.id, "2026-11-09", 2, sub);
       await closePeriod(x.id, plain, "2026-11-16", o);
-      const mine = async () => (await db().from("deliveries").select("kind, subject, body").eq("workspace_id", x.id).eq("recipient_id", o).eq("kind", "notice")).data ?? [];
+      const mine = async () => opened("deliveries", x.id, (await db().from("deliveries").select("id, kind, subject, body").eq("workspace_id", x.id).eq("recipient_id", o).eq("kind", "notice")).data, { dropId: true });
       expect(await mine()).toEqual([]);
       await closePeriod(x.id, loud, "2026-11-16", o);
       const sent = await mine();
