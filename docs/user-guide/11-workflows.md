@@ -4,7 +4,7 @@
 
 A **Workflow** is the path a Metric's value takes each period: who is asked, when they are reminded, who steps in, which values need **Approval**, and when the period locks. Several Metrics can share one, such as "Monthly finance close". This chapter covers the Workflows page, the Workflow box on a Metric's page, and the controls for approving, sending back, correcting and locking values.
 
-Open the Workflows page from the sidebar: **Workspace → Workflows**. Everyone in the Workspace can look at the Workflows. Owners, Admins and Members create them; Guests create nothing. Only the person who created a Workflow, its owner, changes it.
+Open the Workflows page from the sidebar: **Workspace → Workflows**. Owners, Admins and Members can look at every Workflow and create them. A Guest creates nothing and sees only the Workflows of the Metrics shared with them. Only the person who created a Workflow, its owner, changes it.
 
 ## The Workflows page
 

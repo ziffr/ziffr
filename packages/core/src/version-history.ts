@@ -15,6 +15,7 @@ import { insertSealed, sealedPatch } from "./sealed-columns";
 import type { Format, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowConfig } from "./types";
 import { keptUnit } from "./units";
 import { saveWorkflow } from "./workflows";
+import { guestWorkflowIds } from "./period-timeline";
 import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
 
 /** How a restored Workflow is saved; tests may pass their own. */
@@ -43,7 +44,10 @@ export async function versionAccess(actor: Actor, type: VersionType, id: number)
   if (type === "snapshot") return snapshotAccess(actor, id);
   if (type === "workflow" || type === "template") {
     const { data } = await db().from(type === "workflow" ? "workflows" : "team_templates").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
-    return { view: Boolean(data), edit: data?.owner_id === me };
+    // A Guest sees only what is shared with them: the Versions of their Metrics' Workflows, of no team template.
+    const guestSees = await guestWorkflowIds(actor);
+    const hidden = guestSees !== null && (type === "template" || !guestSees.has(id));
+    return { view: Boolean(data) && !hidden, edit: !hidden && data?.owner_id === me };
   }
   if (type === "theme") {
     const { data } = await db().from("themes").select("id").eq("id", id).eq("workspace_id", ws).maybeSingle();

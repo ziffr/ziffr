@@ -375,7 +375,7 @@ At the bottom of the window, **Who can see this** and, for the owner, **View lin
 
 ### Who can see this
 
-**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access".
+**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
 
 When someone asked for access, the owner sees them first, under **Asking for access**, with **Grant as Viewer** and **Decline**.
 

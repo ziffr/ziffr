@@ -142,7 +142,7 @@ In the demo, to answer as someone else, switch **Viewing as** in the sidebar's f
 
 ## The Changes page
 
-Open **Workspace → Changes**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see.
+Open **Workspace → Changes**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see. A Guest sees changes to what is shared with them and to the Workflows of those Metrics, not to templates or Themes.
 
 ### What it lists
 
@@ -155,7 +155,7 @@ The page shows the latest 150 entries.
 
 ### Filtering by person
 
-The row of names at the top filters the list. **Everyone** shows all entries; a first name shows only that person's changes. Replaced values are not tied to a person, so they show only under **Everyone**.
+The row of names at the top filters the list. It names the people behind the changes you see, not everyone in the Workspace. **Everyone** shows all entries; a first name shows only that person's changes. Replaced values are not tied to a person, so they show only under **Everyone**.
 
 ### Changes, Versions and the Audit Log
 

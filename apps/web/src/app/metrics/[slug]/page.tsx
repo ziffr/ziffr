@@ -112,7 +112,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
         <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
         <p className="font-medium">{metric.name} isn’t shared with you</p>
-        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id]?.name} owns it.</p>
+        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id] ? `${peopleById[metric.owner_id].name} owns it.` : "Its owner can share it with you."}</p>
         <RequestAccess type="metric" id={metric.id} owner={peopleById[metric.owner_id]?.name.split(" ")[0] ?? "the owner"} />
       </div>
     );

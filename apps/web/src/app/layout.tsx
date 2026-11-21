@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { dueValueCount, getProfiles, openActionCount } from "@/lib/data";
+import { dueValueCount, getPeopleIn, getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
@@ -74,8 +74,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </html>
     );
   }
-  const [profiles, viewer] = await Promise.all([getProfiles(), viewerId()]);
+  const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
   const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
+  const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.

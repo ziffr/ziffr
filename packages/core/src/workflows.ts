@@ -20,6 +20,7 @@ import { ensureBaseline, recordVersion } from "./versions";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { audit } from "./audit-log";
 import { getGroups } from "./access";
+import { guestWorkflowIds } from "./period-timeline";
 import { validCondition } from "./alert-rules";
 import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "./alert-limits";
 import { mayManageWebhooks } from "./webhooks";
@@ -242,6 +243,9 @@ export async function runTodayNow(actor: Actor, workflowId?: number): Promise<Ru
 
 /** The last run of a Workflow on its own Asking Schedule, or null when it has none yet (a skipped day is no run). */
 export async function workflowAskingRun(actor: Actor, workflowId: number): Promise<RunInfo | null> {
+  // A Guest learns of no Workflow beyond those of the Metrics shared with them.
+  const guestSees = await guestWorkflowIds(actor);
+  if (guestSees && !guestSees.has(Number(workflowId))) return null;
   const { data } = await db().from("workflow_asking_runs").select("day, trigger, state, started_at, prompts, reminders, escalations").eq("workspace_id", actor.workspaceId).eq("workflow_id", Number(workflowId)).neq("state", "skipped").order("day", { ascending: false }).limit(1).maybeSingle();
   return data ? { day: data.day, trigger: data.trigger === "manual" ? "manual" : "schedule", state: data.state, startedAt: data.started_at, counts: { prompts: data.prompts, reminders: data.reminders, escalations: data.escalations } } : null;
 }

@@ -393,8 +393,9 @@ function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearSt
   }
 }
 
-/** The people of a Workspace: members, then Contacts (flagged `contact`). A Contact's email, Slack handle and phone
- * are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages every member sees. */
+/** The people of a Workspace: members, then Contacts (flagged `contact`). Anyone's email, Slack handle and phone,
+ * member or Contact, are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages
+ * every member sees. What a person may be shown of these is peopleFor's (access.ts). */
 export async function peopleIn(ws: string, { contactDetails = false } = {}): Promise<Profile[]> {
   // The details are not even loaded unless asked for, so they cannot slip into a page.
   const columns: string = contactDetails ? "workspace_id, person_id, email, slack_handle, phone" : "workspace_id, person_id";
@@ -409,8 +410,13 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
   if (!ids.length) return [];
   const { data } = await db().from("profiles").select("*").in("id", ids);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
+  // Security (AGENTS.md rule 3): pages hand these profiles to the browser, so a member's email, Slack handle and phone,
+  // and the sign-in account behind them, are not loaded unless `contactDetails` asks for them (intake, Prompts).
+  const named = (data ?? []).map((p) => contactDetails
+    ? { id: p.id, name: p.name, role: p.role, color: p.color, email: p.email, slack_handle: p.slack_handle, phone: p.phone ?? null }
+    : { id: p.id, name: p.name, role: p.role, color: p.color, email: "", slack_handle: "", phone: null });
   // Sorted here, not by the database: a Contact's name is sealed, so its order there means nothing.
-  const profiles = ((await openNames(ws, (data ?? []) as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
+  const profiles = ((await openNames(ws, named as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
 }
 

@@ -13,7 +13,9 @@ import type { WorkflowTemplate } from "./types";
 export type WorkflowTemplateSummary = Pick<WorkflowTemplate, "id" | "owner_id" | "name" | "description" | "body">;
 
 /** The team's Workflow Templates, by name. */
-export async function listWorkflowTemplates(actor: Pick<Actor, "workspaceId">): Promise<WorkflowTemplateSummary[]> {
+export async function listWorkflowTemplates(actor: Pick<Actor, "workspaceId"> & Pick<Actor, "role">): Promise<WorkflowTemplateSummary[]> {
+  // A Guest creates nothing, so the team's templates are not theirs to read (rule 3).
+  if (actor.role === "guest") return [];
   const { data } = await db().from("team_templates").select("id, owner_id, name, description, body").eq("workspace_id", actor.workspaceId).eq("kind", "workflow").order("name");
   return (data ?? []) as WorkflowTemplateSummary[];
 }

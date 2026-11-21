@@ -7,6 +7,7 @@ import { currentActor, currentWorkspaceId } from "./viewer";
 import { schedule } from "@ziffr/core/schedule";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
+import { peopleFor } from "@ziffr/core/access";
 import { yearStartOf } from "@ziffr/core/fiscal-year";
 import { attainmentMethodOf, numberStyleOf } from "@ziffr/core/workspace-settings";
 import type { Profile } from "@ziffr/core/types";
@@ -14,10 +15,11 @@ import type { Profile } from "@ziffr/core/types";
 /** The people of a Workspace, members then Contacts; it lives in the core (see peopleIn there). */
 export const getPeopleIn = peopleIn;
 
-/** The people in the current Workspace: members, then Contacts (flagged). Pickers for sharing or asking leave the
+/** The people of the current Workspace the person may be shown (the core's peopleFor): members, then Contacts
+ * (flagged); for a Guest only the people on what is shared with them. Pickers for sharing or asking leave the
  * Contacts out: they have no login and only submit values. */
 export const getProfiles = cache(async (): Promise<Profile[]> => {
-  return peopleIn(await currentWorkspaceId());
+  return peopleFor(await currentActor());
 });
 
 /** The people of the current workspace by id. */

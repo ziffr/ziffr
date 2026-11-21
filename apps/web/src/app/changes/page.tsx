@@ -17,6 +17,8 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
   const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart, numberStyle] = await Promise.all([getProfiles(), activityView(await currentActor()), getYearStart(), getNumberStyle()]);
   const dash = new Map(dashboards.map((d) => [d.id, d]));
   const name = (id: string | null) => people.find((p) => p.id === id)?.name ?? "Someone";
+  // The filter names only the people behind a change shown here, not everyone in the Workspace (rule 3).
+  const authors = new Set(versions.map((v) => v.author_id));
 
   const items = [
     ...versions
@@ -45,7 +47,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
       <PageHeader title="Changes" sub="Every change to what people build, and every number that was replaced. Nothing here can be edited." />
       <nav aria-label="Filter by person" className="mb-4 flex flex-wrap gap-1 text-sm">
         <Link href="/changes" aria-current={!sp.who ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", !sp.who ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Everyone</Link>
-        {people.map((p) => (
+        {people.filter((p) => authors.has(p.id)).map((p) => (
           <Link key={p.id} href={`/changes?who=${p.id}`} aria-current={sp.who === p.id ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", sp.who === p.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>{p.name.split(" ")[0]}</Link>
         ))}
       </nav>

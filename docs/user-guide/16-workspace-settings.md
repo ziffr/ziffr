@@ -22,16 +22,18 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 | Page | Who sees it in the menu | Covered |
 | --- | --- | --- |
 | **General** | Everyone | Below |
-| **Members and Groups** | Everyone | Below |
+| **Members and Groups** | Everyone but Guests | Below |
 | **Connectors** | Everyone | Below |
-| **Workflows** | Everyone | In [Workflows](11-workflows.md) |
+| **Workflows** | Everyone but Guests | In [Workflows](11-workflows.md) |
 | **Sources** | Everyone | Below |
 | **Packs** | Everyone but Guests | In [Packs](19-packs.md) |
-| **Access Keys** | Everyone | Below |
+| **Access Keys** | Everyone but Guests | Below |
 | **Feeds** | Owners and Admins | Below |
 | **Changes** | Everyone | [Actions and Changes](15-actions.md#the-changes-page) |
 | **Usage** | Owners and Admins | Below |
 | **Audit log** | Owners and Admins | Below |
+
+A Guest sees only what is shared with them. Their **Connectors** page shows their own Delivery Preferences, their **Workflows** are those of the Metrics shared with them (the page still opens from a link), and **Changes** lists changes to what they may see.
 
 General, Packs, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
@@ -174,7 +176,7 @@ In the demo nobody changes these settings: the page shows them without the contr
 
 ## Members and Groups
 
-**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Everyone sees it; only Owners and Admins see the buttons that change people and Groups.
+**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Owners, Admins and Members see it; only Owners and Admins see the buttons that change people and Groups. A Guest sees only what is shared with them, so the page shows them none of this.
 
 ### Members and their roles
 

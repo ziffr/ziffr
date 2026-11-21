@@ -63,7 +63,7 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "escalate", to: "owner", daysAfter: 2 }, people)).toBe("2 days after the due date, if still missing: tell the metric owner");
     expect(stepLabel({ type: "check", changePct: 20, outsideTarget: true }, people)).toBe("Unusual if it changes more than 20 % or falls outside the target");
     expect(stepLabel({ type: "check", changePct: 20, outsideTarget: false }, people)).toBe("Unusual if it changes more than 20 %");
-    expect(stepLabel({ type: "approve", approvers: ["sara", "ben", "gone"] }, people)).toBe("Unusual values approved by Sara, then Ben, then gone; when nobody else can, the submitter checks it");
+    expect(stepLabel({ type: "approve", approvers: ["sara", "ben", "gone"] }, people)).toBe("Unusual values approved by Sara, then Ben, then someone; when nobody else can, the submitter checks it");
     expect(stepLabel({ type: "approve", approvers: ["sara", "ben"], values: "unusual" }, people)).toBe("Unusual values approved by Sara, then Ben; when nobody else can, the submitter checks it");
     expect(stepLabel({ type: "approve", approvers: ["sara", "ben"], values: "every" }, people)).toBe("Every value approved by Sara, then Ben; when nobody else can, the submitter checks it");
     expect(stepLabel({ type: "approve", approvers: ["sara"], values: "every", nobodyElse: "count" }, people)).toBe("Every value approved by Sara; when nobody else can, it counts without approval");

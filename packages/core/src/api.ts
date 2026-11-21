@@ -2,7 +2,7 @@
 // takes a KeyActor (or a person's Actor, for tests and tools), checks its scope, and returns only what the key's
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
@@ -212,8 +212,8 @@ export type ApiPerson = { id: string; name: string; contact: boolean };
 /** The workspace's people and Contacts by id, one page after the id `after` (scope metrics:read). */
 export async function listPeople(actor: Actor | KeyActor, page: { after?: string | null; limit: number }): Promise<Page<ApiPerson, string>> {
   assertScope(actor, "metrics:read");
-  // Loaded without contact details, so none can reach a program.
-  const people = (await peopleIn(actor.workspaceId)).map((p) => ({ id: p.id, name: p.name, contact: Boolean(p.contact) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // Loaded without contact details, so none can reach a program; a Guest's key gets only the people on what they see.
+  const people = (await peopleFor(actor)).map((p) => ({ id: p.id, name: p.name, contact: Boolean(p.contact) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const rest = page.after ? people.filter((p) => p.id > page.after!) : people;
   const limit = clampLimit(page.limit);
   const items = rest.slice(0, limit);
@@ -228,7 +228,9 @@ export type ApiGroup = { id: number; name: string; everyone: boolean };
 export async function listGroups(actor: Actor | KeyActor, page: { after?: number | null; limit: number }): Promise<Page<ApiGroup>> {
   assertScope(actor, "metrics:read");
   const after = Number.isInteger(page.after) ? (page.after as number) : -Infinity;
-  const groups = (await getGroups(actor.workspaceId)).map((g) => ({ id: g.id, name: g.name, everyone: Boolean(g.everyone) })).sort((a, b) => a.id - b.id);
+  // A Guest shares nothing, so a Guest's key lists only the Groups they are in (rule 3).
+  const all = await getGroups(actor.workspaceId);
+  const groups = (actor.role === "guest" ? all.filter((g) => g.members.includes(actor.personId)) : all).map((g) => ({ id: g.id, name: g.name, everyone: Boolean(g.everyone) })).sort((a, b) => a.id - b.id);
   const rest = groups.filter((g) => g.id > after);
   const limit = clampLimit(page.limit);
   const items = rest.slice(0, limit);
