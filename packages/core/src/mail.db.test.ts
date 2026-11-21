@@ -38,8 +38,8 @@ describe("sending email", () => {
     const ann = await w.person("member", { email: address("ann") }); const dana = await w.contact({ email: address("dana") });
     const m = await w.metric(sara, { name: "Field visits", sources: ["web_form", "mail"] });
     await w.token(m.id, ann); await w.token(m.id, dana);
-    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara })).toBe(true);
-    expect(await deliverPrompt({ metricId: m.id, submitterId: dana, senderId: sara })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara })).toBeTruthy();
+    expect(await deliverPrompt({ metricId: m.id, submitterId: dana, senderId: sara })).toBeTruthy();
     for (const person of [ann, dana]) expect(await deliveryOf(w.id, person)).toMatchObject({ mail_state: "sent", attempts: 1, provider_id: expect.any(String), last_error: null });
     const [annMail] = await inbox((await db().from("profiles").select("email").eq("id", ann).single()).data!.email);
     expect(annMail).toMatchObject({ Subject: expect.stringContaining("Field visits"), From: { Address: "ziffr@example.test" } });

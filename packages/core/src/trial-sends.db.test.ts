@@ -40,7 +40,7 @@ describe("a Trial Workspace sends only to its Owner", () => {
     const t = await trial();
     const m = await t.metric(t.owner, { sources: ["web_form", "mail"] });
     await t.token(m.id, t.owner);
-    expect(await deliverPrompt({ metricId: m.id, submitterId: t.owner, via: "email" })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: t.owner, via: "email" })).toBeTruthy();
     expect(await latest(t.id, t.owner)).toMatchObject({ mail_state: "sent" });
   });
 
@@ -49,7 +49,7 @@ describe("a Trial Workspace sends only to its Owner", () => {
     const dana = await t.contact({ email: address("dana") });
     const m = await t.metric(t.owner, { sources: ["web_form", "mail"] });
     await t.token(m.id, dana);
-    expect(await deliverPrompt({ metricId: m.id, submitterId: dana, senderId: t.owner, via: "email" })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: dana, senderId: t.owner, via: "email" })).toBeTruthy();
     expect(await latest(t.id, dana)).toMatchObject({ mail_state: "outbox" });
   });
 

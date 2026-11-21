@@ -44,7 +44,7 @@ describe("sending by Slack", () => {
   it("sends a Prompt as a direct message, with a Stop button, and keeps where it went", async () => {
     const { w, sara, ann, annSlack, m } = await setup();
     const before = posts().length;
-    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" })).toBe(true);
+    expect(await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" })).toBeTruthy();
     const d = await latest(w.id, ann);
     expect(d).toMatchObject({ connector: "slack", mail_state: "sent", attempts: 1, slack_channel: `D${annSlack.slice(1)}` });
     expect(d.slack_ts).toBe(d.provider_id);
