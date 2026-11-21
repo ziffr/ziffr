@@ -2,7 +2,7 @@
 <!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
 # The Metrics screens
 
-Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the top bar.
+Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the sidebar.
 
 Not everyone sees the same Metrics. You see a Metric when you own it, when it is shared with you or with one of your **Groups**, when it is on a dashboard or deck shared with you, or when you send in its values. Being an Owner or Admin of the Workspace does not show you every Metric by itself.
 
@@ -32,7 +32,7 @@ The list shows every Metric you may see, one row each.
 
 Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
-With the [preview layout](17-your-settings.md#preview-the-new-layout) on, each row also has a **Details** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. **Esc** or **Close** closes it and you are back in the list.
+In the [sidebar layout](17-your-settings.md#the-sidebar), each row also has a **Details** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. **Esc** or **Close** closes it and you are back in the list.
 
 ## Paste values from a spreadsheet
 

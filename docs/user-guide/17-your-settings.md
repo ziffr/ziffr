@@ -2,7 +2,7 @@
 <!-- screens: apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/top-bar.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
-This chapter covers what is yours rather than the team's: signing in, the demo, the top bar, and your own pages: **My schedule**, **Your profile**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
+This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
 
 ## Signing in
 
@@ -37,7 +37,7 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
 
-While you are in the demo, the top bar shows two controls. On a narrow screen they sit in a row of their own below the bar.
+While you are in the demo, the footer of the sidebar shows two controls, **Viewing as** and **Leave the demo**. (In the classic top bar they sit in the bar; on a narrow screen, in a row of their own below it.)
 
 | Control | What it does |
 | --- | --- |
@@ -70,9 +70,15 @@ In the demo, the **Guided tour** sits at the bottom right. Choose it to open the
 
 The circle in front of a step marks it done. The header shows how many are done and which comes next. The **−** button folds the tour down to a small round button that shows your progress; choose it to open the tour again. Your browser remembers where you are.
 
-## The top bar
+## The sidebar
 
-The top bar is on every page once you are in a Workspace.
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards, Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
+
+## The classic top bar
+
+For one more release you can keep the former layout: under **Your profile**, tick **Use the classic top bar**. The choice is kept in this browser only; untick it to return to the sidebar. The rest of this section describes the top bar.
+
+The top bar is on every page once you are in a Workspace, if you chose it.
 
 ### On a computer
 
@@ -90,7 +96,7 @@ The top bar is on every page once you are in a Workspace.
 
 | Option | What it does |
 | --- | --- |
-| **Workspace** | Shown when you belong to more than one Workspace, or where this Ziffr offers the demo. Pick another to switch to it. Below a line, **The demo** (read-only, shared) opens the shared demo, the same one for everyone; **Leave the demo** in its top bar brings you back to your own Workspace. |
+| **Workspace** | Shown when you belong to more than one Workspace, or where this Ziffr offers the demo. Pick another to switch to it. Below a line, **The demo** (read-only, shared) opens the shared demo, the same one for everyone; **Leave the demo** brings you back to your own Workspace. |
 | **New workspace** | Starts another Workspace, of which you become the Owner |
 | **My schedule** | What you have to do in this Workspace, overdue first; see [My schedule and your calendar](#my-schedule-and-your-calendar) |
 | **Your profile** | Your name, colour and address |
@@ -113,17 +119,11 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 
 On a phone the bar keeps the Ziffr name, the Search and Actions icons and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, Your Alerts, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
-Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same top bar. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
-
-### Preview: the new layout
-
-Under **Your profile**, **Try the new layout (preview)** swaps the top bar for a sidebar: the Workspace switcher at its top, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards, Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it); **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page becomes a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages.
-
-The choice is kept in this browser only. Untick it to go back to the top bar.
+Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
 ## My schedule and your calendar
 
-Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due), or, in the top bar, from the menu under your name. Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
+Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due), or, in the classic top bar, from the menu under your name. Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
 
 | Part | What it lists |
 | --- | --- |
@@ -178,7 +178,7 @@ Anyone who has the address sees what it shows, like a View Link. A link ends whe
 
 ## Your profile
 
-Open it from the menu under your name, or, in the top bar, from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
+Open it from your own menu at the bottom of the sidebar, or, in the classic top bar, from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
 
 | Option | What it does |
 | --- | --- |
@@ -192,7 +192,7 @@ In the demo, the made-up people keep their names and colours, the address is mad
 
 ## Your Deliveries
 
-Open it from the menu under your name, or from **Deliveries** in the settings area. A **Delivery** is one message Ziffr sends you through a Connector. This page sets where those messages go in the current Workspace, and who is asked while you are away. You can only change your own.
+Open it from your own menu at the bottom of the sidebar, or from **Deliveries** in the settings area. A **Delivery** is one message Ziffr sends you through a Connector. This page sets where those messages go in the current Workspace, and who is asked while you are away. You can only change your own.
 
 ### Where you get what
 
@@ -225,7 +225,7 @@ Pick the first and the last day you are **Away**. While you are away, Prompts me
 
 ## Your Alerts
 
-Open it from the menu under your name, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: 20 Alerts in a Workspace, at most 5 on one Metric, and 20 Alert messages a day.
+Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: 20 Alerts in a Workspace, at most 5 on one Metric, and 20 Alert messages a day.
 
 Each Alert has three buttons: **Pause** (or **Resume**), **Edit** and **Delete**. Besides your own pause, Ziffr can hold an Alert back and says why: **you cannot see this Metric now**, **the Metric is archived**, **the Metric has no target now** or **the Metric has no Workflow now**. It resumes by itself when the reason ends (except for no target or no Workflow, which you end by editing the condition). An Alert on a Metric you can no longer see is not listed at all, and nothing is sent for it. Alerts are only yours: nobody sets one for you or sees yours. In the demo the page is read-only.
 

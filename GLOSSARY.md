@@ -175,7 +175,7 @@ One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value a
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
 **Search**:
-Finding a Metric, dashboard or deck by name from the top bar (⌘K or Ctrl+K), or a Metric's value for a period by words such as "churn march 2026": the period words are read like replies, in the Workspace's Answer Languages, and lead to the Period Record. It only finds what the person may see, in their own Workspace; Archived Metrics are marked. Programs use the MCP tool `find` and `GET /api/v1/find`.
+Finding a Metric, dashboard or deck by name from the sidebar's Search field (⌘K or Ctrl+K), or a Metric's value for a period by words such as "churn march 2026": the period words are read like replies, in the Workspace's Answer Languages, and lead to the Period Record. It only finds what the person may see, in their own Workspace; Archived Metrics are marked. Programs use the MCP tool `find` and `GET /api/v1/find`.
 _Avoid_: Global search, omnibox, command palette
 
 **Lock**:

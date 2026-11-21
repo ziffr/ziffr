@@ -1,6 +1,6 @@
 # The user guide
 
-The chapters in this folder are Ziffr's user guide, written for the people who use Ziffr, not for programmers. The app shows them at `/guide`, and every page links to it from the top bar ("User guide", the question mark icon). The guide can be read without signing in.
+The chapters in this folder are Ziffr's user guide, written for the people who use Ziffr, not for programmers. The app shows them at `/guide`, and every page links to it from the sidebar ("User guide"). The guide can be read without signing in.
 
 ## Editing the guide
 

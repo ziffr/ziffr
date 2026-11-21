@@ -6,9 +6,9 @@ When a number looks odd, ask the person who knows. An **Action** is a question o
 
 Everyone in the Workspace works with Actions, Guests included. This chapter also covers the **Changes** page, which shows what changed and when.
 
-## The inbox in the top bar
+## The Actions row
 
-The inbox icon in the top bar opens the Actions page. The number next to it counts the Actions waiting for you:
+**Actions** in the sidebar opens the Actions page. The number next to it counts the Actions waiting for you:
 
 - Actions given to you that are still open, and
 - Actions you asked that were answered or done, so you can close them.
@@ -126,7 +126,7 @@ Each new Action, reply, proposed Correction and closed Task reaches the person a
 
 People answer by replying to that email, Slack or Telegram message. In Telegram, they reply to the message itself (swipe it to the left, or press and hold it and choose Reply); a message that replies to nothing gets a hint instead, so no answer lands on the wrong question. Their answer goes into the Thread, as if they had written it in Ziffr. A line starting with "Correction:" and a number proposes a Correction. On a Task that asks for Approval, the Approver can reply "approve", or "send back:" followed by what to check. On a Task that asks you to check your own value, reply "confirm", or "Correction:" and the right number. On Slack and Telegram, the message also has an **Approve** button, which only the Approver it went to can use.
 
-In the demo, to answer as someone else, switch **View as** in the top bar to that person, as the Action page reminds you. Outside the demo there is no View as: the page only says whom the Action waits for.
+In the demo, to answer as someone else, switch **Viewing as** in the sidebar's footer to that person, as the Action page reminds you. Outside the demo there is no Viewing as: the page only says whom the Action waits for.
 
 ## The Changes page
 
