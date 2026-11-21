@@ -12,7 +12,7 @@ const label = z.string().trim().min(1).max(LABEL_MAX).regex(/^[^\u0000-\u001f\u0
 const Body = z.object({
   metrics: z.number().int().min(1).max(LIMIT_MAX).nullable(),
   label: label.nullable().optional(),
-  next: z.object({ label, on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict().nullable().optional(),
+  next: z.object({ label, on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s, "Not a day.") }).strict().nullable().optional(),
   endTrial: z.boolean().optional(),
 }).strict();
 
