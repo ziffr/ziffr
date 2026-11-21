@@ -59,6 +59,8 @@ Every calculation on values is listed in the Calculation Catalogue (`docs/refere
 
 ## Code health
 
+`pnpm lint` also runs `pnpm guards`: client components import only pure core modules, and the app reaches the database only through the core (tests included). CI runs the same two scripts, so they fail on your machine first.
+
 Three checks keep the code from growing what nobody needs. `pnpm health` runs the first two, `pnpm lint` the third, and CI's `check` job and `pnpm ci:local` run both. Each fails on a new finding, never on an old one:
 - **Nothing unused.** [knip](https://knip.dev) finds files, exports, types and dependencies nothing uses, and dependencies used but not listed (`knip.jsonc`). Remove what it finds. An exported server action is a way into the app even when no screen calls it, so an unused one goes. Something kept on purpose, such as the UI kit's parts, goes in `knip.jsonc` with the reason.
 - **No more duplication.** [jscpd](https://github.com/kucherenko/jscpd) measures copied code in TypeScript and TSX, tests and docs left out (`.jscpd.json`). Neither format may have a higher share of copied lines than its ceiling in `scripts/code-health.mjs`. Above it, the script lists the clones: merge the new copy into a function both places call. When two pieces only look alike, say so in the pull request and leave them.
