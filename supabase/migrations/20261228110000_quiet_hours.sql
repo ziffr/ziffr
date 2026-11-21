@@ -18,3 +18,17 @@ create table quiet_hours (
 create unique index quiet_hours_one on quiet_hours (workspace_id, coalesce(person_id, ''));
 alter table quiet_hours enable row level security;
 select attach_demo_guard('quiet_hours');
+
+-- Replaces one row (or, with no hours given, only removes it) in a single statement, so a failed or racing save never
+-- leaves a person without their rule and so back on the Workspace's default.
+create or replace function set_quiet_hours(p_workspace uuid, p_person text, p_from smallint, p_to smallint, p_days smallint[], p_zone text, p_clear boolean)
+returns void language plpgsql set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('quiet_hours:' || p_workspace::text || ':' || coalesce(p_person, '')));
+  delete from quiet_hours where workspace_id = p_workspace and person_id is not distinct from p_person;
+  if not p_clear then
+    insert into quiet_hours (workspace_id, person_id, from_hour, to_hour, days, time_zone) values (p_workspace, p_person, p_from, p_to, p_days, p_zone);
+  end if;
+end $$;
+revoke execute on function set_quiet_hours(uuid, text, smallint, smallint, smallint[], text, boolean) from public, anon, authenticated;
+grant execute on function set_quiet_hours(uuid, text, smallint, smallint, smallint[], text, boolean) to service_role;

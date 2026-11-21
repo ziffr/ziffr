@@ -29,6 +29,8 @@ async function rowsFor(workspaceId: string, personId: string): Promise<{ own: Ro
     db().from("quiet_hours").select(cols).eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle(),
     db().from("quiet_hours").select(cols).eq("workspace_id", workspaceId).is("person_id", null).maybeSingle(),
   ]);
+  // A failed read is an error, never "no quiet hours": a message must not go out early because the lookup failed.
+  if (own.error || team.error) throw new Error("The quiet hours could not be read.");
   return { own: (own.data as Row | null) ?? null, team: (team.data as Row | null) ?? null };
 }
 
@@ -39,14 +41,9 @@ export async function quietHours(actor: Actor): Promise<QuietHoursView> {
   return { mine: own ? ruleOf(own) : null, workspace: team ? ruleOf(team) : null, workspaceTimeZone: clock.timeZone };
 }
 
-/** Writes or clears one row: a null rule removes it. */
+/** Writes or clears one row in one statement (set_quiet_hours): a null rule removes it. */
 async function write(workspaceId: string, personId: string | null, rule: QuietRule | null): Promise<void> {
-  const rows = db().from("quiet_hours");
-  const gone = personId === null ? rows.delete().eq("workspace_id", workspaceId).is("person_id", null) : rows.delete().eq("workspace_id", workspaceId).eq("person_id", personId);
-  const { error: e1 } = await gone;
-  if (e1) throw new Error("The quiet hours could not be saved.");
-  if (!rule) return;
-  const { error } = await db().from("quiet_hours").insert({ workspace_id: workspaceId, person_id: personId, from_hour: rule.fromHour, to_hour: rule.toHour, days: rule.days, time_zone: rule.timeZone });
+  const { error } = await db().rpc("set_quiet_hours", { p_workspace: workspaceId, p_person: personId, p_from: rule?.fromHour ?? 0, p_to: rule?.toHour ?? 0, p_days: rule?.days ?? [], p_zone: rule?.timeZone ?? null, p_clear: rule === null });
   if (error) throw new Error("The quiet hours could not be saved.");
 }
 
@@ -86,7 +83,8 @@ function describe(r: QuietRule): string {
  * place quiet hours are checked: a Delivery is given this as its `not_before` where it is made. Other kinds never wait. */
 export async function holdFor(workspaceId: string, recipientId: string, kind: string, now = new Date()): Promise<Date | null> {
   if (!(HELD_KINDS as readonly string[]).includes(kind)) return null;
-  const [{ own, team }, { data: ws }] = await Promise.all([rowsFor(workspaceId, recipientId), db().from("workspaces").select("time_zone").eq("id", workspaceId).single()]);
+  const [{ own, team }, { data: ws, error }] = await Promise.all([rowsFor(workspaceId, recipientId), db().from("workspaces").select("time_zone").eq("id", workspaceId).single()]);
+  if (error) throw new Error("The quiet hours could not be read.");
   const row = own ?? team;
   if (!row) return null;
   return quietEnd(ruleOf(row), now, String(ws?.time_zone ?? "UTC"));
