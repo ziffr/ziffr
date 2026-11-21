@@ -5,6 +5,7 @@ import { openRow, openRows } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { formulaInputs } from "./formula";
 import { buildSeries } from "./series";
+import { withheldDerived } from "./derived-owner";
 import { normalizeMetric } from "./metric-row";
 import type { Action, BreakdownRow, Metric, Observation, Point } from "./types";
 
@@ -29,7 +30,9 @@ export async function allRows<T>(page: (from: number, to: number) => PromiseLike
 export async function getMetrics(ws: string): Promise<Metric[]> {
   const { data } = await db().from("metrics").select("*").eq("workspace_id", ws).order("id");
   // A description is sealed with the Workspace Key (spec 0028) and read opened.
-  return (await openRows("metrics", ws, data)).map((m) => normalizeMetric(m));
+  const rows = await openRows("metrics", ws, data);
+  const withheld = await withheldDerived(ws, rows);
+  return rows.map((m) => (withheld.has(m.id) ? { ...normalizeMetric(m), inputs_withheld: true } : normalizeMetric(m)));
 }
 
 /** A stored value with its numbers as numbers (the database sends numeric columns as text or JSON numbers). Values are

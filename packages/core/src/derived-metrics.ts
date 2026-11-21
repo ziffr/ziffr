@@ -5,7 +5,8 @@
 // sees, so a Metric they may not see answers exactly as one that does not exist.
 import { assertCan, Refused, type Actor } from "./actor";
 import { db } from "./db";
-import { getShares, visibleMetricIds } from "./access";
+import { visibleMetricIds } from "./access";
+import { editedBy } from "./derived-owner";
 import { checkFormula, formulaInputs, FORMULA_MAX_LENGTH, type FormulaInput } from "./formula";
 import { createMetric, deleteMetric, editableMetric, metricEffects, type MetricEffects } from "./metrics";
 import { audit } from "./audit-log";
@@ -41,9 +42,9 @@ export type DerivedMetricMade = { id: number; slug: string; name: string; period
  * the ones they edit through a Share (directly or by Group). A Derived Metric is the actor's to share and shows its
  * inputs' values, so a Metric someone only sees (a view Share, a widget on a shared dashboard, a Stand-in's Token) is
  * not one: they could republish it wider than its owner allowed, and keep receiving it after the access ended. */
-async function shareableIds(actor: Actor, all: Metric[]): Promise<Set<number>> {
-  const editor = new Set((await getShares(actor.workspaceId)).filter((s) => s.object_type === "metric" && s.user_id === actor.personId && s.role === "editor").map((s) => s.object_id));
-  return new Set(all.filter((m) => m.owner_id === actor.personId || editor.has(m.id)).map((m) => m.id));
+async function shareableBy(ws: string, person: string, all: Metric[]): Promise<Set<number>> {
+  const edited = (await editedBy(ws, [person])).get(person)!;
+  return new Set(all.filter((m) => m.owner_id === person || edited.has(m.id)).map((m) => m.id));
 }
 
 /** The words for a formula's input the actor sees but may not share, or null. Said only of Metrics they see, so it
@@ -70,7 +71,7 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   // words as for one that is not there, so a formula never tells them which Metrics exist.
   const all = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
-  const mayShare = await shareableIds(actor, all);
+  const mayShare = await shareableBy(actor.workspaceId, actor.personId, all);
   const inputs = all.filter((m) => mayShare.has(m.id));
   const named = formulaInputs(formula).map((s) => inputs.find((m) => m.slug === s)).filter((m): m is Metric => m !== undefined);
   const period = (input.period as Period | undefined) ?? named[0]?.period ?? "month";
@@ -102,7 +103,7 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   const now = await getMetrics(actor.workspaceId);
   const self = now.find((m) => m.id === made.id);
   const stillWhy = self ? checkFormula(formula, now.filter((m) => mayShare.has(m.id)), self) : "it is gone";
-  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [] }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
+  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [], inputs_checked: true }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
   if (stillWhy || error) {
     if (self) await deleteMetric(actor, made.id, self.name).catch(() => undefined);
     if (stillWhy) throw new Refused(stillWhy);
@@ -121,7 +122,7 @@ export type FormulaChoice = { slug: string; name: string; period: Period; unit: 
 export async function formulaChoices(actor: Actor): Promise<FormulaChoice[]> {
   assertCan(actor, "create");
   const all = await getMetrics(actor.workspaceId);
-  const mayShare = await shareableIds(actor, all);
+  const mayShare = await shareableBy(actor.workspaceId, actor.personId, all);
   return all.filter((m) => mayShare.has(m.id) && !m.formula && !m.archived_at).map((m) => ({ slug: m.slug, name: m.name, period: m.period, unit: m.unit }));
 }
 
@@ -136,10 +137,14 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   if (!next) throw new Refused("Write the formula, such as {revenue} / {orders}.");
   const all = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
-  const mayShare = await shareableIds(actor, all);
-  const why = viewOnly(next, all, seen, mayShare) ?? checkFormula(next, all.filter((x) => mayShare.has(x.id) && x.id !== m.id).map((x): FormulaInput => x), { slug: m.slug, period: m.period });
+  const mayShare = await shareableBy(actor.workspaceId, actor.personId, all);
+  // An Editor changes the formula too, but every input must be one its owner may share as well: the Derived Metric is
+  // the owner's, and shows its inputs' values to whoever they share it with. One the owner may not share is refused
+  // as one that is not there.
+  const ownerMay = m.owner_id === actor.personId ? mayShare : await shareableBy(actor.workspaceId, m.owner_id, all);
+  const why = viewOnly(next, all, seen, mayShare) ?? checkFormula(next, all.filter((x) => mayShare.has(x.id) && ownerMay.has(x.id) && x.id !== m.id).map((x): FormulaInput => x), { slug: m.slug, period: m.period });
   if (why) throw new Refused(why);
-  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");
   await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
   await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });

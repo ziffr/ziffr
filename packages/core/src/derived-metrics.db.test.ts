@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, Refused } from "./actor";
 import { createDerivedMetric, formulaChoices, setMetricFormula } from "./derived-metrics";
 import { db } from "./db";
+import { inputsProblem } from "./formula";
 import { buildSeries } from "./series";
 import { opened, workspace } from "./test/db-fixtures";
 import { getMetrics, getObservations } from "./workspace-data";
@@ -183,5 +184,65 @@ describe("createDerivedMetric", () => {
     expect((await row(w.id, d.id)).formula).toBe("{salaries} * 3");
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", d.id);
     expect(versions!.map((v) => v.message)).toContain("Changed its formula");
+  });
+
+  it("an Editor changing the formula may use only inputs the owner may share too, and no Derived Metric", async () => {
+    const { w, sara, as } = await setup();
+    const eve = await w.person("member");
+    const own = await w.metric(sara, { name: "Mine", slug: "mine" });
+    await w.metric(eve, { name: "Evas", slug: "evas" });
+    const both = await w.metric(sara, { name: "Both", slug: "both" });
+    const d = await createDerivedMetric(as, { name: "Twice", formula: "{mine} * 2" });
+    await editShare(w, (await db().from("metrics").select("id").eq("workspace_id", w.id).eq("slug", d.slug).single()).data!.id, eve);
+    await editShare(w, both.id, eve);
+    const asEve = w.actor(eve, "member");
+    // Eve's own Metric is hers to share, not Sara's: refused as if it were not there. One Sara owns and Eve only sees is not Eve's to share.
+    expect((await setMetricFormula(asEve, d.id, "{evas}").catch((e) => e)).message).toBe("{evas} is not a Metric of this Workspace.");
+    await w.share(own.id, eve);
+    expect((await setMetricFormula(asEve, d.id, "{mine} * 3").catch((e) => e)).message).toMatch(/not yours to share/);
+    await setMetricFormula(asEve, d.id, "{both} * 3");
+    expect((await row(w.id, d.id)).formula).toBe("{both} * 3");
+    // No Derived Metric as an input, so no formula can come round to itself.
+    expect((await setMetricFormula(as, d.id, "{twice}").catch((e) => e)).message).toMatch(/itself/);
+    const other = await createDerivedMetric(as, { name: "Other", formula: "{mine}" });
+    expect((await setMetricFormula(as, d.id, "{other} + 1").catch((e) => e)).message).toMatch(/Derived Metric itself/);
+    expect(other.slug).toBe("other");
+  });
+
+  it("shows no values while its owner may no longer share an input, and again when they may", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    const x = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await editShare(w, x.id, sara);
+    await w.value(x.id, "2026-01-01", 40);
+    const d = await createDerivedMetric(as, { name: "Half", formula: "{hours} / 2" });
+    const values = async () => {
+      const metrics = await getMetrics(w.id);
+      return { withheld: metrics.find((m) => m.slug === "half")!.inputs_withheld ?? false, series: buildSeries(metrics, await getObservations(w.id)).half };
+    };
+    expect(await values()).toEqual({ withheld: false, series: [{ period: "2026-01-01", value: 20 }] });
+    // Sara's edit right goes (she may still see it): no values, and the reason says so.
+    await db().from("shares").update({ role: "viewer" }).eq("workspace_id", w.id).eq("object_id", x.id).eq("user_id", sara);
+    expect(await values()).toEqual({ withheld: true, series: [] });
+    const metrics = await getMetrics(w.id);
+    expect(inputsProblem(metrics.find((m) => m.slug === "half")!, metrics)).toMatch(/no longer share one of the Metrics/);
+    // Not at all, too.
+    await db().from("shares").delete().eq("workspace_id", w.id).eq("object_id", x.id).eq("user_id", sara);
+    expect((await values()).series).toEqual([]);
+    await editShare(w, x.id, sara);
+    expect((await values()).series).toEqual([{ period: "2026-01-01", value: 20 }]);
+    // A Derived Metric of Sara's own Metrics is never withheld, and one shared on: the ratio is shown without its inputs.
+    expect(d.slug).toBe("half");
+  });
+
+  it("leaves Derived Metrics made before this rule (a Pack's, the demo's) as they were", async () => {
+    const { w, sara } = await setup();
+    const lena = await w.person("member");
+    const x = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await w.metric(sara, { name: "Old", slug: "old", formula: "{hours} * 2", sources: [] });
+    await w.value(x.id, "2026-01-01", 5);
+    const metrics = await getMetrics(w.id);
+    expect(metrics.find((m) => m.slug === "old")!.inputs_withheld).toBeUndefined();
+    expect(buildSeries(metrics, await getObservations(w.id)).old).toEqual([{ period: "2026-01-01", value: 10 }]);
   });
 });

@@ -68,6 +68,12 @@ export type Metric = MetricDescription & {
    * the database whole carry them; `normalizeMetric` drops them, and `retentionFor` (retention-setting.ts) reads them. */
   retention?: unknown;
   retention_pending?: unknown;
+  /** Set by the loader, never stored: a Derived Metric whose owner may no longer share one of its inputs shows no
+   * values (derived-owner.ts, ticket #619). */
+  inputs_withheld?: boolean;
+  /** As stored: made through createDerivedMetric, so calculated only from Metrics its owner may share. The loader
+   * reads it and `normalizeMetric` drops it. */
+  inputs_checked?: boolean;
 };
 
 /** A predefined metric description to copy from (GLOSSARY: Metric Catalog). */
