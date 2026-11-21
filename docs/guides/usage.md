@@ -47,6 +47,28 @@ The first run fills in what the daily totals already hold.
 - **Absent is absent.** A figure the Installation leaves out (a breakdown held back for a small Installation, or a day with no totals) gets no value in your Workspace. It is never recorded as zero.
 - **Events and states.** Figures that count events in a day (signups, values by Source, calls, views) are added up over the Metric's period. Figures that count a state (Workspaces, people, Metrics) take the period's last day.
 
+## Your own Workspace's figures
+
+An Owner or Admin can have the Workspace's own usage, the figures of the Usage page and a few more, as Metrics of their own, with the same Feed program and no Installation Admin involved. Nothing else about the Installation or other Workspaces is read.
+
+1. In the Workspace, Settings, Feeds: create a Feed (for example "Workspace usage") and a Feed Key.
+2. Settings, Access Keys: make a key with **Read usage figures**. Only Owners and Admins can; it is never offered to an assistant.
+3. Install **Workspace usage** (`packs/workspace-usage.pack.json`), **Set up from this Pack**, with the Feed as Submitter of its Metrics. The Pack has 18 Metrics, ordinary ones that count towards the [Workspace Limit](self-hosting.md); tick fewer if you want fewer.
+4. Run the Feed from any cron, with the keys in the environment:
+
+```sh
+export ZIFFR_USAGE_ACCESS_KEY=zk_...   # the key with "Read usage figures"
+export ZIFFR_USAGE_FEED_KEY=zk_...     # the Feed Key
+export ZIFFR_USAGE_FEED_URL=https://ziffr.example.com
+ziffr-feed-usage run --workspace --backfill 7
+```
+
+Both keys are needed; with one missing nothing runs. The Docker clock does not start this mode: it is for one Workspace's own people, so you set up the cron where you want it.
+
+The slugs are `workspace-` and the figure's name with hyphens. Events, added up over the period: `workspace-values`, `workspace-values-web`, `-email`, `-slack`, `-telegram`, `-api`, `-feed`, `-mcp`, `workspace-views-dashboards`, `workspace-views-decks`, `workspace-views-metrics`. State, as of the run (recorded for the day before): `workspace-metrics`, `workspace-metrics-without-values`, `workspace-metrics-not-opened`, `workspace-dashboards-not-opened`, `workspace-decks-not-opened`, `workspace-submitters-without-values`, `workspace-archive-suggestions`.
+
+Counts only, never who looked and never a name. The figures count only what the key's creator sees, since a Workspace Role grants no Metric; and because everyone who sees these Metrics sees the numbers, the values, views and Submitters are left out while fewer than three people are in the Workspace (and for days before the third person joined, so a backfill cannot reach back), what is not opened is left out until Ziffr counted for 90 days, and a day before counting began has no view figures. A figure left out is absent, never zero. The past is not rebuilt for the states: a backfill fills views and values, and the states start with the first run.
+
 ## When the Installation is down
 
 If the Installation cannot be reached at 05:00 UTC, the run fails, is logged, and that day has no figures in your Workspace. The next run backfills days the daily totals hold, and the totals rebuild event counts of a missed day from the tables. What cannot be rebuilt is the day's API calls, MCP calls and views, which are lost. Nobody is asked for a missing number.

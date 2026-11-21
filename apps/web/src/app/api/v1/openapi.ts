@@ -176,6 +176,16 @@ const ENDPOINTS: Endpoint[] = [
     ],
   },
   {
+    method: "get", path: "/usage", scope: "usage:read", query: S.usageQuery, ok: { status: 200, name: "WorkspaceUsage", schema: S.WorkspaceUsageResponse },
+    summary: "Read the workspace's own Usage",
+    description: "The key's own Workspace's Usage figures as counts (spec 0031), for a program's key whose creator is an Owner or Admin; never for an assistant. Per UTC day (at most 400, the newest yesterday, default the last 30): values recorded, in total and by Source, and views of dashboards, decks and Metrics, never who looked. In `state`, as of now: Metrics in use, Metrics without values, Metrics, dashboards and decks not opened for 90 days, Submitters without values and Metrics that are safe to archive. Only what the key's creator sees (a Workspace Role grants no Metric), never a name, an id, a person or a value, and nothing about another Workspace or the Installation. While fewer than 3 people are in the Workspace the values, views and Submitters are left out (and for days before the third person joined), and until 90 days were counted so is what is not opened; `withheld` names them. A Workspace's keys may call it 30 times an hour. The Usage Feed's `--workspace` mode sends these figures into the Workspace as Metrics.",
+    errors: [
+      { status: 400, description: "`from` or `to` is not a day, `from` is after `to`, or the range is more than 400 days." },
+      { status: 403, description: "The key lacks the scope usage:read, or its creator is no longer an Owner or Admin." },
+      { status: 429, description: "More than 30 calls in the hour by the Workspace's keys, or the key's own per-minute limit; see `Retry-After`." },
+    ],
+  },
+  {
     method: "get", path: "/workspace", scope: "metrics:read", ok: { status: 200, name: "Workspace", schema: S.ApiWorkspace },
     summary: "Describe the workspace",
     description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.",

@@ -1,6 +1,6 @@
 # 0031 Usage and dogfood: what is looked at, for the operator and for every Workspace
 
-**Status:** done, except one follow-up: #370 (a Workspace's own figures as Metrics). **Tracking issue:** #357 (label `tracking`).
+**Status:** done, including #370 (a Workspace's own figures as Metrics). **Tracking issue:** #357 (label `tracking`).
 
 ## Problem Statement
 
@@ -143,8 +143,9 @@ An Owner could want "views of dashboards per week" or "Metrics without values" a
 
 - A Workspace-level endpoint `GET /api/v1/usage` for an Access Key of an Owner or Admin returns the same kinds of counts for that Workspace only (Metrics, Metrics without values, views per week, values per day by Source).
 - The same Usage Feed program, with `--workspace`, sends them to the Workspace of the key, as an ordinary Feed; a Pack "Workspace usage" holds the entries.
-- They are ordinary Metrics: they count towards the Workspace Limit (about 8 of them; the Pack says so before setting up) and nothing hides them. Not hidden "system Metrics": a Metric that does not count, cannot be archived or cannot be seen by everyone who sees the Workspace would be a new kind of thing to explain, enforce and test.
+- They are ordinary Metrics: they count towards the Workspace Limit (18 of them in the Pack, which says so before setting up) and nothing hides them. Not hidden "system Metrics": a Metric that does not count, cannot be archived or cannot be seen by everyone who sees the Workspace would be a new kind of thing to explain, enforce and test.
 - Not in the first spec: it is built on the Usage page's loaders and costs one ticket, so it should follow the page and be asked for.
+- **Built (ticket 9, #370):** `workspaceUsageFigures` (`packages/core/src/api-usage.ts`) behind `GET /api/v1/usage`, scope `usage:read`: a program's key only (a key-only scope, backed by the database check), only while its creator is an Owner or Admin. Per day the values (total and by Source, from `workspace_usage_values`) and the views of dashboards, decks and Metrics (View Counts); as of now (`state`, recorded for yesterday) Metrics, Metrics without values, what is not opened, Submitters without values and archive suggestions, all from `workspaceUsage`. Only what the creator sees is counted (a Workspace Role grants no Metric; the Feed writes Metrics others may see). The small-number rule here is people, not Workspaces: with fewer than 3 people the values, views and Submitters are left out and named in `withheld`, and days before the third person joined have none; what is not opened waits for 90 days of counting; 30 calls an hour per Workspace. The Feed's `--workspace` mode and the Pack `workspace-usage` (18 Metrics, slugs `workspace-…`) tie to the figures by tests. The Docker clock does not start this mode.
 
 ## Testing Decisions
 

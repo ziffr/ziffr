@@ -2,6 +2,7 @@
 // and the OpenAPI document is generated from them, so the description and the server cannot drift apart.
 import { z } from "zod";
 import { USAGE_FIGURES, USAGE_SPLIT_FIGURES } from "@ziffr/core/installation-usage";
+import { WORKSPACE_EVENT_FIGURES, WORKSPACE_SOURCE_FIGURES, WORKSPACE_STATE_FIGURES } from "@ziffr/core/api-usage";
 
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
 const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
@@ -493,6 +494,21 @@ const UsageDayShape = z.object({
 /** GET /installation/usage answers this: one object per day that has figures, oldest first. */
 export const UsageResponse = z.object({ days: z.array(UsageDayShape) }).meta({
   examples: [{ days: [{ day: "2026-11-19", workspaces: 12, workspaces_trial: 3, workspaces_free: 8, workspaces_paid: 1, people: 41, metrics: 380, dashboards: 55, values_web: 96, values_api: 210, api_calls: 1480, views_dashboards: 322, packs: [{ id: "sales-basics", installs: 5 }], withheld: [] }] }],
+});
+
+/** One day of a Workspace's own figures: whole numbers by a fixed list of keys, nothing else (the object drops any other key). */
+const WorkspaceUsageDayShape = z.object({
+  day: z.string().describe("The UTC day, YYYY-MM-DD."),
+  ...Object.fromEntries([...WORKSPACE_EVENT_FIGURES, ...WORKSPACE_SOURCE_FIGURES, ...WORKSPACE_STATE_FIGURES].map((k) => [k, z.number().int().nonnegative().optional().describe("A count: events in the UTC day, or, in `state`, as of when the call was made.")])),
+});
+
+/** GET /usage answers this: the days asked for, the figures as of now, and what was left out. */
+export const WorkspaceUsageResponse = z.object({
+  days: z.array(WorkspaceUsageDayShape).describe("One object per UTC day in the range, oldest first. Views are counted from the day Ziffr began counting in the Workspace: before it a view figure is absent, not zero."),
+  state: WorkspaceUsageDayShape.describe("The figures that count a state, as of the call; `day` is yesterday, the newest day a range can reach."),
+  withheld: z.array(z.string()).describe("The names of figures left out: the day's values and views and the Submitters while fewer than 3 people are in the Workspace (days before the third person joined have none), and what is not opened until 90 days were counted."),
+}).meta({
+  examples: [{ days: [{ day: "2026-11-20", workspace_values: 14, workspace_values_web: 9, workspace_values_feed: 5, workspace_views_dashboards: 31, workspace_views_decks: 2, workspace_views_metrics: 18 }], state: { day: "2026-11-20", workspace_metrics: 41, workspace_metrics_without_values: 3, workspace_metrics_not_opened: 6, workspace_dashboards_not_opened: 1, workspace_decks_not_opened: 0, workspace_submitters_without_values: 2, workspace_archive_suggestions: 5 }, withheld: [] }],
 });
 
 /** What GET /find takes (GLOSSARY: Metric, Period Record): words, with period words in the workspace's Answer Languages. */

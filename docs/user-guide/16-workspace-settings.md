@@ -377,6 +377,7 @@ In a **Trial Workspace**, at most two Access Keys work at a time, and none works
 | **Answer questions and tasks** | It may reply in their Threads, close or reopen the ones you asked and mark your Tasks done, as you. |
 | **Approve values** | It may approve a value waiting for you, or send it back, as you. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants, and never for your own values. |
 | **Manage View Links** | It may make, list and revoke View Links to the dashboards you own, which show them to people outside the Workspace. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants or Guests. The address of a new link is shown once, to the program that made it. |
+| **Read usage figures** | Only for Owners and Admins. It may read counts of how the Workspace is used: views of dashboards, decks and Metrics per day, values by Source, and how many Metrics, dashboards and Submitters go unused. Never a name, an id or a value, and never who looked. Not offered to assistants. The [Usage Feed](#usage) can send them into the Workspace as Metrics. |
 | **Until** | The last day the key works, through the end of that day in UTC. At most a year ahead. |
 | **Create key** | Makes the key |
 
@@ -478,6 +479,10 @@ Every change to a Webhook is in the [Audit log](#audit-log), and the other Owner
 Ziffr counts how often a dashboard, deck or Metric is opened per day, as a number and never by whom, and only for what you see. In a very small Workspace a count of one or two can still tell who it was. The page says "Counting since …": nothing is called not opened before 90 days of counting, and until then the page says when the lists fill in.
 
 Under the Metrics not opened, **Archive these Metrics?** lists the ones that are safe to archive, all ticked. Left out, with the reason, are Metrics that have a Target or that something still depends on, such as a Derived Metric, a Comparison or an Analysis. Untick any you want to keep, press **Archive**, and confirm. The Metrics are archived all or none, with each recorded in the Audit log, and they can be brought back (see [Metrics](10-metrics.md)). Nothing is ever archived or deleted by itself.
+
+### Your Usage as Metrics
+
+If you want these figures as Metrics of their own, with a dashboard, Targets and Alerts, install the **Workspace usage** Pack (**Workspace → Packs → Choose a Pack file…**, `packs/workspace-usage.pack.json`) and use **Set up from this Pack**. A program then sends the figures: make an Access Key with **Read usage figures** and a Feed with a Feed Key, and run the Usage Feed with `--workspace` (see the [Usage guide](../guides/usage.md#your-own-workspaces-figures)). They are ordinary Metrics: the Pack has 18 of them, they count towards the Workspace Limit, and everyone who sees them sees the numbers, so while fewer than three people are in the Workspace the values, views and Submitters without values stay out. They count only what the key's creator sees (a Workspace Role grants no Metric), so a Metric that is private to someone else is not in them.
 
 ### The monthly email
 

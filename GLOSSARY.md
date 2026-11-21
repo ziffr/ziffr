@@ -517,5 +517,5 @@ A secret an Installation Admin makes on the Installation Settings page. It reads
 _Avoid_: Admin key, telemetry key, API token
 
 **Usage Feed**:
-The Feed, in Ziffr's own repository, that reads an Installation's Usage totals and records them as Metrics in the operator's own Workspace. It runs outside Ziffr, from the Docker clock or any cron, only when its keys are set.
+The Feed, in Ziffr's own repository, that reads an Installation's Usage totals and records them as Metrics in the operator's own Workspace. It runs outside Ziffr, from the Docker clock or any cron, only when its keys are set. With `--workspace` it reads one Workspace's own figures with an Access Key that has "Read usage figures" (an Owner's or Admin's, a program's only) and records them in that Workspace, as the Workspace usage Pack lays them out.
 _Avoid_: Telemetry, phone-home, reporting job

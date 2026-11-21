@@ -1,0 +1,534 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/workspace-usage",
+  "name": "Workspace usage",
+  "version": "1.0.0",
+  "summary": "Your own Workspace's usage as Metrics, with a dashboard: views of dashboards, decks and Metrics, values by Source, and what goes unused. Counts only, never who looked. For Owners and Admins.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "workspace-metrics",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: metrics",
+          "description": "Metrics in use in this Workspace, as of the run. Archived Metrics are not counted.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-metrics-without-values",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: metrics without values",
+          "description": "Metrics with no value for 90 days (or the last two periods of their cadence), as of the run.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-metrics-not-opened",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: metrics not opened",
+          "description": "Metrics nobody opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-dashboards-not-opened",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: dashboards not opened",
+          "description": "Dashboards not opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "dashboards",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-decks-not-opened",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: decks not opened",
+          "description": "Decks not opened for 90 days, as of the run. Held back until 90 days were counted.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "decks",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-submitters-without-values",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: submitters without values",
+          "description": "Submitters who recorded no value for 90 days, as of the run: a number, never a name. Held back while fewer than three people are in the Workspace.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "Submitters",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-archive-suggestions",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: archive suggestions",
+          "description": "Metrics the Usage page suggests archiving, as of the run. Held back until 90 days were counted.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "Metrics",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values",
+          "description": "Values recorded in the day, by any Source. Only the Metrics the program's key may see; held back while fewer than three people are in the Workspace.",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-web",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values web",
+          "description": "Values recorded in the day through the web form (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-email",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values email",
+          "description": "Values recorded in the day by email (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-slack",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values slack",
+          "description": "Values recorded in the day through Slack (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-telegram",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values telegram",
+          "description": "Values recorded in the day through Telegram (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-api",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values api",
+          "description": "Values recorded in the day by a program with an Access Key (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-feed",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values feed",
+          "description": "Values recorded in the day by a Feed (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-values-mcp",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: values mcp",
+          "description": "Values recorded in the day by a connected assistant (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "values",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-views-dashboards",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: views dashboards",
+          "description": "Dashboard opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-views-decks",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: views decks",
+          "description": "Deck opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      },
+      {
+        "key": "workspace-views-metrics",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Workspace: views metrics",
+          "description": "Metric page opens in the day, never by whom (held back while fewer than three people are in the Workspace).",
+          "category": "Workspace usage",
+          "period": "day",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "views",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "api"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "workspace-usage",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Workspace usage",
+          "description": "How this Workspace is used: what is looked at, what arrives by which Source, and what goes unused.",
+          "slots": [
+            {
+              "label": "Views: dashboards",
+              "suggests": "workspace-views-dashboards"
+            },
+            {
+              "label": "Views: metrics",
+              "suggests": "workspace-views-metrics"
+            },
+            {
+              "label": "Values",
+              "suggests": "workspace-values"
+            },
+            {
+              "label": "Metrics",
+              "suggests": "workspace-metrics"
+            },
+            {
+              "label": "Metrics without values",
+              "suggests": "workspace-metrics-without-values"
+            },
+            {
+              "label": "Metrics not opened",
+              "suggests": "workspace-metrics-not-opened"
+            },
+            {
+              "label": "Dashboards not opened",
+              "suggests": "workspace-dashboards-not-opened"
+            },
+            {
+              "label": "Archive suggestions",
+              "suggests": "workspace-archive-suggestions"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                4
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 30
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                1
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 14
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 6,
+              "y": 10,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                6
+              ],
+              "x": 9,
+              "y": 10,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                7
+              ],
+              "x": 6,
+              "y": 14,
+              "w": 3,
+              "h": 4
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

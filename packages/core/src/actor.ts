@@ -58,21 +58,23 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
  * creator's own Actions only). "values:approve" approves a value or sends it back: a person's check, so only a
  * program's key may hold it, never an assistant (ASSISTANT_SCOPES leaves it out), and never ticked by default.
  * "view-links:write" makes, lists and revokes View Links to the creator's own dashboards (ticket #435): a View Link publishes
- * data to people outside the workspace, so the same rules, and only while the creator's role may share. */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve" | "view-links:write";
+ * data to people outside the workspace, so the same rules, and only while the creator's role may share.
+ * "usage:read" reads the Workspace's own Usage figures as counts (ticket #370, spec 0031): for a program's key only, and
+ * only while the creator is an Owner or Admin, as the Usage page is. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve" | "view-links:write" | "usage:read";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve", "view-links:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve", "view-links:write", "usage:read"];
 
 /** The scopes only a program's key may hold: approving is a person's check (ticket #427), and text in a Thread could
  * talk an assistant into it, so no assistant is offered them and none can be granted them. */
-export const KEY_ONLY_SCOPES: Scope[] = ["values:approve", "view-links:write"];
+export const KEY_ONLY_SCOPES: Scope[] = ["values:approve", "view-links:write", "usage:read"];
 
 /** The scopes an assistant may be given on the consent screen (spec 0023). */
 export const ASSISTANT_SCOPES: Scope[] = SCOPES.filter((s) => !KEY_ONLY_SCOPES.includes(s));
 
 /** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
-export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links" };
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures" };
 
 /** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;

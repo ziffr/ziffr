@@ -117,6 +117,20 @@ A Metric's **Sources** are the ways its values may arrive (`web_form`, `mail`, `
 | `POST /api/v1/dashboards/{id}/view-links` | `view-links:write` | `{ "expires": "2026-12-31", "label": "Board", "frozen": true, "snapshot": 12 }`; `snapshot` is one that is shown already. |
 | `DELETE /api/v1/view-links/{id}` | `view-links:write` | Revokes it at once. |
 
+## Usage
+
+`GET /api/v1/usage` returns the key's own Workspace's usage as counts, for a program's key with the scope "Read usage figures" (`usage:read`) whose creator is an Owner or Admin. Assistants are never given the scope. `from` and `to` (YYYY-MM-DD, at most 400 days, the newest yesterday) default to the last 30 days.
+
+```json
+{
+  "days": [{ "day": "2026-11-19", "workspace_values": 14, "workspace_values_web": 9, "workspace_views_dashboards": 31 }],
+  "state": { "day": "2026-11-20", "workspace_metrics": 41, "workspace_metrics_without_values": 3, "workspace_metrics_not_opened": 6 },
+  "withheld": []
+}
+```
+
+Per day: values recorded in total and by Source, and views of dashboards, decks and Metrics, never who looked. In `state`, as of the call: Metrics in use, Metrics without values, Metrics, dashboards and decks not opened for 90 days, Submitters without values and Metrics that are safe to archive. No name, id, person or value. Only what the key's creator sees counts (a Workspace Role grants no Metric). While fewer than 3 people are in the Workspace the values, views and Submitters are left out, as are days before the third person joined, and until 90 days were counted so is what is not opened; `withheld` names them. A Workspace's keys may call it 30 times an hour. See the [Usage guide](usage.md) for sending them into the Workspace as Metrics.
+
 ## Questions, Tasks and Approvals
 
 A key acts on the **Actions** (Questions and Tasks, including the Approvals and Self-checks a Workflow asks) of the person who made it, by the same rules as the app. Every answer holds only Actions that person may read: the ones they are on, and others by the Metric's visibility and the Action's Group. An Action they may not read, or one of another workspace, is `404`; one they may read but may not change that way is `422` with the reason in words.

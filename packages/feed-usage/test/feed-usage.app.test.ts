@@ -7,7 +7,8 @@ import { addFeedToMetric, createFeed, createFeedKey } from "@ziffr/core/feeds";
 import { makeUsageKey, USAGE_FIGURES } from "@ziffr/core/installation-usage";
 import { installationAdmin, valuesOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { runFeed } from "@ziffr/feed-kit";
-import { EVENT_FIGURES, STATE_FIGURES, readUsage, slugOf, usageFeed } from "../src/index";
+import { WORKSPACE_EVENT_FIGURES as CORE_EVENTS, WORKSPACE_SOURCE_FIGURES, WORKSPACE_STATE_FIGURES as CORE_STATES } from "@ziffr/core/api-usage";
+import { EVENT_FIGURES, STATE_FIGURES, WORKSPACE_EVENT_FIGURES, WORKSPACE_STATE_FIGURES, readUsage, slugOf, usageFeed } from "../src/index";
 
 const URL = process.env.ZIFFR_TEST_URL ?? "http://localhost:3000";
 const cleanups: (() => Promise<void>)[] = [];
@@ -17,6 +18,11 @@ const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 describe("@ziffr/feed-usage", () => {
   it("knows exactly the figures the endpoint can return", () => {
     expect([...STATE_FIGURES, ...EVENT_FIGURES].sort()).toEqual([...USAGE_FIGURES].sort());
+  });
+
+  it("knows exactly the figures of a Workspace's own endpoint", () => {
+    expect([...WORKSPACE_STATE_FIGURES].sort()).toEqual([...CORE_STATES].sort());
+    expect([...WORKSPACE_EVENT_FIGURES].sort()).toEqual([...CORE_EVENTS, ...WORKSPACE_SOURCE_FIGURES].sort());
   });
 
   it("reads the endpoint with a Usage Key and records the figures with a Feed Key", async () => {
