@@ -50,6 +50,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordingOffer` (record-own-value.ts): the Metric page's Record a value form; a program submits through the API's own path
+- `recordingOffers` (record-own-value.ts): the Metrics list's Record a value forms; a program submits through the API's own path
 - `recordOwnValue` (record-own-value.ts): a person's Record a value form on the Metric page; a program submits through the API's own path (values with its Access Key)
 - `editSnapshotWords` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `showSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
