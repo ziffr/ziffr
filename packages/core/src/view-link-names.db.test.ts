@@ -7,9 +7,8 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { createDeck, saveDeck } from "./decks";
-import { share } from "./sharing";
 import { showSnapshot, takeSnapshot } from "./snapshots";
-import { createViewLink, listViewLinks, openViewLink, setViewLinkNames } from "./view-links";
+import { createViewLink, listViewLinks, openViewLink, revokeViewLink, setViewLinkNames } from "./view-links";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -32,9 +31,12 @@ async function setUp() {
   await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: visits.id, user_id: sara, role: "viewer" });
   await w.token(visits.id, ben);
   const dash = await createDashboard(owner, `Overview by Sara Ownerly ${tag}`);
-  await saveDashboardText(owner, dash, { intro: `Written by Ben Builder ${tag}, mail ben-${tag}@example.test.` });
+  await saveDashboardText(owner, dash, { intro: `Written by Ben Builder ${tag}, mail ${`ben-${tag}@example.test`.toUpperCase()}.` });
   await placeWidget(owner, dash, { type: "spec", template: "story", metricIds: [visits.id], settings: { headline: `Cleo ${tag} said it grew`, panels: [] } });
   await placeWidget(owner, dash, { type: "spec", template: "number", metricIds: [visits.id], settings: {} });
+  // A Theme made by a colleague, with a footer that names one and a name in capitals.
+  const { data: theme } = await db().from("themes").insert({ owner_id: ben, workspace_id: w.id, name: `Look by Ben Builder ${tag}`, tokens: {}, slides: { footer: `Prepared by Cleo Hidden ${tag}` }, is_default: true }).select("id").single();
+  await db().from("dashboards").update({ theme_id: theme!.id }).eq("id", dash);
   const snap = await takeSnapshot(owner, dash, { kind: "month", start: "2026-10-01" });
   await showSnapshot(owner, snap);
   const deck = await createDeck(owner, "Board");
@@ -50,7 +52,9 @@ async function setUp() {
 /** The names, first names, emails, handles and ids of people found anywhere in a View Link's content. */
 function leaks(content: unknown, others: { id: string; name: string; email: string; handle: string }[]): string[] {
   const text = JSON.stringify(content);
-  return others.flatMap((o) => [o.name, o.name.split(" ")[0] + " " + o.name.split(" ")[1] === o.name ? o.name.split(" ")[0] : o.name.split(" ")[0], o.email, o.handle, o.id].filter((n) => n && text.includes(n)));
+  const lower = text.toLowerCase();
+  // Names as written; an email or handle in any case.
+  return others.flatMap((o) => [...[o.name, o.name.split(" ")[0], o.id].filter((n) => text.includes(n)), ...[o.email, o.handle].filter((n) => n && lower.includes(n.toLowerCase()))]);
 }
 
 describe("a View Link and people's names", () => {
@@ -59,6 +63,7 @@ describe("a View Link and people's names", () => {
     const links = {
       liveDashboard: await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: false }),
       liveDeck: await createViewLink(owner, "deck", deck, { ...dayInput, frozen: false }),
+      frozenDashboard: await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: true }),
       frozenDeck: await createViewLink(owner, "deck", deck, { ...dayInput, frozen: true }),
       snapshot: await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: false, snapshotId: snap }),
     };
@@ -92,9 +97,10 @@ describe("a View Link and people's names", () => {
     await expect(setViewLinkNames(w.actor(ben, "member"), row!.id, false)).rejects.toEqual(expect.any(Forbidden));
     await setViewLinkNames(owner, row!.id, false);
     expect(leaks(await openViewLink(token), others)).toEqual([]);
-    // A link that exists before the switch has names off.
-    await db().from("view_links").update({ show_names: false }).eq("id", row!.id);
     expect((await listViewLinks(owner, "dashboard", dash))[0].showNames).toBe(false);
-    await share(owner, "dashboard", dash, ben, "viewer");
+    // A revoked link is not switched, and a link of another Workspace is not found.
+    await revokeViewLink(owner, row!.id);
+    await setViewLinkNames(owner, row!.id, true);
+    expect((await listViewLinks(owner, "dashboard", dash))[0].showNames).toBe(false);
   });
 });

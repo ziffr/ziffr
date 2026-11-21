@@ -23,7 +23,7 @@ import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
-import type { CanvasData, Widget } from "./types";
+import type { CanvasData, Profile, Widget } from "./types";
 
 /** How long a View Link may live at most, in days. */
 export const MAX_DAYS = 90;
@@ -74,7 +74,8 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     condensed: pick(full.condensed ?? {}, ids),
     breakdowns: pick(full.breakdowns, ids),
     templates: [],
-    themes: full.themes.filter((t) => t.id === themeId || t.is_default),
+    // A Theme goes out as it looks, without the id of the person who made it (rule 3).
+    themes: full.themes.filter((t) => t.id === themeId || t.is_default).map((t) => ({ ...t, owner_id: "" })),
     canEditThemes: false,
     groups: [],
     pending: pick(full.pending, ids),
@@ -158,13 +159,16 @@ export function deckAsOf(document: unknown): Map<number, string> {
   return ends;
 }
 
-/** Every string of a value through `change`, except under the keys in `skip` (numbers, ids and keys stay as they are). */
-function mapStrings(value: unknown, change: (text: string) => string, skip: ReadonlySet<string> = new Set()): unknown {
+/** Every string of a value through `change`. */
+function mapStrings(value: unknown, change: (text: string) => string): unknown {
   if (typeof value === "string") return change(value);
-  if (Array.isArray(value)) return value.map((v) => mapStrings(v, change, skip));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, skip.has(k) ? v : mapStrings(v, change, skip)]));
+  if (Array.isArray(value)) return value.map((v) => mapStrings(v, change));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, mapStrings(v, change)]));
   return value;
 }
+
+/** An email or Slack handle in the three spellings people write it in, so a capital does not let it through. */
+const spelled = (p: Profile): Pick<Profile, "name" | "email" | "slack_handle">[] => [p, ...[p.email, p.slack_handle].filter((w): w is string => Boolean(w)).flatMap((w) => [w.toLowerCase(), w.toUpperCase()].map((x) => ({ name: x, email: "", slack_handle: "" })))];
 
 /** The one rule for people's names on a View Link (ticket #590; GLOSSARY: View Link, Guest): someone with the link is
  * signed out and is no one the Workspace knows, so unless the link's maker ticked "Show names" the page carries no
@@ -174,9 +178,12 @@ function mapStrings(value: unknown, change: (text: string) => string, skip: Read
  * rather than hidden by the page (contact details are loaded only to find them in words, never sent). With names on, the list is what shownData keeps: names and colours, no contact details. */
 export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
   if (showNames) return view;
-  const hide = nameHider([...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people]);
-  const words = mapStrings({ ...view, data: { ...view.data, people: [] } }, hide, new Set(["themes", "series", "type", "asOf", "workspaceName", "template", "themeId"])) as ViewPayload;
-  return { ...words, data: { ...words.data, people: [], metrics: words.data.metrics.map((m) => ({ ...m, owner_id: "" })) }, workspaceName: view.workspaceName };
+  const hide = nameHider([...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people].flatMap(spelled));
+  const words = mapStrings({ ...view, data: { ...view.data, people: [], series: {} } }, hide) as ViewPayload;
+  // What is not words stays as it was: the numbers by their Metric's slug (a slug that changed would draw nothing), the
+  // formulas, and the name of the Workspace the frame of the page already carries.
+  const metrics = words.data.metrics.map((m, i) => ({ ...m, slug: view.data.metrics[i].slug, formula: view.data.metrics[i].formula, owner_id: "" }));
+  return { ...words, data: { ...words.data, people: [], series: view.data.series, metrics }, workspaceName: view.workspaceName };
 }
 
 /** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. With
