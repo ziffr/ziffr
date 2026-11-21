@@ -51,7 +51,9 @@ export async function versionAccess(actor: Actor, type: VersionType, id: number)
   }
   if (type === "theme") {
     const { data } = await db().from("themes").select("id").eq("id", id).eq("workspace_id", ws).maybeSingle();
-    return { view: Boolean(data), edit: Boolean(data) && can(actor, "manage-themes") };
+    // Themes' history says who changed them: not for a Guest, who sees only what is shared with them and not who else
+    // is in the Workspace (the canvas still sends them the Themes their dashboards use).
+    return { view: Boolean(data) && actor.role !== "guest", edit: Boolean(data) && can(actor, "manage-themes") };
   }
   if (type === "metric") {
     const { data } = await db().from("metrics").select("owner_id").eq("id", id).eq("workspace_id", ws).maybeSingle();

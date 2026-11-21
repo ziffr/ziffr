@@ -9,13 +9,12 @@ import { assertScope, Forbidden, type Actor, type KeyActor, type Scope, type Wor
 import { db } from "./db";
 import { auditedAsKey } from "./audit-log";
 import { canSee, decideAccess, share, shareWithGroup, whoCanSee } from "./sharing";
-import type { ObjectType } from "./access";
+import { peopleFor, type ObjectType } from "./access";
 import { getMetrics } from "./workspace-data";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { removeMember } from "./handover";
 import { createInviteLink, decideJoinRequest, inviteByEmail, openInvitations, openJoinRequests, resendInvitation, revokeInvitation, setRole } from "./invitations";
 import { linkTo } from "./deliveries";
-import { peopleIn } from "./submissions";
 import type { ShareRole } from "./types";
 
 /** The key's creator: everything a key does here is done as them, with their current role. */
@@ -67,7 +66,7 @@ export async function whoCanSeeWithKey(actor: KeyActor, type: unknown, ref: unkn
   return acting(actor, "shares:write", async (creator) => {
     const o = await seenObject(creator, type, ref);
     const seen = await whoCanSee(creator, o.type, o.id);
-    const names = new Map((await peopleIn(creator.workspaceId)).map((p) => [p.id, p.name]));
+    const names = new Map((await peopleFor(creator)).map((p) => [p.id, p.name]));
     return {
       owner: seen.owner,
       is_owner: seen.isOwner,

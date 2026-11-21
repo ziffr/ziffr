@@ -2,7 +2,6 @@
 // workspace only; the decisions are made by the pure rules in visibility.ts, which ignore rows from any other one.
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
-import { openWorkflowRows } from "./workflow-rows";
 import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
@@ -157,38 +156,14 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
   return seriesFor(ws, metrics, visible, ids as number[]);
 }
 
-/** The people a person may be shown by name. A Member, Admin or Owner: everyone in the Workspace. A Guest, who sees
- * only what is shared with them (GLOSSARY: Workspace Role): themselves and the people on what they see, that is the
- * owners of their Metrics, dashboards and decks, those Metrics' Submitters and Stand-ins, and the people on the
- * Threads they may read. Never anyone's email or Slack handle (peopleIn). */
-export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<Profile[]> {
-  const ws = actor.workspaceId;
-  const people = await peopleIn(ws);
-  if (actor.role !== "guest") return people;
-  const me = actor.personId;
-  const metrics = await getMetrics(ws);
-  const [seen, dashboards, decks, actions, { data: tokens }] = await Promise.all([
-    visibleMetricIds(ws, me, metrics), visibleDashboards(ws, me), visibleDecks(ws, me), readableActions(ws, me),
-    db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws),
-  ]);
-  const ids = (actions as { id: number }[]).map((a) => a.id);
-  const { data: authors } = ids.length ? await db().from("thread_messages").select("author_id").eq("workspace_id", ws).in("action_id", ids) : { data: [] };
-  const known = new Set<string>([me]);
-  for (const m of metrics) if (seen.has(m.id)) known.add(m.owner_id);
-  for (const d of [...dashboards, ...decks]) known.add(d.owner_id as string);
-  for (const t of tokens ?? []) if (seen.has(t.metric_id as number)) for (const id of [t.submitter_id, t.stand_in_id]) if (id) known.add(id as string);
-  for (const a of actions as { asker_id: string; assignee_id: string }[]) { known.add(a.asker_id); known.add(a.assignee_id); }
-  for (const a of authors ?? []) if (a.author_id) known.add(a.author_id as string);
-  // The Workflows of their Metrics are shown to them, so their owners, Approvers and the people they tell are named.
-  const flows = [...new Set(metrics.flatMap((m) => { const w = (m as Metric & { workflow_id?: number | null }).workflow_id; return seen.has(m.id) && typeof w === "number" ? [w] : []; }))];
-  const { data: rows } = flows.length ? await db().from("workflows").select("id, owner_id, config").eq("workspace_id", ws).in("id", flows) : { data: [] as Record<string, unknown>[] };
-  for (const w of await openWorkflowRows(ws, rows as Record<string, unknown>[] | null)) {
-    known.add(w.owner_id as string);
-    for (const st of ((w.config as { steps?: { approvers?: unknown; people?: unknown }[] } | null)?.steps ?? [])) {
-      for (const id of [...(Array.isArray(st.approvers) ? st.approvers : []), ...(Array.isArray(st.people) ? st.people : [])]) if (typeof id === "string") known.add(id);
-    }
-  }
-  return people.filter((p) => known.has(p.id));
+/** The people a person may be shown by name. A Member, Admin or Owner: everyone in the Workspace. A Guest sees only
+ * themselves: a Guest does not see who else is in the Workspace (GLOSSARY: Guest; owner decision on #549, ticket
+ * #560), not even the owners of what is shared with them, so everything that names people goes through here and reads
+ * "Someone" for the rest. Never anyone's email or Slack handle (peopleIn). `loaded` is the Workspace's people when the
+ * caller has them already. */
+export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">, loaded?: Profile[]): Promise<Profile[]> {
+  const people = loaded ?? (await peopleIn(actor.workspaceId));
+  return actor.role === "guest" ? people.filter((p) => p.id === actor.personId) : people;
 }
 
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
@@ -216,8 +191,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
   const guest = !me || me.role === "guest";
-  // A Guest's canvas names only the people on what they see (peopleFor), not the whole Workspace.
-  const named = guest ? await peopleFor({ workspaceId: ws, personId: viewer, role: "guest" }) : people;
+  // A Guest's canvas names only themselves (peopleFor), not the Workspace.
+  const named = await peopleFor({ workspaceId: ws, personId: viewer, role: guest ? "guest" : "member" }, people);
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
@@ -248,8 +223,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     yearStart,
     numberStyle,
     attainmentMethod,
-    // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know.
-    submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
+    // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know, and a Guest sees only themselves.
+    submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id) && (!guest || t.submitter_id === viewer)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }
 
@@ -283,7 +258,7 @@ export type ObjectType = "metric" | "dashboard" | "deck";
 export type Audience = { person: string; how: string[] }[];
 
 /** Everyone who can see a metric, dashboard or deck, and why (GLOSSARY: Share, Group, Token). */
-export async function audience(ws: string, type: ObjectType, id: number, viewer: string): Promise<{ owner: string; people: Audience } | null> {
+export async function audience(ws: string, type: ObjectType, id: number, viewer: string, role?: Actor["role"]): Promise<{ owner: string; people: Audience } | null> {
   const table = type === "metric" ? "metrics" : type === "deck" ? "decks" : "dashboards";
   const { data: obj } = await db().from(table).select("owner_id").eq("workspace_id", ws).eq("id", id).maybeSingle();
   if (!obj) return null;
@@ -322,5 +297,8 @@ export async function audience(ws: string, type: ObjectType, id: number, viewer:
     for (const d of dashboards ?? []) if ((widgetRows ?? []).some((w) => w.dashboard_id === d.id && widgetMetricIds(w.metric_ids, w.settings).includes(id))) via("dashboard", d.id, d.name, d.owner_id);
     for (const d of decks ?? []) if (deckMetricIds(d.document).includes(id)) via("deck", d.id, d.name, d.owner_id);
   }
-  return { owner: obj.owner_id, people: [...how.entries()].map(([person, h]) => ({ person, how: [...new Set(h)] })) };
+  // A Guest does not see who else is in the Workspace (peopleFor): of the audience only their own line, and the owner
+  // is not named (the viewer's own id when it is theirs, otherwise none).
+  const guest = role === "guest";
+  return { owner: guest && obj.owner_id !== viewer ? "" : obj.owner_id, people: [...how.entries()].filter(([person]) => !guest || person === viewer).map(([person, h]) => ({ person, how: [...new Set(h)] })) };
 }

@@ -397,7 +397,7 @@ A language whose words Ziffr understands in an answer, such as "last week" or "l
 _Avoid_: Locale, input language
 
 **Workspace Role**:
-What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A workspace can have several owners.
+What a person may do in a Workspace as a whole. A Workspace Owner manages settings, themes, groups, members and billing; a Workspace Admin does the same except billing and removing owners; a Member creates and shares metrics, dashboards and decks; a Guest only sees what is shared with them, answers questions and submits values, and creates nothing. A Guest never sees who else is in the Workspace: no names, emails, handles or Groups of other people, in pages, search, Versions, Threads, the API or MCP; they read as "Someone". A workspace can have several owners.
 _Avoid_: Permission level, admin rights
 
 **Invitation**:

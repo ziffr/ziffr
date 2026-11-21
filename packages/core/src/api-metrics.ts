@@ -14,7 +14,6 @@ import { openOne } from "./sealed-columns";
 import { addSubmitters, assertSubmittersIn, createMetric, deleteMetric, editableMetric, metricEffects, removeSubmitters, sealedSeriesSaves, setMetricSources, SUBMITTERS_PER_CHANGE, TooManyMetrics, updateMetricDetails, type MetricEffects } from "./metrics";
 import { addFeedToMetric, removeFeedFromMetric } from "./feeds";
 import { archiveMetric, restoreMetric } from "./archived-metrics";
-import { peopleIn } from "./submissions";
 import { yearStartFor } from "./fiscal-year";
 import { withVersionNote } from "./versions";
 import { setWorkflowCheck } from "./workflows";
@@ -22,7 +21,7 @@ import type { WorkflowConfig, WorkflowStep } from "./types";
 import { isPeriodStart, periodStart } from "./periods";
 import { normalizeMetric } from "./metric-row";
 import { getMetrics, getSeriesValues } from "./workspace-data";
-import { visibleMetricIds } from "./access";
+import { peopleFor, visibleMetricIds } from "./access";
 import type { Metric, SourceId } from "./types";
 
 /** Metrics one key may create in any 24 hours; the database enforces it (migration 20261116090000). */
@@ -357,7 +356,8 @@ export async function listSubmittersWithKey(actor: Actor | KeyActor, slug: strin
   const ids = [...new Set((tokens ?? []).map((t) => t.submitter_id as string))];
   if (!ids.length) return [];
   // Loaded without contact details, so none can reach a program.
-  const [people, { data: feeds }] = await Promise.all([peopleIn(actor.workspaceId), db().from("feeds").select("person_id, name").eq("workspace_id", actor.workspaceId).in("person_id", ids)]);
+  // A Guest is shown no Submitter but themselves (peopleFor), and no Feed.
+  const [people, { data: feeds }] = await Promise.all([peopleFor(actor), actor.role === "guest" ? Promise.resolve({ data: [] }) : db().from("feeds").select("person_id, name").eq("workspace_id", actor.workspaceId).in("person_id", ids)]);
   const feedName = new Map((feeds ?? []).map((f) => [f.person_id as string, f.name as string]));
   const person = new Map(people.map((p) => [p.id, p]));
   return ids.flatMap((id): ApiSubmitter[] => {

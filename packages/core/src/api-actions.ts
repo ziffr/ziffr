@@ -8,11 +8,10 @@
 // one of another Workspace, answers like one that does not exist (Forbidden, so the API says 404). Every change
 // is written through changeActionState with the source "api" or "mcp", so each sends one Webhook event.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { markTaskDone, reply, setActionStatus } from "./questions";
 import { openRows } from "./sealed-columns";
-import { peopleIn } from "./submissions";
 import type { ChangeSource } from "./webhook-events";
 import { approveValue, confirmOwnValue, correctOwnValue, sendValueBack } from "./workflows";
 import { getMetrics } from "./workspace-data";
@@ -58,9 +57,9 @@ export const MAX_ACTIONS_PAGE = 100;
 const creatorOf = (actor: KeyActor): Actor => ({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
 
 /** Names by id of people and Contacts in the Workspace now; only id and name, never contact details. */
-async function namesOf(ws: string, ids: readonly string[]): Promise<Map<string, string>> {
+async function namesOf(actor: KeyActor, ids: readonly string[]): Promise<Map<string, string>> {
   const wanted = new Set(ids);
-  return new Map((await peopleIn(ws)).filter((p) => wanted.has(p.id)).map((p) => [p.id, p.name]));
+  return new Map((await peopleFor(actor)).filter((p) => wanted.has(p.id)).map((p) => [p.id, p.name]));
 }
 
 type Row = Action & { workspace_id: string };
@@ -73,7 +72,7 @@ async function shape(actor: KeyActor, rows: Row[]): Promise<ApiAction[]> {
   const metrics = await getMetrics(ws);
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
-  const names = await namesOf(ws, [...new Set(rows.flatMap((a) => [a.asker_id, a.assignee_id]))]);
+  const names = await namesOf(actor, [...new Set(rows.flatMap((a) => [a.asker_id, a.assignee_id]))]);
   return rows.map((a) => {
     const m = byId.get(a.metric_id);
     return {

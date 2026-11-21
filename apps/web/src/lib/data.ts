@@ -16,7 +16,7 @@ import type { Profile } from "@ziffr/core/types";
 export const getPeopleIn = peopleIn;
 
 /** The people of the current Workspace the person may be shown (the core's peopleFor): members, then Contacts
- * (flagged); for a Guest only the people on what is shared with them. Pickers for sharing or asking leave the
+ * (flagged); for a Guest only themselves. Pickers for sharing or asking leave the
  * Contacts out: they have no login and only submit values. */
 export const getProfiles = cache(async (): Promise<Profile[]> => {
   return peopleFor(await currentActor());
