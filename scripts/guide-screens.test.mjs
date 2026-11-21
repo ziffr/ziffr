@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { chaptersToUpdate, globToRegExp, readChapters, screensOf, staleScreens, uncoveredPages } from "./guide-screens.mjs";
+import { badNotScreens, chaptersToUpdate, globToRegExp, readChapters, screensOf, staleScreens, uncoveredPages } from "./guide-screens.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -29,7 +29,12 @@ test("a changed screen asks for its chapter, unless the chapter changed too", ()
 
 test("every page of the app is described in the user guide", () => {
   const missing = uncoveredPages(root);
-  assert.deepEqual(missing, [], `No chapter of docs/user-guide names these pages in its "<!-- screens: … -->" line:\n${missing.join("\n")}\nDescribe them in a chapter, or list them in NOT_SCREENS in scripts/guide-screens.mjs with the reason.`);
+  assert.deepEqual(missing, [], `No chapter of docs/user-guide names these pages in its "<!-- screens: … -->" line:\n${missing.join("\n")}\nDescribe them in a chapter, or list them with a kind and reason in scripts/guide-not-screens.json.`);
+});
+
+test("the list of pages that are no screen is in order", () => {
+  const bad = badNotScreens(root);
+  assert.deepEqual(bad, [], `scripts/guide-not-screens.json:\n${bad.join("\n")}`);
 });
 
 test("every path a chapter names still exists", () => {

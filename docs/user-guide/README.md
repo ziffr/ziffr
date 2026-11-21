@@ -27,7 +27,7 @@ A chapter may start with two lines that readers never see:
 
 The `screens` line keeps the guide up to date, with two checks:
 
-1. **Every page is described.** `pnpm test` fails when a page of the app is named by no chapter (pages that are no screen of their own are listed, with the reason, in `scripts/guide-screens.mjs`), or when a chapter names a path that no longer exists.
+1. **Every page is described.** `pnpm test` fails when a page of the app is named by no chapter (pages that are no screen of their own are listed, with the reason, in `scripts/guide-not-screens.json`), or when a chapter names a path that no longer exists.
 2. **A changed screen changes its chapter.** In CI, and in `pnpm ci:local`, a pull request that changes a file a chapter names must change that chapter too. When a change alters nothing people see, such as a refactoring, a maintainer adds the label `no-guide-change` instead.
 
 When you add a screen, name its files in the chapter that describes it, or start a new chapter for it.
