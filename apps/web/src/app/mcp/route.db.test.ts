@@ -68,7 +68,7 @@ describe("/mcp", () => {
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual((await local.listResourceTemplates()).resourceTemplates);
     expect(client.getServerVersion()).toEqual(local.getServerVersion());
     // The Starters too, filled in and refused the same way.
-    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "my_week", "weekly_review", "record_values", "build_dashboard", "explain_metric", "start_tracking", "set_targets", "alert_me"]);
+    expect((await client.listPrompts()).prompts.map((p) => p.name)).toEqual(["what_can_i_do", "my_week", "weekly_review", "record_values", "build_dashboard", "explain_metric", "start_tracking", "set_targets", "alert_me", "share_numbers"]);
     expect((await client.listPrompts()).prompts).toEqual((await local.listPrompts()).prompts);
     const args = { name: "record_values", arguments: { text: "3 coffees today" } };
     expect(await client.getPrompt(args)).toEqual(await local.getPrompt(args));

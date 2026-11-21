@@ -42,6 +42,8 @@ const nextConfig: NextConfig = {
     // source is bundled, and "./pack.js" means "./pack.ts".
     // Only for its own modules: no dependency gets a ".ts" file in place of the ".js" it asked for.
     config.module.rules.push({ include: /packages[\\/]pack[\\/]src[\\/]/, resolve: { extensionAlias: { ".js": [".ts", ".js"] } } });
+    // The MCP Server imports its own modules the way its published build needs (".js"), which webpack maps to the source.
+    config.module.rules.push({ include: /packages[\\/]mcp[\\/]src[\\/]/, resolve: { extensionAlias: { ".js": [".ts", ".js"] } } });
     if (!isServer) {
       // pptxgenjs imports "node:fs" etc. for its Node build; its package.json `browser` field
       // maps them to false, but webpack rejects the node: scheme before reading that field.

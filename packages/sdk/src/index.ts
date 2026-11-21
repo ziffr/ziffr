@@ -333,6 +333,13 @@ export type Alert = {
   created_at: string;
 };
 
+/** What a Share Proposal asks for: with `email` and `ends`, a View Link; with `person` or `group`, a Share as Viewer. */
+export type NewShareProposal = { dashboard: number; snapshot?: number | null; live?: boolean; email?: string; ends?: string; message?: string | null; person?: string; group?: number };
+/** A Share Proposal as made: open, with the page where the person confirms it. */
+export type ShareProposal = {
+  id: number; status: "open"; how: "view_link" | "share"; dashboard: { id: number; name: string }; recipient: string; ends: string | null; message: string | null;
+  live: boolean; expires: string; url: string; preview: Dashboard;
+};
 /** What to say to make an Alert. */
 export type NewAlert = { metric: string; condition: AlertCondition; delivery?: AlertDelivery; include_unapproved?: boolean };
 
@@ -687,6 +694,13 @@ export class Ziffr {
     update: async (id: number, patch: AlertPatch): Promise<Alert> => (await this.request<Alert>("PATCH", `/alerts/${id}`, undefined, patch)).body,
     /** Removes one of theirs. */
     remove: async (id: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/alerts/${id}`)).body,
+  };
+
+  /** Share Proposals (GLOSSARY: Share Proposal): prepares a share for the key's creator to confirm in Ziffr. It shares and sends
+   * nothing; there is no call to confirm it, because only the person can, with their own sign-in. Needs shares:propose and dashboards:read. */
+  readonly shareProposals = {
+    /** Proposes a View Link (an address, an end date, a message) or a Share (a person or a Group) of a dashboard the creator owns. */
+    create: async (input: NewShareProposal): Promise<ShareProposal> => (await this.request<ShareProposal>("POST", "/share-proposals", undefined, input)).body,
   };
 
   /** The dashboards the key's creator sees (scope dashboards:read), and building them as the creator (scope

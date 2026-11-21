@@ -6,7 +6,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import type { Scope } from "@ziffr/core/actor";
 import { db } from "@ziffr/core/db";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { createDashboard, placeWidget } from "@ziffr/core/dashboards";
+import { rowsOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { Ziffr } from "@ziffr/sdk";
 import { createServer } from "../src/server.js";
 
@@ -28,7 +29,7 @@ async function connect(scopes: Scope[] = ["metrics:read", "values:submit"]) {
   const client = new Client({ name: "test", version: "1" });
   await client.connect(b);
   cleanups.push(() => client.close());
-  return { client, ben, orders, hidden };
+  return { client, ben, orders, hidden, w };
 }
 
 describe("@ziffr/mcp against the app", () => {
@@ -37,7 +38,7 @@ describe("@ziffr/mcp against the app", () => {
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_finding", "add_widget", "archive_metric", "create_alert", "create_dashboard", "create_dashboard_from_template", "create_metric", "create_workflow", "delete_alert", "delete_metric", "delete_workflow", "find", "get_dashboard", "get_metric", "get_snapshot", "get_thread", "get_unusual_value_check", "get_workflow", "get_workspace",
-      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
+      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "propose_share", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
       "submit_value", "take_snapshot", "update_alert", "update_dashboard", "update_finding", "update_metric", "update_widget", "update_workflow",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
@@ -95,7 +96,7 @@ describe("@ziffr/mcp against the app", () => {
   it("lists each visible Metric as a resource and reads it", async () => {
     const { client, orders } = await connect();
     const { resources } = await client.listResources();
-    expect(resources).toEqual([expect.objectContaining({ uri: `ziffr://metrics/${orders.slug}`, name: "Orders" })]);
+    expect(resources.filter((r) => r.uri.startsWith("ziffr://metrics/"))).toEqual([expect.objectContaining({ uri: `ziffr://metrics/${orders.slug}`, name: "Orders" })]);
     const read = await client.readResource({ uri: `ziffr://metrics/${orders.slug}` });
     expect(JSON.parse(String((read.contents[0] as { text: string }).text))).toMatchObject({ metric: { slug: orders.slug }, values: [{ value: 3 }] });
   });
@@ -105,5 +106,31 @@ describe("@ziffr/mcp against the app", () => {
     expect(refused.isError).toBe(true);
     expect(JSON.stringify(refused.content)).toMatch(/forbidden/);
     expect((await client.callTool({ name: "get_metric", arguments: { slug: hidden.slug } })).isError).toBe(true);
+  });
+  it("proposes a share, shows it in the chat as an app, and can never confirm it (ticket #538)", async () => {
+    const { client, ben, orders, w } = await connect(["metrics:read", "dashboards:read", "shares:propose"]);
+    const tools = (await client.listTools()).tools;
+    const propose = tools.find((t) => t.name === "propose_share");
+    // The tool names its preview page (MCP Apps), and no tool confirms, declines or makes a View Link.
+    expect(propose?._meta).toMatchObject({ ui: { resourceUri: "ui://ziffr/share-proposal.html" } });
+    expect(tools.map((t) => t.name).filter((n) => /confirm|decline|view_link|share/.test(n))).toEqual(["propose_share"]);
+    const page = await client.readResource({ uri: "ui://ziffr/share-proposal.html" });
+    const html = page.contents[0] as { mimeType: string; text: string; _meta?: { ui?: { csp?: unknown } } };
+    expect(html.mimeType).toBe("text/html;profile=mcp-app");
+    expect(html._meta?.ui?.csp).toEqual({ connectDomains: [], resourceDomains: [] });
+    expect(html.text).toContain("Confirm in Ziffr");
+    expect(html.text).not.toMatch(/innerHTML|<script src|https?:\/\/[a-z]/);
+    // Proposing: text for every host, structured content for the page; nothing is shared.
+    const dash = await createDashboard(w.actor(ben, "member"), "Orders, last 4 weeks");
+    await placeWidget(w.actor(ben, "member"), dash, { type: "metric", id: orders.id });
+    const made = await client.callTool({ name: "propose_share", arguments: { dashboard_id: dash, email: "jenny@example.test", ends: inDays(14), message: "Here you go." } });
+    expect(made.isError, JSON.stringify(made.content)).toBeFalsy();
+    expect((made.content as { text: string }[])[0].text).toMatch(/Prepared, not shared[^]*Nothing was shared or sent[^]*\/actions\/share\/\d+/);
+    expect(made.structuredContent).toMatchObject({ status: "open", how: "view_link", recipient: "jenny@example.test", dashboard: { id: dash, name: "Orders, last 4 weeks" } });
+    expect(await rowsOf("view_links", { created_by: ben })).toEqual([]);
+  });
+  it("refuses to propose without the scope", async () => {
+    const { client } = await connect(["metrics:read", "dashboards:read"]);
+    expect((await client.callTool({ name: "propose_share", arguments: { dashboard_id: 1, email: "a@example.test", ends: inDays(3) } })).isError).toBe(true);
   });
 });

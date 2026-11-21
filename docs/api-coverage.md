@@ -174,6 +174,11 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `periodRecord` (period-record.ts): the period page
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
+- `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)
+- `previewShareProposal` (share-proposals.ts): the confirm page shows what the recipient would see, to the person only (ticket #538)
+- `confirmShareProposal` (share-proposals.ts): never through a key, by design: only the person confirms a Share Proposal, signed in (ticket #538)
+- `declineShareProposal` (share-proposals.ts): never through a key, by design: only the person decides a Share Proposal, signed in (ticket #538)
+- `previewViewLink` (view-links.ts): the confirm page of a Share Proposal; reads only (ticket #538)
 - `submittingKeyNames` (access-keys.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `alertChoices` (alerts.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `archivableMetric` (archived-metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

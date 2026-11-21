@@ -1785,6 +1785,74 @@ Removes one of the creator's own Alerts. Another person's Alert is not found.
 - 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
 - 500: `internal`: something went wrong on the server.
 
+## Propose a share for the person to confirm
+
+`POST /share-proposals` · scope `shares:propose`
+
+Prepares a View Link (to an email address, ending within 90 days, with an optional message) or a Share (to a Member or a Group, as Viewer) of one dashboard the key's creator owns, or of one of its shown Snapshots. It shares nothing and sends nothing: the proposal waits in the creator's Actions for seven days, and only they can confirm or decline it in Ziffr with their own sign-in, never through a key. On confirming, Ziffr makes the View Link or gives the Share through the same operations the app uses, and emails the address its link with the message. Needs shares:propose and dashboards:read. At most 10 proposals wait at once. Never for people or Approvals.
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `dashboard` | integer | yes | The id of a dashboard the key's creator owns, from GET /dashboards. |
+| `snapshot` | integer or null | no | A View Link to one of the dashboard's Snapshots that is shown to everyone with access, instead of the dashboard. |
+| `live` | boolean | no | A View Link that shows the numbers as they change. Off by default: the numbers are kept as they are when the person confirms. |
+| `email` | string, at most 254 characters | no | A View Link: the address it is emailed to once the person confirms. With `ends`. |
+| `ends` | string | no | A View Link: the last day it works, within 90 days. |
+| `message` | string, at most 500 characters or null | no | A View Link: words that go in the email. The person reads them before confirming. Plain text, at most 500 characters. |
+| `person` | string, at most 64 characters | no | A Share: a Member's id, from GET /people, who gets to look (Viewer). |
+| `group` | integer | no | A Share: a Group's id, from GET /groups, whose members get to look (Viewer). |
+
+**Answer** (201)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `id` | integer | yes |  |
+| `status` | string | yes |  |
+| `how` | `"view_link"`, `"share"` | yes |  |
+| `dashboard` | object | yes |  |
+| `dashboard.id` | integer | yes |  |
+| `dashboard.name` | string | yes |  |
+| `recipient` | string | yes | The address, or the name of the person or Group. |
+| `ends` | string or null | yes | The last day a View Link works; null for a Share. |
+| `message` | string or null | yes |  |
+| `live` | boolean | yes | Whether a View Link shows the numbers live. |
+| `expires` | string | yes | When it can no longer be confirmed: seven days after it was made. |
+| `url` | string | yes | The page in Ziffr where the person looks at what would be shared and confirms or declines. Give it to them. |
+| `preview` | object | yes | The dashboard as GET /dashboards/{id} shows it. |
+| `preview.id` | integer | yes | Stable id. |
+| `preview.name` | string | yes |  |
+| `preview.role` | `"owner"`, `"editor"`, `"viewer"` | yes | The key's creator's role on it; only an owner or editor can change it. |
+| `preview.url` | string | yes | Where to open it in Ziffr. |
+| `preview.intro` | string | yes | Its introduction, shown above it and first in its Read view; empty when it has none. |
+| `preview.widgets` | array of object | yes |  |
+| `preview.widgets[].id` | integer | yes |  |
+| `preview.widgets[].view` | string | yes | Its built-in view. |
+| `preview.widgets[].title` | string or null | yes |  |
+| `preview.widgets[].metrics` | array of string | yes | Slugs of the Metrics it draws. |
+| `preview.widgets[].x` | integer | yes |  |
+| `preview.widgets[].y` | integer | yes |  |
+| `preview.widgets[].w` | integer | yes |  |
+| `preview.widgets[].h` | integer | yes |  |
+| `preview.widgets[].words` | object | no | A Finding only: its words. |
+| `preview.widgets[].words.kicker` | string, at most 200 characters | no | The small line above the headline. |
+| `preview.widgets[].words.headline` | string, at most 200 characters | no | States the finding, such as "Churn doubled after the price change". |
+| `preview.widgets[].words.subline` | string, at most 200 characters | no |  |
+| `preview.widgets[].words.footnote` | string, at most 500 characters | no |  |
+| `preview.widgets[].words.source` | string, at most 200 characters | no |  |
+| `preview.widgets[].display` | `"week"`, `"month"`, `"quarter"`, `"half"`, `"year"` | no | The period it shows its Metric by, when longer than the Metric's own (GLOSSARY: Display Period). |
+
+**Errors**
+
+- 400: `invalid_request`: the query, path or body does not match.
+- 401: `unauthorized`: no key, or one that ended, was revoked, or whose creator left.
+- 403: `forbidden`: the key lacks the scope, or a Feed Key called an endpoint for people's keys.
+- 404: `not_found`: nothing here the key's creator may see. A dashboard the creator does not own, or a person or Group that is not in the Workspace; the answer is the same whether it exists or not.
+- 422: A bad address, an end date beyond 90 days, a message that is too long, nothing to show, or the limit of open proposals; the message says which.
+- 429: `rate_limited`: too many calls; wait for `Retry-After` seconds.
+- 500: `internal`: something went wrong on the server.
+
 ## List people
 
 `GET /people` · scope `metrics:read`

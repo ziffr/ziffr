@@ -189,9 +189,34 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
     // As any View Link: only what the dashboard's owner may see now, and only the Metrics agreed when it was made
     // (visibility carries all the way through, #193). A widget drawing any other Metric stays out whole.
     const seen = await forReader({ personId: dash.owner_id as string, workspaceId: dash.workspace_id as string }, s.widgets, s.data, s.themeId, link.metric_ids ?? []);
-    return { type: "dashboard", id: link.object_id, name: s.name, themeId: s.themeId, data: seen.data, widgets: seen.widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget), intro: s.intro, snapshot: { label: s.label, takenAt: s.takenAt }, asOf: s.takenAt };
+    return snapshotPayload(link.object_id, s, seen);
   }
   return buildView(link.object_type, link.object_id, link.metric_ids ?? [], link.widget_ids ?? null, link.shape_ids ?? null);
+}
+
+/** What a View Link to a Snapshot shows: its widgets as the reader may see them, with the words kept with it. */
+function snapshotPayload(dashboardId: number, s: NonNullable<Awaited<ReturnType<typeof snapshotForLink>>>, seen: Awaited<ReturnType<typeof forReader>>): ViewPayload {
+  return { type: "dashboard", id: dashboardId, name: s.name, themeId: s.themeId, data: seen.data, widgets: seen.widgets.map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget), intro: s.intro, snapshot: { label: s.label, takenAt: s.takenAt }, asOf: s.takenAt };
+}
+
+/** Exactly what the person on the other end of a View Link to this dashboard (or one of its shown Snapshots) would see
+ * now, for its owner to look at before agreeing to make it (GLOSSARY: Share Proposal). Only the owner, only while their
+ * role may share, and only Metrics they see, as when the link is made; null when there is nothing to show. */
+export async function previewViewLink(actor: Actor, dashboardId: number, snapshotId: number | null): Promise<ViewPayload | null> {
+  if (!Number.isInteger(dashboardId)) throw new Forbidden();
+  await assertOwner(actor, "dashboard", dashboardId);
+  assertCan(actor, "share");
+  if (snapshotId !== null) {
+    const s = await snapshotForLink(snapshotId, dashboardId);
+    if (!s) return null;
+    const ids = s.data.metrics.map((m) => m.id);
+    await assertSeesMetrics(actor, ids);
+    return snapshotPayload(dashboardId, s, await forReader(actor, s.widgets, s.data, s.themeId, ids));
+  }
+  const view = await buildView("dashboard", dashboardId);
+  if (!view) return null;
+  await assertSeesMetrics(actor, view.data.metrics.map((m) => m.id));
+  return view;
 }
 
 /** Refuses anyone but the owner of the dashboard or deck, in their workspace. */
@@ -242,7 +267,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
 }
 
 /** The end date of a new View Link, checked: from today to MAX_DAYS ahead. */
-function endDate(expires: unknown): string {
+export function endDate(expires: unknown): string {
   const today = new Date().toISOString().slice(0, 10);
   const latest = new Date(Date.now() + MAX_DAYS * 86400000).toISOString().slice(0, 10);
   const e = String(expires ?? "");

@@ -10,6 +10,7 @@ import * as actionReplies from "@/app/api/v1/actions/[id]/replies/route";
 import * as actionSelfCheck from "@/app/api/v1/actions/[id]/self-check/route";
 import * as alerts from "@/app/api/v1/alerts/route";
 import * as alert from "@/app/api/v1/alerts/[id]/route";
+import * as shareProposals from "@/app/api/v1/share-proposals/route";
 import * as dashboards from "@/app/api/v1/dashboards/route";
 import * as dashboard from "@/app/api/v1/dashboards/[id]/route";
 import * as findings from "@/app/api/v1/dashboards/[id]/findings/route";
@@ -54,6 +55,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["actions/[id]/self-check", actionSelfCheck],
   ["alerts", alerts],
   ["alerts/[id]", alert],
+  ["share-proposals", shareProposals],
   ["dashboards", dashboards],
   ["dashboards/from-template", fromTemplate],
   ["dashboards/[id]", dashboard],

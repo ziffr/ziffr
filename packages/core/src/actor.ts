@@ -66,11 +66,13 @@ export function can(actor: Actor | KeyActor, capability: Capability): boolean {
  * person's decision, so it is key-only like "values:approve".
  * "shares:write", "groups:write" and "people:write" (ticket #434) change who sees what: Shares and access requests, Groups
  * and who is in them, people, Contacts, invitations and join requests. Key-only too, and a key holds each only while
- * its creator's role has the matching capability (checkKeyRequest). */
-export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve" | "view-links:write" | "usage:read" | "workflows:write" | "workflows:people" | "shares:write" | "groups:write" | "people:write";
+ * its creator's role has the matching capability (checkKeyRequest).
+ * "shares:propose" (ticket #538) only *prepares* a share: a Share Proposal waits in the creator's Actions until they confirm it in
+ * the app with their own sign-in. It is the one sharing scope an assistant may hold, because it changes nobody's access. */
+export type Scope = "metrics:read" | "values:submit" | "metrics:write" | "metrics:edit" | "dashboards:read" | "dashboards:write" | "alerts:write" | "actions:read" | "actions:write" | "values:approve" | "view-links:write" | "usage:read" | "workflows:write" | "workflows:people" | "shares:write" | "groups:write" | "people:write" | "shares:propose";
 
 /** Every scope a key can have. */
-export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve", "view-links:write", "usage:read", "workflows:write", "workflows:people", "shares:write", "groups:write", "people:write"];
+export const SCOPES: Scope[] = ["metrics:read", "values:submit", "metrics:write", "metrics:edit", "dashboards:read", "dashboards:write", "alerts:write", "actions:read", "actions:write", "values:approve", "view-links:write", "usage:read", "workflows:write", "workflows:people", "shares:write", "groups:write", "people:write", "shares:propose"];
 
 /** The scopes only a program's key may hold: approving is a person's check (ticket #427), and text in a Thread could
  * talk an assistant into it, so no assistant is offered them and none can be granted them. */
@@ -80,7 +82,7 @@ export const KEY_ONLY_SCOPES: Scope[] = ["values:approve", "view-links:write", "
 export const ASSISTANT_SCOPES: Scope[] = SCOPES.filter((s) => !KEY_ONLY_SCOPES.includes(s));
 
 /** Each scope by the label the key form and the consent screen give it, so a refusal names what to tick. */
-export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures", "workflows:write": "Build workflows", "workflows:people": "Name who approves and who is told", "shares:write": "Share and answer access requests", "groups:write": "Manage groups", "people:write": "Invite and remove people" };
+export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures", "workflows:write": "Build workflows", "workflows:people": "Name who approves and who is told", "shares:write": "Share and answer access requests", "groups:write": "Manage groups", "people:write": "Invite and remove people" , "shares:propose": "Propose sharing" };
 
 /** Why a key without this scope is refused, in the same words wherever it is refused (API and core alike). */
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;
