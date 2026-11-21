@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import "../core/src/test/serial-files";
 
 // The Usage Feed against the local Postgres and a running app (spec 0031, ticket #366): ZIFFR_TEST_URL (default
 // http://localhost:3000) with the local Supabase it uses. Test data is made through the core, like the SDK's tests.
