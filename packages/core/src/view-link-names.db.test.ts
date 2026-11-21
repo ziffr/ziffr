@@ -8,7 +8,7 @@ import { db } from "./db";
 import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { createDeck, saveDeck } from "./decks";
 import { showSnapshot, takeSnapshot } from "./snapshots";
-import { createViewLink, listViewLinks, openViewLink, revokeViewLink, setViewLinkNames } from "./view-links";
+import { createViewLink, listViewLinks, openViewLink, revokeViewLink, setViewLinkNames, viewForLink, type ViewPayload } from "./view-links";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -102,5 +102,29 @@ describe("a View Link and people's names", () => {
     await revokeViewLink(owner, row!.id);
     await setViewLinkNames(owner, row!.id, true);
     expect((await listViewLinks(owner, "dashboard", dash))[0].showNames).toBe(false);
+  });
+
+  it("hides mixed-case contact details, re-keys a slug or formula that names someone, and clears a Theme's maker from an old frozen copy", async () => {
+    const { w, owner, dash, tag, others, visits } = await setUp();
+    const sara = others[0];
+    const slug = `revenue-sara-${tag}`;
+    await db().from("metrics").update({ slug }).eq("id", visits.id);
+    const token = await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: false });
+    // A live link: the slug that names a person becomes an opaque key and its series follow, so the page still draws.
+    const live = await openViewLink(token);
+    const shown = live!.data.metrics[0];
+    expect(shown.slug).toBe(`metric-${visits.id}`);
+    expect(live!.data.series[shown.slug]?.length).toBeGreaterThan(0);
+    expect(JSON.stringify(live)).not.toContain(slug);
+    // The same payload, by hand: a formula that names a Metric after a person, a Theme as frozen before this change, a mixed-case email.
+    const base = live as ViewPayload;
+    const old = { ...base, intro: `Write to ${sara.email.replace("sara", "SaRa")}`, data: { ...base.data, metrics: base.data.metrics.map((m) => ({ ...m, slug, formula: `{${slug}} * 2` })), series: { [slug]: base.data.series[shown.slug] }, themes: [{ id: 1, owner_id: others[1].id, name: "Look", tokens: {}, slides: {}, is_default: true, updated_at: "" }] } } as unknown as ViewPayload;
+    const off = await viewForLink(old, w.id, false);
+    expect(JSON.stringify(off)).not.toMatch(/sara/i);
+    expect(off.data.metrics[0].formula).toBeNull();
+    expect(off.data.themes[0].owner_id).toBe("");
+    expect(off.data.series[`metric-${visits.id}`]).toBeDefined();
+    // With names on the Theme's maker is gone too.
+    expect((await viewForLink(old, w.id, true)).data.themes[0].owner_id).toBe("");
   });
 });

@@ -12,7 +12,7 @@ import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
-import { nameHider } from "./hide-names";
+import { mentionsPerson, nameHider } from "./hide-names";
 import { peopleIn } from "./submissions";
 import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
@@ -23,7 +23,7 @@ import { keptUnit } from "./units";
 import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
-import type { CanvasData, Profile, Widget } from "./types";
+import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days. */
 export const MAX_DAYS = 90;
@@ -167,9 +167,6 @@ function mapStrings(value: unknown, change: (text: string) => string): unknown {
   return value;
 }
 
-/** An email or Slack handle in the three spellings people write it in, so a capital does not let it through. */
-const spelled = (p: Profile): Pick<Profile, "name" | "email" | "slack_handle">[] => [p, ...[p.email, p.slack_handle].filter((w): w is string => Boolean(w)).flatMap((w) => [w.toLowerCase(), w.toUpperCase()].map((x) => ({ name: x, email: "", slack_handle: "" })))];
-
 /** The one rule for people's names on a View Link (ticket #590; GLOSSARY: View Link, Guest): someone with the link is
  * signed out and is no one the Workspace knows, so unless the link's maker ticked "Show names" the page carries no
  * person at all: no list of people, no Metric owner, and in every word of it (dashboard, widgets, slides, Snapshot
@@ -177,13 +174,24 @@ const spelled = (p: Profile): Pick<Profile, "name" | "email" | "slack_handle">[]
  * read "Someone" (hide-names.ts, as for a Guest). Rule 3: what is not sent cannot leak, so the people are dropped
  * rather than hidden by the page (contact details are loaded only to find them in words, never sent). With names on, the list is what shownData keeps: names and colours, no contact details. */
 export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
-  if (showNames) return view;
-  const hide = nameHider([...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people].flatMap(spelled));
-  const words = mapStrings({ ...view, data: { ...view.data, people: [], series: {} } }, hide) as ViewPayload;
-  // What is not words stays as it was: the numbers by their Metric's slug (a slug that changed would draw nothing), the
-  // formulas, and the name of the Workspace the frame of the page already carries.
-  const metrics = words.data.metrics.map((m, i) => ({ ...m, slug: view.data.metrics[i].slug, formula: view.data.metrics[i].formula, owner_id: "" }));
-  return { ...words, data: { ...words.data, people: [], series: view.data.series, metrics }, workspaceName: view.workspaceName };
+  // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
+  const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
+  if (showNames) return { ...view, data: { ...view.data, themes } };
+  const people = [...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people];
+  const hide = nameHider(people);
+  const mentions = mentionsPerson(people);
+  const words = mapStrings({ ...view, data: { ...view.data, people: [], series: {}, themes } }, hide) as ViewPayload;
+  // A slug and a formula are not words but keys: kept as they are so the series still match, unless one names a person
+  // (anywhere, in any case), then it becomes an opaque key and its series follow. Matched by Metric id, not by place.
+  const original = new Map(view.data.metrics.map((m) => [m.id, m]));
+  const series: ViewPayload["data"]["series"] = {};
+  const metrics = words.data.metrics.map((m) => {
+    const o = original.get(m.id)!;
+    const slug = mentions(o.slug) ? `metric-${m.id}` : o.slug;
+    if (view.data.series[o.slug]) series[slug] = view.data.series[o.slug];
+    return { ...m, slug, formula: o.formula && mentions(o.formula) ? null : o.formula, owner_id: "" };
+  });
+  return { ...words, data: { ...words.data, people: [], series, metrics }, workspaceName: view.workspaceName };
 }
 
 /** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. With
