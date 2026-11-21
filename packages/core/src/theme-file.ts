@@ -47,6 +47,6 @@ export function themeToFile(name: unknown, tokens: ThemeTokens, slides: Partial<
 
 /** The text of a Theme's file, as it is downloaded, and a file name for it: letters, digits and dashes only. */
 export function themeFileText(file: ThemeFile): { name: string; text: string } {
-  const slug = file.name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "theme";
+  const slug = file.name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "theme";
   return { name: `${slug}.ziffr-theme.json`, text: `${JSON.stringify(file, null, 2)}\n` };
 }
