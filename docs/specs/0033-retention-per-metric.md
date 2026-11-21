@@ -1,6 +1,6 @@
 # 0033 Retention per Metric: how long values are kept, and condensing old ones
 
-**Status:** draft. **Ticket:** #360 (the owner's wish, 2026-11-20); the tracking issue and the sub-issues labelled `spec:0033` are made once the owner has read this spec.
+**Status:** built (tickets #377 to #384, merged 2026-11-21). **Ticket:** #360 (the owner's wish, 2026-11-20); the sub-issues are labelled `spec:0033`. The choices made while building are under Decisions made while building.
 
 ## Problem Statement
 
@@ -146,6 +146,19 @@ The owner accepted every recommendation of the draft. They are written into the 
 7. Breakdowns are deleted with their period, also when condensing.
 8. The API and MCP only read a Retention in the first version.
 9. **Only Owners set the Workspace default**, since it affects every Metric created afterwards and deletion cannot be undone. (An Owner or Admin or the Metric Owner still sets one Metric's Retention.)
+
+## Decisions made while building (2026-11-21)
+
+Small choices the sections above left open, taken at night by the recommendation and recorded here so the code, the guides and the tests agree:
+
+1. **A week across two months stays as days.** Condensing days into months, quarters or years leaves a week that starts in one month and ends in the next as days: the month would count the week whole, and a Condensed Value must show the same numbers as before (`retentionPlan`).
+2. **The first run is on day 8, the reminder on day 7.** A confirmed Retention starts on the 8th day after the day it was confirmed (and at least 7 x 24 hours later, whatever the Workspace's clock says); the one Delivery before it goes the day before.
+3. **Only Owners set the Workspace default** (decision 9 above); the Metric's own Retention is set by its Metric Owner, an Owner or an Admin.
+4. **A copied default also waits 7 days.** A default copied into a new Metric is a Retention to be confirmed like any other: it waits 7 days, can be cancelled on the Metric's page, and, since it counted nothing, holds the Metric back for a confirmation when values older than the keep time arrive.
+5. **Deleted periods are not recorded.** A value for a deleted period is therefore not refused with `period_condensed` (only condensed periods are); it is held by the cap. The cap counts what earlier runs took of the confirmed backlog (`retention_runs.confirmation`), so values that return for cleared periods cannot make room for more than was confirmed. An Owner confirms again (the same setting, after looking at the counts) to go on.
+6. **Changing from months to quarters leaves overlapping spans alone.** A quarter that would swallow months condensed already is left as it is, with the months, and the Metric's page says so; nothing is condensed twice.
+7. **A Correction waiting for a decision holds its period** like an open Action, also after its Action was closed, so accepting it can never write a value into a period that is gone or condensed.
+8. **The database refuses a condensed period with `ZF446`** (the Workspace limit has `ZF441`), and removes originals only against the Condensed Value that stands for them.
 
 ## Tickets
 

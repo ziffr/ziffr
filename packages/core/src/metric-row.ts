@@ -10,6 +10,8 @@ export function normalizeMetric(m: Metric): Metric {
   const rest: Metric = { ...m };
   delete rest.retention;
   delete rest.retention_pending;
+  // The cap holds the confirmation's id and counts; it is the job's alone.
+  delete (rest as Record<string, unknown>).retention_cap;
   return {
     ...rest, target_min: m.target_min === null ? null : Number(m.target_min), target_max: m.target_max === null ? null : Number(m.target_max),
     attainment_method: isAttainmentMethod(m.attainment_method) ? m.attainment_method : null,

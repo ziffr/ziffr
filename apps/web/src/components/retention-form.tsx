@@ -162,8 +162,10 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
   const setting = settingOf(draft);
   const key = JSON.stringify(setting);
   const shown = preview && preview.for === key ? preview.counts : null;
-  const needs = setting !== null && needsConfirmation(retention, setting);
   const unchanged = key === JSON.stringify(pending?.retention ?? retention);
+  // A Retention the job holds back or stopped is confirmed anew with the same setting, after looking at the counts again.
+  const again = setting !== null && Boolean(retention) && !pending && unchanged && Boolean(status?.note || status?.stopped);
+  const needs = setting !== null && (needsConfirmation(retention, setting) || again);
 
   const show = () => run(() => previewRetention(metricId, setting), "Not shown", (counts) => setPreview({ for: key, counts }));
   const save = (fingerprint?: string) => run(() => setMetricRetention(metricId, setting, fingerprint, typed), "Not saved", (r) => {
@@ -207,7 +209,7 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
           <div className="flex flex-wrap gap-2">
             {setting && <Button size="sm" variant="outline" disabled={busy} onClick={show}>Show what it would do</Button>}
             {needs ? (
-              <Button size="sm" disabled={busy || !shown || Boolean(shown.problem)} onClick={() => setOpen(true)}>Turn on…</Button>
+              <Button size="sm" disabled={busy || !shown || Boolean(shown.problem)} onClick={() => setOpen(true)}>{again ? "Confirm again…" : "Turn on…"}</Button>
             ) : (
               <Button size="sm" disabled={busy || unchanged} onClick={() => save()}>Save</Button>
             )}
