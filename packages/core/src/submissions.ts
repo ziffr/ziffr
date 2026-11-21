@@ -18,6 +18,7 @@ import { tokenValid } from "./tokens";
 import { Forbidden, type Actor } from "./actor";
 import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
+import { settlePrompts } from "./prompt-ways";
 import { audit } from "./audit-log";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
@@ -86,11 +87,6 @@ export function previewValue(input: SubmissionInput): Promise<SubmissionResult> 
   return takeValue(input, { notifyCorrection: async () => {}, afterValue: async () => [] }, undefined, true, previewObservation);
 }
 
-/** A Prompt answered by a value: it asks no more. Not for a preview, which saves nothing. */
-async function markAnswered(promptId: number, preview: boolean): Promise<void> {
-  if (!preview) await db().from("prompts").update({ answered_at: new Date().toISOString() }).eq("id", promptId);
-}
-
 async function takeValue(input: SubmissionInput, effects: SubmissionEffects, provenSenderId: string | undefined, preview: boolean, record: Recording): Promise<SubmissionResult> {
   let workspaceId = input.workspaceId;
   // A paste arrives on the web form only; anywhere else the field is ignored, as `import` is for anyone but a Feed.
@@ -157,12 +153,13 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
 
   // 2. Which metric? Prompt reply > metric named in the message (among the sender's own Tokens) > the only Token.
   let token: Token | undefined;
-  let prompt: { id: number; metric_id: number; period_start: string } | null = null;
+  let prompt: { id: number; metric_id: number; period_start: string; submitter_id: string; answered_at: string | null; answered_source: string | null } | null = null;
   let how = "";
   if (input.promptId) {
     const { data } = await db().from("prompts").select("*").eq("id", input.promptId).eq("workspace_id", workspaceId).maybeSingle();
     prompt = data;
-    if (!prompt) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: "That Prompt is not known here." });
+    // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
+    if (!prompt || prompt.submitter_id !== senderId) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: "That Prompt is not known here." });
     token = candidates.find((t) => t.metric_id === prompt?.metric_id);
     if (!token) return log({ ok: false, senderId, metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` });
     how = "reply to a Prompt";
@@ -282,7 +279,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
     result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
   }
-  if (prompt && result.ok) await markAnswered(prompt.id, preview);
+  // The first accepted value closes the Prompt, by whichever way it arrived (prompt-ways.ts); one that comes second says so.
+  if (result.ok && !preview) result.detail += await settlePrompts({ ws: workspaceId, prompt, metricId: metric.id, senderId, source: input.source, period, said: `${fv(value)} for ${metric.name}, ${when}.` });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && senderId) {
     const next = await effects.afterValue(metric.id, period, senderId, { imported });

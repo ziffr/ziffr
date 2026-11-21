@@ -101,7 +101,7 @@ export async function unlinkSlack() {
 }
 
 /** Sets a Delivery Preference. */
-export async function setPreference(userId: string | null, kind: PreferenceKind, connector: ConnectorId | null) {
+export async function setPreference(userId: string | null, kind: PreferenceKind, connector: ConnectorId | ConnectorId[] | null) {
   return attempt(async () => {
     await questions.setPreference(await currentActor(), userId === null ? null : String(userId), kind, connector);
     done();

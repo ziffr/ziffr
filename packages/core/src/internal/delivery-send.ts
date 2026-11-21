@@ -26,6 +26,9 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 }
 
 
+/** Why a Delivery of an already answered Prompt is not sent. */
+export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
+
 /** What a Delivery is about, as far as its Metric goes. */
 type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
@@ -51,9 +54,12 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   let metricId: number | null = null;
   if (d.kind === "prompt") {
     const [{ data: p }, { data: t }] = await Promise.all([
-      d.prompt_id ? db().from("prompts").select("metric_id").eq("id", d.prompt_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
+      d.prompt_id ? db().from("prompts").select("metric_id, answered_at").eq("id", d.prompt_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
       d.form_token_id ? db().from("tokens").select("metric_id").eq("id", d.form_token_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
     ]);
+    // A Prompt that goes by several ways, answered on one while another waits (quiet hours, a limit, a retry), asks no more
+    // (#613): the waiting Delivery is not sent.
+    if (p?.answered_at) return PROMPT_ANSWERED;
     metricId = (p?.metric_id ?? t?.metric_id ?? null) as number | null;
   } else if ((d.kind === "reminder" || d.kind === "question") && d.action_id) {
     const { data: a } = await db().from("actions").select("metric_id, kind, purpose").eq("id", d.action_id).eq("workspace_id", ws).maybeSingle();

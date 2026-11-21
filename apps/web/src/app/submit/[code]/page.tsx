@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { submissionForm } from "@ziffr/core/page-data";
 import { formTelegramLink } from "@ziffr/core/telegram-people";
-import { formatValue, RULE_LABEL } from "@ziffr/core/format";
+import { formatValue, RULE_LABEL, SOURCE_LABEL } from "@ziffr/core/format";
 import { SubmitForm } from "./submit-form";
 import { TelegramConnect } from "./telegram-connect";
 import { periodLabel } from "@ziffr/core/periods";
@@ -34,6 +34,11 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
           For <span className="font-medium">{periodLabel(period, m.period, form.yearStart)}</span>
           {current !== null && <>, already has <span className="font-medium">{formatValue(m, current, form.numberStyle)}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
         </div>
+        {form.answeredOn != null && (
+          <p role="status" className="mt-3 rounded-lg border px-3 py-2 text-sm">
+            Already answered{form.answeredOn in SOURCE_LABEL ? ` on ${SOURCE_LABEL[form.answeredOn as keyof typeof SOURCE_LABEL]}` : ""}. A new value here follows this Metric’s rule: {RULE_LABEL[m.submission_rule].toLowerCase()}.
+          </p>
+        )}
         <SubmitForm code={code} label={m.name} numberStyle={form.numberStyle} placeholder={m.unit || (m.format === "currency" ? "€" : m.format === "percent" ? "%" : "Value")} />
       </div>
       {telegram?.telegramOn && <TelegramConnect code={code} linked={telegram.linked} />}

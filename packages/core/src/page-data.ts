@@ -35,7 +35,7 @@ const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role ===
 /** The latest 80 Deliveries the person may be shown, taken per person first (their own, those they sent, those about a
  * thread), so other people's messages, such as Alerts, can never push theirs out of the 80; in the demo, anyone's. */
 async function recentDeliveries(actor: Actor) {
-  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, alert_metric_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, submitter_id, metric_id)";
+  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, answer_source, alert_metric_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, answered_source, submitter_id, metric_id)";
   const base = () => db().from("deliveries").select(columns).eq("workspace_id", actor.workspaceId).order("id", { ascending: false }).limit(80);
   if (inDemo(actor)) return base();
   const [mine, sent, threads] = await Promise.all([base().eq("recipient_id", actor.personId), base().eq("sender_id", actor.personId), base().not("action_id", "is", null)]);
@@ -57,7 +57,7 @@ async function withoutOthersNames<T extends { subject?: unknown; body?: unknown 
 export async function connectorsView(actor: Actor) {
   const ws = actor.workspaceId;
   const [{ data: prefs }, { data: deliveries }, { data: tokens }, readable] = await Promise.all([
-    db().from("delivery_preferences").select("user_id, kind, connector").eq("workspace_id", ws),
+    db().from("delivery_preferences").select("user_id, kind, connector, position").eq("workspace_id", ws).order("position"),
     // Named columns only: a Delivery's reply token answers as its recipient, and its Message-ID is for the provider's
     // logs; neither may reach a browser.
     recentDeliveries(actor),
@@ -360,9 +360,12 @@ export async function submissionForm(code: string) {
   const { data: existingRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   const [existing] = await openRows("observations", String(token.workspace_id), (existingRows ?? []) as Record<string, unknown>[]);
   const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
+  // A request that went by several ways and was answered on one says so on the others' form link (#613): the first answer
+  // counted, and a new value follows the Metric's rule. Only the Source, never the value of someone else's answer.
+  const { data: answered } = await db().from("prompts").select("answered_source").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("submitter_id", token.submitter_id as string).eq("period_start", period).not("answered_at", "is", null).not("answered_source", "is", null).neq("answered_source", "web_form").order("answered_at", { ascending: false }).limit(1);
   // The page wears the Workspace's Theme (ticket #542): only its look (name, logo, colours, fonts) goes to the browser.
   const look = publicLook(String(token.workspace_id), await workspaceLook(String(token.workspace_id)));
-  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, look };
+  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, answeredOn: answered?.[0] ? String(answered[0].answered_source) : null, look };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */

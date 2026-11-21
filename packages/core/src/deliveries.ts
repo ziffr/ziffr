@@ -38,14 +38,19 @@ export async function connectorFor(ws: string, recipientId: string, kind: Delive
     const { data: earlier } = await db().from("deliveries").select("connector").eq("action_id", actionId).eq("recipient_id", recipientId).order("id").limit(1);
     if (earlier?.[0]) return earlier[0].connector as ConnectorId;
   }
-  // Preferences are per workspace: the same person may want Slack in one team and email in another.
+  return (await waysFor(ws, recipientId, kind))[0];
+}
+
+/** The ways this person gets this kind of message, in their order: their own list, else the team's, else email. Only
+ * Prompts go by more than one (GLOSSARY: Delivery Preference); every other kind has one way. Preferences are per
+ * workspace: the same person may want Slack in one team and email in another. */
+export async function waysFor(ws: string, recipientId: string, kind: DeliveryKind): Promise<ConnectorId[]> {
   const [{ data: mine }, { data: teams }] = await Promise.all([
-    db().from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).eq("user_id", recipientId).eq("workspace_id", ws).limit(1),
-    db().from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).is("user_id", null).eq("workspace_id", ws).limit(1),
+    db().from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).eq("user_id", recipientId).eq("workspace_id", ws).order("position"),
+    db().from("delivery_preferences").select("connector").eq("kind", PREFERENCE_KIND[kind]).is("user_id", null).eq("workspace_id", ws).order("position"),
   ]);
-  const own = mine?.[0]?.connector;
-  const team = teams?.[0]?.connector;
-  return (own ?? team ?? "email") as ConnectorId;
+  const list = (mine?.length ? mine : teams ?? []).map((r) => r.connector as ConnectorId);
+  return list.length ? list : ["email"];
 }
 
 /** Makes one Delivery. A Prompt, reminder or Alert that will be sent while its recipient is in quiet hours (GLOSSARY:
@@ -104,7 +109,7 @@ export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" |
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
  * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
  * With `queue`, an email is only queued, for the deliveries job to send. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean }): Promise<false | PromptOutcome> {
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean; /** A reminder goes only by the first of the person's ways, so several ways never ping three times. */ reminder?: boolean }): Promise<false | PromptOutcome> {
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
@@ -147,25 +152,32 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const period = input.period ?? current;
   const label = period !== current ? `for ${periodLabel(period, metric.period as Period, ys)}` : CURRENT_PERIOD[metric.period as Period];
   const question = `${input.note ? `${input.note} ` : ""}What’s the number for ${metric.name} ${label}?`;
-  // The person's chosen way counts only where the Metric accepts answers; else the first way both allow that reaches
+  // The person's chosen ways count only where the Metric accepts answers; else the first way both allow that reaches
   // them (prompt-route.ts). With none, the Prompt waits in the Outbox and the owner is told, never sent elsewhere.
-  const chosen = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(metric.workspace_id, person.id, "prompt", null);
+  // An explicit way (ask me now) is one way; the person's list is every way they chose, at once.
+  const chosen = input.via && CONNECTOR_IDS.includes(input.via) ? [input.via] : await waysFor(metric.workspace_id, person.id, "prompt");
   const accepts = metric.sources as SourceId[];
   const plan = await planPrompt(metric.workspace_id, person.id, accepts, chosen, true);
-  if (!plan.route.via) return keepNotSent({ metric: { id: metric.id, name: metric.name, slug: metric.slug as string, ownerId: metric.owner_id as string, workspaceId: metric.workspace_id }, person: person as Profile, tokenId: token.id, chosen, question, reason: notSentReason(accepts, plan.mailReplies, plan.reach) });
-  const { route } = plan;
-  const via: ConnectorId = route.via;
-  const c = CONNECTORS[via];
-  const answerHere = route.answerHere;
+  if (!plan.routes.length) return keepNotSent({ metric: { id: metric.id, name: metric.name, slug: metric.slug as string, ownerId: metric.owner_id as string, workspaceId: metric.workspace_id }, person: person as Profile, tokenId: token.id, chosen: chosen[0], question, reason: notSentReason(accepts, plan.mailReplies, plan.reach) });
+  // A reminder goes only by the first way; the first Prompt, by all of them.
+  const routes = input.reminder ? plan.routes.slice(0, 1) : plan.routes;
+  const answersBy = (r: (typeof routes)[number]): string => (r.answerHere ? CONNECTORS[r.via].sourceId ?? "web_form" : "web_form");
+  // One Prompt however many ways it goes by, so the first answer on any of them closes it for all (prompt-ways.ts).
   // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
-  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answerHere ? c.sourceId : "web_form", text: question, period_start: period }]) as { id: number }[];
-  const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere, formLink: route.formLink ? FORM_LINK : "" });
-  const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
-  const d = await insertDelivery(metric.workspace_id, { connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id });
-  if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
-  // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
-  const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
-  return { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answersBy(routes[0]), text: question, period_start: period }]) as { id: number }[];
+  let first: PromptOutcome | null = null;
+  for (const route of routes) {
+    const via: ConnectorId = route.via;
+    const c = CONNECTORS[via];
+    const { subject, body } = c.renderPrompt!({ recipient: person as Profile, metric: metric.name, question, period: periodLabel(period, metric.period as Period, ys), answerHere: route.answerHere, formLink: route.formLink ? FORM_LINK : "" });
+    const mail_state = await initialDeliveryState(via, metric.workspace_id, person.id);
+    const d = await insertDelivery(metric.workspace_id, { connector: via, recipient_id: person.id, sender_id: input.senderId ?? null, kind: "prompt", prompt_id: prompt?.id ?? null, subject, body, mail_state, form_token_id: token.id, answer_source: answersBy(route) });
+    if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
+    // What really happened is read back: a send that failed leaves the Delivery in another state than it started in.
+    const now = d.id && mail_state === "queued" && !input.queue && !d.held ? (await db().from("deliveries").select("mail_state").eq("id", d.id).maybeSingle()).data?.mail_state : mail_state;
+    first ??= { connector: via, chosen: route.chosen, state: (now === "sending" ? "queued" : ["sent", "queued", "outbox", "failed"].includes(now) ? now : mail_state) as PromptOutcome["state"] };
+  }
+  return first!;
 }
 
 /** A Prompt no allowed way reaches the person with: one Delivery that stays in the Outbox as "Not sent: …" (the reason

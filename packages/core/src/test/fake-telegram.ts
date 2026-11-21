@@ -53,6 +53,7 @@ export async function fakeTelegram(over: Partial<Record<keyof typeof TELEGRAM_SE
         case "setWebhook": webhook[botId] = String(params.url ?? ""); return send(200, { ok: true, result: true });
         case "deleteWebhook": delete webhook[botId]; return send(200, { ok: true, result: true });
         case "sendMessage": return send(200, { ok: true, result: { message_id: messageId++, chat: { id: params.chat_id, type: "private" }, date: Math.floor(Date.now() / 1000), text: params.text } });
+        case "editMessageText": return send(200, { ok: true, result: { message_id: params.message_id, chat: { id: params.chat_id, type: "private" }, date: Math.floor(Date.now() / 1000), text: params.text } });
         case "answerCallbackQuery": return send(200, { ok: true, result: true });
         case "getUpdates": return send(200, { ok: true, result: [] });
         default: return send(404, { ok: false, error_code: 404, description: "Not Found" });

@@ -15,6 +15,7 @@ import { addressIn } from "./mail";
 import { recordAudit } from "./audit-log";
 import { REPLY_DAYS, routeReply, type RepliedDelivery } from "./reply-routing";
 import { previewValue } from "./submissions";
+import { answerSourceOf } from "./prompt-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialEnded } from "./trials";
 
@@ -74,7 +75,7 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
     const { data: prompt } = await db().from("prompts").select("id, source, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
     if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";
     if (!text) return "empty";
-    if (prompt.source !== "mail") {
+    if ((await answerSourceOf(d, prompt.source)) !== "mail") {
       await say("Your value was not recorded", "This Metric does not take values by email. Use your form link.");
       return "refused";
     }

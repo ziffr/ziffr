@@ -444,6 +444,7 @@ The form shows:
 
 - "Hi …, please report", then the Metric's name and description.
 - **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
+- When the request went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.
 - **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.

@@ -123,7 +123,7 @@ Part of a metric's description that sets its period and what happens when a seco
 _Avoid_: Dedup rule, overwrite policy
 
 **Prompt**:
-A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?" It goes out through the submitter's Connector, but only one the Metric accepts answers by (its Sources): otherwise by the first way both allow where the person can be reached (Slack, Telegram, then email), and never with a form link for a Metric that refuses the Web form. Where that way receives values, answering it records the value, elsewhere it carries the personal form link. When no allowed way reaches the person it waits in the Outbox as "Not sent" and the Metric's owner is told once.
+A scheduled message asking a submitter for a metric's value for the current period, e.g. "How many deals today?" It goes out through the submitter's Connectors: one Delivery for each way they chose (up to three, in order, all at once), but only ways the Metric accepts answers by (its Sources). Otherwise it goes by the first way both allow where the person can be reached (Slack, Telegram, then email), and never with a form link for a Metric that refuses the Web form. Where a way receives values, answering it records the value, elsewhere it carries the personal form link. The first accepted value on any way closes the Prompt: the other Deliveries are updated where their way allows ("Answered on Telegram: 3"), and a later answer follows the Submission Rule and is never dropped silently. A reminder goes only by the first way. When no allowed way reaches the person it waits in the Outbox as "Not sent" and the Metric's owner is told once.
 _Avoid_: Reminder, nudge
 
 **Workflow**:
@@ -540,7 +540,7 @@ A person's own standing request, on one Metric they may see, to be told through 
 _Avoid_: Notification, subscription, trigger, watch, threshold
 
 **Delivery Preference**:
-Where a person wants to get questions, tasks, reminders and replies. The team sets a default; whoever sends may choose another for one message.
+Where a person wants to get questions, tasks, reminders and replies. The team sets a default; whoever sends may choose another for one message. For Prompts it is an ordered list of up to three ways, used all at once; every other kind has one way.
 _Avoid_: Notification settings, routing
 
 **Usage**:

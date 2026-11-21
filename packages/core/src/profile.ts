@@ -87,8 +87,8 @@ export async function setMyAppearance(actor: Actor, choice: unknown): Promise<Ap
 export async function myDeliverySettings(actor: Actor) {
   const ws = actor.workspaceId;
   const [{ data: mine }, { data: team }, { data: optedOut }, { data: away }, digestOut] = await Promise.all([
-    db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).eq("user_id", actor.personId),
-    db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).is("user_id", null),
+    db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).eq("user_id", actor.personId).order("position"),
+    db().from("delivery_preferences").select("kind, connector").eq("workspace_id", ws).is("user_id", null).order("position"),
     db().from("email_opt_outs").select("person_id").eq("workspace_id", ws).eq("person_id", actor.personId).maybeSingle(),
     db().from("away").select("starts, ends").eq("user_id", actor.personId).maybeSingle(),
     db().from("usage_digest_opt_outs").select("person_id").eq("person_id", actor.personId).maybeSingle(),

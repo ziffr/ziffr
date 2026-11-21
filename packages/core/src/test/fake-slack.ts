@@ -52,6 +52,7 @@ export async function fakeSlack() {
         }
         case "conversations.open": return send(200, { ok: true, channel: { id: `D${String(params.users).slice(1)}` } });
         case "chat.postMessage": return send(200, { ok: true, channel: params.channel, ts: `${ts++}.000100` });
+        case "chat.update": return send(200, { ok: true, channel: params.channel, ts: params.ts, text: params.text });
         default: return send(200, { ok: false, error: "unknown_method" });
       }
     });

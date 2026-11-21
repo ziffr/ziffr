@@ -11,6 +11,7 @@ import { sendingLimitDefault } from "./sending-limits";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
+import { tellIfAnswered } from "./prompt-ways";
 import { workspaceLook } from "./workspace-look";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
@@ -104,6 +105,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     const ts = typeof posted.ts === "string" && /^[0-9]{1,12}\.[0-9]{1,8}$/.test(posted.ts) ? posted.ts : null;
     if (!ts) throw new SlackError("no_ts");
     await db().from("deliveries").update({ mail_state: "sent", attempts: Number(d.attempts) + 1, sent_at: new Date().toISOString(), provider_id: ts, slack_channel: channel, slack_ts: ts, last_error: null }).eq("id", id);
+    await tellIfAnswered(d.workspace_id, id);
     return "sent";
   } catch (e) {
     return trouble(e, bot, id, Number(d.attempts), true);

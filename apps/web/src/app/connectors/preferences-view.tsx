@@ -7,13 +7,14 @@ import { toast } from "sonner";
 import { setPreference } from "@/app/connector-actions";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 import type { Profile } from "@ziffr/core/types";
+import { PromptWays } from "./prompt-ways";
 
 export type PrefRow = { user_id: string | null; kind: PreferenceKind; connector: ConnectorId };
 
 const KINDS: { id: PreferenceKind; label: string }[] = [
   { id: "question", label: "Questions" },
   { id: "task", label: "Tasks" },
-  { id: "reminder", label: "Reminders" },
+  { id: "reminder", label: "Prompts and reminders" },
   { id: "update", label: "Replies and updates" },
 ];
 
@@ -21,10 +22,13 @@ const KINDS: { id: PreferenceKind; label: string }[] = [
 export function Preferences({ viewer, isOwner, people, prefs }: { viewer: string; isOwner: boolean; people: Profile[]; prefs: PrefRow[] }) {
   const [pending, start] = useTransition();
   const pref = (user: string | null, kind: PreferenceKind) => prefs.find((p) => p.user_id === user && p.kind === kind)?.connector ?? null;
+  // Prompts go by every way in a person's list, in order (prefs arrive in their order).
+  const list = (user: string | null, kind: PreferenceKind) => prefs.filter((p) => p.user_id === user && p.kind === kind).map((p) => p.connector);
+  const save = (user: string | null, kind: PreferenceKind, next: ConnectorId | ConnectorId[] | null) => start(async () => { const r = await setPreference(user, kind, next); if (isActionError(r)) toast.error("Not saved", { description: r.error }); });
   return (
   <section aria-labelledby="p-h">
     <h2 id="p-h" className="text-[length:var(--text-lg)]">Who gets what, where</h2>
-    <p className="mt-1 mb-3 max-w-prose text-sm text-muted-foreground">Everyone chooses for themselves; the team default covers the rest. Replies about a question or task stay where it started, so a ticket collects its comments. Whoever asks can pick another way for one message.</p>
+    <p className="mt-1 mb-3 max-w-prose text-sm text-muted-foreground">Everyone chooses for themselves; the team default covers the rest. A Prompt can go by up to three ways at once, for example Slack and email: the first answer counts, the other messages are updated where the way allows, and reminders go by the first way only. Replies about a question or task stay where it started, so a ticket collects its comments. Whoever asks can pick another way for one message.</p>
     <div className="overflow-x-auto">
       <table className="w-full min-w-[40rem] text-sm">
         <thead>
@@ -39,16 +43,20 @@ export function Preferences({ viewer, isOwner, people, prefs }: { viewer: string
               <th scope="row" className="py-2 pr-3 text-left font-medium">{row.label}{row.id === viewer && <span className="font-normal text-muted-foreground">, you</span>}</th>
               {KINDS.map((k) => (
                 <td key={k.id} className="py-2 pr-3">
+                  {k.id === "reminder" ? (
+                    <PromptWays list={list(row.id, k.id)} teamDefault={list(null, k.id).length ? list(null, k.id) : ["email"]} team={row.id === null} disabled={!row.can || pending} label={`${k.label} for ${row.label}`} onChange={(next) => save(row.id, k.id, next)} />
+                  ) : (
                   <select
                     aria-label={`${k.label} for ${row.label}`}
                     disabled={!row.can || pending}
                     value={pref(row.id, k.id) ?? ""}
-                    onChange={(e) => start(async () => { const r = await setPreference(row.id, k.id, (e.target.value || null) as ConnectorId | null); if (isActionError(r)) toast.error("Not saved", { description: r.error }); })}
+                    onChange={(e) => save(row.id, k.id, (e.target.value || null) as ConnectorId | null)}
                     className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 disabled:opacity-70"
                   >
                     {row.id !== null && <option value="">Team default ({CONNECTORS[pref(null, k.id) ?? "email"].label})</option>}
                     {CONNECTOR_IDS.map((c) => <option key={c} value={c}>{CONNECTORS[c].label}</option>)}
                   </select>
+                  )}
                 </td>
               ))}
             </tr>
