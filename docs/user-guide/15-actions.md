@@ -15,6 +15,18 @@ Everyone in the Workspace works with Actions, Guests included. This chapter also
 
 When nothing waits for you, the icon shows no number.
 
+## Share Proposals: sharing an assistant prepared
+
+When you ask an assistant connected to Ziffr to share numbers ("share the coffee results for the last 4 weeks with jenny@example.com"), it can only prepare the sharing. Nothing is shared and nothing is sent until you confirm it yourself in Ziffr.
+
+A **Share Proposal** appears at the top of the Actions page under **Waiting for your confirmation**, and in the assistant's answer as a link. It says which of your dashboards, to whom and how: a View Link to an email address (with the day it ends, and the message, exactly as it would go out) or a Share to a person or Group in your Workspace. Open it with **See what they will see, and confirm**. The page shows the address and the message as plain text, who prepared it, and below that the dashboard as the recipient would read it.
+
+- **Confirm** makes the View Link or gives the Share, and emails the link and your message to the address. If the email cannot be sent, the page shows the link so you can send it yourself.
+- **Decline** shares and sends nothing.
+- A proposal can be confirmed for 7 days; after that it runs out and the assistant has to prepare it again. You can have 10 waiting at once.
+
+Only you can confirm: not the assistant, and not anyone else in the Workspace. Confirming checks again that the dashboard is yours and that you may share it. Owners and Admins see proposed, confirmed and declined in the Audit Log, with the name of the assistant that prepared it.
+
 ## Asking a Question or giving a Task
 
 ### From a Widget

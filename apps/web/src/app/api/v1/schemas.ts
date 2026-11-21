@@ -629,6 +629,33 @@ export const UpdateAlert = z.object({
 /** What DELETE /alerts/{id} answers. */
 export const RemovedAlert = z.object({ removed: z.number().int() });
 
+/** POST /share-proposals takes this: a View Link to an address, or a Share to a person or a Group. Exactly one way. */
+export const CreateShareProposal = z.object({
+  dashboard: z.number().int().positive().describe("The id of a dashboard the key's creator owns, from GET /dashboards."),
+  snapshot: z.number().int().positive().nullable().optional().describe("A View Link to one of the dashboard's Snapshots that is shown to everyone with access, instead of the dashboard."),
+  live: z.boolean().optional().describe("A View Link that shows the numbers as they change. Off by default: the numbers are kept as they are when the person confirms."),
+  email: z.string().min(3).max(254).optional().describe("A View Link: the address it is emailed to once the person confirms. With `ends`."),
+  ends: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("A View Link: the last day it works, within 90 days."),
+  message: z.string().max(500).nullable().optional().describe("A View Link: words that go in the email. The person reads them before confirming. Plain text, at most 500 characters."),
+  person: z.string().min(1).max(64).optional().describe("A Share: a Member's id, from GET /people, who gets to look (Viewer)."),
+  group: z.number().int().positive().optional().describe("A Share: a Group's id, from GET /groups, whose members get to look (Viewer)."),
+}).strict();
+
+/** POST /share-proposals answers this. */
+export const ApiShareProposal = z.object({
+  id: z.number().int(),
+  status: z.literal("open"),
+  how: z.enum(["view_link", "share"]),
+  dashboard: z.object({ id: z.number().int(), name: z.string() }),
+  recipient: z.string().describe("The address, or the name of the person or Group."),
+  ends: z.string().nullable().describe("The last day a View Link works; null for a Share."),
+  message: z.string().nullable(),
+  live: z.boolean().describe("Whether a View Link shows the numbers live."),
+  expires: z.string().describe("When it can no longer be confirmed: seven days after it was made."),
+  url: z.string().describe("The page in Ziffr where the person looks at what would be shared and confirms or declines. Give it to them."),
+  preview: ApiDashboard.describe("The dashboard as GET /dashboards/{id} shows it."),
+});
+
 /** One step of a Workflow (GLOSSARY: Workflow, Approver, Self-check, Tell). Steps run in order; at most one check, approve and publish, a publish step is always last. */
 const WorkflowStepSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("remind"), days_before: z.number().int().min(0).max(30).describe("Working days before the Due Date that the person is reminded.") }).strict(),

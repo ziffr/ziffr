@@ -401,7 +401,7 @@ A person known to a Workspace who has no login, such as a field worker or an out
 _Avoid_: External user, anonymous submitter
 
 **Access Key**:
-A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, changing the Target Range, Target Series, Projections, Sources and Submitters of the metrics that person owns or edits and the Unusual Value check of the Workflows they own, reading dashboards, building dashboards and taking Snapshots as that person, and, only for a program's key and never an assistant's, approving values making View Links to that person's dashboards, sharing what that person owns, managing Groups and inviting or removing people as that person's role allows), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. An assistant that connects by address, such as Claude.ai, holds an access key of the kind assistant: made when a person approves it on Ziffr's consent screen, and used through short-lived OAuth tokens instead of a secret anyone sees; disconnecting it revokes the key. Not to be confused with a Token, which lets a submitter record values for one metric.
+A secret a person creates so a program can use the API on their behalf, limited to some actions (reading metrics, submitting values, creating metrics owned by that person, changing the Target Range, Target Series, Projections, Sources and Submitters of the metrics that person owns or edits and the Unusual Value check of the Workflows they own, reading dashboards, building dashboards and taking Snapshots as that person, and, only for a program's key and never an assistant's, approving values making View Links to that person's dashboards, sharing what that person owns, managing Groups and inviting or removing people as that person's role allows), bound to one Workspace and ending on a set date. Owners can see and revoke every access key in their workspace; Admins can see every key and its Access Log. An assistant that connects by address, such as Claude.ai, holds an access key of the kind assistant: made when a person approves it on Ziffr's consent screen, and used through short-lived OAuth tokens instead of a secret anyone sees; disconnecting it revokes the key. An assistant may also hold the scope to propose sharing, which only prepares a Share Proposal. Not to be confused with a Token, which lets a submitter record values for one metric.
 _Avoid_: API token, personal access token, credential
 
 **Feed Key**:
@@ -413,7 +413,7 @@ The program that lets an AI assistant read a workspace's metrics, submit values,
 _Avoid_: AI integration, plugin, connector (a Connector is how Ziffr reaches people)
 
 **Starter**:
-A ready-made request the MCP Server offers an assistant, which a person picks instead of writing it themselves, such as a weekly review of the Metrics, recording values from a sentence, or proposing a dashboard. It is only words for the assistant: it reaches Ziffr through the same tools and access key, so it can do nothing the person could not ask for. MCP calls it a prompt. Not a Dashboard Template, which a dashboard is built from.
+A ready-made request the MCP Server offers an assistant, which a person picks instead of writing it themselves, such as a weekly review of the Metrics, recording values from a sentence, or proposing a dashboard or sharing numbers. It is only words for the assistant: it reaches Ziffr through the same tools and access key, so it can do nothing the person could not ask for. MCP calls it a prompt. Not a Dashboard Template, which a dashboard is built from.
 _Avoid_: Prompt (a Prompt asks a submitter for a value), template, preset, recipe
 
 **Access Log**:
@@ -431,6 +431,10 @@ _Avoid_: Invite, publish
 **View Link**:
 A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers; for a deck, numbers frozen when it was made; for a dashboard, one of its Snapshots once shown, which ends the link when it is deleted.
 _Avoid_: Public link, guest access, embed
+
+**Share Proposal**:
+A sharing an assistant or program only prepares, which waits in the person's Actions for 7 days until they confirm it in Ziffr with their own sign-in. It names a dashboard the person owns (or one of its shown Snapshots) and either a View Link to an email address with an end date and an optional message, or a Share to a Member or a Group. It shows what the recipient would see, with the address and message in plain words. Only on confirming does Ziffr make the View Link or give the Share, and email the link and message to the address; declining or letting it run out shares and sends nothing. Never confirmed through an assistant's token, and never for people or Approvals. Not a Share, which already gives access, nor a Correction, which proposes a value.
+_Avoid_: Draft share, pending share
 
 **Calendar Link**:
 A secret address that shows one person's Schedule in a calendar app, as all-day entries that link into Ziffr. Anyone with the address sees what it shows, so it can leave out the Metrics' names; it shows only what its person may see now, ends when they leave the Workspace, and can be revoked by them or an Owner or Admin. Not a View Link, which shows a dashboard or deck, and not a Feed, which sends values.

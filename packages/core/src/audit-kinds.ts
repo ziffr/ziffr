@@ -24,6 +24,9 @@ export const AUDIT_KINDS = {
   "group.member_removed": "took someone out of the Group",
   "view_link.created": "made a View Link to",
   "view_link.revoked": "revoked a View Link to",
+  "share_proposal.proposed": "received a Share Proposal, from an assistant or program, for",
+  "share_proposal.confirmed": "confirmed a Share Proposal for",
+  "share_proposal.declined": "declined a Share Proposal for",
   "access_key.created": "created the Access Key",
   "access_key.revoked": "revoked the Access Key",
   "calendar_link.made": "made a Calendar Link for",
@@ -109,7 +112,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
   workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", person: "Sign-ins",
 } as const;
 

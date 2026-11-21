@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { getMetrics, getProfileMap, getYearStart } from "@/lib/data";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
 import { readableActions } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { StatusBadge } from "@/components/status";
 import type { Action } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
+import { listShareProposals } from "@ziffr/core/share-proposals";
+import { ShareProposalButtons } from "@/components/share-proposal-buttons";
+import { ProposalFacts, proposalTitle } from "@/components/share-proposal-summary";
 
 export default async function ActionsPage() {
-  const [actions, metrics, people, viewer, yearStart] = await Promise.all([viewerId().then((v) => readableActions(v)), getMetrics(), getProfileMap(), viewerId(), getYearStart()]);
+  const [actions, metrics, people, viewer, yearStart, proposals] = await Promise.all([viewerId().then((v) => readableActions(v)), getMetrics(), getProfileMap(), viewerId(), getYearStart(), currentActor().then((a) => listShareProposals(a))]);
   const byId = Object.fromEntries(metrics.map((m) => [m.id, m]));
   const groups: { title: string; hint: string; list: Action[] }[] = [
     { title: "Waiting for your answer", hint: "Actions assigned to you", list: actions.filter((a) => a.assignee_id === viewer && a.status === "open") },
@@ -20,6 +23,24 @@ export default async function ActionsPage() {
     <>
       <PageHeader title="Actions" sub={`Questions and Tasks about specific values. Ask them from any widget’s ⋯ menu. You’re viewing as ${people[viewer]?.name}.`} />
       <div className="space-y-6">
+        {proposals.length > 0 && (
+          <section aria-label="Share Proposals">
+            <h2 className="mb-2 text-sm font-semibold">Waiting for your confirmation <span className="font-normal text-muted-foreground">{proposals.length}</span></h2>
+            <p className="mb-2 text-xs text-muted-foreground">An assistant or program prepared these. Nothing is shared or sent until you confirm.</p>
+            <ul className="overflow-hidden stock rounded-[var(--radius-card)]">
+              {proposals.map((p) => (
+                <li key={p.id} className="space-y-3 border-b border-border px-4 py-3 last:border-0">
+                  <p className="font-medium">{proposalTitle(p)}</p>
+                  <ProposalFacts p={p} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link href={`/actions/share/${p.id}`} className="text-sm font-medium underline">{p.kind === "view_link" ? "See what they will see, and confirm" : "Review and confirm"}</Link>
+                    <ShareProposalButtons id={p.id} showConfirm={false} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {groups.map((g) => (
           <section key={g.title}>
             <h2 className="mb-2 text-sm font-semibold">{g.title} <span className="font-normal text-muted-foreground">{g.list.length}</span></h2>

@@ -34,6 +34,7 @@ export function checkKeyRequest(actor: Actor, wanted: unknown, expiresOn: unknow
   if (scopes.includes("metrics:edit") && !can(actor, "create")) throw new Forbidden("Your role cannot change Metrics, so neither can a key of yours.");
   if (scopes.includes("dashboards:write") && !can(actor, "create")) throw new Forbidden("Your role cannot build dashboards, so neither can a key of yours.");
   if (scopes.includes("shares:write") && !can(actor, "share")) throw new Forbidden("Your role cannot share, so neither can a key of yours.");
+  if (scopes.includes("shares:propose") && !can(actor, "share")) throw new Forbidden("Your role cannot share, so neither can a key of yours.");
   if (scopes.includes("view-links:write") && !can(actor, "share")) throw new Forbidden("Your role cannot share, so neither can a key of yours.");
   if (scopes.includes("usage:read") && actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins can make a key that reads usage figures.");
   if (scopes.includes("workflows:write") && !can(actor, "create")) throw new Forbidden("Your role cannot build Workflows, so neither can a key of yours.");

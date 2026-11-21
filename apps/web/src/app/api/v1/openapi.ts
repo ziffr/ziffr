@@ -294,6 +294,15 @@ const ENDPOINTS: Endpoint[] = [
     errors: [{ status: 422, description: "A condition the Metric cannot give, or a way of delivery that is not one." }],
   },
   {
+    method: "post", path: "/share-proposals", scope: "shares:propose", body: S.CreateShareProposal, ok: { status: 201, name: "ShareProposal", schema: S.ApiShareProposal },
+    summary: "Propose a share for the person to confirm",
+    description: "Prepares a View Link (to an email address, ending within 90 days, with an optional message) or a Share (to a Member or a Group, as Viewer) of one dashboard the key's creator owns, or of one of its shown Snapshots. It shares nothing and sends nothing: the proposal waits in the creator's Actions for seven days, and only they can confirm or decline it in Ziffr with their own sign-in, never through a key. On confirming, Ziffr makes the View Link or gives the Share through the same operations the app uses, and emails the address its link with the message. Needs shares:propose and dashboards:read. At most 10 proposals wait at once. Never for people or Approvals.",
+    errors: [
+      { status: 404, description: "A dashboard the creator does not own, or a person or Group that is not in the Workspace; the answer is the same whether it exists or not." },
+      { status: 422, description: "A bad address, an end date beyond 90 days, a message that is too long, nothing to show, or the limit of open proposals; the message says which." },
+    ],
+  },
+  {
     method: "delete", path: "/alerts/{id}", scope: "alerts:write", ok: { status: 200, name: "RemovedAlert", schema: S.RemovedAlert },
     summary: "Remove an Alert", description: "Removes one of the creator's own Alerts. Another person's Alert is not found.",
   },

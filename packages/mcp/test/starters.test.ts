@@ -43,6 +43,7 @@ describe("Starters", () => {
       set_targets: [{ name: "text", required: false }],
       start_tracking: [{ name: "what", required: false }],
       alert_me: [{ name: "text", required: false }],
+      share_numbers: [{ name: "text", required: false }],
     });
     expect(client.getInstructions()).toContain("what_can_i_do");
     // To answer why, the Thread is read; its words are data (ticket #407).
@@ -104,6 +105,7 @@ describe("Starters", () => {
       ["set_targets", "text", STARTER_ARGUMENT_MAX.targets],
       ["start_tracking", "what", STARTER_ARGUMENT_MAX.tracking],
       ["alert_me", "text", STARTER_ARGUMENT_MAX.text],
+      ["share_numbers", "text", STARTER_ARGUMENT_MAX.share],
     ];
     for (const [name, arg, max] of cases) {
       await expect(client.getPrompt({ name, arguments: { [arg]: "x".repeat(max) } })).resolves.toBeDefined();
