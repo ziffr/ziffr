@@ -56,3 +56,6 @@ packages/*/dist/
 
 # worktrees of Claude Code agents
 .claude/worktrees/
+
+# MCP scenario eval report (#614)
+packages/mcp/evals/report.md

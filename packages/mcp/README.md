@@ -127,3 +127,7 @@ In Claude Code they are commands such as `/mcp__ziffr__weekly_review` (`ziffr` i
 - Metric names and descriptions come from your workspace. Anyone who can name a Metric can put text in front of the assistant, so give it a read-only key unless it should submit values.
 - A key with "Build dashboards" changes only the dashboards you may change yourself. It can never share, delete a dashboard, make a View Link or pick a theme, and it makes at most 50 new dashboards and 500 changes a day. Every change is in the dashboard's history under the key's name, so you can restore what came before.
 - A key with "Manage alerts" sets Alerts only for its creator, through the same checks as the app: only on Metrics they see, within the limits, and never for another person, whoever they are. A message an Alert sends goes to the creator by their own Delivery Preference and holds nothing they could not open on the Metric. It cannot make a person receive a message they did not ask for.
+
+## Scenario evals (development)
+
+`evals/` plays what a newcomer says ("count buses per week", "ask me daily at 13:00 for km") against this server with a real model and checks the state Ziffr ends up in. It needs the app and its Supabase running (`ZIFFR_TEST_URL`, default `http://localhost:3000`) and `ANTHROPIC_API_KEY` in the environment; without the key it skips. `pnpm --filter @ziffr/mcp eval` writes `evals/report.md`; `ZIFFR_EVAL_MODEL` (default `claude-haiku-5-5`) and `ZIFFR_EVAL_SCENARIOS` narrow it. The `MCP evals` workflow runs it nightly.
