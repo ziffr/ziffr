@@ -2,18 +2,21 @@
 // secret, so anyone can send unsigned requests to /api/webhooks/{id}/in; each costs a database read and a key opening
 // before it is refused. The gate counts FAILED requests (bad, missing or old signature, replay, unknown id), never
 // successful ones, in memory:
+//  - an address with 200 failures in a minute to one Webhook is refused whatever its successes (known senders too);
 //  - an address (IPv4 address, IPv6 /56) with 20 failures in a minute to one Webhook, or 100 to all Webhooks together, is
 //    refused (429) before the secret is opened;
 //  - a Webhook with 600 failures in a minute from anywhere refuses everyone except known senders and, at most 60 a minute,
 //    addresses with no failures of their own (a real new sender); a known sender is still refused if its own address keeps failing against that Webhook (counted since its last success), but not for failures against other Webhooks;
 //  - a known sender is a network address that sent a valid signed request to that Webhook in the last day (16 per
 //    Webhook, held on this process only): it skips the Webhook's ceiling (not its own address's failures), so a real sender keeps working through any flood from other addresses.
-// Remaining trade-off: past the ceiling, a sender that is neither known (on this process, in the last day) nor lucky in the
+// Remaining trade-offs: one client on a shared address can reset another's "since last success" count by succeeding, which
+// the hard cap of 200 raw failures a minute bounds; and
+//  past the ceiling, a sender that is neither known (on this process, in the last day) nor lucky in the
 // 60-a-minute budget is refused until the flood eases. Without a network address (ZIFFR_PROXY_HOPS unset) nobody can be
 // known or admitted by the budget, so a flood past the ceiling locks the real sender out until it stops. Tables are bounded and expire from the front in O(1) per request; when full
 // they drop the oldest entry, never refuse. Counters are per process: this bounds the cost of a flood, it is not the
 // 60-a-minute limit for senders who proved the secret (that stays in the database). Only the network address is held.
-import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID, WEBHOOK_INBOUND_FAILURES_PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE } from "./webhook-limits";
+import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID, WEBHOOK_INBOUND_FAILURES_PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE, WEBHOOK_INBOUND_RAW_FAILURES_PER_ADDRESS } from "./webhook-limits";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MINUTE = 60_000;
@@ -56,6 +59,8 @@ const addressFailures = new Table<Count>(MINUTE);
 const idFailures = new Table<Count>(MINUTE);
 const anyIdFailures = new Table<Count>(MINUTE);
 const newSenders = new Table<Count>(MINUTE);
+// Every failure per (id, address), never reset by a success: the hard cap that stops one client on a shared address from using another's successes to start over.
+const rawFailures = new Table<Count>(MINUTE);
 // Kept apart from the failure tables so a flood of failures can never push a known sender out.
 const known = new Table<Known>(DAY, MAX_KNOWN);
 
@@ -80,6 +85,8 @@ export function admitWebhookInbound(webhookId: string, network: string | null, n
   if (!id) return true;
   const unit = unitOf(network);
   const own = unit ? addressFailures.get(`${id}:${unit}`, now)?.n ?? 0 : 0;
+  // 0. A hard cap on raw failures that no success resets, a known sender included.
+  if (unit && (rawFailures.get(`${id}:${unit}`, now)?.n ?? 0) >= WEBHOOK_INBOUND_RAW_FAILURES_PER_ADDRESS) return false;
   // 1. An address that keeps failing against this Webhook since its last success is refused, a known sender included.
   if (unit && own >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS) return false;
   // 2. A known sender of this Webhook is let in ahead of the cross-Webhook count: others behind the same NAT or /56 failing against other ids must not revoke it.
@@ -114,6 +121,7 @@ export function recordWebhookInboundFailure(webhookId: string, network: string |
   const unit = unitOf(network);
   if (unit) {
     bump(addressFailures, `${id}:${unit}`);
+    bump(rawFailures, `${id}:${unit}`);
     bump(anyIdFailures, unit);
   }
 }
@@ -136,5 +144,6 @@ export function resetWebhookInboundGate(): void {
   idFailures.clear();
   anyIdFailures.clear();
   newSenders.clear();
+  rawFailures.clear();
   known.clear();
 }

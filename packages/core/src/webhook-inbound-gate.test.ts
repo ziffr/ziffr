@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { admitWebhookInbound as admit, recordWebhookInboundFailure as failOn, recordWebhookInboundSender as sender, resetWebhookInboundGate } from "./webhook-inbound-gate";
-import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE as NEW } from "./webhook-limits";
+import { WEBHOOK_INBOUND_FAILURES_PER_ADDRESS as PER_ADDRESS, WEBHOOK_INBOUND_FAILURES_PER_ID as PER_ID, WEBHOOK_INBOUND_KNOWN_SENDERS as KNOWN, WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID as ANY, WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE as NEW, WEBHOOK_INBOUND_RAW_FAILURES_PER_ADDRESS as RAW } from "./webhook-limits";
 
 const A = "6f1c2d3e-0000-4000-8000-000000000001";
 const B = "6f1c2d3e-0000-4000-8000-000000000002";
@@ -112,6 +112,24 @@ describe("a known sender behind a shared address", () => {
     expect(admit(A, "2001:db8:1:a700::/64", 6)).toBe(true);
     fail(A, "2001:db8:1:a700::/64", 6);
     expect(admit(A, "2001:db8:1:a700::/64", 7)).toBe(false);
+  });
+});
+
+describe("the hard cap on raw failures", () => {
+  it("refuses an attacker on the same /56 as a succeeding sender after 200 failures, however often the sender succeeds, known sender included", () => {
+    const sender1 = "2001:db8:1:a700::/64";
+    const attacker = "2001:db8:1:a7ff::/64";
+    sender(A, sender1, 0);
+    for (let i = 0; i < RAW - 1; i++) {
+      fail(A, attacker, 1);
+      if (i % (PER_ADDRESS - 1) === 0) sender(A, sender1, 1);
+    }
+    expect(admit(A, sender1, 2)).toBe(true);
+    fail(A, attacker, 2);
+    expect(admit(A, attacker, 3)).toBe(false);
+    expect(admit(A, sender1, 3)).toBe(false);
+    expect(admit(B, sender1, 3)).toBe(false); // not a known sender of B: the cross-Webhook count refuses the shared address
+    expect(admit(A, sender1, 60_003)).toBe(true);
   });
 });
 
