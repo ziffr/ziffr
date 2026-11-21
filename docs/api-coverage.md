@@ -11,6 +11,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `recordDeckExport` (audit-log.ts): Deck export is noted in the Audit Log
+- `sameNamedMetrics` (metric-name-check.ts): a form hint in the app that warns before a Metric gets a name that is taken; the API's create answers with the Metric
 - `saveLayout` (dashboards.ts): the dashboard canvas
 - `setViewLinkNames` (view-links.ts): the View links window; a program's View Links always show no names (ticket #590)
 - `applyTemplate` (dashboards.ts): the dashboard canvas
