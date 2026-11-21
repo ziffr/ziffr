@@ -1,14 +1,22 @@
-# Changes here need the maintainer's review: the core and the database, the license texts, and everything that
-# runs with someone's rights. Agent instructions and hooks run on a maintainer's machine when they work on a branch;
-# workflows, check and release scripts run with the repository's.
-/packages/core/  @ziffr
-/supabase/       @ziffr
-/LICENSE         @ziffr
-/NOTICE          @ziffr
-/CLA.md          @ziffr
-/.claude/        @ziffr
-/.github/        @ziffr
-/AGENTS.md       @ziffr
-/CLAUDE.md       @ziffr
-/scripts/        @ziffr
-/docker/         @ziffr
+# The guard files: what makes CI and review enforce the standards. A change here can weaken a check unseen, so it
+# needs the maintainer's review (CONTRIBUTING, "Files that need the maintainer's review"). Agent instructions and
+# hooks also run on a maintainer's machine when they work on a branch; workflows and scripts run with the repository's
+# rights. The core and the database are not listed: they change daily and CI's checks and tests cover them.
+/.github/workflows/                  @ziffr
+/.github/scripts/                    @ziffr
+/.github/CODEOWNERS                  @ziffr
+/.github/calculation-paths.txt       @ziffr
+/scripts/                            @ziffr
+/knip.jsonc                          @ziffr
+/.jscpd.json                         @ziffr
+/eslint.code-health.mjs              @ziffr
+/packages/core/stryker.config.mjs    @ziffr
+/.vale.ini                           @ziffr
+/.vale/                              @ziffr
+/AGENTS.md                           @ziffr
+/CLAUDE.md                           @ziffr
+/.claude/                            @ziffr
+/CONTRIBUTING.md                     @ziffr
+/LICENSE                             @ziffr
+/NOTICE                              @ziffr
+/CLA.md                              @ziffr

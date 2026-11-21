@@ -84,8 +84,19 @@ Once a quarter, a reminder issue (`.github/workflows/simplification.yml`) asks f
 
 ## Reviewing pull requests (maintainers)
 
-- **Read agent and CI files before you run anything.** A pull request can change `.claude/` (hooks are shell scripts Claude Code runs on your machine), `CLAUDE.md`, `AGENTS.md`, `.github/` or `scripts/`. Before you start a coding agent or run scripts on someone else's branch, read the diff of those paths yourself. CODEOWNERS asks for your review of them for the same reason.
+- **Read agent and CI files before you run anything.** A pull request can change `.claude/` (hooks are shell scripts Claude Code runs on your machine), `CLAUDE.md`, `AGENTS.md`, `.github/` or `scripts/`. Before you start a coding agent or run scripts on someone else's branch, read the diff of those paths yourself. CODEOWNERS asks for your review of them for the same reason (next section).
 - **Approve workflow runs from forks only after a look at the diff.** Checks of a first-time contributor's pull request wait for "Approve and run".
+
+### Files that need the maintainer's review
+
+`.github/CODEOWNERS` lists them, and the `main` ruleset requires the code owner's review for a change to any of them. They are the files that make the standards enforced rather than hoped for, so a change there could weaken a check without anyone noticing:
+
+- `.github/workflows/`, `.github/scripts/` and `scripts/`: the checks and the release run with the repository's rights.
+- The ceilings and rules of the checks: `knip.jsonc`, `.jscpd.json`, `eslint.code-health.mjs`, `packages/core/stryker.config.mjs` (mutation thresholds), `.vale.ini` and `.vale/`, `.github/calculation-paths.txt`.
+- `AGENTS.md`, `CLAUDE.md` and `.claude/`: instructions and hooks run on a maintainer's machine when they work on a branch.
+- `CONTRIBUTING.md`, `LICENSE`, `NOTICE`, `CLA.md` and `.github/CODEOWNERS` itself: the rules and the legal texts.
+
+`packages/core/` and `supabase/` are not on the list: they change daily, and CI's checks and database tests cover them. Tightening a ceiling or adding a check needs the review like any other change; the review is there to see that nothing gets weaker.
 
 ## Versions and releases
 
