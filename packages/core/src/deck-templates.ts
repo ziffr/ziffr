@@ -18,14 +18,15 @@ import type { DeckTemplate, SlideBody, WidgetSettings } from "./types";
 export type DeckTemplateSummary = Pick<DeckTemplate, "id" | "owner_id" | "name" | "description" | "slots"> & { slides: number };
 
 /** A Deck Template of the actor's Workspace by id, or null. */
-async function deckTemplate(actor: Pick<Actor, "workspaceId">, id: number): Promise<DeckTemplate | null> {
-  if (!Number.isInteger(id)) return null;
+async function deckTemplate(actor: Pick<Actor, "workspaceId" | "role">, id: number): Promise<DeckTemplate | null> {
+  // A Guest creates nothing, so no team template is theirs to read, not even by id (rule 3).
+  if (!Number.isInteger(id) || actor.role === "guest") return null;
   const { data } = await db().from("team_templates").select("id, owner_id, kind, name, description, view, slots, body, w, h, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).eq("kind", "deck").maybeSingle();
   return (data as DeckTemplate | null) ?? null;
 }
 
 /** The team's Deck Templates. A Slot's suggested Metrics are cut to the ones this person sees (rule 3). */
-export async function listDeckTemplates(actor: Pick<Actor, "workspaceId" | "personId"> & { role?: Actor["role"] }): Promise<DeckTemplateSummary[]> {
+export async function listDeckTemplates(actor: Pick<Actor, "workspaceId" | "personId"> & Pick<Actor, "role">): Promise<DeckTemplateSummary[]> {
   // A Guest creates nothing, so the team's templates are not theirs to read (rule 3).
   if (actor.role === "guest") return [];
   const { data } = await db().from("team_templates").select("id, owner_id, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "deck").order("name");

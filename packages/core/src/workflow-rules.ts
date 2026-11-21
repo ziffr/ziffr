@@ -54,7 +54,8 @@ export function unusualReasons(m: Metric, value: number, previous: number | unde
 
 /** A Workflow step in words, as the editor shows it. */
 export function stepLabel(s: WorkflowStep, people: Profile[], groups: { id: number; name: string }[] = []) {
-  const name = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
+  // Someone the viewer may not be shown is "someone", never their id.
+  const name = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "someone";
   switch (s.type) {
     case "remind": return `Remind the submitter ${s.daysBefore} day${s.daysBefore === 1 ? "" : "s"} before the due date`;
     case "escalate": return `${s.daysAfter ? `${s.daysAfter} day${s.daysAfter === 1 ? "" : "s"} after` : "On"} the due date, if still missing: ${s.to === "stand-in" ? "ask the stand-in" : "tell the metric owner"}`;

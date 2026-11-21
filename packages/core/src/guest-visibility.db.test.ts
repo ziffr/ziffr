@@ -13,8 +13,8 @@ import { getCanvasData, peopleFor } from "./access";
 import { listGroups, listPeople } from "./api";
 import { versionAccess } from "./version-history";
 import { listWorkflowTemplates } from "./workflow-templates";
-import { listDashboardTemplates } from "./dashboard-templates";
-import { listDeckTemplates } from "./deck-templates";
+import { dashboardTemplate, listDashboardTemplates } from "./dashboard-templates";
+import { deckTemplateSeed, listDeckTemplates } from "./deck-templates";
 import { peopleIn } from "./submissions";
 import { setPreference } from "./questions";
 import { workspace } from "./test/db-fixtures";
@@ -107,6 +107,33 @@ describe("a Guest, by name and template", () => {
     expect((await listPeople(guest, { limit: 50 })).items.map((p) => p.id).sort()).toEqual([gus, sara].sort());
     expect((await getCanvasData(w.id, gus)).people.map((p) => p.id)).not.toContain(ben);
     expect((await peopleFor(member)).map((p) => p.id)).toEqual(expect.arrayContaining([sara, ben, gus, stranger]));
+  });
+
+  it("is shown the people on the Workflow of their Metric, and nobody from another one", async () => {
+    const { w, sara, gus, guest, seen, shared } = await setUp();
+    const approver = await w.person("member");
+    const told = await w.person("member");
+    const stranger = await w.person("member");
+    await saveWorkflow(w.actor(sara), seen, "Shared close", { dueWorkingDays: 1, steps: [{ type: "approve", approvers: [approver], values: "every" }, { type: "tell", id: "step-tell-aaaa", condition: { kind: "at_or_above", value: "100" }, people: [told], groups: [] }, publish] });
+    const names = (await peopleFor(guest)).map((p) => p.id).sort();
+    expect(names).toEqual([approver, gus, sara, told].sort());
+    // The canvas a Guest's pages draw from names exactly these people and no Group's other members.
+    const canvas = await getCanvasData(w.id, gus);
+    expect(canvas.people.map((p) => p.id).sort()).toEqual(names);
+    expect(canvas.people.map((p) => p.id)).not.toContain(stranger);
+    expect(canvas.groups.every((g) => g.members.every((m) => m === gus))).toBe(true);
+    expect(canvas.metrics.map((m) => m.id)).toEqual([shared.id]);
+  });
+
+  it("cannot open a team Deck or Dashboard Template by id", async () => {
+    const { w, sara, guest, member } = await setUp();
+    const deck = await db().from("team_templates").insert({ workspace_id: w.id, owner_id: sara, kind: "deck", name: "Board", view: "deck", slots: [], body: { slides: [] } }).select("id").single();
+    const dash = await db().from("team_templates").insert({ workspace_id: w.id, owner_id: sara, kind: "dashboard", name: "Sales", view: "dashboard", slots: [], body: { widgets: [] } }).select("id").single();
+    expect(deck.error).toBeNull(); expect(dash.error).toBeNull();
+    expect(await deckTemplateSeed(guest, deck.data!.id as number, [])).toBeNull();
+    expect(await deckTemplateSeed(member, deck.data!.id as number, [])).not.toBeNull();
+    expect(await dashboardTemplate(guest, dash.data!.id as number)).toBeNull();
+    expect(await dashboardTemplate(member, dash.data!.id as number)).not.toBeNull();
   });
 
   it("reads no Versions of a hidden Workflow or a team template, and lists no team templates", async () => {

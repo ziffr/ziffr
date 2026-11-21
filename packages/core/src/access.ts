@@ -2,6 +2,7 @@
 // workspace only; the decisions are made by the pure rules in visibility.ts, which ignore rows from any other one.
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
+import { openWorkflowRows } from "./workflow-rows";
 import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
@@ -178,6 +179,15 @@ export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | 
   for (const t of tokens ?? []) if (seen.has(t.metric_id as number)) for (const id of [t.submitter_id, t.stand_in_id]) if (id) known.add(id as string);
   for (const a of actions as { asker_id: string; assignee_id: string }[]) { known.add(a.asker_id); known.add(a.assignee_id); }
   for (const a of authors ?? []) if (a.author_id) known.add(a.author_id as string);
+  // The Workflows of their Metrics are shown to them, so their owners, Approvers and the people they tell are named.
+  const flows = [...new Set(metrics.flatMap((m) => { const w = (m as Metric & { workflow_id?: number | null }).workflow_id; return seen.has(m.id) && typeof w === "number" ? [w] : []; }))];
+  const { data: rows } = flows.length ? await db().from("workflows").select("id, owner_id, config").eq("workspace_id", ws).in("id", flows) : { data: [] as Record<string, unknown>[] };
+  for (const w of await openWorkflowRows(ws, rows as Record<string, unknown>[] | null)) {
+    known.add(w.owner_id as string);
+    for (const st of ((w.config as { steps?: { approvers?: unknown; people?: unknown }[] } | null)?.steps ?? [])) {
+      for (const id of [...(Array.isArray(st.approvers) ? st.approvers : []), ...(Array.isArray(st.people) ? st.people : [])]) if (typeof id === "string") known.add(id);
+    }
+  }
   return people.filter((p) => known.has(p.id));
 }
 
