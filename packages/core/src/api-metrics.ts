@@ -127,7 +127,7 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   // A Feed is added as on the Metric's page, which turns the API Source on, since a Feed sends nothing else.
   for (const f of feeds) await addFeedToMetric(creator, id, f);
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric) as Metric);
+  return toApi(normalizeMetric(data as Metric) as Metric, data);
 }
 
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
@@ -157,7 +157,7 @@ export async function setMetricArchivedWithKey(actor: Actor | KeyActor, slug: st
   if (archived) await archiveMetric(creator, m.id, origin);
   else await restoreMetric(creator, m.id, origin);
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", m.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric));
+  return toApi(normalizeMetric(data as Metric), data);
 }
 
 /** Thrown when a change to a Metric is refused for its content, such as a lower target above the upper one or a
@@ -214,7 +214,7 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     if (sources) await setMetricSources(creator, metric.id as number, sources);
   });
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric) as Metric);
+  return toApi(normalizeMetric(data as Metric) as Metric, data);
 }
 
 /** Which series of a Metric: its Target Series or its Projections. */

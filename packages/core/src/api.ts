@@ -6,6 +6,7 @@ import { getGroups, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
+import { retentionForApi, type ApiRetention } from "./retention-words";
 import { peopleIn } from "./submissions";
 import { openRows } from "./sealed-columns";
 import { recordView } from "./usage";
@@ -19,15 +20,23 @@ export const MAX_PAGE = 100;
 export type Page<T, C = number> = { items: T[]; next: C | null };
 
 /** A Metric as a program sees it in a list or on its own. */
-export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean };
+export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean } & ApiRetention;
 
-/** A Metric in the shape programs see it. */
-export const toApi = (m: Metric): ApiMetric => ({
+/** A Metric in the shape programs see it. `stored` is the row's Retention columns (normalizeMetric drops them from the
+ * Metric): without them it reads as none. A program sees the setting and its first day only (spec 0033). */
+export const toApi = (m: Metric, stored?: { retention?: unknown; retention_pending?: unknown } | null): ApiMetric => ({
   slug: m.slug, name: m.name, description: m.description, period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   attainment_method: m.attainment_method ?? null, sources: [...(m.sources ?? [])], derived: Boolean(m.formula),
-  archived: Boolean(m.archived_at),
+  archived: Boolean(m.archived_at), ...retentionForApi(stored?.retention, stored?.retention_pending),
 });
+
+/** The Retention columns of Metrics the caller has already checked the actor sees, by id. */
+async function storedRetentions(ws: string, ids: readonly number[]): Promise<Map<number, { retention: unknown; retention_pending: unknown }>> {
+  if (!ids.length) return new Map();
+  const { data } = await db().from("metrics").select("id, retention, retention_pending").eq("workspace_id", ws).in("id", [...ids]);
+  return new Map((data ?? []).map((r) => [r.id as number, r]));
+}
 
 /** The Metrics the key's creator sees, in a stable order (by id), one page after `after` (scope metrics:read): those
  * in use, or with `archived` only the Archived Metrics (GLOSSARY: Archived Metric), which are listed only when asked. */
@@ -40,7 +49,8 @@ export async function listMetrics(actor: Actor | KeyActor, page: { after?: numbe
   const archived = page.archived === true;
   const rest = metrics.filter((m) => visible.has(m.id) && m.id > after && Boolean(m.archived_at) === archived).sort((a, b) => a.id - b.id);
   const items = rest.slice(0, limit);
-  return { items: items.map(toApi), next: rest.length > limit ? items[items.length - 1].id : null };
+  const stored = await storedRetentions(actor.workspaceId, items.map((m) => m.id));
+  return { items: items.map((m) => toApi(m, stored.get(m.id))), next: rest.length > limit ? items[items.length - 1].id : null };
 }
 
 /** A period start as the database reads it: a real day, written YYYY-MM-DD. */
@@ -60,7 +70,8 @@ async function visibleMetric(actor: Actor | KeyActor, slug: string): Promise<{ m
 /** One Metric's description (scope metrics:read). */
 export async function getMetric(actor: Actor | KeyActor, slug: string): Promise<ApiMetric> {
   assertScope(actor, "metrics:read");
-  return toApi((await visibleMetric(actor, String(slug))).metric);
+  const { metric } = await visibleMetric(actor, String(slug));
+  return toApi(metric, (await storedRetentions(actor.workspaceId, [metric.id])).get(metric.id));
 }
 
 /** Where a period's value stands: published as recorded, waiting for Approval, or locked (GLOSSARY: Approval, Lock). */

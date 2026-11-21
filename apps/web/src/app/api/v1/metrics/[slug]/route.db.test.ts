@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { workspace } from "@ziffr/core/test/db-fixtures";
 import { GET as metric } from "./route";
+import { GET as metrics } from "../route";
 import { GET as observations } from "./observations/route";
 import { GET as people } from "../../people/route";
 import { GET as groups } from "../../groups/route";
@@ -22,7 +23,7 @@ async function setup() {
   const weeks = ["2026-01-05", "2026-01-12", "2026-01-19", "2026-01-26"];
   for (const [i, p] of weeks.entries()) await w.value(m.id, p, i + 1);
   const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Script", scopes: ["metrics:read"], expiresOn: inDays(30) });
-  return { key: secret, m, hidden };
+  return { key: secret, m, hidden, w, ben };
 }
 
 describe("read endpoints", () => {
@@ -35,6 +36,18 @@ describe("read endpoints", () => {
     expect(gone.status).toBe(404);
     expect(await gone.json()).toEqual({ error: { code: "not_found", message: "Not found." } });
     expect((await metric(req("/api/v1/metrics/Bad%20Slug", key), ctx("Bad Slug"))).status).toBe(400);
+  });
+  it("show a Metric's Retention and the one waiting, read only, and nothing about who confirmed it", async () => {
+    const { key, m, w, ben } = await setup();
+    const read = async (slug: string) => (await metric(req(`/api/v1/metrics/${slug}`, key), ctx(slug))).json();
+    expect(await read(m.slug)).toMatchObject({ retention: null, retention_pending: null });
+    const pending = { id: "p1", retention: { keep_months: 24, then: "condense", into: "month" }, starts_on: inDays(8), starts_after: new Date().toISOString(), confirmed_on: inDays(0), set_by: "00000000-0000-4000-8000-000000000001", counted: { periods: 3, values: 9, held_back_periods: 0, held_back_values: 0 }, told: true, reminded: false };
+    const kept = await w.metric(ben, { name: "Kept", retention: { keep_months: 36, then: "delete" }, retention_pending: pending });
+    const body = await read(kept.slug);
+    expect(body).toMatchObject({ retention: { keep_months: 36, then: "delete" }, retention_pending: { keep_months: 24, then: "condense", into: "month", starts_on: inDays(8) } });
+    expect(JSON.stringify(body)).not.toMatch(/set_by|counted|00000000-0000/);
+    const list = await (await metrics(req("/api/v1/metrics", key), { params: Promise.resolve({}) })).json();
+    expect(list.items.map((i: { slug: string; retention: unknown }) => [i.slug, i.retention])).toEqual([[m.slug, null], [kept.slug, { keep_months: 36, then: "delete" }]]);
   });
   it("return values in a range, paged with a cursor, and refuse a bad range", async () => {
     const { key, m } = await setup();

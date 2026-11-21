@@ -234,7 +234,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `retentionPreviewAll` (retention-setting.ts): the Workspace settings' preview of Apply to existing Metrics (spec 0033)
 - `setRetention` (retention-setting.ts): a Metric's Retention is set on its page, never by a program (spec 0033)
 - `announceDefaultRetention` (retention-setting.ts): records and tells the default Retention copied into a new Metric, inside Metric creation (spec 0033)
-- `retentionFor` (retention-setting.ts): the Metric page reads its Retention; the API and the MCP Server show it with the Metric in a later ticket (spec 0033)
+- `retentionFor` (retention-setting.ts): the Metric page reads its Retention; the API and the MCP Server show it with the Metric through `getMetric` and `listMetrics`, read only (spec 0033)
 - `retentionValuesCsv` (retention-setting.ts): the download of the values a Retention would delete, offered on the Metric page before a delete is confirmed; a program never sets or deletes by Retention (spec 0033), so it has no use for it
 - `cancelRetention` (retention-setting.ts): cancels a confirmed Retention on the Metric page (spec 0033)
 - `setDefaultRetention` (retention-setting.ts): the Workspace default, Owners only, on the Workspace settings page (spec 0033)

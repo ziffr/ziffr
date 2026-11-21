@@ -343,7 +343,7 @@ Once it has started, a job does the work once a day, in small steps (at most 5,0
 
 Each run that did something is written in the Audit Log as the Retention run of the Metric, with counts and never a value; a span left alone and a Metric held back or stopped are written too. A Projection of a past period older than the keep time is deleted in both modes: it was never a value. Condensed periods take no more values.
 
-A Workspace can have a default Retention, copied into each new Metric when it is made (see [Workspace settings](16-workspace-settings.md#retention)); it waits its 7 days too, and can be cancelled here. The Retention cannot be set through the API or an assistant: they can only read it. Not available in the demo. A Derived Metric has none: it stores no values.
+A Workspace can have a default Retention, copied into each new Metric when it is made (see [Workspace settings](16-workspace-settings.md#retention)); it waits its 7 days too, and can be cancelled here. The Retention cannot be set through the API or an assistant: they can only read it, with the Metric (`retention`, and `retention_pending` with its first day while it waits), and a Condensed Value in the Metric's values says how many periods it stands for (`condensed_from`). The Usage page suggests a Retention for Metrics with many old values nobody opens (see [Workspace settings](16-workspace-settings.md#usage)); following the suggestion fills this box in and shows its counts, and sets nothing. Not available in the demo. A Derived Metric has none: it stores no values.
 
 ### Workflow
 

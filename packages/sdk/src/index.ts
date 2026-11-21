@@ -28,7 +28,14 @@ export type Metric = {
   derived: boolean;
   /** An Archived Metric: kept with its values and history, asked for nothing and taking no values. */
   archived: boolean;
+  /** Its Retention in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview and a confirmation. Periods it condensed carry `condensed_from` among the values. */
+  retention: Retention | null;
+  /** A confirmed Retention that has not started: nothing is changed before `starts_on`. */
+  retention_pending: (Retention & { starts_on: string }) | null;
 };
+
+/** A Retention (GLOSSARY: Retention): keep values for `keep_months` months (at least 13), then condense older ones into a longer period or delete them. */
+export type Retention = { keep_months: number; then: "condense"; into: "week" | "month" | "quarter" | "year" } | { keep_months: number; then: "delete" };
 
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
 export type Source = "web_form" | "mail" | "slack" | "telegram" | "api";

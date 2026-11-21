@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Forbidden } from "@ziffr/core/actor";
 import { workspaceUsage, type UsageItem } from "@ziffr/core/usage-report";
+import { retentionToParam, retentionWords } from "@ziffr/core/retention-words";
 import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { currentActor } from "@/lib/viewer";
@@ -69,6 +70,21 @@ export default async function UsagePage() {
             </div>
           )}
         </section>
+        {u.retentionSuggestions.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-base font-semibold">Metrics that could keep less</h2>
+            <p className="text-sm text-muted-foreground">Many old values and nobody opened them for 90 days. <strong className="font-medium">Set a Retention</strong> opens the Metric&rsquo;s page with the suggestion filled in and what it would do in counts. Nothing is set, condensed or deleted until you turn it on there.</p>
+            <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
+              {u.retentionSuggestions.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
+                  <Link href={`/metrics/${r.slug}`} className="font-medium underline-offset-2 hover:underline">{r.name}</Link>
+                  <span className="text-xs text-muted-foreground">{r.why}; {retentionWords(r.suggestion)}</span>
+                  <Link href={`/metrics/${r.slug}?tab=settings&suggest=${retentionToParam(r.suggestion)}#retention`} className="ml-auto text-sm underline underline-offset-2">Set a Retention</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {u.readByProgram.length > 0 && <List title="Only read by a program" empty="" items={u.readByProgram} href={metricHref} />}
         <List title="Metrics without values" empty="Every Metric has recent values." items={u.noValues} href={metricHref} />
         {u.projectionOnly.length > 0 && <List title="Metrics with only a Projection" empty="" items={u.projectionOnly} href={metricHref} />}

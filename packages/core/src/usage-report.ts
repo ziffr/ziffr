@@ -10,6 +10,9 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
 import { inUse } from "./metric-row";
 import { formulaInputs } from "./formula";
+import { keptFrom, type Retention } from "./retention-rules";
+import { storedPending, storedRetention, SUGGEST_KEEP_MONTHS, SUGGEST_MIN_VALUES, suggestedRetention } from "./retention-words";
+import { workspaceToday } from "./retention-setting";
 import { peopleIn } from "./submissions";
 import { allRows, getMetrics, getRecentObservations } from "./workspace-data";
 import { widgetMetricIds } from "./widget-metrics";
@@ -28,6 +31,10 @@ export type IdleSubmitter = { id: string; name: string; kind: "person" | "contac
 /** A Metric the page does not suggest archiving, and why. */
 export type KeptMetric = { id: number; name: string; because: string };
 
+/** A Metric that holds many old values and nobody opened: the Retention it could have, and how many values lie past it.
+ * Counts only; the page opens the Metric's Retention form with this setting and its preview, and sets nothing. */
+export type RetentionSuggestion = { id: number; name: string; slug: string; values: number; suggestion: Retention; why: string };
+
 /** What the Usage page shows an Owner or Admin. */
 export type UsageReport = {
   /** The first day Ziffr counted in this Workspace (yyyy-mm-dd), or null while nothing is counted. */
@@ -43,6 +50,8 @@ export type UsageReport = {
   mostLooked: { dashboards: { id: number; name: string; views: number }[]; metrics: { id: number; name: string; slug: string; views: number }[] };
   suggested: UsageItem[];
   kept: KeptMetric[];
+  /** Metrics that could keep less: many old values, not opened for 90 days, no Retention yet (spec 0033). */
+  retentionSuggestions: RetentionSuggestion[];
 };
 
 const DAY = 86_400_000;
@@ -215,8 +224,38 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   return {
     countingSince, fillsInOn, notOpened, readByProgram, noValues, projectionOnly, submitters: idle,
     mostLooked: { dashboards: top(dashboards, "dashboard"), metrics: top(visible, "metric") },
-    suggested, kept,
+    suggested, kept, retentionSuggestions: await retentionSuggestions(ws, notOpened.metrics, byMetric, await workspaceToday(ws, now)),
   };
+}
+
+/** The most Retention suggestions listed, and how many Metrics are counted at once. */
+const MAX_RETENTION_SUGGESTIONS = 10;
+const COUNT_AT_A_TIME = 10;
+
+/** Which of the Metrics nobody opened could keep less: daily or weekly values that can be condensed, with no Retention in
+ * force or waiting, holding at least a year of values older than the suggested keep time, most values first. `candidates`
+ * are Metrics the actor sees (the caller filtered them); a program's reads keep a Metric off the list, as they do for
+ * archiving. Reads counts only, never a value. */
+async function retentionSuggestions(ws: string, candidates: UsageItem[], byMetric: Map<number, Metric>, today: string): Promise<RetentionSuggestion[]> {
+  const fitting = candidates.flatMap((c) => {
+    const m = byMetric.get(c.id);
+    const suggestion = m && !m.archived_at ? suggestedRetention({ period: m.period, aggregation: m.aggregation, formula: m.formula }) : null;
+    return m && suggestion ? [{ m, suggestion }] : [];
+  });
+  if (!fitting.length) return [];
+  // The Retention columns are not part of a Metric (they say who confirmed what): read here, only to leave out Metrics that have one.
+  const { data: rows } = await db().from("metrics").select("id, retention, retention_pending").eq("workspace_id", ws).in("id", fitting.map((f) => f.m.id));
+  const set = new Set((rows ?? []).filter((r) => storedRetention(r.retention) || storedPending(r.retention_pending)).map((r) => r.id as number));
+  const cutoff = keptFrom(today, SUGGEST_KEEP_MONTHS);
+  const out: RetentionSuggestion[] = [];
+  const open = fitting.filter((f) => !set.has(f.m.id));
+  for (let i = 0; i < open.length; i += COUNT_AT_A_TIME) {
+    await Promise.all(open.slice(i, i + COUNT_AT_A_TIME).map(async ({ m, suggestion }) => {
+      const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", m.id).lt("period_start", cutoff);
+      if ((count ?? 0) >= SUGGEST_MIN_VALUES) out.push({ id: m.id, name: m.name, slug: m.slug, values: count ?? 0, suggestion, why: `${(count ?? 0).toLocaleString("en-GB")} values older than ${SUGGEST_KEEP_MONTHS / 12} years, not opened for 90 days` });
+    }));
+  }
+  return out.sort((a, b) => b.values - a.values || a.id - b.id).slice(0, MAX_RETENTION_SUGGESTIONS);
 }
 
 /** Archives the Metrics the actor ticked, at most 200: every one must be one they see and may archive, or the

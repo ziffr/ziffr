@@ -3,7 +3,7 @@
 // Workspace's default, the preview of what it would do in counts, and the confirmation before anything is turned on.
 // Nothing here changes a value: a confirmed Retention waits 7 days that can be used to cancel it. The core checks who
 // may set it and the counts again on the server.
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isActionError, UNEXPECTED, type ActionError } from "@/lib/action-error";
@@ -143,16 +143,18 @@ function AllCounts({ p }: { p: WorkspaceRetentionPreview }) {
 }
 
 /** The Retention on a Metric's page: what is in force, what waits for its first day, and, for those who may set it, the form. */
-export function MetricRetention({ metricId, name, period, aggregation, retention, pending, canSet, status }: {
+export function MetricRetention({ metricId, name, period, aggregation, retention, pending, canSet, status, suggested = null }: {
   metricId: number; name: string; period: Period; aggregation: Aggregation; retention: Retention | null;
   pending: { retention: Retention; starts_on: string; note: string; cancellable: boolean } | null; canSet: boolean;
   /** What the daily job last had to say, for those who may set the Retention. */
   status?: { note: string; stopped: boolean; lastRunOn: string | null } | null;
+  /** A setting the Usage page suggested: it starts in the form with its counts shown, and nothing is set by it. */
+  suggested?: Retention | null;
 }) {
   const router = useRouter();
   const spans = useMemo(() => condensesInto(period), [period]);
   const condensable = canCondense({ aggregation, formula: null });
-  const [draft, setDraft] = useState<Draft>(() => draftOf(pending?.retention ?? retention, spans[Math.min(1, spans.length - 1)] ?? "month"));
+  const [draft, setDraft] = useState<Draft>(() => draftOf(pending?.retention ?? retention ?? suggested, spans[Math.min(1, spans.length - 1)] ?? "month"));
   const [preview, setPreview] = useState<{ for: string; counts: RetentionPreview } | null>(null);
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -174,9 +176,16 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
     router.refresh();
   });
 
+  // A suggestion from Usage opens with its counts already shown (a read; the person still turns it on, or not).
+  useEffect(() => {
+    if (suggested && canSet) run(() => previewRetention(metricId, suggested), "Not shown", (counts) => setPreview({ for: key, counts }));
+    // Once, for the suggestion the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const needsName = setting?.then === "delete";
   return (
-    <section aria-labelledby="retention-heading" className="stock rounded-[var(--radius-card)] p-5 text-sm">
+    <section id="retention" aria-labelledby="retention-heading" className="stock rounded-[var(--radius-card)] p-5 text-sm">
       <h2 id="retention-heading" className="mb-1 font-medium">Retention</h2>
       <p className="mb-3 text-xs text-muted-foreground">How long values are kept, and what then happens to older ones. Nothing is condensed or deleted unless someone turns it on here, after seeing what it would do.</p>
       <p>Now: {retentionWords(retention)}.</p>

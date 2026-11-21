@@ -135,3 +135,46 @@ describe("archiveMetrics", () => {
     await expect(archiveMetrics(w.actor(sara), [])).rejects.toThrow();
   });
 });
+
+describe("retention suggestions", () => {
+  /** Daily values from `from` to `to` days ago, in one insert. */
+  const daily = async (w: Awaited<ReturnType<typeof setup>>["w"], id: number, who: string, from: number, to: number) => {
+    const rows = Array.from({ length: from - to + 1 }, (_, i) => ({ metric_id: id, period_start: dayAgo(from - i), value: 1, submitter_id: who, source: "api", workspace_id: w.id }));
+    for (let i = 0; i < rows.length; i += 500) expect((await db().from("observations").insert(rows.slice(i, i + 500))).error).toBeNull();
+  };
+
+  it("lists the Metrics with many old values nobody opened, most first, as a setting that is only a suggestion", async () => {
+    const { w, sara, metric, view } = await setup();
+    const big = await metric("Big", { period: "day" }); const bigger = await metric("Bigger", { period: "day" });
+    await daily(w, big.id, sara, 1300, 735); await daily(w, bigger.id, sara, 1600, 735);
+    const u = await workspaceUsage(w.actor(sara));
+    expect(u.retentionSuggestions.map((s) => [s.name, s.values])).toEqual([["Bigger", 866], ["Big", 566]]);
+    expect(u.retentionSuggestions[0]).toMatchObject({ slug: bigger.slug, suggestion: { keep_months: 24, then: "condense", into: "month" } });
+    // Listing sets nothing.
+    expect((await db().from("metrics").select("retention, retention_pending").eq("id", bigger.id).single()).data).toEqual({ retention: null, retention_pending: null });
+    // Opened, or read by a program: left out.
+    await view("metric", big.id, 5);
+    await view("metric", bigger.id, 5, "n_api");
+    expect((await workspaceUsage(w.actor(sara))).retentionSuggestions).toEqual([]);
+  });
+
+  it("leaves out what has a Retention or one waiting, rates, longer periods, few values and what the actor does not see", async () => {
+    const { w, sara, ben, metric } = await setup();
+    const has = await metric("Has one", { period: "day" }); const waits = await metric("Waits", { period: "day" }); const rate = await metric("Rate", { period: "day", aggregation: "none" });
+    const control = await metric("Control", { period: "week" }); const few = await metric("Few", { period: "day" }); const hidden = await w.metric(ben, { name: "Hidden", period: "day", created_at: daysAgo(120) });
+    for (const m of [has, waits, rate, few]) await daily(w, m.id, sara, m === few ? 745 : 1200, 735);
+    await daily(w, hidden.id, ben, 1200, 735);
+    await daily(w, control.id, sara, 1200, 735);
+    await db().from("metrics").update({ retention: { keep_months: 36, then: "delete" } }).eq("id", has.id);
+    await db().from("metrics").update({ retention_pending: { id: "x", retention: { keep_months: 36, then: "delete" }, starts_on: dayAgo(-5), starts_after: daysAgo(-5), confirmed_on: dayAgo(2), set_by: sara, counted: { periods: 1, values: 1, held_back_periods: 0, held_back_values: 0 }, told: true, reminded: false } }).eq("id", waits.id);
+    // Only the control, a weekly Metric (weeks into quarters), is left: the others each fail one rule.
+    expect((await workspaceUsage(w.actor(sara))).retentionSuggestions.map((s) => [s.name, s.suggestion])).toEqual([["Control", { keep_months: 24, then: "condense", into: "quarter" }]]);
+  });
+
+  it("suggests nothing before 90 days of counting", async () => {
+    const { w, sara, metric } = await setup(30);
+    const big = await metric("Big", { period: "day" });
+    await daily(w, big.id, sara, 1300, 735);
+    expect((await workspaceUsage(w.actor(sara))).retentionSuggestions).toEqual([]);
+  });
+});

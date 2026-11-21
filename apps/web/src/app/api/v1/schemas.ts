@@ -7,6 +7,15 @@ import { WORKSPACE_EVENT_FIGURES, WORKSPACE_SOURCE_FIGURES, WORKSPACE_STATE_FIGU
 /** A Source (GLOSSARY: Source): a way values may arrive at a Metric. */
 const SourceId = z.enum(["web_form", "mail", "slack", "telegram", "api"]);
 
+/** The two kinds of Retention (GLOSSARY: Retention), with what each carries beyond the setting itself. */
+const retentionOf = <E extends z.ZodRawShape>(extra: E) => z.object({
+  keep_months: z.number().int().min(13).describe("Values are kept this many months (at least 13); a period older than that is condensed or deleted."),
+  then: z.enum(["condense", "delete"]).describe("What happens to older periods: condensed into longer ones (a Condensed Value each) or deleted."),
+  into: z.enum(["week", "month", "quarter", "year"]).optional().describe("Only with `condense`: the longer period each older period is condensed into."),
+  ...extra,
+});
+const RETENTION_WORDS = "Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them.";
+
 /** A Metric as a program sees it, and what GET /api/v1/metrics/{slug} answers (GLOSSARY: Metric, Metric Description). */
 export const MetricDescription = z.object({
   slug: z.string().describe("Stable id in paths; survives renames of the name."),
@@ -25,6 +34,8 @@ export const MetricDescription = z.object({
   sources: z.array(SourceId).describe("Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric."),
   derived: z.boolean().describe("A Derived Metric: computed from others, takes no values."),
   archived: z.boolean().describe("An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true."),
+  retention: retentionOf({}).nullable().describe(RETENTION_WORDS + " The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values."),
+  retention_pending: retentionOf({ starts_on: z.string().describe("The first day it runs, YYYY-MM-DD; until then it can be cancelled in the app and nothing is changed.") }).nullable().describe("A confirmed Retention that has not started yet, or null."),
 });
 
 /** One page of a list; `next` is the cursor for the following page, null on the last. */
