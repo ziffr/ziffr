@@ -52,7 +52,7 @@ export function Preview({ widget, data, size, width = 280, sample, className }: 
         {free ? <LayoutSketch /> : <ReadOnlyFrame widget={widget} data={data} />}
       </div>
       {sample && (
-        <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
+        <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
       )}
     </div>
   );
@@ -93,7 +93,7 @@ export function DashboardTemplatePreview({ template, viewer, numberStyle, width 
           );
         })}
       </div>
-      <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
+      <span className="absolute top-1.5 right-1.5 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]">Sample data</span>
     </div>
   );
 }

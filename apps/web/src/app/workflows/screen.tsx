@@ -122,9 +122,9 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                 <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups)}
                   controls={canEdit && (
                     <span className="flex gap-0.5">
-                      {s.type !== "publish" && i > 0 && <IconBtn label="Earlier" onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
-                      {s.type !== "publish" && i < steps.length - 1 && steps[i + 1]?.type !== "publish" && <IconBtn label="Later" onClick={() => move(i, 1)}><ArrowDown className="size-3.5" /></IconBtn>}
-                      {s.type !== "publish" && <IconBtn label="Remove step" onClick={() => setCfg({ ...cfg, steps: steps.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>}
+                      {s.type !== "publish" && i > 0 && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) earlier`} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
+                      {s.type !== "publish" && i < steps.length - 1 && steps[i + 1]?.type !== "publish" && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) later`} onClick={() => move(i, 1)}><ArrowDown className="size-3.5" /></IconBtn>}
+                      {s.type !== "publish" && <IconBtn label={`Remove ${STEP_TITLE[s.type]} (step ${i + 1})`} onClick={() => setCfg({ ...cfg, steps: steps.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>}
                     </span>
                   )}
                 >
@@ -260,7 +260,7 @@ function StepFields({ s, people, submitters, tellFacts, onChange }: { s: Workflo
               <select aria-label={`Approver ${i + 1}`} value={a} onChange={(e) => onChange({ ...s, approvers: s.approvers.map((x, j) => (j === i ? e.target.value : x)) })} className={field}>
                 {people.filter((p) => !p.contact).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <IconBtn label="Remove approver" onClick={() => onChange({ ...s, approvers: s.approvers.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>
+              <IconBtn label={`Remove approver ${i + 1}`} onClick={() => onChange({ ...s, approvers: s.approvers.filter((_, j) => j !== i) })}><Trash2 className="size-3.5" /></IconBtn>
             </span>
           ))}
           {s.approvers.length < 3 && <button type="button" onClick={() => onChange({ ...s, approvers: [...s.approvers, people[0]?.id ?? ""] })} className="underline">Add approver</button>}

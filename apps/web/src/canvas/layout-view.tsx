@@ -36,7 +36,7 @@ export default function LayoutView({ settings, data }: { settings: WidgetSetting
           }}
         />
         {moved && (
-          <span className="absolute right-1 bottom-1 flex items-center gap-1 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-[11px] text-muted-foreground shadow-[var(--edge-stock)]" title="Free text and arrows stay where they were drawn; check they still point at the right thing.">
+          <span className="absolute right-1 bottom-1 flex items-center gap-1 rounded-[var(--radius-input)] bg-[var(--color-cotton)] px-1.5 py-0.5 text-xs text-muted-foreground shadow-[var(--edge-stock)]" title="Free text and arrows stay where they were drawn; check they still point at the right thing.">
             <TriangleAlert aria-hidden className="size-3" /> Data changed since this layout was drawn
           </span>
         )}

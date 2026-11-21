@@ -157,7 +157,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   return (
     <figure className="flex h-full min-w-0 flex-col">
       <div ref={box} className="min-h-0 flex-1" role="img" aria-label={`${m.name}, ${MEASURE_LABEL[panel.measure ?? "value"]}: ${rows.map((r) => `${r.label} ${fmt(m, panel, r.value, data.numberStyle)}${r.projected ? " (projection)" : ""}`).join(", ")}`} />
-      {rows.some((r) => r.projected) && <figcaption className="text-[11px] text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
+      {rows.some((r) => r.projected) && <figcaption className="text-xs text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
     </figure>
   );
 }

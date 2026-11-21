@@ -146,7 +146,7 @@ const STYLE: Record<TextStyle, string> = {
   value: "-mt-1 text-xl font-semibold tracking-[-0.02em]",
   caption: "mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground",
   body: "mb-1 text-xs text-muted-foreground",
-  note: "mt-0.5 text-[11px] text-muted-foreground",
+  note: "mt-0.5 text-xs text-muted-foreground",
 };
 
 function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v: DesignValues }) {

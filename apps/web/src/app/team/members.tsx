@@ -68,11 +68,11 @@ export function Members(props: {
                     <option value="">Who takes over?</option>
                     {members.filter((x) => x.id !== m.id && x.role !== "guest").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </select>
-                  <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { unwrap(await removeMemberWithHandover(m.id, successor)); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")}>Remove</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setLeaving(null)}>Cancel</Button>
+                  <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { unwrap(await removeMemberWithHandover(m.id, successor)); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")} aria-label={`Remove ${m.name}`}>Remove</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setLeaving(null)} aria-label={`Cancel removing ${m.name}`}>Cancel</Button>
                 </span>
               ) : (
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => { setLeaving(m.id); setSuccessor(""); }}>Remove…</Button>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => { setLeaving(m.id); setSuccessor(""); }} aria-label={`Remove ${m.name}…`}>Remove…</Button>
               )
             )}
           </li>
