@@ -5,7 +5,9 @@
   "workspaces": {
     ".": {
       // Scripts people and workflows run by path, and the self-hosting image's steps (docker/Dockerfile).
-      "entry": ["scripts/*.mjs", ".github/scripts/*.mjs", "docker/*.mjs"],
+      "entry": ["scripts/*.mjs", ".github/scripts/*.mjs", "docker/*.mjs", "scripts/automation-templates/generate.mjs"],
+      // The workflows' own JavaScript (n8n Code nodes), read as text by scripts/automation-templates/generate.mjs.
+      "ignore": ["scripts/automation-templates/{code,helpers}/*.js"],
       // scripts/code-health.mjs runs each package's own ESLint, from inside that package.
       "ignoreBinaries": ["eslint"]
     },
