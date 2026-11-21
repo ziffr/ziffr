@@ -32,7 +32,9 @@ export function emailLogo(look: Pick<ThemeLook, "logo">, max = 150_000): { conte
 
 /** What an email says, besides the brand: its paragraphs (the plain text, blank lines between them), a line under it
  * for the one-click stop link, and a short line shown before it opens (the preheader). */
-export type EmailContent = { text: string; stop?: { label: string; url: string }; preheader?: string };
+export type EmailContent = { text: string; stop?: { label: string; url: string }; preheader?: string;
+  /** Who is really behind the message, in Ziffr's own words; a fixed line in the footer that no Theme can change or remove. */
+  sentBy?: string };
 
 // Text becomes paragraphs; an address that starts with https:// or http:// becomes a link; a "> " line is a quote.
 function paragraphs(text: string, accent: string, rule: string): string {
@@ -71,7 +73,8 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
   const header = opts.logo
     ? `<img src="cid:${LOGO_CID}" alt="${esc(look.name)}" height="${height}" style="display:block;height:${height}px;width:auto;max-width:200px;border:0;">`
     : `<span class="ink" style="font:600 20px/1.2 ${stack(heading)};color:${base.ink};">${esc(look.name)}</span>`;
-  const footer = [look.footer, look.name].filter(Boolean);
+  // Ziffr's own identity stays in every email: whatever the Theme's footer says, this line says who sent it and through what.
+  const footer = [look.footer, content.sentBy ?? `Sent by Ziffr for ${look.name}`].filter(Boolean);
   const css = `
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
     ${themeIsDark || opts.scheme ? "" : `@media (prefers-color-scheme: dark) {

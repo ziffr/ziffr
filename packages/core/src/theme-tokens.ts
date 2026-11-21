@@ -1,7 +1,7 @@
 // Theme checks (GLOSSARY: Theme): a theme's tokens and slide settings before they are stored. Colours are hex,
 // fonts are known, sizes are sane, images are inline pictures of a limited size.
 import { FONTS, HEX } from "./themes";
-import { svgIsPlain } from "./theme-look";
+import { logoOk, svgIsPlain } from "./theme-look";
 import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
 const COLORS = ["canvas", "surface", "ink", "muted", "rule", "accent", "good", "bad", "band"] as const;
@@ -34,7 +34,8 @@ export function cleanSlides(s: ThemeSlides): ThemeSlides {
   const int = (v: number, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
   return {
     background_image: img(s?.background_image ?? null),
-    logo: img(s?.logo ?? null),
+    // A logo is held tighter than a background: 256 KB, 512 px, no WebP, a plain SVG (theme-look.ts).
+    logo: logoOk(s?.logo) ? s.logo : null,
     logo_ratio: Number(s?.logo_ratio) > 0 ? Math.min(20, Number(s.logo_ratio)) : 3,
     logo_position: POSITIONS.includes(s?.logo_position) ? s.logo_position : "top-right",
     logo_width: int(s?.logo_width, 40, 400, 140),

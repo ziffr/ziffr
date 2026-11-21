@@ -25,8 +25,8 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
   return (
     <LookScope look={look} className="mx-auto max-w-md rounded-2xl p-4 sm:p-6">
     <div>
-      <BrandBar look={look} className="mb-4" />
       <div className="rounded-2xl border bg-background p-6 shadow-sm">
+        <BrandBar look={look} plain className="mb-4" />
         <div className="text-xs text-muted-foreground">Hi {person.name.split(" ")[0]}, please report</div>
         <h1 className="mt-1 text-xl font-semibold">{m.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>

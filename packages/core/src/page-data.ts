@@ -17,6 +17,7 @@ import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
 import { workspaceLook } from "./workspace-look";
+import { publicLook } from "./brand-logo";
 import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
@@ -360,7 +361,7 @@ export async function submissionForm(code: string) {
   const [existing] = await openRows("observations", String(token.workspace_id), (existingRows ?? []) as Record<string, unknown>[]);
   const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
   // The page wears the Workspace's Theme (ticket #542): only its look (name, logo, colours, fonts) goes to the browser.
-  const look = await workspaceLook(String(token.workspace_id));
+  const look = publicLook(String(token.workspace_id), await workspaceLook(String(token.workspace_id)));
   return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, look };
 }
 

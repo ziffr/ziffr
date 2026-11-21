@@ -35,7 +35,9 @@ describe("emailHtml", () => {
   it("shows the preheader and the footer lines", () => {
     const html = emailHtml({ ...look, footer: "Line one" }, { text: "Hi", preheader: "Short" });
     expect(html).toContain("Short");
-    expect(html).toContain("Line one<br>Acme &lt;Co&gt;");
+    expect(html).toContain("Line one<br>Sent by Ziffr for Acme &lt;Co&gt;");
+    // Ziffr's own line is fixed: the Theme's footer cannot replace it, and a caller may name the person behind it.
+    expect(emailHtml(look, { text: "Hi", sentBy: "Sent by Ziffr for Ann (ann@x.test), who invited you to Acme." })).toContain("Sent by Ziffr for Ann (ann@x.test)");
   });
 });
 

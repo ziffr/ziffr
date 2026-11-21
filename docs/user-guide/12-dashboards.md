@@ -402,7 +402,7 @@ Open **View links…** in the **⋯** menu:
 | **Works until** | The last day it works: 30 days from today unless you change it, at most 90 days. |
 | **Freeze today's numbers** | The link keeps the values of today. Otherwise it shows live values until it ends. |
 
-The page a View Link opens is drawn in the dashboard's Theme and says whose numbers they are: a strip with the Theme's logo (or the Workspace's name) under a bar in its accent colour, and the Theme's footer line. A deck shows its logo and footer on every slide, as in the app. Only the Workspace's name goes along with what the link already showed.
+The page a View Link opens is drawn in the dashboard's Theme and says whose numbers they are: a strip with the Theme's logo (or the Workspace's name) under a bar in its accent colour, and the Theme's footer line. A deck shows its logo and footer on every slide, as in the app. Only the Workspace's name goes along with what the link already showed. A logo larger than 256 KB or 512 pixels on a side is not drawn; the Workspace's name stands in its place.
 
 **Make link and copy it** makes the link and puts it on your clipboard. Below, every link of this dashboard is listed with its name, "Live numbers" or "Frozen numbers", and until when it works. **Copy** copies it again; **Revoke** ends it at once. Ended and revoked links are crossed out.
 
