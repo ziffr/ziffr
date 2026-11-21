@@ -44,7 +44,7 @@ export default async function WorkspaceSettingsPage() {
         {/* Size and usage: Owners and Admins only (spec 0029); the demo has no limit to show. */}
         {usage && !demo && <div id="size" className="scroll-mt-4"><SizeAndUsage usage={usage} cloud={handoverOffered(actor)} /></div>}
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}
-        {!demo && <WorkspaceClock timeZone={time.timeZone} runHour={time.runHour} canEdit={canEdit} />}
+        {!demo && <WorkspaceClock timeZone={time.timeZone} runHour={time.runHour} weekStart={time.weekStart} canEdit={canEdit} />}
         <YearStartForm yearStart={year.yearStart} allowed={year.allowed} why={year.why} canEdit={canEdit} today={localTime(new Date(), time.timeZone).day} />
         <NumberStyleForm style={numbers.style} chosen={numbers.chosen} country={countryName(numbers.fromCountry)} canEdit={canEdit} />
         <AnswerLanguagesForm languages={answers.languages} options={Object.values(ANSWER_LANGUAGES).map(({ code, name }) => ({ code, name }))} chosen={answers.chosen} country={countryName(answers.fromCountry)} canEdit={canEdit} />

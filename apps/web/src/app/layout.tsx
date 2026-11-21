@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { dueValueCount, getProfiles, openActionCount } from "@/lib/data";
+import { dueValueCount, getPeopleIn, getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
@@ -11,7 +11,10 @@ import { AppShell } from "@/components/app-shell";
 import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
+import { demoRoles } from "@ziffr/core/team";
+import { can } from "@ziffr/core/actor";
 import { Tour } from "@/components/tour";
+import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
@@ -76,8 +79,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </html>
     );
   }
-  const [profiles, viewer] = await Promise.all([getProfiles(), viewerId()]);
-  const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
+  const [open, workspaceId, actor] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const { role } = actor;
+  // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
+  const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
@@ -88,10 +94,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The app layout (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
   const sidebar = (await layoutChoice()) === "sidebar";
   const due = sidebar ? await dueValueCount() : 0;
+  // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
+  const pinned = sidebar ? await pinnedDashboards(await currentActor()) : [];
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
-      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} />
+      <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} />
       {/* A full page load, not a client navigation (#14): the header is drawn again without the demo. */}
       <a href="/demo/leave" className="flex h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Leave the demo</a>
     </>
@@ -99,8 +107,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
   const demoNote = demo ? (
     <p className={sidebar ? "px-4 pt-3 text-xs text-muted-foreground sm:px-6" : "mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6"}>
-      Look around as anyone: nothing you do in the demo is saved, and nothing is sent.
-      {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
+      {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
+      <span className="md:hidden">The demo saves and sends nothing.</span>
+      <span className="max-md:hidden">Look around as anyone: nothing you do in the demo is saved, and nothing is sent.</span>
+      {offersTrials && <span className="max-md:hidden">{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</span>}
     </p>
   ) : null;
   const banners = (
@@ -120,7 +130,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {sidebar ? (
-          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
             {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
           </AppShell>
         ) : (
@@ -131,7 +141,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
           </>
         )}
-        {demo && <Tour />}
+        {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /></Suspense>
         <ServiceWorker />

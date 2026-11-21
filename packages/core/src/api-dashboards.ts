@@ -318,7 +318,8 @@ export async function listTemplatesWithKey(actor: KeyActor, kind?: ApiTemplate["
   if (!kind || kind === "view") {
     for (const id of KEY_VIEWS) out.push({ id, kind: "view", name: TEMPLATES[id].label, description: TEMPLATES[id].blurb, slots: [] });
   }
-  if (!kind || kind === "widget") {
+  // A Guest's key gets no team template: a Guest creates nothing (rule 3).
+  if ((!kind || kind === "widget") && actor.role !== "guest") {
     const { data } = await db().from("team_templates").select("id, name, description, slots").eq("workspace_id", actor.workspaceId).eq("kind", "widget").order("name");
     for (const t of (data ?? []) as Pick<WidgetTemplate, "id" | "name" | "description" | "slots">[]) {
       out.push({ id: t.id, kind: "widget", name: t.name, description: t.description, slots: t.slots.map((s) => ({ label: s.label, multiple: s.multiple, suggested: slugs(s.exampleIds) })) });

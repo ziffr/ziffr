@@ -28,6 +28,7 @@ import { setDashboardTheme } from "@/app/theme-actions";
 import { themeFor } from "@ziffr/core/themes";
 import { FirstRun } from "@/components/first-run";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
+import { PinButton } from "@/components/pinned-dashboards";
 import { setHome } from "@/app/home-actions";
 import { makeDeck } from "@/app/convert-actions";
 import { DashboardReader } from "@/components/dashboard-reader";
@@ -50,6 +51,8 @@ type Props = {
   closed?: { id: number; owner: string } | null;
   /** The dashboard Home opens for this person (their choice, or the default), for the switcher's mark. */
   homeId: number | null;
+  /** Whether the viewer pinned this dashboard to the sidebar. */
+  pinned: boolean;
   /** The Dashboard Templates a new dashboard can start from (empty for a Guest). */
   dashboardTemplates: DashboardTemplateSummary[];
   /** May start new dashboards (not a Guest). */
@@ -83,7 +86,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -128,6 +131,13 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   };
   const add = (s: DropSource) => place(s);
 
+  // The Grid and Read switch: in the toolbar row on every screen, the one button besides Share that a phone keeps there.
+  const viewToggle = current && (
+    <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
+      <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
+      <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
+    </div>
+  );
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const newDashboard = () => setNewOpen(true);
@@ -160,9 +170,9 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <p className="font-medium">No dashboards yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Create one, or ask a colleague to share theirs with you.</p>
-            <Button onClick={newDashboard} className="mt-4">Create dashboard</Button>
+            <p className="font-medium">{canCreate ? "No dashboards yet" : "Nothing has been shared with you yet"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{canCreate ? "Create one, or ask a colleague to share theirs with you." : "Ask whoever invited you."}</p>
+            {canCreate && <Button onClick={newDashboard} className="mt-4">Create dashboard</Button>}
           </div>
         ) : (
           <>
@@ -171,7 +181,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeId} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
-                  <span className="flex items-center gap-1.5"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
+                  <span className="flex items-center gap-1.5 max-md:hidden"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
                 </p>
                 {changing ? <DashboardText key={current.id} id={current.id} name={current.name} intro={current.intro ?? ""} /> : !reading && current.intro && <p className="mt-3 max-w-3xl whitespace-pre-line text-muted-foreground">{current.intro}</p>}
               </div>
@@ -179,6 +189,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 type="dashboard"
                 id={current.id}
                 people={data.people}
+                phone={<div className="md:hidden">{viewToggle}</div>}
                 share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals } : null}
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
@@ -197,10 +208,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
                 </button>
-                <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
-                  <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
-                  <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
-                </div>
+                <PinButton dashboardId={current.id} name={current.name} pinned={pinned} />
+                <div className="max-md:hidden">{viewToggle}</div>
                 <SnapshotMenu dashboardId={current.id} yearStart={data.yearStart} snapshots={snapshots} canTake={editable && canCreate} auto={current.role === "owner" ? { every: current.snapshot_every ?? null, waitDays: current.snapshot_wait_days ?? 5 } : null} />
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
                 {editable && !reading && (

@@ -7,7 +7,7 @@ import { listWebhooks } from "@ziffr/core/webhooks";
 import { webhookLog, type WebhookLogEntry } from "@ziffr/core/webhook-log";
 import { trialEndsAt } from "@ziffr/core/trials";
 import { sendingLimit } from "@ziffr/core/sending-limit";
-import { WEBHOOK_LOG_DAYS } from "@ziffr/core/webhook-limits";
+import { daysNow } from "@ziffr/core/keep-days";
 import { PageHeader } from "@/components/page-header";
 import { Webhooks } from "./webhooks";
 
@@ -28,7 +28,7 @@ export default async function WebhooksPage() {
   return (
     <>
       <PageHeader title="Webhooks" />
-      <Webhooks webhooks={webhooks} logs={logs} limits={{ most: await sendingLimit("webhooksPerWorkspace"), days: WEBHOOK_LOG_DAYS, perDay: await sendingLimit("webhookSendsPerWorkspace") }} />
+      <Webhooks webhooks={webhooks} logs={logs} limits={{ most: await sendingLimit("webhooksPerWorkspace"), days: await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS"), perDay: await sendingLimit("webhookSendsPerWorkspace") }} />
     </>
   );
 }

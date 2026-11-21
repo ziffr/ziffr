@@ -1,0 +1,5 @@
+{
+  "_kinds": ["internal", "redirect-only", "api", "demo-only"],
+  "apps/web/src/app/guide/page.tsx": { "kind": "internal", "reason": "the user guide itself" },
+  "apps/web/src/app/guide/[chapter]/page.tsx": { "kind": "internal", "reason": "the user guide itself" }
+}

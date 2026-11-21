@@ -34,6 +34,9 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
   // username only; its token stays in the environment (spec 0016).
   const [people, view, optedOut, demo, slack, slackLink, slackStopped, telegram, telegramLink, telegramStopped, { slack: outcome }] = await Promise.all([getProfiles(), connectorsView(actor), emailOptedOut(actor), isDemo(), slackConnection(actor), mySlackLink(actor), slackOptedOut(actor), telegramConnection(actor), myTelegramLink(actor), telegramOptedOut(actor), searchParams]);
   const ways = await whatWorksHere(actor);
+  // A Guest's page names only themselves and the people on the Deliveries shown to them, not the whole Workspace.
+  const named = new Set([viewer, ...view.deliveries.flatMap((d) => [d.recipient_id, d.sender_id] as (string | null)[])]);
+  const shownPeople = actor.role === "guest" ? people.filter((p) => named.has(p.id)) : people;
   return (
     <>
       <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
@@ -41,7 +44,7 @@ export default async function ConnectorsPage({ searchParams }: { searchParams: P
       {telegram.configured && <TelegramPanel connection={telegram} linked={Boolean(telegramLink)} stopped={telegramStopped} />}
       {/* The demo has no Access Keys, so it offers no assistant. */}
       {!demo && <McpPanel siteUrl={SITE_URL} remote={remoteMcpEnabled() ? mcpUrl() : null} />}
-      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={people} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={(await mailOn()) ? ((await inboundOn()) ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} />
+      <ConnectorsScreen viewer={viewer} isOwner={view.isAdmin} people={shownPeople} prefs={view.prefs as PrefRow[]} deliveries={view.deliveries as unknown as DeliveryRow[]} tokens={view.tokens} optedOut={optedOut} demo={demo} email={(await mailOn()) ? ((await inboundOn()) ? "both" : "send") : "off"} slack={slack.team ? "connected" : "off"} telegram={telegram.enabled ? "on" : "off"} ways={ways} />
     </>
   );
 }

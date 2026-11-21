@@ -50,6 +50,9 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `installPack` (packs.ts): Packs
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
+- `recordingOffer` (record-own-value.ts): the Metric page's Record a value form; a program submits through the API's own path
+- `recordingOffers` (record-own-value.ts): the Metrics list's Record a value forms; a program submits through the API's own path
+- `recordOwnValue` (record-own-value.ts): a person's Record a value form on the Metric page; a program submits through the API's own path (values with its Access Key)
 - `editSnapshotWords` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `showSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `deleteSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
@@ -76,6 +79,10 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 
 Acts as the person, with their own sign-in, Slack or Telegram account or email address.
 
+- `pinnedDashboards` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `pinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `unpinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `setPinnedOrder` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `askMeNow` (ask-now.ts): asking for one's own open Questions now
 - `approveConnection` (assistant-connections.ts): one's own assistant connections
 - `disconnectMine` (assistant-connections.ts): one's own assistant connections
@@ -146,6 +153,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `replaceWebhookSecret` (webhooks.ts): Webhooks settings (#401)
 - `setWebhookEnabled` (webhooks.ts): Webhooks settings (#401)
 - `deleteWebhook` (webhooks.ts): Webhooks settings (#401)
+- `webhookLog` (webhook-log.ts): Webhooks settings (#401); a read that only seems to write, since reading the settings may seal one again
 - `sendTestWebhook` (webhook-log.ts): Webhooks settings (#401)
 - `resendWebhookSend` (webhook-log.ts): Webhooks settings (#401)
 - `setWorkspaceClock` (workspace-clock.ts): Workspace settings
@@ -170,6 +178,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads sealed Breakdown labels and Condensed Values, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
 - `sourcesView` (page-data.ts): what a page reads
+- `workflowAskingRun` (workflows.ts): what a page reads; a program reads period status instead
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page

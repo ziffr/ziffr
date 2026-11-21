@@ -28,7 +28,8 @@ export function WhoCanSeeDialog({ type, id, people, onClose }: { type: ObjectTyp
   const [data, setData] = useState<Data | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const name = (pid: string) => people.find((p) => p.id === pid)?.name ?? pid;
+  // Someone this viewer is not shown (peopleFor) reads as "Someone", never as their id.
+  const name = (pid: string) => people.find((p) => p.id === pid)?.name ?? "Someone";
   const load = () => whoCanSee(type, id).then(setData).catch(() => setData(null));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
   return (

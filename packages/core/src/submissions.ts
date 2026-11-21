@@ -46,6 +46,10 @@ export type SubmissionInput = {
    * Metric Owner or an Owner or Admin chose to record it as history: for a past period with no value yet it is an
    * Import. Honoured on the web form only, the Source a signed-in person's own values arrive on. */
   paste?: { import?: boolean };
+  /** Set only by recordOwnValue (record-own-value.ts), never from what a browser sends: the value and period were typed
+   * on the Metric's own page by a signed-in Submitter and are already read into `value` and `period`. Honoured on the
+   * web form only. Unlike `paste`, it marks nothing and gives no right to record history. */
+  typed?: boolean;
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
@@ -192,8 +196,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A day, week or month is the same whatever the year start; quarters and years follow the workspace's.
   const ys: YearStart = metric.period === "quarter" || metric.period === "year" ? workspaceYearStart : JANUARY;
   const current = periodStart(new Date(), metric.period, ys);
-  // A program names its value and period; so does a paste, whose cells the paste reader has read already.
-  const given = input.source === "api" || pasted !== null;
+  // A program names its value and period; so does a paste, whose cells the paste reader has read already, and a value typed on the Metric's page.
+  const given = valueIsGiven(input, pasted !== null);
   const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
   const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
@@ -296,6 +300,11 @@ async function refusedByDatabase(error: { code?: string } | null, ws: string, me
   return null;
 }
 
+/** Whether the value and period come read already: a program's, a paste's, or one typed on the Metric's own page. */
+function valueIsGiven(input: SubmissionInput, pasted: boolean): boolean {
+  return input.source === "api" || pasted || (input.typed === true && input.source === "web_form");
+}
+
 /** How a value with the sender's only Token arrived, in words for the reply. */
 function viaWords(source: SourceId, pasted: boolean, feed: boolean): string {
   if (pasted) return "paste";
@@ -393,8 +402,9 @@ function askBack(a: Exclude<AnswerReading, { ok: true }>, metric: Metric, yearSt
   }
 }
 
-/** The people of a Workspace: members, then Contacts (flagged `contact`). A Contact's email, Slack handle and phone
- * are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages every member sees. */
+/** The people of a Workspace: members, then Contacts (flagged `contact`). Anyone's email, Slack handle and phone,
+ * member or Contact, are only loaded with `contactDetails`, for intake, Prompts and owners or admins; never for pages
+ * every member sees. What a person may be shown of these is peopleFor's (access.ts). */
 export async function peopleIn(ws: string, { contactDetails = false } = {}): Promise<Profile[]> {
   // The details are not even loaded unless asked for, so they cannot slip into a page.
   const columns: string = contactDetails ? "workspace_id, person_id, email, slack_handle, phone" : "workspace_id, person_id";
@@ -409,8 +419,13 @@ export async function peopleIn(ws: string, { contactDetails = false } = {}): Pro
   if (!ids.length) return [];
   const { data } = await db().from("profiles").select("*").in("id", ids);
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
+  // Security (AGENTS.md rule 3): pages hand these profiles to the browser, so a member's email, Slack handle and phone,
+  // and the sign-in account behind them, are not loaded unless `contactDetails` asks for them (intake, Prompts).
+  const named = (data ?? []).map((p) => contactDetails
+    ? { id: p.id, name: p.name, role: p.role, color: p.color, email: p.email, slack_handle: p.slack_handle, phone: p.phone ?? null }
+    : { id: p.id, name: p.name, role: p.role, color: p.color, email: "", slack_handle: "", phone: null });
   // Sorted here, not by the database: a Contact's name is sealed, so its order there means nothing.
-  const profiles = ((await openNames(ws, (data ?? []) as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
+  const profiles = ((await openNames(ws, named as Profile[])) as Profile[]).sort((a, b) => a.name.localeCompare(b.name));
   return peopleOf(ws, profiles.filter((p) => memberIds.has(p.id)), rows, profiles);
 }
 

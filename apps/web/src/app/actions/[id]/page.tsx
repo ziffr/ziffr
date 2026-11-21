@@ -21,6 +21,7 @@ import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { ApprovalBar } from "@/components/approval-bar";
 import { SelfCheckBar } from "@/components/self-check-bar";
 import { periodLabel } from "@ziffr/core/periods";
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 
 export default async function ActionPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
@@ -37,6 +38,10 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   const isAssignee = viewer === a.assignee_id;
   const isOwner = viewer === m.owner_id;
   const thread = msgs as ThreadMessage[];
+  // What changed against the period before: only from the periods around, which a viewer who does not see the Metric never gets.
+  const at = window.findIndex((p) => p.period === a.period_start);
+  const before = at > 0 ? window[at - 1] : null;
+  const change = before && obs && before.value !== 0 ? (obs.value - before.value) / Math.abs(before.value) : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -54,7 +59,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <Avatar p={people[a.asker_id]} />
           <div>
             <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[a.asker_id]?.name}</span> {a.kind === "task" ? "assigned" : "asked"} <span className="font-medium text-foreground">{people[a.assignee_id]?.name}</span> {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</div>
-            <h1 className="mt-0.5 text-lg font-semibold">{a.question}</h1>
+            <h1 className="mt-0.5 text-lg font-semibold">{a.purpose === "approval" ? approvalQuestionForWeb(a.question) : a.question}</h1>
           </div>
         </div>
         {chartMetric && window.length > 1 && <div className="mt-4"><MetricChart numberStyle={numberStyle} metric={chartMetric} points={window} markers={[a.period_start]} height={180} yearStart={yearStart} /></div>}
@@ -63,7 +68,18 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             Also in {externalLinks.map((l, i) => <span key={`${l.system}-${i}`}>{i > 0 && ", "}{l.url ? <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="underline">{l.system}</a> : l.system}</span>)}
           </p>
         )}
-        {a.purpose === "approval" && isAssignee && a.status === "open" && <ApprovalBar actionId={a.id} />}
+        {a.purpose === "approval" && isAssignee && a.status === "open" && (
+          <ApprovalBar actionId={a.id} current={obs?.value ?? null}>
+            {obs ? (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                <dt className="text-muted-foreground">Value</dt><dd className="fig text-base font-semibold">{formatValue(m, obs.value, numberStyle)}</dd>
+                <dt className="text-muted-foreground">Period</dt><dd>{periodLabel(a.period_start, m.period, yearStart)}</dd>
+                {before && <><dt className="text-muted-foreground">Period before</dt><dd><span className="fig">{formatValue(m, before.value, numberStyle)}</span>{change !== null && <span className="ml-2 text-muted-foreground">{change >= 0 ? "up" : "down"} {Math.abs(change * 100).toFixed(1)} %</span>}</dd></>}
+                <dt className="text-muted-foreground">Submitted by</dt><dd>{obs.submitter_id ? people[obs.submitter_id]?.name ?? "Someone who left" : "A program"}</dd>
+              </dl>
+            ) : null}
+          </ApprovalBar>
+        )}
         {a.purpose === "self_check" && isAssignee && a.status === "open" && <SelfCheckBar actionId={a.id} value={obs?.value ?? null} />}
         {sent.length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground">

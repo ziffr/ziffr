@@ -4,15 +4,17 @@
 // shows seven equal buttons.
 import { useState } from "react";
 import { Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareSheet } from "./share-sheet";
 import { WhoCanSeeDialog } from "./who-can-see";
 import { ViewLinksDialog } from "./view-links";
 import { useOpenVersions, VersionsSheetOpen } from "./versions-sheet";
 import { ThemePicker } from "./theme-picker";
 import type { Group, Profile, Share, Theme } from "@ziffr/core/types";
+import { cn } from "@/lib/utils";
 
 type Open = "who" | "links" | "theme" | null;
 
@@ -23,26 +25,36 @@ export type ObjectToolbarProps = {
   people: Profile[];
   /** Buttons that belong to this page, such as Present or Analyze, shown before Share. */
   children?: React.ReactNode;
+  /** On a phone only this stays in the row (with Share and ⋯), and `children` move into the ⋯ sheet (#535). */
+  phone?: React.ReactNode;
   share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
-  /** This page's own entries at the top of the ⋯ menu, such as Make a deck. */
-  menu?: { label: string; icon: React.ReactNode; onSelect: () => void }[];
+  /** This page's own entries at the top of the ⋯ menu, such as Make a deck. An entry with `sub` opens a submenu of
+   * choices instead (a dashboard to add to); `danger` marks one that cannot be undone; `separated` puts a rule above it. */
+  menu?: MenuEntry[];
+  /** The page's one main action (Record a value), shown first; Share then stops being the primary button. */
+  lead?: React.ReactNode;
 };
 
+/** One entry of a page's ⋯ menu. */
+export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean };
+
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
-export function ObjectToolbar({ type, id, people, children, share, viewLinks, theme, menu }: ObjectToolbarProps) {
+export function ObjectToolbar({ type, id, people, children, phone, share, viewLinks, theme, menu, lead }: ObjectToolbarProps) {
   const [open, setOpen] = useState<Open>(null);
+  const [sheet, setSheet] = useState(false);
   const openVersions = useOpenVersions();
   const close = () => setOpen(null);
   // Opened from a menu item: wait until the menu has closed and returned focus.
   const show = (o: Open) => () => setTimeout(() => setOpen(o), 0);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {children}
+      {lead}
+      {phone ? <><div className="flex flex-wrap items-center gap-2 max-md:hidden">{children}</div>{phone}</> : children}
       {share && (
         <ShareSheet
-          primary
+          primary={!lead}
           objectType={type}
           objectId={id}
           people={people}
@@ -53,12 +65,35 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
           ]}
         />
       )}
+      {phone && (
+        <>
+          <Button variant="outline" size="icon" aria-label={`More for this ${type}`} title={`More for this ${type}`} aria-haspopup="dialog" className="md:hidden" onClick={() => setSheet(true)}><MoreHorizontal aria-hidden /></Button>
+          <Sheet open={sheet} onOpenChange={setSheet}>
+            <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
+              <SheetHeader><SheetTitle>More for this {type}</SheetTitle></SheetHeader>
+              {/* The page's own buttons stacked one under the other, then the same entries as the menu on a bigger screen. */}
+              <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
+              <ul className="px-2 pb-3">
+                {[...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, go: () => { setSheet(false); m.onSelect?.(); } }]),
+                  { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
+                  ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
+                  ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
+                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }].map((r) => (
+                  <li key={r.label}><button type="button" onClick={r.go} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}</button></li>
+                ))}
+              </ul>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
       <DropdownMenu>
-        <DropdownMenuTrigger aria-label={`More for this ${type}`} title={`More for this ${type}`} className={buttonVariants({ variant: "outline", size: "icon" })}>
+        <DropdownMenuTrigger aria-label={`More for this ${type}`} title={`More for this ${type}`} className={cn(buttonVariants({ variant: "outline", size: "icon" }), phone && "max-md:hidden")}>
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          {menu?.map((m) => <DropdownMenuItem key={m.label} onClick={m.onSelect}>{m.icon} {m.label}</DropdownMenuItem>)}
+          {menu?.map((m) => (
+            <MenuRow key={m.label} m={m} />
+          ))}
           <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
           {viewLinks && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
           {theme && <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>}
@@ -78,5 +113,29 @@ export function ObjectToolbar({ type, id, people, children, share, viewLinks, th
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** An entry of the ⋯ menu: a choice, or a submenu of them. */
+function MenuRow({ m }: { m: MenuEntry }) {
+  const rule = m.separated ? <DropdownMenuSeparator /> : null;
+  if (m.sub) {
+    return (
+      <>
+        {rule}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>{m.icon} {m.label}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {m.sub.map((s) => <DropdownMenuItem key={s.key} onClick={s.onSelect}>{s.label}</DropdownMenuItem>)}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      </>
+    );
+  }
+  return (
+    <>
+      {rule}
+      <DropdownMenuItem variant={m.danger ? "destructive" : undefined} onClick={m.onSelect}>{m.icon} {m.label}</DropdownMenuItem>
+    </>
   );
 }

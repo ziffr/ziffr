@@ -12,6 +12,7 @@ import type { AskNowResult } from "@ziffr/core/ask-now";
 import type { GuideAsked, GuideStep, GuideValue, GuideWay, TrialGuide } from "@ziffr/core/trial-guide";
 import { dailyWay, type DailyWay } from "@ziffr/core/trial-guide-ways";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WayLine } from "@/components/way-state";
 import { askGuide, guideValue, moveGuide, skipGuide } from "./actions";
@@ -47,7 +48,7 @@ export function Guide({ guide, askEveryMinutes, siteUrl, mcpUrl }: { guide: Tria
   const back = () => go(STEPS[Math.max(at - 1, 0)].id);
 
   return (
-    <div className="mx-auto max-w-xl">
+    <Card className="mx-auto max-w-xl gap-0 p-6 sm:p-8">
       <div className="mb-8 flex flex-wrap items-baseline justify-between gap-2">
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Steps">
           {STEPS.map((s, i) => (
@@ -76,7 +77,7 @@ export function Guide({ guide, askEveryMinutes, siteUrl, mcpUrl }: { guide: Tria
         {step === "connect" && <Button onClick={() => next()} disabled={pending}>Next</Button>}
         {step === "done" && <Link href="/" className="text-sm underline">Leave the guide</Link>}
       </div>
-    </div>
+    </Card>
   );
 }
 

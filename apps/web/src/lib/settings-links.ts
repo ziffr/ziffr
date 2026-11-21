@@ -6,15 +6,18 @@ import type { WorkspaceRoleName } from "@ziffr/core/actor";
  * again who may read it. */
 export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: string }[] {
   const admin = role === "owner" || role === "admin";
+  // A Guest only sees what is shared with them and creates nothing (GLOSSARY: Workspace Role): no member list or
+  // Groups, no Workflows of their own to set up, no Packs, no Access Keys. The pages refuse or filter again in the core.
+  const member = role !== "guest";
   return [
     { href: "/settings/workspace", label: "General" },
-    { href: "/team", label: "Members and Groups" },
+    ...(member ? [{ href: "/team", label: "Members and Groups" }] : []),
     { href: "/connectors", label: "Connectors" },
-    { href: "/workflows", label: "Workflows" },
+    ...(member ? [{ href: "/workflows", label: "Workflows" }] : []),
     { href: "/sources", label: "Sources" },
     // Packs add to the Workspace; Guests see none of it (spec 0030).
-    ...(role !== "guest" ? [{ href: "/settings/packs", label: "Packs" }] : []),
-    { href: "/settings/keys", label: "Access Keys" },
+    ...(member ? [{ href: "/settings/packs", label: "Packs" }] : []),
+    ...(member ? [{ href: "/settings/keys", label: "Access Keys" }] : []),
     // Feeds write into the workspace without a person, so only Owners and Admins set them up (spec 0012).
     ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }] : []),
     // Webhooks send Workspace data to addresses outside Ziffr, so the same people set them (spec 0034).

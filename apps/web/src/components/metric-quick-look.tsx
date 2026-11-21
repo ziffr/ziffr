@@ -9,6 +9,7 @@ import { metricQuickLook } from "@/app/quick-look-actions";
 import type { QuickLook } from "@ziffr/core/quick-look";
 import { isActionError } from "@/lib/action-error";
 import { lookPanel, useOpenPanel, writePanel } from "@/lib/panel-param";
+import { RecordValue } from "@/app/metrics/[slug]/record-value";
 import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Change, TargetChip } from "@/components/target-chip";
@@ -35,8 +36,9 @@ function Panel({ slug }: { slug: string }) {
         <SheetDescription>Quick look</SheetDescription>
       </SheetHeader>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">{body}</div>
-      <div className="border-t border-border p-3">
-        <Link href={`/metrics/${encodeURIComponent(slug)}`} className={buttonVariants({ className: "w-full" })}>Open the Metric</Link>
+      <div className="flex flex-col gap-2 border-t border-border p-3">
+        {look.state === "ready" && look.look.record && <RecordValue offer={look.look.record} slideOver wide />}
+        <Link href={`/metrics/${encodeURIComponent(slug)}`} className={buttonVariants({ variant: look.state === "ready" && look.look.record ? "outline" : "default", className: "w-full" })}>Open the Metric</Link>
       </div>
     </>
   );

@@ -65,7 +65,8 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   const [log, setLog] = useState<string[] | null>(null);
   const [pending, start] = useTransition();
   const canEdit = isNew || current?.owner_id === viewer;
-  const first = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
+  // Someone this viewer is not shown (peopleFor) reads as "Someone", never as their id.
+  const first = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
   // A Feed is named in full, as on the Metric's page ("n8n (from the Trial guide)"), never by its id.
   const submitter = (id: string) => feeds.find((f) => f.id === id)?.name ?? first(id);
   const steps = cfg.steps;

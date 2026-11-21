@@ -4,7 +4,7 @@
 import { SENDING_LIMITS } from "./sending-limits";
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "marketplace" | "bots" | "trials" | "demo" | "usage";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trials" | "demo" | "usage";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
@@ -20,6 +20,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "slack", title: "Slack", purpose: "Ziffr's Slack app, which Workspaces connect to their Slack with one click.", ready: true },
   { id: "limits", title: "Workspace Limits", purpose: "The most Metrics a Workspace may hold, Archived Metrics not counted. Without a default or a limit of its own, a Workspace has no limit.", ready: true },
   { id: "sending", title: "Sending limits", purpose: "How much one Workspace, person or key may send and store in a day: emails, chat messages, Alerts, values, calls, Webhooks, sign-in links. They keep one Workspace or one program from using up the mail provider, the chat apps or the server. Each has a range, and none can be switched off. Lowering one never deletes or stops what exists: only what is new waits. The same for every Workspace, whatever its Metrics limit.", ready: true },
+  { id: "keep", title: "How long logs are kept", purpose: "How long the Audit Log, the log of calls by key, the log of Webhook sends and the View Counts are kept, and how many old values one night of Retention takes. What is older than this goes by itself; what is younger is never removed.", ready: true },
   { id: "marketplace", title: "Marketplace", purpose: "Owners and Admins find, install and update Packs from the Marketplace. Off unless turned on: then this server, never a browser, asks the Marketplace for lists of Packs, their files and which installed Packs have newer versions. It sends a search, a Pack's id and version, the list of Packs installed on this Installation and Ziffr's version; never a Workspace's name, id or data, nor anyone's. Every Pack is checked in full, and its signature too, before it is shown.", ready: true },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page: a bot cannot make Ziffr send sign-in links to any address it likes. Worth it on any Ziffr strangers can reach, and more so with trials.", ready: true },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace of their own, for how long and how many at once. With trials on, every Workspace made here is a trial.", ready: true },
@@ -57,6 +58,18 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "The most trials that may run at the same time. Empty: 200." },
   { name: "ZIFFR_TRIAL_THEN", section: "trials", label: "When a trial ends", secret: false, choices: [{ value: "delete", label: "Close it, and delete it a week later" }, { value: "keep", label: "Keep it as a Workspace on the default limit" }],
     help: "Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete." },
+  { name: "ZIFFR_KEEP_AUDIT_DAYS", section: "keep", label: "Days the Audit Log is kept", secret: false, placeholder: "730",
+    help: "365 to 3,650 (730 is two years). The Audit Log says who changed who may see or do what; below 730 days it is a weaker record. Never shorter than the age of an event that a Retention or an Approval still refers to." },
+  { name: "ZIFFR_KEEP_ACCESS_LOG_DAYS", section: "keep", label: "Days the log of calls by key is kept", secret: false, placeholder: "90",
+    help: "7 to 730. Which key called which address, and when. Shorter is more private; longer lets you answer for access a year back." },
+  { name: "ZIFFR_KEEP_WEBHOOK_LOG_DAYS", section: "keep", label: "Days the Webhook send log is kept", secret: false, placeholder: "14",
+    help: "1 to 90. The log an Owner reads to find out why a Webhook did not arrive. Shorter saves disk; longer gives time to find out why a partner stopped answering." },
+  { name: "ZIFFR_KEEP_VIEW_COUNT_DAYS", section: "keep", label: "Days View Counts are kept", secret: false, placeholder: "400",
+    help: "90 to 800. How often a dashboard, a deck or a Metric was opened per day, never by whom. Over a year lets you compare a quarter with last year's." },
+  { name: "ZIFFR_RETENTION_VALUES_PER_RUN", section: "keep", label: "Values one Retention takes a night", secret: false, placeholder: "5000",
+    help: "500 to 100,000. The most original values one Metric's Retention condenses in a night. Years of values take weeks to catch up at 5,000; more is more work for the database at night." },
+  { name: "ZIFFR_TRIAL_GRACE_DAYS", section: "trials", label: "Days a trial's data stays after it ends", secret: false, placeholder: "7",
+    help: "1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",
@@ -71,6 +84,12 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "Where the Marketplace is; empty: Ziffr's own. https only, and never inside this server's own network." },
   { name: "ZIFFR_DELETE_UNUSED_AFTER_DAYS", section: "limits", label: "Delete unused Workspaces after", secret: false, placeholder: "Never",
     help: "Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own." },
+  { name: "ZIFFR_LIMIT_GRACE_DAYS", section: "limits", label: "Days over the limit", secret: false, placeholder: "14",
+    help: "0 to 90. How long a Workspace may stay over its limit, within 10 % more, before new Metrics wait. 0: the limit holds at once." },
+  { name: "ZIFFR_LIMIT_GRACE_EVERY_DAYS", section: "limits", label: "Days between two such periods", secret: false, placeholder: "90",
+    help: "0 to 730. After a Workspace's days over the limit started, this many days must pass before it gets others. 0: a Workspace gets them again whenever it comes back under its limit." },
+  { name: "ZIFFR_UNUSED_WAIT_DAYS", section: "limits", label: "Days from warning to deletion", secret: false, placeholder: "14",
+    help: "7 to 90. How long after its warning an unused Workspace is deleted. The days promised in a warning that went out stay as they were told." },
   { name: "ZIFFR_USAGE_EXCLUDE_WORKSPACE", section: "usage", label: "Workspace left out", secret: false, placeholder: "None",
     help: "One Workspace, usually your own for the numbers, that is left out of every figure and of the count of Workspaces. Pick it by name; the setting holds its id." },
 ];

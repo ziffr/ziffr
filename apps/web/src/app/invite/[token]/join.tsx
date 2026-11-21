@@ -10,7 +10,7 @@ export function JoinButton({ token }: { token: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mt-6 space-y-2">
+    <div className="space-y-2">
       <Button type="button" className="w-full" disabled={pending} onClick={() => start(async () => { try { const r = await acceptInvite(token); if (isActionError(r)) setError(r.error); } catch { setError(UNEXPECTED); } })}>Join</Button>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>

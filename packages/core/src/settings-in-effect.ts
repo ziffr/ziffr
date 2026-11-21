@@ -5,6 +5,7 @@
 // every call; the database at most every few seconds, so a saved value takes effect without a restart.
 // It holds secrets: it stays on the server and is never handed to a page, a Connector or a browser.
 import { db } from "./db";
+import { CLOUD_PINNED, hostedByCloud } from "./installation-days";
 import { INSTALLATION_SETTINGS } from "./installation-catalogue";
 import { openSecretRotating, sealSecret } from "./secrets";
 
@@ -12,7 +13,7 @@ import { openSecretRotating, sealSecret } from "./secrets";
 export type Settings = Record<string, string | undefined>;
 
 /** Where a setting's value comes from: the server's environment, the page, the default, or nowhere. */
-export type SettingSource = "server" | "page" | "default" | "none";
+export type SettingSource = "server" | "page" | "default" | "none" | "cloud";
 
 /** How long the database's values are kept in memory before they are read again. */
 export const SETTINGS_CACHE_MS = 5_000;
@@ -70,13 +71,17 @@ export async function settingsInEffect(env: Settings = process.env): Promise<Set
   return merge(env, values);
 }
 
+/** Whether Ziffr Cloud pins this setting here: a hosted deployment, and one of the settings it keeps fixed. */
+export const pinned = (env: Settings, name: string): boolean => CLOUD_PINNED.has(name) && hostedByCloud(env);
+
 /** The environment with the stored values put in for every Installation Setting it leaves unset. */
 function merge(env: Settings, values: Map<string, string>): Settings {
   last = { values, at: Date.now() };
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
     if (isSet(env[name])) continue;
-    const v = values.get(name) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
+    // Pinned by Ziffr Cloud: only the server's environment gives it a value, never a row of the page.
+    const v = (pinned(env, name) ? undefined : values.get(name)) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
     if (v === undefined) delete out[name];
     else out[name] = v;
   }
@@ -98,7 +103,7 @@ export function settingsInEffectNow(env: Settings = process.env): Settings {
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
     if (isSet(env[name])) continue;
-    const v = (last && Date.now() - last.at < 60_000 ? last.values.get(name) : undefined) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
+    const v = (last && Date.now() - last.at < 60_000 && !pinned(env, name) ? last.values.get(name) : undefined) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
     if (v === undefined) delete out[name];
     else out[name] = v;
   }
@@ -109,5 +114,5 @@ export function settingsInEffectNow(env: Settings = process.env): Settings {
 export async function settingSources(env: Settings = process.env): Promise<Record<string, SettingSource>> {
   const { values } = await storedSettings();
   return Object.fromEntries(INSTALLATION_SETTINGS.map(({ name }) => [name,
-    isSet(env[name]) ? "server" : values.has(name) ? "page" : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
+    pinned(env, name) ? "cloud" : isSet(env[name]) ? "server" : values.has(name) ? "page" : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
 }

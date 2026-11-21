@@ -8,7 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { auditLog, AUDIT_EXPORT_CAP, AUDIT_RETENTION_DAYS, type AuditEvent } from "@ziffr/core/audit-log";
+import { auditLog, AUDIT_EXPORT_CAP, type AuditEvent } from "@ziffr/core/audit-log";
+import { auditKeptWords } from "@ziffr/core/audit-retention";
 import { formatDate } from "@ziffr/core/format";
 import { monthName, toYearStart } from "@ziffr/core/periods";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
@@ -56,7 +57,7 @@ function detailText(e: AuditEvent): string {
     case "schedule.read": return `${d.from && d.to ? `${d.from} to ${d.to}` : ""}${d.key_name ? `, with the key ${d.key_name}` : ""}`;
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
-    case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00`;
+    case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00${d.from_week_start !== d.to_week_start ? `, week starts on ${d.to_week_start === 0 ? "Sunday" : "Monday"}` : ""}`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;
     case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : followed(d)} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
@@ -87,21 +88,21 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Audit Log" sub={`Who changed who may see or do what, and when. Nothing here can be changed or removed; events are kept for ${AUDIT_RETENTION_DAYS / 365} years. Times are in ${timeZone}.`}>
+      <PageHeader title="Audit Log" sub={`Who changed who may see or do what, and when. Nothing here can be changed or removed; events are kept for ${await auditKeptWords()}. Times are in ${timeZone}.`}>
         <a href={`/audit/export${query(filter)}`} className={buttonVariants({ variant: "outline" })} download>Download CSV</a>
       </PageHeader>
       {demo && <p className="mb-4 text-sm text-muted-foreground">The demo keeps no Audit Log: its people are made up and anyone may act as them.</p>}
       <form method="get" action="/audit" className="mb-5 flex flex-wrap items-end gap-3 text-sm" aria-label="Filter the Audit Log">
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">Person</span>
-          <select name="person" defaultValue={filter.person ?? ""} className={field}>
+          <select name="person" defaultValue={filter.person ?? ""} className={`${field} w-full min-w-0`}>
             <option value="">Everyone</option>
             {[...named].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">What happened</span>
-          <select name="kind" defaultValue={filter.kind ?? filter.category ?? ""} className={field}>
+          <select name="kind" defaultValue={filter.kind ?? filter.category ?? ""} className={`${field} w-full min-w-0`}>
             <option value="">Everything</option>
             {(Object.entries(AUDIT_CATEGORIES) as [keyof typeof AUDIT_CATEGORIES, string][]).map(([cat, label]) => (
               <optgroup key={cat} label={label}>
@@ -111,11 +112,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             ))}
           </select>
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">From</span>
           <Input type="date" name="from" defaultValue={filter.from ?? ""} className="w-40" />
         </label>
-        <label className="grid gap-1">
+        <label className="grid w-full min-w-0 gap-1 sm:w-auto">
           <span className="text-muted-foreground">To</span>
           <Input type="date" name="to" defaultValue={filter.to ?? ""} className="w-40" />
         </label>

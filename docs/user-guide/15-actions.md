@@ -109,6 +109,10 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 | **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. If the Task is no longer open or no longer yours, the reason shows next to the button. Not on a Task that asks for Approval or for checking your own value. |
 | **Close Action** | For the asker: ends the Action. The Assignee hears that it was closed. Not offered on an open Approval: that ends when the Approver approves it or sends it back. |
 
+### Approving a value
+
+On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, and who submitted it, with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
+
 ### From open to closed
 
 An Action moves like this:
@@ -142,7 +146,7 @@ In the demo, to answer as someone else, switch **Viewing as** in the sidebar's f
 
 ## The Changes page
 
-Open **Workspace → Changes**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see.
+Open **Workspace → Changes**. The page lists every change to what people build, and every number that was replaced, newest first. Nothing on it can be edited. Everyone in the Workspace can open it, and each person sees only what they may see. A Guest sees changes to what is shared with them and to the Workflows of those Metrics, not to templates or Themes.
 
 ### What it lists
 
@@ -155,7 +159,7 @@ The page shows the latest 150 entries.
 
 ### Filtering by person
 
-The row of names at the top filters the list. **Everyone** shows all entries; a first name shows only that person's changes. Replaced values are not tied to a person, so they show only under **Everyone**.
+The row of names at the top filters the list. It names the people behind the changes you see, not everyone in the Workspace. **Everyone** shows all entries; a first name shows only that person's changes. Replaced values are not tied to a person, so they show only under **Everyone**.
 
 ### Changes, Versions and the Audit Log
 

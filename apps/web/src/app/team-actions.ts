@@ -75,9 +75,9 @@ export async function inviteMember(input: { email: string; role: WorkspaceRoleNa
 }
 
 /** Sets the workspace's time zone and the hour its Workflows run (spec 0005). */
-export async function setWorkspaceClock(input: { timeZone: string; runHour: number }) {
+export async function setWorkspaceClock(input: { timeZone: string; runHour: number; weekStart: number }) {
   return attempt(async () => {
-    await clock.setWorkspaceClock(await currentActor(), { timeZone: String(input?.timeZone ?? ""), runHour: Number(input?.runHour) });
+    await clock.setWorkspaceClock(await currentActor(), { timeZone: String(input?.timeZone ?? ""), runHour: Number(input?.runHour), weekStart: Number(input?.weekStart) });
     done();
   });
 }

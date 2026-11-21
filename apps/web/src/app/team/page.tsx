@@ -14,6 +14,8 @@ import type { WorkspaceRoleName } from "@ziffr/core/actor";
 export default async function TeamPage() {
   const viewer = await viewerId();
   const actor = await currentActor();
+  // A Guest sees only what is shared with them (the core refuses teamView too): not the members, roles or Groups.
+  if (actor.role === "guest") return (<><PageHeader title="Team" sub="Guests see what is shared with them. Ask an Owner or Admin who else is in this workspace." /></>);
   const [people, groups, team] = await Promise.all([getProfiles(), getGroups(), teamView(actor)]);
   const canEdit = actor.role === "owner" || actor.role === "admin";
   // A Contact's email, Slack handle and phone go only to owners and admins, who keep them.

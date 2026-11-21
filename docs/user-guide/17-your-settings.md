@@ -6,11 +6,11 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 ## Signing in
 
-The page **Sign in to Ziffr** opens whenever you are not signed in. Under its heading it says what Ziffr is: a metric tracker for anyone.
+The page **Sign in to Ziffr** opens whenever you are not signed in. It is a card with the form on one side and, beside it, a short line on what Ziffr is with a picture of the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out. Under its heading it says what Ziffr is: a metric tracker for anyone.
 
 On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
 
-On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** too, with two choices side by side. **Try it for real** (a Workspace of your own, starting with one Metric to try asking with) lists what works in a trial on this Ziffr (each way marked Real, Simulated or Off, with its limit), says what a trial asks of you, and has the sign-in form; where the Ziffr has set it up, a short check against bots by Cloudflare sits above the buttons; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. **Look around** opens the shared demo and says what it cannot do. See [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
+On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** too, with two choices one above the other. **Try it for real** (a Workspace of your own, starting with one Metric to try asking with) has **What works in a trial**, which opens to list what works in a trial on this Ziffr (each way marked Real, Simulated or Off, with its limit), says what a trial asks of you, and has the sign-in form; where the Ziffr has set it up, a short check against bots by Cloudflare sits above the buttons; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. **No account? Look around first**, below the form, opens the shared demo and says what it cannot do. See [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
 
 | Option | What it does |
 | --- | --- |
@@ -41,7 +41,7 @@ While you are in the demo, the footer of the sidebar shows two controls, **Viewi
 
 | Control | What it does |
 | --- | --- |
-| **Viewing as** | Pick one of the made-up people, shown by first name and job, such as "Anna, head of sales". Ziffr then shows exactly what that person sees and lets you act as them, including their Workspace Role. |
+| **Viewing as** | Pick one of the made-up people, shown by first name and Workspace Role, such as "Ben, Admin". The demo has an Owner (Sara), an Admin (Ben), Members and a Guest (Greta, an outside bookkeeper who sees only two Metrics and a dashboard shared with her). Ziffr then shows exactly what that person sees and lets you act as them. |
 | **Leave the demo** | Ends the visit. You go back to signing in, or to your own Workspace if you are signed in. |
 
 ### Demo controls
@@ -68,11 +68,13 @@ In the demo, the **Guided tour** sits at the bottom right. Choose it to open the
 6. **Make a deck** and export it.
 7. **Share** your dashboard and see what the other person gets.
 
+A Guest gets a shorter tour of three steps, since they create nothing: **Look at what is shared**, **Submit a value** and **Answer a question**.
+
 The circle in front of a step marks it done. The header shows how many are done and which comes next. The **−** button folds the tour down to a small round button that shows your progress; choose it to open the tour again. Your browser remembers where you are.
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards, Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
 
 ## The classic top bar
 
@@ -125,6 +127,8 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 
 ### On a phone
 
+On a phone the demo's note is one line, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so.
+
 On a phone the bar keeps the Ziffr name, the Search and Actions icons and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, Your Alerts, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
@@ -154,7 +158,7 @@ A value due leaves the list as soon as the value is in. While a colleague is Awa
 
 Above the schedule a switch chooses how it is shown: **List** (the lines above), **Week** or **Month**. Ziffr remembers your choice in this browser. The week and the month show the same duties on their days, nothing more; use the arrows to move to other weeks and months, up to about three months ahead, and **Today** to come back.
 
-- **Week** has a column for each day, Monday to Sunday, with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
+- **Week** has a column for each day, from the Workspace's first day of the week (Monday, unless an Owner or Admin chose Sunday in **Workspace → General**), with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
 - **Month** shows up to three cards per day, and **+ 2 more** opens that day's whole list below the grid. On a phone each day shows dots for its duties instead; touch a day to read its duties below the grid.
 - Something **Overdue** sits on today, marked as late, with the day it was originally due. Tasks without a due date and Questions stay under **No date**, in every view.
 - With the keyboard, the arrow keys move between days, Enter opens a day, and a screen reader reads each day with its duties as a list.

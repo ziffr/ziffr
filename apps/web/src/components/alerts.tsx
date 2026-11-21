@@ -12,9 +12,9 @@ import { conditionWords, DELIVERY_WORDS, standing } from "@/lib/alert-words";
 import { ALERT_SHARE_MAX, ALERT_SHARE_MIN, type AlertCondition, type AlertKind } from "@ziffr/core/alert-rules";
 import type { AlertChoices, AlertDelivery, MyAlert } from "@ziffr/core/alerts";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { usePanel } from "@/lib/panel-param";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { usePanel } from "@/lib/panel-param";
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 const KIND_LABEL: Record<AlertKind, string> = {
@@ -115,7 +115,7 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
 
 /** "Alert me…" on a Metric's page: a slide-over (`?panel=alert` is its direct URL) with the person's Alerts on this Metric, how near the limits they are,
  * and the form for another. Not shown in the demo, which is read-only. */
-export function AlertMe({ metric, mine, choices }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices }) {
+export function AlertMe({ metric, mine, choices, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: boolean }) {
   const [open, setOpen] = usePanel("alert");
   const { held } = choices;
   const full = held.person >= held.perPerson || held.metric >= held.perMetric;
@@ -130,7 +130,7 @@ export function AlertMe({ metric, mine, choices }: { metric: { id: number; name:
   );
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>
+      {!controlled && <SheetTrigger className={buttonVariants({ variant: "outline" })}>{trigger}</SheetTrigger>}
       <SheetContent>
         <SheetHeader><SheetTitle>Alert me about {metric.name}</SheetTitle></SheetHeader>
         <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>

@@ -6,7 +6,8 @@ import { Person } from "@/components/avatar";
 import { Sparkline } from "@/views/sparkline";
 import { getAllSeries, getNumberStyle, getProfileMap, getYearStart } from "@/lib/data";
 import { visibleMetricIds } from "@/lib/access";
-import { viewerId } from "@/lib/viewer";
+import { currentActor, viewerId } from "@/lib/viewer";
+import { can } from "@ziffr/core/actor";
 import { formatValue, health, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { Change, COLOUR_LEGEND, TargetChip } from "@/components/target-chip";
 import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
@@ -16,7 +17,9 @@ import { QuickLookButton } from "@/components/metric-quick-look";
 
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
-  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams]);
+  const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp, actor] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams, currentActor()]);
+  // One source for who may start things: the core's `can`. A Guest sees no button that would be refused.
+  const creates = can(actor, "create");
   const visible = await visibleMetricIds(viewer, all);
   const seen = all.filter((m) => visible.has(m.id));
   // Archived Metrics (GLOSSARY: Archived Metric) are listed only under their own filter.
@@ -27,12 +30,16 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Metrics" sub="Each metric is described once. Its values then arrive by chat, mail, a form link or the API.">
-        <Link href="/paste-values" className={buttonVariants({ variant: "outline" })}>
-          <ClipboardPaste aria-hidden /> Paste values
-        </Link>
-        <Link href="/metrics/new" className={buttonVariants()}>
-          <Plus aria-hidden /> New metric
-        </Link>
+        {creates && (
+          <Link href="/paste-values" className={buttonVariants({ variant: "outline" })}>
+            <ClipboardPaste aria-hidden /> Paste values
+          </Link>
+        )}
+        {creates && (
+          <Link href="/metrics/new" className={buttonVariants()}>
+            <Plus aria-hidden /> New metric
+          </Link>
+        )}
       </PageHeader>
 
       {(archivedCount > 0 || showArchived) && (
@@ -46,9 +53,9 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
         <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">No Archived Metrics. Archiving a Metric keeps its values and history and stops asking for it.</p>
       ) : metrics.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
-          <p className="font-medium">No metrics yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Describe your first one, or ask a colleague to share theirs.</p>
-          <Link href="/metrics/new" className={buttonVariants({ className: "mt-4" })}>New metric</Link>
+          <p className="font-medium">{creates ? "No metrics yet" : "Nothing has been shared with you yet"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{creates ? "Describe your first one, or ask a colleague to share theirs." : "Ask whoever invited you."}</p>
+          {creates && <Link href="/metrics/new" className={buttonVariants({ className: "mt-4" })}>New metric</Link>}
         </div>
       ) : (
         <>

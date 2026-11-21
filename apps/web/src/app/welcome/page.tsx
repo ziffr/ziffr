@@ -5,6 +5,7 @@ import { AskToJoin } from "./ask";
 import { myWorkspaces } from "@/lib/viewer";
 import { WelcomeForm } from "./form";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
+import { AuthHeading, AuthShell } from "@/components/auth-shell";
 
 export default async function WelcomePage({ searchParams }: { searchParams: Promise<{ another?: string }> }) {
   if (await isDemo()) redirect("/");
@@ -18,21 +19,19 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
   const trial = (await whatThisZiffrOffers()).trial;
   if (trial) {
     return (
-      <div className="mx-auto mt-16 max-w-sm">
-        <h1 className="text-[length:var(--text-2xl)] leading-tight">Start your trial</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <AuthShell>
+        <AuthHeading title="Start your trial">
           A Trial Workspace for you alone. It starts with one Metric, Cups of coffee, a Workflow that asks you for it each day and a small dashboard, so you can try how values arrive by email, Slack, Telegram, an assistant or a program. Nothing in it is made up: the first value is yours. Nobody else can be invited, and nothing is sent to anyone but you. It ends after {trial.days} days and is then deleted with everything in it.
-        </p>
+        </AuthHeading>
         <WelcomeForm />
-      </div>
+      </AuthShell>
     );
   }
   return (
-    <div className="mx-auto mt-16 max-w-sm">
+    <AuthShell>
       {joinable.length > 0 && <AskToJoin workspaces={joinable} />}
-      <h1 className="text-[length:var(--text-2xl)] leading-tight">Start a workspace</h1>
-      <p className="mt-2 text-sm text-muted-foreground">A workspace holds your metrics, dashboards and decks. You become its owner and can invite others. If a colleague already uses Ziffr, ask them to invite you instead.</p>
+      <AuthHeading title="Start a workspace">A workspace holds your metrics, dashboards and decks. You become its owner and can invite others. If a colleague already uses Ziffr, ask them to invite you instead.</AuthHeading>
       <WelcomeForm />
-    </div>
+    </AuthShell>
   );
 }

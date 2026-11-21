@@ -13,7 +13,7 @@ Choose **Dashboards** in the sidebar to see every dashboard you may open, in two
 - **Mine**: the dashboards you made. Each says "Yours".
 - **Shared with me**: dashboards a colleague shared with you. Each says who it is from and whether you "can edit it" or "can look at it".
 
-Your Home dashboard carries a small **Home** mark.
+Your Home dashboard carries a small **Home** mark. Each card has a **Pin** button at its right: it pins the dashboard to the sidebar (see [Pinning a dashboard](#pinning-a-dashboard)).
 
 At the top, if you may create dashboards:
 
@@ -22,7 +22,7 @@ At the top, if you may create dashboards:
 | **Name of the new dashboard** and **New dashboard** | Makes an empty dashboard with that name and opens it, ready to fill. If Ziffr refuses, for example because your role may no longer create, the reason shows below the field. |
 | **From a template…** | Opens the **New dashboard** window, where you can start from a Dashboard Template (see [Creating a dashboard](#creating-a-dashboard)). |
 
-If there is no dashboard yet, the list says "No dashboards yet" and suggests naming one or asking a colleague to share theirs.
+If there is no dashboard yet, the list says "No dashboards yet" and suggests naming one or asking a colleague to share theirs. A Guest sees no **New dashboard**, **From a template…** or **Create dashboard**, and the empty list says "Nothing has been shared with you yet. Ask whoever invited you."
 
 ### Your Home dashboard
 
@@ -45,6 +45,16 @@ Steps that are done stay in the list, crossed out. The demo has no checklist. Se
 A dashboard shows its name as a large heading. Below it, a line says whose it is: "Yours", or "Anna shared this with you as Editor" (or "as Viewer"). If the dashboard has an introduction, it follows.
 
 Every Widget writes its values in the Workspace's **Number Style** with each Metric's unit, such as "118.941 €" or "$1,200". Chart axes step by round numbers (1, 2, 2.5 or 5 times a power of ten) and write all their labels one way, all shortened or all in full; a chart of a single value starts at 0. Axes and labels shorten values from 10,000 on, such as "12.3k", "126k €" or "1.2M", and changes read like "+4.2 %". A negative value or change has the minus sign "−" in front, the unit too: "−1.200 €", "−$12.3k", "−3.5 %". Snapshots, View Links and Previews write numbers the same way, in the style the Workspace has now.
+
+### Pinning a dashboard
+
+For the dashboards you open every day, press **Pin** in the row of buttons above a dashboard, or the pin on its card in the list. The button then reads **Pinned**; press it again to unpin. Pinned dashboards appear in the sidebar under **Dashboards**, in the order you pinned them. You can pin up to eight; with eight pinned, Ziffr says so and asks you to unpin one first.
+
+- **Order**: drag a pinned dashboard up or down in the sidebar. Without a mouse, open the **⋯** menu on its row and choose **Move up** or **Move down**; **Unpin** is there too.
+- **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
+- **On a phone**, the pinned dashboards are the first thing **More** lists.
+- Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
+- In the demo nothing is saved, so pinning says so.
 
 ### Switching dashboards
 
@@ -113,7 +123,7 @@ A value that waits for **Approval** shows, marked "not approved yet" next to it,
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home**, **Pin**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
 
 ### The Pool
 
@@ -172,7 +182,7 @@ If a Widget draws a Metric you may not see, it shows "No access to this metric. 
 
 ### History
 
-**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), a table of its Comparisons, its **Questions and tasks**, any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it.
+**History** opens beside the Widget: the Metric's name and how many periods are on record, a small chart of its values (with marks where questions were asked), a table of its Comparisons, its **Questions and tasks** (an Approval reads as a plain question, without the chat words "Reply approve"), any **Superseded values** (with when they were replaced or removed), and every value with its period, how it came in and who sent it.
 
 ### Asking a question or assigning a task
 
@@ -376,7 +386,7 @@ At the bottom of the window, **Who can see this** and, for the owner, **View lin
 
 ### Who can see this
 
-**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access".
+**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
 
 When someone asked for access, the owner sees them first, under **Asking for access**, with **Grant as Viewer** and **Decline**.
 

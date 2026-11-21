@@ -2,6 +2,7 @@
 // workspace only; the decisions are made by the pure rules in visibility.ts, which ignore rows from any other one.
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
+import { openWorkflowRows } from "./workflow-rows";
 import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
@@ -9,7 +10,7 @@ import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMe
 import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn } from "./submissions";
-import type { Action, CanvasData, Dashboard, Group, Metric, Share, ShareRole, TeamTemplate, Theme } from "./types";
+import type { Action, CanvasData, Dashboard, Group, Metric, Profile, Share, ShareRole, TeamTemplate, Theme } from "./types";
 import { yearStartOf } from "./fiscal-year";
 import { condensedFor } from "./condensed-values";
 import { attainmentMethodOf, numberStyleOf } from "./workspace-settings";
@@ -156,6 +157,40 @@ export async function canvasSeries(actor: Actor, ids: unknown): Promise<CanvasSe
   return seriesFor(ws, metrics, visible, ids as number[]);
 }
 
+/** The people a person may be shown by name. A Member, Admin or Owner: everyone in the Workspace. A Guest, who sees
+ * only what is shared with them (GLOSSARY: Workspace Role): themselves and the people on what they see, that is the
+ * owners of their Metrics, dashboards and decks, those Metrics' Submitters and Stand-ins, and the people on the
+ * Threads they may read. Never anyone's email or Slack handle (peopleIn). */
+export async function peopleFor(actor: Pick<Actor, "workspaceId" | "personId" | "role">): Promise<Profile[]> {
+  const ws = actor.workspaceId;
+  const people = await peopleIn(ws);
+  if (actor.role !== "guest") return people;
+  const me = actor.personId;
+  const metrics = await getMetrics(ws);
+  const [seen, dashboards, decks, actions, { data: tokens }] = await Promise.all([
+    visibleMetricIds(ws, me, metrics), visibleDashboards(ws, me), visibleDecks(ws, me), readableActions(ws, me),
+    db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws),
+  ]);
+  const ids = (actions as { id: number }[]).map((a) => a.id);
+  const { data: authors } = ids.length ? await db().from("thread_messages").select("author_id").eq("workspace_id", ws).in("action_id", ids) : { data: [] };
+  const known = new Set<string>([me]);
+  for (const m of metrics) if (seen.has(m.id)) known.add(m.owner_id);
+  for (const d of [...dashboards, ...decks]) known.add(d.owner_id as string);
+  for (const t of tokens ?? []) if (seen.has(t.metric_id as number)) for (const id of [t.submitter_id, t.stand_in_id]) if (id) known.add(id as string);
+  for (const a of actions as { asker_id: string; assignee_id: string }[]) { known.add(a.asker_id); known.add(a.assignee_id); }
+  for (const a of authors ?? []) if (a.author_id) known.add(a.author_id as string);
+  // The Workflows of their Metrics are shown to them, so their owners, Approvers and the people they tell are named.
+  const flows = [...new Set(metrics.flatMap((m) => { const w = (m as Metric & { workflow_id?: number | null }).workflow_id; return seen.has(m.id) && typeof w === "number" ? [w] : []; }))];
+  const { data: rows } = flows.length ? await db().from("workflows").select("id, owner_id, config").eq("workspace_id", ws).in("id", flows) : { data: [] as Record<string, unknown>[] };
+  for (const w of await openWorkflowRows(ws, rows as Record<string, unknown>[] | null)) {
+    known.add(w.owner_id as string);
+    for (const st of ((w.config as { steps?: { approvers?: unknown; people?: unknown }[] } | null)?.steps ?? [])) {
+      for (const id of [...(Array.isArray(st.approvers) ? st.approvers : []), ...(Array.isArray(st.people) ? st.people : [])]) if (typeof id === "string") known.add(id);
+    }
+  }
+  return people.filter((p) => known.has(p.id));
+}
+
 /** Visible metrics + people + the series of the Metrics the page draws: everything a canvas starts from. Without
  * `seriesOf` every visible Metric's series is sent; pages pass the ones they show, and fetch more with canvasSeries. */
 export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf?: SeriesOf } = {}): Promise<CanvasData> {
@@ -180,6 +215,9 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   ]);
   const ids = await visibleMetricIds(ws, viewer, metrics);
   const visible = metrics.filter((m) => ids.has(m.id));
+  const guest = !me || me.role === "guest";
+  // A Guest's canvas names only the people on what they see (peopleFor), not the whole Workspace.
+  const named = guest ? await peopleFor({ workspaceId: ws, personId: viewer, role: "guest" }) : people;
   const wanted = opts.seriesOf === undefined ? [...ids] : typeof opts.seriesOf === "function" ? opts.seriesOf(visible) : opts.seriesOf;
   const { series, breakdowns, targets, projections, condensed } = await seriesFor(ws, metrics, ids, wanted);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
@@ -190,25 +228,28 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     viewer,
     metrics: visible,
     series,
-    people,
+    people: named,
     openActions,
     breakdowns,
     targets,
     projections,
     condensed,
-    templates: (templates ?? []) as TeamTemplate[],
+    templates: guest ? [] : ((templates ?? []) as TeamTemplate[]),
     // Guests place nothing; a row that no longer passes the checks is never sent.
     designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],
     themes: (themes ?? []) as Theme[],
     // Owners and admins manage themes (GLOSSARY: Workspace Role).
     canEditThemes: me?.role === "owner" || me?.role === "admin",
-    groups,
+    // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, and of
+    // their members only themselves: never who else is in which (AGENTS.md rule 3).
+    groups: guest ? groups.filter((g) => g.members.includes(viewer)).map((g) => ({ ...g, members: [viewer] })) : groups,
     pending: byMetric(states, "approval", ids),
     locked: byMetric(states, "locked", ids),
     yearStart,
     numberStyle,
     attainmentMethod,
-    submitters: (tokens ?? []).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
+    // Who submits, only for the Metrics the viewer sees: another Metric's id and its people are not theirs to know.
+    submitters: (tokens ?? []).filter((t) => ids.has(t.metric_id)).reduce<Record<number, string[]>>((acc, t) => ((acc[t.metric_id] ??= []).push(t.submitter_id), acc), {}),
   };
 }
 

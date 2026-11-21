@@ -22,16 +22,18 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 | Page | Who sees it in the menu | Covered |
 | --- | --- | --- |
 | **General** | Everyone | Below |
-| **Members and Groups** | Everyone | Below |
+| **Members and Groups** | Everyone but Guests | Below |
 | **Connectors** | Everyone | Below |
-| **Workflows** | Everyone | In [Workflows](11-workflows.md) |
+| **Workflows** | Everyone but Guests | In [Workflows](11-workflows.md) |
 | **Sources** | Everyone | Below |
 | **Packs** | Everyone but Guests | In [Packs](19-packs.md) |
-| **Access Keys** | Everyone | Below |
+| **Access Keys** | Everyone but Guests | Below |
 | **Feeds** | Owners and Admins | Below |
 | **Changes** | Everyone | [Actions and Changes](15-actions.md#the-changes-page) |
 | **Usage** | Owners and Admins | Below |
 | **Audit log** | Owners and Admins | Below |
+
+A Guest sees only what is shared with them. Their **Connectors** page shows their own Delivery Preferences, their **Workflows** are those of the Metrics shared with them (the page still opens from a link), and **Changes** lists changes to what they may see.
 
 General, Packs, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
@@ -41,7 +43,7 @@ In the sidebar (see [Signing in and your own settings](17-your-settings.md#the-s
 
 ## Starting a Workspace
 
-After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**.
+After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**, in the same card as the sign-in page, with the form on one side and the picture of the demo dashboard beside it. **Start your trial**, an Invitation's page and the Trial guide share that look.
 
 - Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
@@ -50,7 +52,7 @@ You can start another Workspace at any time from the Workspace switcher at the t
 
 ### On a Ziffr that offers trials
 
-Some Ziffrs, such as a public demo site, offer **Trial Workspaces** instead. What the page then says works in a trial, email first, follows what this Ziffr is set up with, also on its [Installation settings](18-installation-settings.md) page. The sign-in page then shows two choices side by side: **Try it for real** (a Trial Workspace of your own, with what works in it and its limits) and **Look around** (the shared demo). Where the Ziffr has set it up, a short check against bots by Cloudflare sits above **Send me a sign-in link**; the button works once it has passed. After signing in, **Start your trial** makes one Trial Workspace for you alone. It starts with one Metric, **Cups of coffee**, a Workflow that asks you for it each day and a small dashboard, **Your coffee**; nothing in it is made up, so the first value is yours. Add the Metrics you really track as in any Workspace; nobody else can be invited, nothing is sent to anyone but you, and it is deleted after the number of days the page names.
+Some Ziffrs, such as a public demo site, offer **Trial Workspaces** instead. What the page then says works in a trial, email first, follows what this Ziffr is set up with, also on its [Installation settings](18-installation-settings.md) page. The sign-in page then shows two choices one above the other: **Try it for real** (a Trial Workspace of your own, with **What works in a trial** and its limits) and, below the form, **No account? Look around first** (the shared demo). Where the Ziffr has set it up, a short check against bots by Cloudflare sits above **Send me a sign-in link**; the button works once it has passed. After signing in, **Start your trial** makes one Trial Workspace for you alone. It starts with one Metric, **Cups of coffee**, a Workflow that asks you for it each day and a small dashboard, **Your coffee**; nothing in it is made up, so the first value is yours. Add the Metrics you really track as in any Workspace; nobody else can be invited, nothing is sent to anyone but you, and it is deleted after the number of days the page names.
 
 A new trial opens on its **Trial guide**, one step at a time with the steps named at the top, **Back** and **Skip** on each, and **Skip the guide** to leave it. Until you reach Done or skip the guide, your home page and Try it bring you back to it at the step you reached; after that it opens only from **Trial guide** in the line above the page. **Welcome** says what happens: in a few minutes Ziffr asks you for a number and you answer it, for a Metric the trial has for this, **Cups of coffee** (asked daily, without history). **Where should Ziffr ask you?** lists email, Slack, Telegram and WhatsApp as they are on this Ziffr; only the ones marked **Real** can be picked, the others say why not. The web form is always there: every request carries your personal form link. Ziffr asks you once a day by one way, the first you pick of Telegram, Slack and email (email when you pick none), and the step says which: "From tomorrow Ziffr asks you by Telegram". **Connect** shows each picked way with a tick once it needs nothing more (email and the web form never do; where replies by email work, you can also just reply with the number; Slack and Telegram link to the Connectors page, with **Check again**). **Ask me now** sends today's request for Cups of coffee once by every way you picked, offers your form right there, and waits: the value shows the moment you answer. A way that could not take the request says so with a short reason. If nothing has come after about 20 seconds, it says where each request went and how to answer it (the form link in the email or a reply, or the Outbox when it stayed in Ziffr) and offers **Send it again** once ten minutes have passed since the last request. **Done** shows the value, says by which way Ziffr asks you from tomorrow with a link to **Your Deliveries** to change it, that the dashboard Your coffee fills as the days go by, and links to the Metric, the dashboards and Try it. Below, **Other ways to send numbers** shows the ways in that need no asking. **Claude or another AI assistant** (where this Ziffr serves assistants) gives the exact address to add as a custom connector in Claude.ai, with **Copy**, the steps to connect (pick this Workspace on Ziffr's page, and tick Submit values if the assistant should record numbers too) and a question to ask about Cups of coffee; a trial can have one connected assistant at a time. **A program such as n8n** has **Make a key for n8n**: it makes a Feed for Cups of coffee, named "n8n (from the Trial guide)", and a Feed Key that works until the trial ends, and shows the key once with **Copy**, the settings of n8n's HTTP Request node, and the same call for a terminal (a line that sets the key, then the curl command). With the key it offers a ready n8n workflow, filled in with this Ziffr's address, Cups of coffee and the key: **Download the n8n workflow** or **Copy it**, then in n8n open a new workflow, paste it (Ctrl/Cmd+V) or import the file, and press Execute workflow; a number from 1 to 5 arrives in Ziffr. The key sits in the workflow's request so it works at once; for real use it belongs in an n8n credential (Header Auth). The workflow is made in your browser from what the page shows, and nothing more is stored. Pressing it again makes no second Feed: it says a key already works, and **Replace the key** stops the old one and shows a new one.
 
@@ -112,8 +114,9 @@ Ziffr counts days, working days and Due Dates in the Workspace's own time.
 | --- | --- |
 | **Time zone** | Which day it is for this team. A value that is due "on the 3rd working day" is due by that day here. |
 | **Workflows run at** | The hour of the morning, in that time zone, at which Workflows ask for values, remind and escalate. |
+| **Week starts on** | Monday (the default) or Sunday: the first day of the week in the **Schedule**'s week and month views and the week it opens on. Metric periods do not move: a weekly value still covers Monday to Sunday and is named by its Monday. |
 
-Choose **Save** after changing either. Members and Guests see a single line, such as "Europe/Berlin, Workflows run at 07:00".
+Choose **Save** after changing any of them. Members and Guests see a single line, such as "Europe/Berlin, Workflows run at 07:00, weeks start on Monday".
 
 ### Fiscal year
 
@@ -174,7 +177,7 @@ In the demo nobody changes these settings: the page shows them without the contr
 
 ## Members and Groups
 
-**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Everyone sees it; only Owners and Admins see the buttons that change people and Groups.
+**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Owners, Admins and Members see it; only Owners and Admins see the buttons that change people and Groups. A Guest sees only what is shared with them, so the page shows them none of this.
 
 ### Members and their roles
 
@@ -185,7 +188,7 @@ The list shows each person with their role. Owners and Admins see a menu next to
 | **Owner** | Everything, including billing and making or removing Owners |
 | **Admin** | Manages settings, Themes, Groups and members, but not billing, and does not make or remove Owners |
 | **Member** | Creates and shares Metrics, dashboards and decks |
-| **Guest** | Sees only what is shared with them, answers questions and sends in values; creates nothing |
+| **Guest** | Sees only what is shared with them, answers questions and sends in values; creates nothing. Pages and lists show no buttons for what they cannot do (no **New metric**, **Paste values**, **New deck** or **Create dashboard**), and an empty list says "Nothing has been shared with you yet. Ask whoever invited you." |
 
 Pick another role and it changes at once. Only an Owner can make someone an Owner or change an Owner's role. The last Owner cannot step down: make someone else Owner first.
 
@@ -512,7 +515,9 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 ## Audit log
 
-**Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years. Times are shown in the Workspace's time zone.
+**Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years, or for the days the Installation Admin has set (the page says how long). Times are shown in the Workspace's time zone.
+
+On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the row of Settings pages above it scrolls sideways and fades out at its right edge to say so.
 
 ### What is recorded
 

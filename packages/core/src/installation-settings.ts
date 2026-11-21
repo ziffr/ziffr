@@ -17,6 +17,8 @@ import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
 import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
+import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
+import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting } from "./installation-days";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -110,8 +112,12 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
   ZIFFR_DELETE_UNUSED_AFTER_DAYS: (v) => (/^\d{1,4}$/.test(v) && Number(v) >= 30 && Number(v) <= 3650 ? null : "Unused Workspaces are deleted after a whole number of days from 30 to 3650, or never (empty)."),
   ...Object.fromEntries(SENDING_LIMITS.map((l) => [l.name, (v: string) => sendingLimitProblem(l, v)])),
+  ...Object.fromEntries(Object.keys(DAYS_SETTINGS).map((name) => [name, (v: string) => daysProblem(name, v)])),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
+
+/** The plain warning for an Audit Log kept for fewer than two years. */
+const AUDIT_SHORT_WARNING = (days: number) => `The Audit Log is kept for ${days.toLocaleString("en-US")} days, less than two years: events older than that are removed, and who did what back then can no longer be told.`;
 
 /** Why Telegram cannot send people's answers to this Ziffr, or null when it can (or polling fetches them, or Telegram
  * could not be asked: then the bot's own answer decides). Asked fresh each time, so Check Telegram shows at once. */
@@ -146,12 +152,15 @@ function problemOf(check: () => unknown): string | null {
   try { check(); return null; } catch (e) { return (e as Error).message; }
 }
 
+/** The warning while replies by email work without a provider that vouches for senders (ticket #513). */
+export const AUTHSERV_WARNING = "Replies by email are accepted by address alone: a forged sender could answer as someone else. Set the provider that vouches for senders, so only vouched-for senders are taken. Approvals are never taken by email either way.";
+
 /** Whether a section works with these settings, for the dot next to its title. */
 async function sectionWorks(id: SettingsSectionId, settings: Record<string, string | undefined>): Promise<{ working: boolean; detail: string | null }> {
   if (id === "mail") return { working: mailEnabled(settings), detail: null };
   if (id === "replies") {
     if (inboundEnabled(settings)) {
-      return { working: true, detail: settings.ZIFFR_INBOUND_AUTHSERV_ID ? null : "Without the provider that vouches for senders, replies are checked by their address alone, and Approvals are never taken by email." };
+      return { working: true, detail: settings.ZIFFR_INBOUND_AUTHSERV_ID ? null : AUTHSERV_WARNING };
     }
     const some = ["ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET"].some((n) => settings[n]);
     if (!some) return { working: false, detail: null };
@@ -189,6 +198,12 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
   if (id === "demo") {
     if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: "This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here." };
     return settings.ZIFFR_DEMO !== "0" ? { working: true, detail: "The login page offers Try the demo." } : { working: false, detail: "The login page does not offer the demo." };
+  }
+  if (id === "keep") {
+    const wrong = daysOutOfRange(settings);
+    if (wrong.length) return { working: false, detail: `${wrong.join(", ")} ${wrong.length === 1 ? "is" : "are"} outside the range allowed on the server, so the usual value applies.` };
+    const audit = daysSetting("ZIFFR_KEEP_AUDIT_DAYS", settings);
+    return { working: true, detail: audit < AUDIT_WARN_BELOW_DAYS ? AUDIT_SHORT_WARNING(audit) : null };
   }
   if (id === "limits") {
     const d = defaultLimitFrom(settings);
@@ -243,6 +258,7 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   for (const [name, raw] of Object.entries(input).slice(0, 20)) {
     const def = settingNamed(name);
     if (!def || def.section !== sec.id) throw new Error("That is not a setting of this section.");
+    if (sources[name] === "cloud") throw new Error(`${def.label} is set by Ziffr Cloud.`);
     if (sources[name] === "server") throw new Error(`${def.label} is set on the server; change it there.`);
     // Clearing or replacing the Workspace left out is as revealing as setting it (two days' totals differ by exactly
     // that Workspace), so only its Owner may, unless none is set or it no longer exists.
@@ -269,6 +285,13 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     if (value.length > MAX_VALUE) throw new Error(`${def.label} is too long.`);
     const problem = CHECKS[name]?.(value);
     if (problem) throw new Error(problem);
+    // The Audit Log is never kept for fewer days than a Retention or an Approval still refers to. Read fresh, and a
+    // read that fails refuses the change.
+    if (name === "ZIFFR_KEEP_AUDIT_DAYS") {
+      let refusal: string | null;
+      try { refusal = await auditKeepRefusal(Number(value)); } catch { throw new Error("The Audit Log's references could not be checked. Try again."); }
+      if (refusal) throw new Error(refusal);
+    }
     if (def.secret && !secretsKey()) throw new Error("Secret settings are sealed with ZIFFR_SECRETS_KEY, which this server does not have. Set it on the server first.");
     // The name as written passed; every address it resolves to must too. Sends check again and connect only to the
     // address they checked (mail.ts), so a name that changes its answer later reaches nothing new.
@@ -325,10 +348,13 @@ export async function saveInstallationSettings(actor: InstallationActor, section
     }
   }
   forgetStoredSettings();
-  // The default limit takes effect in the database at once, not with the next new Metric.
+  forgetAuditReference();
+  // The default limit and the grace days take effect in the database at once, not with the next new Metric.
   if (sec.id === "limits") await syncDefaultLimit(true);
   for (const { def, value } of changes) await recordInstallationEvent(actor.personId, value === null ? "setting.removed" : "setting.set", def.name);
   if (sec.id === "slack") return slackSaved(changes.some((c) => c.def.name === "ZIFFR_SLACK_SIGNING_SECRET" && c.value !== null));
+  const audit = changes.find((c) => c.def.name === "ZIFFR_KEEP_AUDIT_DAYS");
+  if (audit?.value && Number(audit.value) < AUDIT_WARN_BELOW_DAYS) return { notice: null, warning: AUDIT_SHORT_WARNING(Number(audit.value)) };
   if (!telegram) return { notice: null, warning: null };
   forgetTelegramBot();
   let warning: string | null = null;

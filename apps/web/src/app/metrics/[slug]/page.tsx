@@ -1,16 +1,15 @@
 // A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
+import { KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
-import { DeleteMetric } from "./delete-metric";
-import { ArchiveControl } from "./archive-metric";
 import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
@@ -36,14 +35,13 @@ import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MetricWorkspace } from "./workspace";
-import { PinMenu } from "./pin";
-import { AskNow } from "./ask-now";
+import { MetricToolbar } from "./metric-toolbar";
+import { recordingOffer } from "@ziffr/core/record-own-value";
+import { layoutChoice } from "@/lib/layout-choice";
 import { canAskNow } from "@ziffr/core/ask-now";
-import { buttonVariants } from "@/components/ui/button";
 import { MetricWorkflow } from "@/components/metric-workflow";
-import { AlertMeButton } from "./alert-me";
+import { alertMeData } from "./alert-me";
 import { RequestAccess } from "@/components/who-can-see";
-import { ObjectToolbar } from "@/components/object-toolbar";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { isDemo } from "@/lib/auth";
@@ -112,7 +110,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
         <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
         <p className="font-medium">{metric.name} isn’t shared with you</p>
-        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id]?.name} owns it.</p>
+        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id] ? `${peopleById[metric.owner_id].name} owns it.` : "Its owner can share it with you."}</p>
         <RequestAccess type="metric" id={metric.id} owner={peopleById[metric.owner_id]?.name.split(" ")[0] ?? "the owner"} />
       </div>
     );
@@ -120,7 +118,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const actor = await currentActor();
   // Only a Metric this person sees is counted (the refusal above returns first); a number, never a person.
   void countView(actor, { kind: "metric", id: metric.id });
-  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile, archivable] = await Promise.all([
+  const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile, archivable, record, alertMe] = await Promise.all([
     readableActions(viewer, { metricId: metric.id }),
     metricExtras(actor, metric.id, metric.period),
     visibleDashboards(viewer),
@@ -135,6 +133,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     workspaceProfile(actor),
     // Owners, Admins and its owner archive it and bring it back (GLOSSARY: Archived Metric).
     canArchiveMetric(actor, metric.id),
+    // Record a value is for someone who submits the Metric; the offer is null for everyone else (ticket #521).
+    recordingOffer(actor, metric.id),
+    alertMeData({ id: metric.id, name: metric.name }, demo),
   ]);
   const { tokens, workflows, workflowId, state: wfState, period: wfPeriod, pending } = extras;
   const markers = [...new Set(actions.map((a) => a.period_start))];
@@ -178,17 +179,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         }
         sub={metric.description}
       >
-        {/* Only the owner shares a metric, so only they get the Share button; everyone gets the ⋯ menu. */}
-        <ObjectToolbar type="metric" id={metric.id} people={people} share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null}>
-          {askable && <AskNow metricId={metric.id} />}<AlertMeButton metric={{ id: metric.id, name: metric.name }} demo={demo} />
-          <Link href={`/analyze?add=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Sparkles /> Analyze</Link>
-          {/* Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over. */}
-          {can(actor, "create") && !metric.formula && <Link href={`/metrics/new?copy=${metric.id}`} className={buttonVariants({ variant: "outline" })}><Copy /> Duplicate</Link>}
-          <PinMenu metricId={metric.id} dashboards={dashboards.filter((d) => d.role !== "viewer")} />
-          {/* Only the owner deletes a Metric; the demo's Metrics stay for every visitor. */}
-          <ArchiveControl metricId={metric.id} name={metric.name} archived={Boolean(metric.archived_at)} allowed={archivable && !demo} />
-          {isOwner && !demo && <DeleteMetric metricId={metric.id} name={metric.name} />}
-        </ObjectToolbar>
+        {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
+        <MetricToolbar
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug }} record={record} slideOver={(await layoutChoice()) === "sidebar"} askable={askable}
+          share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices } : null}
+          canDuplicate={can(actor, "create") && !metric.formula} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
+          archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
+        />
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} />
 
@@ -388,7 +385,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <li key={a.id}>
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
-                      <span className="flex-1">{a.question}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
+                      <span className="flex-1">{approvalQuestionForWeb(a.question)}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
                       <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, yearStart, true)}</span>
                       <Person p={peopleById[a.assignee_id]} />
                     </Link>

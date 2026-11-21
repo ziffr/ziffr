@@ -34,6 +34,8 @@ export type TellEditorFacts = {
 
 /** The Groups and, for a saved Workflow the actor owns, who each Tell step reaches and who it skips. */
 export async function tellEditorFacts(actor: Actor, workflowId: number | null): Promise<TellEditorFacts> {
+  // A Guest makes no Workflows, so they are not shown the Workspace's Groups to tell (rule 3).
+  if (actor.role === "guest") return { groups: [], webhooks: [], steps: [] };
   const groups = (await getGroups(actor.workspaceId)).map((g) => ({ id: g.id, name: g.name, members: g.members.length }));
   const webhooks = mayManageWebhooks(actor) ? (await listWebhooks(actor)).map((w) => ({ id: w.id, name: w.name, enabled: w.enabled, hearsAlerts: w.events.includes("alert.fired") })) : [];
   if (workflowId === null || !Number.isInteger(workflowId)) return { groups, webhooks, steps: [] };

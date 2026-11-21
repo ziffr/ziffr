@@ -15,6 +15,7 @@ import { addWorkingDays, dueDate, workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { tokenValid } from "./tokens";
+import { weekStartOf, type WeekStart } from "./schedule-calendar";
 import type { Metric, Period, WorkflowConfig } from "./types";
 
 /** What kind of duty an entry is. */
@@ -97,9 +98,9 @@ export function checkSpan(span: { from: unknown; to: unknown }, today: string): 
   return { from: span.from, to: span.to };
 }
 
-/** Monday to Sunday of the week a day falls in: the span a Schedule shows when none is given. */
-export function weekOf(day: string): { from: string; to: string } {
-  const from = periodStart(day, "week", 1);
+/** The week a day falls in, from the Workspace's first day of the week (Monday unless it says Sunday): the span a Schedule shows when none is given. */
+export function weekOf(day: string, weekStart: WeekStart = 1): { from: string; to: string } {
+  const from = weekStartOf(day, weekStart);
   return { from, to: plusDays(from, 6) };
 }
 
@@ -131,12 +132,12 @@ type Ctx = { today: string; lo: string; hi: string; timeZone: string; yearStart:
 /** The Workspace's today and the facts every entry is worked out from. */
 async function loadContext(ws: string, now: Date) {
   const [{ data: wsRow }, yearStart, { data: flows }] = await Promise.all([
-    db().from("workspaces").select("time_zone").eq("id", ws).single(),
+    db().from("workspaces").select("time_zone, week_start").eq("id", ws).single(),
     yearStartOf(ws),
     db().from("workflows").select("id, config").eq("workspace_id", ws),
   ]).then(async ([a, b, c]) => [a, b, { data: await openWorkflowRows(ws, c.data) }] as const);
   const timeZone = String(wsRow?.time_zone ?? "UTC");
-  return { timeZone, today: localTime(now, timeZone).day, yearStart, workflows: new Map((flows ?? []).map((w) => [w.id as number, w.config as WorkflowConfig])) };
+  return { timeZone, weekStart: (wsRow?.week_start === 0 ? 0 : 1) as WeekStart, today: localTime(now, timeZone).day, yearStart, workflows: new Map((flows ?? []).map((w) => [w.id as number, w.config as WorkflowConfig])) };
 }
 
 /** A value due for a period: built the same for Metrics with and without a Workflow. */
@@ -283,7 +284,7 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   assertScope(actor, "metrics:read");
   const person = await whose(actor, span.personId);
   const base = await loadContext(actor.workspaceId, now);
-  const week = weekOf(base.today);
+  const week = weekOf(base.today, base.weekStart);
   const { from, to } = checkSpan({ from: span.from ?? week.from, to: span.to ?? week.to }, base.today);
   const entries = await entriesOf(actor, person, base, from, to);
   if (person !== actor.personId) await auditTeammateRead(actor, person, from, to);

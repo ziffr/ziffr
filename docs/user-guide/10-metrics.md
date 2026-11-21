@@ -32,7 +32,7 @@ The list shows every Metric you may see, one row each.
 
 Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
-Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
+Each row also has a **Quick look** button beside the Metric's name (it shows on hover or keyboard focus, and always on a phone). It opens a panel on the right, over the list, with the latest value and its on-target label, the change, a trend line, the **Target** and **Owner**, and the latest six values, with **Open the Metric** at the bottom. For a Metric you submit, the panel also has **Record a value**, the same form as on the Metric's page (see below). The same button sits beside a Widget's title on a dashboard. **Esc** or **Close** closes it and you are back where you were; while it is open the keys stay inside it, and on a phone it fills the screen. The page address ends in `?panel=metric-` and the Metric's short name, so a link to it opens the panel.
 
 ## Paste values from a spreadsheet
 
@@ -111,7 +111,7 @@ The list shows the Metrics in use. Once a Metric you may see is archived, two fi
 - **Start from scratch**: an empty form, for a number nobody has described before.
 - **Metric Catalog**: a library of ready-made descriptions. Picking one copies its description into a new Metric of your own. It is yours from then on and does not follow later changes to the catalog. Besides the entries every Workspace has, it holds those of the Packs your Workspace installed, under each entry's category or the Pack's name (see [Packs](19-packs.md)).
 
-Owners, Admins and Members create Metrics. Guests create nothing. When the Workspace has a **Workspace Limit** and holds as many Metrics as it allows (see [Installation settings](18-installation-settings.md)), the form says so at the top, such as "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size.", and creating waits until a Metric is archived or the limit is raised. Values keep arriving for every Metric meanwhile. From 90 % of the limit on, the page shows how many Metrics the Workspace holds of how many, such as "This Workspace holds 48 of 50 Metrics." Guests see neither.
+Owners, Admins and Members create Metrics. Guests create nothing: they see no **New metric**, **Paste values** or Metric Catalog, and the Metrics list says "Nothing has been shared with you yet" when nothing is. When the Workspace has a **Workspace Limit** and holds as many Metrics as it allows (see [Installation settings](18-installation-settings.md)), the form says so at the top, such as "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size.", and creating waits until a Metric is archived or the limit is raised. Values keep arriving for every Metric meanwhile. From 90 % of the limit on, the page shows how many Metrics the Workspace holds of how many, such as "This Workspace holds 48 of 50 Metrics." Guests see neither.
 
 ### Finding a Metric in the catalog
 
@@ -179,22 +179,25 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**.
 
-If a Metric is not shared with you, its page says "… isn't shared with you", names its owner, and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
+If a Metric is not shared with you, its page says "… isn't shared with you", names its owner (for a Guest who is not shown the owner: "Its owner can share it with you"), and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
 ### The buttons at the top
 
+A Metric's page has one main button, and the rest sit in the **⋯** menu.
+
 | Button | What it does | Who sees it |
 | --- | --- | --- |
-| **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went, why it stayed in the Outbox, or why it could not ask now, such as when it already asked in the last ten minutes. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
-| **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
-| **Alert me…** | Opens a panel on the right with your Alerts on this Metric and a form to set another: Ziffr tells you once when the latest value **reaches a share of its target**, **reaches a value** (at or above), **falls below a value**, **changes more than a share** against the period before, or **has no value the day after its Due Date**. Choose a way to be told (your usual way, email, Slack or Telegram) and whether to **Include values not approved yet**; off, you hear only about published or approved values. A kind the Metric cannot give is greyed out with the reason: a share needs a target with a percentage, the Due Date needs a Workflow. The dialog says how many Alerts you hold against the limits (20 in a Workspace, 5 on one Metric) before you hit them. Each Alert can be paused, edited or deleted there. With the preview layout on, it opens as a panel on the right instead of a dialog, with the same content. Not shown in the demo, and not for an Archived Metric. | Everyone with a sign-in who sees the Metric |
-| **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
-| **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
-| **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
-| **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
-| **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
+| **Record a value** | Opens a form (a slide-over in the sidebar layout, a dialog in the top-bar layout) to type this Metric's value for the current period, or for one of the eleven before it, optionally with a **Breakdown** (**Add a breakdown**). It goes the way a value sent by your form link does: the Metric's **Submission Rule**, **Locks**, **Workflow** (checks and **Approvals**) and **Retention** apply, and the answer is written in plain words, such as "Replaced 100 with 120" or that the period is locked and the value went to the Metric Owner as a proposed correction. The period shows what it already holds. | Whoever submits the Metric (holds a form link for it, or stands in for someone who does) while it takes values on the web form; not for a Derived Metric or an Archived one. Nobody else sees it, Owners and Admins included. In the demo it says so and records nothing |
 | **Share** | Gives people or Groups access (see below). | The Metric Owner |
-| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. | Everyone who sees the Metric |
+| **⋯** → **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went, why it stayed in the Outbox, or why it could not ask now, such as when it already asked in the last ten minutes. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
+| **⋯** → **Alert me…** | Opens a panel on the right with your Alerts on this Metric and a form to set another: Ziffr tells you once when the latest value **reaches a share of its target**, **reaches a value** (at or above), **falls below a value**, **changes more than a share** against the period before, or **has no value the day after its Due Date**. Choose a way to be told (your usual way, email, Slack or Telegram) and whether to **Include values not approved yet**; off, you hear only about published or approved values. A kind the Metric cannot give is greyed out with the reason: a share needs a target with a percentage, the Due Date needs a Workflow. The dialog says how many Alerts you hold against the limits (20 in a Workspace, 5 on one Metric) before you hit them. Each Alert can be paused, edited or deleted there. With the preview layout on, it opens as a panel on the right instead of a dialog, with the same content. Not shown in the demo, and not for an Archived Metric. | Everyone with a sign-in who sees the Metric |
+| **⋯** → **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
+| **⋯** → **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
+| **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
+| **⋯** → **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
+| **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
+| **⋯** → **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
+| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
 | **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
 
 ## The Overview tab
@@ -211,7 +214,7 @@ The chart draws the Metric's values over time. A daily Metric shows its last 90 
 | The question | Filled in for you, such as "Why is cost so high in March?" when the value is off target. Change it as you like. |
 | **Assign Action** | Sends the **Question** and opens its page, where the **Thread** continues. |
 
-See [Actions](15-actions.md) for what happens next. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
+See [Actions](15-actions.md) for what happens next. On a Metric's page and its period page, an Approval in the list of Actions reads as a plain question ("Approve Revenue for Oct 2026: 118,941 €, below target."), without the chat words "Reply approve"; opening it shows the buttons. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
 
 ### Comparisons
 

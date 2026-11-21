@@ -21,18 +21,20 @@ import type { DashboardTemplate } from "./types";
 export type DashboardTemplateSummary = Pick<DashboardTemplate, "id" | "owner_id" | "name" | "description" | "slots" | "body"> & { widgets: number };
 
 /** A template by id: a built-in one by its text id, a team one by number, only of the actor's workspace. */
-export async function dashboardTemplate(actor: Pick<Actor, "workspaceId">, id: number | string): Promise<DashboardTemplate | null> {
+export async function dashboardTemplate(actor: Pick<Actor, "workspaceId" | "role">, id: number | string): Promise<DashboardTemplate | null> {
   if (typeof id === "string" && !/^\d+$/.test(id)) return BUILT_IN_DASHBOARD_TEMPLATES.find((t) => t.id === id) ?? null;
   const n = Number(id);
-  if (!Number.isInteger(n)) return null;
+  // A Guest gets the built-in templates only, never one of the team's by id (rule 3).
+  if (!Number.isInteger(n) || actor.role === "guest") return null;
   const { data } = await db().from("team_templates").select("id, owner_id, kind, name, description, slots, body").eq("id", n).eq("workspace_id", actor.workspaceId).eq("kind", "dashboard").maybeSingle();
   return (data as DashboardTemplate | null) ?? null;
 }
 
 /** The built-in Dashboard Templates and the team's own. A Slot's suggested Metrics are cut to the ones this person
  * sees: a template is seen by the whole team, its original Metrics are not (rule 3). */
-export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | "personId">, visible?: ReadonlySet<number>): Promise<DashboardTemplateSummary[]> {
-  const { data } = await db().from("team_templates").select("id, owner_id, kind, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "dashboard").order("name");
+export async function listDashboardTemplates(actor: Pick<Actor, "workspaceId" | "personId"> & Pick<Actor, "role">, visible?: ReadonlySet<number>): Promise<DashboardTemplateSummary[]> {
+  // A Guest creates nothing: the built-in templates only, never the team's (rule 3).
+  const { data } = actor.role === "guest" ? { data: [] } : await db().from("team_templates").select("id, owner_id, kind, name, description, slots, body").eq("workspace_id", actor.workspaceId).eq("kind", "dashboard").order("name");
   // A page that already decided what the person sees passes it, so visibility is not worked out twice.
   const seen = visible ?? await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
   return [...BUILT_IN_DASHBOARD_TEMPLATES, ...((data ?? []) as DashboardTemplate[])].map((t) => ({

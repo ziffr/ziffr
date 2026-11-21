@@ -20,13 +20,13 @@ function limitWords(r: WorkspaceLimitRow): string {
 }
 
 /** The list, one row per Workspace, each with a form to change its limit. */
-export function WorkspaceLimits({ rows }: { rows: WorkspaceLimitRow[] }) {
+export function WorkspaceLimits({ rows, pinned = false }: { rows: WorkspaceLimitRow[]; pinned?: boolean }) {
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium">Workspaces</h3>
       {rows.length ? (
         <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
-          {rows.map((r) => <LimitRow key={r.workspaceId} row={r} />)}
+          {rows.map((r) => <LimitRow key={r.workspaceId} row={r} pinned={pinned} />)}
         </ul>
       ) : <p className="text-sm">No Workspaces yet.</p>}
     </div>
@@ -34,7 +34,7 @@ export function WorkspaceLimits({ rows }: { rows: WorkspaceLimitRow[] }) {
 }
 
 /** One Workspace: its numbers, who set its limit, and the form. */
-function LimitRow({ row: r }: { row: WorkspaceLimitRow }) {
+function LimitRow({ row: r, pinned }: { row: WorkspaceLimitRow; pinned: boolean }) {
   const [open, setOpen] = useState(false);
   const [metrics, setMetrics] = useState(r.own && r.limit !== null ? String(r.limit) : "");
   const [label, setLabel] = useState(r.own ? r.label ?? "" : "");
@@ -54,14 +54,14 @@ function LimitRow({ row: r }: { row: WorkspaceLimitRow }) {
         <span className="fig">{n(r.metrics)} Metric{r.metrics === 1 ? "" : "s"}</span>
         <span className="text-muted-foreground">Limit: {limitWords(r)}</span>
         {r.overSince && <span className="text-[var(--color-ink-2)]">Over its limit since <RelativeTime at={r.overSince} /></span>}
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setOpen(!open)} aria-expanded={open}>Change</Button>
+        {pinned ? <span className="ml-auto text-xs text-muted-foreground">Set by Ziffr Cloud</span> : <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setOpen(!open)} aria-expanded={open}>Change</Button>}
       </div>
       {r.own && r.setAt && (
         <p className="text-xs text-muted-foreground">
           Set by {r.setBy === "cloud" ? "Ziffr Cloud" : r.setByName ?? "an Installation Admin"} <RelativeTime at={r.setAt} />{r.setBy === "cloud" && ". Saving here overrides it until Ziffr Cloud sets it again"}
         </p>
       )}
-      {open && (
+      {open && !pinned && (
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => { e.preventDefault(); save({ metrics, label }); }}

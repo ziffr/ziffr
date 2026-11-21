@@ -1,4 +1,5 @@
 "use client";
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -378,7 +379,7 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
           <div className="mb-1 text-xs font-medium text-muted-foreground">Questions and tasks</div>
           {h.actions.map((a) => (
             <Link key={a.id} href={`/actions/${a.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted">
-              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{a.question}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, data.yearStart, true)}</span>
+              <StatusDot status={a.status} kind={a.kind} /> <span className="flex-1 truncate">{approvalQuestionForWeb(a.question)}</span> <span className="text-muted-foreground">{periodLabel(a.period_start, m.period, data.yearStart, true)}</span>
             </Link>
           ))}
         </div>

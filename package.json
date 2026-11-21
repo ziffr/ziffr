@@ -38,7 +38,11 @@
       "postcss@<8.5.23": "8.5.23",
       "sharp@<0.35.5": "^0.35.5",
       "image-size@<2.0.3": "^2.0.3",
-      "minimatch@>=10 <11.0.1": "^11.0.1"
+      "minimatch@>=10 <11.0.1": "^11.0.1",
+      "vitest>vite": "7.3.8",
+      "@vitest/mocker>vite": "7.3.8",
+      "qs@<6.16.1": "^6.16.1",
+      "form-data@<4.0.6": "^4.0.6"
     },
     "auditConfig": {
       "ignoreGhsas": [

@@ -207,6 +207,18 @@ describe("the span and today", () => {
     await expect(schedule(a, { from: "2026-11-01", to: "2027-01-30" }, NOW)).resolves.toBeTruthy();
   });
 
+  it("cuts the default week at the Workspace's first day of the week", async () => {
+    const w = await ws(); const sara = await w.person("owner");
+    const m = await w.metric(sara, { name: "Calls", period: "day", created_at: LONG_AGO });
+    const due = (date: string) => action(w, { metric_id: m.id, period_start: "2026-11-01", asker_id: sara, assignee_id: sara, kind: "task", due_date: date, question: `Task ${date}` });
+    // Today is Thursday 19 November: Monday to Sunday ends on the 22nd, Sunday to Saturday on the 21st.
+    await due("2026-11-21"); await due("2026-11-22");
+    const days = async () => (await schedule(w.actor(sara), {}, NOW)).days.map((d) => d.date);
+    expect(await days()).toEqual(["2026-11-21", "2026-11-22"]);
+    await db().from("workspaces").update({ week_start: 0 }).eq("id", w.id);
+    expect(await days()).toEqual(["2026-11-21"]);
+  });
+
   it("takes today from the Workspace's time zone", async () => {
     const w = await ws(); const sara = await w.person("owner");
     await db().from("workspaces").update({ time_zone: "Pacific/Kiritimati" }).eq("id", w.id);
