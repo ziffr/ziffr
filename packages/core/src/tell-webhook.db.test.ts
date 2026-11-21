@@ -91,6 +91,10 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     const row = (await sends(c.w))[0];
     expect(Object.keys(row).sort()).toEqual(["action_id", "attempts", "claimed_at", "created_at", "delivered_at", "failure", "id", "last_attempt_at", "metric_id", "next_attempt_at", "period_start", "reason", "source_type", "source_webhook_id", "state", "status_code", "tell_step_id", "thread_message_id", "type", "webhook_id", "workflow_id", "workspace_id"]);
     expect(row.tell_step_id).toBe("step-one-aaaa");
+    // Every other column, apart from ids and timestamps, is checked as a whole word for the value and the name.
+    const free: Record<string, unknown> = { ...row };
+    for (const k of ["id", "workspace_id", "webhook_id", "workflow_id", "metric_id", "source_webhook_id", "action_id", "thread_message_id", "created_at", "next_attempt_at", "claimed_at", "last_attempt_at", "delivered_at", "period_start"]) delete free[k];
+    for (const [k, v] of Object.entries(free)) expect(String(v), k).not.toMatch(/\bSales\b|\b120\b/);
     expect(await sendWaitingWebhooks(100, scope)).toEqual({ sent: 1, failed: 0 });
     const msg = JSON.parse(seen[0].body) as { type: string; workspace: { id: string }; data: Record<string, unknown> };
     expect(seen[0].headers["x-ziffr-event"]).toBe("alert.fired");
