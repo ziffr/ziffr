@@ -53,7 +53,10 @@ describe("sending by Slack", () => {
     expect(posts()).toHaveLength(before + 1);
     expect(post.token).toBe((await slackBot(w.id))!.token);
     expect(post.params.text).toContain("Reply with the number, here in the thread.");
-    expect(JSON.parse(post.params.blocks)[1].elements).toMatchObject([{ action_id: "ziffr_stop", value: String(d.id) }]);
+    // The buttons sit in an attachment, which carries the side bar in the Workspace Theme's (readable) accent.
+    const [attachment] = JSON.parse(post.params.attachments);
+    expect(attachment.blocks[1].elements).toMatchObject([{ action_id: "ziffr_stop", value: String(d.id) }]);
+    expect(attachment.color).toMatch(/^#[0-9A-F]{6}$/);
   });
 
   it("adds the form link only to the message, never to the text the Outbox keeps", async () => {

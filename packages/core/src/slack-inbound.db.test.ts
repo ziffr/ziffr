@@ -151,7 +151,7 @@ describe("answers by Slack", () => {
     const { data: tok } = await db().from("tokens").select("code").eq("metric_id", m.id).eq("submitter_id", ann).single();
     expect((await submitValue({ source: "web_form", sender: tok!.code, text: "500" })).detail).toMatch(/approval asked/);
     const task = await sent(w.id, ben);
-    expect(JSON.parse(slack.of("chat.postMessage").at(-1)!.params.blocks)[1].elements[0].action_id).toBe("ziffr_approve");
+    expect(JSON.parse(slack.of("chat.postMessage").at(-1)!.params.attachments)[0].blocks[1].elements[0].action_id).toBe("ziffr_approve");
     await slackUserFor(bot, ann);
     expect(await receiveSlackInteraction(press(bot, annSlack, task, "ziffr_approve"))).toBe("wrong_user");
     expect(await receiveSlackInteraction({ ...press(bot, benSlack, task, "ziffr_approve"), container: { channel_id: task.slack_channel, message_ts: "1600000000.000100" } })).toBe("unknown_thread");

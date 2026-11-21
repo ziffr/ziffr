@@ -310,7 +310,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Theme**:
-A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. A Theme can be written as a file and read back from one.
+A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one.
 _Avoid_: Master, skin, style, brand kit, palette
 
 **Standard Theme**:

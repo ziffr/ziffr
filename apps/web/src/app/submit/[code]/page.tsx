@@ -8,6 +8,8 @@ import { formatValue, RULE_LABEL } from "@ziffr/core/format";
 import { SubmitForm } from "./submit-form";
 import { TelegramConnect } from "./telegram-connect";
 import { periodLabel } from "@ziffr/core/periods";
+import { BrandBar } from "@/components/brand-bar";
+import { LookScope } from "@/components/look-scope";
 
 /** The personal form link's page. It reads nothing from its query string: the result of a submission comes back from
  * the server action into the form (ticket 183), so no link can put its own words on this page. */
@@ -18,9 +20,12 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
   if (!form) notFound();
   // Telegram is offered only where the workspace turned it on (spec 0016).
   const telegram = await formTelegramLink(code);
-  const { metric: m, person, period, current } = form;
+  const { metric: m, person, period, current, look } = form;
+  // The page is drawn in the Workspace's Theme (ticket #542): the look is all of it that came here, checked for contrast.
   return (
-    <div className="mx-auto max-w-md">
+    <LookScope look={look} className="mx-auto max-w-md rounded-2xl p-4 sm:p-6">
+    <div>
+      <BrandBar look={look} className="mb-4" />
       <div className="rounded-2xl border bg-background p-6 shadow-sm">
         <div className="text-xs text-muted-foreground">Hi {person.name.split(" ")[0]}, please report</div>
         <h1 className="mt-1 text-xl font-semibold">{m.name}</h1>
@@ -35,6 +40,8 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
       <p className="mt-4 text-center text-xs text-muted-foreground">
         This is your own link for {m.name}; anyone with it can submit. <Link href={`/metrics/${m.slug}`} className="underline">Open metric</Link>
       </p>
+      {look.footer && <p className="mt-2 text-center text-xs text-muted-foreground">{look.footer}</p>}
     </div>
+    </LookScope>
   );
 }

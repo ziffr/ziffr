@@ -11,7 +11,7 @@
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { db } from "./db";
 import { audit } from "./audit-log";
-import { headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { brandedParts, headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { linkTo } from "./deliveries";
 import { refuseInDemo } from "./demo";
 import { assertNotTrial } from "./trials";
@@ -313,7 +313,8 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
     const sender = (await openNames(actor.workspaceId, who ? [who] : []))[0]?.name as string | undefined;
     let emailState: "sent" | "failed" = "sent";
     try {
-      await sendMail({ to: String(row.recipient_email), ...viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: linkTo(`/v/${token}`), endsOn: String(row.ends_on), message: row.message }) }, transport);
+      const mail = viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: linkTo(`/v/${token}`), endsOn: String(row.ends_on), message: row.message });
+      await sendMail({ to: String(row.recipient_email), ...mail, ...(await brandedParts(actor.workspaceId, { text: mail.text })) }, transport);
     } catch {
       emailState = "failed";
     }

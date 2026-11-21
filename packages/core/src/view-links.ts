@@ -43,6 +43,8 @@ export type ViewPayload = {
   /** Set when the link shows a Snapshot (spec 0013): which period, and when it was taken. */
   snapshot?: { label: string; takenAt: string };
   asOf: string;
+  /** The Workspace's name, for the frame of the page a View Link opens on (ticket #542); set only by openViewLink. */
+  workspaceName?: string;
 };
 
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
@@ -156,6 +158,15 @@ export function deckAsOf(document: unknown): Map<number, string> {
  * `count`, a link that works also adds to its dashboard's or deck's View Count (spec 0031): once, a number and no
  * visitor, in the background, never delayed or stopped by it. The page passes false for a prefetch or a HEAD. */
 export async function openViewLink(token: string, opts: { count?: boolean } = {}): Promise<ViewPayload | null> {
+  const view = await openLinkContent(token, opts);
+  if (!view) return null;
+  // The page's frame says whose numbers these are: the Workspace's name, and (in the Themes it already carries) its
+  // logo and colours. Nothing else about the Workspace leaves with it (AGENTS.md rule 3).
+  const { data: link } = await db().from("view_links").select("workspaces(name)").eq("token", token).maybeSingle();
+  return { ...view, workspaceName: (link?.workspaces as unknown as { name: string } | null)?.name ?? undefined };
+}
+
+async function openLinkContent(token: string, opts: { count?: boolean }): Promise<ViewPayload | null> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;

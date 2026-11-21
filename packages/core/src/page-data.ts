@@ -16,6 +16,7 @@ import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
 import { workingPeriod } from "./workflow-rules";
 import { STARTER_THEME } from "./themes";
+import { workspaceLook } from "./workspace-look";
 import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
@@ -358,7 +359,9 @@ export async function submissionForm(code: string) {
   const { data: existingRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   const [existing] = await openRows("observations", String(token.workspace_id), (existingRows ?? []) as Record<string, unknown>[]);
   const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
-  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null };
+  // The page wears the Workspace's Theme (ticket #542): only its look (name, logo, colours, fonts) goes to the browser.
+  const look = await workspaceLook(String(token.workspace_id));
+  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, look };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */

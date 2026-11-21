@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@ziffr/core/page-data", () => ({
   submissionForm: async () => ({
     metric: { name: "Cups of coffee", description: "Cups today.", slug: "cups-of-coffee", unit: "cups", format: "number", period: "day", submission_rule: "overwrite", decimals: 0 },
+    look: { name: "Northwind", logo: null, logoRatio: 3, logoWidth: 140, footer: "", canvas: "#F3F4F6", surface: "#FFFFFF", ink: "#14161A", muted: "#565C66", rule: "#D8DBE0", accent: "#2F5BEA", fontHeading: "inter", fontBody: "inter" },
     person: { name: "Sara Owner" }, period: "2026-11-19", current: null, yearStart: 1, numberStyle: "1,234.5",
   }),
 }));

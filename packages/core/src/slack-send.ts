@@ -11,6 +11,7 @@ import { sendingLimitDefault } from "./sending-limits";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
+import { workspaceLook } from "./workspace-look";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
@@ -95,7 +96,11 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     const opened = await callSlack("conversations.open", { users: user }, bot.token);
     const channel = (opened.channel as { id?: unknown } | undefined)?.id;
     if (typeof channel !== "string" || !/^[A-Z0-9]{3,24}$/.test(channel)) throw new SlackError("no_channel");
-    const posted = await callSlack("chat.postMessage", { channel, text: text.slice(0, 3000), blocks, unfurl_links: false, unfurl_media: false }, bot.token);
+    // The one thing of the Theme Slack can show: a side bar in the accent (Block Kit has no colours of its own), which
+    // only an attachment carries. A Theme that cannot be read leaves the message as it was, with no bar.
+    const color = await workspaceLook(d.workspace_id).then((l) => l.accent, () => null);
+    const message = color ? { attachments: [{ color, blocks }] } : { blocks };
+    const posted = await callSlack("chat.postMessage", { channel, text: text.slice(0, 3000), ...message, unfurl_links: false, unfurl_media: false }, bot.token);
     const ts = typeof posted.ts === "string" && /^[0-9]{1,12}\.[0-9]{1,8}$/.test(posted.ts) ? posted.ts : null;
     if (!ts) throw new SlackError("no_ts");
     await db().from("deliveries").update({ mail_state: "sent", attempts: Number(d.attempts) + 1, sent_at: new Date().toISOString(), provider_id: ts, slack_channel: channel, slack_ts: ts, last_error: null }).eq("id", id);

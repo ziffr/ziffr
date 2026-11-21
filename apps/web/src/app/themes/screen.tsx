@@ -21,6 +21,7 @@ import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import type { Problem } from "@ziffr/core/json-check";
 import { FONTS, slideDesign } from "@ziffr/core/themes";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
+import { EmailPreview } from "./email-preview";
 import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -38,7 +39,7 @@ const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontB
 ];
 
 /** Themes: the Workspace's own, Ziffr's standard ones to add, and Theme files to import and export. `standardKey` is set when a standard Theme is being looked at before it is added. */
-export function ThemesScreen({ data, current, standardKey }: { data: CanvasData; current: Theme; standardKey: string | null }) {
+export function ThemesScreen({ data, current, standardKey, workspaceName }: { data: CanvasData; current: Theme; standardKey: string | null; workspaceName: string }) {
   const router = useRouter();
   const [t, setT] = useState<ThemeTokens>(current.tokens);
   const [slides, setSlides] = useState<ThemeSlides>(current.slides);
@@ -179,6 +180,7 @@ export function ThemesScreen({ data, current, standardKey }: { data: CanvasData;
           </div>
         </ThemeScope>
       </div>
+      <EmailPreview theme={draft} workspaceName={workspaceName} />
 
       {importing && <ImportDialog onClose={() => setImporting(false)} onImported={(id) => { setImporting(false); toast.success("Theme imported"); router.push(`/themes?id=${id}`); router.refresh(); }} />}
       {versions && (
