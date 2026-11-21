@@ -3,7 +3,7 @@
 // Metric shows while a confirmed Retention waits for its first day. Pure: it reads and writes nothing, so the pages and
 // the core say the same thing. The rules of what a Retention does to which period are retention-rules.ts.
 import { format } from "date-fns";
-import { parseRetention, type Retention } from "./retention-rules";
+import { canCondense, parseRetention, type Retention, type RetentionMetric } from "./retention-rules";
 
 /** The words people see when a changed numbers' preview no longer matches what the core finds. */
 export const NUMBERS_CHANGED = "The numbers changed; look again.";
@@ -88,4 +88,45 @@ export function storedCap(value: unknown): RetentionCap | null {
   const periods = count(v.periods), values = count(v.values), hp = count(v.held_back_periods), hv = count(v.held_back_values);
   if (typeof v.id !== "string" || typeof v.confirmed_on !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.confirmed_on) || periods === null || values === null || hp === null || hv === null) return null;
   return { id: v.id, confirmed_on: v.confirmed_on, periods, values, held_back_periods: hp, held_back_values: hv };
+}
+
+/** A Retention as a program reads it on a Metric (GLOSSARY: Retention): the setting in force and the one confirmed but
+ * not yet started with its first day. Never who confirmed it or the counts it was shown. */
+export type ApiRetention = { retention: Retention | null; retention_pending: (Retention & { starts_on: string }) | null };
+
+/** The Retention fields of a Metric as stored, for the API and the MCP Server: only the setting and the first day. */
+export function retentionForApi(retention: unknown, pending: unknown): ApiRetention {
+  const p = storedPending(pending);
+  return { retention: storedRetention(retention), retention_pending: p ? { ...p.retention, starts_on: p.starts_on } : null };
+}
+
+/** A suggested setting as a link carries it ("condense.24.month", "delete.36"): the Usage page sends it, the Metric page
+ * reads it back through the same checks as any browser input, so a made-up link can only ever pre-fill a form. */
+export function retentionToParam(r: Retention): string {
+  return r.then === "delete" ? `delete.${r.keep_months}` : `condense.${r.keep_months}.${r.into}`;
+}
+
+/** The setting a link carries, or null when it carries none that is valid. */
+export function retentionFromParam(param: unknown): Retention | null {
+  if (typeof param !== "string" || param.length > 40) return null;
+  const [then, keep, into, ...rest] = param.split(".");
+  if (rest.length || !/^\d{1,4}$/.test(keep ?? "") || (then === "delete" && into !== undefined)) return null;
+  const parsed = parseRetention(then === "delete" ? { keep_months: Number(keep), then } : { keep_months: Number(keep), then, into });
+  return parsed.ok ? parsed.retention : null;
+}
+
+/** Values a Metric must hold past the suggested keep time before Usage suggests a Retention: under a year of daily values
+ * the saving is not worth a person's attention. */
+export const SUGGEST_MIN_VALUES = 365;
+/** The keep time Usage suggests: two years, one of the form's own choices. */
+export const SUGGEST_KEEP_MONTHS = 24;
+
+/** The Retention Usage suggests for a Metric nobody has looked at: only values that can be condensed (never a rate or a
+ * Derived Metric), and only daily or weekly ones, where old detail piles up: days into months, weeks into quarters. Null
+ * when nothing fits. It is a suggestion, shown in the form with its counts; nothing is set by it. */
+export function suggestedRetention(metric: RetentionMetric): Retention | null {
+  if (!canCondense(metric)) return null;
+  if (metric.period === "day") return { keep_months: SUGGEST_KEEP_MONTHS, then: "condense", into: "month" };
+  if (metric.period === "week") return { keep_months: SUGGEST_KEEP_MONTHS, then: "condense", into: "quarter" };
+  return null;
 }

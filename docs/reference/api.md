@@ -41,6 +41,8 @@ The Metrics the key's creator sees, oldest first, a page at a time: those in use
 | `items[].sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `items[].derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `items[].archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `items[].retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `items[].retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
 
 **Errors**
@@ -105,6 +107,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 
 **Errors**
 
@@ -149,6 +153,8 @@ One Metric's description: period, format, unit, Polarity and target. A Metric th
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 
 **Errors**
 
@@ -231,6 +237,8 @@ Changes a Metric's Sources (all of them: the ones left out are turned off), Pola
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 
 **Errors**
 
@@ -274,6 +282,8 @@ Archives a Metric as the key's creator, when they are an Owner or Admin of the w
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 
 **Errors**
 
@@ -316,6 +326,8 @@ Brings an Archived Metric back as the key's creator, when they are an Owner or A
 | `sources` | array of `"web_form"`, `"mail"`, `"slack"`, `"telegram"`, `"api"` | yes | Its Sources: the ways values may arrive (web_form, mail, slack, telegram, api). The personal form link works apart from them. Empty for a Derived Metric. |
 | `derived` | boolean | yes | A Derived Metric: computed from others, takes no values. |
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
+| `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
+| `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
 
 **Errors**
 

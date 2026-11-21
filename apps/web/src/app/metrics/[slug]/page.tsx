@@ -79,7 +79,7 @@ function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[
 }
 
 /** One metric: its latest value, chart and comparisons, and tabs for analyses, targets, history and settings. */
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -417,7 +417,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               )}
             </dl>
           </section>
-          {!metric.formula && <RetentionBox metric={metric} demo={demo} />}
+          {!metric.formula && <RetentionBox metric={metric} demo={demo} suggest={sp.suggest} />}
           {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
