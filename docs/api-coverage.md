@@ -161,6 +161,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
 - `metricHistory` (dashboards.ts): the history page
+- `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads Breakdown labels, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
 - `sourcesView` (page-data.ts): what a page reads
 - `teamView` (page-data.ts): what a page reads
