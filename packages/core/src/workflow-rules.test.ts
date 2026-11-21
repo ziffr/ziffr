@@ -72,6 +72,8 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "10000" }, people: [], groups: [] }, people)).toBe("Tell nobody yet when a value falls below 10000");
     expect(stepLabel({ type: "tell", id: "a", condition: { kind: "at_or_above", value: "5" }, people: ["sara"], groups: [9] }, people)).toBe("Tell Sara, a Group when a value reaches 5");
     expect(stepLabel({ type: "tell", id: "a", condition: { kind: "changed_more", share: "20" }, people: ["sara"], groups: [] }, people)).toBe("Tell Sara when a value changes more than 20 % on the period before");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "5" }, people: [], groups: [], webhooks: ["w1"] }, people)).toBe("Tell 1 Webhook when a value falls below 5");
+    expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "5" }, people: ["sara"], groups: [], webhooks: ["w1", "w2"] }, people)).toBe("Tell Sara, 2 Webhooks when a value falls below 5");
     expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
     expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");
     expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish"]);
