@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
 
-const STEPS = [
+const MEMBER_STEPS = [
   { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog, adjust it, and choose who reports it." },
   { href: "/sources", title: "Capture a value", body: "Answer Anna’s Slack Prompt with a number. Send a second one and watch the Submission Rule." },
   { href: "/", title: "Build your dashboard", body: "Drag metrics from the Pool onto the canvas. Right-click a widget → Change view, then Save as Widget." },
@@ -14,29 +14,38 @@ const STEPS = [
   { href: "/", title: "Share", body: "Share your dashboard with Anna, then “Viewing as” Anna to see what she gets." },
 ];
 
+/** A Guest creates nothing (GLOSSARY: Workspace Role), so their tour only looks at what is shared with them. */
+const GUEST_STEPS = [
+  { href: "/dashboards", title: "Look at what is shared", body: "Open a dashboard that was shared with you and click a number to see its history." },
+  { href: "/metrics", title: "Submit a value", body: "Open a metric you submit and record its latest value, or answer the Prompt you get." },
+  { href: "/actions", title: "Answer a question", body: "Questions and tasks waiting for you are in Actions. Reply there." },
+];
+
 const KEY = "ziffr-tour-v3";
 
 /** The demo's guided tour, bottom right; it folds down to a small round button so it never covers controls. */
-export function Tour() {
+export function Tour({ guest = false }: { guest?: boolean }) {
+  const STEPS = guest ? GUEST_STEPS : MEMBER_STEPS;
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));
+  const key = guest ? `${KEY}-guest` : KEY;
   const [open, setOpen] = useState(false);
   const [small, setSmall] = useState(false);
   useEffect(() => {
     try {
-      const s = JSON.parse(localStorage.getItem(KEY) ?? "null");
+      const s = JSON.parse(localStorage.getItem(key) ?? "null");
       if (s) {
         setDone(s.done);
         setOpen(s.open);
         setSmall(Boolean(s.small));
       }
     } catch {}
-  }, []);
+  }, [key]);
   const save = (d: boolean[], o: boolean, sm = small) => {
     setDone(d);
     setOpen(o);
     setSmall(sm);
     try {
-      localStorage.setItem(KEY, JSON.stringify({ done: d, open: o, small: sm }));
+      localStorage.setItem(key, JSON.stringify({ done: d, open: o, small: sm }));
     } catch {}
   };
   const count = done.filter(Boolean).length;

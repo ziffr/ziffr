@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Presentation } from "lucide-react";
+import { can } from "@ziffr/core/actor";
 import { visibleDecks } from "@/lib/access";
 import { getProfileMap } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
@@ -24,18 +25,20 @@ export default async function DecksPage() {
   return (
     <>
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
-        <Link href="/themes" className="text-sm underline">Themes</Link>
-        <form action={createDeck} className="flex gap-2">
-          <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
-          <Button type="submit">New deck</Button>
-        </form>
+        {can(actor, "create") && <Link href="/themes" className="text-sm underline">Themes</Link>}
+        {can(actor, "create") && (
+          <form action={createDeck} className="flex gap-2">
+            <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
+            <Button type="submit">New deck</Button>
+          </form>
+        )}
         {choices.templates.length > 0 && <NewDeckFromTemplate templates={choices.templates} metrics={choices.metrics} people={Object.fromEntries(choices.templates.map((t) => [t.owner_id, { name: people[t.owner_id]?.name ?? "" }]))} />}
       </PageHeader>
       {!decks?.length ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
           <Presentation aria-hidden className="mx-auto mb-3 size-7 text-muted-foreground" />
-          <p className="font-medium">No decks yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Name one above. It starts with a title slide.</p>
+          <p className="font-medium">{can(actor, "create") ? "No decks yet" : "Nothing has been shared with you yet"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{can(actor, "create") ? "Name one above. It starts with a title slide." : "Ask whoever invited you."}</p>
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

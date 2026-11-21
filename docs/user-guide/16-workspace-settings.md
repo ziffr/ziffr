@@ -187,7 +187,7 @@ The list shows each person with their role. Owners and Admins see a menu next to
 | **Owner** | Everything, including billing and making or removing Owners |
 | **Admin** | Manages settings, Themes, Groups and members, but not billing, and does not make or remove Owners |
 | **Member** | Creates and shares Metrics, dashboards and decks |
-| **Guest** | Sees only what is shared with them, answers questions and sends in values; creates nothing |
+| **Guest** | Sees only what is shared with them, answers questions and sends in values; creates nothing. Pages and lists show no buttons for what they cannot do (no **New metric**, **Paste values**, **New deck** or **Create dashboard**), and an empty list says "Nothing has been shared with you yet. Ask whoever invited you." |
 
 Pick another role and it changes at once. Only an Owner can make someone an Owner or change an Owner's role. The last Owner cannot step down: make someone else Owner first.
 

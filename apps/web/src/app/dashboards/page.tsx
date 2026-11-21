@@ -52,8 +52,8 @@ export default async function DashboardsPage() {
       {!dashboards.length ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
           <LayoutDashboard aria-hidden className="mx-auto mb-3 size-7 text-muted-foreground" />
-          <p className="font-medium">No dashboards yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Name one above, or ask a colleague to share theirs with you.</p>
+          <p className="font-medium">{can(actor, "create") ? "No dashboards yet" : "Nothing has been shared with you yet"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{can(actor, "create") ? "Name one above, or ask a colleague to share theirs with you." : "Ask whoever invited you."}</p>
         </div>
       ) : (
         <div className="space-y-8">
