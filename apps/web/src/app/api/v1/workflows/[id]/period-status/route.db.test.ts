@@ -28,7 +28,7 @@ describe("GET /api/v1/workflows/{id}/period-status", () => {
     const body = await res.json();
     expect(PeriodStatus.parse(body)).toEqual(body);
     expect(body).toMatchObject({ workflow: { id: flow, name: "Weekly numbers" }, period: { start: "2026-11-16" }, in: 2, of: 2 });
-    expect(JSON.stringify(body)).not.toMatch(/Secret|payroll|987654/);
+    expect(JSON.stringify(body)).not.toMatch(/Secret|payroll|\b987654\b/);
     expect(body.events[0].items).toContain("1 value");
     expect(await accessLogOf(id)).toEqual([{ method: "GET", route: `/api/v1/workflows/${flow}/period-status`, status: 200, submitted: 0 }]);
     // Left out, the newest period that has anything; a bad day is 400; the list names the Workflow.

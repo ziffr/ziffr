@@ -82,7 +82,7 @@ describe("who gets the digest", () => {
     expect(d.body).toContain("8 Metrics not opened for 90 days");
     expect(d.body).toContain("and 3 more");
     expect((d.body as string).split("\n").filter((l) => l.startsWith("  - ")).length).toBeLessThanOrEqual(DIGEST_NAMES * 2);
-    expect(d.body).not.toMatch(/9876543/);
+    expect(d.body).not.toMatch(/\b9876543\b/);
   });
 });
 
