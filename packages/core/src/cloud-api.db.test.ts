@@ -7,7 +7,7 @@ import { Forbidden } from "./actor";
 import { checkCloudCall, cloudLimits, CloudNotFound, cloudWorkspace, handover, setCloudLimit, signCloudCall, type CloudCaller } from "./cloud-api";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const KEY = "k".repeat(40);
 const env = { ZIFFR_CLOUD_KEY: KEY, ZIFFR_CLOUD_URL: "https://cloud.example.test", ZIFFR_SITE_URL: "https://ziffr.example.test/app" };
@@ -80,8 +80,8 @@ describe("what Ziffr Cloud reads and sets", () => {
     const back = await setCloudLimit(caller, w.id, { metrics: null });
     expect(back).toMatchObject({ limit: null, set_by: null, over_limit_since: null });
     expect((await cloudLimits(caller, { limit: 100 })).items.map((i) => i.id)).not.toContain(w.id);
-    const { data: events } = await db().from("audit_events").select("actor_id, actor_name, details").eq("workspace_id", w.id).eq("kind", "workspace.limit_changed").order("id");
-    expect(events?.map((e) => [e.actor_id, e.actor_name, (e.details as { by: string }).by])).toEqual([[null, "Ziffr Cloud", "cloud"], [null, "Ziffr Cloud", "cloud"]]);
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, actor_id, actor_name, details").eq("workspace_id", w.id).eq("kind", "workspace.limit_changed").order("id")).data);
+    expect(events.map((e) => [e.actor_id, e.actor_name, (e.details as { by: string }).by])).toEqual([[null, "Ziffr Cloud", "cloud"], [null, "Ziffr Cloud", "cloud"]]);
     const { data: installation } = await db().from("installation_audit_events").select("actor_name, kind").eq("subject", w.id).order("id");
     expect(installation).toEqual([{ actor_name: "Ziffr Cloud", kind: "workspace_limit.set" }, { actor_name: "Ziffr Cloud", kind: "workspace_limit.removed" }]);
     await db().from("installation_audit_events").delete().eq("subject", w.id);

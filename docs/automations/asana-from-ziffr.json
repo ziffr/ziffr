@@ -1,0 +1,518 @@
+{
+  "name": "Ziffr to Asana",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Ziffr to Asana\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the Asana project (the number in the project's address).\n2. Add the Asana credential to the three HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr (events: action.created, action.updated, action.done).\n\nSelf-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto. Details: docs/automations/asana.md",
+        "width": 460,
+        "height": 300
+      },
+      "id": "393e69c3-3160-5507-be5a-ef7c34753bc9",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ziffr-REPLACE-WITH-A-LONG-RANDOM-STRING",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "db898b64-cd4c-57c4-9190-00f6dc125b09",
+      "name": "Ziffr event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "d5c3df53-da5b-23a1-f8ee-2d27eb5d0506"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2861c67b-8b04-5201-b556-832c362d06b1",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "06da3a58-2772-5016-afad-1f5864c782ea",
+              "name": "webhookId",
+              "value": "REPLACE-WITH-THE-WEBHOOK-ID",
+              "type": "string"
+            },
+            {
+              "id": "57c1d0bd-148a-523d-a053-bdce7ab5c212",
+              "name": "secret",
+              "value": "REPLACE-WITH-THE-WEBHOOK-SECRET",
+              "type": "string"
+            },
+            {
+              "id": "9138ed9f-4293-58e6-9420-ffbeda8b6793",
+              "name": "projectId",
+              "value": "REPLACE-WITH-THE-PROJECT-ID",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "5976b3c1-a412-5094-8b3d-d2d109627371",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ziffr -> Asana: checks the signature, drops repeats, own echoes and old news, and decides what to do.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst SYSTEM = 'asana';\nconst LIMIT = 100;\nconst TASKS = (res) => (res.data || []).map((t) => ({ id: t.gid, title: t.name, done: !!t.completed, notes: t.notes || '', url: t.permalink_url || ('https://app.asana.com/0/0/' + t.gid) }));\nconst TASK = (res) => ({ id: res.data.gid, url: res.data.permalink_url || ('https://app.asana.com/0/0/' + res.data.gid) });\nconst ID = /^\\d{1,20}$/;\nconst DUE = (due) => due || null;\nconst createBody = (title, notes, due, open) => ({ data: { name: title, notes, projects: [input.projectId], completed: !open, due_on: DUE(due) } });\nconst patchBody = (title, due, open) => ({ data: { name: title, due_on: DUE(due), completed: !open } });\nconst closeBody = () => ({ data: { completed: true } });\nconst extra = () => ({});\nconst input = $input.first().json;\nconst headers = Object.fromEntries(Object.entries(input.headers || {}).map(([k, v]) => [k.toLowerCase(), String(v)]));\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst out = (httpStatus, rest = {}) => [{ json: { httpStatus, action: 'none', ...rest } }];\n\n// 1. The signature, over the raw body, within five minutes; a secret replaced in the last 24 hours may sign too (oldSecret).\nconst secrets = [input.secret, input.oldSecret].filter((s) => s && !String(s).startsWith('REPLACE'));\nconst timestamp = headers['x-ziffr-timestamp'] || '';\nconst given = (headers['x-ziffr-signature'] || '').split(',').map((h) => h.trim()).filter((h) => /^sha256=[0-9a-f]{64}$/.test(h));\nlet signed = /^\\d{1,12}$/.test(timestamp) && Math.abs(Date.now() / 1000 - Number(timestamp)) <= 300;\nlet match = false;\nfor (const secret of secrets) {\n  const expected = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex'));\n  for (const g of given) if (g.length === expected.length && crypto.timingSafeEqual(Buffer.from(g), expected)) match = true;\n}\nif (!signed || !match) return out(401);\n\nlet event;\ntry { event = JSON.parse(raw); } catch (e) { return out(400); }\nconst d = event && event.data;\nif (!event || typeof event.type !== 'string' || !event.type.startsWith('action.') || !d || typeof d.ref !== 'string') return out(200);\n\n// 2. Once per delivery: Ziffr sends at least once. Static data only lasts while the workflow is active.\nconst state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nstate.latest = state.latest || {};\nconst now = Date.now();\nfor (const [k, t] of Object.entries(state.seen)) if (now - t > 86400000) delete state.seen[k];\nfor (const [k, v] of Object.entries(state.latest)) if (now - v.t > 30 * 86400000) delete state.latest[k];\n// The id in the signed body is the delivery id; the header is not signed, so it is not trusted.\nconst delivery = typeof event.id === 'string' ? event.id : '';\nif (!delivery) return out(200, { why: 'no id' });\nif (state.seen[delivery]) return out(200, { why: 'repeat' });\nstate.seen[delivery] = now;\n\n// 3. Not our own echo, only Tasks, only the newest news per Action.\nif (d.source && d.source.type === 'webhook' && d.source.webhook_id === input.webhookId) return out(200, { why: 'echo' });\nif (d.kind !== 'task') return out(200, { why: 'question' });\nconst seenUpdate = state.latest[d.ref];\nif (seenUpdate && Date.parse(d.updated_at) < Date.parse(seenUpdate.u)) return out(200, { why: 'older' });\nstate.latest[d.ref] = { u: d.updated_at, t: now };\n\n// 4. What to do. A redacted message has no title: the task says what it is and links back.\nconst link = (d.external_ids || []).find((e) => e.system === SYSTEM);\nif (link && !ID.test(String(link.external_id))) return out(200, { why: 'bad id' });\nconst open = d.status === 'open';\nconst clean = (s) => String(s).replace(/[\\u0000-\\u001f\\u007f\\u2028\\u2029]+/g, \" \").replace(/-{3,}/g, \"-\").replace(/^\\s*Reply:\\s*/i, \"\").trim();\nconst title = d.redacted ? 'A Ziffr task for you (' + d.ref + ')' : String(d.title || d.ref);\nconst notes = [\"Ziffr ref: \" + clean(d.ref), clean(d.link), !d.redacted && d.metric ? \"Metric: \" + clean(d.metric.name) : null, !d.redacted && d.asker ? \"Asked by: \" + clean(d.asker.name) : null, \"--- end of Ziffr text ---\"].filter(Boolean).join(\"\\n\");\nconst base = { ref: d.ref };\nif (event.type === 'action.done') return link ? out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: closeBody() }) : out(200, { why: 'not linked' });\nif (event.type === 'action.created' || event.type === 'action.updated') {\n  if (link) return out(200, { ...base, action: 'patch', taskId: link.external_id, patchBody: patchBody(title, d.due, open) });\n  return open ? out(200, { ...base, action: 'create', notes, createBody: createBody(title, notes, d.due, open), ...extra(notes) }) : out(200, { why: 'closed and not linked' });\n}\nreturn out(200, { why: 'nothing to do' });\n"
+      },
+      "id": "1cbd5beb-bc0f-54ba-9ba1-1ffbecfd8328",
+      "name": "Verify and filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": "={{ $json.httpStatus }}"
+        }
+      },
+      "id": "985f5426-7651-5c13-b7f7-922ed8099f85",
+      "name": "Answer Ziffr",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "8c3c557e-0161-1cb8-d83f-6d65c4e6fa0c",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "614228f7-d29a-bd61-1942-1e89ee65a096",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "patch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "patch"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "abe0b883-32f8-5b15-a2c3-a8da630be07f",
+      "name": "What to do",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://app.asana.com/api/1.0/projects/{{ $('Settings').first().json.projectId }}/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "asanaOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "opt_fields",
+              "value": "name,notes,completed,permalink_url"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b60555c-0f23-556c-ab9f-66e16f5bbc8e",
+      "name": "List tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        200
+      ],
+      "credentials": {
+        "asanaOAuth2Api": {
+          "name": "Asana account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A first event: is there a task with this ref in its notes already (a retry, a lost link)? Then link that one.\nconst SYSTEM = 'asana';\nconst TASKS = (res) => (res.data || []).map((t) => ({ id: t.gid, title: t.name, done: !!t.completed, notes: t.notes || '', url: t.permalink_url || ('https://app.asana.com/0/0/' + t.gid) }));\nconst TASK = (res) => ({ id: res.data.gid, url: res.data.permalink_url || ('https://app.asana.com/0/0/' + res.data.gid) });\nconst ID = /^\\d{1,20}$/;\nconst DUE = (due) => due || null;\nconst createBody = (title, notes, due, open) => ({ data: { name: title, notes, projects: [input.projectId], completed: !open, due_on: DUE(due) } });\nconst patchBody = (title, due, open) => ({ data: { name: title, due_on: DUE(due), completed: !open } });\nconst closeBody = () => ({ data: { completed: true } });\nconst v = $('Verify and filter').first().json;\n// Only a task that holds exactly what this workflow would have written is taken as its own; a task someone else made with the ref in it is not.\nconst found = TASKS($input.first().json).find((t) => t.notes.replace(/\\r\\n/g, '\\n').trim() === String(v.notes).trim());\nreturn [{ json: { ...v, exists: !!found, taskId: found ? found.id : undefined, taskUrl: found ? found.url : undefined } }];\n"
+      },
+      "id": "5551b544-1a0e-5259-bc06-2b004c065404",
+      "name": "Find by ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "4d68c8f1-3459-c0ed-b405-04de5003ec2a",
+              "leftValue": "={{ $json.exists }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9b64fb4a-7775-5a94-b8bd-a100caa16778",
+      "name": "Already there?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.asana.com/api/1.0/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "asanaOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Verify and filter').first().json.createBody) }}",
+        "options": {}
+      },
+      "id": "893ceb9c-e190-5bc9-9460-2b7a244e6812",
+      "name": "Create task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "credentials": {
+        "asanaOAuth2Api": {
+          "name": "Asana account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tells Ziffr which task this Action is, so every later event carries it in external_ids.\nconst SYSTEM = 'asana';\nconst TASKS = (res) => (res.data || []).map((t) => ({ id: t.gid, title: t.name, done: !!t.completed, notes: t.notes || '', url: t.permalink_url || ('https://app.asana.com/0/0/' + t.gid) }));\nconst TASK = (res) => ({ id: res.data.gid, url: res.data.permalink_url || ('https://app.asana.com/0/0/' + res.data.gid) });\nconst ID = /^\\d{1,20}$/;\nconst DUE = (due) => due || null;\nconst createBody = (title, notes, due, open) => ({ data: { name: title, notes, projects: [input.projectId], completed: !open, due_on: DUE(due) } });\nconst patchBody = (title, due, open) => ({ data: { name: title, due_on: DUE(due), completed: !open } });\nconst closeBody = () => ({ data: { completed: true } });\nconst v = $('Verify and filter').first().json;\nconst j = $input.first().json;\nconst t = j.exists ? { id: j.taskId, url: j.taskUrl } : TASK(j);\nreturn [{ json: { ziffr: { op: 'link', ref: v.ref, system: SYSTEM, external_id: t.id, url: t.url } } }];\n"
+      },
+      "id": "7926b871-f91c-5464-9a69-565512d4c3a0",
+      "name": "Prepare link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://app.asana.com/api/1.0/tasks/{{ encodeURIComponent($json.taskId) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "asanaOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.patchBody) }}",
+        "options": {}
+      },
+      "id": "a28e2a28-a0c1-5bbd-aca1-54b8dc6c3140",
+      "name": "Update task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        420
+      ],
+      "credentials": {
+        "asanaOAuth2Api": {
+          "name": "Asana account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request exactly as Ziffr signs its messages: HMAC-SHA256 of \"<timestamp>.<raw body>\" with the Webhook's secret.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto on a self-hosted n8n.\nconst crypto = require('crypto');\nconst cfg = $('Settings').first().json;\nconst base = String(cfg.ziffrUrl).replace(/\\/+$/, '');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.ziffr);\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = 'sha256=' + crypto.createHmac('sha256', cfg.secret).update(timestamp + '.' + body).digest('hex');\n  return { json: { url: base + '/api/webhooks/' + encodeURIComponent(cfg.webhookId) + '/in', body, timestamp, signature, op: item.json.ziffr.op, ref: item.json.ref || item.json.ziffr.ref, text: item.json.ziffr.text } };\n});\n"
+      },
+      "id": "6ee5b122-fc97-56b6-928e-8918d692cfb1",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Ziffr-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Ziffr-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "39836d66-d81a-5761-a8c4-a474d65b6e32",
+      "name": "Call Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2
+    }
+  ],
+  "connections": {
+    "Ziffr event": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Verify and filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify and filter": {
+      "main": [
+        [
+          {
+            "node": "Answer Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Ziffr": {
+      "main": [
+        [
+          {
+            "node": "What to do",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What to do": {
+      "main": [
+        [
+          {
+            "node": "List tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List tasks": {
+      "main": [
+        [
+          {
+            "node": "Find by ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find by ref": {
+      "main": [
+        [
+          {
+            "node": "Already there?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already there?": {
+      "main": [
+        [
+          {
+            "node": "Prepare link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create task": {
+      "main": [
+        [
+          {
+            "node": "Prepare link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare link": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Call Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

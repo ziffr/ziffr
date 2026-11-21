@@ -140,10 +140,10 @@ export async function installationAdmin() {
   return { actor: { personId: pid }, cleanup };
 }
 
-/** The Audit Log rows of a workspace whose kind starts with `kind` (a test reads them back without the core's filters). */
+/** The Audit Log rows of a workspace whose kind starts with `kind` (a test reads them back without the core's filters), opened as the core reads them. */
 export async function auditRowsOf(workspaceId: string, kind: string) {
-  const { data } = await db().from("audit_events").select("kind, access_key_id, details").eq("workspace_id", workspaceId).like("kind", `${kind}%`);
-  return data ?? [];
+  const { data } = await db().from("audit_events").select("id, kind, access_key_id, details").eq("workspace_id", workspaceId).like("kind", `${kind}%`).order("id");
+  return opened("audit_events", workspaceId, data, { dropId: true });
 }
 
 /** Tries to store an assistant's key row with the given scopes, as the database alone would see it; answers the error code, if any. */

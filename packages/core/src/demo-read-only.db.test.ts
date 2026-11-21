@@ -46,9 +46,9 @@ describe("the demo refuses every write", () => {
     await expect(renameWorkspace(sara, "Mine now")).rejects.toThrow(demoReadOnlyWords());
     await expect(updateMyProfile(sara, { name: "Someone else" })).rejects.toThrow(demoReadOnlyWords());
     // A Contact's person would be made outside the demo first: refused before it.
-    const before = await db().from("profiles").select("id", { count: "exact", head: true });
+    // Looked for by name, not by counting every profile: other test files' people may be made meanwhile (#476).
     await expect(addContact(sara, { name: "Ann Other", email: "ann@contact.test" })).rejects.toBeInstanceOf(DemoReadOnly);
-    expect((await db().from("profiles").select("id", { count: "exact", head: true })).count).toBe(before.count);
+    expect((await db().from("profiles").select("id", { count: "exact", head: true }).eq("name", "Ann Other")).count).toBe(0);
   });
 
   it("and never a real workspace's", async () => {
