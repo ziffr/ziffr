@@ -1,6 +1,6 @@
 # 0036 App layout: sidebar, inset page, slide-overs
 
-**Status:** in progress (the preview is built; the follow-ups are #509 to #511). **Ticket:** #502. A preview behind a switch; the top bar stays the default until the owner decides from the screenshots.
+**Status:** the sidebar is the default since 2026-11-21 (#511 step 1); the top bar, its switch and the settings pages' own side list go in #511 step 2. **Ticket:** #502.
 
 ## Problem Statement
 
@@ -82,8 +82,8 @@ The frame uses only the app's tokens (`--sidebar*`, `--background`, `--border`, 
 
 ## Rollout
 
-1. **Preview** (this pull request): the switch in **Your profile → Try the new layout (preview)**, or `?layout=sidebar` and `?layout=top` for a link. A cookie in this browser; nothing is stored on the server. The top bar is the default.
-2. **Default:** once the owner agrees, the sidebar becomes the default and the switch offers **Use the classic top bar**. Every screen is checked in both frames; screens that assume the top bar's width are fixed.
+1. **Preview** (this pull request): the switch in **Your profile → Try the new layout (preview)**, or `?layout=sidebar` and `?layout=top` for a link. A cookie in this browser; nothing is stored on the server. The top bar was the default.
+2. **Default** (done, 2026-11-21): the sidebar is the default for everyone, a browser without the cookie gets it, and the switch offers **Use the classic top bar** (cookie `top`; `?layout=top` still works). Every screen is checked in both frames; screens that assume the top bar's width are fixed.
 3. **Remove** the top bar and the switch one release later.
 
 In the sidebar layout the Settings pages carry only the grouped Settings list (#529); the top bar's layout keeps its single side list (`settings-nav`) until the top bar is removed.
@@ -103,6 +103,6 @@ All eight recommendations were accepted:
 5. **Dark mode:** later, as its own ticket: #505. The frame already uses tokens only.
 6. **Phone tabs:** Dashboards, Metrics, Actions, Search, More.
 7. **Collapsed by default:** no; expanded, remembering the person's last choice.
-8. **Switch:** the preview stays opt-in; making the sidebar the default (with "Use the classic top bar" for one release) and then removing the top bar and the switch: #511.
+8. **Switch:** the sidebar is now the default, with "Use the classic top bar" for one release (#511 step 1, done); removing the top bar and the switch comes one release later (#511 step 2).
 
-This pull request delivers the opt-in preview only; the top bar stays the default.
+The preview was delivered first as opt-in; the default changed in #511 step 1.

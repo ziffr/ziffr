@@ -83,7 +83,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
-  // The layout preview (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
+  // The app layout (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
   const sidebar = (await layoutChoice()) === "sidebar";
   const due = sidebar ? await dueValueCount() : 0;
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };

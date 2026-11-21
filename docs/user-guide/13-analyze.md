@@ -2,7 +2,7 @@
 <!-- screens: apps/web/src/app/analyze/**, apps/web/src/analyses/** -->
 # Analyze
 
-**Analyze** in the top bar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves most with this one? Each method is an **Analysis**, and its result can go onto a dashboard.
+**Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves most with this one? Each method is an **Analysis**, and its result can go onto a dashboard.
 
 Everyone in the Workspace can use Analyze, with the Metrics they can see. The page needs no setup and changes nothing for anyone else.
 

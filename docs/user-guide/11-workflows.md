@@ -4,7 +4,7 @@
 
 A **Workflow** is the path a Metric's value takes each period: who is asked, when they are reminded, who steps in, which values need **Approval**, and when the period locks. Several Metrics can share one, such as "Monthly finance close". This chapter covers the Workflows page, the Workflow box on a Metric's page, and the controls for approving, sending back, correcting and locking values.
 
-Open the Workflows page from the top bar: **Workspace → Workflows**. Everyone in the Workspace can look at the Workflows. Owners, Admins and Members create them; Guests create nothing. Only the person who created a Workflow, its owner, changes it.
+Open the Workflows page from the sidebar: **Workspace → Workflows**. Everyone in the Workspace can look at the Workflows. Owners, Admins and Members create them; Guests create nothing. Only the person who created a Workflow, its owner, changes it.
 
 ## The Workflows page
 
@@ -153,7 +153,7 @@ Feeds have no Stand-in. When a Feed's value is missing, the Metric Owner hears o
 
 ## Approving a value
 
-When a value needs Approval, the Approver gets an Approval task. It appears among their **Actions** (the inbox icon in the top bar) and is sent to them like any task, by email or on Slack: "Approve Revenue for October 2026: 84,000 €, up 42.0 % on September 2026. Reply "approve", or "send back:" with what to check."
+When a value needs Approval, the Approver gets an Approval task. It appears among their **Actions** (**Actions** in the sidebar) and is sent to them like any task, by email or on Slack: "Approve Revenue for October 2026: 84,000 €, up 42.0 % on September 2026. Reply "approve", or "send back:" with what to check."
 
 On the task's page, the Approver sees a box, **You approve this value**:
 

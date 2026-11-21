@@ -2,7 +2,7 @@
 <!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
 # The Metrics screens
 
-Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the top bar.
+Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the sidebar.
 
 Not everyone sees the same Metrics. You see a Metric when you own it, when it is shared with you or with one of your **Groups**, when it is on a dashboard or deck shared with you, or when you send in its values. Being an Owner or Admin of the Workspace does not show you every Metric by itself.
 

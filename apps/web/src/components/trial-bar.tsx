@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { EndTrialButton } from "./end-trial-button";
 
-/** The line under the top bar while the trial runs. */
+/** The line above the page while the trial runs. */
 export function TrialBar({ daysLeft, endsAt, kept }: { daysLeft: number; endsAt: string; kept?: string | null }) {
   return (
     <p className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 text-xs text-muted-foreground sm:px-6">

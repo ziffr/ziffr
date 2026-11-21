@@ -8,7 +8,7 @@ Everyone in a Workspace can open the dashboards they own and those shared with t
 
 ## The Dashboards list
 
-Choose **Dashboards** in the top bar to see every dashboard you may open, in two groups:
+Choose **Dashboards** in the sidebar to see every dashboard you may open, in two groups:
 
 - **Mine**: the dashboards you made. Each says "Yours".
 - **Shared with me**: dashboards a colleague shared with you. Each says who it is from and whether you "can edit it" or "can look at it".

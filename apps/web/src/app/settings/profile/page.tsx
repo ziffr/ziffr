@@ -16,7 +16,7 @@ export default async function ProfilePage() {
     <>
       <PageHeader title="Your profile" sub="How others see you in every workspace you belong to." />
       <ProfileForm name={me.name} color={me.color} colors={[...PERSON_COLORS]} email={email} demo={demo} />
-      <div className="mt-8"><LayoutSwitch initial={(await layoutChoice()) === "sidebar"} /></div>
+      <div className="mt-8"><LayoutSwitch initial={(await layoutChoice()) === "top"} /></div>
     </>
   );
 }

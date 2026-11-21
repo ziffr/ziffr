@@ -7,10 +7,10 @@ This chapter takes you from nothing to a team that sees its numbers each month. 
 
 On the sign-in page, choose **Try the demo**. It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month.
 
-- Use **Viewing as** in the top bar to see Ziffr through the eyes of a different person, such as the CEO, a team lead or a Guest. Notice how each one sees different numbers.
+- Use **Viewing as** in the sidebar's footer to see Ziffr through the eyes of a different person, such as the CEO, a team lead or a Guest. Notice how each one sees different numbers.
 - Follow the **guided tour** (bottom right). It walks through describing a Metric, sending in a value, building a dashboard, asking a question, running an analysis and making a deck.
 
-Nothing you do in the demo is saved, and nothing is sent: a line under the top bar says so. Try any button or form; where it would change something, Ziffr says "The demo can't be changed." instead. Where this Ziffr offers trials, that line links to one of your own, in which email, Slack, Telegram, the API and assistants work for real. A trial starts with one Metric, Cups of coffee, which Ziffr asks you for each day, and no made-up numbers (see [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). When you are done, choose **Leave the demo**.
+Nothing you do in the demo is saved, and nothing is sent: a line above the page says so. Try any button or form; where it would change something, Ziffr says "The demo can't be changed." instead. Where this Ziffr offers trials, that line links to one of your own, in which email, Slack, Telegram, the API and assistants work for real. A trial starts with one Metric, Cups of coffee, which Ziffr asks you for each day, and no made-up numbers (see [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). When you are done, choose **Leave the demo**.
 
 ## 1. Start your Workspace
 
@@ -53,7 +53,7 @@ Under **Workspace → General**, set your time zone and the hour at which Ziffr 
 
 Under **Workspace → Workflows**, create a Workflow such as "Monthly numbers": when to ask, when to remind, on which working day a value is due, who is asked when it is late, what counts as unusual, and who approves. Then assign it to your Metrics.
 
-From now on, Ziffr sends the Prompts by itself. Each person chooses under **Your Deliveries** (their name in the top bar) whether they get them by email or on Slack, and enters the dates they are Away.
+From now on, Ziffr sends the Prompts by itself. Each person chooses under **Your Deliveries** (their own menu at the bottom of the sidebar) whether they get them by email or on Slack, and enters the dates they are Away.
 
 ## 7. Build a dashboard
 
@@ -90,12 +90,12 @@ The installed app is the same Ziffr as in the browser and needs a connection: yo
 
 | I want to… | Go to |
 | --- | --- |
-| See what is waiting for me | The inbox icon in the top bar (Actions) |
+| See what is waiting for me | **Actions** in the sidebar |
 | Find a Metric | **Metrics** |
 | Build or open a dashboard | **Dashboards** |
 | Make slides | **Decks** |
 | Find out what drives a number | **Analyze** |
 | Invite someone | **Workspace → Members and Groups** |
-| Choose how Ziffr reaches me, or say I am away | Your name in the top bar → **Your Deliveries** |
-| Change my name | Your name in the top bar → **Your profile** |
+| Choose how Ziffr reaches me, or say I am away | Your own menu in the sidebar → **Your Deliveries** |
+| Change my name | Your own menu in the sidebar → **Your profile** |
 | See who changed access | **Workspace → Audit log** (Owners and Admins) |
