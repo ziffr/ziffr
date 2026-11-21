@@ -165,8 +165,10 @@ export type FormulaInput = Pick<Metric, "slug" | "name" | "period" | "aggregatio
  * level deep, so it has no values here), or they are counted by different periods, or by another period than the
  * Derived Metric itself, so no period has a value of each. Inputs not among `inputs` are skipped (a
  * View Link leaves them out); `checkFormula` refuses those. Shown on the Metric's page and in widgets. */
-export function inputsProblem(metric: Pick<Metric, "formula" | "period">, inputs: FormulaInput[]): string | null {
+export function inputsProblem(metric: Pick<Metric, "formula" | "period" | "inputs_withheld">, inputs: FormulaInput[]): string | null {
   if (!metric.formula) return null;
+  // Its owner may no longer share one of its inputs (ticket #619): no values, and no word of which input it is.
+  if (metric.inputs_withheld) return "Its owner can no longer share one of the Metrics it is calculated from, so it shows no values.";
   const used = known(metric.formula, inputs);
   // Series are computed one level deep (workspace-data.ts): a Derived Metric among the inputs has no values here.
   const derived = used.filter((m) => m.formula).map((m) => m.name);
