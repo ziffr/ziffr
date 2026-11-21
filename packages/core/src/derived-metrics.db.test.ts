@@ -17,6 +17,7 @@ async function setup() {
   return { w, sara, as: w.actor(sara, "member") };
 }
 const count = async (ws: string) => (await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws)).count ?? 0;
+const editShare = async (w: Awaited<ReturnType<typeof workspace>>, metricId: number, userId: string) => { await db().from("shares").delete().eq("workspace_id", w.id).eq("object_id", metricId).eq("user_id", userId); await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: metricId, user_id: userId, role: "editor" }); };
 const row = async (ws: string, id: number) => (await opened("metrics", ws, (await db().from("metrics").select("*").eq("id", id)).data))[0];
 
 describe("createDerivedMetric", () => {
@@ -62,10 +63,10 @@ describe("createDerivedMetric", () => {
     expect(await row(w.id, made.id)).toMatchObject({ description: "Half the visits", unit: "per site", unit_position: "before", decimals: 3, polarity: "lower", target_max: 10 });
   });
 
-  it("refuses a Metric the person does not see exactly as one that does not exist, and allows it once shared", async () => {
+  it("refuses a Metric the person does not see exactly as one that does not exist", async () => {
     const { w, sara, as } = await setup();
     const lena = await w.person("member");
-    const secret = await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    await w.metric(lena, { name: "Salaries", slug: "salaries" });
     await w.metric(sara, { name: "Visits", slug: "visits" });
     const before = await count(w.id);
     const hidden = await createDerivedMetric(as, { name: "Pay per visit", formula: "{salaries} / {visits}" }).catch((e) => e);
@@ -75,8 +76,29 @@ describe("createDerivedMetric", () => {
     expect(absent.message).toBe("{nonesuch} is not a Metric of this Workspace.");
     // Nothing was made, not even half of it.
     expect(await count(w.id)).toBe(before);
-    await w.share(secret.id, sara);
-    expect(await createDerivedMetric(as, { name: "Pay per visit", formula: "{salaries} / {visits}" })).toMatchObject({ slug: "pay-per-visit" });
+  });
+
+  it("takes only Metrics the person may share, their own and those they edit: never one they only see", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    const shown = await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    const edited = await w.metric(lena, { name: "Bonuses", slug: "bonuses" });
+    const viaToken = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await w.metric(sara, { name: "Visits", slug: "visits" });
+    const before = await count(w.id);
+    // A view Share, a Token (the way a Stand-in sees a Metric) and a Metric on a shared dashboard are all sight only.
+    await w.share(shown.id, sara);
+    await w.token(viaToken.id, sara);
+    for (const slug of ["salaries", "hours"]) {
+      const e = await createDerivedMetric(as, { name: "Copy", formula: `{${slug}}` }).catch((x) => x);
+      expect(e, slug).toBeInstanceOf(Refused);
+      expect(e.message).toMatch(new RegExp(`^\\{${slug}\\} is not yours to share`));
+    }
+    expect((await createDerivedMetric(as, { name: "Copy", formula: "prev({salaries}) * 1" }).catch((x) => x)).message).toMatch(/not yours to share/);
+    expect(await count(w.id)).toBe(before);
+    // An Editor Share makes it theirs to share.
+    await editShare(w, edited.id, sara);
+    expect(await createDerivedMetric(as, { name: "Pay per visit", formula: "{bonuses} / {visits}" })).toMatchObject({ slug: "pay-per-visit" });
   });
 
   it("refuses a formula that cannot be read, names no Metric, reads a Derived Metric, or mixes periods, and makes nothing", async () => {
@@ -121,14 +143,17 @@ describe("createDerivedMetric", () => {
     await expect(createDerivedMetric(w.actor(sara, "member"), { name: "X", formula: "{theirs} * 2" })).rejects.toThrow(/not a Metric of this Workspace/);
   });
 
-  it("lists as choices only Metrics the person sees that can be an input, with nothing but how to pick them", async () => {
+  it("lists as choices only Metrics the person may share that can be an input, with nothing but how to pick them", async () => {
     const { w, sara, as } = await setup();
     const lena = await w.person("member");
     await w.metric(sara, { name: "Visits", slug: "visits", unit: "visits", period: "week" });
     await w.metric(sara, { name: "Old", slug: "old", archived_at: new Date().toISOString() });
-    await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    const theirs = await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    const edited = await w.metric(lena, { name: "Bonuses", slug: "bonuses", unit: "EUR" });
+    await w.share(theirs.id, sara);
+    await editShare(w, edited.id, sara);
     await createDerivedMetric(as, { name: "Twice", formula: "{visits} * 2" });
-    expect(await formulaChoices(as)).toEqual([{ slug: "visits", name: "Visits", period: "week", unit: "visits" }]);
+    expect(await formulaChoices(as)).toEqual([{ slug: "visits", name: "Visits", period: "week", unit: "visits" }, { slug: "bonuses", name: "Bonuses", period: "month", unit: "EUR" }]);
     await expect(formulaChoices(w.actor(await w.person("guest"), "guest"))).rejects.toBeInstanceOf(Forbidden);
   });
 
@@ -149,9 +174,11 @@ describe("createDerivedMetric", () => {
     expect((await refused(d.id, "  ")).message).toMatch(/Write the formula/);
     expect((await refused(plain.id, "{a} * 2")).message).toBe("Only a Derived Metric has a formula.");
     expect((await row(w.id, d.id)).formula).toBe("change({a}) + 1");
-    // Not its owner or an Editor: refused. Once a Metric is shared with the owner, it can be an input.
+    // Not its owner or an Editor: refused. Once the owner may edit a Metric, it can be an input.
     await expect(setMetricFormula(w.actor(lena, "member"), d.id, "{a} * 3")).rejects.toBeInstanceOf(Forbidden);
     await w.share(secret.id, sara);
+    expect((await refused(d.id, "{salaries} * 3")).message).toMatch(/not yours to share/);
+    await editShare(w, secret.id, sara);
     await setMetricFormula(as, d.id, "{salaries} * 3");
     expect((await row(w.id, d.id)).formula).toBe("{salaries} * 3");
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", d.id);

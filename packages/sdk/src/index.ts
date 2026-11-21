@@ -133,7 +133,7 @@ export type NewMetric = {
   submitters?: string[];
   /** One of your own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs scope metrics:edit too. */
   workflow?: number | string | null;
-  /** Makes a Derived Metric: computed from Metrics you can see, by slug: "{revenue} / {orders}", "change({odometer}) / 7"
+  /** Makes a Derived Metric: computed from Metrics you own or edit, by slug: "{revenue} / {orders}", "change({odometer}) / 7"
    * (this period minus the previous one) or "prev({x})". It takes no values: submit, submitters, sources, aggregation,
    * submission_rule and workflow are refused with it. Needs scope metrics:read too. */
   formula?: string;

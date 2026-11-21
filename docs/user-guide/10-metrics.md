@@ -331,7 +331,7 @@ To make one, choose **New metric**, then **Calculated from other Metrics**:
 3. Under **How is it shown?**, set a **Unit**, **Decimals**, **Period** or **Which way is good**, or leave them empty: Ziffr takes the period of the Metrics it is calculated from, their unit where a sum or difference keeps it, and two decimals where the formula divides. The page of the new Metric says nothing of this; the Description box shows what was chosen, and **Edit details...** changes it.
 4. **Create metric**.
 
-You can only pick Metrics you see (your own, and those shared with you). A Metric you do not see is not offered, and a formula that names one is refused as if it did not exist. Ziffr refuses a formula with Metrics counted by different periods, with a Derived Metric among them, or with an input set to Aggregation none (except in the two functions below), and says why; nothing is made then.
+You can only pick Metrics you own or edit. Someone who is only shown a Metric cannot calculate from it, because a calculated Metric shows its inputs' values to whoever it is shared with: ask its owner to make you an Editor, or to make the Metric. A formula that names a Metric you may not use is refused, as if it did not exist when you cannot see it at all. Ziffr refuses a formula with Metrics counted by different periods, with a Derived Metric among them, or with an input set to Aggregation none (except in the two functions below), and says why; nothing is made then.
 
 **Compared with the period before.** Two functions reach back one period:
 

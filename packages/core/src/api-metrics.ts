@@ -57,7 +57,7 @@ export type ApiMetricInput = {
   /** One of the creator's own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs
    * metrics:edit as well; null or left out: none. */
   workflow?: WorkflowRef | null;
-  /** Makes a Derived Metric instead: computed from other Metrics the key's creator sees, such as "{revenue} / {orders}"
+  /** Makes a Derived Metric instead: computed from other Metrics the key's creator owns or edits, such as "{revenue} / {orders}"
    * or "change({odometer}) / 7" (this period minus the previous one). It takes no values, Sources, Submitters or
    * Workflow; the period is its inputs' own unless given. Needs metrics:read as well. */
   formula?: string;

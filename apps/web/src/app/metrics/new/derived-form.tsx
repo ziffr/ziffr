@@ -51,7 +51,7 @@ export function DerivedForm({ choices }: { choices: FormulaChoice[] }) {
 
         <section className="stock rounded-[var(--radius-card)] p-5">
           <h2 className="mb-1 font-medium">How is it calculated?</h2>
-          <p className="mb-4 text-xs text-muted-foreground">A formula over Metrics you can see. Pick a Metric to add it, and type <code>+ - * /</code>, brackets and numbers between them.</p>
+          <p className="mb-4 text-xs text-muted-foreground">A formula over Metrics you own or edit. Pick a Metric to add it, and type <code>+ - * /</code>, brackets and numbers between them.</p>
           {choices.length === 0 ? (
             <p role="status" className="rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-4 text-sm">
               You see no Metric to calculate from yet. <Link href="/metrics/new?scratch=1" className="underline">Make one first</Link>.
