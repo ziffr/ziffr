@@ -372,6 +372,19 @@ describe("a Derived Metric", () => {
     const d = metric({ id: 5, slug: "d", formula: "{a} + {w} + {nobody}" });
     expect(valueOver("d", "2026-01-01", "2026-01-01", resolverFrom([a, w, d], { a: [{ period: "2026-01-01", value: 1 }], w: [{ period: "2026-01-01", value: 1 }] }), 1)).toBeUndefined();
   });
+  it("shows nothing, and says why, for a Derived Metric whose owner may no longer share an input (ticket #619)", () => {
+    const [a, d] = [metric({ id: 1, slug: "a" }), metric({ id: 2, slug: "d", formula: "{a} * 2", inputs_withheld: true })];
+    const pts = [{ period: "2026-01-01", value: 1 }, { period: "2026-02-01", value: 2 }];
+    const why = "Its owner can no longer share one of the Metrics it is calculated from, so it shows no values.";
+    expect(inputsProblem(d, [a])).toBe(why);
+    expect(buildSeries([a, d], observationsOf([a], [pts])).d).toEqual([]);
+    expect(seriesBy(d, resolverFrom([a, d], { a: pts, d: pts }), "quarter", { yearStart: 1, today: "2027-01-01" })).toMatchObject({ ok: false, reason: why });
+    expect(inputsProblem({ ...d, inputs_withheld: false }, [a])).toBeNull();
+    // No span and no Comparison is computed from the inputs either, though they hold values.
+    const resolve = resolverFrom([a, d], { a: pts, d: pts });
+    expect(valueOver("d", "2026-01-01", "2026-01-01", resolve, 1)).toBeUndefined();
+    expect(compare(d, resolve, { keys: ["prev", "yoy"], yearStart: 1 }).map((c) => c.available)).toEqual([false, false]);
+  });
   it("names every input a reason is about, one or several", () => {
     const ins = asInputs(["a", "b", "c"]);
     const none = asInputs(["x", "y"], { aggregation: "none" });

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, Refused } from "./actor";
 import { createDerivedMetric, formulaChoices, setMetricFormula } from "./derived-metrics";
 import { db } from "./db";
+import { inputsProblem } from "./formula";
 import { deleteMetric } from "./metrics";
 import { buildSeries } from "./series";
 import { opened, workspace } from "./test/db-fixtures";
@@ -255,5 +256,61 @@ describe("createDerivedMetric", () => {
     await createDerivedMetric(as, { name: "Y", formula: "{mine} + 1" });
     await expect(restoreVersion(as, old)).rejects.toThrow(/This version cannot be restored: Y is a Derived Metric itself/);
     expect((await row(w.id, d1.id)).formula).toBe("{mine} * 2");
+  });
+
+  it("shows no values while its owner may no longer share an input, and again when they may", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    const x = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await editShare(w, x.id, sara);
+    await w.value(x.id, "2026-01-01", 40);
+    const d = await createDerivedMetric(as, { name: "Half", formula: "{hours} / 2" });
+    const values = async () => {
+      const metrics = await getMetrics(w.id);
+      return { withheld: metrics.find((m) => m.slug === "half")!.inputs_withheld ?? false, series: buildSeries(metrics, await getObservations(w.id)).half };
+    };
+    expect(await values()).toEqual({ withheld: false, series: [{ period: "2026-01-01", value: 20 }] });
+    // Sara's edit right goes (she may still see it): no values, and the reason says so.
+    await db().from("shares").update({ role: "viewer" }).eq("workspace_id", w.id).eq("object_id", x.id).eq("user_id", sara);
+    expect(await values()).toEqual({ withheld: true, series: [] });
+    const metrics = await getMetrics(w.id);
+    expect(inputsProblem(metrics.find((m) => m.slug === "half")!, metrics)).toMatch(/no longer share one of the Metrics/);
+    // Not at all, too.
+    await db().from("shares").delete().eq("workspace_id", w.id).eq("object_id", x.id).eq("user_id", sara);
+    expect((await values()).series).toEqual([]);
+    await editShare(w, x.id, sara);
+    expect((await values()).series).toEqual([{ period: "2026-01-01", value: 20 }]);
+    // A Derived Metric of Sara's own Metrics is never withheld, and one shared on: the ratio is shown without its inputs.
+    expect(d.slug).toBe("half");
+  });
+
+  it("the migration's backfill marks Derived Metrics made through the core before the mark existed, and only those", async () => {
+    const { w, sara, as } = await setup();
+    await w.metric(sara, { name: "Mine", slug: "mine" });
+    const made = await createDerivedMetric(as, { name: "Twice", formula: "{mine} * 2" });
+    const changed = await createDerivedMetric(as, { name: "Thrice", formula: "{mine} * 3" });
+    await setMetricFormula(as, changed.id, "{mine} * 4");
+    // A Pack's or the seed's: no such note in its history.
+    const old = await w.metric(sara, { name: "Old", slug: "old", formula: "{mine} * 5", sources: [] });
+    await db().from("versions").insert({ object_type: "metric", object_id: old.id, version: 1, snapshot: {}, author_id: sara, message: "Made a Derived Metric from its Pack's entry", workspace_id: w.id });
+    const flag = async (id: number) => (await db().from("metrics").select("inputs_checked").eq("id", id).single()).data!.inputs_checked;
+    expect([await flag(made.id), await flag(changed.id), await flag(old.id)]).toEqual([true, true, false]);
+    // As if they were made before the column existed.
+    await db().from("metrics").update({ inputs_checked: false }).in("id", [made.id, changed.id]);
+    expect([await flag(made.id), await flag(changed.id)]).toEqual([false, false]);
+    const { data } = await db().rpc("backfill_derived_inputs_checked");
+    expect(data).toBeGreaterThanOrEqual(2);
+    expect([await flag(made.id), await flag(changed.id), await flag(old.id)]).toEqual([true, true, false]);
+  });
+
+  it("leaves Derived Metrics made before this rule (a Pack's, the demo's) as they were", async () => {
+    const { w, sara } = await setup();
+    const lena = await w.person("member");
+    const x = await w.metric(lena, { name: "Hours", slug: "hours" });
+    await w.metric(sara, { name: "Old", slug: "old", formula: "{hours} * 2", sources: [] });
+    await w.value(x.id, "2026-01-01", 5);
+    const metrics = await getMetrics(w.id);
+    expect(metrics.find((m) => m.slug === "old")!.inputs_withheld).toBeUndefined();
+    expect(buildSeries(metrics, await getObservations(w.id)).old).toEqual([{ period: "2026-01-01", value: 10 }]);
   });
 });

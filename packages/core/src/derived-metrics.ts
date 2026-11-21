@@ -102,7 +102,7 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   const now = await getMetrics(actor.workspaceId);
   const self = now.find((m) => m.id === made.id);
   const stillWhy = self ? checkFormula(formula, now.filter((m) => mayShare.has(m.id)), self) : "it is gone";
-  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [] }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
+  const { error } = stillWhy ? { error: null } : await db().from("metrics").update({ formula, sources: [], inputs_checked: true }).eq("id", made.id).eq("workspace_id", actor.workspaceId);
   if (stillWhy || error) {
     if (self) await deleteMetric(actor, made.id, self.name).catch(() => undefined);
     if (stillWhy) throw new Refused(stillWhy);
@@ -133,7 +133,7 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   const m = await editableMetric(actor, metricId, "its formula");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
   const next = await checkedFormula(actor, m, formula);
-  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");
   await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
   await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });
