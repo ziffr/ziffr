@@ -1,9 +1,11 @@
+"use client";
 // The Encryption section of the Installation Settings page (spec 0028, ticket #247; GLOSSARY: Workspace Key, Installation
 // Admin): how far the re-encryption of Workspaces is, which key versions each Workspace has and whether any key is still
 // wrapped under the previous Installation key. Counts and version numbers only: the page gets no key, wrapped or not,
 // no value and no row.
 import { RelativeTime } from "@/components/relative-time";
-import { SEALED_LABELS as WHAT, type KeyProgress } from "@ziffr/core/workspace-key-progress";
+import { SEALED_LABELS as WHAT } from "@ziffr/core/sealed-labels";
+import type { KeyProgress } from "@ziffr/core/workspace-key-progress";
 
 const n = (x: number) => x.toLocaleString("en-US");
 

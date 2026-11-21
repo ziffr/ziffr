@@ -10,7 +10,8 @@ import { db } from "./db";
 import { openRows, SEALED_COLUMNS } from "./sealed-columns";
 import { installationAdmin, workspace } from "./test/db-fixtures";
 import { sealCandidate, reencryptionJob } from "./workspace-key-job";
-import { keyProgress, SEALED_LABELS } from "./workspace-key-progress";
+import { SEALED_LABELS } from "./sealed-labels";
+import { keyProgress } from "./workspace-key-progress";
 import { forgetWorkspaceKey, installationKeyWrapper, isSealed, sealedVersion, workspaceCipher } from "./workspace-keys";
 
 const saved = process.env.ZIFFR_SECRETS_KEY;

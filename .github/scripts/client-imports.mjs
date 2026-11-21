@@ -8,7 +8,7 @@ import { join } from "node:path";
 const PURE = new Set([
   "actor", "attainment-method", "built-in-designs", "compare", "design-export", "correlation", "display-periods", "exact", "export-values", "forecast", "format", "formula", "metric-row", "number-style", "numbers", "parse", "paste-reader", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens", "view-design", "json-check", "design-files", "widget-designs", "analysis-recipe", "recipe-run", "recipe-functions", "built-in-recipes", "design-analysis",
   "themes", "tokens", "types", "pack", "metric-file", "theme-file", "dashboard-template-file", "deck-template-file", "workflow-template-file", "file-text", "assistant-words", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile", "trial-guide-ways", "n8n-workflow", "units",
-  "demo-words", "alert-rules", "alert-limits", "asking-schedule",
+  "demo-words", "sealed-labels", "alert-rules", "alert-limits", "asking-schedule",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
 ]);
 
@@ -21,10 +21,23 @@ const files = [];
   }
 })("apps/web/src");
 
+// A module a client component imports is bundled for the browser too, with or without its own "use client": so the
+// check follows relative imports from every client file (a file imported only by server code stays out of it).
 const bad = [];
-for (const file of files) {
+const clients = new Set(files.filter((f) => /^\s*["']use client["']/.test(readFileSync(f, "utf8"))));
+const queue = [...clients];
+while (queue.length) {
+  const file = queue.pop();
+  for (const m of readFileSync(file, "utf8").matchAll(/^import\s+(?:type\s+)?[^;]*?from\s+["'](\.{1,2}\/[^"']+)["']/gm)) {
+    if (/^import\s+type\s/.test(m[0])) continue;
+    const base = join(file, "..", m[1]);
+    const next = [base + ".tsx", base + ".ts", join(base, "index.tsx"), join(base, "index.ts")].find((c) => files.includes(c));
+    // A "use server" file stays on the server: a client component only gets a reference to its actions.
+    if (next && !clients.has(next) && !/^\s*["']use server["']/.test(readFileSync(next, "utf8"))) { clients.add(next); queue.push(next); }
+  }
+}
+for (const file of clients) {
   const text = readFileSync(file, "utf8");
-  if (!/^\s*["']use client["']/.test(text)) continue;
   for (const m of text.matchAll(/^import\s+(type\s+)?[^;]*?from\s+["']@ziffr\/core\/([^"']+)["']/gm)) {
     if (m[1]) continue; // import type: no code
     if (!PURE.has(m[2])) bad.push(`${file}: imports @ziffr/core/${m[2]}`);
