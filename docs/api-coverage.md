@@ -75,6 +75,10 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 
 Acts as the person, with their own sign-in, Slack or Telegram account or email address.
 
+- `pinnedDashboards` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `pinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `unpinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
+- `setPinnedOrder` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `askMeNow` (ask-now.ts): asking for one's own open Questions now
 - `approveConnection` (assistant-connections.ts): one's own assistant connections
 - `disconnectMine` (assistant-connections.ts): one's own assistant connections

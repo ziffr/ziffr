@@ -13,7 +13,7 @@ Choose **Dashboards** in the sidebar to see every dashboard you may open, in two
 - **Mine**: the dashboards you made. Each says "Yours".
 - **Shared with me**: dashboards a colleague shared with you. Each says who it is from and whether you "can edit it" or "can look at it".
 
-Your Home dashboard carries a small **Home** mark.
+Your Home dashboard carries a small **Home** mark. Each card has a **Pin** button at its right: it pins the dashboard to the sidebar (see [Pinning a dashboard](#pinning-a-dashboard)).
 
 At the top, if you may create dashboards:
 
@@ -45,6 +45,16 @@ Steps that are done stay in the list, crossed out. The demo has no checklist. Se
 A dashboard shows its name as a large heading. Below it, a line says whose it is: "Yours", or "Anna shared this with you as Editor" (or "as Viewer"). If the dashboard has an introduction, it follows.
 
 Every Widget writes its values in the Workspace's **Number Style** with each Metric's unit, such as "118.941 €" or "$1,200". Chart axes step by round numbers (1, 2, 2.5 or 5 times a power of ten) and write all their labels one way, all shortened or all in full; a chart of a single value starts at 0. Axes and labels shorten values from 10,000 on, such as "12.3k", "126k €" or "1.2M", and changes read like "+4.2 %". A negative value or change has the minus sign "−" in front, the unit too: "−1.200 €", "−$12.3k", "−3.5 %". Snapshots, View Links and Previews write numbers the same way, in the style the Workspace has now.
+
+### Pinning a dashboard
+
+For the dashboards you open every day, press **Pin** in the row of buttons above a dashboard, or the pin on its card in the list. The button then reads **Pinned**; press it again to unpin. Pinned dashboards appear in the sidebar under **Dashboards**, in the order you pinned them. You can pin up to eight; with eight pinned, Ziffr says so and asks you to unpin one first.
+
+- **Order**: drag a pinned dashboard up or down in the sidebar. Without a mouse, open the **⋯** menu on its row and choose **Move up** or **Move down**; **Unpin** is there too.
+- **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
+- **On a phone**, the pinned dashboards are the first thing **More** lists.
+- Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
+- In the demo nothing is saved, so pinning says so.
 
 ### Switching dashboards
 

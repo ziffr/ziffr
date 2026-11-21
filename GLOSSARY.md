@@ -256,6 +256,10 @@ _Avoid_: Dummy data, fake data, demo data
 A canvas of widgets that a user arranges and can share, to watch numbers as they come in. It has a name and may have an introduction, and reads two ways: *Grid*, as arranged, and *Read*, the introduction and then its widgets one below the other in reading order, for a phone or to explain what happened. Ziffr opens on a person's Home dashboard, which they choose.
 _Avoid_: Board, report, page, story
 
+**Pinned Dashboard**:
+A Dashboard a person keeps in the sidebar under Dashboards, for the ones they open every day. Pins are the person's own, per Workspace, at most eight, in the order they chose (by drag, or Move up and Move down). A pin never gives sight: a Dashboard that is no longer shared with the person drops out of their sidebar without a word. In the demo nothing can be pinned.
+_Avoid_: Favorite, bookmark, starred
+
 **Analysis Canvas**:
 A workspace where a user drops one or more metrics and runs analyses on them.
 _Avoid_: Workbench, lab
