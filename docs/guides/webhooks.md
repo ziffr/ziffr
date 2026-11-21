@@ -206,7 +206,7 @@ Every call that is understood answers `200` with the result, so any call may be 
 | `404` | Unknown, unsigned, old, replayed or switched off; or the Action was never sent to this Webhook and never linked by it. |
 | `409` | Ziffr's rules do not allow it: a Question marked done, a Task Ziffr closed reopened, an Approval or Self-check, an external task already linked to another Action, too many links. |
 | `413` | Over 16 KB. |
-| `429` | More than 60 requests in a minute. Wait for `Retry-After`. |
+| `429` | More than 60 signed requests in a minute, or too many requests to the address before the signature is even checked (see Limits). Wait for `Retry-After`. |
 
 ## Limits
 
@@ -218,8 +218,11 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Log | 14 days |
 | Answer within | 10 seconds |
 | Requests back | 60 a minute per Webhook, 16 KB each |
+| Unsigned requests, before the secret is opened | 120 a minute per Webhook and network address (a gate in memory, per Ziffr process) |
 | Links per Action | 10 |
 | Secret overlap after a replacement | 24 hours |
+
+Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it, unsigned floods share one ceiling of 600 requests a minute per Webhook and can lock out the real sender until they stop.
 
 Webhooks are available on Free and every paid Size. The demo and a trial have none, since they would send a Workspace's data to an address outside Ziffr.
 
