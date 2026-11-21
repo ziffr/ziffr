@@ -83,6 +83,9 @@ setInterval(() => {
   // The monthly usage digest (spec 0031): daily at 07:00 UTC; the job acts on days 1 to 7 of a month, once per Owner and
   // month, queues the emails and does nothing without working email.
   if (now.getUTCHours() === 7 && now.getUTCMinutes() === 0) void call("usage-digest");
+  // Retention (spec 0033): daily at 02:40 UTC, away from the other jobs. Confirmed Retentions start and are reminded of,
+  // then old values are condensed or deleted in small steps; it does nothing where no Metric has a Retention.
+  if (now.getUTCHours() === 2 && now.getUTCMinutes() === 40) void call("retention");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily, Retention daily at 02:40 UTC${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);

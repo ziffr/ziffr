@@ -107,7 +107,7 @@ export type RetentionPlan = {
 };
 
 /** The Metric periods starting in a span of a Display Period: its first and last (weeks belong to the month their Monday is in). */
-function ownPeriodsOf(own: Period, span: string, into: DisplayPeriod, ys: YearStart): { first: string; last: string } {
+export function ownPeriodsOf(own: Period, span: string, into: DisplayPeriod, ys: YearStart): { first: string; last: string } {
   let first = periodStart(span, own, ys);
   if (first < span) first = shiftPeriod(first, own, 1);
   const count = periodCount(own, span, periodEnd(span, into), ys);

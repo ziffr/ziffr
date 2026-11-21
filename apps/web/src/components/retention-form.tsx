@@ -143,9 +143,11 @@ function AllCounts({ p }: { p: WorkspaceRetentionPreview }) {
 }
 
 /** The Retention on a Metric's page: what is in force, what waits for its first day, and, for those who may set it, the form. */
-export function MetricRetention({ metricId, name, period, aggregation, retention, pending, canSet }: {
+export function MetricRetention({ metricId, name, period, aggregation, retention, pending, canSet, status }: {
   metricId: number; name: string; period: Period; aggregation: Aggregation; retention: Retention | null;
   pending: { retention: Retention; starts_on: string; note: string; cancellable: boolean } | null; canSet: boolean;
+  /** What the daily job last had to say, for those who may set the Retention. */
+  status?: { note: string; stopped: boolean; lastRunOn: string | null } | null;
 }) {
   const router = useRouter();
   const spans = useMemo(() => condensesInto(period), [period]);
@@ -178,6 +180,10 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
       <h2 id="retention-heading" className="mb-1 font-medium">Retention</h2>
       <p className="mb-3 text-xs text-muted-foreground">How long values are kept, and what then happens to older ones. Nothing is condensed or deleted unless someone turns it on here, after seeing what it would do.</p>
       <p>Now: {retentionWords(retention)}.</p>
+      {retention && <p className="text-xs text-muted-foreground">A daily job does it, in small steps, so a first run over many years of values takes several days.{status?.lastRunOn && <> It last looked on {dayWords(status.lastRunOn)}.</>}</p>}
+      {status?.note && (
+        <p role="status" className="mt-2 rounded-[var(--radius-input)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3">{status.stopped ? <strong>Stopped. </strong> : null}{status.note}</p>
+      )}
       {pending && (
         <div role="status" className="mt-2 rounded-[var(--radius-input)] border border-[var(--color-rule-2)] bg-[var(--color-paper-2)] p-3">
           <p className="font-medium">{retentionWords(pending.retention)}</p>
@@ -206,6 +212,9 @@ export function MetricRetention({ metricId, name, period, aggregation, retention
         <DialogContent className="sm:max-w-lg">
           <DialogTitle>{setting?.then === "delete" ? "Delete old values" : "Condense old values"} of {name}?</DialogTitle>
           {shown && <Counts p={shown} />}
+          {setting?.then === "delete" && setting && (
+            <p className="text-sm"><a className="underline" href={`/retention-values?metric=${metricId}&keep=${encodeURIComponent(String(setting.keep_months))}&then=delete`} download>Download these values</a> as a CSV before you confirm: what it would delete, with earlier values, Breakdown rows and Targets. Ziffr writes the download in the Audit Log.</p>
+          )}
           <p className="text-sm text-muted-foreground">It starts on the 8th day. Until then you, the Metric&rsquo;s owner and anyone who may set it can cancel it, and nothing is changed. The owner and you get a message now and one the day before.</p>
           {needsName && (
             <label className="text-sm font-medium">Type the Metric&rsquo;s name to confirm

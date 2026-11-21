@@ -31,15 +31,17 @@ describe("retention words", () => {
     expect(storedRetention(undefined)).toBeNull();
     expect(storedRetention({ keep_months: 3, then: "delete" })).toBeNull();
     expect(storedRetention(del(24))).toEqual(del(24));
-    const ok = { id: "a", retention: del(24), starts_on: "2026-12-01", starts_after: "2026-12-01T08:00:00.000Z", confirmed_on: "2026-11-23", set_by: "p", counted: { periods: 3, values: 9 }, told: true, reminded: false };
+    const ok = { id: "a", retention: del(24), starts_on: "2026-12-01", starts_after: "2026-12-01T08:00:00.000Z", confirmed_on: "2026-11-23", set_by: "p", counted: { periods: 3, values: 9, held_back_periods: 1, held_back_values: 2 }, told: true, reminded: false };
     expect(storedPending(ok)).toEqual(ok);
+    // A confirmation made before the daily job counted what it left alone reads as having left none.
+    expect(storedPending({ ...ok, counted: { periods: 3, values: 9 } })?.counted).toEqual({ periods: 3, values: 9, held_back_periods: 0, held_back_values: 0 });
     expect(storedPending({ ...ok, told: "yes", reminded: 1 })).toEqual({ ...ok, told: false, reminded: false });
-    for (const bad of [null, [], "x", { ...ok, starts_on: "soon" }, { ...ok, retention: null }, { ...ok, set_by: 1 }, { ...ok, id: 1 }, { ...ok, starts_after: "later" }, { ...ok, starts_after: 5 }, { ...ok, counted: null }, { ...ok, counted: { periods: -1, values: 1 } }, { ...ok, counted: { periods: 1.5, values: 1 } }]) expect(storedPending(bad)).toBeNull();
+    for (const bad of [null, [], "x", { ...ok, starts_on: "soon" }, { ...ok, retention: null }, { ...ok, set_by: 1 }, { ...ok, id: 1 }, { ...ok, starts_after: "later" }, { ...ok, starts_after: 5 }, { ...ok, counted: null }, { ...ok, counted: { periods: -1, values: 1 } }, { ...ok, counted: { periods: 1.5, values: 1 } }, { ...ok, counted: { periods: 1, values: 1, held_back_periods: -1 } }, { ...ok, counted: { periods: 1, values: 1, held_back_values: "x" } }]) expect(storedPending(bad)).toBeNull();
   });
 
   it("says when the values go", () => {
     expect(dayWords("2026-11-28")).toBe("28 November 2026");
-    const p = { id: "a", retention: condense(24, "month"), starts_on: "2026-11-28", starts_after: "2026-11-28T00:00:00.000Z", confirmed_on: "2026-11-20", set_by: "p", counted: { periods: 0, values: 0 }, told: true, reminded: false };
+    const p = { id: "a", retention: condense(24, "month"), starts_on: "2026-11-28", starts_after: "2026-11-28T00:00:00.000Z", confirmed_on: "2026-11-20", set_by: "p", counted: { periods: 0, values: 0, held_back_periods: 0, held_back_values: 0 }, told: true, reminded: false };
     expect(pendingNote(p, "2024-11-28")).toBe("Values before 28 November 2024 will be condensed into months from 28 November 2026.");
     expect(pendingNote({ ...p, retention: del(24) }, "2024-11-28")).toBe("Values before 28 November 2024 will be deleted from 28 November 2026.");
   });

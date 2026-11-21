@@ -9,5 +9,5 @@ import type { Metric } from "@ziffr/core/types";
 export async function RetentionBox({ metric, demo }: { metric: Metric; demo: boolean }) {
   const actor = await currentActor();
   const kept = await retentionFor(actor, metric.id);
-  return <MetricRetention metricId={metric.id} name={metric.name} period={metric.period} aggregation={metric.aggregation} retention={kept.retention} pending={kept.pending} canSet={kept.canSet && !demo} />;
+  return <MetricRetention metricId={metric.id} name={metric.name} period={metric.period} aggregation={metric.aggregation} retention={kept.retention} pending={kept.pending} canSet={kept.canSet && !demo} status={kept.status} />;
 }
