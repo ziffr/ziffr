@@ -141,3 +141,11 @@ describe("Breakdown labels", () => {
     expect(error).not.toBeNull();
   });
 });
+
+describe("the re-encryption job's table", () => {
+  it("leaves Breakdown labels out: sealed alone they would lose their index and stop merging", async () => {
+    const { SEALED_COLUMNS, INDEXED_COLUMNS } = await import("./sealed-columns");
+    expect(Object.keys(SEALED_COLUMNS)).not.toContain("breakdown_rows");
+    expect(INDEXED_COLUMNS.breakdown_rows).toEqual(["label"]);
+  });
+});

@@ -28,17 +28,26 @@ export const SEALED_COLUMNS = {
   // The external task an Action is in another system, per Webhook (spec 0034, ticket 5): its id and address, written by
   // webhook-inbound.ts with the row's uuid made first.
   webhook_external_ids: ["external_id", "url"],
-  // A Breakdown row's label, written by submissions.ts through record_observation with its id taken first, found again
-  // by its blind index (breakdown-labels.ts). breakdown_history.label is a copy of it with the row's id in `row_id`:
-  // it opens as a row of this table (breakdown-labels.ts), and the re-encryption job rewrites it with its row.
-  breakdown_rows: ["label"],
 } as const;
 
-/** The column that names a row of each table, which a sealed value is bound to. */
-const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id" };
+/** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
+ * column of SEALED_COLUMNS on its own, and a Breakdown label sealed without its `label_index` (and its history) could no
+ * longer merge. A Breakdown row's label is written by submissions.ts through record_observation with its id taken
+ * first and found again by its blind index (breakdown-labels.ts); breakdown_history.label is a copy of it with the row's
+ * id in `row_id`. Old plain labels stay plain and keep merging until they are re-sealed with their index and history in
+ * #250. */
+export const INDEXED_COLUMNS = { breakdown_rows: ["label"] } as const;
 
-/** A table with sealed columns. */
+const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
+
+/** The column that names a row of each table, which a sealed value is bound to. */
+const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", breakdown_rows: "id" };
+
+/** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
+
+/** A table with sealed columns, also one sealed with an index. */
+export type OpenedTable = keyof typeof COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
 type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts";
@@ -54,9 +63,9 @@ export async function reserveIds(table: InsertedTable | "breakdown_rows", count:
 }
 
 /** A row's sealed columns sealed for it, the rest as they are. Columns left out of the row stay out. */
-function sealed(cipher: WorkspaceCipher, table: SealedTable, row: Row): Row {
+function sealed(cipher: WorkspaceCipher, table: OpenedTable, row: Row): Row {
   const out: Row = { ...row };
-  for (const column of SEALED_COLUMNS[table]) {
+  for (const column of COLUMNS[table]) {
     const v = row[column];
     if (typeof v === "string") out[column] = cipher.seal({ table, column, row: row[ROW_KEY[table]] as string | number }, v);
   }
@@ -87,22 +96,22 @@ export async function insertSealed(table: InsertedTable, workspaceId: string, ro
 }
 
 /** A row of a Workspace with its sealed columns sealed for it, to insert or update; the row's key must be in it. */
-export async function sealRow(table: SealedTable, workspaceId: string, row: Row): Promise<Row> {
+export async function sealRow(table: OpenedTable, workspaceId: string, row: Row): Promise<Row> {
   return sealed(await workspaceCipher(workspaceId), table, row);
 }
 
 /** A row read from a table, its sealed columns opened (null for one that does not open). Rows without an id are
  * returned as they are: nothing sealed can be opened without knowing its row. */
-export function openRow<T extends Row>(cipher: WorkspaceCipher, table: SealedTable, row: T): T {
+export function openRow<T extends Row>(cipher: WorkspaceCipher, table: OpenedTable, row: T): T {
   if (row === null || row === undefined) return row;
   const key = row[ROW_KEY[table]];
   const out: Row = { ...row };
   // Without its row nothing sealed can be opened, and it must not pass on as it is either: it reads as missing.
   if (key === undefined || key === null) {
-    for (const column of SEALED_COLUMNS[table]) if (isSealed(row[column] as string)) out[column] = null;
+    for (const column of COLUMNS[table]) if (isSealed(row[column] as string)) out[column] = null;
     return out as T;
   }
-  for (const column of SEALED_COLUMNS[table]) {
+  for (const column of COLUMNS[table]) {
     if (column in row && typeof row[column] === "string") out[column] = cipher.open({ table, column, row: key as string | number }, row[column] as string);
   }
   // An event's details are an object holding them sealed ({"sealed": "w1..."}): opened back into the object; ones
@@ -127,7 +136,7 @@ export function sealDetails(cipher: WorkspaceCipher, row: Row): Row {
 }
 
 /** Rows of one Workspace read from a table, their sealed columns opened, with one key lookup. */
-export async function openRows<T extends Row>(table: SealedTable, workspaceId: string, rows: T[] | null | undefined): Promise<T[]> {
+export async function openRows<T extends Row>(table: OpenedTable, workspaceId: string, rows: T[] | null | undefined): Promise<T[]> {
   if (!rows?.length) return rows ?? [];
   const cipher = await workspaceCipher(workspaceId);
   return rows.map((r) => openRow(cipher, table, r));
