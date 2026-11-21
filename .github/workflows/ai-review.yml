@@ -3,13 +3,14 @@
 # required check, the job may fail, and the script exits 0 on every error.
 #
 # Trust: the job holds ANTHROPIC_API_KEY (environment `ai-review`, which the owner creates; without it the job says so
-# and does nothing), so it runs the BASE branch's script and docs, never the pull request's: no checkout of its head,
-# no credentials kept, the diff comes through the API and goes into the prompt as marked data. The token can only read
-# the repository and write a comment; a fork's pull request gets a read-only token, so there it posts nothing.
-# CODEOWNERS covers this file, so a pull request that changes it needs the owner's review.
+# and does nothing). It uses `pull_request_target` on purpose: GitHub then runs this file from the BASE branch, so a
+# pull request cannot change the workflow and read the key (with `pull_request` it could). That is only safe because
+# NO CODE OF THE PULL REQUEST RUNS: the job checks out the base commit, never the head (never add `ref: head.sha`,
+# `npm install` or anything that executes the pull request's files), keeps no credentials, and gets the diff through the
+# API into the prompt as marked data. The environment deploys only from `main`. CODEOWNERS covers this file.
 name: AI review
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize]
 permissions:
   contents: read

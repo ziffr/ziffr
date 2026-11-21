@@ -27,7 +27,7 @@ async function main() {
   const number = Number(pr?.number);
   if (!Number.isInteger(number) || number < 1) throw new Error("no pull request in the event");
 
-  // Only the diff, as text; 60 KB is kept, so a huge one is not downloaded whole.
+  // Only the diff, as text; the prompt keeps 60 KB of it, and 400 KB is the most this holds in memory.
   const diffRes = await gh(`pulls/${number}`, { headers: { accept: "application/vnd.github.diff" } });
   if (!diffRes.ok) throw new Error(`GitHub answered ${diffRes.status} for the diff`);
   const diff = (await diffRes.text()).slice(0, 400_000);
@@ -63,14 +63,14 @@ async function main() {
   let existing;
   for (let page = 1; page <= 10 && !existing; page++) {
     const batch = await ghJson(`issues/${number}/comments?per_page=100&page=${page}`);
-    existing = batch.find((c) => c.user?.type === "Bot" && typeof c.body === "string" && c.body.startsWith(MARKER));
+    existing = batch.find((c) => c.user?.login === "github-actions[bot]" && typeof c.body === "string" && c.body.startsWith(MARKER));
     if (batch.length < 100) break;
   }
   const post = existing
     ? gh(`issues/comments/${existing.id}`, { method: "PATCH", body: JSON.stringify({ body }) })
     : gh(`issues/${number}/comments`, { method: "POST", body: JSON.stringify({ body }) });
   const done = await post;
-  // A pull request from a fork gets a read-only token: no comment, which is fine for an advisory review.
+  // If GitHub refuses the comment, that is fine for an advisory review.
   if (!done.ok) notice(`Could not post the review (GitHub answered ${done.status}).`);
 }
 
