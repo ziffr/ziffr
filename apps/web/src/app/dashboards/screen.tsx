@@ -131,6 +131,13 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   };
   const add = (s: DropSource) => place(s);
 
+  // The Grid and Read switch: in the toolbar row on every screen, the one button besides Share that a phone keeps there.
+  const viewToggle = current && (
+    <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
+      <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
+      <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
+    </div>
+  );
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const newDashboard = () => setNewOpen(true);
@@ -174,7 +181,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeId} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
-                  <span className="flex items-center gap-1.5"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
+                  <span className="flex items-center gap-1.5 max-md:hidden"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>
                 </p>
                 {changing ? <DashboardText key={current.id} id={current.id} name={current.name} intro={current.intro ?? ""} /> : !reading && current.intro && <p className="mt-3 max-w-3xl whitespace-pre-line text-muted-foreground">{current.intro}</p>}
               </div>
@@ -182,6 +189,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 type="dashboard"
                 id={current.id}
                 people={data.people}
+                phone={<div className="md:hidden">{viewToggle}</div>}
                 share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals } : null}
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
@@ -201,10 +209,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                   <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
                 </button>
                 <PinButton dashboardId={current.id} name={current.name} pinned={pinned} />
-                <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
-                  <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
-                  <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
-                </div>
+                <div className="max-md:hidden">{viewToggle}</div>
                 <SnapshotMenu dashboardId={current.id} yearStart={data.yearStart} snapshots={snapshots} canTake={editable && canCreate} auto={current.role === "owner" ? { every: current.snapshot_every ?? null, waitDays: current.snapshot_wait_days ?? 5 } : null} />
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
                 {editable && !reading && (

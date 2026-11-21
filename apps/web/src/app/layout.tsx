@@ -103,8 +103,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
   const demoNote = demo ? (
     <p className={sidebar ? "px-4 pt-3 text-xs text-muted-foreground sm:px-6" : "mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6"}>
-      Look around as anyone: nothing you do in the demo is saved, and nothing is sent.
-      {offersTrials && <>{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</>}
+      {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
+      <span className="md:hidden">The demo saves and sends nothing.</span>
+      <span className="max-md:hidden">Look around as anyone: nothing you do in the demo is saved, and nothing is sent.</span>
+      {offersTrials && <span className="max-md:hidden">{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</span>}
     </p>
   ) : null;
   const banners = (

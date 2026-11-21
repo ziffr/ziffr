@@ -125,6 +125,8 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 
 ### On a phone
 
+On a phone the demo's note is one line, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so.
+
 On a phone the bar keeps the Ziffr name, the Search and Actions icons and a menu button. The menu button opens one list with three groups: **Main** (Dashboards, Decks, Metrics, Analyze), **Workspace** (the Workspace's pages) and your name (My schedule, Your profile, Your Deliveries, Your Alerts, and Installation settings for Installation Admins). Below them are **User guide**, a **Workspace** picker if you belong to several, **New workspace** and **Sign out**. Moving to another page closes the menu.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).

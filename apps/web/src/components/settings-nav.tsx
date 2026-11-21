@@ -12,6 +12,7 @@ export type SettingsLink = { href: string; label: string };
 export function SettingsNav({ groups }: { groups: { label: string; links: SettingsLink[] }[] }) {
   const path = usePathname();
   return (
+    <div className="relative min-w-0">
     <nav aria-label="Settings" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:overflow-visible md:px-0">
       <div className="flex gap-6 md:flex-col">
         {groups.map((g) => (
@@ -22,7 +23,7 @@ export function SettingsNav({ groups }: { groups: { label: string; links: Settin
                 const active = path === l.href || path.startsWith(l.href + "/");
                 return (
                   <li key={l.href}>
-                    <Link href={l.href} aria-current={active ? "page" : undefined} className={cn("flex min-h-9 items-center whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring", active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                    <Link href={l.href} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center md:min-h-9 whitespace-nowrap rounded-[var(--radius-input)] px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring", active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                       {l.label}
                     </Link>
                   </li>
@@ -33,5 +34,8 @@ export function SettingsNav({ groups }: { groups: { label: string; links: Settin
         ))}
       </div>
     </nav>
+    {/* A fade at the right edge says the row goes on sideways, on a phone (#535). */}
+    <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 -mr-4 w-10 bg-gradient-to-l from-[var(--card)] to-transparent md:hidden" />
+    </div>
   );
 }

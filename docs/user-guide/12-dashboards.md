@@ -123,7 +123,7 @@ A value that waits for **Approval** shows, marked "not approved yet" next to it,
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home**, **Pin**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
 
 ### The Pool
 

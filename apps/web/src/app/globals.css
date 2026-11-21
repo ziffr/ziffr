@@ -159,3 +159,16 @@
 .guide-prose a.guide-term { text-decoration: none; border-bottom: 1px dotted var(--color-rule-2); }
 .guide-prose a.guide-term:hover { border-bottom-color: currentColor; }
 .guide-prose h3 + p { margin-top: var(--space-xs); }
+
+/* Touch targets (#535): on a phone, and on any touch screen, what you press is at least 44 px high (and wide when it
+   is only an icon). Switches, checkboxes and sliders keep their own size, and the widget grid's drag handles too. */
+@media (max-width: 767px), (pointer: coarse) {
+  button:not([role="switch"], [role="checkbox"], [role="radio"], [role="slider"], .widget-drag),
+  select,
+  summary,
+  [role="menuitem"],
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="file"], [type="color"]) { min-height: 44px; }
+  a.group\/button, a[class*="h-9"], a[class*="min-h-8"], a[class*="min-h-9"] { min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; }
+  button:has(> svg:only-child):not([role="switch"], [role="checkbox"], [role="radio"], .widget-drag) { min-width: 44px; }
+}
