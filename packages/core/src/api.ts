@@ -8,7 +8,8 @@ import { condensedFor } from "./condensed-values";
 import { db } from "./db";
 import { retentionForApi, type ApiRetention } from "./retention-words";
 import { openRows } from "./sealed-columns";
-import { workflowFacts, type ApiMetricWorkflow, type ApiNextDue } from "./api-metric-workflow";
+import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextDue } from "./api-metric-workflow";
+import { linkTo } from "./deliveries";
 import { recordView } from "./usage";
 import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
 import type { Action, BreakdownRow, Metric } from "./types";
@@ -68,12 +69,12 @@ async function visibleMetric(actor: Actor | KeyActor, slug: string): Promise<{ m
 }
 
 /** One Metric as a program sees it on its own: its description, its Workflow and the next day a value is due (ticket #612). */
-export type ApiMetricDetail = ApiMetric & { workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null };
+export type ApiMetricDetail = ApiMetric & { url: string; workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null; next_asked: ApiNextAsked | null };
 
 /** A Metric the caller has checked the actor sees, with its Workflow facts. */
 export async function describeMetric(actor: Actor | KeyActor, metric: Metric): Promise<ApiMetricDetail> {
   const [stored, facts] = await Promise.all([storedRetentions(actor.workspaceId, [metric.id]), workflowFacts(actor, metric)]);
-  return { ...toApi(metric, stored.get(metric.id)), ...facts };
+  return { ...toApi(metric, stored.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts };
 }
 
 /** One Metric's description with its Workflow and next Due Date (scope metrics:read). */

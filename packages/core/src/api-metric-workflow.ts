@@ -12,7 +12,8 @@ import { openWorkflowRow, openWorkflowRows } from "./workflow-rows";
 import { WorkflowRefused } from "./workflows";
 import { dueDate, workingPeriod } from "./workflow-rules";
 import { localTime, workspaceClock } from "./workspace-clock";
-import type { Metric, WorkflowConfig } from "./types";
+import { askingHour, nextAskingRun } from "./asking-schedule";
+import type { AskingSchedule, Metric, WorkflowConfig } from "./types";
 
 /** Thrown when a Workflow cannot be given to a Metric for its content (none by that name, two by that name, one the
  * key may not use); the API answers 422 with the message, as for any WorkflowRefused (which it also is: the Metric's
@@ -29,6 +30,9 @@ export type ApiMetricWorkflow = { id: number; name: string; yours: boolean };
 
 /** The next day a value is due: the Due Date of the period Ziffr asks for next, and that period's first day. */
 export type ApiNextDue = { date: string; period: string };
+
+/** When the Workflow next asks for values: the day, the whole hour and the time zone both are in. */
+export type ApiNextAsked = { day: string; hour: number; time_zone: string };
 
 /** What a Workflow reference names: its id (a number) or its exact name (not case sensitive). */
 export type WorkflowRef = number | string;
@@ -82,24 +86,29 @@ export async function checkWorkflowChoice(actor: Actor | KeyActor, creator: Acto
 /** A Metric's Workflow and its next Due Date for the Metric page's answer to a program: both null without a Workflow,
  * for a Derived or an Archived Metric (nothing is asked for). The next Due Date is the one of the period a Workflow
  * asks for now (the last one that ended) while that is today or later, else the one of the period after. */
-export async function workflowFacts(actor: Actor | KeyActor, metric: Pick<Metric, "id" | "period" | "formula" | "archived_at">, now = new Date()): Promise<{ workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null }> {
+export async function workflowFacts(actor: Actor | KeyActor, metric: Pick<Metric, "id" | "period" | "formula" | "archived_at">, now = new Date()): Promise<{ workflow: ApiMetricWorkflow | null; next_due: ApiNextDue | null; next_asked: ApiNextAsked | null }> {
   const ws = actor.workspaceId;
   const { data: row } = await db().from("metrics").select("workflow_id").eq("id", metric.id).eq("workspace_id", ws).single();
   const id = (row?.workflow_id as number | null) ?? null;
-  if (id === null) return { workflow: null, next_due: null };
+  if (id === null) return { workflow: null, next_due: null, next_asked: null };
   const w = await openWorkflowRow(ws, (await db().from("workflows").select("id, name, owner_id, config").eq("id", id).eq("workspace_id", ws).maybeSingle()).data);
-  if (!w) return { workflow: null, next_due: null };
+  if (!w) return { workflow: null, next_due: null, next_asked: null };
   const workflow = { id, name: String(w.name), yours: w.owner_id === actor.personId };
-  if (metric.formula || metric.archived_at) return { workflow, next_due: null };
+  if (metric.formula || metric.archived_at) return { workflow, next_due: null, next_asked: null };
   const yearStart = await yearStartFor(ws, metric.period);
-  const { timeZone } = await workspaceClock({ personId: actor.personId, workspaceId: ws, role: "member" });
-  const today = localTime(now, timeZone).day;
+  const { timeZone, runHour } = await workspaceClock({ personId: actor.personId, workspaceId: ws, role: "member" });
+  const local = localTime(now, timeZone);
+  const today = local.day;
   const cfg = w.config as WorkflowConfig;
+  // Without an Asking Schedule of its own a Workflow asks with the Workspace's daily run.
+  const asking: AskingSchedule = cfg.asking ?? { hour: null, days: { kind: "every_day" } };
+  const askDay = nextAskingRun(asking, runHour, local);
+  const next_asked = askDay ? { day: askDay, hour: askingHour(asking, runHour), time_zone: timeZone } : null;
   let period = workingPeriod(today, metric.period, yearStart);
   let date = dueDate(period, metric.period, cfg);
   if (date < today) {
     period = periodStart(shiftPeriod(period, metric.period, 1), metric.period, yearStart);
     date = dueDate(period, metric.period, cfg);
   }
-  return { workflow, next_due: { date, period } };
+  return { workflow, next_due: { date, period }, next_asked };
 }

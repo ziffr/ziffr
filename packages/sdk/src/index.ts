@@ -36,6 +36,10 @@ export type Metric = {
 
 /** A Metric on its own (`metrics.get`, `create` and `update` answer this): its description, its Workflow and when a value is due next. */
 export type MetricDetail = Metric & {
+  /** Where the Metric is in Ziffr, to give the person a link; needs a sign-in. */
+  url: string;
+  /** When its Workflow asks next (day, whole hour, time zone); null without a Workflow, and for a Derived or Archived Metric. */
+  next_asked: { day: string; hour: number; time_zone: string } | null;
   /** The Workflow that asks for its values, or null; `yours` says whether the key's creator owns it. */
   workflow: { id: number; name: string; yours: boolean } | null;
   /** The next Due Date (YYYY-MM-DD) and the first day of the period it is for; null without a Workflow, and for a Derived or Archived Metric. */
@@ -183,7 +187,16 @@ export type FeedMetric = {
 export type FeedOverview = { name: string; year_start_month: number; metrics: Page<FeedMetric> };
 
 /** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12, and how it writes numbers. */
-export type Workspace = { year_start_month: number; number_style: "1,234.5" | "1.234,5" | "1 234,5" | "1'234.5" };
+export type Workspace = {
+  year_start_month: number; number_style: "1,234.5" | "1.234,5" | "1 234,5" | "1'234.5";
+  /** The workspace's time zone (IANA name), which days, hours and Due Dates are in. */
+  time_zone: string;
+  /** The whole hour Workflows ask at unless they have an Asking Schedule of their own. */
+  run_hour: number;
+  week_start: "monday" | "sunday";
+  /** The ways Ziffr can reach the key's creator to ask for a value now. */
+  reached_by: ("email" | "slack" | "telegram")[];
+};
 
 /** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone). */
 export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };
@@ -234,7 +247,7 @@ export type WorkflowStep =
 export type AskingSchedule = { hour: number | null; days: { kind: "every_day" } | { kind: "weekdays" } | { kind: "chosen_weekdays"; days: number[] } | { kind: "every_n_days"; n: number; from: string } | { kind: "month_day"; day: number | "last" } };
 
 /** A Workflow of the key's creator with its steps. */
-export type WorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: WorkflowStep[]; asking: AskingSchedule | null; metrics: number; updated_at: string };
+export type WorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: WorkflowStep[]; asking: AskingSchedule | null; metrics: number; /** The Metrics that use it which the key's creator sees (at most 50). */ used_by: { slug: string; name: string }[]; updated_at: string };
 /** What to say to make a Workflow. */
 export type NewWorkflow = { name: string; due_working_days?: number; lock_summary?: boolean; steps?: WorkflowStep[]; asking?: AskingSchedule | null };
 /** What to change in one; each part left out stays, `steps` replaces all of them. */

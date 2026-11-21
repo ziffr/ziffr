@@ -110,6 +110,8 @@ Creates a Metric owned by the key's creator, checked like one made in the web fo
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
+| `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
 | `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
@@ -158,6 +160,8 @@ One Metric's description: period, format, unit, Polarity and target, with its Wo
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
+| `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
 | `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
@@ -251,6 +255,8 @@ Changes a Metric's name, description, unit, format, period (only while it has no
 | `archived` | boolean | yes | An Archived Metric: kept with its values and history, asked for nothing and taking no values. Listed only with ?archived=true. |
 | `retention` | object or null | yes | Keep values for `keep_months` months (at least 13), then condense older ones into one Condensed Value per longer period (`into`) or delete them. The one in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview of what it would do and a confirmation, never through the API. Periods it condensed are listed with `condensed_from` on the Metric's values. |
 | `retention_pending` | object or null | yes | A confirmed Retention that has not started yet, or null. |
+| `url` | string | yes | Where the Metric is in Ziffr, to give the person a link; needs a sign-in. |
+| `next_asked` | object or null | yes | When the Workflow asks for values next: its Asking Schedule, or the Workspace's daily run. null without a Workflow, and for a Derived or Archived Metric. |
 | `workflow` | object or null | yes | The Workflow that asks for this Metric's values (GLOSSARY: Workflow), or null: nobody is asked on a schedule. |
 | `next_due` | object or null | yes | The next day a value is due: the Due Date of the period the Workflow asks for now while that is today or later, else of the next one. null without a Workflow, and for a Derived or Archived Metric. |
 
@@ -1007,6 +1013,10 @@ The month the workspace's fiscal year starts in, which every quarterly and yearl
 | --- | --- | --- | --- |
 | `year_start_month` | integer, 1 to 12 | yes | The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it. |
 | `number_style` | `"1,234.5"`, `"1.234,5"`, `"1 234,5"`, `"1'234.5"` | yes | How the workspace writes numbers, each style named by 1234.5 written in it: the mark between groups of three digits and the decimal mark. A program that shows values writes them the same way. |
+| `time_zone` | string | yes | The workspace's time zone (IANA name), which days, hours and Due Dates are in. |
+| `run_hour` | integer, 0 to 23 | yes | The whole hour its Workflows ask at unless they have an Asking Schedule of their own: the default time of asking. |
+| `week_start` | `"monday"`, `"sunday"` | yes | The first day of its week. |
+| `reached_by` | array of `"email"`, `"slack"`, `"telegram"` | yes | The ways Ziffr can reach the key's creator to ask for a value now. Nothing about their accounts. |
 
 **Errors**
 
@@ -1193,6 +1203,9 @@ Makes a Workflow owned by the key's creator, through the same function as the Wo
 | `steps` | array of any | yes |  |
 | `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
+| `used_by` | array of object | yes | The Metrics of those that use it which the key's creator sees, at most 50: a change to the Workflow applies to all of them, to the ones they do not see too. |
+| `used_by[].slug` | string | yes |  |
+| `used_by[].name` | string | yes |  |
 | `updated_at` | string | yes |  |
 
 **Errors**
@@ -1228,6 +1241,9 @@ A Workflow the key's creator owns, with its Due Date and steps, to change it wit
 | `steps` | array of any | yes |  |
 | `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
+| `used_by` | array of object | yes | The Metrics of those that use it which the key's creator sees, at most 50: a change to the Workflow applies to all of them, to the ones they do not see too. |
+| `used_by[].slug` | string | yes |  |
+| `used_by[].name` | string | yes |  |
 | `updated_at` | string | yes |  |
 
 **Errors**
@@ -1272,6 +1288,9 @@ Changes the name, Due Date or steps of a Workflow the creator owns; parts left o
 | `steps` | array of any | yes |  |
 | `asking` | object or null | yes | When it runs on its own; null: with the Workspace's daily run. |
 | `metrics` | integer | yes | How many Metrics use it. |
+| `used_by` | array of object | yes | The Metrics of those that use it which the key's creator sees, at most 50: a change to the Workflow applies to all of them, to the ones they do not see too. |
+| `used_by[].slug` | string | yes |  |
+| `used_by[].name` | string | yes |  |
 | `updated_at` | string | yes |  |
 
 **Errors**

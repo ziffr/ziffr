@@ -60,7 +60,7 @@ describe("@ziffr/mcp against the app", () => {
     const people = json(await client.callTool({ name: "list_people", arguments: {} })).people;
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
-    expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1, number_style: "1,234.5" } });
+    expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1, number_style: "1,234.5", time_zone: "UTC", run_hour: 8, week_start: "monday", reached_by: ["email"] } });
     // Orders is new: no period of it ended yet, so nothing is due.
     const schedule = await client.callTool({ name: "my_schedule", arguments: {} });
     expect(schedule.isError).toBeFalsy();
@@ -108,6 +108,30 @@ describe("@ziffr/mcp against the app", () => {
     const reading = (await connect(["metrics:read"])).client;
     expect((await reading.callTool({ name: "update_metric", arguments: { slug: calls.slug, name: "x" } })).isError).toBe(true);
     expect((await reading.callTool({ name: "set_metric_workflow", arguments: { slug: calls.slug, workflow: null } })).isError).toBe(true);
+  });
+  it("does the whole job in one call for someone who knows nothing about Ziffr (ticket #614)", async () => {
+    const { client } = await connect(["metrics:read", "values:submit", "metrics:write", "metrics:edit", "workflows:write"]);
+    const ws = json(await client.callTool({ name: "get_workspace", arguments: {} })).workspace;
+    expect(ws).toMatchObject({ time_zone: "UTC", run_hour: 8, week_start: "monday", reached_by: ["email"] });
+    // "Ask me every weekday at 1 pm for the kilometres": one call makes the Metric, its schedule, the person as submitter and the first value.
+    const made = json(await client.callTool({ name: "create_metric", arguments: { name: "Kilometres", unit: "km", period: "day", description: "Kilometres driven each day.", schedule: { hour: 13, days: "weekdays" }, first_value: { value: 42 } } }));
+    expect(made.url).toMatch(/\/metrics\/kilometres$/);
+    expect(made.metric).toMatchObject({ workflow: { name: "Ask me every weekday at 13:00" }, sources: expect.arrayContaining(["api"]) });
+    expect(made.next_ask).toMatch(/^You are asked next on \w+day, \d+ \w+ \d{4} at 13:00 \(UTC\)\.$/);
+    expect(made.defaults_used.join(" ")).toMatch(/You are the one asked.*Higher is better/);
+    expect(made.first_value).toMatchObject({ recorded: true, status: "recorded", value: 42 });
+    // The same schedule is used again, not made twice; the Workflow lists the Metrics it asks for.
+    const again = json(await client.callTool({ name: "create_metric", arguments: { name: "Steps", period: "day", schedule: { hour: 13, days: "weekdays" } } }));
+    expect(again.defaults_used.join(" ")).toMatch(/one you already had/);
+    const flows = json(await client.callTool({ name: "list_workflows", arguments: {} }));
+    expect(flows.workflows.filter((f: { name: string }) => f.name === "Ask me every weekday at 13:00")).toHaveLength(1);
+    const detail = json(await client.callTool({ name: "get_workflow", arguments: { id: made.metric.workflow.id } })).workflow;
+    expect(detail.used_by.map((m: { name: string }) => m.name).sort()).toEqual(["Kilometres", "Steps"]);
+    expect(detail.asking).toEqual({ hour: 13, days: { kind: "weekdays" } });
+    // A first value that cannot be recorded does not undo the Metric: the answer says why.
+    const stuck = json(await client.callTool({ name: "create_metric", arguments: { name: "Odd", first_value: { value: 1, period: "2999-01-01" } } }));
+    expect(stuck.first_value).toMatchObject({ recorded: false, reason: expect.any(String) });
+    expect(stuck.url).toBeTruthy();
   });
   it("makes a dashboard from a template and writes one up with Findings (spec 0014, spec 0013)", async () => {
     const { client, orders } = await connect(["metrics:read", "dashboards:read", "dashboards:write"]);
