@@ -14,6 +14,7 @@ curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api
 ## What every answer has in common
 
 - **Errors** are `{ "error": { "code": "...", "message": "..." } }`. The codes are `invalid_request` (400), `unauthorized` (401: no key, or one that ended, was revoked, or whose creator left), `forbidden` (403: the key lacks the scope), `not_found` (404), `conflict` (409), `unprocessable` (422: a rule refused it), `locked` (422: the period is locked), `rate_limited` (429) and `internal` (500).
+- **Scopes and refusal codes** are listed at the end of this guide.
 - **Something you may not see is not found.** A Metric in another workspace, or one not shared with the key's creator, answers 404, the same as one that does not exist.
 - **Lists page with a cursor.** Pass `limit` (1 to 100, default 50) and the `next` value of the previous page as `cursor`. `next` is null on the last page. Treat cursors as opaque.
 - **Each key may make about 60 calls a minute.** Over that, the answer is `rate_limited` (429) with a `Retry-After` header in seconds; wait that long and try again. Refused calls do not count against the limit.
@@ -189,3 +190,57 @@ A program can share what its key's creator owns, manage Groups, and invite or re
 | Requests to join | `GET /api/v1/join-requests`, `POST /api/v1/join-requests/{id}` with `approve` |
 
 An invite link (`POST /api/v1/invitations/links`) is shown once and lets anyone who has it join: keep it as you would a password. Lists never contain an invitation's secret.
+
+## Scopes
+
+Every scope a key can have, generated from the code (`packages/core/src/actor.ts`); `pnpm test` fails when this table is out of date. The chapters above say what each one allows.
+
+<!-- generated:scopes -->
+| Scope | Label on the key form | Who may hold it | Needs a creator whose role may create |
+| --- | --- | --- | --- |
+| `metrics:read` | Read metrics | keys and assistants | no |
+| `values:submit` | Submit values | keys and assistants | no |
+| `metrics:write` | Create metrics | keys and assistants | yes |
+| `metrics:edit` | Change metrics | keys and assistants | yes |
+| `dashboards:read` | Read dashboards | keys and assistants | no |
+| `dashboards:write` | Build dashboards | keys and assistants | yes |
+| `alerts:write` | Manage alerts | keys and assistants | no |
+| `actions:read` | Read questions and tasks | keys and assistants | no |
+| `actions:write` | Answer questions and tasks | keys and assistants | no |
+| `values:approve` | Approve values | programs' Access Keys only | no |
+| `view-links:write` | Manage View Links | programs' Access Keys only | yes |
+| `usage:read` | Read usage figures | programs' Access Keys only | no |
+| `workflows:write` | Build workflows | keys and assistants | yes |
+| `workflows:people` | Name who approves and who is told | programs' Access Keys only | yes |
+| `shares:write` | Share and answer access requests | programs' Access Keys only | no |
+| `groups:write` | Manage groups | programs' Access Keys only | no |
+| `people:write` | Invite and remove people | programs' Access Keys only | no |
+| `shares:propose` | Propose sharing | keys and assistants | yes |
+<!-- /generated:scopes -->
+
+## Refusal codes
+
+The database and the core refuse some changes with a code of their own (ZFnnn), which the core turns into one sentence for the person; an API client sees that sentence, not the code. Generated from the migrations and the core; `pnpm test` fails when this table is out of date.
+
+<!-- generated:refusal-codes -->
+| Code | Raised with |
+| --- | --- |
+| `ZF403` | A Snapshot keeps its period and who took it.; A Snapshot's numbers never change.; A deleted Snapshot stays deleted.; The Audit Log is add-only.; The Installation's audit is add-only. |
+| `ZF409` | A row changed meanwhile.; The period changed meanwhile.; The rows changed meanwhile.; The value changed meanwhile.; This person is the last Installation Admin. Add another Installation Admin first. |
+| `ZF429` | metrics_per_day |
+| `ZF430` | metrics_per_trial |
+| `ZF431` | access_keys_per_trial |
+| `ZF432` | feed_keys_per_feed |
+| `ZF433` | feeds_per_trial |
+| `ZF434` | assistants_per_trial |
+| `ZF440` | This Metric is archived |
+| `ZF441` | This period was condensed; workspace_limit |
+| `ZF442` | This span overlaps one condensed already |
+| `ZF444` | Open work holds a period |
+| `ZF445` | That Metric was not found; The Condensed Value is no longer there; The values changed since they were counted |
+| `ZF446` | This period was condensed |
+| `ZF451` | At most 8 dashboards can be pinned |
+| `ZF4D0` | demo_read_only |
+| `ZF538` | Too many open Share Proposals. |
+| `ZF539` | Too many Share Proposals today. |
+<!-- /generated:refusal-codes -->

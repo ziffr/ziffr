@@ -102,11 +102,27 @@ Over its limit a Workspace keeps everything working: its Metrics, values, Prompt
 
 Every Workspace, person and API key has a daily or hourly ceiling on what it can send and store. They keep one Workspace or one program from using up your mail provider, the Telegram and Slack apps or your server. Each ceiling has a range and a normal value, shown under its field; leave a field empty to use the normal value. Each is also an environment variable named `ZIFFR_LIMIT_...`, and a value set on the server wins, as everywhere on this page.
 
-- **Mail and messages**: emails per Workspace per day (50 to 100,000; normal 500), Telegram and Slack messages per Workspace per day (50 to 50,000; 500, for each of the two), emails per person per day (20 to 5,000; 300), invitation emails per Workspace per day (10 to 2,000; 50), and tries per message before it counts as failed (1 to 10; 5). What is over a daily limit waits in the queue for the next day. If your mail provider allows only a few hundred emails a day in all, lower the first one.
-- **Alerts**: Alerts per Workspace (50 to 10,000; 500) and Alert messages per Workspace per day (100 to 100,000; 2,000). Past the second, Alerts still fire into the list; only the messages wait.
-- **Programs**: values per API key per day (100 to 1,000,000; 1,000), values per Feed per day (1,000 to 10,000,000; 10,000, and the most a person may paste in a day), and calls per API key per minute (30 to 6,000; 60). A program that sends every minute for 20 Metrics sends 28,800 values a day: raise the first one for it.
-- **Webhooks**: Webhooks per Workspace (1 to 50; 5) and Webhook sends per Workspace per day (100 to 1,000,000; 10,000).
-- **Sign-in and storage**: sign-in links per network address per hour (5 to 500; 20; raise it for a company or school whose people all sign in from one address), Contacts per Workspace (100 to 100,000; 1,000) and Snapshots per dashboard (100 to 50,000; 500).
+Generated from the code, with the range each may be set to and its normal value (`pnpm test` fails when this table is out of date):
+
+<!-- generated:sending-limits -->
+| Setting | Safeguard | Range | Normal |
+| --- | --- | --- | --- |
+| `ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY` | Emails per Workspace per day | 50 to 100,000 | 500 |
+| `ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY` | Telegram and Slack messages per Workspace per day | 50 to 50,000 | 500 |
+| `ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY` | Emails per person per day | 20 to 5,000 | 300 |
+| `ZIFFR_LIMIT_SEND_ATTEMPTS` | Tries per message | 1 to 10 | 5 |
+| `ZIFFR_LIMIT_ALERTS_PER_WORKSPACE` | Alerts per Workspace | 50 to 10,000 | 500 |
+| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_WORKSPACE_PER_DAY` | Alert messages per Workspace per day | 100 to 100,000 | 2,000 |
+| `ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY` | Invitation emails per Workspace per day | 10 to 2,000 | 50 |
+| `ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY` | Values per API key per day | 100 to 1,000,000 | 1,000 |
+| `ZIFFR_LIMIT_VALUES_PER_FEED_PER_DAY` | Values per Feed per day | 1,000 to 10,000,000 | 10,000 |
+| `ZIFFR_LIMIT_CALLS_PER_KEY_PER_MINUTE` | Calls per API key per minute | 30 to 6,000 | 60 |
+| `ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE` | Webhooks per Workspace | 1 to 50 | 5 |
+| `ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY` | Webhook sends per Workspace per day | 100 to 1,000,000 | 10,000 |
+| `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | 5 to 500 | 20 |
+| `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | 100 to 100,000 | 1,000 |
+| `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | 100 to 50,000 | 500 |
+<!-- /generated:sending-limits -->
 
 None of them can be switched off: a number outside the range is refused with its range, and a wrong value on the server is ignored in favour of the normal one. They are the same for every Workspace, whatever its Metrics limit, and Ziffr Cloud never changes them. Lowering one never deletes or stops what already exists: a Workspace with more Webhooks than you now allow keeps them and only cannot add new ones; messages already waiting are sent as the new limit allows. A change takes effect within seconds, without a restart. Limits the database itself enforces, such as how many values a Metric takes in a day, are not set here.
 

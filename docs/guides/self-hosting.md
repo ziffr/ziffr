@@ -152,6 +152,103 @@ Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Li
 - **Hosted Ziffr only:** `ZIFFR_CLOUD_KEY` and `ZIFFR_CLOUD_URL` let a billing service set limits through a signed API and hand Owners over to it. Leave both unset and neither exists: the endpoints answer 404 and no screen mentions a Size or a price. The API is in the [reference](../reference/cloud-api.md); set `ZIFFR_SITE_URL` too, since the Owners' handover names it.
 - Trials that stay, and Workspaces deleted for being unused, are in their own sections below.
 
+### Every Installation Setting
+
+Generated from the Installation Settings catalogue (`packages/core/src/installation-catalogue.ts`), the same list the page shows; `pnpm test` fails when it is out of date.
+
+<!-- generated:installation-settings -->
+**Mail**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_SMTP_URL` | Mail server | secret | The SMTP server, with its user and password: smtps:// for port 465, smtp:// for 587 or 25. |
+| `ZIFFR_MAIL_FROM` | Sender | `Ziffr <ziffr@example.com>` | The address emails come from, with a name if you like. Your mail server must be allowed to send as it. |
+
+**Replies by email**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_INBOUND_DOMAIN` | Domain for replies | `in.ziffr.example.com` | The domain replies go to; its MX record points at your inbound mail provider. |
+| `ZIFFR_INBOUND_SECRET` | Signing secret | secret | Signs what the provider forwards to Ziffr; 32 characters or more. |
+| `ZIFFR_INBOUND_AUTHSERV_ID` | Provider that vouches for senders | `mx.example.com` | The name your provider writes in Authentication-Results; with it, only vouched-for senders are taken. |
+
+**Telegram**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_TELEGRAM_BOT_TOKEN` | Bot token | secret | Make a bot with @BotFather in Telegram (/newbot) and paste the token it gives you. Ziffr checks it with Telegram and tells Telegram where to send answers. |
+
+**Slack**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_SLACK_CLIENT_ID` | Client ID | `1234567890.1234567890` | On the app's Basic Information page in Slack, under App Credentials. |
+| `ZIFFR_SLACK_CLIENT_SECRET` | Client Secret | secret | Under App Credentials too: choose Show and copy it. |
+| `ZIFFR_SLACK_SIGNING_SECRET` | Signing Secret | secret | Under App Credentials too. Slack signs every request it sends Ziffr with it. |
+
+**Workspace Limits**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_DEFAULT_METRICS_LIMIT` | Default limit | `No limit` | The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more. |
+| `ZIFFR_DEFAULT_LIMIT_LABEL` | Name of the default | `Free` | What Owners and Admins see the default called, such as Free. At most 30 characters. |
+| `ZIFFR_DELETE_UNUSED_AFTER_DAYS` | Delete unused Workspaces after | `Never` | Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own. |
+
+**Sending limits**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY` | Emails per Workspace per day | `500` | The emails one Workspace may send in 24 hours; the rest wait in the queue. A small mail provider may allow a few hundred in all. 50 to 100,000; empty: 500. |
+| `ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY` | Telegram and Slack messages per Workspace per day | `500` | The same cap for each of the two: a Workspace may send this many Telegram messages and this many Slack messages in 24 hours. The providers' own limits stay below it. 50 to 50,000; empty: 500. |
+| `ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY` | Emails per person per day | `300` | The emails one person may cause in 24 hours as the sender of requests, questions and notices, over all their Workspaces. 20 to 5,000; empty: 300. |
+| `ZIFFR_LIMIT_SEND_ATTEMPTS` | Tries per message | `5` | How often a queued email, Telegram or Slack message is tried before it counts as failed. A flaky mail server may need more. 1 to 10; empty: 5. |
+| `ZIFFR_LIMIT_ALERTS_PER_WORKSPACE` | Alerts per Workspace | `500` | The most Alerts one Workspace may hold in all. Those it holds above a lowered number stay. 50 to 10,000; empty: 500. |
+| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_WORKSPACE_PER_DAY` | Alert messages per Workspace per day | `2000` | The messages Alerts may send for one Workspace in a day, over all channels. After it Alerts still fire into the list; only the messages wait for tomorrow. 100 to 100,000; empty: 2,000. |
+| `ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY` | Invitation emails per Workspace per day | `50` | The invitation emails one Workspace may send in 24 hours. Each person may still send at most 50 a day. 10 to 2,000; empty: 50. |
+| `ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY` | Values per API key per day | `1000` | The values one API key may submit in 24 hours. A program that sends every minute for 20 Metrics sends 28,800 a day. 100 to 1,000,000; empty: 1,000. |
+| `ZIFFR_LIMIT_VALUES_PER_FEED_PER_DAY` | Values per Feed per day | `10000` | The values one Feed may record in 24 hours over all its keys. A person pasting values is held to the same number. 1,000 to 10,000,000; empty: 10,000. |
+| `ZIFFR_LIMIT_CALLS_PER_KEY_PER_MINUTE` | Calls per API key per minute | `60` | The calls one API key may make in any 60 seconds. 30 to 6,000; empty: 60. |
+| `ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE` | Webhooks per Workspace | `5` | The Webhooks one Workspace may hold. A Workspace that holds more than a lowered number keeps them; only new ones wait. 1 to 50; empty: 5. |
+| `ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY` | Webhook sends per Workspace per day | `10000` | The sends a Workspace's Webhooks make in a day; past it they wait for tomorrow. 100 to 1,000,000; empty: 10,000. |
+| `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | `20` | The sign-in links one network address may ask for in an hour, for any addresses. A company or school behind one address, all signing in at nine on Monday, needs more. 5 to 500; empty: 20. |
+| `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | `1000` | The Contacts one Workspace keeps at most. 100 to 100,000; empty: 1,000. |
+| `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | `500` | The Snapshots one dashboard keeps at most. 100 to 50,000; empty: 500. |
+
+**Marketplace**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_MARKETPLACE` | Connection | `off` | on lets this server talk to the Marketplace; off, or empty, makes no connection. Packs can always be installed from a file. |
+| `ZIFFR_MARKETPLACE_URL` | Marketplace address | `https://marketplace.ziffr.net` | Where the Marketplace is; empty: Ziffr's own. https only, and never inside this server's own network. |
+
+**Check against bots**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_TURNSTILE_SITE_KEY` | Site key | `0x4AAAAAAA…` | In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed. |
+| `ZIFFR_TURNSTILE_SECRET` | Secret key | secret | The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it. |
+
+**Trials**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `7` | 1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end. |
+| `ZIFFR_TRIAL_MAX` | Trials at once | `200` | The most trials that may run at the same time. Empty: 200. |
+| `ZIFFR_TRIAL_THEN` | When a trial ends | `delete`, `keep` | Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete. |
+
+**Usage**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_USAGE_EXCLUDE_WORKSPACE` | Workspace left out | `None` | One Workspace, usually your own for the numbers, that is left out of every figure and of the count of Workspaces. Pick it by name; the setting holds its id. |
+
+**Demo**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_DEMO` | Offer the demo | `1`, `0` | Whether the login page has Try the demo. |
+<!-- /generated:installation-settings -->
+
 ## Sending limits
 
 The abuse safeguards (emails and chat messages per Workspace and person per day, Alerts, values and calls per API key, Webhooks, sign-in links per network address, Contacts, Snapshots) have normal values that suit most Installations. Move one within its range with a `ZIFFR_LIMIT_*` variable (all are listed in `.env.example`) or in the **Sending limits** section of the Installation Settings page; a variable wins. A small mail provider may need the emails per day lowered, a busy Feed the values per day raised. None can be switched off: a value outside its range is refused on the page and ignored in the environment. Lowering one never deletes or stops what exists, and a change takes effect within seconds. They are the same for every Workspace. The user guide, chapter 18, has every range.

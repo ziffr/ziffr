@@ -37,6 +37,14 @@ Restart the assistant, then pick a Starter (below) or ask it, for example, "What
 
 ## What the assistant gets
 
+The server's tools and Starters, generated from the code (`pnpm test` fails when this list is out of date):
+
+<!-- generated:mcp-tools -->
+**52 tools:** `propose_share`, `list_workflows`, `get_workflow`, `create_workflow`, `update_workflow`, `delete_workflow`, `list_alerts`, `create_alert`, `update_alert`, `delete_alert`, `list_snapshots`, `get_snapshot`, `take_snapshot`, `list_actions`, `reply_to_action`, `set_action_status`, `mark_task_done`, `self_check`, `list_metrics`, `find`, `get_metric`, `get_thread`, `submit_value`, `create_metric`, `delete_metric`, `archive_metric`, `restore_metric`, `update_metric`, `list_submitters`, `set_submitters`, `list_feeds`, `list_target_series`, `set_target_series`, `list_projections`, `set_projections`, `get_unusual_value_check`, `set_unusual_value_check`, `get_workspace`, `my_schedule`, `period_status`, `list_people`, `list_dashboards`, `get_dashboard`, `list_templates`, `create_dashboard_from_template`, `create_dashboard`, `add_widget`, `update_widget`, `remove_widget`, `update_dashboard`, `add_finding`, `update_finding`.
+
+**10 Starters:** `what_can_i_do`, `my_week`, `weekly_review`, `record_values`, `build_dashboard`, `explain_metric`, `start_tracking`, `set_targets`, `alert_me`, `share_numbers`.
+<!-- /generated:mcp-tools -->
+
 Every tool is one call to Ziffr's API, so the scope it needs is the API's. The labels are the ones on the key form and the consent screen: "Read metrics" (`metrics:read`), "Submit values" (`values:submit`), "Create metrics" (`metrics:write`), "Change metrics" (`metrics:edit`), "Read dashboards" (`dashboards:read`), "Build dashboards" (`dashboards:write`), "Manage alerts" (`alerts:write`), "Read questions and tasks" (`actions:read`), "Answer questions and tasks" (`actions:write`), "Build workflows" (`workflows:write`), "Propose sharing" (`shares:propose`). A tool the key lacks the scope for answers `forbidden`; the server still lists every tool.
 
 | Tool | Needs | What it does |
