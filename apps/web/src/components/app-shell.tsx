@@ -8,11 +8,13 @@ import { useEffect, useState, useTransition } from "react";
 import { Activity, BarChart3, Blocks, ChevronRight, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { GuideLink, INSTALLATION, MAIN, PhoneMenu, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/top-bar";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/app/auth-actions";
+import { setViewer } from "@/app/actions";
+import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
 /** An icon for each page; anything not listed gets the settings icon. */
@@ -43,7 +45,7 @@ function isOn(path: string, href: string) {
 const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
-export function AppShell({ workspace, open, account, guide, demo, banners, collapsed, children }: { workspace: NavItem[]; open: number; account: Account | null; guide: string; demo?: React.ReactNode; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
+export function AppShell({ workspace, open, account, guide, demo, people, banners, collapsed, children }: { workspace: NavItem[]; open: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
   const path = usePathname();
   return (
     <TooltipProvider delay={300}>
@@ -67,13 +69,15 @@ export function AppShell({ workspace, open, account, guide, demo, banners, colla
           <SidebarFooter>
             <SidebarItem render={<GuideLink href={guide}>{null}</GuideLink>} icon={<CircleHelp aria-hidden />} label="User guide" active={path.startsWith("/guide")} />
             {account && <UserMenu account={account} />}
+            {people && <DemoMenu people={people} />}
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
           <header className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1 md:px-4">
             <SidebarTrigger className="hidden md:flex" />
             <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
-            {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
+            {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
+            {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
           </header>
           {banners}
           <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">{children}</main>
@@ -159,6 +163,37 @@ function UserMenu({ account }: { account: Account }) {
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => start(() => signOut())}><LogOut aria-hidden /> Sign out</DropdownMenuItem>
         </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The demo's "View as" person, where the signed-in app shows the user menu: their initial, name and role, opening the
+ * picker of the demo's made-up people and "Leave the demo". Nothing is saved; the core checks the person again. */
+function DemoMenu({ people }: { people: { profiles: Profile[]; current: string } }) {
+  const { collapsed } = useSidebar();
+  const [pending, start] = useTransition();
+  const me = people.profiles.find((p) => p.id === people.current);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger disabled={pending} title={`Viewing as ${me?.name ?? ""}`} className={cn("flex h-10 w-full items-center gap-2 rounded-md px-1.5 text-[13px] outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring", collapsed && "justify-center px-0")}>
+        <span aria-hidden className="stock flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">{me?.name[0]}</span>
+        <span className={cn("min-w-0 flex-1 text-left leading-tight", collapsed && "sr-only")}>
+          <span className="block truncate font-medium">{me?.name}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">Viewing as {me?.role.toLowerCase()}</span>
+        </span>
+        {!collapsed && <ChevronsUpDown aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side={collapsed ? "right" : "top"} className="w-72">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>View the demo as</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={people.current} onValueChange={(id) => { if (id !== people.current) start(() => setViewer(String(id))); }}>
+            {people.profiles.map((p) => <DropdownMenuRadioItem key={p.id} value={p.id}>{p.name}<span className="ml-auto text-xs text-muted-foreground">{p.role.toLowerCase()}</span></DropdownMenuRadioItem>)}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        {/* A full page load, not a client navigation (#14): the frame is drawn again without the demo. */}
+        <DropdownMenuGroup><DropdownMenuItem render={<a href="/demo/leave" />}><LogOut aria-hidden /> Leave the demo</DropdownMenuItem></DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

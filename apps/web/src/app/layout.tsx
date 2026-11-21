@@ -117,7 +117,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {sidebar ? (
-          <AppShell workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          <AppShell workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
             {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
           </AppShell>
         ) : (

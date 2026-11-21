@@ -117,7 +117,7 @@ Ziffr works best on a phone once you install it: it then opens from the home scr
 
 ### Preview: the new layout
 
-Under **Your profile**, **Try the new layout (preview)** swaps the top bar for a sidebar: the Workspace switcher at its top, then a **Search** field (Ctrl+K), **Actions** with its count, Dashboards, Decks, Metrics, Analyze and the Workspace's pages; **User guide** and your own menu sit at its bottom. The page becomes a card beside it, and the demo's controls sit in a slim bar at its top. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More.
+Under **Your profile**, **Try the new layout (preview)** swaps the top bar for a sidebar: the Workspace switcher at its top, then a **Search** field (Ctrl+K), **Actions** with its count, Dashboards, Decks, Metrics, Analyze and the Workspace's pages; **User guide** and your own menu sit at its bottom. The page becomes a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More.
 
 The choice is kept in this browser only. Untick it to go back to the top bar.
 

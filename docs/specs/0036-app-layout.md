@@ -38,7 +38,7 @@ Decisions (agreed with the owner):
 | User guide icon | **User guide** row at the bottom |
 | Account menu: Workspace list, New workspace | Workspace switcher at the top |
 | Account menu: your pages, Installation settings, Sign out | User menu at the bottom |
-| Demo controls row | Slim bar at the top of the page card |
+| Demo controls row | **Viewing as** person in the sidebar footer, where the user menu is (opens the picker and Leave the demo); a slim row on phones |
 | Phone hamburger | Bottom tab bar: Dashboards, Metrics, Actions, Search, More |
 | Alert me… dialog | Slide-over |
 
@@ -48,7 +48,7 @@ Below 768px there is no sidebar. A bar fixed at the bottom has **Dashboards, Met
 
 ## Demo controls
 
-**Viewing as** and **Leave the demo** stay in view on every page, in a 40px bar at the top of the card, beside the sidebar toggle. The line "Look around as anyone…" stays under it. On a phone the bar wraps.
+In the demo, the sidebar footer shows what the signed-in app shows there: the **Viewing as** person (initial, name, role). It opens the picker of the demo's made-up people and **Leave the demo**, so the demo looks like the signed-in app and the top of the page stays free. The line "Look around as anyone…" stays under the page header. On a phone, which has no sidebar, the same two controls keep a slim row at the top of the page.
 
 ## Themes
 
