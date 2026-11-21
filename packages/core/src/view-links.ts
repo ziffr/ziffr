@@ -169,7 +169,8 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
     // the unit its format used to add (spec 0022). Its Attainment keeps the methods it was made with (#130).
     const ws = String(link.workspace_id);
     const [yearStart, numberStyle] = await Promise.all([yearStartOf(ws), numberStyleOf(ws)]);
-    const metrics = frozen.data.metrics.map((m) => normalizeMetric(keptUnit(m)));
+    // A link made before descriptions were left out of what goes out still holds them: they are not sent (rule 3).
+    const metrics = frozen.data.metrics.map((m) => ({ ...normalizeMetric(keptUnit(m)), description: "" }));
     return { ...frozen, data: { ...frozen.data, metrics, yearStart, numberStyle, attainmentMethod: keptMethod(frozen.data.attainmentMethod), today: frozen.data.today ?? String(link.created_at).slice(0, 10) } };
   }
   // A link to a Snapshot reads it each time, so a deleted Snapshot ends the link; its words are those kept with it.

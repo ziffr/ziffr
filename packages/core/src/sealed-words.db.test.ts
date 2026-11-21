@@ -88,6 +88,20 @@ describe("a dashboard's introduction, a widget's title and a Finding's words", (
     expect(pooled.settings.headline).toBe(`New headline ${marker}`);
   });
 
+  it("keep a free layout's seed words sealed, and a free layout made free again does not nest its seed", async () => {
+    const { w, actor, dash, finding, marker } = await setup();
+    await updateWidget(actor, finding, { template: "canvas" });
+    const { data: first } = await db().from("widgets").select("settings").eq("id", finding).single();
+    const seed = (first!.settings as { canvasSeed: { settings: { headline: string } } }).canvasSeed;
+    expect(isSealed(seed.settings.headline)).toBe(true);
+    await updateWidget(actor, finding, { template: "canvas" });
+    const { data: again } = await db().from("widgets").select("settings").eq("id", finding).single();
+    expect(JSON.stringify(again!.settings)).not.toContain("canvasSeed\":{\"template\":\"canvas");
+    forgetWorkspaceKey(w.id);
+    const [widget] = await dashboardWidgets(actor, dash);
+    expect((widget.settings.canvasSeed?.settings as { headline?: string }).headline).toBe(`Headline ${marker}`);
+  });
+
   it("written before the upgrade, in clear, still read as they are, and are sealed when changed", async () => {
     const w = await workspace("Plain");
     cleanups.push(w.cleanup);

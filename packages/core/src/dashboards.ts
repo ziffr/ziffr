@@ -206,7 +206,9 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
     update.settings = { ...TEMPLATES[patch.template].settings, ...keep, ...(newSettings ?? {}) };
     if (patch.template === "design") update.settings = { ...designSettings((newSettings?.design ?? cur.settings.design)!.body), ...(newSettings ?? {}), design: newSettings?.design ?? cur.settings.design };
     // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
-    if (patch.template === "canvas") update.settings = { canvasSeed: { template: cur.template, metric_ids: cur.metric_ids, settings: cur.settings }, canvas: null };
+    // A widget that already is a free layout stays as it is: starting again from itself would nest a seed in a seed, each
+    // level a longer place for its words to be sealed at (spec 0028).
+    if (patch.template === "canvas") update.settings = cur.template === "canvas" ? cur.settings : { canvasSeed: { template: cur.template, metric_ids: cur.metric_ids, settings: cur.settings }, canvas: null };
     // A composed story starts with one panel: this Metric's change on the previous year, as period bars.
     if (patch.template === "story") update.settings = { ...(update.settings as object), panels: [{ type: "period-bars", metricIds: cur.metric_ids ?? [], measure: "pct-yoy", periods: 6, highlight: "projection", projections: true }] };
   }
